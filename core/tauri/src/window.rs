@@ -1364,16 +1364,16 @@ impl<R: Runtime> Window<R> {
                       let () = msg_send![array, addObject: v];
                     }
                     JsonValue::Number(val) => {
-                      if let Some(v) = val.as_i64() {
-                        let number: id = msg_send![class!(NSNumber), numberWithLongLong: v];
-                        let () = msg_send![array, addObject: number];
+                      let number: id = if let Some(v) = val.as_i64() {
+                        msg_send![class!(NSNumber), numberWithInteger: v]
                       } else if let Some(v) = val.as_u64() {
-                        let number: id = msg_send![class!(NSNumber), numberWithUnsignedLong: v];
-                        let () = msg_send![array, addObject: number];
+                        msg_send![class!(NSNumber), numberWithUnsignedLongLong: v]
                       } else if let Some(v) = val.as_f64() {
-                        let number: id = msg_send![class!(NSNumber), numberWithFloat: v];
-                        let () = msg_send![array, addObject: number];
-                      }
+                        msg_send![class!(NSNumber), numberWithDouble: v]
+                      } else {
+                        unreachable!()
+                      };
+                      let () = msg_send![array, addObject: number];
                     }
                     JsonValue::String(val) => {
                       let () = msg_send![array, addObject: NSString::new(&val)];
@@ -1409,13 +1409,16 @@ impl<R: Runtime> Window<R> {
                       let () = msg_send![data, setObject:value forKey: key];
                     }
                     JsonValue::Number(val) => {
-                      if let Some(number) = val.as_i64() {
-                        let () = msg_send![data, setObject:number forKey: key];
-                      } else if let Some(number) = val.as_u64() {
-                        let () = msg_send![data, setObject:number forKey: key];
-                      } else if let Some(number) = val.as_f64() {
-                        let () = msg_send![data, setObject:number forKey: key];
-                      }
+                      let number: id = if let Some(v) = val.as_i64() {
+                        msg_send![class!(NSNumber), numberWithInteger: v]
+                      } else if let Some(v) = val.as_u64() {
+                        msg_send![class!(NSNumber), numberWithUnsignedLongLong: v]
+                      } else if let Some(v) = val.as_f64() {
+                        msg_send![class!(NSNumber), numberWithDouble: v]
+                      } else {
+                        unreachable!()
+                      };
+                      let () = msg_send![data, setObject:number forKey: key];
                     }
                     JsonValue::String(val) => {
                       let () = msg_send![data, setObject:NSString::new(&val) forKey: key];

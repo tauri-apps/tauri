@@ -1323,9 +1323,15 @@ impl<R: Runtime> Window<R> {
           #[cfg(target_os = "ios")]
           {
             if !handled {
-              unsafe {
-                crate::ios::invoke_plugin(&plugin.into());
-              }
+              let plugin = plugin.to_string();
+              self.with_webview(move |webview| unsafe {
+                crate::ios::invoke_plugin(
+                  webview.inner(),
+                  &plugin.as_str().into(),
+                  resolver.callback.0,
+                  resolver.error.0,
+                );
+              })?;
             }
           }
 

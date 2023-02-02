@@ -17,8 +17,8 @@ class TauriPlugin: NSObject, Plugin {
 	@objc func load(webview: WKWebView) { }
 
 	@objc public func echo(_ invoke: Invoke) throws {
-		throw MyError.runtimeError("something wrong")
-		// invoke.resolve()
+		// throw MyError.runtimeError("something wrong")
+		invoke.resolve(.dictionary(["data": 0]))
 	}
 }
 

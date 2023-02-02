@@ -24,7 +24,7 @@ class PluginManager {
 				}
 				if let error = error {
 					invoke.reject("\(error)")
-                    toRust(error) // TODO app is crashing without this memory leak
+					toRust(error) // TODO app is crashing without this memory leak
 				}
 			} else {
 				let selector = Selector(("\(method):"))
@@ -55,10 +55,16 @@ public func registerPlugin(name: String, plugin: NSObject, webview: WKWebView) {
 }
 
 @_cdecl("invoke_plugin")
-func invokePlugin(name: UnsafePointer<SRString>) {
-    let invoke = Invoke(sendResponse: { (success: NSDictionary?, error: NSDictionary?) -> Void in
-		let log = OSLog(subsystem: "com.tauri.api", category: "com.tauri.api")
-		os_log("SENDING RESPONSE %{public}@ %{public}@ !!!!", log: log, type: .error, "\(success)", "\(error)")
+func invokePlugin(webview: WKWebView, name: UnsafePointer<SRString>, callback: UInt, error: UInt) {
+	let invoke = Invoke(sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
+		let (fn, payload) = errorResult == nil ? (callback, successResult) : (error, errorResult)
+		var payloadJson: String
+		do {
+			try payloadJson = payload == nil ? "null" : payload!.jsonRepresentation() ?? "`Failed to serialize payload`"
+		} catch {
+			payloadJson = "`\(error)`"
+		}
+		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
 	}, data: [:])
 	PluginManager.shared.invoke(name: name.pointee.to_string(), invoke: invoke)
 }

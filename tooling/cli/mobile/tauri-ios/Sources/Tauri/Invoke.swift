@@ -14,30 +14,29 @@ import MetalKit
 		return ISO8601DateFormatter()
 	}()
 
-	var sendResponse: (NSDictionary?, NSDictionary?) -> Void
+	var sendResponse: (JsonValue?, JsonValue?) -> Void
 	var data: NSDictionary
 
-	public init(sendResponse: @escaping (NSDictionary?, NSDictionary?) -> Void, data: NSDictionary) {
+	public init(sendResponse: @escaping (JsonValue?, JsonValue?) -> Void, data: NSDictionary) {
 		self.sendResponse = sendResponse
 		self.data = data
 	}
 
-	public func resolve() {
-		sendResponse(nil, nil)
-	}
-
-	public func resolve(_ data: NSDictionary = [:]) {
+	public func resolve(_ data: JsonValue? = nil) {
 		sendResponse(data, nil)
 	}
 
-	public func reject(_ message: String, _ code: String? = nil, _ error: Error? = nil, _ data: NSDictionary? = nil) {
+	public func reject(_ message: String, _ code: String? = nil, _ error: Error? = nil, _ data: JsonValue? = nil) {
 		let payload: NSMutableDictionary = ["message": message, "code": code ?? "", "error": error ?? ""]
 		if let data = data {
-			for entry in data {
-				payload[entry.key] = entry.value
+			switch data {
+			case .dictionary(let dict):
+				for entry in dict {
+					payload[entry.key] = entry.value
+				}
 			}
 		}
-		sendResponse(nil, payload)
+		sendResponse(nil, .dictionary(payload as! JsonObject))
 	}
 
 	public func unimplemented() {
@@ -45,7 +44,7 @@ import MetalKit
 	}
 
 	public func unimplemented(_ message: String) {
-		sendResponse(nil, ["message": message])
+		sendResponse(nil, .dictionary(["message": message]))
 	}
 
 	public func unavailable() {
@@ -53,6 +52,6 @@ import MetalKit
 	}
 
 	public func unavailable(_ message: String) {
-		sendResponse(nil, ["message": message])
+		sendResponse(nil, .dictionary(["message": message]))
 	}
 }

@@ -156,8 +156,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   } else {
     handlebars
       .register_template_string("main.desktop", include_str!("./templates/main.desktop"))
-      .map_err(|e| e.to_string())
-      .expect("Failed to setup handlebar template");
+      .with_context(|| "Failed to setup custom handlebar template")?;
   }
 
   #[derive(Serialize)]

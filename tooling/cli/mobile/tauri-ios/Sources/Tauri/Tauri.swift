@@ -24,6 +24,7 @@ class PluginManager {
 				}
 				if let error = error {
 					invoke.reject("\(error)")
+                    toRust(error) // TODO app is crashing without this memory leak
 				}
 			} else {
 				let selector = Selector(("\(method):"))

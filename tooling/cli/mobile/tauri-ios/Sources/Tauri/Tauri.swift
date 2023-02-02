@@ -55,7 +55,7 @@ public func registerPlugin(name: String, plugin: NSObject, webview: WKWebView) {
 }
 
 @_cdecl("invoke_plugin")
-func invokePlugin(webview: WKWebView, name: UnsafePointer<SRString>, callback: UInt, error: UInt) {
+func invokePlugin(webview: WKWebView, name: UnsafePointer<SRString>, data: NSDictionary, callback: UInt, error: UInt) {
 	let invoke = Invoke(sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
 		let (fn, payload) = errorResult == nil ? (callback, successResult) : (error, errorResult)
 		var payloadJson: String
@@ -65,6 +65,6 @@ func invokePlugin(webview: WKWebView, name: UnsafePointer<SRString>, callback: U
 			payloadJson = "`\(error)`"
 		}
 		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
-	}, data: [:])
+	}, data: data)
 	PluginManager.shared.invoke(name: name.pointee.to_string(), invoke: invoke)
 }

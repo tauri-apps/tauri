@@ -116,6 +116,7 @@ jni = "0.20"
 [target."cfg(target_os = \"ios\")".dependencies]
 log = "0.4"
 libc = "0.2"
+objc = "0.2"
 cocoa = "0.24"
 swift-rs = { path = "../../../swift-rs/" }
 

@@ -1109,7 +1109,7 @@
           }
         },
         "desktopTemplate": {
-          "description": "By default, the bundler uses an internal template. This option allows you to define your own desktop file.",
+          "description": "Path to a custom desktop file template.",
           "type": [
             "string",
             "null"

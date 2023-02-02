@@ -149,8 +149,7 @@ pub struct DebianSettings {
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
-  /// By default, the bundler uses an internal template.
-  /// This option allows you to define your own desktop file.
+  /// Path to a custom desktop file template.
   pub desktop_template: Option<PathBuf>,
 }
 

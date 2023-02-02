@@ -17,22 +17,22 @@ class PluginManager(private val webView: WebView) {
       "Tauri plugin: pluginId: $pluginId, methodName: $methodName, callback: $callback, error: $error"
     )
 
+    val invoke = Invoke({ successResult, errorResult ->
+      val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(
+        error,
+        errorResult
+      )
+      webView.evaluateJavascript("window['_$fn']($result)", null)
+    }, data)
     try {
       val plugin = plugins[pluginId]
       if (plugin == null) {
-        webView.evaluateJavascript("window['_$error'](`Plugin $pluginId not initialized`)", null)
+        invoke.reject("Plugin $pluginId not initialized")
       } else {
-        plugins[pluginId]?.invoke(methodName, Invoke({ _, successResult, errorResult ->
-          val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(
-            error,
-            errorResult
-          )
-          webView.evaluateJavascript("window['_$fn']($result)", null)
-        }, data))
+        plugins[pluginId]?.invoke(methodName, invoke)
       }
     } catch (e: Exception) {
-      val message = e.toString()
-      webView.evaluateJavascript("window['_$error'](`$message`)", null)
+      invoke.reject(e.toString())
     }
   }
 }

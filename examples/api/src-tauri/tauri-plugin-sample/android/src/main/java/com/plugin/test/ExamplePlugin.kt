@@ -9,10 +9,10 @@ class ExamplePlugin: Plugin() {
     private val implementation = Example()
 
     @PluginMethod
-    fun echo(invoke: Invoke) {
+    fun ping(invoke: Invoke) {
         val value = invoke.getString("value") ?: ""
         val ret = JSObject()
-        ret.put("value", implementation.echo(value))
+        ret.put("value", implementation.pong(value))
         invoke.resolve(ret)
     }
 }

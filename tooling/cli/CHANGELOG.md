@@ -1,5 +1,24 @@
 # Changelog
 
+## \[2.0.0-alpha.2]
+
+- Fixes `TAURI_*` environment variables for hook scripts on mobile commands.
+  - [1af9be90](https://www.github.com/tauri-apps/tauri/commit/1af9be904a309138b9f79dc741391000b1652c75) feat(cli): properly fill target for TAURI\_ env vars on mobile ([#6116](https://www.github.com/tauri-apps/tauri/pull/6116)) on 2023-01-23
+- Force colored logs on mobile commands.
+  - [2c4a0bbd](https://www.github.com/tauri-apps/tauri/commit/2c4a0bbd1fbe15d7500264e6490772397e1917ed) feat(cli): force colored logs on mobile commands ([#5934](https://www.github.com/tauri-apps/tauri/pull/5934)) on 2022-12-28
+- Keep the process alive even when the iOS application is closed.
+  - [dee9460f](https://www.github.com/tauri-apps/tauri/commit/dee9460f9c9bc92e9c638e7691e616849ac2085b) feat: keep CLI alive when iOS app exits, show logs, closes [#5855](https://www.github.com/tauri-apps/tauri/pull/5855) ([#5902](https://www.github.com/tauri-apps/tauri/pull/5902)) on 2022-12-27
+- Show all application logs on iOS.
+  - [dee9460f](https://www.github.com/tauri-apps/tauri/commit/dee9460f9c9bc92e9c638e7691e616849ac2085b) feat: keep CLI alive when iOS app exits, show logs, closes [#5855](https://www.github.com/tauri-apps/tauri/pull/5855) ([#5902](https://www.github.com/tauri-apps/tauri/pull/5902)) on 2022-12-27
+- Print log output for all tags on Android development.
+  - [8cc11149](https://www.github.com/tauri-apps/tauri/commit/8cc111494d74161e489152e52191e1442dd99759) fix(cli): print Android logs for all tags on 2023-01-17
+- Add support to custom and kebab case library names for mobile apps.
+  - [50f6dd87](https://www.github.com/tauri-apps/tauri/commit/50f6dd87b1ac2c99f8794b055f1acba4ef7d34d3) feat: improvements to support hyphens in crate name ([#5989](https://www.github.com/tauri-apps/tauri/pull/5989)) on 2023-01-06
+- Bump the MSRV to 1.64.
+  - [7eb9aa75](https://www.github.com/tauri-apps/tauri/commit/7eb9aa75cfd6a3176d3f566fdda02d88aa529b0f) Update gtk to 0.16 ([#6155](https://www.github.com/tauri-apps/tauri/pull/6155)) on 2023-01-30
+- Fix target directory detection when compiling for Android.
+  - [e873bae0](https://www.github.com/tauri-apps/tauri/commit/e873bae09f0f27517f720a753f51c1dcb903f883) fix(cli): Cargo target dir detection on Android, closes [#5865](https://www.github.com/tauri-apps/tauri/pull/5865) ([#5932](https://www.github.com/tauri-apps/tauri/pull/5932)) on 2022-12-28
+
 ## \[2.0.0-alpha.1]
 
 - Fixes running on device using Xcode 14.

@@ -49,7 +49,7 @@ url = { version = "2.3" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1"
-tauri-runtime = { version = "0.14.0-alpha.0", path = "../tauri-runtime" }
+tauri-runtime = { version = "0.13.0-alpha.1", path = "../tauri-runtime" }
 tauri-macros = { version = "2.0.0-alpha.1", path = "../tauri-macros" }
 tauri-utils = { version = "2.0.0-alpha.1", features = [ "resources" ], path = "../tauri-utils" }
 tauri-runtime-wry = { version = "0.13.0-alpha.1", path = "../tauri-runtime-wry", optional = true }

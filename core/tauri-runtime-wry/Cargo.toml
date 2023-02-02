@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 wry = { version = "0.26.0", default-features = false, features = [ "file-drop", "protocol" ] }
-tauri-runtime = { version = "0.14.0-alpha.0", path = "../tauri-runtime" }
+tauri-runtime = { version = "0.13.0-alpha.1", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-alpha.1", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"

@@ -1459,6 +1459,7 @@ impl<R: Runtime> Window<R> {
                   crate::ios::invoke_plugin(
                     webview.inner(),
                     &plugin.as_str().into(),
+                    &message.command.as_str().into(),
                     data,
                     resolver.callback.0,
                     resolver.error.0,

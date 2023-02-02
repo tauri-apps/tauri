@@ -12,10 +12,9 @@ class PluginManager {
 		plugins[name] = plugin
 	}
 
-	func invoke(name: String, invoke: Invoke) {
-		let method = "echo"
+	func invoke(name: String, methodName: String, invoke: Invoke) {
 		if let plugin = plugins[name] as? NSObject {
-			let selectorWithThrows = Selector(("\(method):error:"))
+			let selectorWithThrows = Selector(("\(methodName):error:"))
 			if plugin.responds(to: selectorWithThrows) {
 				var error: NSError? = nil
 				withUnsafeMutablePointer(to: &error) {
@@ -27,11 +26,11 @@ class PluginManager {
 					toRust(error) // TODO app is crashing without this memory leak
 				}
 			} else {
-				let selector = Selector(("\(method):"))
+				let selector = Selector(("\(methodName):"))
 				if plugin.responds(to: selector) {
 					plugin.perform(selector, with: invoke)
 				} else {
-					invoke.reject("No method \(method) found for plugin \(name)")
+					invoke.reject("No method \(methodName) found for plugin \(name)")
 				}
 			}
 		} else {
@@ -55,7 +54,7 @@ public func registerPlugin(name: String, plugin: NSObject, webview: WKWebView) {
 }
 
 @_cdecl("invoke_plugin")
-func invokePlugin(webview: WKWebView, name: UnsafePointer<SRString>, data: NSDictionary, callback: UInt, error: UInt) {
+func invokePlugin(webview: WKWebView, name: UnsafePointer<SRString>, methodName: UnsafePointer<SRString>, data: NSDictionary, callback: UInt, error: UInt) {
 	let invoke = Invoke(sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
 		let (fn, payload) = errorResult == nil ? (callback, successResult) : (error, errorResult)
 		var payloadJson: String
@@ -66,5 +65,5 @@ func invokePlugin(webview: WKWebView, name: UnsafePointer<SRString>, data: NSDic
 		}
 		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
 	}, data: data)
-	PluginManager.shared.invoke(name: name.pointee.to_string(), invoke: invoke)
+	PluginManager.shared.invoke(name: name.pointee.to_string(), methodName: methodName.pointee.to_string(), invoke: invoke)
 }

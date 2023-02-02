@@ -118,14 +118,14 @@ log = "0.4"
 libc = "0.2"
 objc = "0.2"
 cocoa = "0.24"
-swift-rs = { path = "../../../swift-rs/" }
+swift-rs = { git = "https://github.com/lucasfernog/swift-rs", branch = "fix/sdk-name" }
 
 [build-dependencies]
 heck = "0.4"
 once_cell = "1"
 
 [target."cfg(target_os = \"macos\")".build-dependencies]
-swift-rs = { path = "../../../swift-rs/", features = ["build"] }
+swift-rs = { git = "https://github.com/lucasfernog/swift-rs", branch = "fix/sdk-name", features = ["build"] }
 
 [dev-dependencies]
 mockito = "0.31"

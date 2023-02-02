@@ -2864,6 +2864,7 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 [[package]]
 name = "swift-rs"
 version = "0.3.0"
+source = "git+https://github.com/lucasfernog/swift-rs?branch=fix/sdk-name#9965a6febe5d12653dcbd209ef2943b1412ae501"
 dependencies = [
  "base64",
  "serde",

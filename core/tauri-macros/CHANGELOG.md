@@ -1,5 +1,14 @@
 # Changelog
 
+## \[2.0.0-alpha.1]
+
+- Refactor mobile environment variables.
+  - [dee9460f](https://www.github.com/tauri-apps/tauri/commit/dee9460f9c9bc92e9c638e7691e616849ac2085b) feat: keep CLI alive when iOS app exits, show logs, closes [#5855](https://www.github.com/tauri-apps/tauri/pull/5855) ([#5902](https://www.github.com/tauri-apps/tauri/pull/5902)) on 2022-12-27
+- Bump the MSRV to 1.64.
+  - [7eb9aa75](https://www.github.com/tauri-apps/tauri/commit/7eb9aa75cfd6a3176d3f566fdda02d88aa529b0f) Update gtk to 0.16 ([#6155](https://www.github.com/tauri-apps/tauri/pull/6155)) on 2023-01-30
+- Removed mobile logging initialization, which will be handled by `tauri-plugin-log`.
+  - [](https://www.github.com/tauri-apps/tauri/commit/undefined)  on undefined
+
 ## \[2.0.0-alpha.0]
 
 - Added the `mobile_entry_point` macro.

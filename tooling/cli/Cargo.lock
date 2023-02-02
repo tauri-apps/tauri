@@ -3796,7 +3796,6 @@ dependencies = [
  "notify",
  "notify-debouncer-mini",
  "once_cell",
- "openssl",
  "os_info",
  "os_pipe",
  "regex",

@@ -14,7 +14,7 @@ pub struct RequestBody {
 
 #[command]
 pub fn log_operation(event: String, payload: Option<String>) {
-  println!("{} {:?}", event, payload);
+  log::info!("{} {:?}", event, payload);
 }
 
 #[command]

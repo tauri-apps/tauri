@@ -33,7 +33,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1
 
       - name: setup node
         uses: actions/setup-node@v3

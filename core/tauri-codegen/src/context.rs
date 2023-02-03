@@ -303,6 +303,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       version: #package_version.parse().unwrap(),
       authors: env!("CARGO_PKG_AUTHORS"),
       description: env!("CARGO_PKG_DESCRIPTION"),
+      crate_name: env!("CARGO_PKG_NAME"),
     }
   );
 

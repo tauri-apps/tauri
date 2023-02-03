@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.1]
+
+- Bump the MSRV to 1.64.
+  - [7eb9aa75](https://www.github.com/tauri-apps/tauri/commit/7eb9aa75cfd6a3176d3f566fdda02d88aa529b0f) Update gtk to 0.16 ([#6155](https://www.github.com/tauri-apps/tauri/pull/6155)) on 2023-01-30
+
 ## \[2.0.0-alpha.0]
 
 - First mobile alpha release!

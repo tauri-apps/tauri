@@ -1,5 +1,14 @@
 # Changelog
 
+## \[0.13.0-alpha.1]
+
+- Update gtk to 0.16.
+  - [7eb9aa75](https://www.github.com/tauri-apps/tauri/commit/7eb9aa75cfd6a3176d3f566fdda02d88aa529b0f) Update gtk to 0.16 ([#6155](https://www.github.com/tauri-apps/tauri/pull/6155)) on 2023-01-30
+- Bump the MSRV to 1.64.
+  - [7eb9aa75](https://www.github.com/tauri-apps/tauri/commit/7eb9aa75cfd6a3176d3f566fdda02d88aa529b0f) Update gtk to 0.16 ([#6155](https://www.github.com/tauri-apps/tauri/pull/6155)) on 2023-01-30
+- Update wry to 0.26.
+  - [f0a1d9cd](https://www.github.com/tauri-apps/tauri/commit/f0a1d9cdbcfb645ce1c5f1cdd597f764991772cd) chore: update rfd and wry versions ([#6174](https://www.github.com/tauri-apps/tauri/pull/6174)) on 2023-02-03
+
 ## \[0.13.0-alpha.0]
 
 - Support `with_webview` for Android platform alowing execution of JNI code in context.

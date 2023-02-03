@@ -221,20 +221,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   let s = config.tauri.bundle.identifier.split('.');
   let last = s.clone().count() - 1;
-  let mut domain = String::new();
   let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
     if i != last {
-      domain.push_str(w);
-      domain.push('.');
-
       android_package_prefix.push_str(w);
       android_package_prefix.push('_');
     }
   }
-  domain.pop();
   android_package_prefix.pop();
-  println!("cargo:rustc-env=TAURI_MOBILE_DOMAIN={domain}");
   println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_PREFIX={android_package_prefix}");
 
   cfg_alias("dev", !has_feature("custom-protocol"));

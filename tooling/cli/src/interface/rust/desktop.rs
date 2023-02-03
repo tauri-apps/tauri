@@ -151,10 +151,10 @@ pub fn build(
 
       let triple_out_dir = app_settings
         .out_dir(Some(triple.into()), options.debug)
-        .with_context(|| format!("failed to get {} out dir", triple))?;
+        .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())
-        .with_context(|| format!("failed to build {} binary", triple))?;
+        .with_context(|| format!("failed to build {triple} binary"))?;
 
       lipo_cmd.arg(triple_out_dir.join(bin_name));
     }
@@ -162,8 +162,7 @@ pub fn build(
     let lipo_status = lipo_cmd.output_ok()?.status;
     if !lipo_status.success() {
       return Err(anyhow::anyhow!(format!(
-        "Result of `lipo` command was unsuccessful: {}. (Is `lipo` installed?)",
-        lipo_status
+        "Result of `lipo` command was unsuccessful: {lipo_status}. (Is `lipo` installed?)"
       )));
     }
   } else {

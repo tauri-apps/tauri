@@ -34,7 +34,7 @@ jobs:
     - name: Install Linux dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y webkit2gtk-4.0
+        sudo apt-get install -y webkit2gtk-4.1
 
     - uses: Swatinem/rust-cache@v2
 

@@ -254,8 +254,7 @@ impl<'d> serde::de::Visitor<'d> for AppCategoryVisitor {
     match self.did_you_mean {
       Some(string) => write!(
         formatter,
-        "a valid app category string (did you mean \"{}\"?)",
-        string
+        "a valid app category string (did you mean \"{string}\"?)"
       ),
       None => write!(formatter, "a valid app category string"),
     }

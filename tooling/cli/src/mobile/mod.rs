@@ -3,7 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{
+      get as get_config, reload as reload_config, AppUrl, Config as TauriConfig, WindowUrl,
+    },
+  },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
 use anyhow::{bail, Result};
@@ -125,6 +130,43 @@ pub struct CliOptions {
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
+}
+
+fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> {
+  let config = get_config(config_extension.as_deref())?;
+
+  let mut dev_path = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .dev_path
+    .clone();
+
+  if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
+    let localhost = match url.host() {
+      Some(url::Host::Domain(d)) => d == "localhost",
+      Some(url::Host::Ipv4(i)) => {
+        i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
+      }
+      _ => false,
+    };
+    if localhost {
+      let ip = crate::dev::local_ip_address();
+      url.set_host(Some(&ip.to_string())).unwrap();
+      if let Some(c) = config_extension {
+        let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
+        c.build.dev_path = dev_path.clone();
+        config_extension.replace(serde_json::to_string(&c).unwrap());
+      } else {
+        config_extension.replace(format!(r#"{{ "build": {{ "devPath": "{url}" }} }}"#));
+      }
+      reload_config(config_extension.as_deref())?;
+    }
+  }
+
+  Ok(())
 }
 
 fn env_vars() -> HashMap<String, OsString> {

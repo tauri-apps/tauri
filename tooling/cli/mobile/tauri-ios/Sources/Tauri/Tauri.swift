@@ -3,32 +3,53 @@ import MetalKit
 import WebKit
 import os.log
 
+class PluginHandle {
+	var instance: NSObject
+	var loaded = false
+
+	init(plugin: NSObject) {
+		instance = plugin
+	}
+}
+
 class PluginManager {
 	static var shared: PluginManager = PluginManager()
-	var plugins: NSMutableDictionary = [:]
+	var plugins: [String:PluginHandle] = [:]
 
-	func load(name: String, plugin: NSObject, webview: WKWebView) {
-		plugin.perform(#selector(Plugin.load), with: webview)
-		plugins[name] = plugin
+	func onWebviewCreated(_ webview: WKWebView) {
+    for (_, handle) in plugins {
+      if (!handle.loaded) {
+        handle.instance.perform(#selector(Plugin.load), with: webview)
+      }
+    }
+  }
+
+	func load<P: Plugin & NSObject>(webview: WKWebView?, name: String, plugin: P) {
+		let handle = PluginHandle(plugin: plugin)
+		if let webview = webview {
+			handle.instance.perform(#selector(Plugin.load), with: webview)
+			handle.loaded = true
+		}
+		plugins[name] = handle
 	}
 
 	func invoke(name: String, methodName: String, invoke: Invoke) {
-		if let plugin = plugins[name] as? NSObject {
+		if let plugin = plugins[name] {
 			let selectorWithThrows = Selector(("\(methodName):error:"))
-			if plugin.responds(to: selectorWithThrows) {
+			if plugin.instance.responds(to: selectorWithThrows) {
 				var error: NSError? = nil
 				withUnsafeMutablePointer(to: &error) {
-					let methodIMP: IMP! = plugin.method(for: selectorWithThrows)
+					let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
 					unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin, selectorWithThrows, invoke, OpaquePointer($0))
 				}
 				if let error = error {
 					invoke.reject("\(error)")
-					toRust(error) // TODO app is crashing without this memory leak
+					toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
 				}
 			} else {
 				let selector = Selector(("\(methodName):"))
-				if plugin.responds(to: selector) {
-					plugin.perform(selector, with: invoke)
+				if plugin.instance.responds(to: selector) {
+					plugin.instance.perform(selector, with: invoke)
 				} else {
 					invoke.reject("No method \(methodName) found for plugin \(name)")
 				}
@@ -45,12 +66,17 @@ extension PluginManager: NSCopying {
 	}
 }
 
-public func registerPlugin(name: String, plugin: NSObject, webview: WKWebView) {
+public func registerPlugin<P: Plugin & NSObject>(webview: WKWebView?, name: String, plugin: P) {
 	PluginManager.shared.load(
+		webview: webview,
 		name: name,
-		plugin: plugin,
-		webview: webview
+		plugin: plugin
 	)
+}
+
+@_cdecl("on_webview_created")
+func onWebviewCreated(webview: WKWebView) {
+	PluginManager.shared.onWebviewCreated(webview)
 }
 
 @_cdecl("invoke_plugin")

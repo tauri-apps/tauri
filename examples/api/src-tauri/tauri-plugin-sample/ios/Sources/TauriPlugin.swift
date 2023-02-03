@@ -14,7 +14,10 @@ class TauriPlugin: NSObject, Plugin {
 		os_log("Plugin init", log: log, type: .error)
 	}
 
-	@objc func load(webview: WKWebView) { }
+	@objc func load(webview: WKWebView) {
+		let log = OSLog(subsystem: "com.tauri.api", category: "com.tauri.api")
+		os_log("Plugin load", log: log, type: .error)
+	}
 
 	@objc public func echo(_ invoke: Invoke) throws {
 		// throw MyError.runtimeError("something wrong")
@@ -23,6 +26,6 @@ class TauriPlugin: NSObject, Plugin {
 }
 
 @_cdecl("init_plugin")
-func initPlugin(webview: WKWebView) {
-	Tauri.registerPlugin(name: "sample", plugin: TauriPlugin(), webview: webview)
+func initPlugin(webview: WKWebView?) {
+	Tauri.registerPlugin(webview: webview, name: "sample", plugin: TauriPlugin())
 }

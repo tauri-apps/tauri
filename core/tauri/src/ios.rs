@@ -10,4 +10,6 @@ extern "C" {
     callback: usize,
     error: usize,
   );
+
+  pub fn on_webview_created(webview: id);
 }

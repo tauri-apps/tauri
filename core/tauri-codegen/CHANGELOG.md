@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-alpha.1]
+
+- Bump the MSRV to 1.64.
+  - [7eb9aa75](https://www.github.com/tauri-apps/tauri/commit/7eb9aa75cfd6a3176d3f566fdda02d88aa529b0f) Update gtk to 0.16 ([#6155](https://www.github.com/tauri-apps/tauri/pull/6155)) on 2023-01-30
+- Added `crate_name` field on `PackageInfo`.
+  - [630a7f4b](https://www.github.com/tauri-apps/tauri/commit/630a7f4b18cef169bfd48673609306fec434e397) refactor: remove mobile log initialization, ref [#6049](https://www.github.com/tauri-apps/tauri/pull/6049) ([#6081](https://www.github.com/tauri-apps/tauri/pull/6081)) on 2023-01-17
+
 ## \[2.0.0-alpha.0]
 
 - Change `devPath` URL to use the local IP address on iOS and Android.

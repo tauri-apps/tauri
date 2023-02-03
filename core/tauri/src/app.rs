@@ -413,7 +413,11 @@ impl<R: Runtime> AppHandle<R> {
 
       // instantiate plugin
       let plugin_class = runtime_handle.find_class(env, activity, plugin_class)?;
-      let plugin = env.new_object(plugin_class, "()V", &[])?;
+      let plugin = env.new_object(
+        plugin_class,
+        "(Landroid/app/Activity;)V",
+        &[activity.into()],
+      )?;
 
       // load plugin
       env.call_method(

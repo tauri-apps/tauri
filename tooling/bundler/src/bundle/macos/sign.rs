@@ -14,12 +14,12 @@ use regex::Regex;
 const KEYCHAIN_ID: &str = "tauri-build.keychain";
 const KEYCHAIN_PWD: &str = "tauri-build";
 
-// Import certificate from ENV variables.
-// APPLE_CERTIFICATE is the p12 certificate base64 encoded.
-// By example you can use; openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt
-// Then use the value of the base64 in APPLE_CERTIFICATE env variable.
-// You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when you exported your certificate.
-// https://help.apple.com/xcode/mac/current/#/dev154b28f09 see: `Export a signing certificate`
+/// Import certificate from ENV variables.
+/// APPLE_CERTIFICATE is the p12 certificate base64 encoded.
+/// By example you can use; openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt
+/// Then use the value of the base64 in APPLE_CERTIFICATE env variable.
+/// You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when you exported your certificate.
+/// https://help.apple.com/xcode/mac/current/#/dev154b28f09 see: `Export a signing certificate`
 pub fn setup_keychain(
   certificate_encoded: OsString,
   certificate_password: OsString,
@@ -130,6 +130,7 @@ pub fn setup_keychain(
   Ok(())
 }
 
+/// Deletes the keychain we setup from the environment variables.
 pub fn delete_keychain() {
   // delete keychain if needed and skip any error
   let _ = Command::new("security")
@@ -138,6 +139,7 @@ pub fn delete_keychain() {
     .output_ok();
 }
 
+/// Sign the application.
 pub fn sign(
   path_to_sign: PathBuf,
   identity: &str,
@@ -212,6 +214,7 @@ fn try_sign(
   Ok(())
 }
 
+/// Notarize the application.
 pub fn notarize(
   app_bundle_path: PathBuf,
   auth_args: Vec<String>,
@@ -373,6 +376,7 @@ fn get_notarization_status(
   }
 }
 
+/// Authorization arguments for the notarization process. Read from environment variables.
 pub fn notarize_auth_args() -> crate::Result<Vec<String>> {
   match (
     std::env::var_os("APPLE_ID"),

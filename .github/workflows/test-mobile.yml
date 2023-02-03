@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-android:
+  test:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -77,14 +77,30 @@ jobs:
         working-directory: ./examples/api
         run: yarn
 
-      - name: Init Android Studio Project
+      - name: init Android Studio project
         working-directory: ./examples/api
         run: ../../tooling/cli/target/debug/cargo-tauri android init
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
-      - name: Build apk
+      - name: build APK
         working-directory: ./examples/api
         run: ../../tooling/cli/target/debug/cargo-tauri android build
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+
+      - name: setup iOS code signing certificate
+        if: matrix.platform == 'macos-latest'
+        run: ./tooling/cli/target/debug/cargo-tauri ios certificate setup
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: init XCode project
+        if: matrix.platform == 'macos-latest'
+        working-directory: ./examples/api
+        run: ../../tooling/cli/target/debug/cargo-tauri ios init
+
+      - name: build IPA
+        if: matrix.platform == 'macos-latest'
+        run: ../../tooling/cli/target/debug/cargo-tauri ios build

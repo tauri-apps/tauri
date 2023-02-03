@@ -384,6 +384,18 @@ impl<R: Runtime> AppHandle<R> {
     self.runtime_handle.create_proxy()
   }
 
+  /// Initializes an iOS plugin.
+  #[cfg(target_os = "ios")]
+  pub fn initialize_ios_plugin(&self, init_fn: unsafe extern "C" fn(cocoa::base::id)) {
+    if let Some(window) = self.windows().values().next() {
+      window.with_webview(move |w| {
+        unsafe { init_fn(w.inner()) };
+      });
+    } else {
+      unsafe { init_fn(cocoa::base::nil) };
+    }
+  }
+
   /// Initializes an Android plugin.
   #[cfg(target_os = "android")]
   pub fn initialize_android_plugin(

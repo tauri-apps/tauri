@@ -8,22 +8,8 @@ const PLUGIN_NAME: &str = "sample";
 const PLUGIN_IDENTIFIER: &str = "com.plugin.test";
 
 #[cfg(target_os = "ios")]
-mod ios {
-  use tauri::Runtime;
-
-  extern "C" {
-    fn init_plugin(webview: tauri::cocoa::base::id);
-  }
-
-  pub fn initialize_plugin<R: Runtime>(window: Option<tauri::Window<R>>) {
-    if let Some(window) = window {
-      window.with_webview(|w| {
-        unsafe { init_plugin(w.inner()) };
-      });
-    } else {
-      unsafe { init_plugin(tauri::cocoa::base::nil) };
-    }
-  }
+extern "C" {
+  fn init_plugin(webview: tauri::cocoa::base::id);
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
@@ -32,7 +18,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       #[cfg(target_os = "android")]
       app.initialize_android_plugin(PLUGIN_NAME, PLUGIN_IDENTIFIER, "ExamplePlugin")?;
       #[cfg(target_os = "ios")]
-      ios::initialize_plugin(Option::<tauri::Window<R>>::None);
+      app.initialize_ios_plugin(init_plugin);
       Ok(())
     })
     .build()

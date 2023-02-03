@@ -1826,6 +1826,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     find_class(env, activity, name.into())
   }
 
+  #[cfg(target_os = "android")]
   fn run_on_android_context<F>(&self, f: F)
   where
     F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)

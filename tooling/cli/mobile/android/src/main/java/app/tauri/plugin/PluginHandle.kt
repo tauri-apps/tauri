@@ -1,11 +1,19 @@
 package app.tauri.plugin
 
+import android.webkit.WebView
 import java.lang.reflect.Method
 
 class PluginHandle(val instance: Plugin) {
   private val pluginMethods: HashMap<String, PluginMethodData> = HashMap()
+  var loaded = false
+
   init {
     indexMethods()
+  }
+
+  fun load(webView: WebView) {
+    instance.load(webView)
+    loaded = true
   }
 
   @Throws(

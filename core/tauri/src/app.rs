@@ -391,52 +391,61 @@ impl<R: Runtime> AppHandle<R> {
     plugin_name: &'static str,
     plugin_identifier: &str,
     class_name: &str,
-  ) -> crate::Result<bool> {
-    if let Some(window) = self.windows().values().next() {
-      let plugin_class = format!("{}/{}", plugin_identifier.replace(".", "/"), class_name);
-      let runtime_handle = self.runtime_handle.clone();
-      window.with_webview(move |webview| {
-        webview.jni_handle().exec(move |env, activity, _webview| {
-          use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
+  ) -> crate::Result<()> {
+    use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
 
-          fn initialize_plugin<'a, R: Runtime>(
-            env: JNIEnv<'a>,
-            activity: JObject<'a>,
-            runtime_handle: &R::Handle,
-            plugin_name: &'static str,
-            plugin_class: String,
-          ) -> Result<(), JniError> {
-            let plugin_manager = env
-              .call_method(
-                activity,
-                "getPluginManager",
-                format!("()Lapp/tauri/plugin/PluginManager;"),
-                &[],
-              )?
-              .l()?;
+    fn initialize_plugin<'a, R: Runtime>(
+      env: JNIEnv<'a>,
+      activity: JObject<'a>,
+      webview: JObject<'a>,
+      runtime_handle: &R::Handle,
+      plugin_name: &'static str,
+      plugin_class: String,
+    ) -> Result<(), JniError> {
+      let plugin_manager = env
+        .call_method(
+          activity,
+          "getPluginManager",
+          format!("()Lapp/tauri/plugin/PluginManager;"),
+          &[],
+        )?
+        .l()?;
 
-            // instantiate plugin
-            let plugin_class = runtime_handle.find_class(env, activity, plugin_class)?;
-            let plugin = env.new_object(plugin_class, "()V", &[])?;
+      // instantiate plugin
+      let plugin_class = runtime_handle.find_class(env, activity, plugin_class)?;
+      let plugin = env.new_object(plugin_class, "()V", &[])?;
 
-            // load plugin
-            env.call_method(
-              plugin_manager,
-              "load",
-              format!("(Ljava/lang/String;Lapp/tauri/plugin/Plugin;)V"),
-              &[env.new_string(plugin_name)?.into(), plugin.into()],
-            )?;
+      // load plugin
+      env.call_method(
+        plugin_manager,
+        "load",
+        format!("(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;)V"),
+        &[
+          webview.into(),
+          env.new_string(plugin_name)?.into(),
+          plugin.into(),
+        ],
+      )?;
 
-            Ok(())
-          }
-
-          let _ = initialize_plugin::<R>(env, activity, &runtime_handle, plugin_name, plugin_class);
-        });
-      })?;
-      Ok(true)
-    } else {
-      Ok(false)
+      Ok(())
     }
+
+    let plugin_class = format!("{}/{}", plugin_identifier.replace(".", "/"), class_name);
+    let runtime_handle = self.runtime_handle.clone();
+    self
+      .runtime_handle
+      .run_on_android_context(move |env, activity, webview| {
+        let _ = initialize_plugin::<R>(
+          env,
+          activity,
+          webview,
+          &runtime_handle,
+          plugin_name,
+          plugin_class,
+        );
+      });
+
+    Ok(())
   }
 }
 

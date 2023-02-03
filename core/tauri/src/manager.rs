@@ -1287,24 +1287,23 @@ impl<R: Runtime> WindowManager<R> {
 
     #[cfg(target_os = "android")]
     {
-      let runtime_handle = app_handle.runtime_handle.clone();
       pending = pending.on_webview_created(move |ctx| {
-        use tauri_runtime::RuntimeHandle;
-        // load plugin manager
-        let plugin_manager_class =
-          runtime_handle.find_class(ctx.env, ctx.activity, "app/tauri/plugin/PluginManager")?;
+        let plugin_manager = ctx
+          .env
+          .call_method(
+            ctx.activity,
+            "getPluginManager",
+            format!("()Lapp/tauri/plugin/PluginManager;"),
+            &[],
+          )?
+          .l()?;
 
-        let plugin_manager = ctx.env.new_object(
-          plugin_manager_class,
-          "(Landroid/webkit/WebView;)V",
-          &[ctx.webview.into()],
-        )?;
-
+        // tell the manager the webview is ready
         ctx.env.call_method(
-          ctx.activity,
-          "setPluginManager",
-          format!("(Lapp/tauri/plugin/PluginManager;)V"),
-          &[plugin_manager.into()],
+          plugin_manager,
+          "onWebViewCreated",
+          format!("(Landroid/webkit/WebView;)V"),
+          &[ctx.webview.into()],
         )?;
 
         Ok(())

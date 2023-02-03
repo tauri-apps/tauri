@@ -3,15 +3,26 @@ package app.tauri.plugin
 import android.webkit.WebView
 import app.tauri.Logger
 
-class PluginManager(private val webView: WebView) {
+class PluginManager {
   private val plugins: HashMap<String, PluginHandle> = HashMap()
 
-  fun load(name: String, plugin: Plugin) {
-    plugin.load(webView)
-    plugins[name] = PluginHandle(plugin)
+  fun onWebViewCreated(webView: WebView) {
+    for ((_, plugin) in plugins) {
+      if (!plugin.loaded) {
+        plugin.load(webView)
+      }
+    }
   }
 
-  fun postMessage(pluginId: String, methodName: String, data: JSObject, callback: Long, error: Long) {
+  fun load(webView: WebView?, name: String, plugin: Plugin) {
+    val handle = PluginHandle(plugin)
+    plugins[name] = handle
+    if (webView != null) {
+      plugin.load(webView)
+    }
+  }
+
+  fun postMessage(webView: WebView, pluginId: String, methodName: String, data: JSObject, callback: Long, error: Long) {
     Logger.verbose(
       Logger.tags("Plugin"),
       "Tauri plugin: pluginId: $pluginId, methodName: $methodName, callback: $callback, error: $error"

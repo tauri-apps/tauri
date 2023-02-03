@@ -1,11 +1,12 @@
 package com.plugin.test
 
+import android.app.Activity
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.PluginMethod
 
-class ExamplePlugin: Plugin() {
+class ExamplePlugin(private val activity: Activity): Plugin() {
     private val implementation = Example()
 
     @PluginMethod

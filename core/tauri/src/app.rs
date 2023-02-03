@@ -386,14 +386,18 @@ impl<R: Runtime> AppHandle<R> {
 
   /// Initializes an iOS plugin.
   #[cfg(target_os = "ios")]
-  pub fn initialize_ios_plugin(&self, init_fn: unsafe extern "C" fn(cocoa::base::id)) {
+  pub fn initialize_ios_plugin(
+    &self,
+    init_fn: unsafe extern "C" fn(cocoa::base::id),
+  ) -> crate::Result<()> {
     if let Some(window) = self.windows().values().next() {
       window.with_webview(move |w| {
         unsafe { init_fn(w.inner()) };
-      });
+      })?;
     } else {
       unsafe { init_fn(cocoa::base::nil) };
     }
+    Ok(())
   }
 
   /// Initializes an Android plugin.

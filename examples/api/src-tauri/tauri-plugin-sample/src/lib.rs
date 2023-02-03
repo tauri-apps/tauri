@@ -9,7 +9,7 @@ const PLUGIN_IDENTIFIER: &str = "com.plugin.test";
 
 #[cfg(target_os = "ios")]
 extern "C" {
-  fn init_plugin(webview: tauri::cocoa::base::id);
+  fn init_plugin_sample(webview: tauri::cocoa::base::id);
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
@@ -18,7 +18,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       #[cfg(target_os = "android")]
       app.initialize_android_plugin(PLUGIN_NAME, PLUGIN_IDENTIFIER, "ExamplePlugin")?;
       #[cfg(target_os = "ios")]
-      app.initialize_ios_plugin(init_plugin);
+      app.initialize_ios_plugin(init_plugin_sample)?;
       Ok(())
     })
     .build()

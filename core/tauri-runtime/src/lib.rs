@@ -371,6 +371,15 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
     activity: jni::objects::JObject<'a>,
     name: impl Into<String>,
   ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error>;
+
+  /// Dispatch a closure to run on the Android context.
+  ///
+  /// The closure takes the JNI env, the Android activity instance and the possibly null webview.
+  fn run_on_android_context<F>(&self, f: F)
+  where
+    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
+      + Send
+      + 'static;
 }
 
 /// A global shortcut manager.

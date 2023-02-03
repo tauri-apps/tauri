@@ -26,22 +26,20 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   #[allow(unused_mut)]
   let mut builder = Builder::new(PLUGIN_NAME);
 
-  #[cfg(any(target_os = "android", target_os = "ios"))]
+  #[cfg(target_os = "ios")]
   {
     builder = builder.on_webview_ready(|window| {
-      #[cfg(target_os = "ios")]
       ios::initialize_plugin(window);
-
-      #[cfg(target_os = "android")]
-      {
-        use tauri::Manager;
-
-        window
-          .app_handle()
-          .initialize_android_plugin(PLUGIN_NAME, PLUGIN_IDENTIFIER, "ExamplePlugin")
-          .unwrap();
-      }
     });
   }
+
+  #[cfg(target_os = "android")]
+  {
+    builder = builder.setup(|app| {
+      app.initialize_android_plugin(PLUGIN_NAME, PLUGIN_IDENTIFIER, "ExamplePlugin")?;
+      Ok(())
+    });
+  }
+
   builder.build()
 }

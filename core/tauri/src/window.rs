@@ -1475,7 +1475,7 @@ impl<R: Runtime> Window<R> {
               let runtime_handle = self.app_handle.runtime_handle.clone();
               let plugin = plugin.to_string();
               self.with_webview(move |webview| {
-                webview.jni_handle().exec(move |env, activity, _webview| {
+                webview.jni_handle().exec(move |env, activity, webview| {
                   use crate::api::ipc::CallbackFn;
                   use jni::{
                     errors::Error as JniError,
@@ -1568,6 +1568,7 @@ impl<R: Runtime> Window<R> {
                     error: CallbackFn,
                     env: JNIEnv<'_>,
                     activity: JObject<'_>,
+                    webview: JObject<'_>,
                   ) -> Result<(), JniError> {
                     let data = to_jsobject::<R>(env, activity, runtime_handle, message.payload)?;
                     let plugin_manager = env
@@ -1582,8 +1583,9 @@ impl<R: Runtime> Window<R> {
                     env.call_method(
                       plugin_manager,
                       "postMessage",
-                      "(Ljava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;JJ)V",
+                      "(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;JJ)V",
                       &[
+                        webview.into(),
                         env.new_string(plugin)?.into(),
                         env.new_string(&message.command)?.into(),
                         data.into(),
@@ -1603,6 +1605,7 @@ impl<R: Runtime> Window<R> {
                     resolver.error,
                     env,
                     activity,
+                    webview,
                   ) {
                     resolver.reject(format!("failed to reach Android layer: {e}"));
                   }

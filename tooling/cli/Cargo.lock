@@ -3731,7 +3731,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.0-alpha.0"
+version = "2.0.0-alpha.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -3768,7 +3768,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-alpha.1"
+version = "2.0.0-alpha.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -3844,8 +3844,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-mobile"
-version = "0.2.0"
-source = "git+https://github.com/tauri-apps/tauri-mobile?branch=dev#01c5f5083760714163e527bf9b8c80157150aed8"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "030f6c282001e94a89a347f4d1684f146091140058b57d0af04862a53694dbe5"
 dependencies = [
  "cocoa",
  "colored 1.9.3",
@@ -3882,7 +3883,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-alpha.0"
+version = "2.0.0-alpha.1"
 dependencies = [
  "aes-gcm",
  "ctor",

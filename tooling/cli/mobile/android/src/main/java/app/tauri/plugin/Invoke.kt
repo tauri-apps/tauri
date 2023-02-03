@@ -6,16 +6,16 @@ import org.json.JSONObject
 import app.tauri.Logger
 
 class Invoke(
-  private val sendResponse: (invoke: Invoke, succcess: PluginResult?, error: PluginResult?) -> Unit,
+  private val sendResponse: (succcess: PluginResult?, error: PluginResult?) -> Unit,
   val data: JSObject?) {
 
   fun resolve(data: JSObject?) {
     val result = PluginResult(data)
-    sendResponse(this, result, null)
+    sendResponse(result, null)
   }
 
   fun resolve() {
-    sendResponse(this, null, null)
+    sendResponse(null, null)
   }
 
   fun reject(msg: String?, code: String?, ex: Exception?, data: JSObject?) {
@@ -32,7 +32,7 @@ class Invoke(
     } catch (jsonEx: Exception) {
       Logger.error(Logger.tags("Plugin"), jsonEx.message!!, jsonEx)
     }
-    sendResponse(this, null, errorResult)
+    sendResponse(null, errorResult)
   }
 
   fun reject(msg: String?, ex: Exception?, data: JSObject?) {

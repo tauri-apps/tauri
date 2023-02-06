@@ -505,6 +505,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Registers a window event handler.
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
+  /// Runs a closure with the platform webview object as argument.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
 
   /// Open the web inspector which is usually called devtools.

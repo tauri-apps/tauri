@@ -850,11 +850,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn content_protected(mut self, protected: bool) -> Self {
-    self.inner = self.inner.with_content_protection(protected);
-    self
-  }
-
   fn shadow(#[allow(unused_mut)] mut self, _enable: bool) -> Self {
     #[cfg(windows)]
     {

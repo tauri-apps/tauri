@@ -876,10 +876,6 @@ pub struct WindowConfig {
   /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
-  /// Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
-  /// so if you use this method, you also need to disable these components by yourself if you want.
-  #[serde(default, alias = "additional-browser-args")]
-  pub additional_browser_args: Option<String>,
   /// Whether or not the window has shadow.
   ///
   /// ## Platform-specific
@@ -924,7 +920,6 @@ impl Default for WindowConfig {
       hidden_title: false,
       accept_first_mouse: false,
       tabbing_identifier: None,
-      additional_browser_args: None,
       shadow: false,
     }
   }
@@ -3044,7 +3039,6 @@ mod build {
       let hidden_title = self.hidden_title;
       let accept_first_mouse = self.accept_first_mouse;
       let tabbing_identifier = opt_str_lit(self.tabbing_identifier.as_ref());
-      let additional_browser_args = opt_str_lit(self.additional_browser_args.as_ref());
       let shadow = self.shadow;
 
       literal_struct!(
@@ -3078,7 +3072,6 @@ mod build {
         hidden_title,
         accept_first_mouse,
         tabbing_identifier,
-        additional_browser_args,
         shadow
       );
     }

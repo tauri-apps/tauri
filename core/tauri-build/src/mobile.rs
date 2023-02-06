@@ -96,6 +96,7 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
           }
         }
       }
+      #[cfg(target_os = "macos")]
       "ios" => {
         if let Some(path) = self.ios_path {
           println!("cargo:rerun-if-changed={}", path.display());

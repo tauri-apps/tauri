@@ -136,6 +136,16 @@ pub fn get_config(
       ))
       .join("generated"),
   );
+  let plugin_output_path = config.project_dir().join("tauri-plugins");
+  set_var("TAURI_PLUGIN_OUTPUT_PATH", plugin_output_path);
+  set_var(
+    "TAURI_GRADLE_SETTINGS_PATH",
+    config.project_dir().join("settings.gradle"),
+  );
+  set_var(
+    "TAURI_APP_GRADLE_BUILD_PATH",
+    config.project_dir().join("app").join("build.gradle.kts"),
+  );
 
   (app, config, metadata)
 }

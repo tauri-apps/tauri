@@ -19,7 +19,7 @@ pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
-pub type InvokeHandler<R> = dyn Fn(Invoke<R>) + Send + Sync + 'static;
+pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
 pub type InvokeResponder<R> =
@@ -167,6 +167,16 @@ pub struct InvokeResolver<R: Runtime> {
   pub(crate) error: CallbackFn,
 }
 
+impl<R: Runtime> Clone for InvokeResolver<R> {
+  fn clone(&self) -> Self {
+    Self {
+      window: self.window.clone(),
+      callback: self.callback,
+      error: self.error,
+    }
+  }
+}
+
 impl<R: Runtime> InvokeResolver<R> {
   pub(crate) fn new(window: Window<R>, callback: CallbackFn, error: CallbackFn) -> Self {
     Self {
@@ -291,6 +301,17 @@ pub struct InvokeMessage<R: Runtime> {
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
   pub(crate) payload: JsonValue,
+}
+
+impl<R: Runtime> Clone for InvokeMessage<R> {
+  fn clone(&self) -> Self {
+    Self {
+      window: self.window.clone(),
+      state: self.state.clone(),
+      command: self.command.clone(),
+      payload: self.payload.clone(),
+    }
+  }
 }
 
 impl<R: Runtime> InvokeMessage<R> {

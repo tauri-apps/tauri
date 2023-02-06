@@ -66,9 +66,13 @@ use wry::{
 
 pub use wry;
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
-
 #[cfg(windows)]
 use wry::webview::WebviewExtWindows;
+#[cfg(target_os = "android")]
+use wry::webview::{
+  prelude::{dispatch, find_class},
+  WebViewBuilderExtAndroid, WebviewExtAndroid,
+};
 
 #[cfg(target_os = "macos")]
 use tauri_runtime::{menu::NativeImage, ActivationPolicy};
@@ -1161,16 +1165,6 @@ pub struct WryDispatcher<T: UserEvent> {
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Sync for WryDispatcher<T> {}
 
-impl<T: UserEvent> WryDispatcher<T> {
-  #[cfg(any(desktop, target_os = "android"))]
-  pub fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::WithWebview(Box::new(f))),
-    )
-  }
-}
-
 impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   type Runtime = Wry<T>;
   type WindowBuilder = WindowBuilderWrapper;
@@ -1195,6 +1189,17 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
       WindowMessage::AddMenuEventListener(id, Box::new(f)),
     ));
     id
+  }
+
+  #[cfg(any(desktop, target_os = "android"))]
+  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::WithWebview(Box::new(move |webview| f(Box::new(webview)))),
+      ),
+    )
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -1814,6 +1819,26 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       Message::Application(ApplicationMessage::Hide),
     )
   }
+
+  #[cfg(target_os = "android")]
+  fn find_class<'a>(
+    &'a self,
+    env: jni::JNIEnv<'a>,
+    activity: jni::objects::JObject<'a>,
+    name: impl Into<String>,
+  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
+    find_class(env, activity, name.into())
+  }
+
+  #[cfg(target_os = "android")]
+  fn run_on_android_context<F>(&self, f: F)
+  where
+    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
+      + Send
+      + 'static,
+  {
+    dispatch(f)
+  }
 }
 
 impl<T: UserEvent> Wry<T> {
@@ -2290,7 +2315,6 @@ fn handle_user_message<T: UserEvent>(
                 }
                 #[cfg(target_os = "android")]
                 {
-                  use wry::webview::WebviewExtAndroid;
                   f(w.handle())
                 }
               }
@@ -2957,6 +2981,8 @@ fn create_webview<T: UserEvent>(
     url,
     menu_ids,
     js_event_listeners,
+    #[cfg(target_os = "android")]
+    on_webview_created,
     ..
   } = pending;
   let webview_id_map = context.webview_id_map.clone();
@@ -3064,6 +3090,19 @@ fn create_webview<T: UserEvent>(
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
     webview_builder = webview_builder.with_devtools(true);
+  }
+
+  #[cfg(target_os = "android")]
+  {
+    if let Some(on_webview_created) = on_webview_created {
+      webview_builder = webview_builder.on_webview_created(move |ctx| {
+        on_webview_created(tauri_runtime::window::CreationContext {
+          env: ctx.env,
+          activity: ctx.activity,
+          webview: ctx.webview,
+        })
+      });
+    }
   }
 
   let webview = webview_builder

@@ -21,7 +21,11 @@ use tauri_mobile::{
   },
 };
 
-use std::{ffi::OsStr, fs, path::Path};
+use std::{
+  ffi::OsStr,
+  fs,
+  path::{Path, PathBuf},
+};
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/android");
 
@@ -93,49 +97,7 @@ pub fn gen(
     map.inner(),
     &TEMPLATE_DIR,
     &dest,
-    &mut |path| {
-      let mut iter = path.iter();
-      let root = iter.next().unwrap().to_str().unwrap();
-      let path_without_root: std::path::PathBuf = iter.collect();
-      let path = match (
-        root,
-        path.extension().and_then(|o| o.to_str()),
-        path_without_root.strip_prefix("src/main"),
-      ) {
-        ("app" | "buildSrc", Some("kt"), Ok(path)) => {
-          let parent = path.parent().unwrap();
-          let file_name = path.file_name().unwrap();
-          let out_dir = dest
-            .join(root)
-            .join("src/main")
-            .join(&package_path)
-            .join(parent);
-          out_dir.join(file_name)
-        }
-        _ => dest.join(path),
-      };
-
-      let parent = path.parent().unwrap().to_path_buf();
-      if !created_dirs.contains(&parent) {
-        fs::create_dir_all(&parent)?;
-        created_dirs.push(parent);
-      }
-
-      let mut options = fs::OpenOptions::new();
-      options.write(true);
-
-      #[cfg(unix)]
-      if path.file_name().unwrap() == OsStr::new("gradlew") {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o755);
-      }
-
-      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
-        options.create(true).open(path).map(Some)
-      } else {
-        Ok(None)
-      }
-    },
+    &mut |path| generate_out_file(path, &dest, &package_path, &mut created_dirs),
   )
   .with_context(|| "failed to process template")?;
 
@@ -182,4 +144,53 @@ pub fn gen(
   }
 
   Ok(())
+}
+
+pub(crate) fn generate_out_file(
+  path: &Path,
+  dest: &Path,
+  package_path: &str,
+  created_dirs: &mut Vec<PathBuf>,
+) -> std::io::Result<Option<fs::File>> {
+  let mut iter = path.iter();
+  let root = iter.next().unwrap().to_str().unwrap();
+  let path_without_root: std::path::PathBuf = iter.collect();
+  let path = match (
+    root,
+    path.extension().and_then(|o| o.to_str()),
+    path_without_root.strip_prefix("src/main"),
+  ) {
+    ("app" | "buildSrc", Some("kt"), Ok(path)) => {
+      let parent = path.parent().unwrap();
+      let file_name = path.file_name().unwrap();
+      let out_dir = dest
+        .join(root)
+        .join("src/main")
+        .join(package_path)
+        .join(parent);
+      out_dir.join(file_name)
+    }
+    _ => dest.join(path),
+  };
+
+  let parent = path.parent().unwrap().to_path_buf();
+  if !created_dirs.contains(&parent) {
+    fs::create_dir_all(&parent)?;
+    created_dirs.push(parent);
+  }
+
+  let mut options = fs::OpenOptions::new();
+  options.write(true);
+
+  #[cfg(unix)]
+  if path.file_name().unwrap() == OsStr::new("gradlew") {
+    use std::os::unix::fs::OpenOptionsExt;
+    options.mode(0o755);
+  }
+
+  if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+    options.create(true).open(path).map(Some)
+  } else {
+    Ok(None)
+  }
 }

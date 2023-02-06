@@ -1151,7 +1151,7 @@ mod test {
     let manager: WindowManager<Wry> = WindowManager::with_handlers(
       context,
       PluginStore::default(),
-      Box::new(|_| ()),
+      Box::new(|_| false),
       Box::new(|_, _| ()),
       Default::default(),
       StateManager::new(),
@@ -1183,13 +1183,13 @@ impl<R: Runtime> WindowManager<R> {
       .on_page_load(window, payload);
   }
 
-  pub fn extend_api(&self, invoke: Invoke<R>) {
+  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(invoke);
+      .extend_api(plugin, invoke)
   }
 
   pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
@@ -1283,6 +1283,31 @@ impl<R: Runtime> WindowManager<R> {
       if let Some(menu) = &self.inner.menu {
         pending = pending.set_menu(menu.clone());
       }
+    }
+
+    #[cfg(target_os = "android")]
+    {
+      pending = pending.on_webview_created(move |ctx| {
+        let plugin_manager = ctx
+          .env
+          .call_method(
+            ctx.activity,
+            "getPluginManager",
+            format!("()Lapp/tauri/plugin/PluginManager;"),
+            &[],
+          )?
+          .l()?;
+
+        // tell the manager the webview is ready
+        ctx.env.call_method(
+          plugin_manager,
+          "onWebViewCreated",
+          format!("(Landroid/webkit/WebView;)V"),
+          &[ctx.webview.into()],
+        )?;
+
+        Ok(())
+      });
     }
 
     if is_local {

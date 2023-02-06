@@ -106,6 +106,26 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   fn hide(&self) -> Result<()> {
     Ok(())
   }
+
+  #[cfg(target_os = "android")]
+  fn find_class<'a>(
+    &'a self,
+    env: jni::JNIEnv<'a>,
+    activity: jni::objects::JObject<'a>,
+    name: impl Into<String>,
+  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
+    todo!()
+  }
+
+  #[cfg(target_os = "android")]
+  fn run_on_android_context<F>(&self, f: F)
+  where
+    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
+      + Send
+      + 'static,
+  {
+    todo!()
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -316,6 +336,11 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
 
   fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> Uuid {
     Uuid::new_v4()
+  }
+
+  #[cfg(any(desktop, target_os = "android"))]
+  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
+    Ok(())
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]

@@ -732,77 +732,6 @@ impl PlatformWebview {
   }
 }
 
-/// APIs specific to the wry runtime.
-#[cfg(feature = "wry")]
-impl Window<crate::Wry> {
-  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
-  ///
-  /// The closure is executed on the main thread.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,no_run
-  /// #[cfg(target_os = "macos")]
-  /// #[macro_use]
-  /// extern crate objc;
-  /// use tauri::Manager;
-  ///
-  /// fn main() {
-  ///   tauri::Builder::default()
-  ///     .setup(|app| {
-  ///       let main_window = app.get_window("main").unwrap();
-  ///       main_window.with_webview(|webview| {
-  ///         #[cfg(target_os = "linux")]
-  ///         {
-  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
-  ///           use webkit2gtk::traits::WebViewExt;
-  ///           webview.inner().set_zoom_level(4.);
-  ///         }
-  ///
-  ///         #[cfg(windows)]
-  ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
-  ///           webview.controller().SetZoomFactor(4.).unwrap();
-  ///         }
-  ///
-  ///         #[cfg(target_os = "macos")]
-  ///         unsafe {
-  ///           let () = msg_send![webview.inner(), setPageZoom: 4.];
-  ///           let () = msg_send![webview.controller(), removeAllUserScripts];
-  ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
-  ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
-  ///         }
-  ///
-  ///         #[cfg(target_os = "android")]
-  ///         {
-  ///           use jni::objects::JValue;
-  ///           webview.jni_handle().exec(|env, _, webview| {
-  ///             env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
-  ///           })
-  ///         }
-  ///       });
-  ///       Ok(())
-  ///   });
-  /// }
-  /// ```
-  #[cfg(any(desktop, target_os = "android"))]
-  #[cfg_attr(
-    doc_cfg,
-    doc(cfg(all(feature = "wry", any(desktop, target_os = "android"))))
-  )]
-  pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
-    &self,
-    f: F,
-  ) -> crate::Result<()> {
-    self
-      .window
-      .dispatcher
-      .with_webview(|w| f(PlatformWebview(w)))
-      .map_err(Into::into)
-  }
-}
-
 /// Base window functions.
 impl<R: Runtime> Window<R> {
   /// Create a new window that is attached to the manager.
@@ -872,6 +801,73 @@ impl<R: Runtime> Window<R> {
         .clone();
       f(MenuEvent { menu_item_id: id })
     })
+  }
+
+  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
+  ///
+  /// The closure is executed on the main thread.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// #[cfg(target_os = "macos")]
+  /// #[macro_use]
+  /// extern crate objc;
+  /// use tauri::Manager;
+  ///
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let main_window = app.get_window("main").unwrap();
+  ///       main_window.with_webview(|webview| {
+  ///         #[cfg(target_os = "linux")]
+  ///         {
+  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
+  ///           use webkit2gtk::traits::WebViewExt;
+  ///           webview.inner().set_zoom_level(4.);
+  ///         }
+  ///
+  ///         #[cfg(windows)]
+  ///         unsafe {
+  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           webview.controller().SetZoomFactor(4.).unwrap();
+  ///         }
+  ///
+  ///         #[cfg(target_os = "macos")]
+  ///         unsafe {
+  ///           let () = msg_send![webview.inner(), setPageZoom: 4.];
+  ///           let () = msg_send![webview.controller(), removeAllUserScripts];
+  ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
+  ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
+  ///         }
+  ///
+  ///         #[cfg(target_os = "android")]
+  ///         {
+  ///           use jni::objects::JValue;
+  ///           webview.jni_handle().exec(|env, _, webview| {
+  ///             env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
+  ///           })
+  ///         }
+  ///       });
+  ///       Ok(())
+  ///   });
+  /// }
+  /// ```
+  #[cfg(all(feature = "wry", any(desktop, target_os = "android")))]
+  #[cfg_attr(
+    doc_cfg,
+    doc(all(feature = "wry", any(desktop, target_os = "android")))
+  )]
+  pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .with_webview(|w| f(PlatformWebview(*w.downcast().unwrap())))
+      .map_err(Into::into)
   }
 }
 
@@ -1303,9 +1299,10 @@ impl<R: Runtime> Window<R> {
           payload.cmd.to_string(),
           payload.inner,
         );
-        let resolver = InvokeResolver::new(self, payload.callback, payload.error);
+        #[allow(clippy::redundant_clone)]
+        let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
 
-        let invoke = Invoke { message, resolver };
+        let mut invoke = Invoke { message, resolver };
         if let Some(module) = &payload.tauri_module {
           crate::endpoints::handle(
             module.to_string(),
@@ -1314,7 +1311,165 @@ impl<R: Runtime> Window<R> {
             manager.package_info(),
           );
         } else if payload.cmd.starts_with("plugin:") {
-          manager.extend_api(invoke);
+          let command = invoke.message.command.replace("plugin:", "");
+          let mut tokens = command.split('|');
+          // safe to unwrap: split always has a least one item
+          let plugin = tokens.next().unwrap();
+          invoke.message.command = tokens
+            .next()
+            .map(|c| c.to_string())
+            .unwrap_or_else(String::new);
+
+          #[cfg(target_os = "android")]
+          let (message, resolver) = (invoke.message.clone(), invoke.resolver.clone());
+
+          #[allow(unused_variables)]
+          let handled = manager.extend_api(plugin, invoke);
+
+          #[cfg(target_os = "android")]
+          {
+            if !handled {
+              let runtime_handle = self.app_handle.runtime_handle.clone();
+              let plugin = plugin.to_string();
+              self.with_webview(move |webview| {
+                webview.jni_handle().exec(move |env, activity, webview| {
+                  use crate::api::ipc::CallbackFn;
+                  use jni::{
+                    errors::Error as JniError,
+                    objects::{JObject, JValue},
+                    JNIEnv,
+                  };
+                  use serde_json::Value as JsonValue;
+
+                  fn json_to_java<'a, R: Runtime>(
+                    env: JNIEnv<'a>,
+                    activity: JObject<'a>,
+                    runtime_handle: &R::Handle,
+                    json: JsonValue,
+                  ) -> Result<(&'static str, JValue<'a>), JniError> {
+                    let (class, v) = match json {
+                      JsonValue::Null => ("Ljava/lang/Object;", JObject::null().into()),
+                      JsonValue::Bool(val) => ("Z", val.into()),
+                      JsonValue::Number(val) => {
+                        if let Some(v) = val.as_i64() {
+                          ("J", v.into())
+                        } else if let Some(v) = val.as_f64() {
+                          ("D", v.into())
+                        } else {
+                          ("Ljava/lang/Object;", JObject::null().into())
+                        }
+                      }
+                      JsonValue::String(val) => (
+                        "Ljava/lang/Object;",
+                        JObject::from(env.new_string(&val)?).into(),
+                      ),
+                      JsonValue::Array(val) => {
+                        let js_array_class =
+                          runtime_handle.find_class(env, activity, "app/tauri/plugin/JSArray")?;
+                        let data = env.new_object(js_array_class, "()V", &[])?;
+
+                        for v in val {
+                          let (signature, val) =
+                            json_to_java::<R>(env, activity, runtime_handle, v)?;
+                          env.call_method(
+                            data,
+                            "put",
+                            format!("({signature})Lorg/json/JSONArray;"),
+                            &[val],
+                          )?;
+                        }
+
+                        ("Ljava/lang/Object;", data.into())
+                      }
+                      JsonValue::Object(val) => {
+                        let js_object_class =
+                          runtime_handle.find_class(env, activity, "app/tauri/plugin/JSObject")?;
+                        let data = env.new_object(js_object_class, "()V", &[])?;
+
+                        for (key, value) in val {
+                          let (signature, val) =
+                            json_to_java::<R>(env, activity, runtime_handle, value)?;
+                          env.call_method(
+                            data,
+                            "put",
+                            format!("(Ljava/lang/String;{signature})Lapp/tauri/plugin/JSObject;"),
+                            &[env.new_string(&key)?.into(), val],
+                          )?;
+                        }
+
+                        ("Ljava/lang/Object;", data.into())
+                      }
+                    };
+                    Ok((class, v))
+                  }
+
+                  fn to_jsobject<'a, R: Runtime>(
+                    env: JNIEnv<'a>,
+                    activity: JObject<'a>,
+                    runtime_handle: &R::Handle,
+                    json: JsonValue,
+                  ) -> Result<JValue<'a>, JniError> {
+                    if let JsonValue::Object(_) = &json {
+                      json_to_java::<R>(env, activity, runtime_handle, json)
+                        .map(|(_class, data)| data)
+                    } else {
+                      Ok(JObject::null().into())
+                    }
+                  }
+
+                  fn handle_message<R: Runtime>(
+                    plugin: &str,
+                    runtime_handle: &R::Handle,
+                    message: InvokeMessage<R>,
+                    callback: CallbackFn,
+                    error: CallbackFn,
+                    env: JNIEnv<'_>,
+                    activity: JObject<'_>,
+                    webview: JObject<'_>,
+                  ) -> Result<(), JniError> {
+                    let data = to_jsobject::<R>(env, activity, runtime_handle, message.payload)?;
+                    let plugin_manager = env
+                      .call_method(
+                        activity,
+                        "getPluginManager",
+                        "()Lapp/tauri/plugin/PluginManager;",
+                        &[],
+                      )?
+                      .l()?;
+
+                    env.call_method(
+                      plugin_manager,
+                      "postMessage",
+                      "(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;JJ)V",
+                      &[
+                        webview.into(),
+                        env.new_string(plugin)?.into(),
+                        env.new_string(&message.command)?.into(),
+                        data.into(),
+                        (callback.0 as i64).into(),
+                        (error.0 as i64).into(),
+                      ],
+                    )?;
+
+                    Ok(())
+                  }
+
+                  if let Err(e) = handle_message(
+                    &plugin,
+                    &runtime_handle,
+                    message,
+                    resolver.callback,
+                    resolver.error,
+                    env,
+                    activity,
+                    webview,
+                  ) {
+                    resolver.reject(format!("failed to reach Android layer: {e}"));
+                  }
+                });
+              })?;
+            }
+          }
         } else {
           manager.run_invoke_handler(invoke);
         }

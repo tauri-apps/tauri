@@ -13,6 +13,8 @@ use std::path::{Path, PathBuf};
 
 #[cfg(feature = "codegen")]
 mod codegen;
+/// Mobile build functions.
+pub mod mobile;
 #[cfg(windows)]
 mod static_vcruntime;
 

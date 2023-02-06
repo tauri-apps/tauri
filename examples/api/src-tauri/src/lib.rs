@@ -65,6 +65,7 @@ impl AppBuilder {
           .level(log::LevelFilter::Info)
           .build(),
       )
+      .plugin(tauri_plugin_sample::init())
       .setup(move |app| {
         if let Some(setup) = setup {
           (setup)(app)?;

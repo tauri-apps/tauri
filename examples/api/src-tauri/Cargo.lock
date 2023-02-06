@@ -971,6 +971,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "gdkwayland-sys"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4511710212ed3020b61a8622a37aa6f0dd2a84516575da92e9b96928dcbe83ba"
+dependencies = [
+ "gdk-sys",
+ "glib-sys",
+ "gobject-sys",
+ "libc",
+ "pkg-config",
+ "system-deps",
+]
+
+[[package]]
 name = "gdkx11-sys"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2915,8 +2929,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d021218bcb43d4bf42112b1da5f7d8454502ffb188489ba0089fe4e3e34a8f6"
+source = "git+https://github.com/tauri-apps/tao?branch=dev#8971d731b02ec61a1665351c9bae11f5e4058dc4"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -2930,6 +2943,7 @@ dependencies = [
  "gdk",
  "gdk-pixbuf",
  "gdk-sys",
+ "gdkwayland-sys",
  "gdkx11-sys",
  "gio",
  "glib",
@@ -2955,16 +2969,15 @@ dependencies = [
  "tao-macros",
  "unicode-segmentation",
  "uuid 1.3.0",
- "windows 0.39.0",
- "windows-implement 0.39.0",
+ "windows 0.44.0",
+ "windows-implement",
  "x11-dl",
 ]
 
 [[package]]
 name = "tao-macros"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b6fcd8245d45a39ffc8715183d92ae242750eb57b285eb3bcd63dfd512afd09"
+source = "git+https://github.com/tauri-apps/tao?branch=dev#8971d731b02ec61a1665351c9bae11f5e4058dc4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3042,9 +3055,9 @@ dependencies = [
  "url",
  "uuid 1.3.0",
  "webkit2gtk",
- "webview2-com 0.19.1",
+ "webview2-com",
  "win7-notifications",
- "windows 0.39.0",
+ "windows 0.44.0",
  "zip",
 ]
 
@@ -3142,8 +3155,8 @@ dependencies = [
  "tauri-utils",
  "thiserror",
  "uuid 1.3.0",
- "webview2-com 0.19.1",
- "windows 0.39.0",
+ "webview2-com",
+ "windows 0.44.0",
 ]
 
 [[package]]
@@ -3160,8 +3173,8 @@ dependencies = [
  "tauri-utils",
  "uuid 1.3.0",
  "webkit2gtk",
- "webview2-com 0.19.1",
- "windows 0.39.0",
+ "webview2-com",
+ "windows 0.44.0",
  "wry",
 ]
 
@@ -3191,7 +3204,7 @@ dependencies = [
  "thiserror",
  "url",
  "walkdir",
- "windows 0.39.0",
+ "windows 0.44.0",
 ]
 
 [[package]]
@@ -3768,26 +3781,14 @@ dependencies = [
 
 [[package]]
 name = "webview2-com"
-version = "0.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4a769c9f1a64a8734bde70caafac2b96cada12cd4aefa49196b3a386b8b4178"
-dependencies = [
- "webview2-com-macros",
- "webview2-com-sys 0.19.0",
- "windows 0.39.0",
- "windows-implement 0.39.0",
-]
-
-[[package]]
-name = "webview2-com"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03411e89ec447e29c08b3c086edeb88c5f8fd782cbdd4d6d316bea439be7a244"
 dependencies = [
  "webview2-com-macros",
- "webview2-com-sys 0.22.0",
+ "webview2-com-sys",
  "windows 0.44.0",
- "windows-implement 0.44.0",
+ "windows-implement",
 ]
 
 [[package]]
@@ -3803,21 +3804,6 @@ dependencies = [
 
 [[package]]
 name = "webview2-com-sys"
-version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aac48ef20ddf657755fdcda8dfed2a7b4fc7e4581acce6fe9b88c3d64f29dee7"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
- "thiserror",
- "windows 0.39.0",
- "windows-bindgen 0.39.0",
- "windows-metadata 0.39.0",
-]
-
-[[package]]
-name = "webview2-com-sys"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c0f5ce43e9611c5b2983a33156d6abe31abf39185bad84a6766c80ba1dbf1ab"
@@ -3827,8 +3813,8 @@ dependencies = [
  "serde_json",
  "thiserror",
  "windows 0.44.0",
- "windows-bindgen 0.44.0",
- "windows-metadata 0.44.0",
+ "windows-bindgen",
+ "windows-metadata",
 ]
 
 [[package]]
@@ -3878,7 +3864,6 @@ version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1c4bd0a50ac6020f65184721f758dba47bb9fbc2133df715ec74a237b26794a"
 dependencies = [
- "windows-implement 0.39.0",
  "windows_aarch64_msvc 0.39.0",
  "windows_i686_gnu 0.39.0",
  "windows_i686_msvc 0.39.0",
@@ -3892,19 +3877,9 @@ version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e745dab35a0c4c77aa3ce42d595e13d2003d6902d6b08c9ef5fc326d08da12b"
 dependencies = [
- "windows-implement 0.44.0",
+ "windows-implement",
  "windows-interface",
  "windows-targets",
-]
-
-[[package]]
-name = "windows-bindgen"
-version = "0.39.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68003dbd0e38abc0fb85b939240f4bce37c43a5981d3df37ccbaaa981b47cb41"
-dependencies = [
- "windows-metadata 0.39.0",
- "windows-tokens 0.39.0",
 ]
 
 [[package]]
@@ -3913,18 +3888,8 @@ version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "222204ecf46521382a4d88b4a1bbefca9f8855697b4ab7d20803901425e061a3"
 dependencies = [
- "windows-metadata 0.44.0",
- "windows-tokens 0.44.0",
-]
-
-[[package]]
-name = "windows-implement"
-version = "0.39.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba01f98f509cb5dc05f4e5fc95e535f78260f15fea8fe1a8abdd08f774f1cee7"
-dependencies = [
- "syn",
- "windows-tokens 0.39.0",
+ "windows-metadata",
+ "windows-tokens",
 ]
 
 [[package]]
@@ -3948,12 +3913,6 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "windows-metadata"
-version = "0.39.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ee5e275231f07c6e240d14f34e1b635bf1faa1c76c57cfd59a5cdb9848e4278"
 
 [[package]]
 name = "windows-metadata"
@@ -4012,12 +3971,6 @@ dependencies = [
  "windows_x86_64_gnullvm",
  "windows_x86_64_msvc 0.42.1",
 ]
-
-[[package]]
-name = "windows-tokens"
-version = "0.39.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f838de2fe15fe6bac988e74b798f26499a8b21a9d97edec321e79b28d1d7f597"
 
 [[package]]
 name = "windows-tokens"
@@ -4148,7 +4101,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.26.0"
-source = "git+https://github.com/tauri-apps/wry?branch=dev#a27082d025a4dccbaa94ecb77dc2226c82ed3c45"
+source = "git+https://github.com/tauri-apps/wry?branch=dev#9613a08312645bbad80de6b91c5ba33656cf6a5e"
 dependencies = [
  "base64 0.13.1",
  "block",
@@ -4177,9 +4130,9 @@ dependencies = [
  "url",
  "webkit2gtk",
  "webkit2gtk-sys",
- "webview2-com 0.22.0",
+ "webview2-com",
  "windows 0.44.0",
- "windows-implement 0.44.0",
+ "windows-implement",
 ]
 
 [[package]]

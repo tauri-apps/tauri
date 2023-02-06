@@ -4090,7 +4090,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.26.0"
-source = "git+https://github.com/tauri-apps/wry?branch=feat/dispatch-android-fn#3159984b88f924caa0d9756e797c48f0265edafd"
+source = "git+https://github.com/tauri-apps/wry?branch=dev#a9e186cab4456d7ac2c265e61e71b345f7d269c4"
 dependencies = [
  "base64",
  "block",

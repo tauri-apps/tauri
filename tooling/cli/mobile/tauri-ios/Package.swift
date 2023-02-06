@@ -9,6 +9,7 @@ let package = Package(
 		// Products define the executables and libraries a package produces, and make them visible to other packages.
 		.library(
 			name: "Tauri",
+			type: .static,
 			targets: ["Tauri"]),
 	],
 	dependencies: [
@@ -25,7 +26,7 @@ let package = Package(
 			],
 			path: "Sources"
 		),
-			.testTarget(
+		.testTarget(
 			name: "TauriTests",
 			dependencies: ["Tauri"]
 		),

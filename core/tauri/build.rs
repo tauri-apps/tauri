@@ -146,7 +146,7 @@ fn main() {
     if target_os == "ios" {
       swift_rs::build::SwiftLinker::new("10.13")
         .with_ios("11")
-        .with_package("Tauri", "../../tooling/cli/mobile/tauri-ios/")
+        .with_package("Tauri", "./ios-api")
         .link();
     }
   }

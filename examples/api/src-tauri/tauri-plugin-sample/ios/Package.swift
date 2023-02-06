@@ -17,7 +17,8 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/lucasfernog/tauri", branch: "feat/ios-plugins"),
+        //.package(url: "https://github.com/lucasfernog/tauri", branch: "feat/ios-plugins"),
+        .package(name: "Tauri", path: "../../../../../core/tauri/ios-api")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -25,7 +26,8 @@ let package = Package(
         .target(
             name: "tauri-plugin-sample",
             dependencies: [
-                .product(name: "Tauri", package: "tauri")
+                //.product(name: "Tauri", package: "tauri"),
+                .byName(name: "Tauri")
             ],
             path: "Sources")
     ]

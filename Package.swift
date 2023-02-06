@@ -17,12 +17,12 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftRs", package: "swift-rs"),
             ],
-            path: "tooling/cli/mobile/tauri-ios/Sources/Tauri"
+            path: "core/tauri/ios/Sources/Tauri"
         ),
         .testTarget(
             name: "TauriTests",
             dependencies: ["Tauri"],
-            path: "tooling/cli/mobile/tauri-ios/Tests/TauriTests"
+            path: "core/tauri/ios/Tests/TauriTests"
         ),
     ]
 )

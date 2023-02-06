@@ -250,6 +250,7 @@ window-all = [
   "window-hide",
   "window-close",
   "window-set-decorations",
+  "window-set-shadow",
   "window-set-always-on-top",
   "window-set-size",
   "window-set-min-size",
@@ -280,6 +281,7 @@ window-show = [ ]
 window-hide = [ ]
 window-close = [ ]
 window-set-decorations = [ ]
+window-set-shadow = [ ]
 window-set-always-on-top = [ ]
 window-set-size = [ ]
 window-set-min-size = [ ]

@@ -27,6 +27,7 @@
  *         "hide": true,
  *         "close": true,
  *         "setDecorations": true,
+ *         "setShadow": true,
  *         "setAlwaysOnTop": true,
  *         "setSize": true,
  *         "setMinSize": true,
@@ -1066,6 +1067,43 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Whether or not the window should have shadow.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows:**
+   *   - `false` has no effect on decorated widnow, shadows are always ON.
+   *   - `true` will make ndecorated window have a 1px white border,
+   * and on Windows 11, it will have a rounded corners.
+   * - **Linux:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setShadow(false);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.0
+   */
+  async setShadow(enable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setShadow',
+            payload: enable
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Whether the window should always be on top of other windows.
    * @example
    * ```typescript
@@ -2025,6 +2063,20 @@ interface WindowOptions {
   alwaysOnTop?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   *  Whether or not the window has shadow.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows:**
+   *   - `false` has no effect on decorated widnow, shadows are always ON.
+   *   - `true` will make ndecorated window have a 1px white border,
+   * and on Windows 11, it will have a rounded corners.
+   * - **Linux:** Unsupported.
+   *
+   * @since 2.0
+   */
+  shadow?: boolean
   /**
    * Whether the file drop is enabled or not on the webview. By default it is enabled.
    *

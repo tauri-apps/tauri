@@ -425,6 +425,21 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Sets whether or not the window has shadow.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:**
+  ///   - `false` has no effect on decorated widnow, shadows are always ON.
+  ///   - `true` will make ndecorated window have a 1px white border,
+  /// and on Windows 11, it will have a rounded corners.
+  /// - **Linux:** Unsupported.
+  #[must_use]
+  pub fn shadow(mut self, enable: bool) -> Self {
+    self.window_builder = self.window_builder.shadow(enable);
+    self
+  }
+
   /// Sets a parent to the window to be created.
   ///
   /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
@@ -1131,6 +1146,23 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_decorations(decorations)
+      .map_err(Into::into)
+  }
+
+  /// Determines if this window should have shadow.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:**
+  ///   - `false` has no effect on decorated widnow, shadow are always ON.
+  ///   - `true` will make ndecorated window have a 1px white border,
+  /// and on Windows 11, it will have a rounded corners.
+  /// - **Linux:** Unsupported.
+  pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_shadow(enable)
       .map_err(Into::into)
   }
 

@@ -118,6 +118,7 @@
             "setMinSize": false,
             "setPosition": false,
             "setResizable": false,
+            "setShadow": false,
             "setSize": false,
             "setSkipTaskbar": false,
             "setTitle": false,
@@ -393,6 +394,7 @@
               "setMinSize": false,
               "setPosition": false,
               "setResizable": false,
+              "setShadow": false,
               "setSize": false,
               "setSkipTaskbar": false,
               "setTitle": false,
@@ -684,6 +686,18 @@
             "string",
             "null"
           ]
+        },
+        "additionalBrowserArgs": {
+          "description": "Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection` so if you use this method, you also need to disable these components by yourself if you want.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shadow": {
+          "description": "Whether or not the window has shadow.\n\n## Platform-specific\n\n- **Windows:** - `false` has no effect on decorated widnow, shadow are always ON. - `true` will make ndecorated window have a 1px white border, and on Windows 11, it will have a rounded corners. - **Linux:** Unsupported.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1699,6 +1713,7 @@
             "setMinSize": false,
             "setPosition": false,
             "setResizable": false,
+            "setShadow": false,
             "setSize": false,
             "setSkipTaskbar": false,
             "setTitle": false,
@@ -2028,6 +2043,11 @@
         },
         "setDecorations": {
           "description": "Allows setting the decorations flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setShadow": {
+          "description": "Allows setting the shadow flag of the window.",
           "default": false,
           "type": "boolean"
         },

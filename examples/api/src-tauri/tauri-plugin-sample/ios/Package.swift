@@ -17,7 +17,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        //.package(url: "https://github.com/lucasfernog/tauri", branch: "feat/ios-plugins"),
+        //.package(url: "https://github.com/tauri-apps/tauri", branch: "next"),
         .package(name: "Tauri", path: "../../../../../core/tauri/ios-api")
     ],
     targets: [

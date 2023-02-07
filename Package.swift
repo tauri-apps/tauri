@@ -9,7 +9,7 @@ let package = Package(
         .library(name: "Tauri", targets: ["Tauri"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/lucasfernog/swift-rs", branch: "fix/sdk-name"),
+        .package(url: "https://github.com/Brendonovich/swift-rs", revision: "eb6de914ad57501da5019154d476d45660559999"),
     ],
     targets: [
         .target(

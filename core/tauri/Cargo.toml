@@ -101,12 +101,12 @@ cocoa = "0.24"
 objc = "0.2"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.19.1"
+webview2-com = "0.22"
 win7-notifications = { version = "0.3.1", optional = true }
 
-  [target."cfg(windows)".dependencies.windows]
-  version = "0.39.0"
-  features = [ "Win32_Foundation" ]
+[target."cfg(windows)".dependencies.windows]
+version = "0.44"
+features = [ "Win32_Foundation" ]
 
 [target."cfg(target_os = \"android\")".dependencies]
 paste = "1.0"
@@ -250,6 +250,7 @@ window-all = [
   "window-hide",
   "window-close",
   "window-set-decorations",
+  "window-set-shadow",
   "window-set-always-on-top",
   "window-set-size",
   "window-set-min-size",
@@ -280,6 +281,7 @@ window-show = [ ]
 window-hide = [ ]
 window-close = [ ]
 window-set-decorations = [ ]
+window-set-shadow = [ ]
 window-set-always-on-top = [ ]
 window-set-size = [ ]
 window-set-min-size = [ ]

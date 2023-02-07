@@ -741,7 +741,8 @@ impl WindowBuilder for WindowBuilderWrapper {
         .maximized(config.maximized)
         .always_on_top(config.always_on_top)
         .skip_taskbar(config.skip_taskbar)
-        .theme(config.theme);
+        .theme(config.theme)
+        .shadow(config.shadow);
 
       if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
         window = window.min_inner_size(min_width, min_height);
@@ -846,6 +847,18 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn always_on_top(mut self, always_on_top: bool) -> Self {
     self.inner = self.inner.with_always_on_top(always_on_top);
+    self
+  }
+
+  fn shadow(#[allow(unused_mut)] mut self, _enable: bool) -> Self {
+    #[cfg(windows)]
+    {
+      self.inner = self.inner.with_undecorated_shadow(_enable);
+    }
+    #[cfg(target_os = "macos")]
+    {
+      self.inner = self.inner.with_has_shadow(_enable);
+    }
     self
   }
 
@@ -1066,6 +1079,7 @@ pub enum WindowMessage {
   Hide,
   Close,
   SetDecorations(bool),
+  SetShadow(bool),
   SetAlwaysOnTop(bool),
   SetSize(Size),
   SetMinSize(Option<Size>),
@@ -1427,6 +1441,13 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetDecorations(decorations)),
+    )
+  }
+
+  fn set_shadow(&self, enable: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetShadow(enable)),
     )
   }
 
@@ -2420,6 +2441,12 @@ fn handle_user_message<T: UserEvent>(
               panic!("cannot handle `WindowMessage::Close` on the main thread")
             }
             WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
+            WindowMessage::SetShadow(_enable) => {
+              #[cfg(windows)]
+              window.set_undecorated_shadow(_enable);
+              #[cfg(target_os = "macos")]
+              window.set_has_shadow(_enable);
+            }
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
             WindowMessage::SetSize(size) => {
               window.set_inner_size(SizeWrapper::from(size).0);

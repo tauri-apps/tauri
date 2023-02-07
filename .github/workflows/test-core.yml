@@ -60,6 +60,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
+      - name: install webview2 (windows only)
+        if: contains(matrix.platform.target, 'windows')
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://go.microsoft.com/fwlink/p/?LinkId=2124703 -OutFile installwebview.exe -UseBasicParsing
+          cmd /C start /wait installwebview.exe /silent /install
+
       - name: test
         uses: actions-rs/cargo@v1
         with:

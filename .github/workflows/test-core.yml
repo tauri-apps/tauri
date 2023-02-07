@@ -38,10 +38,46 @@ jobs:
               cross: false,
               command: 'test'
             }
+          - {
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              toolchain: '1.64.0',
+              cross: false,
+              command: 'test'
+            }
+          - {
+              target: x86_64-apple-darwin,
+              os: macos-latest,
+              toolchain: '1.64.0',
+              cross: false,
+              command: 'test'
+            }
+          - {
+              target: aarch64-apple-ios,
+              os: macos-latest,
+              toolchain: '1.64.0',
+              cross: false,
+              command: 'build'
+            }
+          - {
+              target: aarch64-linux-android,
+              os: ubuntu-latest,
+              toolchain: '1.64.0',
+              cross: true,
+              command: 'build'
+            }
         features:
           - {
               args: --no-default-features,
               key: no-default
+            }
+          - {
+              args: --features api-all,
+              key: api-all
+            }
+          - {
+              args: --features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,
+              key: all
             }
 
     steps:
@@ -50,7 +86,8 @@ jobs:
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.platform.toolchain }}
+          target: ${{ matrix.platform.target }}
           override: true
           default: true
 
@@ -60,16 +97,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
-      - name: install webview2 (windows only)
-        if: contains(matrix.platform.target, 'windows')
-        shell: pwsh
-        run: |
-          Invoke-WebRequest https://go.microsoft.com/fwlink/p/?LinkId=2124703 -OutFile installwebview.exe -UseBasicParsing
-          cmd /C start /wait installwebview.exe /silent /install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core -> ../target
+          save-if: ${{ matrix.features.key == 'all' }}
 
       - name: test
         uses: actions-rs/cargo@v1
         with:
           use-cross: ${{ matrix.platform.cross }}
           command: ${{ matrix.platform.command }}
-          args: ${{ matrix.features.args }}
+          args: --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

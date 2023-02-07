@@ -184,7 +184,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// ## Platform-specific
   ///
   /// - **Windows:**
-  ///   - `false` has no effect on decorated widnow, shadows are always ON.
+  ///   - `false` has no effect on decorated window, shadows are always ON.
   ///   - `true` will make ndecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.

@@ -430,7 +430,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ## Platform-specific
   ///
   /// - **Windows:**
-  ///   - `false` has no effect on decorated widnow, shadows are always ON.
+  ///   - `false` has no effect on decorated window, shadows are always ON.
   ///   - `true` will make ndecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
@@ -1154,7 +1154,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **Windows:**
-  ///   - `false` has no effect on decorated widnow, shadow are always ON.
+  ///   - `false` has no effect on decorated window, shadow are always ON.
   ///   - `true` will make ndecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.

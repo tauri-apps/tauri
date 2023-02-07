@@ -83,17 +83,13 @@ impl AppBuilder {
 
         #[cfg(target_os = "windows")]
         {
-          window_builder = window_builder.transparent(true);
-          window_builder = window_builder.decorations(false);
+          window_builder = window_builder
+            .transparent(true)
+            .shadow(true)
+            .decorations(false);
         }
 
         let window = window_builder.build().unwrap();
-
-        #[cfg(target_os = "windows")]
-        {
-          let _ = window_shadows::set_shadow(&window, true);
-          let _ = window_vibrancy::apply_blur(&window, Some((0, 0, 0, 0)));
-        }
 
         #[cfg(debug_assertions)]
         window.open_devtools();

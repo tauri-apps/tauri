@@ -639,8 +639,11 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Closes the window.
   fn close(&self) -> Result<()>;
 
-  /// Updates the hasDecorations flag.
+  /// Updates the decorations flag.
   fn set_decorations(&self, decorations: bool) -> Result<()>;
+
+  /// Updates the shadow flag.
+  fn set_shadow(&self, enable: bool) -> Result<()>;
 
   /// Updates the window alwaysOnTop flag.
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()>;

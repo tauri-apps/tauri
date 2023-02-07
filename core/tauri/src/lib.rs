@@ -135,6 +135,7 @@
 //! - **window-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#hide).
 //! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
 //! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
+//! - **window-set-shadow**: Enables the [`setShadow` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setshadow).
 //! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
 //! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
 //! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).

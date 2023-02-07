@@ -179,6 +179,18 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn skip_taskbar(self, skip: bool) -> Self;
 
+  /// Sets whether or not the window has shadow.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:**
+  ///   - `false` has no effect on decorated window, shadows are always ON.
+  ///   - `true` will make ndecorated window have a 1px white border,
+  /// and on Windows 11, it will have a rounded corners.
+  /// - **Linux:** Unsupported.
+  #[must_use]
+  fn shadow(self, enable: bool) -> Self;
+
   /// Sets a parent to the window to be created.
   ///
   /// A child window has the WS_CHILD style and is confined to the client area of its parent window.

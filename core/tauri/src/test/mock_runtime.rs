@@ -278,6 +278,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn shadow(self, enable: bool) -> Self {
+    self
+  }
+
   #[cfg(windows)]
   fn parent_window(self, parent: HWND) -> Self {
     self
@@ -498,6 +502,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_decorations(&self, decorations: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_shadow(&self, shadow: bool) -> Result<()> {
     Ok(())
   }
 

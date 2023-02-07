@@ -431,7 +431,7 @@ pub enum WebviewInstallMode {
   /// Results in a smaller installer size, but is not recommended on Windows 7.
   DownloadBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
-    #[serde(default = "default_webview_install_silent")]
+    #[serde(default = "default_true")]
     silent: bool,
   },
   /// Embed the bootstrapper and run it.
@@ -439,7 +439,7 @@ pub enum WebviewInstallMode {
   /// Increases the installer size by around 1.8MB, but offers better support on Windows 7.
   EmbedBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
-    #[serde(default = "default_webview_install_silent")]
+    #[serde(default = "default_true")]
     silent: bool,
   },
   /// Embed the offline installer and run it.
@@ -447,7 +447,7 @@ pub enum WebviewInstallMode {
   /// Increases the installer size by around 127MB.
   OfflineInstaller {
     /// Instructs the installer to run the installer in silent mode. Defaults to `true`.
-    #[serde(default = "default_webview_install_silent")]
+    #[serde(default = "default_true")]
     silent: bool,
   },
   /// Embed a fixed webview2 version and use it at runtime.
@@ -461,14 +461,10 @@ pub enum WebviewInstallMode {
   },
 }
 
-fn default_webview_install_silent() -> bool {
-  true
-}
-
 impl Default for WebviewInstallMode {
   fn default() -> Self {
     Self::DownloadBootstrapper {
-      silent: default_webview_install_silent(),
+      silent: default_true(),
     }
   }
 }
@@ -508,7 +504,7 @@ pub struct WindowsConfig {
   /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
   ///
   /// The default value of this flag is `true`.
-  #[serde(default = "default_allow_downgrades", alias = "allow-downgrades")]
+  #[serde(default = "default_true", alias = "allow-downgrades")]
   pub allow_downgrades: bool,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
@@ -523,14 +519,10 @@ impl Default for WindowsConfig {
       tsp: false,
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
-      allow_downgrades: default_allow_downgrades(),
+      allow_downgrades: default_true(),
       wix: None,
     }
   }
-}
-
-fn default_allow_downgrades() -> bool {
-  true
 }
 
 /// Configuration for tauri-bundler.
@@ -805,7 +797,7 @@ pub struct WindowConfig {
   /// Whether the file drop is enabled or not on the webview. By default it is enabled.
   ///
   /// Disabling it is required to use drag and drop on the frontend on Windows.
-  #[serde(default = "default_file_drop_enabled", alias = "file-drop-enabled")]
+  #[serde(default = "default_true", alias = "file-drop-enabled")]
   pub file_drop_enabled: bool,
   /// Whether or not the window starts centered or not.
   #[serde(default)]
@@ -833,7 +825,7 @@ pub struct WindowConfig {
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
   /// Whether the window is resizable or not.
-  #[serde(default = "default_resizable")]
+  #[serde(default = "default_true")]
   pub resizable: bool,
   /// The window title.
   #[serde(default = "default_title")]
@@ -842,7 +834,7 @@ pub struct WindowConfig {
   #[serde(default)]
   pub fullscreen: bool,
   /// Whether the window will be initially focused or not.
-  #[serde(default = "default_focus")]
+  #[serde(default = "default_true")]
   pub focus: bool,
   /// Whether the window is transparent or not.
   ///
@@ -854,10 +846,10 @@ pub struct WindowConfig {
   #[serde(default)]
   pub maximized: bool,
   /// Whether the window is visible or not.
-  #[serde(default = "default_visible")]
+  #[serde(default = "default_true")]
   pub visible: bool,
   /// Whether the window should have borders and bars.
-  #[serde(default = "default_decorations")]
+  #[serde(default = "default_true")]
   pub decorations: bool,
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
@@ -884,6 +876,17 @@ pub struct WindowConfig {
   /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
+  /// Whether or not the window has shadow.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:**
+  ///   - `false` has no effect on decorated window, shadow are always ON.
+  ///   - `true` will make ndecorated window have a 1px white border,
+  /// and on Windows 11, it will have a rounded corners.
+  /// - **Linux:** Unsupported.
+  #[serde(default)]
+  pub shadow: bool,
 }
 
 impl Default for WindowConfig {
@@ -892,7 +895,7 @@ impl Default for WindowConfig {
       label: default_window_label(),
       url: WindowUrl::default(),
       user_agent: None,
-      file_drop_enabled: default_file_drop_enabled(),
+      file_drop_enabled: default_true(),
       center: false,
       x: None,
       y: None,
@@ -902,14 +905,14 @@ impl Default for WindowConfig {
       min_height: None,
       max_width: None,
       max_height: None,
-      resizable: default_resizable(),
+      resizable: default_true(),
       title: default_title(),
       fullscreen: false,
       focus: false,
       transparent: false,
       maximized: false,
-      visible: default_visible(),
-      decorations: default_decorations(),
+      visible: default_true(),
+      decorations: default_true(),
       always_on_top: false,
       skip_taskbar: false,
       theme: None,
@@ -917,6 +920,7 @@ impl Default for WindowConfig {
       hidden_title: false,
       accept_first_mouse: false,
       tabbing_identifier: None,
+      shadow: false,
     }
   }
 }
@@ -933,28 +937,12 @@ fn default_height() -> f64 {
   600f64
 }
 
-fn default_resizable() -> bool {
+fn default_true() -> bool {
   true
 }
 
 fn default_title() -> String {
   "Tauri App".to_string()
-}
-
-fn default_focus() -> bool {
-  true
-}
-
-fn default_visible() -> bool {
-  true
-}
-
-fn default_decorations() -> bool {
-  true
-}
-
-fn default_file_drop_enabled() -> bool {
-  true
 }
 
 /// A Content-Security-Policy directive source list.
@@ -1329,6 +1317,9 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the decorations flag of the window.
   #[serde(default, alias = "set-decorations")]
   pub set_decorations: bool,
+  /// Allows setting the shadow flag of the window.
+  #[serde(default, alias = "set-shadow")]
+  pub set_shadow: bool,
   /// Allows setting the always_on_top flag of the window.
   #[serde(default, alias = "set-always-on-top")]
   pub set_always_on_top: bool,
@@ -1410,6 +1401,7 @@ impl Allowlist for WindowAllowlistConfig {
       set_cursor_icon: true,
       set_cursor_position: true,
       set_ignore_cursor_events: true,
+      set_shadow: true,
       start_dragging: true,
       print: true,
     };
@@ -1441,6 +1433,7 @@ impl Allowlist for WindowAllowlistConfig {
       check_feature!(self, features, hide, "window-hide");
       check_feature!(self, features, close, "window-close");
       check_feature!(self, features, set_decorations, "window-set-decorations");
+      check_feature!(self, features, set_shadow, "window-set-shadow");
       check_feature!(
         self,
         features,
@@ -2376,7 +2369,7 @@ pub struct UpdaterConfig {
   #[serde(default)]
   pub active: bool,
   /// Display built-in dialog or use event system if disabled.
-  #[serde(default = "default_dialog")]
+  #[serde(default = "default_true")]
   pub dialog: bool,
   /// The updater endpoints. TLS is enforced on production.
   ///
@@ -2407,7 +2400,7 @@ impl<'de> Deserialize<'de> for UpdaterConfig {
     struct InnerUpdaterConfig {
       #[serde(default)]
       active: bool,
-      #[serde(default = "default_dialog")]
+      #[serde(default = "default_true")]
       dialog: bool,
       endpoints: Option<Vec<UpdaterEndpoint>>,
       pubkey: Option<String>,
@@ -2437,7 +2430,7 @@ impl Default for UpdaterConfig {
   fn default() -> Self {
     Self {
       active: false,
-      dialog: default_dialog(),
+      dialog: default_true(),
       endpoints: None,
       pubkey: "".into(),
       windows: Default::default(),
@@ -2458,24 +2451,10 @@ pub struct SystemTrayConfig {
   #[serde(default, alias = "icon-as-template")]
   pub icon_as_template: bool,
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.
-  #[serde(
-    default = "default_tray_menu_on_left_click",
-    alias = "menu-on-left-click"
-  )]
+  #[serde(default = "default_true", alias = "menu-on-left-click")]
   pub menu_on_left_click: bool,
   /// Title for MacOS tray
   pub title: Option<String>,
-}
-
-fn default_tray_menu_on_left_click() -> bool {
-  true
-}
-
-// We enable the unnecessary_wraps because we need
-// to use an Option for dialog otherwise the CLI schema will mark
-// the dialog as a required field which is not as we default it to true.
-fn default_dialog() -> bool {
-  true
 }
 
 /// General configuration for the iOS target.
@@ -3060,6 +3039,7 @@ mod build {
       let hidden_title = self.hidden_title;
       let accept_first_mouse = self.accept_first_mouse;
       let tabbing_identifier = opt_str_lit(self.tabbing_identifier.as_ref());
+      let shadow = self.shadow;
 
       literal_struct!(
         tokens,
@@ -3091,7 +3071,8 @@ mod build {
         title_bar_style,
         hidden_title,
         accept_first_mouse,
-        tabbing_identifier
+        tabbing_identifier,
+        shadow
       );
     }
   }

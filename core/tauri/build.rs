@@ -80,6 +80,7 @@ fn main() {
       "hide",
       "close",
       "set-decorations",
+      "set-shadow",
       "set-always-on-top",
       "set-size",
       "set-min-size",

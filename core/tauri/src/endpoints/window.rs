@@ -98,6 +98,8 @@ pub enum WindowManagerCmd {
   Close,
   #[cfg(window_set_decorations)]
   SetDecorations(bool),
+  #[cfg(window_set_shadow)]
+  SetShadow(bool),
   #[cfg(window_set_always_on_top)]
   #[serde(rename_all = "camelCase")]
   SetAlwaysOnTop(bool),
@@ -161,6 +163,7 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     "hide" => crate::Error::ApiNotAllowlisted("window > hide".to_string()),
     "close" => crate::Error::ApiNotAllowlisted("window > close".to_string()),
     "setDecorations" => crate::Error::ApiNotAllowlisted("window > setDecorations".to_string()),
+    "setShadow" => crate::Error::ApiNotAllowlisted("window > setShadow".to_string()),
     "setAlwaysOnTop" => crate::Error::ApiNotAllowlisted("window > setAlwaysOnTop".to_string()),
     "setSize" => crate::Error::ApiNotAllowlisted("window > setSize".to_string()),
     "setMinSize" => crate::Error::ApiNotAllowlisted("window > setMinSize".to_string()),
@@ -293,6 +296,8 @@ impl Cmd {
       WindowManagerCmd::Close => window.close()?,
       #[cfg(all(desktop, window_set_decorations))]
       WindowManagerCmd::SetDecorations(decorations) => window.set_decorations(decorations)?,
+      #[cfg(all(desktop, window_set_shadow))]
+      WindowManagerCmd::SetShadow(enable) => window.set_shadow(enable)?,
       #[cfg(all(desktop, window_set_always_on_top))]
       WindowManagerCmd::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
       #[cfg(all(desktop, window_set_size))]

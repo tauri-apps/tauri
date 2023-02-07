@@ -285,7 +285,16 @@ fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
 
 fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {
   log::info!("Opening Android Studio");
-  if let Err(e) = os::open_file_with("Android Studio", config.project_dir(), &env.base) {
+  if let Err(e) = os::open_file_with(
+    if cfg!(target_os = "macos") {
+      "Android\\ Studio"
+    } else {
+      // on Windows tauri-mobile actually checks this string :(
+      "Android Studio"
+    },
+    config.project_dir(),
+    &env.base,
+  ) {
     log::error!("{}", e);
   }
   loop {

@@ -208,6 +208,13 @@ impl Default for CursorIcon {
   }
 }
 
+#[cfg(target_os = "android")]
+pub struct CreationContext<'a> {
+  pub env: jni::JNIEnv<'a>,
+  pub activity: jni::objects::JObject<'a>,
+  pub webview: jni::objects::JObject<'a>,
+}
+
 /// A webview window that has yet to be built.
 pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// The label that the window will be named.
@@ -232,6 +239,10 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
 
   /// A HashMap mapping JS event names with associated listener ids.
   pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
+
+  #[cfg(target_os = "android")]
+  pub on_webview_created:
+    Option<Box<dyn Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -271,6 +282,8 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
+        #[cfg(target_os = "android")]
+        on_webview_created: None,
       })
     }
   }
@@ -300,6 +313,8 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
+        #[cfg(target_os = "android")]
+        on_webview_created: None,
       })
     }
   }
@@ -325,6 +340,17 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     self
       .uri_scheme_protocols
       .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
+  }
+
+  #[cfg(target_os = "android")]
+  pub fn on_webview_created<
+    F: Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send + 'static,
+  >(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.on_webview_created.replace(Box::new(f));
+    self
   }
 }
 

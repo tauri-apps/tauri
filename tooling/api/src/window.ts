@@ -27,6 +27,7 @@
  *         "hide": true,
  *         "close": true,
  *         "setDecorations": true,
+ *         "setShadow": true,
  *         "setAlwaysOnTop": true,
  *         "setSize": true,
  *         "setMinSize": true,
@@ -1091,6 +1092,43 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Whether or not the window should have shadow.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows:**
+   *   - `false` has no effect on decorated window, shadows are always ON.
+   *   - `true` will make ndecorated window have a 1px white border,
+   * and on Windows 11, it will have a rounded corners.
+   * - **Linux:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setShadow(false);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.0
+   */
+  async setShadow(enable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setShadow',
+            payload: enable
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Whether the window should always be on top of other windows.
    * @example
    * ```typescript
@@ -1184,12 +1222,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -1226,12 +1264,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -2051,6 +2089,20 @@ interface WindowOptions {
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
   /**
+   *  Whether or not the window has shadow.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows:**
+   *   - `false` has no effect on decorated window, shadows are always ON.
+   *   - `true` will make ndecorated window have a 1px white border,
+   * and on Windows 11, it will have a rounded corners.
+   * - **Linux:** Unsupported.
+   *
+   * @since 2.0
+   */
+  shadow?: boolean
+  /**
    * Whether the file drop is enabled or not on the webview. By default it is enabled.
    *
    * Disabling it is required to use drag and drop on the frontend on Windows.
@@ -2091,11 +2143,11 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-        name: m.name,
-        scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position.x, m.position.y),
-        size: new PhysicalSize(m.size.width, m.size.height)
-      }
+      name: m.name,
+      scaleFactor: m.scaleFactor,
+      position: new PhysicalPosition(m.position.x, m.position.y),
+      size: new PhysicalSize(m.size.width, m.size.height)
+    }
 }
 
 /**

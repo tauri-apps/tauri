@@ -59,7 +59,8 @@ impl From<Handler> for proc_macro::TokenStream {
       match #cmd {
         #(stringify!(#commands) => #wrappers!(#paths, #invoke),)*
         _ => {
-          #invoke.resolver.reject(format!("command {} not found", #cmd))
+          #invoke.resolver.reject(format!("command {} not found", #cmd));
+          return false;
         },
       }
     })

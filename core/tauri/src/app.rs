@@ -366,7 +366,7 @@ impl<R: Runtime> AssetResolver<R> {
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct AppHandle<R: Runtime> {
-  runtime_handle: R::Handle,
+  pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: WindowManager<R>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: R::GlobalShortcutManager,
@@ -382,6 +382,74 @@ impl<R: Runtime> AppHandle<R> {
   #[allow(dead_code)]
   pub(crate) fn create_proxy(&self) -> R::EventLoopProxy {
     self.runtime_handle.create_proxy()
+  }
+
+  /// Initializes an Android plugin.
+  #[cfg(target_os = "android")]
+  pub fn initialize_android_plugin(
+    &self,
+    plugin_name: &'static str,
+    plugin_identifier: &str,
+    class_name: &str,
+  ) -> crate::Result<()> {
+    use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
+
+    fn initialize_plugin<'a, R: Runtime>(
+      env: JNIEnv<'a>,
+      activity: JObject<'a>,
+      webview: JObject<'a>,
+      runtime_handle: &R::Handle,
+      plugin_name: &'static str,
+      plugin_class: String,
+    ) -> Result<(), JniError> {
+      let plugin_manager = env
+        .call_method(
+          activity,
+          "getPluginManager",
+          format!("()Lapp/tauri/plugin/PluginManager;"),
+          &[],
+        )?
+        .l()?;
+
+      // instantiate plugin
+      let plugin_class = runtime_handle.find_class(env, activity, plugin_class)?;
+      let plugin = env.new_object(
+        plugin_class,
+        "(Landroid/app/Activity;)V",
+        &[activity.into()],
+      )?;
+
+      // load plugin
+      env.call_method(
+        plugin_manager,
+        "load",
+        format!("(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;)V"),
+        &[
+          webview.into(),
+          env.new_string(plugin_name)?.into(),
+          plugin.into(),
+        ],
+      )?;
+
+      Ok(())
+    }
+
+    let plugin_class = format!("{}/{}", plugin_identifier.replace(".", "/"), class_name);
+    let runtime_handle = self.runtime_handle.clone();
+    self
+      .runtime_handle
+      .run_on_android_context(move |env, activity, webview| {
+        let _ = initialize_plugin::<R>(
+          env,
+          activity,
+          webview,
+          &runtime_handle,
+          plugin_name,
+          plugin_class,
+        );
+      });
+
+    Ok(())
   }
 }
 
@@ -1050,7 +1118,7 @@ impl<R: Runtime> Builder<R> {
       #[cfg(any(windows, target_os = "linux"))]
       runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
-      invoke_handler: Box::new(|_| ()),
+      invoke_handler: Box::new(|_| false),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
         "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (message) => window.ipc.postMessage(JSON.stringify(message)) })".into(),
@@ -1102,7 +1170,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(Invoke<R>) + Send + Sync + 'static,
+    F: Fn(Invoke<R>) -> bool + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self

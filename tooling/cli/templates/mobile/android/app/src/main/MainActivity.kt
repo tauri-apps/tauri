@@ -1,3 +1,7 @@
 package {{reverse-domain app.domain}}.{{snake-case app.name}}
 
-class MainActivity : TauriActivity()
+import app.tauri.plugin.PluginManager
+
+class MainActivity : TauriActivity() {
+  var pluginManager: PluginManager = PluginManager()
+}

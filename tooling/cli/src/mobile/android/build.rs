@@ -120,13 +120,16 @@ fn run_build(
       .triple
       .into(),
   );
-  let interface = crate::build::setup(&mut build_options, true)?;
+  let mut interface = crate::build::setup(&mut build_options, true)?;
+
+  let interface_options = InterfaceOptions {
+    debug: build_options.debug,
+    target: build_options.target.clone(),
+    ..Default::default()
+  };
 
   let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
-    debug: build_options.debug,
-    ..Default::default()
-  })?;
+  let bin_path = app_settings.app_binary_path(&interface_options)?;
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
@@ -142,6 +145,9 @@ fn run_build(
     .features
     .get_or_insert(Vec::new())
     .push("custom-protocol".into());
+
+  // run an initial build to initialize plugins
+  interface.build(interface_options)?;
 
   let apk_outputs = if options.apk {
     apk::build(

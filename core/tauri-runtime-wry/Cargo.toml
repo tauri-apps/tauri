@@ -13,7 +13,7 @@ exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.26.0", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { git = "https://github.com/tauri-apps/wry", branch = "dev", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.13.0-alpha.1", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-alpha.1", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
@@ -21,11 +21,11 @@ rand = "0.8"
 raw-window-handle = "0.5"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.19.1"
+webview2-com = "0.22"
 
-  [target."cfg(windows)".dependencies.windows]
-  version = "0.39.0"
-  features = [ "Win32_Foundation" ]
+[target."cfg(windows)".dependencies.windows]
+version = "0.44"
+features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.16", features = [ "v3_24" ] }
@@ -34,6 +34,9 @@ percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 cocoa = "0.24"
+
+[target."cfg(target_os = \"android\")".dependencies]
+jni = "0.20"
 
 [features]
 dox = [ "wry/dox" ]

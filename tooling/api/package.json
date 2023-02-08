@@ -41,8 +41,8 @@
     "yarn": ">= 1.19.1"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "5.50.0",
-    "@typescript-eslint/parser": "5.50.0",
+    "@typescript-eslint/eslint-plugin": "5.51.0",
+    "@typescript-eslint/parser": "5.51.0",
     "eslint": "8.33.0",
     "eslint-config-prettier": "8.6.0",
     "eslint-config-standard-with-typescript": "32.0.0",
@@ -50,9 +50,9 @@
     "eslint-plugin-n": "15.6.1",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.1.1",
-    "eslint-plugin-security": "1.7.0",
-    "prettier": "2.8.3",
-    "tsup": "6.5.0",
+    "eslint-plugin-security": "1.7.1",
+    "prettier": "2.8.4",
+    "tsup": "6.6.0",
     "typedoc": "0.23.24",
     "typedoc-plugin-markdown": "3.14.0",
     "typedoc-plugin-mdn-links": "2.0.2",

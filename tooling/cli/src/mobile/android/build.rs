@@ -161,15 +161,6 @@ fn run_build(
     .push("custom-protocol".into());
 
   let apk_outputs = if options.apk {
-    // run an initial build to initialize plugins
-    apk::build(
-      config,
-      env,
-      noise_level,
-      profile,
-      vec![Target::all().first_key_value().unwrap().1],
-      false,
-    )?;
     apk::build(
       config,
       env,
@@ -183,15 +174,6 @@ fn run_build(
   };
 
   let aab_outputs = if options.aab {
-    // run an initial build to initialize plugins
-    aab::build(
-      config,
-      env,
-      noise_level,
-      profile,
-      vec![Target::all().first_key_value().unwrap().1],
-      false,
-    )?;
     aab::build(
       config,
       env,

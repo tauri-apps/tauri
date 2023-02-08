@@ -144,7 +144,10 @@ pub fn get_config(
   );
   set_var(
     "TAURI_APP_GRADLE_BUILD_PATH",
-    config.project_dir().join("app").join("build.gradle.kts"),
+    config
+      .project_dir()
+      .join("app")
+      .join("tauri.build.gradle.kts"),
   );
 
   (app, config, metadata)

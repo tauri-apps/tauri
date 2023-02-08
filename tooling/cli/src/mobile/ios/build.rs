@@ -132,7 +132,6 @@ fn run_build(
       .bundle
       .identifier,
     cli_options,
-    env,
   )?;
 
   options

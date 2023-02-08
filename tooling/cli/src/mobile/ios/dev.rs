@@ -156,7 +156,6 @@ fn run_dev(
       no_watch: options.no_watch,
     },
     |options| {
-      let mut env = env.clone();
       let cli_options = CliOptions {
         features: options.features.clone(),
         args: options.args.clone(),
@@ -173,7 +172,6 @@ fn run_dev(
           .bundle
           .identifier,
         cli_options,
-        &mut env,
       )?;
 
       if open {

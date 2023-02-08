@@ -60,7 +60,11 @@ impl PluginBuilder {
             }
           }
 
-          let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
+          let gradle_settings = if PathBuf::from(&gradle_settings_path).exists() {
+            fs::read_to_string(&gradle_settings_path)?
+          } else {
+            Default::default()
+          };
           let include = format!(
             "include ':{pkg_name}'
 project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"

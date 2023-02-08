@@ -140,7 +140,7 @@ pub fn get_config(
   set_var("TAURI_PLUGIN_OUTPUT_PATH", plugin_output_path);
   set_var(
     "TAURI_GRADLE_SETTINGS_PATH",
-    config.project_dir().join("settings.gradle"),
+    config.project_dir().join("tauri.settings.gradle"),
   );
   set_var(
     "TAURI_APP_GRADLE_BUILD_PATH",

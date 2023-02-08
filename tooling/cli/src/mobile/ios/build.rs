@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
   build::Options as BuildOptions,
-  helpers::flock,
+  helpers::{config::get as get_config, flock},
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
@@ -122,7 +122,18 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  let _handle = write_options(cli_options, env)?;
+  let _handle = write_options(
+    &get_config(options.config.as_deref())?
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .tauri
+      .bundle
+      .identifier,
+    cli_options,
+    env,
+  )?;
 
   options
     .features

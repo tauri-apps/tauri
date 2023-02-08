@@ -22,11 +22,10 @@ use shared_child::SharedChild;
 
 use std::{
   collections::HashMap,
-  env::set_var,
-  env::var,
+  env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, remove_dir_all},
+  fs::{create_dir_all, read_to_string, remove_dir_all, write},
   net::SocketAddr,
   path::PathBuf,
   process::ExitStatus,
@@ -196,8 +195,8 @@ fn env() -> Result<Env, EnvError> {
 
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
 pub fn write_options(
+  identifier: &str,
   mut options: CliOptions,
-  env: &mut Env,
 ) -> crate::Result<(Runtime, ServerHandle)> {
   options.vars.extend(env_vars());
 
@@ -215,12 +214,15 @@ pub fn write_options(
   });
   let (handle, addr) = r?;
 
-  env.insert_env_var("TAURI_OPTIONS_SERVER_ADDR".into(), addr.to_string().into());
+  write(
+    temp_dir().join(format!("{identifier}-server-addr")),
+    addr.to_string(),
+  )?;
 
   Ok((runtime, handle))
 }
 
-fn read_options() -> CliOptions {
+fn read_options(identifier: &str) -> CliOptions {
   let runtime = tokio::runtime::Runtime::new().unwrap();
   let options = runtime
     .block_on(async move {
@@ -228,7 +230,8 @@ fn read_options() -> CliOptions {
         .build(
           format!(
             "ws://{}",
-            var("TAURI_OPTIONS_SERVER_ADDR").expect("missing addr environment variable")
+            read_to_string(temp_dir().join(format!("{identifier}-server-addr")))
+              .expect("missing addr file")
           )
           .parse()
           .unwrap(),

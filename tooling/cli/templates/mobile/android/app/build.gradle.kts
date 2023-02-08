@@ -89,6 +89,8 @@ dependencies {
     implementation(project(":tauri-android"))
 }
 
+apply(from = "tauri.build.gradle.kts")
+
 afterEvaluate {
     android.applicationVariants.all {
         tasks["mergeUniversalReleaseJniLibFolders"].dependsOn(tasks["rustBuildRelease"])

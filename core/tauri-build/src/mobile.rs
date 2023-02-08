@@ -74,14 +74,11 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
 
           let app_build_gradle = fs::read_to_string(&app_build_gradle_path)?;
           let implementation = format!(r#"implementation(project(":{pkg_name}"))"#);
-          let target_implementation = r#"implementation(project(":tauri-android"))"#;
+          let target = "dependencies {";
           if !app_build_gradle.contains(&implementation) {
             fs::write(
               &app_build_gradle_path,
-              app_build_gradle.replace(
-                target_implementation,
-                &format!("{target_implementation}\n    {implementation}"),
-              ),
+              app_build_gradle.replace(target, &format!("{target}\n  {implementation}")),
             )?
           }
         }

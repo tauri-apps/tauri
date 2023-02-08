@@ -60,11 +60,7 @@ impl PluginBuilder {
             }
           }
 
-          let gradle_settings = if PathBuf::from(&gradle_settings_path).exists() {
-            fs::read_to_string(&gradle_settings_path)?
-          } else {
-            Default::default()
-          };
+          let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
           let include = format!(
             "include ':{pkg_name}'
 project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
@@ -76,11 +72,7 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
             )?;
           }
 
-          let app_build_gradle = if PathBuf::from(&app_build_gradle_path).exists() {
-            fs::read_to_string(&app_build_gradle_path)?
-          } else {
-            "val implementation by configurations\n\ndependencies {\n\n}".into()
-          };
+          let app_build_gradle = fs::read_to_string(&app_build_gradle_path)?;
           let implementation = format!(r#"implementation(project(":{pkg_name}"))"#);
           let target = "dependencies {";
           if !app_build_gradle.contains(&implementation) {

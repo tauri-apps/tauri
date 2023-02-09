@@ -25,7 +25,7 @@ use std::{
   env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, read_to_string, remove_dir_all, write},
+  fs::{create_dir_all, read_to_string, remove_dir_all, rename, write},
   net::SocketAddr,
   path::PathBuf,
   process::ExitStatus,
@@ -318,14 +318,30 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
     #[allow(irrefutable_let_patterns)]
     if let Target::Android = target {
       let tauri_api_dir_path = project_dir.join("tauri-api");
-      if tauri_api_dir_path.exists() {
+      let build_path = if tauri_api_dir_path.exists() {
+        // keep build folder if it exists
+        let build_path = tauri_api_dir_path.join("build");
+        let out_dir = if build_path.exists() {
+          let out_dir = project_dir.join(".tauri-api-build");
+          rename(&build_path, &out_dir)?;
+          Some(out_dir)
+        } else {
+          None
+        };
         remove_dir_all(&tauri_api_dir_path)?;
-      }
+        out_dir
+      } else {
+        None
+      };
       create_dir_all(&tauri_api_dir_path)?;
 
       ANDROID_API_PROJECT_DIR
-        .extract(tauri_api_dir_path)
+        .extract(&tauri_api_dir_path)
         .context("failed to extract Tauri API project")?;
+
+      if let Some(build_path) = build_path {
+        rename(build_path, tauri_api_dir_path.join("build"))?;
+      }
     }
 
     Ok(())

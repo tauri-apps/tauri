@@ -72,7 +72,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(
     Some(Default::default()),
-    |app, config, metadata, _cli_options| {
+    |app, config, _metadata, _cli_options| {
       set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
@@ -80,20 +80,6 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
       let mut env = env()?;
       init_dot_cargo(app, Some((&env, config)))?;
-
-      // run an initial build to initialize plugins
-      Target::all().first_key_value().unwrap().1.build(
-        config,
-        metadata,
-        &env,
-        noise_level,
-        true,
-        if options.debug {
-          Profile::Debug
-        } else {
-          Profile::Release
-        },
-      )?;
 
       let open = options.open;
       run_build(options, config, &mut env, noise_level)?;

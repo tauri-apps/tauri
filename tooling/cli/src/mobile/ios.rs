@@ -24,7 +24,7 @@ use tauri_mobile::{
 
 use super::{
   ensure_init, env, get_app,
-  init::{command as init_command, init_dot_cargo},
+  init::{command as init_command, configure_cargo},
   log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };

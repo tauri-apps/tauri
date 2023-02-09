@@ -16,9 +16,11 @@ use tauri_mobile::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     device::Device,
     env::Env,
+    target::Target,
   },
   config::app::App,
   opts::{FilterLevel, NoiseLevel, Profile},
+  target::TargetTrait,
 };
 
 use std::env::set_var;
@@ -112,12 +114,11 @@ fn run_dev(
   };
 
   let mut dev_options: DevOptions = options.clone().into();
-  dev_options.target = Some(
-    device
-      .as_ref()
-      .map(|d| d.target().triple.to_string())
-      .unwrap_or_else(|| "aarch64-linux-android".into()),
-  );
+  let target_triple = device
+    .as_ref()
+    .map(|d| d.target().triple.to_string())
+    .unwrap_or_else(|| Target::all().first_key_value().unwrap().1.triple.into());
+  dev_options.target = Some(target_triple.clone());
   let mut interface = crate::dev::setup(&mut dev_options, true)?;
 
   let interface_options = InterfaceOptions {
@@ -134,7 +135,11 @@ fn run_dev(
   configure_cargo(app, Some((&mut env, config)))?;
 
   // run an initial build to initialize plugins
-  interface.build(interface_options)?;
+  let target = Target::all()
+    .values()
+    .find(|t| t.triple == target_triple)
+    .unwrap_or(Target::all().first_key_value().unwrap().1);
+  target.build(config, metadata, &env, noise_level, true, Profile::Debug)?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;

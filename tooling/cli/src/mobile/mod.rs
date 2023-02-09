@@ -340,7 +340,7 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
         .context("failed to extract Tauri API project")?;
 
       if let Some(build_path) = build_path {
-        rename(&build_path, tauri_api_dir_path.join("build"))?;
+        rename(build_path, tauri_api_dir_path.join("build"))?;
       }
     }
 

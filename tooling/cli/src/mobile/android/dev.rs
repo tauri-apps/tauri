@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
   dev::Options as DevOptions,
-  helpers::flock,
+  helpers::{config::get as get_config, flock},
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
@@ -148,14 +148,23 @@ fn run_dev(
       no_watch: options.no_watch,
     },
     |options| {
-      let mut env = env.clone();
       let cli_options = CliOptions {
         features: options.features.clone(),
         args: options.args.clone(),
         noise_level,
         vars: Default::default(),
       };
-      let _handle = write_options(cli_options, &mut env.base)?;
+      let _handle = write_options(
+        &get_config(options.config.as_deref())?
+          .lock()
+          .unwrap()
+          .as_ref()
+          .unwrap()
+          .tauri
+          .bundle
+          .identifier,
+        cli_options,
+      )?;
 
       if open {
         open_and_wait(config, &env)

@@ -85,6 +85,6 @@ jobs:
 
       - name: build APK
         working-directory: ./examples/api
-        run: ../../tooling/cli/target/debug/cargo-tauri android build
+        run: ../../tooling/cli/target/debug/cargo-tauri android build --debug
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}

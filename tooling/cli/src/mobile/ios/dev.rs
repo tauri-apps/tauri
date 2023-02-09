@@ -1,5 +1,5 @@
 use super::{
-  device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, setup_dev_config, with_config,
+  configure_cargo, device_prompt, ensure_init, env, open_and_wait, setup_dev_config, with_config,
   MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
@@ -142,7 +142,7 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
 
-  init_dot_cargo(app, None)?;
+  configure_cargo(app, None)?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;

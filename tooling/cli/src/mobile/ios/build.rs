@@ -1,5 +1,5 @@
 use super::{
-  detect_target_ok, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
+  configure_cargo, detect_target_ok, ensure_init, env, log_finished, open_and_wait, with_config,
   MobileTarget,
 };
 use crate::{
@@ -71,7 +71,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       ensure_init(config.project_dir(), MobileTarget::Ios)?;
 
       let mut env = env()?;
-      init_dot_cargo(app, None)?;
+      configure_cargo(app, None)?;
 
       let open = options.open;
       run_build(options, config, &mut env, noise_level)?;

@@ -1,5 +1,5 @@
 use super::{
-  delete_codegen_vars, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
+  configure_cargo, delete_codegen_vars, ensure_init, env, log_finished, open_and_wait, with_config,
   MobileTarget,
 };
 use crate::{
@@ -79,7 +79,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       ensure_init(config.project_dir(), MobileTarget::Android)?;
 
       let mut env = env()?;
-      init_dot_cargo(app, Some((&env, config)))?;
+      configure_cargo(app, Some((&mut env, config)))?;
 
       let open = options.open;
       run_build(options, config, &mut env, noise_level)?;

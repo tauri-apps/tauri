@@ -179,6 +179,7 @@ fn env_vars() -> HashMap<String, OsString> {
     let k = k.to_string_lossy();
     if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
       || k.starts_with("WRY")
+      || k.starts_with("CARGO_")
       || k == "TMPDIR"
       || k == "PATH"
     {

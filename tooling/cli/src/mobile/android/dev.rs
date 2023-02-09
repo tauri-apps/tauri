@@ -1,5 +1,5 @@
 use super::{
-  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait,
+  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, open_and_wait,
   setup_dev_config, with_config, MobileTarget,
 };
 use crate::{
@@ -98,7 +98,7 @@ fn run_dev(
   noise_level: NoiseLevel,
 ) -> Result<()> {
   setup_dev_config(&mut options.config)?;
-  let env = env()?;
+  let mut env = env()?;
   let device = if options.open {
     None
   } else {
@@ -131,7 +131,7 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
-  init_dot_cargo(app, Some((&env, config)))?;
+  configure_cargo(app, Some((&mut env, config)))?;
 
   // run an initial build to initialize plugins
   interface.build(interface_options)?;

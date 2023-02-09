@@ -1,6 +1,6 @@
 use std::{
   env::var,
-  fs,
+  fs::{self, rename},
   path::{PathBuf, MAIN_SEPARATOR},
 };
 
@@ -46,7 +46,19 @@ impl PluginBuilder {
           println!("cargo:rerun-if-changed={}", gradle_settings_path);
           println!("cargo:rerun-if-changed={}", app_build_gradle_path);
 
-          let target = PathBuf::from(out_dir).join(&pkg_name);
+          let out_dir = PathBuf::from(out_dir);
+          let target = out_dir.join(&pkg_name);
+
+          // keep build folder if it exists
+          let build_path = target.join("build");
+          let out_dir = if build_path.exists() {
+            let out_dir = out_dir.join(".tauri-plugin-build");
+            rename(&build_path, &out_dir)?;
+            Some(out_dir)
+          } else {
+            None
+          };
+
           let _ = fs::remove_dir_all(&target);
 
           for entry in walkdir::WalkDir::new(&source) {
@@ -58,6 +70,10 @@ impl PluginBuilder {
             } else {
               fs::copy(entry.path(), dest_path)?;
             }
+          }
+
+          if let Some(out_dir) = out_dir {
+            rename(&out_dir, &build_path)?;
           }
 
           let gradle_settings = fs::read_to_string(&gradle_settings_path)?;

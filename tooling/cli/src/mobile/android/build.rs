@@ -72,7 +72,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(
     Some(Default::default()),
-    |app, config, _metadata, _cli_options| {
+    |app, config, metadata, _cli_options| {
       set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
@@ -80,6 +80,20 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
       let mut env = env()?;
       configure_cargo(app, Some((&mut env, config)))?;
+
+      // run an initial build to initialize plugins
+      Target::all().first_key_value().unwrap().1.build(
+        config,
+        metadata,
+        &env,
+        noise_level,
+        true,
+        if options.debug {
+          Profile::Debug
+        } else {
+          Profile::Release
+        },
+      )?;
 
       let open = options.open;
       run_build(options, config, &mut env, noise_level)?;
@@ -120,7 +134,7 @@ fn run_build(
       .triple
       .into(),
   );
-  let mut interface = crate::build::setup(&mut build_options, true)?;
+  let interface = crate::build::setup(&mut build_options, true)?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,
@@ -155,9 +169,6 @@ fn run_build(
     .features
     .get_or_insert(Vec::new())
     .push("custom-protocol".into());
-
-  // run an initial build to initialize plugins
-  interface.build(interface_options)?;
 
   let apk_outputs = if options.apk {
     apk::build(

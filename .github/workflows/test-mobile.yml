@@ -5,6 +5,11 @@ on:
     paths:
       - '.github/workflows/test-mobile.yml'
       - 'tooling/cli/templates/mobile/**'
+      - 'tooling/cli/mobile/android/**'
+      - 'tooling/cli/src/mobile/**'
+      - '!tooling/cli/src/mobile/ios.rs'
+      - '!tooling/cli/src/mobile/ios/**'
+      - 'core/tauri-build/src/mobile.rs'
   workflow_dispatch:
 
 concurrency:
@@ -77,13 +82,13 @@ jobs:
         working-directory: ./examples/api
         run: yarn
 
-      - name: Init Android Studio Project
+      - name: init Android Studio project
         working-directory: ./examples/api
         run: ../../tooling/cli/target/debug/cargo-tauri android init
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
-      - name: Build apk
+      - name: build APK
         working-directory: ./examples/api
         run: ../../tooling/cli/target/debug/cargo-tauri android build
         env:

@@ -136,6 +136,7 @@ pub fn get_config(
       ))
       .join("generated"),
   );
+  set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
   let plugin_output_path = config.project_dir().join("tauri-plugins");
   set_var("TAURI_PLUGIN_OUTPUT_PATH", plugin_output_path);
   set_var(

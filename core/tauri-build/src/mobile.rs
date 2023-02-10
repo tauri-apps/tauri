@@ -39,12 +39,9 @@ impl PluginBuilder {
 
           println!("cargo:rerun-if-env-changed=TAURI_PLUGIN_OUTPUT_PATH");
           println!("cargo:rerun-if-env-changed=TAURI_GRADLE_SETTINGS_PATH");
-          println!(
-            "cargo:rerun-if-changed={}{}{}",
-            out_dir, MAIN_SEPARATOR, pkg_name
-          );
-          println!("cargo:rerun-if-changed={}", gradle_settings_path);
-          println!("cargo:rerun-if-changed={}", app_build_gradle_path);
+          println!("cargo:rerun-if-changed={out_dir}{MAIN_SEPARATOR}{pkg_name}",);
+          println!("cargo:rerun-if-changed={gradle_settings_path}");
+          println!("cargo:rerun-if-changed={app_build_gradle_path}");
 
           let out_dir = PathBuf::from(out_dir);
           let target = out_dir.join(&pkg_name);
@@ -73,7 +70,7 @@ impl PluginBuilder {
           }
 
           if let Some(out_dir) = out_dir {
-            rename(&out_dir, &build_path)?;
+            rename(out_dir, &build_path)?;
           }
 
           let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
@@ -84,7 +81,7 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
           if !gradle_settings.contains(&include) {
             fs::write(
               &gradle_settings_path,
-              &format!("{gradle_settings}\n{include}"),
+              format!("{gradle_settings}\n{include}"),
             )?;
           }
 

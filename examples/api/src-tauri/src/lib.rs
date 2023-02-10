@@ -94,6 +94,10 @@ impl AppBuilder {
         #[cfg(debug_assertions)]
         window.open_devtools();
 
+        let response: Result<serde_json::Value, serde_json::Value> =
+          app.run_android_plugin("sample", "ping", serde_json::Value::default());
+        println!("got response: {:?}", response);
+
         std::thread::spawn(|| {
           let server = match tiny_http::Server::http("localhost:3003") {
             Ok(s) => s,

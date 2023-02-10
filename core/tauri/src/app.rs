@@ -860,6 +860,80 @@ macro_rules! shared_app_impl {
         }
         Ok(())
       }
+
+      /// Executes the given Android plugin method.
+      #[cfg(target_os = "android")]
+      pub fn run_android_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(&self, plugin: impl Into<String>, method: impl Into<String>, payload: impl serde::Serialize) -> Result<T, E> {
+        use jni::{
+          errors::Error as JniError,
+          objects::JObject,
+          JNIEnv,
+        };
+
+        fn run<R: Runtime>(
+          id: i32,
+          plugin: String,
+          method: String,
+          payload: serde_json::Value,
+          runtime_handle: &R::Handle,
+          env: JNIEnv<'_>,
+          activity: JObject<'_>,
+        ) -> Result<(), JniError> {
+          let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, payload)?;
+          let plugin_manager = env
+            .call_method(
+              activity,
+              "getPluginManager",
+              "()Lapp/tauri/plugin/PluginManager;",
+              &[],
+            )?
+            .l()?;
+
+          env.call_method(
+            plugin_manager,
+            "runPluginMethod",
+            "(ILjava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;)V",
+            &[
+              id.into(),
+              env.new_string(plugin)?.into(),
+              env.new_string(&method)?.into(),
+              data.into(),
+            ],
+          )?;
+
+          Ok(())
+        }
+
+        let handle = match self.runtime() {
+          RuntimeOrDispatch::Runtime(r) => r.handle(),
+          RuntimeOrDispatch::RuntimeHandle(h) => h,
+          _ => unreachable!(),
+        };
+
+        let id: i32 = rand::random();
+        let plugin = plugin.into();
+        let method = method.into();
+        let payload = serde_json::to_value(payload).unwrap();
+        let handle_ = handle.clone();
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let tx_ = tx.clone();
+        PENDING_PLUGIN_CALLS
+          .get_or_init(Default::default)
+          .lock()
+          .unwrap().insert(id, Box::new(move |arg| {
+            tx.send(arg).unwrap();
+          }));
+
+        handle.run_on_android_context(move |env, activity, _webview| {
+          if let Err(e) = run::<R>(id, plugin, method, payload, &handle_, env, activity) {
+            // TODO: enhance error type
+            tx_.send(Err(serde_json::Value::String(e.to_string()))).unwrap();
+          }
+        });
+
+        rx.recv().unwrap().map(|r| serde_json::from_value(r).unwrap()).map_err(|e| serde_json::from_value(e).unwrap())
+      }
     }
   };
 }
@@ -1865,6 +1939,57 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
 impl Default for Builder<crate::Wry> {
   fn default() -> Self {
     Self::new()
+  }
+}
+
+#[cfg(target_os = "android")]
+type PendingPluginCallHandler =
+  Box<dyn FnOnce(std::result::Result<serde_json::Value, serde_json::Value>) + Send + 'static>;
+
+#[cfg(target_os = "android")]
+static PENDING_PLUGIN_CALLS: once_cell::sync::OnceCell<
+  std::sync::Mutex<HashMap<i32, PendingPluginCallHandler>>,
+> = once_cell::sync::OnceCell::new();
+
+#[cfg(target_os = "android")]
+#[doc(hidden)]
+pub fn handle_android_plugin_response(
+  env: jni::JNIEnv<'_>,
+  id: i32,
+  success: jni::objects::JString<'_>,
+  error: jni::objects::JString<'_>,
+) {
+  let (payload, is_ok): (serde_json::Value, bool) = match (
+    env
+      .is_same_object(success, jni::objects::JObject::default())
+      .unwrap_or_default(),
+    env
+      .is_same_object(error, jni::objects::JObject::default())
+      .unwrap_or_default(),
+  ) {
+    // both null
+    (true, true) => (serde_json::Value::Null, true),
+    // error null
+    (false, true) => (
+      serde_json::from_str(env.get_string(success).unwrap().to_str().unwrap()).unwrap(),
+      true,
+    ),
+    // success null
+    (true, false) => (
+      serde_json::from_str(env.get_string(error).unwrap().to_str().unwrap()).unwrap(),
+      false,
+    ),
+    // both are set - impossible in the Kotlin code
+    (false, false) => unreachable!(),
+  };
+
+  if let Some(handler) = PENDING_PLUGIN_CALLS
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .remove(&id)
+  {
+    handler(if is_ok { Ok(payload) } else { Err(payload) });
   }
 }
 

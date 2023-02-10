@@ -109,7 +109,6 @@ version = "0.44"
 features = [ "Win32_Foundation" ]
 
 [target."cfg(target_os = \"android\")".dependencies]
-paste = "1.0"
 log = "0.4"
 jni = "0.20"
 

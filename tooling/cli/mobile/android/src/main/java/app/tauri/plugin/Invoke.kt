@@ -7,7 +7,7 @@ import app.tauri.Logger
 
 class Invoke(
   private val sendResponse: (succcess: PluginResult?, error: PluginResult?) -> Unit,
-  val data: JSObject?) {
+  val data: JSObject) {
 
   fun resolve(data: JSObject?) {
     val result = PluginResult(data)
@@ -68,7 +68,7 @@ class Invoke(
   }
 
   fun getString(name: String, defaultValue: String?): String? {
-    val value = data!!.opt(name) ?: return defaultValue
+    val value = data.opt(name) ?: return defaultValue
     return if (value is String) {
       value
     } else defaultValue
@@ -79,7 +79,7 @@ class Invoke(
   }
 
   fun getInt(name: String, defaultValue: Int?): Int? {
-    val value = data!!.opt(name) ?: return defaultValue
+    val value = data.opt(name) ?: return defaultValue
     return if (value is Int) {
       value
     } else defaultValue
@@ -90,7 +90,7 @@ class Invoke(
   }
 
   fun getLong(name: String, defaultValue: Long?): Long? {
-    val value = data!!.opt(name) ?: return defaultValue
+    val value = data.opt(name) ?: return defaultValue
     return if (value is Long) {
       value
     } else defaultValue
@@ -101,7 +101,7 @@ class Invoke(
   }
 
   fun getFloat(name: String, defaultValue: Float?): Float? {
-    val value = data!!.opt(name) ?: return defaultValue
+    val value = data.opt(name) ?: return defaultValue
     if (value is Float) {
       return value
     }
@@ -118,7 +118,7 @@ class Invoke(
   }
 
   fun getDouble(name: String, defaultValue: Double?): Double? {
-    val value = data!!.opt(name) ?: return defaultValue
+    val value = data.opt(name) ?: return defaultValue
     if (value is Double) {
       return value
     }
@@ -135,7 +135,7 @@ class Invoke(
   }
 
   fun getBoolean(name: String, defaultValue: Boolean?): Boolean? {
-    val value = data!!.opt(name) ?: return defaultValue
+    val value = data.opt(name) ?: return defaultValue
     return if (value is Boolean) {
       value
     } else defaultValue
@@ -146,7 +146,7 @@ class Invoke(
   }
 
   fun getObject(name: String, defaultValue: JSObject?): JSObject? {
-    val value = data!!.opt(name) ?: return defaultValue
+    val value = data.opt(name) ?: return defaultValue
     return if (value is JSObject) value else defaultValue
   }
 
@@ -155,11 +155,11 @@ class Invoke(
   }
 
   fun getArray(name: String, defaultValue: JSArray?): JSArray? {
-    val value = data!!.opt(name) ?: return defaultValue
+    val value = data.opt(name) ?: return defaultValue
     return if (value is JSArray) value else defaultValue
   }
 
   fun hasOption(name: String): Boolean {
-    return data!!.has(name)
+    return data.has(name)
   }
 }

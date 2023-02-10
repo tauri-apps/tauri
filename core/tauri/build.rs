@@ -158,10 +158,7 @@ fn main() {
   #[cfg(target_os = "macos")]
   {
     if target_os == "ios" {
-      swift_rs::build::SwiftLinker::new("10.13")
-        .with_ios("11")
-        .with_package("Tauri", "./ios-api")
-        .link();
+      tauri_build::mobile::link_swift_library("Tauri", "./mobile/ios-api");
     }
   }
 }

@@ -35,22 +35,22 @@ impl PluginBuilder {
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
     match target_os.as_str() {
       "android" => {
-      if let Some(path) = self.android_path {
-        let manifest_dir = var("CARGO_MANIFEST_DIR").map(PathBuf::from).unwrap();
-        if let Ok(project_dir) = var("TAURI_ANDROID_PROJECT_PATH") {
-          let source = manifest_dir.join(path);
-          let pkg_name = var("CARGO_PKG_NAME").unwrap();
+        if let Some(path) = self.android_path {
+          let manifest_dir = var("CARGO_MANIFEST_DIR").map(PathBuf::from).unwrap();
+          if let Ok(project_dir) = var("TAURI_ANDROID_PROJECT_PATH") {
+            let source = manifest_dir.join(path);
+            let pkg_name = var("CARGO_PKG_NAME").unwrap();
 
-          println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
+            println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
 
-          let project_dir = PathBuf::from(project_dir);
+            let project_dir = PathBuf::from(project_dir);
 
-          inject_android_project(source, project_dir.join("tauri-plugins").join(&pkg_name))?;
+            inject_android_project(source, project_dir.join("tauri-plugins").join(&pkg_name))?;
 
-          let gradle_settings_path = project_dir.join("tauri.settings.gradle");
-          let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
-          let include = format!(
-            "include ':{pkg_name}'
+            let gradle_settings_path = project_dir.join("tauri.settings.gradle");
+            let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
+            let include = format!(
+              "include ':{pkg_name}'
 project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
             );
             if !gradle_settings.contains(&include) {
@@ -60,27 +60,23 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
               )?;
             }
 
-          let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
-          let app_build_gradle = fs::read_to_string(&app_build_gradle_path)?;
-          let implementation = format!(r#"implementation(project(":{pkg_name}"))"#);
-          let target = "dependencies {";
-          if !app_build_gradle.contains(&implementation) {
-            fs::write(
-              &app_build_gradle_path,
-              app_build_gradle.replace(target, &format!("{target}\n  {implementation}")),
-            )?
+            let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
+            let app_build_gradle = fs::read_to_string(&app_build_gradle_path)?;
+            let implementation = format!(r#"implementation(project(":{pkg_name}"))"#);
+            let target = "dependencies {";
+            if !app_build_gradle.contains(&implementation) {
+              fs::write(
+                &app_build_gradle_path,
+                app_build_gradle.replace(target, &format!("{target}\n  {implementation}")),
+              )?
+            }
           }
         }
-      }
       }
       #[cfg(target_os = "macos")]
       "ios" => {
         if let Some(path) = self.ios_path {
-          println!("cargo:rerun-if-changed={}", path.display());
-          swift_rs::build::SwiftLinker::new("10.13")
-            .with_ios("11")
-            .with_package(&std::env::var("CARGO_PKG_NAME").unwrap(), path)
-            .link();
+          link_swift_library(&std::env::var("CARGO_PKG_NAME").unwrap(), path);
         }
       }
       _ => (),
@@ -88,6 +84,17 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
 
     Ok(())
   }
+}
+
+#[cfg(target_os = "macos")]
+#[doc(hidden)]
+pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
+  let source = source.as_ref();
+  println!("cargo:rerun-if-changed={}", source.display());
+  swift_rs::build::SwiftLinker::new("10.13")
+    .with_ios("11")
+    .with_package(name, source)
+    .link();
 }
 
 #[doc(hidden)]

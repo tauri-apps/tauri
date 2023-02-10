@@ -5,15 +5,15 @@
 /** @ignore */
 
 function isLinux(): boolean {
-  return navigator.appVersion.includes('Linux')
+  return typeof navigator !== 'undefined' && navigator.appVersion.includes('Linux')
 }
 
 function isWindows(): boolean {
-  return navigator.appVersion.includes('Win')
+  return typeof navigator !== 'undefined' && navigator.appVersion.includes('Win')
 }
 
 function isMacOS(): boolean {
-  return navigator.appVersion.includes('Mac')
+  return typeof navigator !== 'undefined' && navigator.appVersion.includes('Mac')
 }
 
 export { isLinux, isWindows, isMacOS }

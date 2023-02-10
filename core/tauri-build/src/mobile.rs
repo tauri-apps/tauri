@@ -38,7 +38,7 @@ impl PluginBuilder {
 
           let project_dir = PathBuf::from(project_dir);
 
-          inject_android_project(&source, &project_dir.join("tauri-plugins").join(&pkg_name))?;
+          inject_android_project(source, project_dir.join("tauri-plugins").join(&pkg_name))?;
 
           let gradle_settings_path = project_dir.join("tauri.settings.gradle");
           let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
@@ -86,11 +86,11 @@ pub fn inject_android_project(source: impl AsRef<Path>, target: impl AsRef<Path>
     None
   };
 
-  let _ = fs::remove_dir_all(&target);
+  let _ = fs::remove_dir_all(target);
 
-  for entry in walkdir::WalkDir::new(&source) {
+  for entry in walkdir::WalkDir::new(source) {
     let entry = entry?;
-    let rel_path = entry.path().strip_prefix(&source)?;
+    let rel_path = entry.path().strip_prefix(source)?;
     let dest_path = target.join(rel_path);
     if entry.file_type().is_dir() {
       fs::create_dir(dest_path)?;

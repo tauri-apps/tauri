@@ -22,12 +22,7 @@ class PluginManager {
     }
   }
 
-  fun postMessage(webView: WebView, pluginId: String, methodName: String, data: JSObject, callback: Long, error: Long) {
-    Logger.verbose(
-      Logger.tags("Plugin"),
-      "Tauri plugin: pluginId: $pluginId, methodName: $methodName, callback: $callback, error: $error"
-    )
-
+  fun postIpcMessage(webView: WebView, pluginId: String, methodName: String, data: JSObject, callback: Long, error: Long) {
     val invoke = Invoke({ successResult, errorResult ->
       val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(
         error,
@@ -35,6 +30,24 @@ class PluginManager {
       )
       webView.evaluateJavascript("window['_$fn']($result)", null)
     }, data)
+
+    dispatchPluginMessage(invoke, pluginId, methodName)
+  }
+
+  fun runPluginMethod(id: Int, pluginId: String, methodName: String, data: JSObject) {
+    val invoke = Invoke({ successResult, errorResult ->
+      handlePluginResponse(id, successResult?.toString(), errorResult?.toString())
+    }, data)
+
+    dispatchPluginMessage(invoke, pluginId, methodName)
+  }
+
+  private fun dispatchPluginMessage(invoke: Invoke, pluginId: String, methodName: String) {
+    Logger.verbose(
+      Logger.tags("Plugin"),
+      "Tauri plugin: pluginId: $pluginId, methodName: $methodName"
+    )
+
     try {
       val plugin = plugins[pluginId]
       if (plugin == null) {
@@ -46,4 +59,6 @@ class PluginManager {
       invoke.reject(e.toString())
     }
   }
+
+  private external fun handlePluginResponse(id: Int, success: String?, error: String?)
 }

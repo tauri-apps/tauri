@@ -1,10 +1,10 @@
 use super::{
-  detect_target_ok, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
+  configure_cargo, detect_target_ok, ensure_init, env, log_finished, open_and_wait, with_config,
   MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
-  helpers::flock,
+  helpers::{config::get as get_config, flock},
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
@@ -71,7 +71,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       ensure_init(config.project_dir(), MobileTarget::Ios)?;
 
       let mut env = env()?;
-      init_dot_cargo(app, None)?;
+      configure_cargo(app, None)?;
 
       let open = options.open;
       run_build(options, config, &mut env, noise_level)?;
@@ -122,7 +122,17 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  let _handle = write_options(cli_options, env)?;
+  let _handle = write_options(
+    &get_config(options.config.as_deref())?
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .tauri
+      .bundle
+      .identifier,
+    cli_options,
+  )?;
 
   options
     .features

@@ -322,7 +322,7 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push(".tauri-dev");
+  default_gitignore.push(".tauri");
   let _ = std::fs::create_dir_all(&default_gitignore);
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {

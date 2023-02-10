@@ -22,11 +22,10 @@ use shared_child::SharedChild;
 
 use std::{
   collections::HashMap,
-  env::set_var,
-  env::var,
+  env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, remove_dir_all},
+  fs::{create_dir_all, read_to_string, remove_dir_all, rename, write},
   net::SocketAddr,
   path::PathBuf,
   process::ExitStatus,
@@ -180,6 +179,7 @@ fn env_vars() -> HashMap<String, OsString> {
     let k = k.to_string_lossy();
     if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
       || k.starts_with("WRY")
+      || k.starts_with("CARGO_")
       || k == "TMPDIR"
       || k == "PATH"
     {
@@ -196,8 +196,8 @@ fn env() -> Result<Env, EnvError> {
 
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
 pub fn write_options(
+  identifier: &str,
   mut options: CliOptions,
-  env: &mut Env,
 ) -> crate::Result<(Runtime, ServerHandle)> {
   options.vars.extend(env_vars());
 
@@ -215,12 +215,15 @@ pub fn write_options(
   });
   let (handle, addr) = r?;
 
-  env.insert_env_var("TAURI_OPTIONS_SERVER_ADDR".into(), addr.to_string().into());
+  write(
+    temp_dir().join(format!("{identifier}-server-addr")),
+    addr.to_string(),
+  )?;
 
   Ok((runtime, handle))
 }
 
-fn read_options() -> CliOptions {
+fn read_options(identifier: &str) -> CliOptions {
   let runtime = tokio::runtime::Runtime::new().unwrap();
   let options = runtime
     .block_on(async move {
@@ -228,7 +231,8 @@ fn read_options() -> CliOptions {
         .build(
           format!(
             "ws://{}",
-            var("TAURI_OPTIONS_SERVER_ADDR").expect("missing addr environment variable")
+            read_to_string(temp_dir().join(format!("{identifier}-server-addr")))
+              .expect("missing addr file")
           )
           .parse()
           .unwrap(),
@@ -314,14 +318,30 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
     #[allow(irrefutable_let_patterns)]
     if let Target::Android = target {
       let tauri_api_dir_path = project_dir.join("tauri-api");
-      if tauri_api_dir_path.exists() {
+      let build_path = if tauri_api_dir_path.exists() {
+        // keep build folder if it exists
+        let build_path = tauri_api_dir_path.join("build");
+        let out_dir = if build_path.exists() {
+          let out_dir = project_dir.join(".tauri-api-build");
+          rename(&build_path, &out_dir)?;
+          Some(out_dir)
+        } else {
+          None
+        };
         remove_dir_all(&tauri_api_dir_path)?;
-      }
+        out_dir
+      } else {
+        None
+      };
       create_dir_all(&tauri_api_dir_path)?;
 
       ANDROID_API_PROJECT_DIR
-        .extract(tauri_api_dir_path)
+        .extract(&tauri_api_dir_path)
         .context("failed to extract Tauri API project")?;
+
+      if let Some(build_path) = build_path {
+        rename(build_path, tauri_api_dir_path.join("build"))?;
+      }
     }
 
     Ok(())

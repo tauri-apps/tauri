@@ -26,7 +26,7 @@ use tauri_mobile::{
 
 use super::{
   ensure_init, get_app,
-  init::{command as init_command, init_dot_cargo},
+  init::{command as init_command, configure_cargo},
   log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
@@ -140,11 +140,14 @@ pub fn get_config(
   set_var("TAURI_PLUGIN_OUTPUT_PATH", plugin_output_path);
   set_var(
     "TAURI_GRADLE_SETTINGS_PATH",
-    config.project_dir().join("settings.gradle"),
+    config.project_dir().join("tauri.settings.gradle"),
   );
   set_var(
     "TAURI_APP_GRADLE_BUILD_PATH",
-    config.project_dir().join("app").join("build.gradle.kts"),
+    config
+      .project_dir()
+      .join("app")
+      .join("tauri.build.gradle.kts"),
   );
 
   (app, config, metadata)
@@ -158,7 +161,8 @@ pub fn with_config<T>(
     let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = cli_options.unwrap_or_else(read_options);
+    let cli_options =
+      cli_options.unwrap_or_else(|| read_options(&tauri_config_.tauri.bundle.identifier));
     let (app, config, metadata) = get_config(None, tauri_config_, &cli_options);
     (app, config, metadata, cli_options)
   };

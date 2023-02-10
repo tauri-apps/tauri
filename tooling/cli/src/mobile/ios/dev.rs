@@ -1,10 +1,10 @@
 use super::{
-  device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, setup_dev_config, with_config,
+  configure_cargo, device_prompt, ensure_init, env, open_and_wait, setup_dev_config, with_config,
   MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
   dev::Options as DevOptions,
-  helpers::flock,
+  helpers::{config::get as get_config, flock},
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
@@ -142,7 +142,7 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
 
-  init_dot_cargo(app, None)?;
+  configure_cargo(app, None)?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
@@ -156,14 +156,23 @@ fn run_dev(
       no_watch: options.no_watch,
     },
     |options| {
-      let mut env = env.clone();
       let cli_options = CliOptions {
         features: options.features.clone(),
         args: options.args.clone(),
         noise_level,
         vars: Default::default(),
       };
-      let _handle = write_options(cli_options, &mut env)?;
+      let _handle = write_options(
+        &get_config(options.config.as_deref())?
+          .lock()
+          .unwrap()
+          .as_ref()
+          .unwrap()
+          .tauri
+          .bundle
+          .identifier,
+        cli_options,
+      )?;
 
       if open {
         open_and_wait(config, &env)

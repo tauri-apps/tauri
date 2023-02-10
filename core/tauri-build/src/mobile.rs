@@ -1,6 +1,6 @@
 use std::{
   env::var,
-  fs,
+  fs::{self, rename},
   path::{PathBuf, MAIN_SEPARATOR},
 };
 
@@ -47,15 +47,23 @@ impl PluginBuilder {
 
             println!("cargo:rerun-if-env-changed=TAURI_PLUGIN_OUTPUT_PATH");
             println!("cargo:rerun-if-env-changed=TAURI_GRADLE_SETTINGS_PATH");
-            println!(
-              "cargo:rerun-if-changed={}{}{}",
-              out_dir, MAIN_SEPARATOR, pkg_name
-            );
-            println!("cargo:rerun-if-changed={}", gradle_settings_path);
-            println!("cargo:rerun-if-changed={}", app_build_gradle_path);
-            println!("cargo:rerun-if-changed={}", source.display());
+            println!("cargo:rerun-if-changed={out_dir}{MAIN_SEPARATOR}{pkg_name}",);
+            println!("cargo:rerun-if-changed={gradle_settings_path}");
+            println!("cargo:rerun-if-changed={app_build_gradle_path}");
 
-            let target = PathBuf::from(out_dir).join(&pkg_name);
+            let out_dir = PathBuf::from(out_dir);
+            let target = out_dir.join(&pkg_name);
+
+            // keep build folder if it exists
+            let build_path = target.join("build");
+            let out_dir = if build_path.exists() {
+              let out_dir = out_dir.join(".tauri-plugin-build");
+              rename(&build_path, &out_dir)?;
+              Some(out_dir)
+            } else {
+              None
+            };
+
             let _ = fs::remove_dir_all(&target);
 
             for entry in walkdir::WalkDir::new(&source) {
@@ -69,6 +77,10 @@ impl PluginBuilder {
               }
             }
 
+            if let Some(out_dir) = out_dir {
+              rename(out_dir, &build_path)?;
+            }
+
             let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
             let include = format!(
               "include ':{pkg_name}'
@@ -77,20 +89,17 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
             if !gradle_settings.contains(&include) {
               fs::write(
                 &gradle_settings_path,
-                &format!("{gradle_settings}\n{include}"),
+                format!("{gradle_settings}\n{include}"),
               )?;
             }
 
             let app_build_gradle = fs::read_to_string(&app_build_gradle_path)?;
             let implementation = format!(r#"implementation(project(":{pkg_name}"))"#);
-            let target_implementation = r#"implementation(project(":tauri-android"))"#;
+            let target = "dependencies {";
             if !app_build_gradle.contains(&implementation) {
               fs::write(
                 &app_build_gradle_path,
-                app_build_gradle.replace(
-                  target_implementation,
-                  &format!("{target_implementation}\n    {implementation}"),
-                ),
+                app_build_gradle.replace(target, &format!("{target}\n  {implementation}")),
               )?
             }
           }

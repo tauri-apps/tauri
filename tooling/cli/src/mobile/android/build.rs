@@ -1,10 +1,10 @@
 use super::{
-  delete_codegen_vars, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
+  configure_cargo, delete_codegen_vars, ensure_init, env, log_finished, open_and_wait, with_config,
   MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
-  helpers::flock,
+  helpers::{config::get as get_config, flock},
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
@@ -72,14 +72,28 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(
     Some(Default::default()),
-    |app, config, _metadata, _cli_options| {
+    |app, config, metadata, _cli_options| {
       set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
       ensure_init(config.project_dir(), MobileTarget::Android)?;
 
       let mut env = env()?;
-      init_dot_cargo(app, Some((&env, config)))?;
+      configure_cargo(app, Some((&mut env, config)))?;
+
+      // run an initial build to initialize plugins
+      Target::all().first_key_value().unwrap().1.build(
+        config,
+        metadata,
+        &env,
+        noise_level,
+        true,
+        if options.debug {
+          Profile::Debug
+        } else {
+          Profile::Release
+        },
+      )?;
 
       let open = options.open;
       run_build(options, config, &mut env, noise_level)?;
@@ -120,7 +134,7 @@ fn run_build(
       .triple
       .into(),
   );
-  let mut interface = crate::build::setup(&mut build_options, true)?;
+  let interface = crate::build::setup(&mut build_options, true)?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,
@@ -139,15 +153,22 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  let _handle = write_options(cli_options, &mut env.base)?;
+  let _handle = write_options(
+    &get_config(options.config.as_deref())?
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .tauri
+      .bundle
+      .identifier,
+    cli_options,
+  )?;
 
   options
     .features
     .get_or_insert(Vec::new())
     .push("custom-protocol".into());
-
-  // run an initial build to initialize plugins
-  interface.build(interface_options)?;
 
   let apk_outputs = if options.apk {
     apk::build(

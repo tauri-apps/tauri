@@ -24,7 +24,7 @@ use tauri_mobile::{
 
 use super::{
   ensure_init, env, get_app,
-  init::{command as init_command, init_dot_cargo},
+  init::{command as init_command, configure_cargo},
   log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
@@ -149,7 +149,8 @@ fn with_config<T>(
     let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = cli_options.unwrap_or_else(read_options);
+    let cli_options =
+      cli_options.unwrap_or_else(|| read_options(&tauri_config_.tauri.bundle.identifier));
     let (app, config, metadata) = get_config(None, tauri_config_, &cli_options);
     (app, config, metadata, cli_options)
   };

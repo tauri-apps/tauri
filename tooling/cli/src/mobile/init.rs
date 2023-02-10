@@ -19,21 +19,44 @@ use tauri_mobile::{
   },
 };
 
-use std::{env::current_dir, path::PathBuf};
+use std::{
+  env::{current_dir, var, var_os},
+  path::PathBuf,
+};
 
 pub fn command(target: Target, ci: bool, reinstall_deps: bool) -> Result<()> {
   let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
   exec(
     target,
     &wrapper,
-    ci || std::env::var("CI").is_ok(),
+    ci || var_os("CI").is_some(),
     reinstall_deps,
   )
   .map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
 }
 
-pub fn init_dot_cargo(app: &App, android: Option<(&AndroidEnv, &AndroidConfig)>) -> Result<()> {
+pub fn configure_cargo(
+  app: &App,
+  android: Option<(&mut AndroidEnv, &AndroidConfig)>,
+) -> Result<()> {
+  if let Some((env, config)) = android {
+    for target in AndroidTarget::all().values() {
+      let config = target.generate_cargo_config(config, env)?;
+      let target_var_name = target.triple.replace('-', "_").to_uppercase();
+      if let Some(linker) = config.linker {
+        env.base.insert_env_var(
+          format!("CARGO_TARGET_{target_var_name}_LINKER"),
+          linker.into(),
+        );
+      }
+      env.base.insert_env_var(
+        format!("CARGO_TARGET_{target_var_name}_RUSTFLAGS"),
+        config.rustflags.join(" ").into(),
+      );
+    }
+  }
+
   let mut dot_cargo = dot_cargo::DotCargo::load(app)?;
   // Mysteriously, builds that don't specify `--target` seem to fight over
   // the build cache with builds that use `--target`! This means that
@@ -46,15 +69,6 @@ pub fn init_dot_cargo(app: &App, android: Option<(&AndroidEnv, &AndroidConfig)>)
   // This behavior could be explained here:
   // https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
   dot_cargo.set_default_target(util::host_target_triple()?);
-
-  if let Some((env, config)) = android {
-    for target in AndroidTarget::all().values() {
-      dot_cargo.insert_target(
-        target.triple.to_owned(),
-        target.generate_cargo_config(config, env)?,
-      );
-    }
-  }
 
   dot_cargo.write(app).map_err(Into::into)
 }
@@ -74,7 +88,7 @@ pub fn exec(
   let (handlebars, mut map) = handlebars(&app);
 
   let mut args = std::env::args_os();
-  let tauri_binary = args
+  let mut binary = args
     .next()
     .map(|bin| {
       let path = PathBuf::from(&bin);
@@ -103,19 +117,39 @@ pub fn exec(
     }
   }
   build_args.push(target.ide_build_script_name().into());
-  map.insert("tauri-binary", tauri_binary.to_string_lossy());
+
+  let binary_path = PathBuf::from(&binary);
+  let bin_stem = binary_path.file_stem().unwrap().to_string_lossy();
+  let r = regex::Regex::new("(nodejs|node)([1-9]*)*$").unwrap();
+  if r.is_match(&bin_stem) {
+    if let Some(npm_execpath) = var_os("npm_execpath").map(PathBuf::from) {
+      let manager_stem = npm_execpath.file_stem().unwrap().to_os_string();
+      let manager = if manager_stem == "npm-cli" {
+        "npm".into()
+      } else {
+        manager_stem
+      };
+      binary = manager;
+      if !build_args.is_empty() {
+        // remove script path, we'll use `npm_lifecycle_event` instead
+        build_args.remove(0);
+      }
+      build_args.insert(0, var("npm_lifecycle_event").unwrap());
+      build_args.insert(0, "run".into());
+    }
+  }
+  map.insert("tauri-binary", binary.to_string_lossy());
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));
 
   let app = match target {
     // Generate Android Studio project
     Target::Android => match AndroidEnv::new() {
-      Ok(env) => {
+      Ok(_env) => {
         let (app, config, metadata) =
           super::android::get_config(Some(app), tauri_config_, &Default::default());
         map.insert("android", &config);
         super::android::project::gen(&config, &metadata, (handlebars, map), wrapper)?;
-        init_dot_cargo(&app, Some((&env, &config)))?;
         app
       }
       Err(err) => {
@@ -125,7 +159,6 @@ pub fn exec(
             err,
           )
           .print(wrapper);
-          init_dot_cargo(&app, None)?;
           app
         } else {
           return Err(err.into());
@@ -146,7 +179,6 @@ pub fn exec(
         non_interactive,
         reinstall_deps,
       )?;
-      init_dot_cargo(&app, None)?;
       app
     }
   };

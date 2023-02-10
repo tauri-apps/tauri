@@ -33,8 +33,7 @@ impl PluginBuilder {
           let source = manifest_dir.join(path);
           let pkg_name = var("CARGO_PKG_NAME").unwrap();
 
-          println!("cargo:rerun-if-env-changed=TAURI_PLUGIN_OUTPUT_PATH");
-          println!("cargo:rerun-if-env-changed=TAURI_GRADLE_SETTINGS_PATH");
+          println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
 
           let project_dir = PathBuf::from(project_dir);
 

@@ -188,6 +188,8 @@ mod pattern;
 pub mod plugin;
 pub mod window;
 use tauri_runtime as runtime;
+#[cfg(target_os = "android")]
+mod jni_helpers;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
@@ -204,11 +206,35 @@ pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", target_os = "android"))))]
-pub use tauri_runtime_wry::wry::android_binding as wry_android_binding;
+#[doc(hidden)]
+#[macro_export]
+macro_rules! android_binding {
+  ($domain:ident, $package:ident, $main: ident, $wry: path) => {
+    ::tauri::wry::android_binding!($domain, $package, $main, $wry);
+    ::tauri::wry::application::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      handlePluginResponse,
+      [i32, JString, JString],
+    );
+
+    #[allow(non_snake_case)]
+    pub unsafe fn handlePluginResponse(
+      env: JNIEnv,
+      _: JClass,
+      id: i32,
+      success: JString,
+      error: JString,
+    ) {
+      ::tauri::handle_android_plugin_response(env, id, success, error);
+    }
+  };
+}
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
-pub use paste;
+pub use app::handle_android_plugin_response;
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;

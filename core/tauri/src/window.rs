@@ -1365,89 +1365,12 @@ impl<R: Runtime> Window<R> {
               let plugin = plugin.to_string();
               self.with_webview(move |webview| {
                 webview.jni_handle().exec(move |env, activity, webview| {
-                  use crate::api::ipc::CallbackFn;
                   use jni::{
                     errors::Error as JniError,
-                    objects::{JObject, JValue},
+                    objects::JObject,
                     JNIEnv,
                   };
-                  use serde_json::Value as JsonValue;
-
-                  fn json_to_java<'a, R: Runtime>(
-                    env: JNIEnv<'a>,
-                    activity: JObject<'a>,
-                    runtime_handle: &R::Handle,
-                    json: JsonValue,
-                  ) -> Result<(&'static str, JValue<'a>), JniError> {
-                    let (class, v) = match json {
-                      JsonValue::Null => ("Ljava/lang/Object;", JObject::null().into()),
-                      JsonValue::Bool(val) => ("Z", val.into()),
-                      JsonValue::Number(val) => {
-                        if let Some(v) = val.as_i64() {
-                          ("J", v.into())
-                        } else if let Some(v) = val.as_f64() {
-                          ("D", v.into())
-                        } else {
-                          ("Ljava/lang/Object;", JObject::null().into())
-                        }
-                      }
-                      JsonValue::String(val) => (
-                        "Ljava/lang/Object;",
-                        JObject::from(env.new_string(&val)?).into(),
-                      ),
-                      JsonValue::Array(val) => {
-                        let js_array_class =
-                          runtime_handle.find_class(env, activity, "app/tauri/plugin/JSArray")?;
-                        let data = env.new_object(js_array_class, "()V", &[])?;
-
-                        for v in val {
-                          let (signature, val) =
-                            json_to_java::<R>(env, activity, runtime_handle, v)?;
-                          env.call_method(
-                            data,
-                            "put",
-                            format!("({signature})Lorg/json/JSONArray;"),
-                            &[val],
-                          )?;
-                        }
-
-                        ("Ljava/lang/Object;", data.into())
-                      }
-                      JsonValue::Object(val) => {
-                        let js_object_class =
-                          runtime_handle.find_class(env, activity, "app/tauri/plugin/JSObject")?;
-                        let data = env.new_object(js_object_class, "()V", &[])?;
-
-                        for (key, value) in val {
-                          let (signature, val) =
-                            json_to_java::<R>(env, activity, runtime_handle, value)?;
-                          env.call_method(
-                            data,
-                            "put",
-                            format!("(Ljava/lang/String;{signature})Lapp/tauri/plugin/JSObject;"),
-                            &[env.new_string(&key)?.into(), val],
-                          )?;
-                        }
-
-                        ("Ljava/lang/Object;", data.into())
-                      }
-                    };
-                    Ok((class, v))
-                  }
-
-                  fn to_jsobject<'a, R: Runtime>(
-                    env: JNIEnv<'a>,
-                    activity: JObject<'a>,
-                    runtime_handle: &R::Handle,
-                    json: JsonValue,
-                  ) -> Result<JValue<'a>, JniError> {
-                    if let JsonValue::Object(_) = &json {
-                      json_to_java::<R>(env, activity, runtime_handle, json)
-                        .map(|(_class, data)| data)
-                    } else {
-                      Ok(JObject::null().into())
-                    }
-                  }
+                  use crate::api::ipc::CallbackFn;
 
                   fn handle_message<R: Runtime>(
                     plugin: &str,
@@ -1459,7 +1382,7 @@ impl<R: Runtime> Window<R> {
                     activity: JObject<'_>,
                     webview: JObject<'_>,
                   ) -> Result<(), JniError> {
-                    let data = to_jsobject::<R>(env, activity, runtime_handle, message.payload)?;
+                    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, message.payload)?;
                     let plugin_manager = env
                       .call_method(
                         activity,
@@ -1471,7 +1394,7 @@ impl<R: Runtime> Window<R> {
 
                     env.call_method(
                       plugin_manager,
-                      "postMessage",
+                      "postIpcMessage",
                       "(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;JJ)V",
                       &[
                         webview.into(),

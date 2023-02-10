@@ -3037,6 +3037,7 @@ dependencies = [
  "shared_child",
  "state",
  "tar",
+ "tauri-build",
  "tauri-macros",
  "tauri-runtime",
  "tauri-runtime-wry",

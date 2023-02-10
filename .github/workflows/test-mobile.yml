@@ -5,11 +5,11 @@ on:
     paths:
       - '.github/workflows/test-mobile.yml'
       - 'tooling/cli/templates/mobile/**'
-      - 'tooling/cli/mobile/android/**'
       - 'tooling/cli/src/mobile/**'
       - '!tooling/cli/src/mobile/ios.rs'
       - '!tooling/cli/src/mobile/ios/**'
       - 'core/tauri-build/src/mobile.rs'
+      - 'core/tauri/mobile/android/**'
   workflow_dispatch:
 
 concurrency:

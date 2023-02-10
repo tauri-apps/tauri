@@ -82,7 +82,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       configure_cargo(app, Some((&mut env, config)))?;
 
       // run an initial build to initialize plugins
-      Target::all().first_key_value().unwrap().1.build(
+      Target::all().values().next().unwrap().build(
         config,
         metadata,
         &env,

@@ -3048,6 +3048,7 @@ dependencies = [
  "state",
  "swift-rs",
  "tar",
+ "tauri-build",
  "tauri-macros",
  "tauri-runtime",
  "tauri-runtime-wry",

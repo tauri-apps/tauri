@@ -122,6 +122,7 @@ swift-rs = { git = "https://github.com/Brendonovich/swift-rs", rev = "eb6de914ad
 [build-dependencies]
 heck = "0.4"
 once_cell = "1"
+tauri-build = { path = "../tauri-build/" }
 
 [target."cfg(target_os = \"macos\")".build-dependencies]
 swift-rs = { git = "https://github.com/Brendonovich/swift-rs", rev = "eb6de914ad57501da5019154d476d45660559999", features = ["build"] }

@@ -8,6 +8,8 @@ use heck::ToSnakeCase;
 
 use once_cell::sync::OnceCell;
 
+use std::env::var;
+use std::path::PathBuf;
 use std::{path::Path, sync::Mutex};
 
 static CHECKED_FEATURES: OnceCell<Mutex<Vec<String>>> = OnceCell::new();
@@ -141,6 +143,17 @@ fn main() {
     CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
   )
   .expect("failed to write checked_features file");
+
+  if target_os == "android" {
+    if let Ok(project_dir) = var("TAURI_ANDROID_PROJECT_PATH") {
+      let project_dir = PathBuf::from(project_dir);
+      tauri_build::mobile::inject_android_project(
+        "./mobile/android",
+        project_dir.join("tauri-api"),
+      )
+      .expect("failed to copy tauri-api Android project");
+    }
+  }
 
   #[cfg(target_os = "macos")]
   {

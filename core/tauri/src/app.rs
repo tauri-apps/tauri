@@ -863,7 +863,12 @@ macro_rules! shared_app_impl {
 
       /// Executes the given Android plugin method.
       #[cfg(target_os = "android")]
-      pub fn run_android_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(&self, plugin: impl Into<String>, method: impl Into<String>, payload: impl serde::Serialize) -> Result<T, E> {
+      pub fn run_android_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
+        &self,
+        plugin: impl Into<String>,
+        method: impl Into<String>,
+        payload: impl serde::Serialize
+      ) -> Result<Result<T, E>, jni::errors::Error> {
         use jni::{
           errors::Error as JniError,
           objects::JObject,
@@ -922,17 +927,20 @@ macro_rules! shared_app_impl {
           .get_or_init(Default::default)
           .lock()
           .unwrap().insert(id, Box::new(move |arg| {
-            tx.send(arg).unwrap();
+            tx.send(Ok(arg)).unwrap();
           }));
 
         handle.run_on_android_context(move |env, activity, _webview| {
           if let Err(e) = run::<R>(id, plugin, method, payload, &handle_, env, activity) {
-            // TODO: enhance error type
-            tx_.send(Err(serde_json::Value::String(e.to_string()))).unwrap();
+            tx_.send(Err(e)).unwrap();
           }
         });
 
-        rx.recv().unwrap().map(|r| serde_json::from_value(r).unwrap()).map_err(|e| serde_json::from_value(e).unwrap())
+        rx.recv().unwrap().map(|response| {
+          response
+            .map(|r| serde_json::from_value(r).unwrap())
+            .map_err(|e| serde_json::from_value(e).unwrap())
+        })
       }
     }
   };

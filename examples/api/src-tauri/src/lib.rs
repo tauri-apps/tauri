@@ -96,8 +96,11 @@ impl AppBuilder {
 
         #[cfg(target_os = "android")]
         {
-          let response: Result<serde_json::Value, serde_json::Value> =
-            app.run_android_plugin("sample", "ping", serde_json::Value::default());
+          let response = app.run_android_plugin::<serde_json::Value, serde_json::Value>(
+            "sample",
+            "ping",
+            serde_json::Value::default(),
+          );
           println!("got response: {:?}", response);
         }
 

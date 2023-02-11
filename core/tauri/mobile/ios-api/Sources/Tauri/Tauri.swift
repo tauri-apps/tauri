@@ -1,4 +1,5 @@
 import SwiftRs
+import Foundation
 import MetalKit
 import WebKit
 import os.log
@@ -14,15 +15,15 @@ class PluginHandle {
 
 class PluginManager {
 	static var shared: PluginManager = PluginManager()
-	var plugins: [String:PluginHandle] = [:]
+	var plugins: [String: PluginHandle] = [:]
 
 	func onWebviewCreated(_ webview: WKWebView) {
-    for (_, handle) in plugins {
-      if (!handle.loaded) {
-        handle.instance.perform(#selector(Plugin.load), with: webview)
-      }
-    }
-  }
+		for (_, handle) in plugins {
+			if (!handle.loaded) {
+				handle.instance.perform(#selector(Plugin.load), with: webview)
+			}
+		}
+	}
 
 	func load<P: Plugin & NSObject>(webview: WKWebView?, name: String, plugin: P) {
 		let handle = PluginHandle(plugin: plugin)
@@ -79,8 +80,8 @@ func onWebviewCreated(webview: WKWebView) {
 	PluginManager.shared.onWebviewCreated(webview)
 }
 
-@_cdecl("invoke_plugin")
-func invokePlugin(webview: WKWebView, name: UnsafePointer<SRString>, methodName: UnsafePointer<SRString>, data: NSDictionary, callback: UInt, error: UInt) {
+@_cdecl("post_ipc_message")
+func postIpcMessage(webview: WKWebView, name: UnsafePointer<SRString>, methodName: UnsafePointer<SRString>, data: NSDictionary, callback: UInt, error: UInt) {
 	let invoke = Invoke(sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
 		let (fn, payload) = errorResult == nil ? (callback, successResult) : (error, errorResult)
 		var payloadJson: String
@@ -90,6 +91,27 @@ func invokePlugin(webview: WKWebView, name: UnsafePointer<SRString>, methodName:
 			payloadJson = "`\(error)`"
 		}
 		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
+	}, data: data)
+	PluginManager.shared.invoke(name: name.pointee.to_string(), methodName: methodName.pointee.to_string(), invoke: invoke)
+}
+
+@_cdecl("run_plugin_method")
+func runPluginMethod(
+	id: Int,
+	name: UnsafePointer<SRString>,
+	methodName: UnsafePointer<SRString>,
+	data: NSDictionary,
+	callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>?) -> Void
+) {
+	let invoke = Invoke(sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
+		let (success, payload) = errorResult == nil ? (true, successResult) : (false, errorResult)
+		var payloadJson: String = ""
+		do {
+			try payloadJson = payload == nil ? "null" : payload!.jsonRepresentation() ?? "`Failed to serialize payload`"
+		} catch {
+			payloadJson = "`\(error)`"
+		}
+		callback(id, success, payloadJson.cString(using: String.Encoding.utf8))
 	}, data: data)
 	PluginManager.shared.invoke(name: name.pointee.to_string(), methodName: methodName.pointee.to_string(), invoke: invoke)
 }

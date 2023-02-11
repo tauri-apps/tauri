@@ -103,6 +103,15 @@ impl AppBuilder {
           );
           println!("got response: {:?}", response);
         }
+        #[cfg(target_os = "ios")]
+        {
+          let response = app.run_ios_plugin::<serde_json::Value, serde_json::Value>(
+            "sample",
+            "ping",
+            serde_json::Value::default(),
+          );
+          println!("got response: {:?}", response);
+        }
 
         std::thread::spawn(|| {
           let server = match tiny_http::Server::http("localhost:3003") {

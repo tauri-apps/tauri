@@ -881,8 +881,8 @@ macro_rules! shared_app_impl {
       #[cfg(mobile)]
       pub fn run_mobile_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
         &self,
-        plugin: impl Into<String>,
-        method: impl Into<String>,
+        plugin: impl AsRef<str>,
+        method: impl AsRef<str>,
         payload: impl serde::Serialize
       ) -> crate::Result<Result<T, E>> {
         #[cfg(target_os = "ios")]
@@ -949,8 +949,8 @@ macro_rules! shared_app_impl {
       #[cfg(target_os = "android")]
       fn run_android_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
         &self,
-        plugin: impl Into<String>,
-        method: impl Into<String>,
+        plugin: impl AsRef<str>,
+        method: impl AsRef<str>,
         payload: impl serde::Serialize
       ) -> Result<Result<T, E>, jni::errors::Error> {
         use jni::{
@@ -1000,8 +1000,8 @@ macro_rules! shared_app_impl {
         };
 
         let id: i32 = rand::random();
-        let plugin = plugin.into();
-        let method = method.into();
+        let plugin = plugin.as_ref().to_string();
+        let method = method.as_ref().to_string();
         let payload = serde_json::to_value(payload).unwrap();
         let handle_ = handle.clone();
 

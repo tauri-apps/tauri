@@ -94,9 +94,9 @@ impl AppBuilder {
         #[cfg(debug_assertions)]
         window.open_devtools();
 
-        #[cfg(target_os = "android")]
+        #[cfg(mobile)]
         {
-          let response = app.run_android_plugin::<serde_json::Value, serde_json::Value>(
+          let response = app.run_mobile_plugin::<serde_json::Value, serde_json::Value>(
             "sample",
             "ping",
             serde_json::Value::default(),

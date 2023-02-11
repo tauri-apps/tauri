@@ -877,12 +877,80 @@ macro_rules! shared_app_impl {
         Ok(())
       }
 
+      /// Executes the given plugin mobile method.
+      #[cfg(mobile)]
+      pub fn run_mobile_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
+        &self,
+        plugin: impl AsRef<str>,
+        method: impl AsRef<str>,
+        payload: impl serde::Serialize
+      ) -> crate::Result<Result<T, E>> {
+        #[cfg(target_os = "ios")]
+        {
+          Ok(self.run_ios_plugin(plugin, method, payload))
+        }
+        #[cfg(target_os = "android")]
+        {
+          self.run_android_plugin(plugin, method, payload).map_err(Into::into)
+        }
+      }
+
+      /// Executes the given iOS plugin method.
+      #[cfg(target_os = "ios")]
+      fn run_ios_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
+        &self,
+        plugin: impl AsRef<str>,
+        method: impl AsRef<str>,
+        payload: impl serde::Serialize
+      ) -> Result<T, E> {
+        use std::{os::raw::{c_int, c_char}, ffi::CStr, sync::mpsc::channel};
+
+        let id: i32 = rand::random();
+        let (tx, rx) = channel();
+        PENDING_PLUGIN_CALLS
+          .get_or_init(Default::default)
+          .lock()
+          .unwrap().insert(id, Box::new(move |arg| {
+            tx.send(arg).unwrap();
+          }));
+
+        unsafe {
+          extern "C" fn plugin_method_response_handler(id: c_int, success: c_int, payload: *const c_char) {
+            let payload = unsafe {
+              assert!(!payload.is_null());
+              CStr::from_ptr(payload)
+            };
+
+            if let Some(handler) = PENDING_PLUGIN_CALLS
+              .get_or_init(Default::default)
+              .lock()
+              .unwrap()
+              .remove(&id)
+            {
+              let payload = serde_json::from_str(payload.to_str().unwrap()).unwrap();
+              handler(if success == 1 { Ok(payload) } else { Err(payload) });
+            }
+          }
+
+          crate::ios::run_plugin_method(
+            id,
+            &plugin.as_ref().into(),
+            &method.as_ref().into(),
+            crate::ios::json_to_dictionary(serde_json::to_value(payload).unwrap()),
+            plugin_method_response_handler,
+          );
+        }
+        rx.recv().unwrap()
+          .map(|r| serde_json::from_value(r).unwrap())
+          .map_err(|e| serde_json::from_value(e).unwrap())
+      }
+
       /// Executes the given Android plugin method.
       #[cfg(target_os = "android")]
-      pub fn run_android_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
+      fn run_android_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
         &self,
-        plugin: impl Into<String>,
-        method: impl Into<String>,
+        plugin: impl AsRef<str>,
+        method: impl AsRef<str>,
         payload: impl serde::Serialize
       ) -> Result<Result<T, E>, jni::errors::Error> {
         use jni::{
@@ -932,8 +1000,8 @@ macro_rules! shared_app_impl {
         };
 
         let id: i32 = rand::random();
-        let plugin = plugin.into();
-        let method = method.into();
+        let plugin = plugin.as_ref().to_string();
+        let method = method.as_ref().to_string();
         let payload = serde_json::to_value(payload).unwrap();
         let handle_ = handle.clone();
 
@@ -1966,11 +2034,11 @@ impl Default for Builder<crate::Wry> {
   }
 }
 
-#[cfg(target_os = "android")]
+#[cfg(mobile)]
 type PendingPluginCallHandler =
   Box<dyn FnOnce(std::result::Result<serde_json::Value, serde_json::Value>) + Send + 'static>;
 
-#[cfg(target_os = "android")]
+#[cfg(mobile)]
 static PENDING_PLUGIN_CALLS: once_cell::sync::OnceCell<
   std::sync::Mutex<HashMap<i32, PendingPluginCallHandler>>,
 > = once_cell::sync::OnceCell::new();

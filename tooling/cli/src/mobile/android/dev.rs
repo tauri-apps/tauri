@@ -117,7 +117,7 @@ fn run_dev(
   let target_triple = device
     .as_ref()
     .map(|d| d.target().triple.to_string())
-    .unwrap_or_else(|| Target::all().first_key_value().unwrap().1.triple.into());
+    .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple.clone());
   let mut interface = crate::dev::setup(&mut dev_options, true)?;
 
@@ -138,7 +138,7 @@ fn run_dev(
   let target = Target::all()
     .values()
     .find(|t| t.triple == target_triple)
-    .unwrap_or(Target::all().first_key_value().unwrap().1);
+    .unwrap_or(Target::all().values().next().unwrap());
   target.build(config, metadata, &env, noise_level, true, Profile::Debug)?;
 
   let open = options.open;

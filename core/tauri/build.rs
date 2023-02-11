@@ -154,6 +154,13 @@ fn main() {
       .expect("failed to copy tauri-api Android project");
     }
   }
+
+  #[cfg(target_os = "macos")]
+  {
+    if target_os == "ios" {
+      tauri_build::mobile::link_swift_library("Tauri", "./mobile/ios-api");
+    }
+  }
 }
 
 // create aliases for the given module with its apis.

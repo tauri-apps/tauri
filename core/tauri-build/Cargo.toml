@@ -27,6 +27,9 @@ heck = "0.4"
 json-patch = "0.2"
 walkdir = "2"
 
+[target."cfg(target_os = \"macos\")".dependencies]
+swift-rs = { git = "https://github.com/Brendonovich/swift-rs", rev = "eb6de914ad57501da5019154d476d45660559999", features = ["build"] }
+
 [target."cfg(windows)".dependencies]
 winres = "0.1"
 semver = "1"

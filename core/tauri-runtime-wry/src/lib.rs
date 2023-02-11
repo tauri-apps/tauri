@@ -105,9 +105,7 @@ type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 #[cfg(all(desktop, feature = "system-tray"))]
 pub use tauri_runtime::TrayId;
 
-#[cfg(any(desktop, target_os = "android"))]
 mod webview;
-#[cfg(any(desktop, target_os = "android"))]
 pub use webview::Webview;
 
 #[cfg(all(desktop, feature = "system-tray"))]
@@ -1028,7 +1026,6 @@ pub enum ApplicationMessage {
 }
 
 pub enum WindowMessage {
-  #[cfg(any(desktop, target_os = "android"))]
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   AddEventListener(Uuid, Box<dyn Fn(&WindowEvent) + Send>),
   AddMenuEventListener(Uuid, Box<dyn Fn(&MenuEvent) + Send>),
@@ -1205,7 +1202,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     id
   }
 
-  #[cfg(any(desktop, target_os = "android"))]
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
     send_user_message(
       &self.context,
@@ -2305,7 +2301,6 @@ fn handle_user_message<T: UserEvent>(
         });
         if let Some((Some(window), window_event_listeners, menu_event_listeners)) = w {
           match window_message {
-            #[cfg(any(target_os = "android", desktop))]
             WindowMessage::WithWebview(f) => {
               if let WindowHandle::Webview { inner: w, .. } = &window {
                 #[cfg(any(
@@ -2326,6 +2321,14 @@ fn handle_user_message<T: UserEvent>(
                     webview: w.webview(),
                     manager: w.manager(),
                     ns_window: w.ns_window(),
+                  });
+                }
+                #[cfg(target_os = "ios")]
+                {
+                  use wry::webview::WebviewExtIOS;
+                  f(Webview {
+                    webview: w.webview(),
+                    manager: w.manager(),
                   });
                 }
                 #[cfg(windows)]

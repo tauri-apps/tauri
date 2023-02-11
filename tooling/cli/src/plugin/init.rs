@@ -22,6 +22,7 @@ use std::{
 const BACKEND_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/backend");
 const API_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/with-api");
 const ANDROID_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/android");
+const IOS_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/ios");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri plugin project")]
@@ -48,6 +49,9 @@ pub struct Options {
   /// Adds native Android support.
   #[clap(long)]
   android: bool,
+  /// Adds native iOS support.
+  #[clap(long)]
+  ios: bool,
 }
 
 impl Options {
@@ -163,7 +167,17 @@ pub fn command(mut options: Options) -> Result<()> {
           )
         },
       )
-      .with_context(|| "failed to render Tauri template")?;
+      .with_context(|| "failed to render plugin Android template")?;
+    }
+
+    if options.ios {
+      template::render(
+        &handlebars,
+        &data,
+        &IOS_PLUGIN_DIR,
+        template_target_path.join("ios"),
+      )
+      .with_context(|| "failed to render plugin iOS template")?;
     }
   }
   Ok(())

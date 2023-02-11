@@ -7,15 +7,19 @@ const PLUGIN_NAME: &str = "sample";
 #[cfg(target_os = "android")]
 const PLUGIN_IDENTIFIER: &str = "com.plugin.test";
 
+#[cfg(target_os = "ios")]
+extern "C" {
+  fn init_plugin_sample(webview: tauri::cocoa::base::id);
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  #[allow(unused_mut)]
-  let mut builder = Builder::new(PLUGIN_NAME);
-  #[cfg(target_os = "android")]
-  {
-    builder = builder.setup(|app| {
+  Builder::new(PLUGIN_NAME)
+    .setup(|app| {
+      #[cfg(target_os = "android")]
       app.initialize_android_plugin(PLUGIN_NAME, PLUGIN_IDENTIFIER, "ExamplePlugin")?;
+      #[cfg(target_os = "ios")]
+      app.initialize_ios_plugin(init_plugin_sample)?;
       Ok(())
-    });
-  }
-  builder.build()
+    })
+    .build()
 }

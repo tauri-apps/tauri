@@ -9,6 +9,7 @@ use anyhow::Result;
 #[derive(Default)]
 pub struct PluginBuilder {
   android_path: Option<PathBuf>,
+  ios_path: Option<PathBuf>,
 }
 
 impl PluginBuilder {
@@ -23,51 +24,77 @@ impl PluginBuilder {
     self
   }
 
+  /// Sets the iOS project path.
+  pub fn ios_path<P: Into<PathBuf>>(mut self, ios_path: P) -> Self {
+    self.ios_path.replace(ios_path.into());
+    self
+  }
+
   /// Injects the mobile templates in the given path relative to the manifest root.
   pub fn run(self) -> Result<()> {
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
-    if target_os == "android" {
-      if let Some(path) = self.android_path {
-        let manifest_dir = var("CARGO_MANIFEST_DIR").map(PathBuf::from).unwrap();
-        if let Ok(project_dir) = var("TAURI_ANDROID_PROJECT_PATH") {
-          let source = manifest_dir.join(path);
-          let pkg_name = var("CARGO_PKG_NAME").unwrap();
+    match target_os.as_str() {
+      "android" => {
+        if let Some(path) = self.android_path {
+          let manifest_dir = var("CARGO_MANIFEST_DIR").map(PathBuf::from).unwrap();
+          if let Ok(project_dir) = var("TAURI_ANDROID_PROJECT_PATH") {
+            let source = manifest_dir.join(path);
+            let pkg_name = var("CARGO_PKG_NAME").unwrap();
 
-          println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
+            println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
 
-          let project_dir = PathBuf::from(project_dir);
+            let project_dir = PathBuf::from(project_dir);
 
-          inject_android_project(source, project_dir.join("tauri-plugins").join(&pkg_name))?;
+            inject_android_project(source, project_dir.join("tauri-plugins").join(&pkg_name))?;
 
-          let gradle_settings_path = project_dir.join("tauri.settings.gradle");
-          let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
-          let include = format!(
-            "include ':{pkg_name}'
+            let gradle_settings_path = project_dir.join("tauri.settings.gradle");
+            let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
+            let include = format!(
+              "include ':{pkg_name}'
 project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
-          );
-          if !gradle_settings.contains(&include) {
-            fs::write(
-              &gradle_settings_path,
-              format!("{gradle_settings}\n{include}"),
-            )?;
-          }
+            );
+            if !gradle_settings.contains(&include) {
+              fs::write(
+                &gradle_settings_path,
+                format!("{gradle_settings}\n{include}"),
+              )?;
+            }
 
-          let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
-          let app_build_gradle = fs::read_to_string(&app_build_gradle_path)?;
-          let implementation = format!(r#"implementation(project(":{pkg_name}"))"#);
-          let target = "dependencies {";
-          if !app_build_gradle.contains(&implementation) {
-            fs::write(
-              &app_build_gradle_path,
-              app_build_gradle.replace(target, &format!("{target}\n  {implementation}")),
-            )?
+            let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
+            let app_build_gradle = fs::read_to_string(&app_build_gradle_path)?;
+            let implementation = format!(r#"implementation(project(":{pkg_name}"))"#);
+            let target = "dependencies {";
+            if !app_build_gradle.contains(&implementation) {
+              fs::write(
+                &app_build_gradle_path,
+                app_build_gradle.replace(target, &format!("{target}\n  {implementation}")),
+              )?
+            }
           }
         }
       }
+      #[cfg(target_os = "macos")]
+      "ios" => {
+        if let Some(path) = self.ios_path {
+          link_swift_library(&std::env::var("CARGO_PKG_NAME").unwrap(), path);
+        }
+      }
+      _ => (),
     }
 
     Ok(())
   }
+}
+
+#[cfg(target_os = "macos")]
+#[doc(hidden)]
+pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
+  let source = source.as_ref();
+  println!("cargo:rerun-if-changed={}", source.display());
+  swift_rs::build::SwiftLinker::new("10.13")
+    .with_ios("11")
+    .with_package(name, source)
+    .link();
 }
 
 #[doc(hidden)]

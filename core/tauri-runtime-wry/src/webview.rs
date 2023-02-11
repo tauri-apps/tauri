@@ -26,6 +26,16 @@ mod imp {
   }
 }
 
+#[cfg(target_os = "ios")]
+mod imp {
+  use cocoa::base::id;
+
+  pub struct Webview {
+    pub webview: id,
+    pub manager: id,
+  }
+}
+
 #[cfg(windows)]
 mod imp {
   use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller;

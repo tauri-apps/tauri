@@ -32,7 +32,7 @@ impl PluginBuilder {
 
   /// Injects the mobile templates in the given path relative to the manifest root.
   pub fn run(self) -> Result<()> {
-    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+    let target_os = var("CARGO_CFG_TARGET_OS").unwrap();
     match target_os.as_str() {
       "android" => {
         if let Some(path) = self.android_path {
@@ -76,7 +76,22 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
       #[cfg(target_os = "macos")]
       "ios" => {
         if let Some(path) = self.ios_path {
-          link_swift_library(&std::env::var("CARGO_PKG_NAME").unwrap(), path);
+          let package_name = var("CARGO_PKG_NAME").unwrap();
+          let tauri_library_path = std::env::var("DEP_TAURI_IOS_LIBRARY_PATH")
+            .expect("missing `DEP_TAURI_IOS_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
+
+          let project_path = std::env::temp_dir().join(&package_name);
+          std::fs::create_dir_all(&project_path)?;
+          copy_folder(&path, &project_path.join("ios"))?;
+
+          let package_swift_file = include_str!("../templates/Package.swift")
+            .replace("$PLUGIN_PACKAGE_NAME", &package_name)
+            .replace("$PLUGIN_PACKAGE_SRC_PATH", "ios/Sources")
+            .replace("$TAURI_PATH", &tauri_library_path);
+
+          std::fs::write(project_path.join("Package.swift"), package_swift_file)?;
+          std::env::set_current_dir(&project_path)?;
+          link_swift_library(&var("CARGO_PKG_NAME").unwrap(), project_path);
         }
       }
       _ => (),
@@ -112,6 +127,16 @@ pub fn inject_android_project(source: impl AsRef<Path>, target: impl AsRef<Path>
     None
   };
 
+  copy_folder(source, target)?;
+
+  if let Some(out_dir) = out_dir {
+    rename(out_dir, &build_path)?;
+  }
+
+  Ok(())
+}
+
+fn copy_folder(source: &Path, target: &Path) -> Result<()> {
   let _ = fs::remove_dir_all(target);
 
   for entry in walkdir::WalkDir::new(source) {
@@ -123,10 +148,6 @@ pub fn inject_android_project(source: impl AsRef<Path>, target: impl AsRef<Path>
     } else {
       fs::copy(entry.path(), dest_path)?;
     }
-  }
-
-  if let Some(out_dir) = out_dir {
-    rename(out_dir, &build_path)?;
   }
 
   Ok(())

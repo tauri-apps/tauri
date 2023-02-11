@@ -11,6 +11,7 @@ name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
 version = "2.0.0-alpha.3"
+links = "Tauri"
 
 [package.metadata.docs.rs]
 no-default-features = true

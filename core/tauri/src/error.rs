@@ -131,6 +131,10 @@ pub enum Error {
   /// The Window's raw handle is invalid for the platform.
   #[error("Unexpected `raw_window_handle` for the current platform")]
   InvalidWindowHandle,
+  /// JNI error.
+  #[cfg(target_os = "android")]
+  #[error("jni error: {0}")]
+  Jni(#[from] jni::errors::Error),
 }
 
 pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {

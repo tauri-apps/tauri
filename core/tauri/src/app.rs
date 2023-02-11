@@ -877,9 +877,27 @@ macro_rules! shared_app_impl {
         Ok(())
       }
 
+      /// Executes the given plugin mobile method.
+      #[cfg(mobile)]
+      pub fn run_mobile_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
+        &self,
+        plugin: impl Into<String>,
+        method: impl Into<String>,
+        payload: impl serde::Serialize
+      ) -> crate::Result<Result<T, E>> {
+        #[cfg(target_os = "ios")]
+        {
+          Ok(self.run_ios_plugin(plugin, method, payload))
+        }
+        #[cfg(target_os = "android")]
+        {
+          self.run_android_plugin(plugin, method, payload).map_err(Into::into)
+        }
+      }
+
       /// Executes the given iOS plugin method.
       #[cfg(target_os = "ios")]
-      pub fn run_ios_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
+      fn run_ios_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
         &self,
         plugin: impl AsRef<str>,
         method: impl AsRef<str>,
@@ -929,7 +947,7 @@ macro_rules! shared_app_impl {
 
       /// Executes the given Android plugin method.
       #[cfg(target_os = "android")]
-      pub fn run_android_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
+      fn run_android_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
         &self,
         plugin: impl Into<String>,
         method: impl Into<String>,

@@ -53,7 +53,7 @@ impl PluginBuilder {
             println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
             let android_plugin_project_path = project_dir.join("tauri-plugins").join(&pkg_name);
 
-            inject_android_project(&source, &android_plugin_project_path, &["tauri-api"])?;
+            inject_android_project(&source, android_plugin_project_path, &["tauri-api"])?;
 
             let gradle_settings_path = project_dir.join("tauri.settings.gradle");
             let gradle_settings = fs::read_to_string(&gradle_settings_path)?;

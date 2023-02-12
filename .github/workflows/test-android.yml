@@ -3,8 +3,8 @@ name: test mobile
 on:
   pull_request:
     paths:
-      - '.github/workflows/test-mobile.yml'
-      - 'tooling/cli/templates/mobile/**'
+      - '.github/workflows/test-android.yml'
+      - 'tooling/cli/templates/mobile/android/**'
       - 'tooling/cli/src/mobile/**'
       - '!tooling/cli/src/mobile/ios.rs'
       - '!tooling/cli/src/mobile/ios/**'
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-android:
+  test:
     runs-on: ${{ matrix.platform }}
 
     strategy:

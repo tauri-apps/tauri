@@ -37,22 +37,23 @@ impl PluginBuilder {
       "android" => {
         if let Some(path) = self.android_path {
           let manifest_dir = var_os("CARGO_MANIFEST_DIR").map(PathBuf::from).unwrap();
+          let source = manifest_dir.join(path);
+
+          let tauri_library_path = std::env::var("DEP_TAURI_ANDROID_LIBRARY_PATH")
+            .expect("missing `DEP_TAURI_ANDROID_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
+
+          copy_folder(
+            Path::new(&tauri_library_path),
+            &source.join("tauri-api"),
+            &[],
+          )?;
+
           if let Ok(project_dir) = var("TAURI_ANDROID_PROJECT_PATH") {
-            let source = manifest_dir.join(path);
             let pkg_name = var("CARGO_PKG_NAME").unwrap();
 
             println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
 
             let project_dir = PathBuf::from(project_dir);
-
-            let tauri_library_path = std::env::var("DEP_TAURI_ANDROID_LIBRARY_PATH")
-            .expect("missing `DEP_TAURI_ANDROID_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
-
-            copy_folder(
-              Path::new(&tauri_library_path),
-              &source.join("tauri-api"),
-              &[],
-            )?;
 
             inject_android_project(
               source,

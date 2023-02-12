@@ -16,7 +16,7 @@ pub fn main() {
         let app_handle = app_handle.clone();
         app_handle
           .global_shortcut_manager()
-          .register("CmdOrCtrl+1", move || {
+          .register("CmdOrCtrl+Digit1", move || {
             let app_handle = app_handle.clone();
             let window = app_handle.get_window("main").unwrap();
             window.set_title("New title!").unwrap();

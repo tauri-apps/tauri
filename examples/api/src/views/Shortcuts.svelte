@@ -8,7 +8,7 @@
 
   export let onMessage
   const shortcuts = writable([])
-  let shortcut = 'CmdOrControl+X'
+  let shortcut = 'CmdOrControl+KeyX'
 
   function register() {
     const shortcut_ = shortcut

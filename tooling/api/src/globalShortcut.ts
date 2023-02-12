@@ -29,6 +29,238 @@ import { transformCallback } from './tauri'
 export type ShortcutHandler = (shortcut: string) => void
 
 /**
+ * A keyboard shortcut that consists of an optional combination
+ * of modifier keys and one key, eg: `Control+Shift+KeyX`.
+ *
+ * Possible Modifiers:
+ *   - Option
+ *   - Alt
+ *   - Control
+ *   - CTRL
+ *   - Command
+ *   - CMD
+ *   - Super
+ *   - Shift
+ *   - CommandOrControl
+ *   - CommandOrCTRL
+ *   - CMDOrCTRL
+ *   - CMDOrControl
+ *
+ * Possible Keys (Note that not all keys listed below will not work on all platforms, if you run into this, please file an issue so we could update the docs):
+ *   - Backquote
+ *   - Backslash
+ *   - BracketLeft
+ *   - BracketRight
+ *   - Comma
+ *   - Digit0
+ *   - Digit1
+ *   - Digit2
+ *   - Digit3
+ *   - Digit4
+ *   - Digit5
+ *   - Digit6
+ *   - Digit7
+ *   - Digit8
+ *   - Digit9
+ *   - Equal
+ *   - IntlBackslash
+ *   - IntlRo
+ *   - IntlYen
+ *   - KeyA
+ *   - KeyB
+ *   - KeyC
+ *   - KeyD
+ *   - KeyE
+ *   - KeyF
+ *   - KeyG
+ *   - KeyH
+ *   - KeyI
+ *   - KeyJ
+ *   - KeyK
+ *   - KeyL
+ *   - KeyM
+ *   - KeyN
+ *   - KeyO
+ *   - KeyP
+ *   - KeyQ
+ *   - KeyR
+ *   - KeyS
+ *   - KeyT
+ *   - KeyU
+ *   - KeyV
+ *   - KeyW
+ *   - KeyX
+ *   - KeyY
+ *   - KeyZ
+ *   - Minus
+ *   - Period
+ *   - Quote
+ *   - Semicolon
+ *   - Slash
+ *   - AltLeft
+ *   - AltRight
+ *   - Backspace
+ *   - CapsLock
+ *   - ContextMenu
+ *   - ControlLeft
+ *   - ControlRight
+ *   - Enter
+ *   - MetaLeft
+ *   - OSLeft
+ *   - MetaRight
+ *   - OSRight
+ *   - ShiftLeft
+ *   - ShiftRight
+ *   - Space
+ *   - Tab
+ *   - Convert
+ *   - KanaMode
+ *   - Lang1
+ *   - Lang2
+ *   - Lang3
+ *   - Lang4
+ *   - Lang5
+ *   - NonConvert
+ *   - Delete
+ *   - End
+ *   - Help
+ *   - Home
+ *   - Insert
+ *   - PageDown
+ *   - PageUp
+ *   - ArrowDown
+ *   - ArrowLeft
+ *   - ArrowRight
+ *   - ArrowUp
+ *   - NumLock
+ *   - Numpad0
+ *   - Numpad1
+ *   - Numpad2
+ *   - Numpad3
+ *   - Numpad4
+ *   - Numpad5
+ *   - Numpad6
+ *   - Numpad7
+ *   - Numpad8
+ *   - Numpad9
+ *   - NumpadAdd
+ *   - NumpadBackspace
+ *   - NumpadClear
+ *   - NumpadClearEntry
+ *   - NumpadComma
+ *   - NumpadDecimal
+ *   - NumpadDivide
+ *   - NumpadEnter
+ *   - NumpadEqual
+ *   - NumpadHash
+ *   - NumpadMemoryAdd
+ *   - NumpadMemoryClear
+ *   - NumpadMemoryRecall
+ *   - NumpadMemoryStore
+ *   - NumpadMemorySubtract
+ *   - NumpadMultiply
+ *   - NumpadParenLeft
+ *   - NumpadParenRight
+ *   - NumpadStar
+ *   - NumpadSubtract
+ *   - Escape
+ *   - F1
+ *   - F2
+ *   - F3
+ *   - F4
+ *   - F5
+ *   - F6
+ *   - F7
+ *   - F8
+ *   - F9
+ *   - F10
+ *   - F11
+ *   - F12
+ *   - Fn
+ *   - FnLock
+ *   - PrintScreen
+ *   - ScrollLock
+ *   - Pause
+ *   - BrowserBack
+ *   - BrowserFavorites
+ *   - BrowserForward
+ *   - BrowserHome
+ *   - BrowserRefresh
+ *   - BrowserSearch
+ *   - BrowserStop
+ *   - Eject
+ *   - LaunchApp1
+ *   - LaunchApp2
+ *   - LaunchMail
+ *   - MediaPlayPause
+ *   - MediaSelect
+ *   - LaunchMediaPlayer
+ *   - MediaStop
+ *   - MediaTrackNext
+ *   - MediaTrackPrevious
+ *   - Power
+ *   - Sleep
+ *   - AudioVolumeDown
+ *   - VolumeDown
+ *   - AudioVolumeMute
+ *   - VolumeMute
+ *   - AudioVolumeUp
+ *   - VolumeUp
+ *   - WakeUp
+ *   - Hyper
+ *   - Super
+ *   - Turbo
+ *   - Abort
+ *   - Resume
+ *   - Suspend
+ *   - Again
+ *   - Copy
+ *   - Cut
+ *   - Find
+ *   - Open
+ *   - Paste
+ *   - Props
+ *   - Select
+ *   - Undo
+ *   - Hiragana
+ *   - Katakana
+ *   - Unidentified
+ *   - F13
+ *   - F14
+ *   - F15
+ *   - F16
+ *   - F17
+ *   - F18
+ *   - F19
+ *   - F20
+ *   - F21
+ *   - F22
+ *   - F23
+ *   - F24
+ *   - BrightnessDown
+ *   - BrightnessUp
+ *   - DisplayToggleIntExt
+ *   - KeyboardLayoutSelect
+ *   - LaunchAssistant
+ *   - LaunchControlPanel
+ *   - LaunchScreenSaver
+ *   - MailForward
+ *   - MailReply
+ *   - MailSend
+ *   - MediaFastForward
+ *   - MediaPause
+ *   - MediaPlay
+ *   - MediaRecord
+ *   - MediaRewind
+ *   - MicrophoneMuteToggle
+ *   - PrivacyScreenToggle
+ *   - SelectTask
+ *   - ShowAllWindows
+ *   - ZoomToggle
+ */
+export type Shortcut = string
+
+/**
  * Register a global shortcut.
  * @example
  * ```typescript
@@ -44,7 +276,7 @@ export type ShortcutHandler = (shortcut: string) => void
  * @since 1.0.0
  */
 async function register(
-  shortcut: string,
+  shortcut: Shortcut,
   handler: ShortcutHandler
 ): Promise<void> {
   return invokeTauriCommand({
@@ -73,7 +305,7 @@ async function register(
  * @since 1.0.0
  */
 async function registerAll(
-  shortcuts: string[],
+  shortcuts: Shortcut[],
   handler: ShortcutHandler
 ): Promise<void> {
   return invokeTauriCommand({
@@ -98,7 +330,7 @@ async function registerAll(
  *
  * @since 1.0.0
  */
-async function isRegistered(shortcut: string): Promise<boolean> {
+async function isRegistered(shortcut: Shortcut): Promise<boolean> {
   return invokeTauriCommand({
     __tauriModule: 'GlobalShortcut',
     message: {
@@ -120,7 +352,7 @@ async function isRegistered(shortcut: string): Promise<boolean> {
  *
  * @since 1.0.0
  */
-async function unregister(shortcut: string): Promise<void> {
+async function unregister(shortcut: Shortcut): Promise<void> {
   return invokeTauriCommand({
     __tauriModule: 'GlobalShortcut',
     message: {

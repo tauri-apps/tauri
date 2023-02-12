@@ -158,7 +158,10 @@ fn main() {
   #[cfg(target_os = "macos")]
   {
     if target_os == "ios" {
-      tauri_build::mobile::link_swift_library("Tauri", "./mobile/ios-api");
+      let lib_path =
+        PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("mobile/ios-api");
+      tauri_build::mobile::link_swift_library("Tauri", &lib_path);
+      println!("cargo:ios_library_path={}", lib_path.display());
     }
   }
 }

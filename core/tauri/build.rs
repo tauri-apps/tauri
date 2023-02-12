@@ -150,16 +150,20 @@ fn main() {
       tauri_build::mobile::inject_android_project(
         "./mobile/android",
         project_dir.join("tauri-api"),
+        &[],
       )
       .expect("failed to copy tauri-api Android project");
     }
+    let lib_path =
+      PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/android");
+    println!("cargo:android_library_path={}", lib_path.display());
   }
 
   #[cfg(target_os = "macos")]
   {
     if target_os == "ios" {
       let lib_path =
-        PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("mobile/ios-api");
+        PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/ios-api");
       tauri_build::mobile::link_swift_library("Tauri", &lib_path);
       println!("cargo:ios_library_path={}", lib_path.display());
     }

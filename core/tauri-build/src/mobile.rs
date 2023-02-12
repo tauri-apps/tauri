@@ -148,6 +148,7 @@ pub fn inject_android_project(
     &rerun_path,
     filetime::FileTime::from_last_modification_time(&metadata),
   )?;
+
   println!("cargo:rerun-if-changed={}", rerun_path.display());
 
   Ok(())
@@ -172,6 +173,7 @@ fn copy_folder(source: &Path, target: &Path, ignore_paths: &[&str]) -> Result<()
       fs::create_dir(&dest_path)?;
     } else {
       fs::copy(entry.path(), &dest_path)?;
+      println!("cargo:rerun-if-changed={}", entry.path().display());
     }
   }
 

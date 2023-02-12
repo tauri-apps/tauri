@@ -55,15 +55,6 @@ impl PluginBuilder {
 
             inject_android_project(&source, &android_plugin_project_path, &["tauri-api"])?;
 
-            let rerun_path = android_plugin_project_path.join("build.gradle.kts");
-            let metadata = source.join("build.gradle.kts").metadata()?;
-            filetime::set_file_mtime(
-              &rerun_path,
-              filetime::FileTime::from_last_modification_time(&metadata),
-            )?;
-
-            println!("cargo:rerun-if-changed={}", rerun_path.display());
-
             let gradle_settings_path = project_dir.join("tauri.settings.gradle");
             let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
             let include = format!(
@@ -150,6 +141,14 @@ pub fn inject_android_project(
   if let Some(out_dir) = out_dir {
     rename(out_dir, &build_path)?;
   }
+
+  let rerun_path = target.join("build.gradle.kts");
+  let metadata = source.join("build.gradle.kts").metadata()?;
+  filetime::set_file_mtime(
+    &rerun_path,
+    filetime::FileTime::from_last_modification_time(&metadata),
+  )?;
+  println!("cargo:rerun-if-changed={}", rerun_path.display());
 
   Ok(())
 }

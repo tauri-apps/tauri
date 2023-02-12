@@ -3012,7 +3012,6 @@ dependencies = [
  "dirs-next",
  "embed_plist",
  "encoding_rs",
- "filetime",
  "flate2",
  "futures-util",
  "glib",

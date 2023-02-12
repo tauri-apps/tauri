@@ -154,19 +154,6 @@ fn main() {
         &[],
       )
       .expect("failed to copy tauri-api Android project");
-
-      let rerun_path = project_dir.join("tauri-api").join("build.gradle.kts");
-      let metadata = Path::new("./mobile/android")
-        .join("build.gradle.kts")
-        .metadata()
-        .expect("failed to read tauri/mobile/android/build.gradle.kts metadata");
-      filetime::set_file_mtime(
-        &rerun_path,
-        filetime::FileTime::from_last_modification_time(&metadata),
-      )
-      .expect("failed to update file mtime");
-
-      println!("cargo:rerun-if-changed={}", rerun_path.display());
     }
     let lib_path =
       PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/android");

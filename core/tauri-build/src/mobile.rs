@@ -49,7 +49,7 @@ impl PluginBuilder {
             .expect("missing `DEP_TAURI_ANDROID_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
 
             copy_folder(
-              &Path::new(&tauri_library_path),
+              Path::new(&tauri_library_path),
               &source.join("tauri-api"),
               &[],
             )?;

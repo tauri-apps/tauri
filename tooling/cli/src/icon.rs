@@ -9,6 +9,7 @@ use std::{
   fs::{create_dir_all, File},
   io::{BufWriter, Write},
   path::{Path, PathBuf},
+  str::FromStr,
 };
 
 use anyhow::Context;
@@ -20,7 +21,7 @@ use image::{
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open, ColorType, DynamicImage, ImageEncoder,
+  open, ColorType, DynamicImage, ImageBuffer, ImageEncoder, Rgba,
 };
 use serde::Deserialize;
 
@@ -48,11 +49,25 @@ pub struct Options {
   /// Default: 'icons' directory next to the tauri.conf.json file.
   #[clap(short, long)]
   output: Option<PathBuf>,
+  /// The background color of the iOS icon - string as defined in the W3C's CSS Color Module Level 4 <https://www.w3.org/TR/css-color-4/>.
+  #[clap(long, default_value = "#fff")]
+  ios_color: String,
 }
 
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
+  let ios_color = css_color::Srgb::from_str(&options.ios_color)
+    .map(|color| {
+      Rgba([
+        (color.red * 255.) as u8,
+        (color.green * 255.) as u8,
+        (color.blue * 255.) as u8,
+        (color.alpha * 255.) as u8,
+      ])
+    })
+    .map_err(|_| anyhow::anyhow!("failed to parse iOS color"))?;
+
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
   // Try to read the image as a DynamicImage, convert it to rgba8 and turn it into a DynamicImage again.
@@ -73,7 +88,7 @@ pub fn command(options: Options) -> Result<()> {
 
   ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
-  png(&source, &out_dir).context("Failed to generate png icons")?;
+  png(&source, &out_dir, ios_color).context("Failed to generate png icons")?;
 
   Ok(())
 }
@@ -161,7 +176,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux & Android
-fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
+fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
   fn desktop_entries(out_dir: &Path) -> Vec<PngEntry> {
     let mut entries = Vec::new();
 
@@ -350,11 +365,22 @@ fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
     create_dir_all(&out).context("Can't create iOS output directory")?;
     out
   };
-  entries.extend(ios_entries(&out)?);
 
   for entry in entries {
     log::info!(action = "PNG"; "Creating {}", entry.name);
     resize_and_save_png(source, entry.size, &entry.out_path)?;
+  }
+
+  let source_rgba8 = source.as_rgba8().expect("unexpected image type");
+  let mut img = ImageBuffer::from_fn(source_rgba8.width(), source_rgba8.height(), |_, _| {
+    ios_color
+  });
+  image::imageops::overlay(&mut img, source_rgba8, 0, 0);
+  let image = DynamicImage::ImageRgba8(img);
+
+  for entry in ios_entries(&out)? {
+    log::info!(action = "iOS"; "Creating {}", entry.name);
+    resize_and_save_png(&image, entry.size, &entry.out_path)?;
   }
 
   Ok(())
@@ -363,11 +389,8 @@ fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 // Resize image and save it to disk.
 fn resize_and_save_png(source: &DynamicImage, size: u32, file_path: &Path) -> Result<()> {
   let image = source.resize_exact(size, size, FilterType::Lanczos3);
-
   let mut out_file = BufWriter::new(File::create(file_path)?);
-
   write_png(image.as_bytes(), &mut out_file, size)?;
-
   Ok(out_file.flush()?)
 }
 

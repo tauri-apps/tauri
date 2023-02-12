@@ -643,6 +643,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "css-color"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d101c65424c856131a3cb818da2ddde03500dc3656972269cdf79f018ef77eb4"
+
+[[package]]
 name = "cssparser"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3810,6 +3816,7 @@ dependencies = [
  "clap",
  "colored 2.0.0",
  "common-path",
+ "css-color",
  "ctrlc",
  "dialoguer",
  "env_logger",

@@ -19,10 +19,10 @@ let url = null
 switch (kind) {
   case 'cargo':
     url = `https://crates.io/api/v1/crates/${packageName}`
-    break;
+    break
   case 'npm':
     url = `https://registry.npmjs.org/${packageName}`
-    break;
+    break
   default:
     throw new Error('unexpected kind ' + kind)
 }
@@ -30,7 +30,7 @@ switch (kind) {
 const options = {
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    Accept: 'application/json',
     'User-Agent': 'tauri (https://github.com/tauri-apps/tauri)'
   }
 }
@@ -44,10 +44,12 @@ https.get(url, options, (response) => {
   response.on('end', function () {
     const data = JSON.parse(chunks.join(''))
     if (kind === 'cargo') {
-      const versions = data.versions.filter(v => v.num.startsWith(target))
+      const versions = data.versions.filter((v) => v.num.startsWith(target))
       console.log(versions.length ? versions[0].num : '0.0.0')
     } else if (kind === 'npm') {
-      const versions = Object.keys(data.versions).filter(v => v.startsWith(target))
+      const versions = Object.keys(data.versions).filter((v) =>
+        v.startsWith(target)
+      )
       console.log(versions[versions.length - 1] || '0.0.0')
     }
   })

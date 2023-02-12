@@ -48,18 +48,21 @@ impl PluginBuilder {
             &[],
           )?;
 
-          if let Ok(project_dir) = var("TAURI_ANDROID_PROJECT_PATH") {
+          if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
             let pkg_name = var("CARGO_PKG_NAME").unwrap();
-
             println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
+            let android_plugin_project_path = project_dir.join("tauri-plugins").join(&pkg_name);
 
-            let project_dir = PathBuf::from(project_dir);
+            inject_android_project(&source, &android_plugin_project_path, &["tauri-api"])?;
 
-            inject_android_project(
-              source,
-              project_dir.join("tauri-plugins").join(&pkg_name),
-              &["tauri-api"],
+            let rerun_path = android_plugin_project_path.join("build.gradle.kts");
+            let metadata = source.join("build.gradle.kts").metadata()?;
+            filetime::set_file_mtime(
+              &rerun_path,
+              filetime::FileTime::from_last_modification_time(&metadata),
             )?;
+
+            println!("cargo:rerun-if-changed={}", rerun_path.display());
 
             let gradle_settings_path = project_dir.join("tauri.settings.gradle");
             let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
@@ -165,10 +168,11 @@ fn copy_folder(source: &Path, target: &Path, ignore_paths: &[&str]) -> Result<()
       continue;
     }
     let dest_path = target.join(rel_path);
+
     if entry.file_type().is_dir() {
-      fs::create_dir(dest_path)?;
+      fs::create_dir(&dest_path)?;
     } else {
-      fs::copy(entry.path(), dest_path)?;
+      fs::copy(entry.path(), &dest_path)?;
     }
   }
 

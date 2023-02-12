@@ -8,9 +8,12 @@ use heck::ToSnakeCase;
 
 use once_cell::sync::OnceCell;
 
-use std::env::var;
-use std::path::PathBuf;
-use std::{path::Path, sync::Mutex};
+use std::env::var_os;
+use std::{
+  env::var,
+  path::{Path, PathBuf},
+  sync::Mutex,
+};
 
 static CHECKED_FEATURES: OnceCell<Mutex<Vec<String>>> = OnceCell::new();
 
@@ -136,8 +139,7 @@ fn main() {
 
   alias_module("app", &["show", "hide"], api_all);
 
-  let checked_features_out_path =
-    Path::new(&std::env::var("OUT_DIR").unwrap()).join("checked_features");
+  let checked_features_out_path = Path::new(&var("OUT_DIR").unwrap()).join("checked_features");
   std::fs::write(
     checked_features_out_path,
     CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
@@ -145,14 +147,26 @@ fn main() {
   .expect("failed to write checked_features file");
 
   if target_os == "android" {
-    if let Ok(project_dir) = var("TAURI_ANDROID_PROJECT_PATH") {
-      let project_dir = PathBuf::from(project_dir);
+    if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
       tauri_build::mobile::inject_android_project(
         "./mobile/android",
         project_dir.join("tauri-api"),
         &[],
       )
       .expect("failed to copy tauri-api Android project");
+
+      let rerun_path = project_dir.join("tauri-api").join("build.gradle.kts");
+      let metadata = Path::new("./mobile/android")
+        .join("build.gradle.kts")
+        .metadata()
+        .expect("failed to read tauri/mobile/android/build.gradle.kts metadata");
+      filetime::set_file_mtime(
+        &rerun_path,
+        filetime::FileTime::from_last_modification_time(&metadata),
+      )
+      .expect("failed to update file mtime");
+
+      println!("cargo:rerun-if-changed={}", rerun_path.display());
     }
     let lib_path =
       PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/android");

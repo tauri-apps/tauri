@@ -3012,6 +3012,7 @@ dependencies = [
  "dirs-next",
  "embed_plist",
  "encoding_rs",
+ "filetime",
  "flate2",
  "futures-util",
  "glib",
@@ -3072,6 +3073,7 @@ version = "2.0.0-alpha.1"
 dependencies = [
  "anyhow",
  "cargo_toml",
+ "filetime",
  "heck 0.4.1",
  "json-patch",
  "quote",

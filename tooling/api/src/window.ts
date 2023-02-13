@@ -51,9 +51,9 @@
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  *
- * # Window events
+ * ## Window events
  *
- * Events can be listened using `appWindow.listen`:
+ * Events can be listened to using `appWindow.listen`:
  * ```typescript
  * import { appWindow } from "@tauri-apps/api/window";
  * appWindow.listen("my-window-event", ({ event, payload }) => { });
@@ -64,7 +64,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { emit, Event, listen, once } from './helpers/event'
+import { emit, type Event, listen, once } from './helpers/event'
 import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'
@@ -279,7 +279,7 @@ export type CursorIcon =
  */
 function getCurrent(): WebviewWindow {
   return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
   })
 }
@@ -293,7 +293,7 @@ function getAll(): WebviewWindow[] {
   return window.__TAURI_METADATA__.__windows.map(
     (w) =>
       new WebviewWindow(w.label, {
-        // @ts-expect-error
+        // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
         skip: true
       })
   )
@@ -1989,7 +1989,7 @@ class WebviewWindow extends WindowManager {
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {
     super(label)
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not a public API so it is not defined in WindowOptions
     if (!options?.skip) {
       invokeTauriCommand({
         __tauriModule: 'Window',
@@ -2021,7 +2021,7 @@ class WebviewWindow extends WindowManager {
    */
   static getByLabel(label: string): WebviewWindow | null {
     if (getAll().some((w) => w.label === label)) {
-      // @ts-expect-error
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       return new WebviewWindow(label, { skip: true })
     }
     return null
@@ -2034,7 +2034,7 @@ if ('__TAURI_METADATA__' in window) {
   appWindow = new WebviewWindow(
     window.__TAURI_METADATA__.__currentWindow.label,
     {
-      // @ts-expect-error
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       skip: true
     }
   )
@@ -2043,7 +2043,7 @@ if ('__TAURI_METADATA__' in window) {
     `Could not find "window.__TAURI_METADATA__". The "appWindow" value will reference the "main" window label.\nNote that this is not an issue if running this frontend on a browser instead of a Tauri window.`
   )
   appWindow = new WebviewWindow('main', {
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
   })
 }

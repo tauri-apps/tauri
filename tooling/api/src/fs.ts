@@ -363,7 +363,7 @@ async function writeBinaryFile(
   if (contents && 'dir' in contents) {
     fileOptions = contents
   } else if (typeof path === 'string') {
-    // @ts-expect-error
+    // @ts-expect-error in this case `contents` is always a BinaryFileContents
     file.contents = contents ?? []
   }
 

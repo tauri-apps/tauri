@@ -11,26 +11,49 @@ use super::macos::app;
 #[cfg(target_os = "linux")]
 use super::linux::appimage;
 
-use log::error;
-#[cfg(target_os = "windows")]
-use std::{fs::File, io::prelude::*};
-#[cfg(target_os = "windows")]
-use zip::write::FileOptions;
+use crate::{
+  bundle::{
+    windows::{
+      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, WIX_OUTPUT_FOLDER_NAME,
+      WIX_UPDATER_OUTPUT_FOLDER_NAME,
+    },
+    Bundle,
+  },
+  Settings,
+};
+use tauri_utils::display_path;
 
-use crate::{bundle::Bundle, Settings};
+use std::{
+  fs::{self, File},
+  io::{prelude::*, Write},
+  path::{Path, PathBuf},
+};
+
 use anyhow::Context;
 use log::info;
-use std::path::{Path, PathBuf};
-use std::{fs, io::Write};
+use zip::write::FileOptions;
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
-  if cfg!(unix) || cfg!(windows) || cfg!(macos) {
-    // Create our archive bundle
-    let bundle_result = bundle_update(settings, bundles)?;
-    Ok(bundle_result)
-  } else {
-    error!("Current platform do not support updates");
+  let target_os = settings
+    .target()
+    .split('-')
+    .nth(2)
+    .unwrap_or(std::env::consts::OS)
+    .replace("darwin", "macos");
+
+  if target_os == "windows" {
+    return bundle_update_windows(settings, bundles);
+  }
+
+  #[cfg(target_os = "macos")]
+  return bundle_update_macos(settings, bundles);
+  #[cfg(target_os = "linux")]
+  return bundle_update_linux(settings, bundles);
+
+  #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+  {
+    log::error!("Current platform does not support updates");
     Ok(vec![])
   }
 }
@@ -38,7 +61,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 // Create simple update-macos.tar.gz
 // This is the Mac OS App packaged
 #[cfg(target_os = "macos")]
-fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update_macos(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use std::ffi::OsStr;
 
   // find our .app or rebuild our bundle
@@ -71,7 +94,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   create_tar(source_path, &osx_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  info!(action = "Bundling"; "{} ({})", osx_archived, osx_archived_path.display());
+  info!(action = "Bundling"; "{} ({})", osx_archived, display_path(&osx_archived_path));
 
   Ok(vec![osx_archived_path])
 }
@@ -81,7 +104,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 // Right now in linux we hot replace the bin and request a restart
 // No assets are replaced
 #[cfg(target_os = "linux")]
-fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update_linux(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use std::ffi::OsStr;
 
   // build our app actually we support only appimage on linux
@@ -113,7 +136,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   create_tar(source_path, &appimage_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  info!(action = "Bundling"; "{} ({})", appimage_archived, appimage_archived_path.display());
+  info!(action = "Bundling"; "{} ({})", appimage_archived, display_path(&appimage_archived_path));
 
   Ok(vec![appimage_archived_path])
 }
@@ -122,10 +145,11 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 // Including the binary as root
 // Right now in windows we hot replace the bin and request a restart
 // No assets are replaced
-#[cfg(target_os = "windows")]
-fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use crate::bundle::settings::WebviewInstallMode;
-  use crate::bundle::windows::{msi, nsis};
+  #[cfg(target_os = "windows")]
+  use crate::bundle::windows::msi;
+  use crate::bundle::windows::nsis;
   use crate::PackageType;
 
   // find our installers or rebuild
@@ -133,6 +157,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   let mut rebuild_installers = || -> crate::Result<()> {
     for bundle in bundles {
       match bundle.package_type {
+        #[cfg(target_os = "windows")]
         PackageType::WindowsMsi => bundle_paths.extend(msi::bundle_project(settings, true)?),
         PackageType::Nsis => bundle_paths.extend(nsis::bundle_project(settings, true)?),
         _ => {}
@@ -155,8 +180,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
           PackageType::WindowsMsi | PackageType::Nsis
         )
       })
-      .map(|bundle| bundle.bundle_paths.clone())
-      .flatten()
+      .flat_map(|bundle| bundle.bundle_paths.clone())
       .collect::<Vec<_>>();
 
     // we expect our installer files to be on `bundle_paths`
@@ -177,14 +201,13 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
           if let std::path::Component::Normal(name) = c {
             if let Some(name) = name.to_str() {
               // installers bundled for updater should be put in a directory named `${bundle_name}-updater`
-              if name == msi::UPDATER_OUTPUT_FOLDER_NAME || name == nsis::UPDATER_OUTPUT_FOLDER_NAME
-              {
+              if name == WIX_UPDATER_OUTPUT_FOLDER_NAME || name == NSIS_UPDATER_OUTPUT_FOLDER_NAME {
                 b = name.strip_suffix("-updater").unwrap().to_string();
                 p.push(&b);
                 return (p, b);
               }
 
-              if name == msi::OUTPUT_FOLDER_NAME || name == nsis::OUTPUT_FOLDER_NAME {
+              if name == WIX_OUTPUT_FOLDER_NAME || name == NSIS_OUTPUT_FOLDER_NAME {
                 b = name.to_string();
               }
             }
@@ -194,10 +217,10 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
         });
     let archived_path = archived_path.with_extension(format!("{}.zip", bundle_name));
 
-    info!(action = "Bundling"; "{}", archived_path.display());
+    info!(action = "Bundling"; "{}", display_path(&archived_path));
 
     // Create our gzip file
-    create_zip(&source_path, &archived_path).with_context(|| "Failed to zip update MSI")?;
+    create_zip(&source_path, &archived_path).with_context(|| "Failed to zip update bundle")?;
 
     installers_archived_paths.push(archived_path);
   }
@@ -205,7 +228,6 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   Ok(installers_archived_paths)
 }
 
-#[cfg(target_os = "windows")]
 pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
   let parent_dir = dst_file.parent().expect("No data in parent");
   fs::create_dir_all(parent_dir)?;
@@ -224,7 +246,7 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
   let mut f = File::open(src_file)?;
   let mut buffer = Vec::new();
   f.read_to_end(&mut buffer)?;
-  zip.write_all(&*buffer)?;
+  zip.write_all(&buffer)?;
   buffer.clear();
 
   Ok(dst_file.to_owned())

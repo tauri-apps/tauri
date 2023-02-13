@@ -10,7 +10,7 @@
  */
 
 import { once, listen, emit, TauriEvent } from './event'
-import { UnlistenFn } from './helpers/event'
+import { type UnlistenFn } from './helpers/event'
 
 /**
  * @since 1.0.0

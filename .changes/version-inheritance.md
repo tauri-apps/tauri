@@ -1,5 +1,6 @@
 ---
 'cli.rs': 'minor'
+'tauri-build': 'minor'
 ---
 
-Add support for Cargo's workspace inheritance for the package version.
+Added support for Cargo's workspace inheritance for package information. The cli now also detects inherited `tauri` and `tauri-build` dependencies and disables manifest rewrites accordingly.

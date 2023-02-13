@@ -5,7 +5,7 @@
 //! Types and functions related to desktop notifications.
 
 #[cfg(windows)]
-use std::path::MAIN_SEPARATOR;
+use std::path::MAIN_SEPARATOR as SEP;
 
 /// The desktop notification definition.
 ///
@@ -114,8 +114,8 @@ impl Notification {
       let exe_dir = exe.parent().expect("failed to get exe directory");
       let curr_dir = exe_dir.display().to_string();
       // set the notification's System.AppUserModel.ID only when running the installed app
-      if !(curr_dir.ends_with(format!("{S}target{S}debug", S = MAIN_SEPARATOR).as_str())
-        || curr_dir.ends_with(format!("{S}target{S}release", S = MAIN_SEPARATOR).as_str()))
+      if !(curr_dir.ends_with(format!("{SEP}target{SEP}debug").as_str())
+        || curr_dir.ends_with(format!("{SEP}target{SEP}release").as_str()))
       {
         notification.app_id(&self.identifier);
       }

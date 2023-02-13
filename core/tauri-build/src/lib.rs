@@ -5,15 +5,18 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
+use cargo_toml::{Dependency, Manifest};
 use heck::AsShoutySnakeCase;
 
-use tauri_utils::resources::{external_binaries, resource_relpath, ResourcePaths};
+use tauri_utils::{
+  config::Config,
+  resources::{external_binaries, resource_relpath, ResourcePaths},
+};
 
 use std::path::{Path, PathBuf};
 
 #[cfg(feature = "codegen")]
 mod codegen;
-#[cfg(windows)]
 mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
@@ -243,8 +246,6 @@ pub fn build() {
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;
-  use cargo_toml::{Dependency, Manifest};
-  use tauri_utils::config::{Config, TauriConfig};
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
   println!("cargo:rerun-if-changed=tauri.conf.json");
@@ -269,50 +270,33 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   cfg_alias("dev", !has_feature("custom-protocol"));
 
-  let mut manifest = Manifest::from_path("Cargo.toml")?;
+  let ws_path = get_workspace_dir()?;
+  let mut manifest =
+    Manifest::<cargo_toml::Value>::from_slice_with_metadata(&std::fs::read("Cargo.toml")?)?;
+
+  if let Ok(ws_manifest) = Manifest::from_path(ws_path.join("Cargo.toml")) {
+    Manifest::complete_from_path_and_workspace(
+      &mut manifest,
+      Path::new("Cargo.toml"),
+      Some((&ws_manifest, ws_path.as_path())),
+    )?;
+  } else {
+    Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
+  }
+
+  if let Some(tauri_build) = manifest.build_dependencies.remove("tauri-build") {
+    let error_message = check_features(&config, tauri_build, true);
+
+    if !error_message.is_empty() {
+      return Err(anyhow!("
+      The `tauri-build` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
+      Please run `tauri dev` or `tauri build` or {}.
+    ", error_message));
+    }
+  }
+
   if let Some(tauri) = manifest.dependencies.remove("tauri") {
-    let features = match tauri {
-      Dependency::Simple(_) => Vec::new(),
-      Dependency::Detailed(dep) => dep.features,
-      Dependency::Inherited(dep) => dep.features,
-    };
-
-    let all_cli_managed_features = TauriConfig::all_features();
-    let diff = features_diff(
-      &features
-        .into_iter()
-        .filter(|f| all_cli_managed_features.contains(&f.as_str()))
-        .collect::<Vec<String>>(),
-      &config
-        .tauri
-        .features()
-        .into_iter()
-        .map(|f| f.to_string())
-        .collect::<Vec<String>>(),
-    );
-
-    let mut error_message = String::new();
-    if !diff.remove.is_empty() {
-      error_message.push_str("remove the `");
-      error_message.push_str(&diff.remove.join(", "));
-      error_message.push_str(if diff.remove.len() == 1 {
-        "` feature"
-      } else {
-        "` features"
-      });
-      if !diff.add.is_empty() {
-        error_message.push_str(" and ");
-      }
-    }
-    if !diff.add.is_empty() {
-      error_message.push_str("add the `");
-      error_message.push_str(&diff.add.join(", "));
-      error_message.push_str(if diff.add.len() == 1 {
-        "` feature"
-      } else {
-        "` features"
-      });
-    }
+    let error_message = check_features(&config, tauri, false);
 
     if !error_message.is_empty() {
       return Err(anyhow!("
@@ -344,25 +328,25 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config.tauri.bundle.resources.clone().unwrap_or_default();
-  #[cfg(windows)]
-  if let Some(fixed_webview2_runtime_path) = &config.tauri.bundle.windows.webview_fixed_runtime_path
-  {
-    resources.push(fixed_webview2_runtime_path.display().to_string());
+  if target_triple.contains("windows") {
+    if let Some(fixed_webview2_runtime_path) =
+      &config.tauri.bundle.windows.webview_fixed_runtime_path
+    {
+      resources.push(fixed_webview2_runtime_path.display().to_string());
+    }
   }
   copy_resources(ResourcePaths::new(resources.as_slice(), true), target_dir)?;
 
-  #[cfg(target_os = "macos")]
-  {
-    if let Some(version) = config.tauri.bundle.macos.minimum_system_version {
+  if target_triple.contains("darwin") {
+    if let Some(version) = &config.tauri.bundle.macos.minimum_system_version {
       println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={}", version);
     }
   }
 
-  #[cfg(windows)]
-  {
+  if target_triple.contains("windows") {
     use anyhow::Context;
     use semver::Version;
-    use winres::{VersionInfo, WindowsResource};
+    use tauri_winres::{VersionInfo, WindowsResource};
 
     fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
       let icon_path = config
@@ -484,6 +468,89 @@ fn features_diff(current: &[String], expected: &[String]) -> Diff {
   }
 
   Diff { remove, add }
+}
+
+fn check_features(config: &Config, dependency: Dependency, is_tauri_build: bool) -> String {
+  use tauri_utils::config::{PatternKind, TauriConfig};
+
+  let features = match dependency {
+    Dependency::Simple(_) => Vec::new(),
+    Dependency::Detailed(dep) => dep.features,
+    Dependency::Inherited(dep) => dep.features,
+  };
+
+  let all_cli_managed_features = if is_tauri_build {
+    vec!["isolation"]
+  } else {
+    TauriConfig::all_features()
+  };
+
+  let expected = if is_tauri_build {
+    match config.tauri.pattern {
+      PatternKind::Isolation { .. } => vec!["isolation".to_string()],
+      _ => vec![],
+    }
+  } else {
+    config
+      .tauri
+      .features()
+      .into_iter()
+      .map(|f| f.to_string())
+      .collect::<Vec<String>>()
+  };
+
+  let diff = features_diff(
+    &features
+      .into_iter()
+      .filter(|f| all_cli_managed_features.contains(&f.as_str()))
+      .collect::<Vec<String>>(),
+    &expected,
+  );
+
+  let mut error_message = String::new();
+  if !diff.remove.is_empty() {
+    error_message.push_str("remove the `");
+    error_message.push_str(&diff.remove.join(", "));
+    error_message.push_str(if diff.remove.len() == 1 {
+      "` feature"
+    } else {
+      "` features"
+    });
+    if !diff.add.is_empty() {
+      error_message.push_str(" and ");
+    }
+  }
+  if !diff.add.is_empty() {
+    error_message.push_str("add the `");
+    error_message.push_str(&diff.add.join(", "));
+    error_message.push_str(if diff.add.len() == 1 {
+      "` feature"
+    } else {
+      "` features"
+    });
+  }
+
+  error_message
+}
+
+#[derive(serde::Deserialize)]
+struct CargoMetadata {
+  workspace_root: PathBuf,
+}
+
+fn get_workspace_dir() -> Result<PathBuf> {
+  let output = std::process::Command::new("cargo")
+    .args(["metadata", "--no-deps", "--format-version", "1"])
+    .output()?;
+
+  if !output.status.success() {
+    return Err(anyhow::anyhow!(
+      "cargo metadata command exited with a non zero exit code: {}",
+      String::from_utf8(output.stderr)?
+    ));
+  }
+
+  Ok(serde_json::from_slice::<CargoMetadata>(&output.stdout)?.workspace_root)
 }
 
 #[cfg(test)]

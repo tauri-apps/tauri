@@ -5,7 +5,10 @@
 //! Tauri utility helpers
 #![warn(missing_docs, rust_2018_idioms)]
 
-use std::fmt::Display;
+use std::{
+  fmt::Display,
+  path::{Path, PathBuf},
+};
 
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -293,4 +296,13 @@ macro_rules! debug_eprintln {
     #[cfg(not(debug_assertions))]
     $crate::consume_unused_variable!($($arg)*);
   };
+}
+
+/// Reconstructs a path from its components using the platform separator then converts it to String
+pub fn display_path<P: AsRef<Path>>(p: P) -> String {
+  p.as_ref()
+    .components()
+    .collect::<PathBuf>()
+    .display()
+    .to_string()
 }

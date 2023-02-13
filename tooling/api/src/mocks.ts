@@ -165,8 +165,8 @@ export function mockWindows(
  * @since 1.0.0
  */
 export function clearMocks(): void {
-  // @ts-expect-error
+  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
   delete window.__TAURI_IPC__
-  // @ts-expect-error
+  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
   delete window.__TAURI_METADATA__
 }

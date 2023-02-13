@@ -58,7 +58,7 @@ impl<T: UserEvent> fmt::Debug for GlobalShortcutManagerHandle<T> {
 
 impl<T: UserEvent> GlobalShortcutManager for GlobalShortcutManagerHandle<T> {
   fn is_registered(&self, shorcut: &str) -> Result<bool> {
-    Ok(self.shortcuts.lock().unwrap().contains_key(shorcut.into()))
+    Ok(self.shortcuts.lock().unwrap().contains_key(shorcut))
   }
   fn register<F: Fn() + Send + 'static>(&mut self, shorcut: &str, handler: F) -> Result<()> {
     let hotkey: HotKey = shorcut.parse().expect("invalid shorcut");

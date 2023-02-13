@@ -1,4 +1,4 @@
-package com.plugin.test
+package {{package_id}}
 
 import org.junit.Test
 

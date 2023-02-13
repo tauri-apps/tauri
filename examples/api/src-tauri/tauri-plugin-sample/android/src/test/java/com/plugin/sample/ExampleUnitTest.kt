@@ -1,4 +1,4 @@
-package com.plugin.test
+package com.plugin.sample
 
 import org.junit.Test
 

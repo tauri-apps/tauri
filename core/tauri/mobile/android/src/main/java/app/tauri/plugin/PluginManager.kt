@@ -1,11 +1,13 @@
 package app.tauri.plugin
 
 import android.webkit.WebView
+import app.tauri.JniMethod
 import app.tauri.Logger
 
 class PluginManager {
   private val plugins: HashMap<String, PluginHandle> = HashMap()
 
+  @JniMethod
   fun onWebViewCreated(webView: WebView) {
     for ((_, plugin) in plugins) {
       if (!plugin.loaded) {
@@ -14,6 +16,7 @@ class PluginManager {
     }
   }
 
+  @JniMethod
   fun load(webView: WebView?, name: String, plugin: Plugin) {
     val handle = PluginHandle(plugin)
     plugins[name] = handle
@@ -22,6 +25,7 @@ class PluginManager {
     }
   }
 
+  @JniMethod
   fun postIpcMessage(webView: WebView, pluginId: String, methodName: String, data: JSObject, callback: Long, error: Long) {
     val invoke = Invoke({ successResult, errorResult ->
       val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(
@@ -34,6 +38,7 @@ class PluginManager {
     dispatchPluginMessage(invoke, pluginId, methodName)
   }
 
+  @JniMethod
   fun runPluginMethod(id: Int, pluginId: String, methodName: String, data: JSObject) {
     val invoke = Invoke({ successResult, errorResult ->
       handlePluginResponse(id, successResult?.toString(), errorResult?.toString())

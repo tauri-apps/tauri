@@ -153,6 +153,15 @@ fn main() {
         &[],
       )
       .expect("failed to copy tauri-api Android project");
+      let tauri_proguard = include_str!("./mobile/proguard-tauri.pro").replace(
+        "$PACKAGE",
+        &var("WRY_ANDROID_PACKAGE").expect("missing `WRY_ANDROID_PACKAGE` environment variable"),
+      );
+      std::fs::write(
+        project_dir.join("app").join("proguard-tauri.pro"),
+        tauri_proguard,
+      )
+      .expect("failed to write proguard-tauri.pro");
     }
     let lib_path =
       PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/android");

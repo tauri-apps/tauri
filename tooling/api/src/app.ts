@@ -34,7 +34,6 @@ import { invokeTauriCommand } from './helpers/tauri'
  * ```typescript
  * import { getVersion } from '@tauri-apps/api/app';
  * const appVersion = await getVersion();
- * TEST
  * ```
  *
  * @since 1.0.0

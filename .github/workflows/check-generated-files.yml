@@ -31,7 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       bundle: ${{ steps.filter.outputs.bundle }}
-      schema: ${{ steps.filter.outputs.schema }}
+      rust-schema: ${{ steps.filter.outputs.rust-schema }}
+      js-schema: ${{ steps.filter.outputs.js-schema }}
     steps:
       - uses: actions/checkout@v3
       - uses: dorny/paths-filter@v2

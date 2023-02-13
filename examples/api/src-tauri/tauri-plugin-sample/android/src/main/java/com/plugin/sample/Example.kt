@@ -1,4 +1,4 @@
-package com.plugin.test
+package com.plugin.sample
 
 import android.util.Log
 

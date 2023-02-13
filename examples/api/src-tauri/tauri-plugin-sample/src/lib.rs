@@ -5,7 +5,7 @@ use tauri::{
 
 const PLUGIN_NAME: &str = "sample";
 #[cfg(target_os = "android")]
-const PLUGIN_IDENTIFIER: &str = "com.plugin.test";
+const PLUGIN_IDENTIFIER: &str = "com.plugin.sample";
 
 #[cfg(target_os = "ios")]
 extern "C" {

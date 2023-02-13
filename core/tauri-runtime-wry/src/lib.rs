@@ -4,6 +4,7 @@
 
 //! The [`wry`] Tauri [`Runtime`].
 
+use global_hotkey::GlobalHotKeyManager;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
   http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
@@ -2898,6 +2899,7 @@ fn handle_event_loop<T: UserEvent>(
         on_window_close(id, windows.clone());
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
+      #[cfg(all(desktop, feature = "global-shortcut"))]
       Message::GlobalShortcutEvent(event) => {
         for (id, handler) in &*global_shortcut_manager_handle.listeners.lock().unwrap() {
           if event.id == *id {

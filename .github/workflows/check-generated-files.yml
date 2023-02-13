@@ -33,7 +33,7 @@ jobs:
       bundle: ${{ steps.filter.outputs.bundle }}
       schema: ${{ steps.filter.outputs.schema }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: dorny/paths-filter@v2
         id: filter
         with:
@@ -54,7 +54,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.bundle == 'true'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           cache: 'yarn'
@@ -70,7 +70,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.rust-schema == 'true'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
@@ -96,6 +96,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.js-schema == 'true'
     steps:
+      - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           cache: 'yarn'

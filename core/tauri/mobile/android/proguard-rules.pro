@@ -1,6 +1,3 @@
--keep class app.tauri.plugin.PluginManager {
-  onWebViewCreated(...);
-  load(...);
-  postIpcMessage(...);
-  runPluginMethod(...);
+-keep class app.tauri.** {
+  @app.tauri.JniMethod public <methods>;
 }

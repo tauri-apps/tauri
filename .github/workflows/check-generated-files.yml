@@ -55,9 +55,13 @@ jobs:
     if: needs.changes.outputs.bundle == 'true'
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-node@v3
+        with:
+          cache: 'yarn'
+          cache-dependency-path: tooling/api/yarn.lock
       - name: generate bundle
         working-directory: tooling/api
-        run: yarn && yarn build
+        run: yarn install --frozen-lockfile && yarn build
       - name: check bundle
         run: ./.scripts/ci/has-diff.sh
 

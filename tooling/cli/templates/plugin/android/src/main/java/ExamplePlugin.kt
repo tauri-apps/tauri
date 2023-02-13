@@ -8,7 +8,7 @@ import app.tauri.plugin.PluginMethod
 import app.tauri.plugin.TauriPlugin
 
 @TauriPlugin
-class ExamplePlugin(private val activity: Activity): Plugin() {
+class ExamplePlugin(private val activity: Activity): Plugin(activity) {
     private val implementation = Example()
 
     @PluginMethod

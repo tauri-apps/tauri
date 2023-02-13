@@ -22,8 +22,3 @@
 -keep class $PACKAGE.MainActivity {
   public getPluginManager();
 }
-
--keep @app.tauri.plugin.TauriPlugin public class * {
-  @app.tauri.plugin.PluginMethod public <methods>;
-  public <init>(...);
-}

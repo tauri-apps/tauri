@@ -184,9 +184,9 @@ checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
 name = "base64"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ea22880d78093b0cbe17c89f64a7d457941e65759157ec6cb31a31d652b05e5"
+checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 
 [[package]]
 name = "bitflags"
@@ -2044,9 +2044,9 @@ dependencies = [
 
 [[package]]
 name = "os_info"
-version = "3.5.1"
+version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4750134fb6a5d49afc80777394ad5d95b04bc12068c6abb92fae8f43817270f"
+checksum = "5209b2162b2c140df493a93689e04f8deab3a67634f5bc7a553c0a98e5b8d399"
 dependencies = [
  "log",
  "serde",
@@ -3122,7 +3122,7 @@ version = "1.2.4"
 dependencies = [
  "anyhow",
  "attohttpc",
- "base64 0.13.1",
+ "base64 0.21.0",
  "bytes",
  "clap",
  "cocoa",
@@ -3188,6 +3188,7 @@ dependencies = [
  "json-patch",
  "quote",
  "semver 1.0.16",
+ "serde",
  "serde_json",
  "tauri-codegen",
  "tauri-utils",
@@ -3198,7 +3199,7 @@ dependencies = [
 name = "tauri-codegen"
 version = "1.2.1"
 dependencies = [
- "base64 0.20.0",
+ "base64 0.21.0",
  "brotli",
  "ico 0.3.0",
  "json-patch",

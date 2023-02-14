@@ -2583,14 +2583,18 @@ fn handle_user_message<T: UserEvent>(
     Message::Tray(tray_id, tray_message) => {
       let mut trays = system_tray_manager.trays.lock().unwrap();
 
-      if let TrayMessage::Create(tray, tx) = tray_message {
+      if let TrayMessage::Create(mut tray, tx) = tray_message {
+        let mut listeners = Vec::new();
+        if let Some(l) = tray.on_event.take() {
+          listeners.push(Arc::new(l));
+        }
         match create_tray(WryTrayId(tray_id), tray, event_loop) {
           Ok((tray, items)) => {
             trays.insert(
               tray_id,
               TrayContext {
                 tray: Arc::new(Mutex::new(Some(tray))),
-                listeners: Default::default(),
+                listeners: Arc::new(Mutex::new(listeners)),
                 items: Arc::new(Mutex::new(items)),
               },
             );

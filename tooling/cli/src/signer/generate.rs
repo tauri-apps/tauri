@@ -8,6 +8,7 @@ use crate::{
 };
 use clap::Parser;
 use std::path::PathBuf;
+use tauri_utils::display_path;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Generate keypair to sign files")]
@@ -21,11 +22,17 @@ pub struct Options {
   /// Overwrite private key even if it exists on the specified path
   #[clap(short, long)]
   force: bool,
+  /// Skip prompting for values
+  #[clap(long)]
+  ci: bool,
 }
 
-pub fn command(options: Options) -> Result<()> {
-  if options.password.is_none() {
-    println!("Generating new private key without password.")
+pub fn command(mut options: Options) -> Result<()> {
+  options.ci = options.ci || std::env::var("CI").is_ok();
+
+  if options.ci && options.password.is_none() {
+    println!("Generating new private key without password.");
+    options.password.replace("".into());
   }
   let keypair = generate_key(options.password).expect("Failed to generate key");
 
@@ -36,8 +43,8 @@ pub fn command(options: Options) -> Result<()> {
 
     println!(
         "\nYour keypair was generated successfully\nPrivate: {} (Keep it secret!)\nPublic: {}\n---------------------------",
-        secret_path.display(),
-        public_path.display()
+        display_path(secret_path),
+        display_path(public_path)
         )
   } else {
     println!(

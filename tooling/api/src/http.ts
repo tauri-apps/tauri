@@ -362,8 +362,7 @@ class Client {
           response.data = JSON.parse(response.data as string)
         } catch (e) {
           if (response.ok && (response.data as unknown as string) === '') {
-            // @ts-expect-error
-            response.data = {}
+            response.data = {} as T
           } else if (response.ok) {
             throw Error(
               `Failed to parse response \`${response.data}\` as JSON: ${e};
@@ -557,4 +556,4 @@ export type {
   FetchOptions
 }
 
-export { getClient, fetch, Body, Client, Response, ResponseType, FilePart }
+export { getClient, fetch, Body, Client, Response, ResponseType, type FilePart }

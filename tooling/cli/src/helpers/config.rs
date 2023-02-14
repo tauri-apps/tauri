@@ -97,6 +97,18 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   }
 }
 
+pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
+  tauri_bundler::NsisSettings {
+    license: config.license,
+    header_image: config.header_image,
+    sidebar_image: config.sidebar_image,
+    installer_icon: config.installer_icon,
+    install_mode: config.install_mode,
+    languages: config.languages,
+    display_language_selector: config.display_language_selector,
+  }
+}
+
 fn config_handle() -> &'static ConfigHandle {
   static CONFING_HANDLE: Lazy<ConfigHandle> = Lazy::new(Default::default);
   &CONFING_HANDLE

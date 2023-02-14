@@ -105,6 +105,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
             "setCursorPosition": false,
@@ -147,6 +148,7 @@
             "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "nsis": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -170,7 +172,8 @@
           "dialog": true,
           "pubkey": "",
           "windows": {
-            "installMode": "passive"
+            "installMode": "passive",
+            "installerArgs": []
           }
         },
         "windows": []
@@ -284,6 +287,7 @@
               "allowDowngrades": true,
               "certificateThumbprint": null,
               "digestAlgorithm": null,
+              "nsis": null,
               "timestampUrl": null,
               "tsp": false,
               "webviewFixedRuntimePath": null,
@@ -381,6 +385,7 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setContentProtected": false,
               "setCursorGrab": false,
               "setCursorIcon": false,
               "setCursorPosition": false,
@@ -429,7 +434,8 @@
             "dialog": true,
             "pubkey": "",
             "windows": {
-              "installMode": "passive"
+              "installMode": "passive",
+              "installerArgs": []
             }
           },
           "allOf": [
@@ -645,6 +651,11 @@
           "default": false,
           "type": "boolean"
         },
+        "contentProtected": {
+          "description": "Prevents the window contents from being captured by other apps.",
+          "default": false,
+          "type": "boolean"
+        },
         "skipTaskbar": {
           "description": "If `true`, hides the window icon from the taskbar on Windows and Linux.",
           "default": false,
@@ -682,6 +693,13 @@
         },
         "tabbingIdentifier": {
           "description": "Defines the window [tabbing identifier] for macOS.\n\nWindows with matching tabbing identifiers will be grouped together. If the tabbing identifier is not set, automatic tabbing will be disabled.\n\n[tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "additionalBrowserArgs": {
+          "description": "Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection` so if you use this method, you also need to disable these components by yourself if you want.",
           "type": [
             "string",
             "null"
@@ -1013,7 +1031,7 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
@@ -1127,6 +1145,7 @@
             "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "nsis": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -1202,6 +1221,13 @@
           "type": "string",
           "enum": [
             "msi"
+          ]
+        },
+        {
+          "description": "The NSIS bundle (.exe).",
+          "type": "string",
+          "enum": [
+            "nsis"
           ]
         },
         {
@@ -1383,6 +1409,17 @@
           "anyOf": [
             {
               "$ref": "#/definitions/WixConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nsis": {
+          "description": "Configuration for the installer generated with NSIS.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NsisConfig"
             },
             {
               "type": "null"
@@ -1636,6 +1673,91 @@
       },
       "additionalProperties": false
     },
+    "NsisConfig": {
+      "description": "Configuration for the Installer bundle using NSIS.",
+      "type": "object",
+      "properties": {
+        "license": {
+          "description": "The path to the license file to render on the installer.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headerImage": {
+          "description": "The path to a bitmap file to display on the header of installers pages.\n\nThe recommended dimensions are 150px x 57px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sidebarImage": {
+          "description": "The path to a bitmap file for the Welcome page and the Finish page.\n\nThe recommended dimensions are 164px x 314px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "installerIcon": {
+          "description": "The path to an icon file used as the installer icon.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "installMode": {
+          "description": "Whether the installation will be for all users or just the current user.",
+          "default": "currentUser",
+          "allOf": [
+            {
+              "$ref": "#/definitions/NSISInstallerMode"
+            }
+          ]
+        },
+        "languages": {
+          "description": "A list of installer languages. By default the OS language is used. If the OS language is not in the list of languages, the first language will be used. To allow the user to select the language, set `display_language_selector` to `true`.\n\nSee <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "displayLanguageSelector": {
+          "description": "Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not. By default the OS language is selected, with a fallback to the first language in the `languages` array.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "NSISInstallerMode": {
+      "description": "Install Modes for the NSIS installer.",
+      "oneOf": [
+        {
+          "description": "Default mode for the installer.\n\nInstall the app by default in a directory that doesn't require Administrator access.\n\nInstaller metadata will be saved under the `HKCU` registry path.",
+          "type": "string",
+          "enum": [
+            "currentUser"
+          ]
+        },
+        {
+          "description": "Install the app by default in the `Program Files` folder directory requires Administrator access for the installation.\n\nInstaller metadata will be saved under the `HKLM` registry path.",
+          "type": "string",
+          "enum": [
+            "perMachine"
+          ]
+        },
+        {
+          "description": "Combines both modes and allows the user to choose at install time whether to install for the current user or per machine. Note that this mode will require Administrator access even if the user wants to install it for the current user only.\n\nInstaller metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.",
+          "type": "string",
+          "enum": [
+            "both"
+          ]
+        }
+      ]
+    },
     "IosConfig": {
       "description": "General configuration for the iOS target.",
       "type": "object",
@@ -1651,7 +1773,7 @@
       "additionalProperties": false
     },
     "AllowlistConfig": {
-      "description": "Allowlist configuration.",
+      "description": "Allowlist configuration. The allowlist is a translation of the [Cargo allowlist features](https://docs.rs/tauri/latest/tauri/#cargo-allowlist-features).\n\n# Notes\n\n- Endpoints that don't have their own allowlist option are enabled by default. - There is only \"opt-in\", no \"opt-out\". Setting an option to `false` has no effect.\n\n# Examples\n\n- * [`\"app-all\": true`](https://tauri.app/v1/api/config/#appallowlistconfig.all) will make the [hide](https://tauri.app/v1/api/js/app#hide) endpoint be available regardless of whether `hide` is set to `false` or `true` in the allowlist.",
       "type": "object",
       "properties": {
         "all": {
@@ -1693,6 +1815,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
             "setCursorPosition": false,
@@ -2049,6 +2172,11 @@
           "default": false,
           "type": "boolean"
         },
+        "setContentProtected": {
+          "description": "Allows preventing the window contents from being captured by other apps.",
+          "default": false,
+          "type": "boolean"
+        },
         "setSize": {
           "description": "Allows setting the window size.",
           "default": false,
@@ -2249,7 +2377,7 @@
       "description": "Defines the `shell > open` api scope.",
       "anyOf": [
         {
-          "description": "If the shell open API should be enabled.\n\nIf enabled, the default validation regex (`^https?://`) is used.",
+          "description": "If the shell open API should be enabled.\n\nIf enabled, the default validation regex (`^((mailto:\\w+)|(tel:\\w+)|(https?://\\w+)).+`) is used.",
           "type": "boolean"
         },
         {
@@ -2597,7 +2725,8 @@
         "windows": {
           "description": "The Windows configuration for the updater.",
           "default": {
-            "installMode": "passive"
+            "installMode": "passive",
+            "installerArgs": []
           },
           "allOf": [
             {
@@ -2617,6 +2746,14 @@
       "description": "The updater configuration for Windows.",
       "type": "object",
       "properties": {
+        "installerArgs": {
+          "description": "Additional arguments given to the NSIS or WiX installer.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "installMode": {
           "description": "The installation mode for the update on Windows. Defaults to `passive`.",
           "default": "passive",
@@ -2640,7 +2777,7 @@
           ]
         },
         {
-          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does.",
+          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does (WiX).",
           "type": "string",
           "enum": [
             "quiet"

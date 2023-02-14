@@ -8,6 +8,13 @@
 )]
 
 fn main() {
+  let mut context = tauri::generate_context!();
+  if std::env::var("TARGET").unwrap_or_default() == "nsis" {
+    context.config_mut().tauri.updater.windows.installer_args = vec![format!(
+      "/D={}",
+      std::env::current_exe().unwrap().parent().unwrap().display()
+    )];
+  }
   tauri::Builder::default()
     .setup(|app| {
       let handle = app.handle();
@@ -28,6 +35,6 @@ fn main() {
       });
       Ok(())
     })
-    .run(tauri::generate_context!())
+    .run(context)
     .expect("error while running tauri application");
 }

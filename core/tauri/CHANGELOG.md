@@ -42,6 +42,16 @@
 - Export types required by the `mobile_entry_point` macro.
   - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
 
+## \[1.2.4]
+
+- Pin `ignore` to `=0.4.18`.
+  - [adcb082b](https://www.github.com/tauri-apps/tauri/commit/adcb082b1651ecb2a6208b093e12f4185aa3fc98) chore(deps): pin `ignore` to =0.4.18 on 2023-01-17
+
+## \[1.2.3]
+
+- Fix the filesystem scope allowing sub-directories of the directory picked by the dialog when `recursive` option was `false`.
+  - [f1b0ad6e](https://www.github.com/tauri-apps/tauri/commit/f1b0ad6e8b721cf1420a9a4b9be5b05c39941d16) Merge pull request from GHSA-6mv3-wm7j-h4w5 on 2022-12-22
+
 ## \[1.2.2]
 
 - Invoke event listener in windows safely to avoid causing uncaught errors in windows that have loaded external urls
@@ -109,6 +119,11 @@
 - Added the `user_agent` option when creating a window.
   - [a6c94119](https://www.github.com/tauri-apps/tauri/commit/a6c94119d8545d509723b147c273ca5edfe3729f) feat(core): expose user_agent to window config ([#5317](https://www.github.com/tauri-apps/tauri/pull/5317)) on 2022-10-02
 
+## \[1.1.3]
+
+- Fix the filesystem scope allowing sub-directories of the directory picked by the dialog when `recursive` option was `false`.
+  - [2654c0f4](https://www.github.com/tauri-apps/tauri/commit/2654c0f49da23434d36447d0908fa24e61ff5e4e) Merge pull request from GHSA-6mv3-wm7j-h4w5 on 2022-12-22
+
 ## \[1.1.2]
 
 - Escape glob special characters in files/directories when dropping files or using the open/save dialogs.
@@ -158,6 +173,11 @@
   - [e6d9b670](https://www.github.com/tauri-apps/tauri/commit/e6d9b670b0b314ed667b0e164f2c8d27048e678f) refactor: remove unneeded focus code ([#5065](https://www.github.com/tauri-apps/tauri/pull/5065)) on 2022-09-03
 - Add `exists` function to the fs module.
   - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
+
+## \[1.0.8]
+
+- Fix the filesystem scope allowing sub-directories of the directory picked by the dialog when `recursive` option was `false`.
+  - [f0602e7c](https://www.github.com/tauri-apps/tauri/commit/f0602e7c294245ab6ef6fbf2a976ef398340ef58) Merge pull request from GHSA-6mv3-wm7j-h4w5 on 2022-12-22
 
 ## \[1.0.7]
 

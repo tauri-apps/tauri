@@ -28,6 +28,7 @@ pub struct WebviewAttributes {
   pub file_drop_handler_enabled: bool,
   pub clipboard: bool,
   pub accept_first_mouse: bool,
+  pub additional_browser_args: Option<String>,
 }
 
 impl WebviewAttributes {
@@ -41,6 +42,7 @@ impl WebviewAttributes {
       file_drop_handler_enabled: true,
       clipboard: false,
       accept_first_mouse: false,
+      additional_browser_args: None,
     }
   }
 
@@ -86,6 +88,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn accept_first_mouse(mut self, accept: bool) -> Self {
     self.accept_first_mouse = accept;
+    self
+  }
+
+  /// Sets additional browser arguments. **Windows Only**
+  #[must_use]
+  pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
+    self.additional_browser_args = Some(additional_args.to_string());
     self
   }
 }
@@ -171,6 +180,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Whether the window should always be on top of other windows.
   #[must_use]
   fn always_on_top(self, always_on_top: bool) -> Self;
+
+  /// Prevents the window contents from being captured by other apps.
+  #[must_use]
+  fn content_protected(self, protected: bool) -> Self;
 
   /// Sets the window icon.
   fn icon(self, icon: Icon) -> crate::Result<Self>;

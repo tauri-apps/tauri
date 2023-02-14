@@ -3,5 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(target_os = "windows")]
 pub mod msi;
+pub mod nsis;
+#[cfg(target_os = "windows")]
 pub mod sign;
+
+mod util;
+pub use util::{
+  NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, WIX_OUTPUT_FOLDER_NAME,
+  WIX_UPDATER_OUTPUT_FOLDER_NAME,
+};

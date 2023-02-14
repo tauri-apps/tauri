@@ -87,6 +87,7 @@ fn main() {
       "set-decorations",
       "set-shadow",
       "set-always-on-top",
+      "set-content-protected",
       "set-size",
       "set-min-size",
       "set-max-size",
@@ -145,6 +146,14 @@ fn main() {
     CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
   )
   .expect("failed to write checked_features file");
+
+  // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error
+  // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
+  let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
+  let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").map_or(false, |v| v == "true");
+  if is_tauri_workspace && target_os == "windows" && Ok("msvc") == target_env.as_deref() {
+    add_manifest();
+  }
 
   if target_os == "android" {
     if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
@@ -206,4 +215,23 @@ fn alias_module(module: &str, apis: &[&str], api_all: bool) {
   }
 
   alias(&format!("{}_any", AsSnakeCase(module)), any);
+}
+
+fn add_manifest() {
+  static WINDOWS_MANIFEST_FILE: &str = "window-app-manifest.xml";
+
+  let manifest = std::env::current_dir()
+    .unwrap()
+    .join("../tauri-build/src")
+    .join(WINDOWS_MANIFEST_FILE);
+
+  println!("cargo:rerun-if-changed={}", manifest.display());
+  // Embed the Windows application manifest file.
+  println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+  println!(
+    "cargo:rustc-link-arg=/MANIFESTINPUT:{}",
+    manifest.to_str().unwrap()
+  );
+  // Turn linker warnings into errors.
+  println!("cargo:rustc-link-arg=/WX");
 }

@@ -14,19 +14,21 @@ use tauri_macros::{command_enum, module_command_handler, CommandModule};
 use std::path::PathBuf;
 
 macro_rules! message_dialog {
-  ($fn_name: ident, $allowlist: ident, $buttons: expr) => {
+  ($fn_name: ident, $allowlist: ident, $button_labels_type: ty, $buttons: expr) => {
     #[module_command_handler($allowlist)]
     fn $fn_name<R: Runtime>(
       context: InvokeContext<R>,
       title: Option<String>,
       message: String,
       level: Option<MessageDialogType>,
+      button_labels: $button_labels_type,
     ) -> super::Result<bool> {
+      let determine_button = $buttons;
       let mut builder = crate::api::dialog::blocking::MessageDialogBuilder::new(
         title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
         message,
       )
-      .buttons($buttons);
+      .buttons(determine_button(button_labels));
       #[cfg(any(windows, target_os = "macos"))]
       {
         builder = builder.parent(&context.window);
@@ -139,6 +141,8 @@ pub enum Cmd {
     message: String,
     #[serde(rename = "type")]
     level: Option<MessageDialogType>,
+    #[serde(rename = "buttonLabel")]
+    button_label: Option<String>,
   },
   #[cmd(dialog_ask, "dialog > ask")]
   AskDialog {
@@ -146,6 +150,8 @@ pub enum Cmd {
     message: String,
     #[serde(rename = "type")]
     level: Option<MessageDialogType>,
+    #[serde(rename = "buttonLabels")]
+    button_label: Option<(String, String)>,
   },
   #[cmd(dialog_confirm, "dialog > confirm")]
   ConfirmDialog {
@@ -153,6 +159,8 @@ pub enum Cmd {
     message: String,
     #[serde(rename = "type")]
     level: Option<MessageDialogType>,
+    #[serde(rename = "buttonLabels")]
+    button_labels: Option<(String, String)>,
   },
 }
 
@@ -255,19 +263,36 @@ impl Cmd {
   message_dialog!(
     message_dialog,
     dialog_message,
-    crate::api::dialog::MessageDialogButtons::Ok
+    Option<String>,
+    |label: Option<String>| {
+      label
+        .map(crate::api::dialog::MessageDialogButtons::OkWithLabel)
+        .unwrap_or(crate::api::dialog::MessageDialogButtons::Ok)
+    }
   );
 
   message_dialog!(
     ask_dialog,
     dialog_ask,
-    crate::api::dialog::MessageDialogButtons::YesNo
+    Option<(String, String)>,
+    |labels: Option<(String, String)>| {
+      labels
+        .map(|(yes, no)| crate::api::dialog::MessageDialogButtons::OkCancelWithLabels(yes, no))
+        .unwrap_or(crate::api::dialog::MessageDialogButtons::YesNo)
+    }
   );
 
   message_dialog!(
     confirm_dialog,
     dialog_confirm,
-    crate::api::dialog::MessageDialogButtons::OkCancel
+    Option<(String, String)>,
+    |labels: Option<(String, String)>| {
+      labels
+        .map(|(ok, cancel)| {
+          crate::api::dialog::MessageDialogButtons::OkCancelWithLabels(ok, cancel)
+        })
+        .unwrap_or(crate::api::dialog::MessageDialogButtons::OkCancel)
+    }
   );
 }
 

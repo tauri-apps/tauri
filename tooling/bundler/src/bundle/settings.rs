@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::BundleType,
+  config::{BundleType, NSISInstallerMode},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -26,6 +26,8 @@ pub enum PackageType {
   IosBundle,
   /// The Windows bundle (.msi).
   WindowsMsi,
+  /// The NSIS bundle (.exe).
+  Nsis,
   /// The Linux Debian package bundle (.deb).
   Deb,
   /// The Linux RPM bundle (.rpm).
@@ -44,6 +46,7 @@ impl From<BundleType> for PackageType {
       BundleType::Deb => Self::Deb,
       BundleType::AppImage => Self::AppImage,
       BundleType::Msi => Self::WindowsMsi,
+      BundleType::Nsis => Self::Nsis,
       BundleType::App => Self::MacOsBundle,
       BundleType::Dmg => Self::Dmg,
       BundleType::Updater => Self::Updater,
@@ -60,6 +63,7 @@ impl PackageType {
       "deb" => Some(PackageType::Deb),
       "ios" => Some(PackageType::IosBundle),
       "msi" => Some(PackageType::WindowsMsi),
+      "nsis" => Some(PackageType::Nsis),
       "app" => Some(PackageType::MacOsBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
@@ -76,6 +80,7 @@ impl PackageType {
       PackageType::Deb => "deb",
       PackageType::IosBundle => "ios",
       PackageType::WindowsMsi => "msi",
+      PackageType::Nsis => "nsis",
       PackageType::MacOsBundle => "app",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
@@ -97,6 +102,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
+  #[cfg(target_os = "windows")]
+  PackageType::Nsis,
   #[cfg(target_os = "macos")]
   PackageType::MacOsBundle,
   #[cfg(target_os = "linux")]
@@ -242,6 +249,34 @@ pub struct WixSettings {
   pub fips_compliant: bool,
 }
 
+/// Settings specific to the NSIS implementation.
+#[derive(Clone, Debug, Default)]
+pub struct NsisSettings {
+  /// The path to the license file to render on the installer.
+  pub license: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of installers pages.
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  pub header_image: Option<PathBuf>,
+  /// The path to a bitmap file for the Welcome page and the Finish page.
+  ///
+  /// The recommended dimensions are 164px x 314px.
+  pub sidebar_image: Option<PathBuf>,
+  /// The path to an icon file used as the installer icon.
+  pub installer_icon: Option<PathBuf>,
+  /// Whether the installation will be for all users or just the current user.
+  pub install_mode: NSISInstallerMode,
+  /// A list of installer languages.
+  /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
+  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  ///
+  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  pub languages: Option<Vec<String>>,
+  /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
+  /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
+  pub display_language_selector: bool,
+}
+
 /// The Windows bundle settings.
 #[derive(Clone, Debug)]
 pub struct WindowsSettings {
@@ -256,6 +291,8 @@ pub struct WindowsSettings {
   pub tsp: bool,
   /// WiX configuration.
   pub wix: Option<WixSettings>,
+  /// Nsis configuration.
+  pub nsis: Option<NsisSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
   pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
@@ -282,6 +319,7 @@ impl Default for WindowsSettings {
       timestamp_url: None,
       tsp: false,
       wix: None,
+      nsis: None,
       icon_path: PathBuf::from("icons/icon.ico"),
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
@@ -396,6 +434,8 @@ impl BundleBinary {
 /// The Settings exposed by the module.
 #[derive(Clone, Debug)]
 pub struct Settings {
+  /// The log level.
+  log_level: log::Level,
   /// the package settings.
   package: PackageSettings,
   /// the package types we're bundling.
@@ -415,6 +455,7 @@ pub struct Settings {
 /// A builder for [`Settings`].
 #[derive(Default)]
 pub struct SettingsBuilder {
+  log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
@@ -473,6 +514,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets the log level for spawned commands. Defaults to [`log::Level::Error`].
+  #[must_use]
+  pub fn log_level(mut self, level: log::Level) -> Self {
+    self.log_level.replace(level);
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -486,6 +534,7 @@ impl SettingsBuilder {
     };
 
     Ok(Settings {
+      log_level: self.log_level.unwrap_or(log::Level::Error),
       package: self.package_settings.expect("package settings is required"),
       package_types: self.package_types,
       project_out_directory: self
@@ -506,6 +555,16 @@ impl SettingsBuilder {
 }
 
 impl Settings {
+  /// Sets the log level for spawned commands.
+  pub fn set_log_level(&mut self, level: log::Level) {
+    self.log_level = level;
+  }
+
+  /// Returns the log level for spawned commands.
+  pub fn log_level(&self) -> log::Level {
+    self.log_level
+  }
+
   /// Returns the directory where the bundle should be placed.
   pub fn project_out_directory(&self) -> &Path {
     &self.project_out_directory
@@ -566,12 +625,18 @@ impl Settings {
   ///
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
-    let target_os = std::env::consts::OS;
-    let mut platform_types = match target_os {
+    let target_os = self
+      .target
+      .split('-')
+      .nth(2)
+      .unwrap_or(std::env::consts::OS)
+      .replace("darwin", "macos");
+
+    let mut platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
-      "windows" => vec![PackageType::WindowsMsi],
+      "windows" => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(
           "Native {os} bundles not yet supported."

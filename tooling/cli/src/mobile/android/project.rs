@@ -146,7 +146,7 @@ pub fn gen(
   Ok(())
 }
 
-pub(crate) fn generate_out_file(
+fn generate_out_file(
   path: &Path,
   dest: &Path,
   package_path: &str,

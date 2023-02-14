@@ -2958,7 +2958,8 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.18.0"
-source = "git+https://github.com/tauri-apps/tao?branch=dev#382ea30300b8e909cae5896b57c7c623c9825655"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1d16138f5d521fcde40580e1a34df784b063dd9ac05c7cbe344bf01f02a23be"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -3006,7 +3007,8 @@ dependencies = [
 [[package]]
 name = "tao-macros"
 version = "0.1.1"
-source = "git+https://github.com/tauri-apps/tao?branch=dev#382ea30300b8e909cae5896b57c7c623c9825655"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b27a4bcc5eb524658234589bdffc7e7bfb996dbae6ce9393bfd39cb4159b445"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3097,6 +3099,7 @@ version = "2.0.0-alpha.1"
 dependencies = [
  "anyhow",
  "cargo_toml",
+ "filetime",
  "heck 0.4.1",
  "json-patch",
  "quote",
@@ -4134,8 +4137,8 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.26.0"
-source = "git+https://github.com/tauri-apps/wry?branch=dev#077eb3a7ca520d07e73f899da60ce23eef941e6f"
+version = "0.27.0"
+source = "git+https://github.com/tauri-apps/wry?branch=dev#9975dda12a122051b375ec6485650546d2d91c26"
 dependencies = [
  "base64 0.13.1",
  "block",

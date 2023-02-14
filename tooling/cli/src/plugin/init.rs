@@ -15,7 +15,12 @@ use heck::{AsKebabCase, ToKebabCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
 use log::warn;
 use std::{
-  collections::BTreeMap, env::current_dir, fmt::Display, fs::remove_dir_all, path::PathBuf,
+  collections::BTreeMap,
+  env::current_dir,
+  ffi::OsStr,
+  fmt::Display,
+  fs::{create_dir_all, remove_dir_all, File, OpenOptions},
+  path::{Path, PathBuf},
   str::FromStr,
 };
 
@@ -153,18 +158,14 @@ pub fn command(mut options: Options) -> Result<()> {
       data.insert("package_id", to_json(&plugin_id));
 
       let mut created_dirs = Vec::new();
+      let dest = template_target_path.join("android");
       template::render_with_generator(
         &handlebars,
         &data,
         &ANDROID_PLUGIN_DIR,
-        &template_target_path,
+        &dest,
         &mut |path| {
-          crate::mobile::android::project::generate_out_file(
-            path,
-            &template_target_path.join("android"),
-            &plugin_id.replace('.', "/"),
-            &mut created_dirs,
-          )
+          generate_android_out_file(path, &dest, &plugin_id.replace('.', "/"), &mut created_dirs)
         },
       )
       .with_context(|| "failed to render plugin Android template")?;
@@ -181,6 +182,46 @@ pub fn command(mut options: Options) -> Result<()> {
     }
   }
   Ok(())
+}
+
+fn generate_android_out_file(
+  path: &Path,
+  dest: &Path,
+  package_path: &str,
+  created_dirs: &mut Vec<PathBuf>,
+) -> std::io::Result<Option<File>> {
+  let mut iter = path.iter();
+  let root = iter.next().unwrap().to_str().unwrap();
+  let path = match (root, path.extension().and_then(|o| o.to_str())) {
+    ("src", Some("kt")) => {
+      let parent = path.parent().unwrap();
+      let file_name = path.file_name().unwrap();
+      let out_dir = dest.join(parent).join(package_path);
+      out_dir.join(file_name)
+    }
+    _ => dest.join(path),
+  };
+
+  let parent = path.parent().unwrap().to_path_buf();
+  if !created_dirs.contains(&parent) {
+    create_dir_all(&parent)?;
+    created_dirs.push(parent);
+  }
+
+  let mut options = OpenOptions::new();
+  options.write(true);
+
+  #[cfg(unix)]
+  if path.file_name().unwrap() == OsStr::new("gradlew") {
+    use std::os::unix::fs::OpenOptionsExt;
+    options.mode(0o755);
+  }
+
+  if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+    options.create(true).open(path).map(Some)
+  } else {
+    Ok(None)
+  }
 }
 
 fn request_input<T>(

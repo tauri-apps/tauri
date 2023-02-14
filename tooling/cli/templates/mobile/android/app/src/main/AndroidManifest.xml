@@ -7,6 +7,9 @@
         android:theme="@style/Theme.{{snake-case app.name}}"
         android:usesCleartextTraffic="${usesCleartextTraffic}">
         <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+            android:launchMode="singleTask"
+            android:label="@string/main_activity_title"
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

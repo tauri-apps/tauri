@@ -338,22 +338,15 @@ pub fn listen_js(
         windowLabel: {window_label},
         handler: {handler}
       }};
-      if ({event} == 'tauri://window-created') {{
-        eventListeners.splice(eventListeners.length - 1, 0, listener)
-      }} else {{
-        eventListeners.push(listener);
-      }}
+      eventListeners.push(listener);
     }})()
   ",
     listeners = listeners_object_name,
-    event = event,
-    event_id = event_id,
     window_label = if let Some(l) = window_label {
       crate::runtime::window::assert_label_is_valid(&l);
       format!("'{l}'")
     } else {
       "null".to_owned()
     },
-    handler = handler
   )
 }

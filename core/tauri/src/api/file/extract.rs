@@ -279,9 +279,8 @@ fn set_perms(
 ) -> crate::api::Result<()> {
   _set_perms(dst, f, mode, preserve).map_err(|_| {
     crate::api::Error::Extract(format!(
-      "failed to set permissions to {:o} \
+      "failed to set permissions to {mode:o} \
                for `{}`",
-      mode,
       dst.display()
     ))
   })

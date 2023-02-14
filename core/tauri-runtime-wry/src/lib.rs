@@ -14,8 +14,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent, RunIteration,
-  Runtime, RuntimeHandle, UserAttentionType, UserEvent,
+  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
+  RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -33,6 +33,8 @@ use wry::application::platform::macos::WindowBuilderExtMacOS;
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+#[cfg(windows)]
+use wry::webview::WebViewBuilderExtWindows;
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
@@ -47,7 +49,8 @@ use wry::{
     },
     event::{Event, StartCause, WindowEvent as WryWindowEvent},
     event_loop::{
-      ControlFlow, EventLoop, EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
+      ControlFlow, DeviceEventFilter as WryDeviceEventFilter, EventLoop,
+      EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
     },
     menu::{
       AboutMetadata as WryAboutMetadata, CustomMenuItem as WryCustomMenuItem, MenuBar,
@@ -61,10 +64,9 @@ use wry::{
     },
   },
   http::{Request as WryRequest, Response as WryResponse},
-  webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder},
+  webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
 };
 
-pub use wry;
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
 #[cfg(windows)]
 use wry::webview::WebviewExtWindows;
@@ -363,6 +365,18 @@ impl From<MenuItem> for MenuItemWrapper {
       MenuItem::Zoom => Self(WryMenuItem::Zoom),
       MenuItem::Separator => Self(WryMenuItem::Separator),
       _ => unimplemented!(),
+    }
+  }
+}
+
+pub struct DeviceEventFilterWrapper(pub WryDeviceEventFilter);
+
+impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
+  fn from(item: DeviceEventFilter) -> Self {
+    match item {
+      DeviceEventFilter::Always => Self(WryDeviceEventFilter::Always),
+      DeviceEventFilter::Never => Self(WryDeviceEventFilter::Never),
+      DeviceEventFilter::Unfocused => Self(WryDeviceEventFilter::Unfocused),
     }
   }
 }
@@ -727,6 +741,12 @@ impl WindowBuilder for WindowBuilderWrapper {
       ");
     }
 
+    #[cfg(target_os = "linux")]
+    {
+      // Mouse event is disabled on Linux since sudden event bursts could block event loop.
+      window.inner = window.inner.with_cursor_moved_event(false);
+    }
+
     #[cfg(desktop)]
     {
       window = window
@@ -738,6 +758,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         .decorations(config.decorations)
         .maximized(config.maximized)
         .always_on_top(config.always_on_top)
+        .content_protected(config.content_protected)
         .skip_taskbar(config.skip_taskbar)
         .theme(config.theme)
         .shadow(config.shadow);
@@ -845,6 +866,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn always_on_top(mut self, always_on_top: bool) -> Self {
     self.inner = self.inner.with_always_on_top(always_on_top);
+    self
+  }
+
+  fn content_protected(mut self, protected: bool) -> Self {
+    self.inner = self.inner.with_content_protection(protected);
     self
   }
 
@@ -1037,16 +1063,19 @@ pub enum WindowMessage {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   IsDevToolsOpen(Sender<bool>),
   // Getters
+  Url(Sender<Url>),
   ScaleFactor(Sender<f64>),
   InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
   OuterPosition(Sender<Result<PhysicalPosition<i32>>>),
   InnerSize(Sender<PhysicalSize<u32>>),
   OuterSize(Sender<PhysicalSize<u32>>),
   IsFullscreen(Sender<bool>),
+  IsMinimized(Sender<bool>),
   IsMaximized(Sender<bool>),
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
   IsVisible(Sender<bool>),
+  Title(Sender<String>),
   IsMenuVisible(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
@@ -1078,6 +1107,7 @@ pub enum WindowMessage {
   SetDecorations(bool),
   SetShadow(bool),
   SetAlwaysOnTop(bool),
+  SetContentProtected(bool),
   SetSize(Size),
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
@@ -1120,6 +1150,7 @@ pub enum TrayMessage {
   UpdateIconAsTemplate(bool),
   #[cfg(target_os = "macos")]
   UpdateTitle(String),
+  UpdateTooltip(String),
   Create(SystemTray, Sender<Result<()>>),
   Destroy(Sender<Result<()>>),
 }
@@ -1236,6 +1267,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
   // Getters
 
+  fn url(&self) -> Result<Url> {
+    window_getter!(self, WindowMessage::Url)
+  }
+
   fn scale_factor(&self) -> Result<f64> {
     window_getter!(self, WindowMessage::ScaleFactor)
   }
@@ -1260,6 +1295,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     window_getter!(self, WindowMessage::IsFullscreen)
   }
 
+  fn is_minimized(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsMinimized)
+  }
+
   fn is_maximized(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsMaximized)
   }
@@ -1276,6 +1315,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
   fn is_visible(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsVisible)
+  }
+
+  fn title(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::Title)
   }
 
   fn is_menu_visible(&self) -> Result<bool> {
@@ -1451,6 +1494,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetAlwaysOnTop(always_on_top)),
+    )
+  }
+
+  fn set_content_protected(&self, protected: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetContentProtected(protected),
+      ),
     )
   }
 
@@ -2076,6 +2129,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     self.event_loop.hide_application();
   }
 
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
+    self
+      .event_loop
+      .set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
+  }
+
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
@@ -2373,6 +2432,11 @@ fn handle_user_message<T: UserEvent>(
               }
             }
             // Getters
+            WindowMessage::Url(tx) => {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
+                tx.send(w.url()).unwrap();
+              }
+            }
             WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
             WindowMessage::InnerPosition(tx) => tx
               .send(
@@ -2397,10 +2461,12 @@ fn handle_user_message<T: UserEvent>(
               .send(PhysicalSizeWrapper(window.outer_size()).into())
               .unwrap(),
             WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
+            WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
             WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
+            WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
             WindowMessage::IsMenuVisible(tx) => tx.send(window.is_menu_visible()).unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
@@ -2451,6 +2517,9 @@ fn handle_user_message<T: UserEvent>(
               window.set_has_shadow(_enable);
             }
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
+            WindowMessage::SetContentProtected(protected) => {
+              window.set_content_protection(protected)
+            }
             WindowMessage::SetSize(size) => {
               window.set_inner_size(SizeWrapper::from(size).0);
             }
@@ -2635,6 +2704,11 @@ fn handle_user_message<T: UserEvent>(
           TrayMessage::UpdateTitle(title) => {
             if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
               tray.set_title(&title);
+            }
+          }
+          TrayMessage::UpdateTooltip(tooltip) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              tray.set_tooltip(&tooltip);
             }
           }
           TrayMessage::Create(_tray, _tx) => {
@@ -2852,6 +2926,19 @@ fn handle_event_loop<T: UserEvent>(
         }
 
         match event {
+          #[cfg(windows)]
+          WryWindowEvent::ThemeChanged(theme) => {
+            if let Some(window) = windows.borrow().get(&window_id) {
+              if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
+                let theme = match theme {
+                  WryTheme::Dark => wry::webview::Theme::Dark,
+                  WryTheme::Light => wry::webview::Theme::Light,
+                  _ => wry::webview::Theme::Light,
+                };
+                inner.set_theme(theme);
+              }
+            }
+          }
           WryWindowEvent::CloseRequested => {
             on_close_requested(callback, window_id, windows.clone());
           }
@@ -3028,6 +3115,9 @@ fn create_webview<T: UserEvent>(
       .with_drag_and_drop(webview_attributes.file_drop_handler_enabled);
   }
 
+  #[cfg(windows)]
+  let window_theme = window_builder.inner.window.preferred_theme;
+
   #[cfg(target_os = "macos")]
   {
     if window_builder.tabbing_identifier.is_none()
@@ -3064,9 +3154,29 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
   }
+  if let Some(navigation_handler) = pending.navigation_handler {
+    webview_builder = webview_builder.with_navigation_handler(move |url| {
+      Url::parse(&url).map(&navigation_handler).unwrap_or(true)
+    });
+  }
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }
+
+  #[cfg(windows)]
+  if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
+    webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
+  }
+
+  #[cfg(windows)]
+  if let Some(theme) = window_theme {
+    webview_builder = webview_builder.with_theme(match theme {
+      WryTheme::Dark => wry::webview::Theme::Dark,
+      WryTheme::Light => wry::webview::Theme::Light,
+      _ => wry::webview::Theme::Light,
+    });
+  }
+
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,

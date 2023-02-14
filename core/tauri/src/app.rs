@@ -23,8 +23,8 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, resources::resource_relpath, Env},
-  Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
-  StateManager, Theme, Window,
+  Context, DeviceEventFilter, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager,
+  Runtime, Scopes, StateManager, Theme, Window,
 };
 
 #[cfg(shell_scope)]
@@ -1061,6 +1061,35 @@ impl<R: Runtime> App<R> {
       .set_activation_policy(activation_policy);
   }
 
+  /// Change the device event filter mode.
+  ///
+  /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
+  /// will ignore them by default for unfocused windows on Windows. This method allows changing
+  /// the filter to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// let mut app = tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application");
+  /// app.set_device_event_filter(tauri::DeviceEventFilter::Always);
+  /// app.run(|_app_handle, _event| {});
+  /// ```
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  pub fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
+    self
+      .runtime
+      .as_mut()
+      .unwrap()
+      .set_device_event_filter(filter);
+  }
+
   /// Gets the argument matches of the CLI definition configured in `tauri.conf.json`.
   ///
   /// # Examples
@@ -1275,6 +1304,9 @@ pub struct Builder<R: Runtime> {
   /// The updater configuration.
   #[cfg(updater)]
   updater_settings: UpdaterSettings,
+
+  /// The device event filter.
+  device_event_filter: DeviceEventFilter,
 }
 
 impl<R: Runtime> Builder<R> {
@@ -1287,7 +1319,7 @@ impl<R: Runtime> Builder<R> {
       invoke_handler: Box::new(|_| false),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
-        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (message) => window.ipc.postMessage(JSON.stringify(message)) })".into(),
+        format!("Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {{ value: (message) => window.ipc.postMessage({}(message)) }})", crate::manager::STRINGIFY_IPC_MESSAGE_FN),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -1303,6 +1335,7 @@ impl<R: Runtime> Builder<R> {
       system_tray_event_listeners: Vec::new(),
       #[cfg(updater)]
       updater_settings: Default::default(),
+      device_event_filter: Default::default(),
     }
   }
 
@@ -1737,7 +1770,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   /// let kind = if cfg!(debug_assertions) { "debug" } else { "release" };
   /// tauri::Builder::default()
-  ///   .updater_target(format!("{}-{}", tauri::updater::target().unwrap(), kind));
+  ///   .updater_target(format!("{}-{kind}", tauri::updater::target().unwrap()));
   /// ```
   ///
   /// - Use the platform's target triple:
@@ -1749,6 +1782,28 @@ impl<R: Runtime> Builder<R> {
   #[cfg(updater)]
   pub fn updater_target<T: Into<String>>(mut self, target: T) -> Self {
     self.updater_settings.target.replace(target.into());
+    self
+  }
+
+  /// Change the device event filter mode.
+  ///
+  /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
+  /// will ignore them by default for unfocused windows on Windows. This method allows changing
+  /// the filter to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .device_event_filter(tauri::DeviceEventFilter::Always);
+  /// ```
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  pub fn device_event_filter(mut self, filter: DeviceEventFilter) -> Self {
+    self.device_event_filter = filter;
     self
   }
 
@@ -1785,6 +1840,9 @@ impl<R: Runtime> Builder<R> {
       if let Some(ua) = &config.user_agent {
         webview_attributes = webview_attributes.user_agent(&ua.to_string());
       }
+      if let Some(args) = &config.additional_browser_args {
+        webview_attributes = webview_attributes.additional_browser_args(&args.to_string());
+      }
       if !config.file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();
       }
@@ -1797,13 +1855,15 @@ impl<R: Runtime> Builder<R> {
     }
 
     #[cfg(any(windows, target_os = "linux"))]
-    let runtime = if self.runtime_any_thread {
+    let mut runtime = if self.runtime_any_thread {
       R::new_any_thread()?
     } else {
       R::new()?
     };
     #[cfg(not(any(windows, target_os = "linux")))]
-    let runtime = R::new()?;
+    let mut runtime = R::new()?;
+
+    runtime.set_device_event_filter(self.device_event_filter);
 
     let runtime_handle = runtime.handle();
 

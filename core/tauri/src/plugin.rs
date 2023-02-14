@@ -35,7 +35,7 @@ pub trait Plugin<R: Runtime>: Send {
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
-  /// so global variables must be assigned to `window` instead of implicity declared.
+  /// so global variables must be assigned to `window` instead of implicitly declared.
   fn initialization_script(&self) -> Option<String> {
     None
   }
@@ -205,7 +205,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
-  /// so global variables must be assigned to `window` instead of implicity declared.
+  /// so global variables must be assigned to `window` instead of implicitly declared.
   ///
   /// Note that calling this function multiple times overrides previous values.
   ///

@@ -301,7 +301,7 @@ impl Scope {
   /// Open a path in the default (or specified) browser.
   ///
   /// The path is validated against the `tauri > allowlist > shell > open` validation regex, which
-  /// defaults to `^https?://`.
+  /// defaults to `^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+`.
   #[cfg(feature = "shell-open-api")]
   pub fn open(&self, path: &str, with: Option<Program>) -> Result<(), ScopeError> {
     // ensure we pass validation if the configuration has one

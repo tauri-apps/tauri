@@ -386,7 +386,7 @@ fn resolve_path<R: Runtime>(
       }
     }
     Err(e) => super::Result::<SafePathBuf>::Err(e.into())
-      .with_context(|| format!("path: {}, base dir: {:?}", path.display(), dir)),
+      .with_context(|| format!("path: {}, base dir: {dir:?}", path.display())),
   }
 }
 

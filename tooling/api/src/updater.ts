@@ -10,7 +10,7 @@
  */
 
 import { once, listen, emit, TauriEvent } from './event'
-import { UnlistenFn } from './helpers/event'
+import { type UnlistenFn } from './helpers/event'
 
 /**
  * @since 1.0.0
@@ -98,13 +98,14 @@ async function installUpdate(): Promise<void> {
     function onStatusChange(statusResult: UpdateStatusResult): void {
       if (statusResult.error) {
         cleanListener()
-        return reject(statusResult.error)
+        reject(statusResult.error)
+        return
       }
 
       // install complete
       if (statusResult.status === 'DONE') {
         cleanListener()
-        return resolve()
+        resolve()
       }
     }
 
@@ -155,7 +156,7 @@ async function checkUpdate(): Promise<UpdateResult> {
   return new Promise((resolve, reject) => {
     function onUpdateAvailable(manifest: UpdateManifest): void {
       cleanListener()
-      return resolve({
+      resolve({
         manifest,
         shouldUpdate: true
       })
@@ -164,12 +165,13 @@ async function checkUpdate(): Promise<UpdateResult> {
     function onStatusChange(statusResult: UpdateStatusResult): void {
       if (statusResult.error) {
         cleanListener()
-        return reject(statusResult.error)
+        reject(statusResult.error)
+        return
       }
 
       if (statusResult.status === 'UPTODATE') {
         cleanListener()
-        return resolve({
+        resolve({
           shouldUpdate: false
         })
       }

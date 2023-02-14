@@ -39,7 +39,7 @@ interface SubcommandMatch {
  * @since 1.0.0
  */
 interface CliMatches {
-  args: { [name: string]: ArgMatch }
+  args: Record<string, ArgMatch>
   subcommand: SubcommandMatch | null
 }
 

@@ -21,7 +21,8 @@ exclude = [
   "examples/updater/src-tauri",
   "examples/resources/src-tauri",
   "examples/sidecar/src-tauri",
-  "examples/web/core"
+  "examples/web/core",
+  "examples/workspace"
 ]
 
 # default to small, optimized workspace release binaries

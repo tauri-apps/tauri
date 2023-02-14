@@ -15,7 +15,6 @@ use std::{
 };
 
 use anyhow::Context;
-#[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use log::{debug, error, info};
@@ -31,8 +30,9 @@ use tauri_utils::config::parse::is_configuration_file;
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::{reload as reload_config, wix_settings, Config},
+  config::{nsis_settings, reload as reload_config, wix_settings, Config},
 };
+use tauri_utils::display_path;
 
 mod cargo_config;
 mod desktop;
@@ -482,10 +482,10 @@ impl Rust {
     .unwrap();
     for path in watch_folders {
       if !ignore_matcher.is_ignore(path, true) {
-        info!("Watching {} for changes...", path.display());
+        info!("Watching {} for changes...", display_path(path));
         lookup(path, |file_type, p| {
           if p != path {
-            debug!("Watching {} for changes...", p.display());
+            debug!("Watching {} for changes...", display_path(&p));
             let _ = watcher.watcher().watch(
               &p,
               if file_type.is_dir() {
@@ -523,10 +523,7 @@ impl Rust {
             } else {
               info!(
                 "File {} changed. Rebuilding application...",
-                event_path
-                  .strip_prefix(app_path)
-                  .unwrap_or(&event_path)
-                  .display()
+                display_path(event_path.strip_prefix(app_path).unwrap_or(&event_path))
               );
               // When tauri.conf.json is changed, rewrite_manifest will be called
               // which will trigger the watcher again
@@ -548,11 +545,78 @@ impl Rust {
   }
 }
 
+// Taken from https://github.com/rust-lang/cargo/blob/70898e522116f6c23971e2a554b2dc85fd4c84cd/src/cargo/util/toml/mod.rs#L1008-L1065
+/// Enum that allows for the parsing of `field.workspace = true` in a Cargo.toml
+///
+/// It allows for things to be inherited from a workspace or defined as needed
+#[derive(Clone, Debug)]
+pub enum MaybeWorkspace<T> {
+  Workspace(TomlWorkspaceField),
+  Defined(T),
+}
+
+impl<'de, T: Deserialize<'de>> serde::de::Deserialize<'de> for MaybeWorkspace<T> {
+  fn deserialize<D>(deserializer: D) -> Result<MaybeWorkspace<T>, D::Error>
+  where
+    D: serde::de::Deserializer<'de>,
+  {
+    let value = serde_value::Value::deserialize(deserializer)?;
+    if let Ok(workspace) = TomlWorkspaceField::deserialize(
+      serde_value::ValueDeserializer::<D::Error>::new(value.clone()),
+    ) {
+      return Ok(MaybeWorkspace::Workspace(workspace));
+    }
+    T::deserialize(serde_value::ValueDeserializer::<D::Error>::new(value))
+      .map(MaybeWorkspace::Defined)
+  }
+}
+
+impl<T> MaybeWorkspace<T> {
+  fn resolve(
+    self,
+    label: &str,
+    get_ws_field: impl FnOnce() -> anyhow::Result<T>,
+  ) -> anyhow::Result<T> {
+    match self {
+      MaybeWorkspace::Defined(value) => Ok(value),
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: true }) => {
+        get_ws_field().context(format!(
+          "error inheriting `{label}` from workspace root manifest's `workspace.package.{label}`"
+        ))
+      }
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(anyhow::anyhow!(
+        "`workspace=false` is unsupported for `package.{}`",
+        label,
+      )),
+    }
+  }
+  fn _as_defined(&self) -> Option<&T> {
+    match self {
+      MaybeWorkspace::Workspace(_) => None,
+      MaybeWorkspace::Defined(defined) => Some(defined),
+    }
+  }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct TomlWorkspaceField {
+  workspace: bool,
+}
+
 /// The `workspace` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]
 struct WorkspaceSettings {
   /// the workspace members.
   members: Option<Vec<String>>,
+  package: Option<WorkspacePackageSettings>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct WorkspacePackageSettings {
+  authors: Option<Vec<String>>,
+  description: Option<String>,
+  homepage: Option<String>,
+  version: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -567,13 +631,13 @@ pub struct CargoPackageSettings {
   /// the package's name.
   pub name: Option<String>,
   /// the package's version.
-  pub version: Option<String>,
+  pub version: Option<MaybeWorkspace<String>>,
   /// the package's description.
-  pub description: Option<String>,
+  pub description: Option<MaybeWorkspace<String>>,
   /// the package's homepage.
-  pub homepage: Option<String>,
+  pub homepage: Option<MaybeWorkspace<String>>,
   /// the package's authors.
-  pub authors: Option<Vec<String>>,
+  pub authors: Option<MaybeWorkspace<Vec<String>>>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -667,6 +731,8 @@ impl AppSettings for RustAppSettings {
     }
     .into();
 
+    let target_os = target.split('-').nth(2).unwrap_or(std::env::consts::OS);
+
     if let Some(bin) = &self.cargo_settings.bin {
       let default_run = self
         .package_settings
@@ -744,14 +810,15 @@ impl AppSettings for RustAppSettings {
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
-        #[cfg(target_os = "linux")]
-        self.package_settings.product_name.to_kebab_case(),
-        #[cfg(not(target_os = "linux"))]
-        format!(
-          "{}{}",
-          self.package_settings.product_name.clone(),
-          &binary_extension
-        ),
+        if target_os == "linux" {
+          self.package_settings.product_name.to_kebab_case()
+        } else {
+          format!(
+            "{}{}",
+            self.package_settings.product_name.clone(),
+            &binary_extension
+          )
+        },
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),
@@ -799,6 +866,11 @@ impl RustAppSettings {
       }
     };
 
+    let ws_package_settings = CargoSettings::load(&get_workspace_dir()?)
+      .with_context(|| "failed to load cargo settings from workspace root")?
+      .workspace
+      .and_then(|v| v.package);
+
     let package_settings = PackageSettings {
       product_name: config.package.product_name.clone().unwrap_or_else(|| {
         cargo_package_settings
@@ -811,13 +883,52 @@ impl RustAppSettings {
           .version
           .clone()
           .expect("Cargo manifest must have the `package.version` field")
+          .resolve("version", || {
+            ws_package_settings
+              .as_ref()
+              .and_then(|p| p.version.clone())
+              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
+          })
+          .expect("Cargo project does not have a version")
       }),
       description: cargo_package_settings
         .description
         .clone()
+        .map(|description| {
+          description
+            .resolve("description", || {
+              ws_package_settings
+                .as_ref()
+                .and_then(|v| v.description.clone())
+                .ok_or_else(|| {
+                  anyhow::anyhow!("Couldn't inherit value for `description` from workspace")
+                })
+            })
+            .unwrap()
+        })
         .unwrap_or_default(),
-      homepage: cargo_package_settings.homepage.clone(),
-      authors: cargo_package_settings.authors.clone(),
+      homepage: cargo_package_settings.homepage.clone().map(|homepage| {
+        homepage
+          .resolve("homepage", || {
+            ws_package_settings
+              .as_ref()
+              .and_then(|v| v.homepage.clone())
+              .ok_or_else(|| {
+                anyhow::anyhow!("Couldn't inherit value for `homepage` from workspace")
+              })
+          })
+          .unwrap()
+      }),
+      authors: cargo_package_settings.authors.clone().map(|authors| {
+        authors
+          .resolve("authors", || {
+            ws_package_settings
+              .as_ref()
+              .and_then(|v| v.authors.clone())
+              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `authors` from workspace"))
+          })
+          .unwrap()
+      }),
       default_run: cargo_package_settings.default_run.clone(),
     };
 
@@ -829,7 +940,10 @@ impl RustAppSettings {
         .target()
         .map(|t| t.to_string())
         .unwrap_or_else(|| {
-          let output = Command::new("rustc").args(["-vV"]).output().unwrap();
+          let output = Command::new("rustc")
+            .args(["-vV"])
+            .output()
+            .expect("\"rustc\" could not be found, did you install Rust?");
           let stdout = String::from_utf8_lossy(&output.stdout);
           stdout
             .split('\n')
@@ -1041,6 +1155,7 @@ fn tauri_config_to_bundle_settings(
         wix.license = wix.license.map(|l| tauri_dir().join(l));
         wix
       }),
+      nsis: config.windows.nsis.map(nsis_settings),
       icon_path: windows_icon_path,
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,

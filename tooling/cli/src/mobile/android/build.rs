@@ -64,6 +64,7 @@ impl From<Options> for BuildOptions {
       bundles: None,
       config: options.config,
       args: Vec::new(),
+      ci: false,
     }
   }
 }

@@ -49,6 +49,11 @@ pub struct Options {
   /// Default: 'icons' directory next to the tauri.conf.json file.
   #[clap(short, long)]
   output: Option<PathBuf>,
+
+  /// Custom PNG icon sizes to generate. When set, the default icons are not generated.
+  #[clap(short, long, use_value_delimiter = true)]
+  png: Option<Vec<u32>>,
+
   /// The background color of the iOS icon - string as defined in the W3C's CSS Color Module Level 4 <https://www.w3.org/TR/css-color-4/>.
   #[clap(long, default_value = "#fff")]
   ios_color: String,
@@ -57,6 +62,7 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
+  let png_icon_sizes = options.png.unwrap_or_default();
   let ios_color = css_color::Srgb::from_str(&options.ios_color)
     .map(|color| {
       Rgba([
@@ -70,8 +76,6 @@ pub fn command(options: Options) -> Result<()> {
 
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
-  // Try to read the image as a DynamicImage, convert it to rgba8 and turn it into a DynamicImage again.
-  // Both things should be catched by the explicit conversions to rgba8 anyway.
   let source = open(input)
     .context("Can't read and decode source image")?
     .into_rgba8();
@@ -82,13 +86,30 @@ pub fn command(options: Options) -> Result<()> {
     panic!("Source image must be square");
   }
 
-  appx(&source, &out_dir).context("Failed to generate appx icons")?;
+  if png_icon_sizes.is_empty() {
+    appx(&source, &out_dir).context("Failed to generate appx icons")?;
+    icns(&source, &out_dir).context("Failed to generate .icns file")?;
+    ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
-  icns(&source, &out_dir).context("Failed to generate .icns file")?;
-
-  ico(&source, &out_dir).context("Failed to generate .ico file")?;
-
-  png(&source, &out_dir, ios_color).context("Failed to generate png icons")?;
+    png(&source, &out_dir, ios_color).context("Failed to generate png icons")?;
+  } else {
+    for target in png_icon_sizes
+      .into_iter()
+      .map(|size| {
+        let name = format!("{size}x{size}.png");
+        let out_path = out_dir.join(&name);
+        PngEntry {
+          name,
+          out_path,
+          size,
+        }
+      })
+      .collect::<Vec<PngEntry>>()
+    {
+      log::info!(action = "PNG"; "Creating {}", target.name);
+      resize_and_save_png(&source, target.size, &target.out_path)?;
+    }
+  }
 
   Ok(())
 }
@@ -175,7 +196,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 }
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
-// Main target: Linux & Android
+// Main target: Linux
 fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
   fn desktop_entries(out_dir: &Path) -> Vec<PngEntry> {
     let mut entries = Vec::new();

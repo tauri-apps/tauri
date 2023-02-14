@@ -41,7 +41,6 @@ features = [
 ]
 
 [features]
-default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
 
 # default to small, optimized release binaries

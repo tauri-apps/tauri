@@ -91,7 +91,7 @@ impl Program {
 
 /// Opens path or URL with the program specified in `with`, or system default if `None`.
 ///
-/// The path will be matched against the shell open validation regex, defaulting to `^https?://`.
+/// The path will be matched against the shell open validation regex, defaulting to `^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+`.
 /// A custom validation regex may be supplied in the config in `tauri > allowlist > scope > open`.
 ///
 /// # Examples

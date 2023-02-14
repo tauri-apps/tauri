@@ -11,7 +11,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "yarn tsup && node ./scripts/after-build.cjs",
+    "build": "yarn tsup && node ./scripts/after-build.cjs && yarn generate-docs",
     "npm-pack": "yarn build && cd ./dist && npm pack",
     "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",

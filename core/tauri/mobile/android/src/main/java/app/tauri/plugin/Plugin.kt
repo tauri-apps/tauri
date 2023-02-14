@@ -87,7 +87,7 @@ abstract class Plugin(private val activity: Activity) {
    * @param invoke
    */
   @PluginMethod
-  fun requestPermissions(invoke: Invoke) {
+  open fun requestPermissions(invoke: Invoke) {
     val annotation = handle?.annotation
     if (annotation != null) {
       // handle permission requests for plugins defined with @TauriPlugin
@@ -239,7 +239,7 @@ abstract class Plugin(private val activity: Activity) {
    * @param invoke    the invoke involved in originating the request
    * @param callbackName the name of the callback to run when the permission request is complete
    */
-  private fun requestPermissionForAliases(
+  fun requestPermissionForAliases(
     aliases: Array<String>,
     invoke: Invoke,
     callbackName: String
@@ -289,7 +289,7 @@ abstract class Plugin(private val activity: Activity) {
    *
    * @return A mapping of permission aliases to the associated granted status.
    */
-  fun getPermissionStates(): Map<String, PermissionState> {
+  open fun getPermissionStates(): Map<String, PermissionState> {
     val permissionsResults: MutableMap<String, PermissionState> = HashMap()
     val annotation = handle?.annotation
     if (annotation != null) {

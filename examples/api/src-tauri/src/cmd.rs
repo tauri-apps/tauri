@@ -6,7 +6,7 @@ use serde::Deserialize;
 use tauri::command;
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
+#[allow(unused)]
 pub struct RequestBody {
   id: i32,
   name: String,

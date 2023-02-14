@@ -5,10 +5,12 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.webkit.WebView
 import androidx.core.app.ActivityCompat
-import app.tauri.ActivityCallback
-import app.tauri.PermissionCallback
 import app.tauri.PermissionHelper
 import app.tauri.PermissionState
+import app.tauri.annotation.ActivityCallback
+import app.tauri.annotation.PermissionCallback
+import app.tauri.annotation.PluginMethod
+import app.tauri.annotation.TauriPlugin
 import java.lang.reflect.Method
 
 class PluginHandle(private val manager: PluginManager, val name: String, private val instance: Plugin) {

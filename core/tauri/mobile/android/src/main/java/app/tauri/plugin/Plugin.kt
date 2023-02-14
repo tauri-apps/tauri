@@ -5,7 +5,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.webkit.WebView
 import androidx.core.app.ActivityCompat
-import app.tauri.*
+import app.tauri.Logger
+import app.tauri.PermissionHelper
+import app.tauri.PermissionState
+import app.tauri.annotation.ActivityCallback
+import app.tauri.annotation.PermissionCallback
+import app.tauri.annotation.PluginMethod
 import org.json.JSONException
 import java.util.*
 
@@ -19,14 +24,13 @@ abstract class Plugin(private val activity: Activity) {
   open fun load(webView: WebView) {}
 
   /**
-   * Start activity for result with the provided Intent and resolve with the provided callback method name.
-   *
+   * Start activity for result with the provided Intent and resolve calling the provided callback method name.
    *
    * If there is no registered activity callback for the method name passed in, the call will
    * be rejected. Make sure a valid activity result callback method is registered using the
    * [ActivityCallback] annotation.
    *
-   * @param call the plugin call
+   * @param invoke the invoke object
    * @param intent the intent used to start an activity
    * @param callbackName the name of the callback to run when the launched activity is finished
    */
@@ -38,28 +42,28 @@ abstract class Plugin(private val activity: Activity) {
   }
 
   /**
-   * Shortcut for getting the plugin log tag
+   * Get the plugin log tags.
    * @param subTags
    */
-  protected open fun getLogTag(vararg subTags: String): String {
+  protected fun getLogTag(vararg subTags: String): String {
     return Logger.tags(*subTags)
   }
 
   /**
-   * Gets a plugin log tag with the child's class name as subTag.
+   * Gets a log tag with the plugin's class name as subTag.
    */
-  protected open fun getLogTag(): String {
+  protected fun getLogTag(): String {
     return Logger.tags(this.javaClass.simpleName)
   }
 
   /**
-   * Exported plugin call for checking the granted status for each permission
+   * Exported plugin method for checking the granted status for each permission
    * declared on the plugin. This plugin call responds with a mapping of permissions to
    * the associated granted status.
    */
   @PluginMethod
   @PermissionCallback
-  open fun checkPermissions(invoke: Invoke) {
+  fun checkPermissions(invoke: Invoke) {
     val permissionsResult: Map<String, PermissionState?> = getPermissionStates()
     if (permissionsResult.isEmpty()) {
       // if no permissions are defined on the plugin, resolve undefined
@@ -74,7 +78,7 @@ abstract class Plugin(private val activity: Activity) {
   }
 
   /**
-   * Exported plugin call to request all permissions for this plugin.
+   * Exported plugin method to request all permissions for this plugin.
    * To manually request permissions within a plugin use:
    * [.requestAllPermissions], or
    * [.requestPermissionForAlias], or
@@ -83,7 +87,7 @@ abstract class Plugin(private val activity: Activity) {
    * @param invoke
    */
   @PluginMethod
-  open fun requestPermissions(invoke: Invoke) {
+  fun requestPermissions(invoke: Invoke) {
     val annotation = handle?.annotation
     if (annotation != null) {
       // handle permission requests for plugins defined with @TauriPlugin
@@ -151,7 +155,7 @@ abstract class Plugin(private val activity: Activity) {
    * @param alias a permission alias defined on the plugin
    * @return true only if all permissions associated with the given alias are declared in the manifest
    */
-  open fun isPermissionDeclared(alias: String): Boolean {
+  fun isPermissionDeclared(alias: String): Boolean {
     val annotation = handle?.annotation
     if (annotation != null) {
       for (perm in annotation.permissions) {
@@ -191,11 +195,11 @@ abstract class Plugin(private val activity: Activity) {
    * @param invoke
    * @param callbackName the name of the callback to run when the permission request is complete
    */
-  protected open fun requestAllPermissions(
+  protected fun requestAllPermissions(
     invoke: Invoke,
     callbackName: String
   ) {
-    val annotation = handle?.annotation
+    val annotation = handle!!.annotation
     if (annotation != null) {
       val perms: HashSet<String> = HashSet()
       for (perm in annotation.permissions) {
@@ -216,7 +220,7 @@ abstract class Plugin(private val activity: Activity) {
    * @param invoke  the invoke involved in originating the request
    * @param callbackName the name of the callback to run when the permission request is complete
    */
-  protected open fun requestPermissionForAlias(
+  protected fun requestPermissionForAlias(
     alias: String,
     call: Invoke,
     callbackName: String
@@ -235,7 +239,7 @@ abstract class Plugin(private val activity: Activity) {
    * @param invoke    the invoke involved in originating the request
    * @param callbackName the name of the callback to run when the permission request is complete
    */
-  protected open fun requestPermissionForAliases(
+  private fun requestPermissionForAliases(
     aliases: Array<String>,
     invoke: Invoke,
     callbackName: String
@@ -276,7 +280,7 @@ abstract class Plugin(private val activity: Activity) {
    * @param alias the permission alias to get
    * @return the state of the provided permission alias or null
    */
-  open fun getPermissionState(alias: String): PermissionState? {
+  fun getPermissionState(alias: String): PermissionState? {
     return getPermissionStates()[alias]
   }
 
@@ -285,7 +289,7 @@ abstract class Plugin(private val activity: Activity) {
    *
    * @return A mapping of permission aliases to the associated granted status.
    */
-  open fun getPermissionStates(): Map<String, PermissionState> {
+  fun getPermissionStates(): Map<String, PermissionState> {
     val permissionsResults: MutableMap<String, PermissionState> = HashMap()
     val annotation = handle?.annotation
     if (annotation != null) {

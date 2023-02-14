@@ -1,6 +1,6 @@
-package app.tauri.plugin
+package app.tauri.annotation
 
-import app.tauri.Permission
+import app.tauri.annotation.Permission
 
 /**
  * Base annotation for all Plugins

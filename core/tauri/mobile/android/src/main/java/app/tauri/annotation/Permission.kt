@@ -1,4 +1,4 @@
-package app.tauri
+package app.tauri.annotation
 
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Permission(

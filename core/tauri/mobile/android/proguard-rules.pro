@@ -6,10 +6,10 @@
   public <init>(...);
 }
 
--keep @app.tauri.plugin.TauriPlugin public class * {
-  @app.tauri.plugin.PluginMethod public <methods>;
-  @app.tauri.PermissionCallback <methods>;
-  @app.tauri.ActivityCallback <methods>;
-  @app.tauri.Permission <methods>;
+-keep @app.tauri.annotation.TauriPlugin public class * {
+  @app.tauri.annotation.PluginMethod public <methods>;
+  @app.tauri.annotation.PermissionCallback <methods>;
+  @app.tauri.annotation.ActivityCallback <methods>;
+  @app.tauri.annotation.Permission <methods>;
   public <init>(...);
 }

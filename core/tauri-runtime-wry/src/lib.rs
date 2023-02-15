@@ -2385,10 +2385,12 @@ fn handle_user_message<T: UserEvent>(
                 }
                 #[cfg(target_os = "ios")]
                 {
-                  use wry::webview::WebviewExtIOS;
+                  use wry::{application::platform::ios::WindowExtIOS, webview::WebviewExtIOS};
+
                   f(Webview {
                     webview: w.webview(),
                     manager: w.manager(),
+                    view_controller: w.window().ui_view_controller() as cocoa::base::id,
                   });
                 }
                 #[cfg(windows)]

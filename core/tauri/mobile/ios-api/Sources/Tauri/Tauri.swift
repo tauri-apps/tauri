@@ -1,6 +1,6 @@
 import SwiftRs
 import Foundation
-import MetalKit
+import UIKit
 import WebKit
 import os.log
 
@@ -13,9 +13,25 @@ class PluginHandle {
 	}
 }
 
-class PluginManager {
-	static var shared: PluginManager = PluginManager()
+public class PluginManager {
+	static let shared: PluginManager = PluginManager()
+	public var viewController: UIViewController?
 	var plugins: [String: PluginHandle] = [:]
+	public var isSimEnvironment: Bool {
+		#if targetEnvironment(simulator)
+		return true
+		#else
+		return false
+		#endif
+	}
+
+	public func assetUrl(fromLocalURL url: URL?) -> URL? {
+		guard let inputURL = url else {
+			return nil
+		}
+
+		return URL(string: "asset://localhost")!.appendingPathComponent(inputURL.path)
+	}
 
 	func onWebviewCreated(_ webview: WKWebView) {
 		for (_, handle) in plugins {
@@ -62,7 +78,7 @@ class PluginManager {
 }
 
 extension PluginManager: NSCopying {
-	func copy(with zone: NSZone? = nil) -> Any {
+	public func copy(with zone: NSZone? = nil) -> Any {
 		return self
 	}
 }
@@ -76,7 +92,8 @@ public func registerPlugin<P: Plugin>(webview: WKWebView?, name: String, plugin:
 }
 
 @_cdecl("on_webview_created")
-func onWebviewCreated(webview: WKWebView) {
+func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
+	PluginManager.shared.viewController = viewController
 	PluginManager.shared.onWebviewCreated(webview)
 }
 

@@ -1,4 +1,4 @@
-import MetalKit
+import UIKit
 import WebKit
 import Tauri
 

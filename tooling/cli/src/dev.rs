@@ -292,8 +292,10 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
       };
       let port = 1430;
       let server_address = SocketAddr::new(ip, port);
+      let reload_port = 1431;
+      let reload_address = SocketAddr::new(ip, reload_port);
       let path = path.canonicalize()?;
-      start_dev_server(server_address, path);
+      start_dev_server(server_address, reload_address, path);
       let server_url = format!("http://{server_address}");
       dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 

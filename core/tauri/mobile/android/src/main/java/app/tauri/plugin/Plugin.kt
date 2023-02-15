@@ -11,14 +11,11 @@ import app.tauri.PermissionState
 import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.PluginMethod
+import app.tauri.annotation.TauriPlugin
 import org.json.JSONException
 import java.util.*
 
 abstract class Plugin(private val activity: Activity) {
-  private val savedInvokes: MutableMap<Long, Invoke> = HashMap()
-  private val savedPermissionInvokeIds: MutableMap<String, LinkedList<Long>> = HashMap()
-  private var pluginCallForLastActivity: Invoke? = null
-  private var lastPluginCallId: Long? = null
   var handle: PluginHandle? = null
 
   open fun load(webView: WebView) {}
@@ -35,9 +32,6 @@ abstract class Plugin(private val activity: Activity) {
    * @param callbackName the name of the callback to run when the launched activity is finished
    */
   fun startActivityForResult(invoke: Invoke, intent: Intent, callbackName: String) {
-    pluginCallForLastActivity = invoke
-    lastPluginCallId = invoke.id
-    savedInvokes[invoke.id] = invoke
     handle!!.startActivityForResult(invoke, intent, callbackName)
   }
 

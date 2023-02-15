@@ -1,11 +1,59 @@
 package app.tauri.plugin
 
+import android.content.Intent
 import android.webkit.WebView
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 import app.tauri.JniMethod
 import app.tauri.Logger
 
-class PluginManager {
+class PluginManager(val activity: AppCompatActivity) {
+  fun interface RequestPermissionsCallback {
+    fun onResult(permissions: Map<String, Boolean>)
+  }
+
+  fun interface ActivityResultCallback {
+    fun onResult(result: ActivityResult)
+  }
+
   private val plugins: HashMap<String, PluginHandle> = HashMap()
+  private val startActivityForResultLauncher: ActivityResultLauncher<Intent>
+  private val requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
+  private var requestPermissionsCallback: RequestPermissionsCallback? = null
+  private var startActivityForResultCallback: ActivityResultCallback? = null
+
+  init {
+    startActivityForResultLauncher =
+      activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()
+      ) { result ->
+        if (startActivityForResultCallback != null) {
+          startActivityForResultCallback!!.onResult(result)
+        }
+      }
+
+    requestPermissionsLauncher =
+      activity.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()
+      ) { result ->
+        if (requestPermissionsCallback != null) {
+          requestPermissionsCallback!!.onResult(result)
+        }
+      }
+  }
+
+  fun startActivityForResult(intent: Intent, callback: ActivityResultCallback) {
+    startActivityForResultCallback = callback
+    startActivityForResultLauncher.launch(intent)
+  }
+
+  fun requestPermissions(
+    permissionStrings: Array<String>,
+    callback: RequestPermissionsCallback
+  ) {
+    requestPermissionsCallback = callback
+    requestPermissionsLauncher.launch(permissionStrings)
+  }
 
   @JniMethod
   fun onWebViewCreated(webView: WebView) {
@@ -18,7 +66,7 @@ class PluginManager {
 
   @JniMethod
   fun load(webView: WebView?, name: String, plugin: Plugin) {
-    val handle = PluginHandle(plugin)
+    val handle = PluginHandle(this, name, plugin)
     plugins[name] = handle
     if (webView != null) {
       plugin.load(webView)
@@ -27,7 +75,7 @@ class PluginManager {
 
   @JniMethod
   fun postIpcMessage(webView: WebView, pluginId: String, methodName: String, data: JSObject, callback: Long, error: Long) {
-    val invoke = Invoke({ successResult, errorResult ->
+    val invoke = Invoke(callback, { successResult, errorResult ->
       val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(
         error,
         errorResult
@@ -40,7 +88,7 @@ class PluginManager {
 
   @JniMethod
   fun runPluginMethod(id: Int, pluginId: String, methodName: String, data: JSObject) {
-    val invoke = Invoke({ successResult, errorResult ->
+    val invoke = Invoke(id.toLong(), { successResult, errorResult ->
       handlePluginResponse(id, successResult?.toString(), errorResult?.toString())
     }, data)
 

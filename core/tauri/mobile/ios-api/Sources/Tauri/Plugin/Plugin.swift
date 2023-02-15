@@ -1,6 +1,14 @@
 import WebKit
 import os.log
 
-@objc public protocol Plugin {
-    @objc func load(webview: WKWebView)
+open class Plugin: NSObject {
+    @objc open func load(webview: WKWebView) {}
+
+    @objc open func checkPermissions(_ invoke: Invoke) {
+        invoke.resolve()
+    }
+
+    @objc open func requestPermissions(_ invoke: Invoke) {
+        invoke.resolve()
+    }   
 }

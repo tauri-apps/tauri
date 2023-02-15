@@ -5,10 +5,10 @@ import WebKit
 import os.log
 
 class PluginHandle {
-	var instance: NSObject
+	var instance: Plugin
 	var loaded = false
 
-	init(plugin: NSObject) {
+	init(plugin: Plugin) {
 		instance = plugin
 	}
 }
@@ -20,15 +20,15 @@ class PluginManager {
 	func onWebviewCreated(_ webview: WKWebView) {
 		for (_, handle) in plugins {
 			if (!handle.loaded) {
-				handle.instance.perform(#selector(Plugin.load), with: webview)
+				handle.instance.load(webview: webview)
 			}
 		}
 	}
 
-	func load<P: Plugin & NSObject>(webview: WKWebView?, name: String, plugin: P) {
+	func load<P: Plugin>(webview: WKWebView?, name: String, plugin: P) {
 		let handle = PluginHandle(plugin: plugin)
 		if let webview = webview {
-			handle.instance.perform(#selector(Plugin.load), with: webview)
+			handle.instance.load(webview: webview)
 			handle.loaded = true
 		}
 		plugins[name] = handle
@@ -45,7 +45,7 @@ class PluginManager {
 				}
 				if let error = error {
 					invoke.reject("\(error)")
-					toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
+					let _ = toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
 				}
 			} else {
 				let selector = Selector(("\(methodName):"))
@@ -67,7 +67,7 @@ extension PluginManager: NSCopying {
 	}
 }
 
-public func registerPlugin<P: Plugin & NSObject>(webview: WKWebView?, name: String, plugin: P) {
+public func registerPlugin<P: Plugin>(webview: WKWebView?, name: String, plugin: P) {
 	PluginManager.shared.load(
 		webview: webview,
 		name: name,

@@ -1,5 +1,6 @@
 package app.tauri.plugin
 
+import app.tauri.annotation.PluginMethod
 import java.lang.reflect.Method
 
 class PluginMethodData(

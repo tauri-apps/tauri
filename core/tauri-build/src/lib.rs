@@ -356,7 +356,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   if target_triple.contains("darwin") {
     if let Some(version) = &config.tauri.bundle.macos.minimum_system_version {
-      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={}", version);
+      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
     }
   }
 
@@ -386,11 +386,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       if window_icon_path.exists() {
         let mut res = WindowsResource::new();
 
-      if let Some(manifest) = attributes.windows_attributes.app_manifest {
-        res.set_manifest(&manifest);
-      } else {
-        res.set_manifest(include_str!("window-app-manifest.xml"));
-      }
+        if let Some(manifest) = attributes.windows_attributes.app_manifest {
+          res.set_manifest(&manifest);
+        } else {
+          res.set_manifest(include_str!("window-app-manifest.xml"));
+        }
 
         if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
           if let Some(sdk_dir_str) = sdk_dir.to_str() {

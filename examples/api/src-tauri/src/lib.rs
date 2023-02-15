@@ -105,6 +105,7 @@ impl AppBuilder {
           println!("got response: {:?}", response);
         }
 
+        #[cfg(desktop)]
         std::thread::spawn(|| {
           let server = match tiny_http::Server::http("localhost:3003") {
             Ok(s) => s,

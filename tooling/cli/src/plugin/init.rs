@@ -51,12 +51,6 @@ pub struct Options {
   /// Author name
   #[clap(short, long)]
   author: Option<String>,
-  /// Adds native Android support.
-  #[clap(long)]
-  android: bool,
-  /// Adds native iOS support.
-  #[clap(long)]
-  ios: bool,
 }
 
 impl Options {
@@ -133,6 +127,16 @@ pub fn command(mut options: Options) -> Result<()> {
       );
     }
 
+    let plugin_id = request_input(
+      "What should be the Android Package ID for your plugin?",
+      Some(format!("com.plugin.{}", options.plugin_name)),
+      false,
+      false,
+    )?
+    .unwrap();
+
+    data.insert("android_package_id", to_json(&plugin_id));
+
     template::render(
       &handlebars,
       &data,
@@ -145,41 +149,26 @@ pub fn command(mut options: Options) -> Result<()> {
     )
     .with_context(|| "failed to render Tauri template")?;
 
-    if options.android {
-      let plugin_id = request_input(
-        "What should be the Package ID for your plugin?",
-        Some(format!("com.plugin.{}", options.plugin_name)),
-        false,
-        false,
-      )?
-      .unwrap();
+    let mut created_dirs = Vec::new();
+    let dest = template_target_path.join("android");
+    template::render_with_generator(
+      &handlebars,
+      &data,
+      &ANDROID_PLUGIN_DIR,
+      &dest,
+      &mut |path| {
+        generate_android_out_file(path, &dest, &plugin_id.replace('.', "/"), &mut created_dirs)
+      },
+    )
+    .with_context(|| "failed to render plugin Android template")?;
 
-      let mut data = BTreeMap::new();
-      data.insert("package_id", to_json(&plugin_id));
-
-      let mut created_dirs = Vec::new();
-      let dest = template_target_path.join("android");
-      template::render_with_generator(
-        &handlebars,
-        &data,
-        &ANDROID_PLUGIN_DIR,
-        &dest,
-        &mut |path| {
-          generate_android_out_file(path, &dest, &plugin_id.replace('.', "/"), &mut created_dirs)
-        },
-      )
-      .with_context(|| "failed to render plugin Android template")?;
-    }
-
-    if options.ios {
-      template::render(
-        &handlebars,
-        &data,
-        &IOS_PLUGIN_DIR,
-        template_target_path.join("ios"),
-      )
-      .with_context(|| "failed to render plugin iOS template")?;
-    }
+    template::render(
+      &handlebars,
+      &data,
+      &IOS_PLUGIN_DIR,
+      template_target_path.join("ios"),
+    )
+    .with_context(|| "failed to render plugin iOS template")?;
   }
   Ok(())
 }

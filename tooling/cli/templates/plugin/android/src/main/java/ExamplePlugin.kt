@@ -1,4 +1,4 @@
-package {{package_id}}
+package {{android_package_id}}
 
 import android.app.Activity
 import app.tauri.annotation.PluginMethod

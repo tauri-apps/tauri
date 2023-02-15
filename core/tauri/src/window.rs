@@ -845,6 +845,15 @@ impl PlatformWebview {
     self.0.ns_window
   }
 
+  /// Returns [UIViewController] used by the WKWebView webview NSWindow.
+  ///
+  /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
+  #[cfg(target_os = "ios")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "ios")))]
+  pub fn view_controller(&self) -> cocoa::base::id {
+    self.0.view_controller
+  }
+
   /// Returns handle for JNI execution.
   #[cfg(target_os = "android")]
   pub fn jni_handle(&self) -> tauri_runtime_wry::wry::webview::JniHandle {

@@ -1,6 +1,6 @@
 import SwiftRs
 import Foundation
-import MetalKit
+import UIKit
 import WebKit
 import os.log
 
@@ -13,9 +13,26 @@ class PluginHandle {
 	}
 }
 
-class PluginManager {
-	static var shared: PluginManager = PluginManager()
+public class PluginManager {
+	static let shared: PluginManager = PluginManager()
+	public var viewController: UIViewController?
 	var plugins: [String: PluginHandle] = [:]
+	var ipcDispatchQueue = DispatchQueue(label: "ipc")
+	public var isSimEnvironment: Bool {
+		#if targetEnvironment(simulator)
+		return true
+		#else
+		return false
+		#endif
+	}
+
+	public func assetUrl(fromLocalURL url: URL?) -> URL? {
+		guard let inputURL = url else {
+			return nil
+		}
+
+		return URL(string: "asset://localhost")!.appendingPathComponent(inputURL.path)
+	}
 
 	func onWebviewCreated(_ webview: WKWebView) {
 		for (_, handle) in plugins {
@@ -36,23 +53,25 @@ class PluginManager {
 
 	func invoke(name: String, methodName: String, invoke: Invoke) {
 		if let plugin = plugins[name] {
-			let selectorWithThrows = Selector(("\(methodName):error:"))
-			if plugin.instance.responds(to: selectorWithThrows) {
-				var error: NSError? = nil
-				withUnsafeMutablePointer(to: &error) {
-					let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
-					unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin, selectorWithThrows, invoke, OpaquePointer($0))
-				}
-				if let error = error {
-					invoke.reject("\(error)")
-					let _ = toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
-				}
-			} else {
-				let selector = Selector(("\(methodName):"))
-				if plugin.instance.responds(to: selector) {
-					plugin.instance.perform(selector, with: invoke)
+			ipcDispatchQueue.async {
+				let selectorWithThrows = Selector(("\(methodName):error:"))
+				if plugin.instance.responds(to: selectorWithThrows) {
+					var error: NSError? = nil
+					withUnsafeMutablePointer(to: &error) {
+						let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
+						unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin, selectorWithThrows, invoke, OpaquePointer($0))
+					}
+					if let error = error {
+						invoke.reject("\(error)")
+						let _ = toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
+					}
 				} else {
-					invoke.reject("No method \(methodName) found for plugin \(name)")
+					let selector = Selector(("\(methodName):"))
+					if plugin.instance.responds(to: selector) {
+						plugin.instance.perform(selector, with: invoke)
+					} else {
+						invoke.reject("No method \(methodName) found for plugin \(name)")
+					}
 				}
 			}
 		} else {
@@ -62,7 +81,7 @@ class PluginManager {
 }
 
 extension PluginManager: NSCopying {
-	func copy(with zone: NSZone? = nil) -> Any {
+	public func copy(with zone: NSZone? = nil) -> Any {
 		return self
 	}
 }
@@ -76,7 +95,8 @@ public func registerPlugin<P: Plugin>(webview: WKWebView?, name: String, plugin:
 }
 
 @_cdecl("on_webview_created")
-func onWebviewCreated(webview: WKWebView) {
+func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
+	PluginManager.shared.viewController = viewController
 	PluginManager.shared.onWebviewCreated(webview)
 }
 

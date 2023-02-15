@@ -1408,7 +1408,7 @@ impl<R: Runtime> WindowManager<R> {
     {
       window
         .with_webview(|w| {
-          unsafe { crate::ios::on_webview_created(w.inner()) };
+          unsafe { crate::ios::on_webview_created(w.inner(), w.view_controller()) };
         })
         .expect("failed to run on_webview_created hook");
     }

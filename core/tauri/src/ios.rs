@@ -25,7 +25,7 @@ extern "C" {
     callback: PluginMessageCallback,
   );
 
-  pub fn on_webview_created(webview: id);
+  pub fn on_webview_created(webview: id, controller: id);
 }
 
 pub fn json_to_dictionary(json: JsonValue) -> id {

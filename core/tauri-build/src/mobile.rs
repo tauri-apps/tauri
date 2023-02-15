@@ -118,7 +118,7 @@ pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
   let curr_dir = std::env::current_dir().unwrap();
   std::env::set_current_dir(&source).unwrap();
   swift_rs::build::SwiftLinker::new("10.13")
-    .with_ios("11")
+    .with_ios("13.0")
     .with_package(name, source)
     .link();
   std::env::set_current_dir(&curr_dir).unwrap();

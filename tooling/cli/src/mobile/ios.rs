@@ -46,6 +46,7 @@ pub(crate) mod project;
 mod xcode_script;
 
 pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "TAURI_APPLE_DEVELOPMENT_TEAM";
+const TARGET_IOS_VERSION: &str = "13.0";
 
 #[derive(Parser)]
 #[clap(
@@ -124,6 +125,7 @@ pub fn get_config(
     ios_features: ios_options.features.clone(),
     bundle_version: config.package.version.clone(),
     bundle_version_short: config.package.version.clone(),
+    ios_version: Some(TARGET_IOS_VERSION.into()),
     ..Default::default()
   };
   let config = AppleConfig::from_raw(app.clone(), Some(raw)).unwrap();

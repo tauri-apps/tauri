@@ -1,5 +1,5 @@
 import Foundation
-import MetalKit
+import UIKit
 
 @objc public class Invoke: NSObject, JSValueContainer, BridgedJSValueContainer {
 	public var dictionaryRepresentation: NSDictionary {
@@ -18,7 +18,15 @@ import MetalKit
 		self.data = data ?? [:]
 	}
 
-	public func resolve(_ data: JsonValue? = nil) {
+	public func resolve() {
+		sendResponse(nil, nil)
+	}
+
+	public func resolve(_ data: JsonObject) {
+		resolve(.dictionary(data))
+	}
+
+	public func resolve(_ data: JsonValue) {
 		sendResponse(data, nil)
 	}
 

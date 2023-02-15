@@ -33,6 +33,7 @@ mod imp {
   pub struct Webview {
     pub webview: id,
     pub manager: id,
+    pub view_controller: id,
   }
 }
 

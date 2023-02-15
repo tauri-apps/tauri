@@ -2,10 +2,6 @@ import Foundation
 import UIKit
 
 @objc public class Invoke: NSObject, JSValueContainer, BridgedJSValueContainer {
-	public var jsObjectRepresentation: JSObject {
-		return data as? JSObject ?? [:]
-	}
-
 	public var dictionaryRepresentation: NSDictionary {
 		return data as NSDictionary
 	}
@@ -15,11 +11,11 @@ import UIKit
 	}()
 
 	var sendResponse: (JsonValue?, JsonValue?) -> Void
-	var data: NSDictionary
+	public var data: JSObject
 
-	public init(sendResponse: @escaping (JsonValue?, JsonValue?) -> Void, data: NSDictionary) {
+	public init(sendResponse: @escaping (JsonValue?, JsonValue?) -> Void, data: JSObject?) {
 		self.sendResponse = sendResponse
-		self.data = data
+		self.data = data ?? [:]
 	}
 
 	public func resolve() {

@@ -108,7 +108,7 @@ func postIpcMessage(webview: WKWebView, name: UnsafePointer<SRString>, methodNam
 			payloadJson = "`\(error)`"
 		}
 		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
-	}, data: data)
+	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
 	PluginManager.shared.invoke(name: name.pointee.to_string(), methodName: methodName.pointee.to_string(), invoke: invoke)
 }
 
@@ -129,6 +129,6 @@ func runPluginMethod(
 			payloadJson = "`\(error)`"
 		}
 		callback(id, success, payloadJson.cString(using: String.Encoding.utf8))
-	}, data: data)
+	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
 	PluginManager.shared.invoke(name: name.pointee.to_string(), methodName: methodName.pointee.to_string(), invoke: invoke)
 }

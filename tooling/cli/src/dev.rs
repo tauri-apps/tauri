@@ -230,7 +230,8 @@ fn command_internal(mut options: Options) -> Result<()> {
       if path.exists() {
         let path = path.canonicalize()?;
         let server_url = start_dev_server(path, options.dev_server_port);
-        dev_path = AppUrl::Url(WindowUrl::External(server_url.to_string().parse().unwrap()));
+        let server_url = format!("http://{server_url}");
+        dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 
         // TODO: in v2, use an env var to pass the url to the app context
         // or better separate the config passed from the cli internally and

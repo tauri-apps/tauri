@@ -23,11 +23,11 @@ const AUTO_RELOAD_SCRIPT: &str = include_str!("./auto-reload.js");
 
 struct State {
   serve_dir: PathBuf,
-  reload_address: SocketAddr,
+  address: SocketAddr,
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, reload_address: SocketAddr, path: P) {
+pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, path: P) {
   let serve_dir = path.as_ref().to_path_buf();
 
   std::thread::spawn(move || {
@@ -64,32 +64,30 @@ pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, reload_address: Soc
         let state = Arc::new(State {
           serve_dir,
           tx,
-          reload_address,
+          address,
         });
-        let server_router = Router::new().fallback(
-          Router::new().nest(
-            "/",
-            get({
-              let state = state.clone();
-              move |req| handler(req, state)
-            })
-            .handle_error(|_error| async move { StatusCode::INTERNAL_SERVER_ERROR }),
-          ),
-        );
+        let server_router = Router::new()
+          .fallback(
+            Router::new().nest(
+              "/",
+              get({
+                let state = state.clone();
+                move |req| handler(req, state)
+              })
+              .handle_error(|_error| async move { StatusCode::INTERNAL_SERVER_ERROR }),
+            ),
+          )
+          .route(
+            "/__tauri_cli",
+            get(move |ws: WebSocketUpgrade| async move {
+              ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
+            }),
+          );
 
-        let reload_router = Router::new().route(
-          "/",
-          get(move |ws: WebSocketUpgrade| async move {
-            ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
-          }),
-        );
-
-        let (s1, s2) = tokio::join!(
-          Server::bind(&address).serve(server_router.into_make_service()),
-          Server::bind(&reload_address).serve(reload_router.into_make_service())
-        );
-        s1.unwrap();
-        s2.unwrap();
+        Server::bind(&address)
+          .serve(server_router.into_make_service())
+          .await
+          .unwrap();
       })
   });
 }
@@ -128,9 +126,10 @@ async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {
         with_html_head(&mut document, |head| {
           let script_el =
             NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
-          script_el.append(NodeRef::new_text(
-            AUTO_RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{}", state.reload_address)),
-          ));
+          script_el.append(NodeRef::new_text(AUTO_RELOAD_SCRIPT.replace(
+            "{{reload_url}}",
+            &format!("ws://{}/__tauri_cli", state.address),
+          )));
           head.prepend(script_el);
         });
 

@@ -17,6 +17,7 @@ public class PluginManager {
 	static let shared: PluginManager = PluginManager()
 	public var viewController: UIViewController?
 	var plugins: [String: PluginHandle] = [:]
+	var ipcDispatchQueue = DispatchQueue(label: "ipc")
 	public var isSimEnvironment: Bool {
 		#if targetEnvironment(simulator)
 		return true
@@ -52,23 +53,25 @@ public class PluginManager {
 
 	func invoke(name: String, methodName: String, invoke: Invoke) {
 		if let plugin = plugins[name] {
-			let selectorWithThrows = Selector(("\(methodName):error:"))
-			if plugin.instance.responds(to: selectorWithThrows) {
-				var error: NSError? = nil
-				withUnsafeMutablePointer(to: &error) {
-					let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
-					unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin, selectorWithThrows, invoke, OpaquePointer($0))
-				}
-				if let error = error {
-					invoke.reject("\(error)")
-					let _ = toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
-				}
-			} else {
-				let selector = Selector(("\(methodName):"))
-				if plugin.instance.responds(to: selector) {
-					plugin.instance.perform(selector, with: invoke)
+			ipcDispatchQueue.async {
+				let selectorWithThrows = Selector(("\(methodName):error:"))
+				if plugin.instance.responds(to: selectorWithThrows) {
+					var error: NSError? = nil
+					withUnsafeMutablePointer(to: &error) {
+						let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
+						unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin, selectorWithThrows, invoke, OpaquePointer($0))
+					}
+					if let error = error {
+						invoke.reject("\(error)")
+						let _ = toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
+					}
 				} else {
-					invoke.reject("No method \(methodName) found for plugin \(name)")
+					let selector = Selector(("\(methodName):"))
+					if plugin.instance.responds(to: selector) {
+						plugin.instance.perform(selector, with: invoke)
+					} else {
+						invoke.reject("No method \(methodName) found for plugin \(name)")
+					}
 				}
 			}
 		} else {

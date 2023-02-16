@@ -464,7 +464,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
 ///
 ///   pub fn build<R: Runtime>(self) -> TauriPlugin<R> {
 ///     PluginBuilder::new("example")
-///       .setup(move |app_handle| {
+///       .setup(move |app_handle, api| {
 ///         // use the options here to do stuff
 ///         println!("a: {}, b: {}, c: {}", self.option_a, self.option_b, self.option_c);
 ///

@@ -1209,7 +1209,7 @@ impl<R: Runtime> Builder<R> {
   ///   }
   ///   pub fn init<R: Runtime>() -> TauriPlugin<R> {
   ///     PluginBuilder::new("window")
-  ///       .setup(|app| {
+  ///       .setup(|app, api| {
   ///         // initialize the plugin here
   ///         Ok(())
   ///       })

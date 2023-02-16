@@ -32,9 +32,9 @@ pub struct Options {
   /// Name of your Tauri plugin
   #[clap(short = 'n', long = "name")]
   plugin_name: String,
-  /// Initializes a Tauri plugin with TypeScript API
+  /// Initializes a Tauri plugin without the TypeScript API
   #[clap(long)]
-  api: bool,
+  no_api: bool,
   /// Initializes a Tauri core plugin (internal usage)
   #[clap(long, hide(true))]
   tauri: bool,
@@ -147,17 +147,17 @@ pub fn command(mut options: Options) -> Result<()> {
         match root {
           Component::Normal(component) => match component.to_str().unwrap() {
             "__example-api" => {
-              if options.api {
-                path = Path::new("examples").join(components.collect::<PathBuf>());
-              } else {
+              if options.no_api {
                 return Ok(None);
+              } else {
+                path = Path::new("examples").join(components.collect::<PathBuf>());
               }
             }
             "__example-basic" => {
-              if options.api {
-                return Ok(None);
-              } else {
+              if options.no_api {
                 path = Path::new("examples").join(components.collect::<PathBuf>());
+              } else {
+                return Ok(None);
               }
             }
             "android" => {
@@ -169,7 +169,7 @@ pub fn command(mut options: Options) -> Result<()> {
               );
             }
             "webview-dist" | "webview-src" | "package.json" => {
-              if !options.api {
+              if options.no_api {
                 return Ok(None);
               }
             }

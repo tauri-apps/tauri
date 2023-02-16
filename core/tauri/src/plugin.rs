@@ -316,7 +316,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
     &self,
     init_fn: unsafe extern "C" fn(cocoa::base::id),
   ) -> crate::Result<PluginHandle<R>> {
-    if let Some(window) = self.windows().values().next() {
+    if let Some(window) = self.handle.manager.windows().values().next() {
       window.with_webview(move |w| {
         unsafe { init_fn(w.inner()) };
       })?;

@@ -11,7 +11,7 @@ use anyhow::Context;
 use clap::Parser;
 use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
-use heck::{AsKebabCase, ToKebabCase, ToSnakeCase};
+use heck::{AsKebabCase, ToKebabCase, ToPascalCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
 use log::warn;
 use std::{
@@ -192,6 +192,10 @@ pub fn plugin_name_data(data: &mut BTreeMap<&'static str, serde_json::Value>, pl
   data.insert(
     "plugin_name_snake_case",
     to_json(plugin_name.to_snake_case()),
+  );
+  data.insert(
+    "plugin_name_pascal_case",
+    to_json(plugin_name.to_pascal_case()),
   );
 }
 

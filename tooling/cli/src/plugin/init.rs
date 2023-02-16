@@ -144,8 +144,8 @@ pub fn command(mut options: Options) -> Result<()> {
         let mut components = path.components();
         let root = components.next().unwrap();
 
-        match root {
-          Component::Normal(component) => match component.to_str().unwrap() {
+        if let Component::Normal(component) = root {
+          match component.to_str().unwrap() {
             "__example-api" => {
               if options.no_api {
                 return Ok(None);
@@ -174,8 +174,7 @@ pub fn command(mut options: Options) -> Result<()> {
               }
             }
             _ => (),
-          },
-          _ => (),
+          }
         }
 
         let path = template_target_path.join(path);

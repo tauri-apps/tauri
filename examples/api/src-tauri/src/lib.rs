@@ -16,7 +16,7 @@ pub use mobile::*;
 
 use serde::Serialize;
 use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, WindowUrl};
-use tauri_plugin_sample::{models::PingRequest, SampleExt};
+use tauri_plugin_sample::{PingRequest, SampleExt};
 
 #[derive(Clone, Serialize)]
 struct Reply {

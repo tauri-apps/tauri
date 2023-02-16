@@ -13,13 +13,13 @@ use std::{collections::HashMap, sync::Mutex, result::Result as StdResult};
 
 type Result<T> = StdResult<T, Error>;
 
-use models::*;
+pub use models::*;
 
 #[cfg(desktop)]
 mod desktop;
 #[cfg(mobile)]
 mod mobile;
-pub mod models;
+mod models;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

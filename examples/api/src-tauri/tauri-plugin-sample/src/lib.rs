@@ -3,13 +3,13 @@ use tauri::{
   Runtime,
 };
 
-use models::*;
+pub use models::*;
 
 #[cfg(desktop)]
 mod desktop;
 #[cfg(mobile)]
 mod mobile;
-pub mod models;
+mod models;
 
 // Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the sample APIs.
 pub trait SampleExt<R: Runtime> {

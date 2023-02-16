@@ -1,10 +1,12 @@
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::de::DeserializeOwned;
 use tauri::{
   plugin::{PluginApi, PluginHandle, Result as PluginResult},
   AppHandle, Manager, Runtime,
 };
 
 use std::result::Result as StdResult;
+
+use crate::models::*;
 
 #[cfg(target_os = "android")]
 const PLUGIN_IDENTIFIER: &str = "{{ android_package_id }}";
@@ -27,18 +29,6 @@ pub(crate) fn init<R: Runtime, C: DeserializeOwned>(
   Ok(())
 }
 
-// ExamplePlugin::ping input arguments
-#[derive(Debug, Serialize)]
-pub struct PingRequest {
-  pub value: Option<String>,
-}
-
-// ExamplePlugin::ping return value
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct PingResponse {
-  pub value: Option<String>,
-}
-
 // A helper class to access the mobile {{ plugin_name }} APIs.
 struct {{ plugin_name_pascal_case }}Plugin<R: Runtime>(PluginHandle<R>);
 
@@ -48,12 +38,7 @@ impl<R: Runtime> {{ plugin_name_pascal_case }}Plugin<R> {
   }
 }
 
-/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the mobile {{ plugin_name }} APIs.
-pub trait {{ plugin_name_pascal_case }}Ext<R: Runtime> {
-  fn ping(&self, payload: PingRequest) -> tauri::Result<StdResult<PingResponse, String>>;
-}
-
-impl<R: Runtime, T: Manager<R>> {{ plugin_name_pascal_case }}Ext<R> for T {
+impl<R: Runtime, T: Manager<R>> crate::{{ plugin_name_pascal_case }}Ext<R> for T {
   fn ping(&self, payload: PingRequest) -> tauri::Result<StdResult<PingResponse, String>> {
     self.state::<{{ plugin_name_pascal_case }}Plugin<R>>().ping(payload)
   }

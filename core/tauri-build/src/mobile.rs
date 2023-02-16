@@ -33,6 +33,10 @@ impl PluginBuilder {
   /// Injects the mobile templates in the given path relative to the manifest root.
   pub fn run(self) -> Result<()> {
     let target_os = var("CARGO_CFG_TARGET_OS").unwrap();
+    let mobile = target_os == "android" || target_os == "ios";
+    crate::cfg_alias("mobile", mobile);
+    crate::cfg_alias("desktop", !mobile);
+
     match target_os.as_str() {
       "android" => {
         if let Some(path) = self.android_path {

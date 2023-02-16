@@ -9,14 +9,17 @@ use tauri::{
   AppHandle, Manager, Runtime, State, Window,
 };
 
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::HashMap, sync::Mutex, result::Result as StdResult};
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = StdResult<T, Error>;
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
+use models::*;
+
+#[cfg(desktop)]
+mod desktop;
+#[cfg(mobile)]
 mod mobile;
-#[cfg(any(target_os = "android", target_os = "ios"))]
-pub use mobile::*;
+pub mod models;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -25,7 +28,7 @@ pub enum Error {
 }
 
 impl Serialize for Error {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
   where
     S: Serializer,
   {
@@ -44,6 +47,11 @@ async fn execute<R: Runtime>(
 ) -> Result<String> {
   state.0.lock().unwrap().insert("key".into(), "value".into());
   Ok("success".to_string())
+}
+
+/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the {{ plugin_name }} APIs.
+pub trait {{ plugin_name_pascal_case }}Ext<R: Runtime> {
+  fn ping(&self, payload: PingRequest) -> tauri::Result<StdResult<PingResponse, String>>;
 }
 
 /// Initializes the plugin.

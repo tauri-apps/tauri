@@ -3140,7 +3140,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-log"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/plugins-workspace?branch=next#e151ffcf61cf2445d4a9e6cac3e44a3ff24d77d4"
+source = "git+https://github.com/tauri-apps/plugins-workspace?branch=next#22f987bf240f8db634f8fa3338bcc15792b9cb3a"
 dependencies = [
  "android_logger",
  "byte-unit",

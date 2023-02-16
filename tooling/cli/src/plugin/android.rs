@@ -106,9 +106,9 @@ tauri-build = "{}"
         r#"
 pub fn init<R: Runtime>() -> TauriPlugin<R> {{
   Builder::new("{name}")
-    .setup(|app| {{
+    .setup(|app, api| {{
       #[cfg(target_os = "android")]
-      app.initialize_android_plugin("{name}", "{identifier}, "ExamplePlugin")?;
+      let handle = api.register_android_plugin("{identifier}, "ExamplePlugin")?;
       Ok(())
     }})
     .build()

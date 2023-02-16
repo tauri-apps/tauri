@@ -95,16 +95,6 @@ impl AppBuilder {
         #[cfg(debug_assertions)]
         window.open_devtools();
 
-        #[cfg(mobile)]
-        {
-          let response = app.run_mobile_plugin::<serde_json::Value, serde_json::Value>(
-            "sample",
-            "ping",
-            serde_json::Value::default(),
-          );
-          println!("got response: {:?}", response);
-        }
-
         #[cfg(desktop)]
         std::thread::spawn(|| {
           let server = match tiny_http::Server::http("localhost:3003") {

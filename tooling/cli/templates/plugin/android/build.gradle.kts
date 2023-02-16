@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "{{package_id}}"
+    namespace = "{{android_package_id}}"
     compileSdk = 32
 
     defaultConfig {

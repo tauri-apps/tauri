@@ -97,7 +97,7 @@ pub fn gen(
     map.inner(),
     &TEMPLATE_DIR,
     &dest,
-    &mut |path| generate_out_file(path, &dest, &package_path, &mut created_dirs),
+    &mut |path| generate_out_file(&path, &dest, &package_path, &mut created_dirs),
   )
   .with_context(|| "failed to process template")?;
 

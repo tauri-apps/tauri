@@ -20,14 +20,11 @@ use std::{
   ffi::OsStr,
   fmt::Display,
   fs::{create_dir_all, remove_dir_all, File, OpenOptions},
-  path::{Path, PathBuf},
+  path::{Component, Path, PathBuf},
   str::FromStr,
 };
 
-const BACKEND_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/backend");
-const API_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/with-api");
-const ANDROID_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/android");
-const IOS_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/ios");
+const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri plugin project")]
@@ -137,38 +134,60 @@ pub fn command(mut options: Options) -> Result<()> {
 
     data.insert("android_package_id", to_json(&plugin_id));
 
-    template::render(
-      &handlebars,
-      &data,
-      if options.api {
-        &API_PLUGIN_DIR
-      } else {
-        &BACKEND_PLUGIN_DIR
-      },
-      &template_target_path,
-    )
-    .with_context(|| "failed to render Tauri template")?;
-
     let mut created_dirs = Vec::new();
-    let dest = template_target_path.join("android");
     template::render_with_generator(
       &handlebars,
       &data,
-      &ANDROID_PLUGIN_DIR,
-      &dest,
-      &mut |path| {
-        generate_android_out_file(path, &dest, &plugin_id.replace('.', "/"), &mut created_dirs)
+      &TEMPLATE_DIR,
+      &template_target_path,
+      &mut |mut path| {
+        let mut components = path.components();
+        let root = components.next().unwrap();
+
+        match root {
+          Component::Normal(component) => match component.to_str().unwrap() {
+            "__example-api" => {
+              if options.api {
+                path = Path::new("examples").join(components.collect::<PathBuf>());
+              } else {
+                return Ok(None);
+              }
+            }
+            "__example-basic" => {
+              if options.api {
+                return Ok(None);
+              } else {
+                path = Path::new("examples").join(components.collect::<PathBuf>());
+              }
+            }
+            "android" => {
+              return generate_android_out_file(
+                &path,
+                &template_target_path,
+                &plugin_id.replace('.', "/"),
+                &mut created_dirs,
+              );
+            }
+            "webview-dist" | "webview-src" | "package.json" => {
+              if !options.api {
+                return Ok(None);
+              }
+            }
+            _ => (),
+          },
+          _ => (),
+        }
+
+        let path = template_target_path.join(path);
+        let parent = path.parent().unwrap().to_path_buf();
+        if !created_dirs.contains(&parent) {
+          create_dir_all(&parent)?;
+          created_dirs.push(parent);
+        }
+        File::create(path).map(Some)
       },
     )
     .with_context(|| "failed to render plugin Android template")?;
-
-    template::render(
-      &handlebars,
-      &data,
-      &IOS_PLUGIN_DIR,
-      template_target_path.join("ios"),
-    )
-    .with_context(|| "failed to render plugin iOS template")?;
   }
   Ok(())
 }

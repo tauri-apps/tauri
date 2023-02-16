@@ -15,7 +15,7 @@ type Result<T> = std::result::Result<T, Error>;
 
 const PLUGIN_NAME: &str = "{{ plugin_name }}";
 #[cfg(target_os = "android")]
-const PLUGIN_IDENTIFIER: &str = "com.plugin.{{ plugin_name }}";
+const PLUGIN_IDENTIFIER: &str = "{{ android_package_id }}";
 
 #[cfg(target_os = "ios")]
 extern "C" {
@@ -55,10 +55,13 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new(PLUGIN_NAME)
     .invoke_handler(tauri::generate_handler![execute])
     .setup(|app| {
+      // initialize mobile plugins
       #[cfg(target_os = "android")]
       app.initialize_android_plugin(PLUGIN_NAME, PLUGIN_IDENTIFIER, "ExamplePlugin")?;
       #[cfg(target_os = "ios")]
       app.initialize_ios_plugin(init_plugin_{{ plugin_name }})?;
+
+      // manage state so it is accessible by the commands
       app.manage(MyState::default());
       Ok(())
     })

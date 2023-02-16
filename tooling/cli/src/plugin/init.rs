@@ -24,7 +24,7 @@ use std::{
   str::FromStr,
 };
 
-const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
+pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri plugin project")]
@@ -68,7 +68,7 @@ pub fn command(mut options: Options) -> Result<()> {
     "tauri-plugin-{}",
     AsKebabCase(&options.plugin_name)
   ));
-  let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json"))?;
+  let metadata = crates_metadata()?;
   if template_target_path.exists() {
     warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
@@ -100,12 +100,7 @@ pub fn command(mut options: Options) -> Result<()> {
     let handlebars = Handlebars::new();
 
     let mut data = BTreeMap::new();
-    data.insert("plugin_name_original", to_json(&options.plugin_name));
-    data.insert("plugin_name", to_json(options.plugin_name.to_kebab_case()));
-    data.insert(
-      "plugin_name_snake_case",
-      to_json(options.plugin_name.to_snake_case()),
-    );
+    plugin_name_data(&mut data, &options.plugin_name);
     data.insert("tauri_dep", to_json(tauri_dep));
     data.insert("tauri_example_dep", to_json(tauri_example_dep));
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
@@ -191,7 +186,20 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
-fn generate_android_out_file(
+pub fn plugin_name_data(data: &mut BTreeMap<&'static str, serde_json::Value>, plugin_name: &str) {
+  data.insert("plugin_name_original", to_json(plugin_name));
+  data.insert("plugin_name", to_json(plugin_name.to_kebab_case()));
+  data.insert(
+    "plugin_name_snake_case",
+    to_json(plugin_name.to_snake_case()),
+  );
+}
+
+pub fn crates_metadata() -> Result<VersionMetadata> {
+  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json")).map_err(Into::into)
+}
+
+pub fn generate_android_out_file(
   path: &Path,
   dest: &Path,
   package_path: &str,
@@ -231,7 +239,7 @@ fn generate_android_out_file(
   }
 }
 
-fn request_input<T>(
+pub fn request_input<T>(
   prompt: &str,
   initial: Option<T>,
   skip: bool,

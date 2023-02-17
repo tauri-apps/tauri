@@ -3162,6 +3162,7 @@ dependencies = [
  "serde",
  "tauri",
  "tauri-build",
+ "thiserror",
 ]
 
 [[package]]

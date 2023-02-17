@@ -1,15 +1,22 @@
-use tauri::{Manager, Runtime};
+use serde::de::DeserializeOwned;
+use tauri::{plugin::PluginApi, AppHandle, Runtime};
 
 use crate::models::*;
 
-impl<R: Runtime, T: Manager<R>> crate::SampleExt<R> for T {
-  fn ping(&self, payload: PingRequest) -> tauri::Result<Result<PingResponse, String>> {
-    Ok(ping(payload))
-  }
+pub fn init<R: Runtime, C: DeserializeOwned>(
+  app: &AppHandle<R>,
+  _api: PluginApi<R, C>,
+) -> crate::Result<Sample<R>> {
+  Ok(Sample(app.clone()))
 }
 
-fn ping(payload: PingRequest) -> Result<PingResponse, String> {
-  Ok(PingResponse {
-    value: payload.value,
-  })
+/// A helper class to access the sample APIs.
+pub struct Sample<R: Runtime>(AppHandle<R>);
+
+impl<R: Runtime> Sample<R> {
+  pub fn ping(&self, payload: PingRequest) -> crate::Result<PingResponse> {
+    Ok(PingResponse {
+      value: payload.value,
+    })
+  }
 }

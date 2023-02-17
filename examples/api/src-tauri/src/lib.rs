@@ -97,11 +97,11 @@ impl AppBuilder {
         window.open_devtools();
 
         let value = Some("test".to_string());
-        let response = app.ping(PingRequest {
+        let response = app.sample().ping(PingRequest {
           value: value.clone(),
         });
         println!("got response: {:?}", response);
-        if let Ok(Ok(res)) = response {
+        if let Ok(res) = response {
           assert_eq!(res.value, value);
         }
 

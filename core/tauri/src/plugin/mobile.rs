@@ -14,11 +14,7 @@ use crate::{
 use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 
-use std::{
-  collections::HashMap,
-  fmt,
-  sync::{mpsc::channel, Mutex},
-};
+use std::{collections::HashMap, fmt, sync::Mutex};
 
 type PendingPluginCallHandler =
   Box<dyn FnOnce(Result<serde_json::Value, serde_json::Value>) + Send + 'static>;
@@ -29,16 +25,13 @@ static PENDING_PLUGIN_CALLS: OnceCell<Mutex<HashMap<i32, PendingPluginCallHandle
 /// Possible errors when invoking a plugin.
 #[derive(Debug, thiserror::Error)]
 pub enum PluginInvokeError {
-  /// Failed to reach platform webview handle.
-  #[error("the webview is unreachable")]
-  UnreachableWebview,
   /// JNI error.
   #[cfg(target_os = "android")]
   #[error("jni error: {0}")]
   Jni(#[from] jni::errors::Error),
   /// Error returned from direct mobile plugin invoke.
   #[error(transparent)]
-  InvokeRejected(#[from] crate::plugin::mobile::ErrorResponse),
+  MobilePlugin(#[from] crate::plugin::mobile::ErrorResponse),
 }
 
 /// Glue between Rust and the Kotlin code that sends the plugin response back.
@@ -118,14 +111,9 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
     init_fn: unsafe extern "C" fn(cocoa::base::id),
   ) -> Result<PluginHandle<R>, PluginInvokeError> {
     if let Some(window) = self.handle.manager.windows().values().next() {
-      let (tx, rx) = channel();
-      window
-        .with_webview(move |w| {
-          unsafe { init_fn(w.inner()) };
-          tx.send(()).unwrap();
-        })
-        .map_err(|_| PluginInvokeError::UnreachableWebview)?;
-      rx.recv().unwrap();
+      window.with_webview(move |w| {
+        unsafe { init_fn(w.inner()) };
+      })?;
     } else {
       unsafe { init_fn(cocoa::base::nil) };
     }
@@ -156,7 +144,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
         .call_method(
           activity,
           "getPluginManager",
-          "()Lapp/tauri/plugin/PluginManager;",
+          format!("()Lapp/tauri/plugin/PluginManager;"),
           &[],
         )?
         .l()?;
@@ -173,7 +161,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       env.call_method(
         plugin_manager,
         "load",
-        "(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;)V",
+        format!("(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;)V"),
         &[
           webview.into(),
           env.new_string(plugin_name)?.into(),
@@ -184,15 +172,14 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       Ok(())
     }
 
-    let plugin_class = format!("{}/{}", plugin_identifier.replace('.', "/"), class_name);
+    let plugin_class = format!("{}/{}", plugin_identifier.replace(".", "/"), class_name);
     let plugin_name = self.name;
     let runtime_handle = self.handle.runtime_handle.clone();
-    let (tx, rx) = channel();
     self
       .handle
       .runtime_handle
       .run_on_android_context(move |env, activity, webview| {
-        let result = initialize_plugin::<R>(
+        let _ = initialize_plugin::<R>(
           env,
           activity,
           webview,
@@ -200,10 +187,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
           plugin_name,
           plugin_class,
         );
-        tx.send(result).unwrap();
       });
-
-    rx.recv().unwrap()?;
 
     Ok(PluginHandle {
       name: self.name,
@@ -229,7 +213,7 @@ impl<R: Runtime> PluginHandle<R> {
     }
   }
 
-  // Executes the given iOS method.
+  /// Executes the given iOS method.
   #[cfg(target_os = "ios")]
   fn run_ios_plugin<T: serde::de::DeserializeOwned>(
     &self,
@@ -239,6 +223,7 @@ impl<R: Runtime> PluginHandle<R> {
     use std::{
       ffi::CStr,
       os::raw::{c_char, c_int},
+      sync::mpsc::channel,
     };
 
     let id: i32 = rand::random();
@@ -291,10 +276,10 @@ impl<R: Runtime> PluginHandle<R> {
     rx.recv()
       .unwrap()
       .map(|r| serde_json::from_value(r).unwrap())
-      .map_err(|e| serde_json::from_value::<ErrorResponse>(e).unwrap().into())
+      .map_err(|e| serde_json::from_value::<ErrorResponse>(e).unwrap())
   }
 
-  // Executes the given Android method.
+  /// Executes the given Android method.
   #[cfg(target_os = "android")]
   fn run_android_plugin<T: serde::de::DeserializeOwned>(
     &self,
@@ -330,7 +315,7 @@ impl<R: Runtime> PluginHandle<R> {
           id.into(),
           env.new_string(plugin)?.into(),
           env.new_string(&method)?.into(),
-          data,
+          data.into(),
         ],
       )?;
 
@@ -349,7 +334,7 @@ impl<R: Runtime> PluginHandle<R> {
     let payload = serde_json::to_value(payload).unwrap();
     let handle_ = handle.clone();
 
-    let (tx, rx) = channel();
+    let (tx, rx) = std::sync::mpsc::channel();
     let tx_ = tx.clone();
     PENDING_PLUGIN_CALLS
       .get_or_init(Default::default)

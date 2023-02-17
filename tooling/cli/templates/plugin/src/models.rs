@@ -1,3 +1,6 @@
+{{#if license_header}}
+{{ license_header }}
+{{/if}}
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]

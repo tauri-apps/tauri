@@ -1,15 +1,25 @@
-use tauri::{Manager, Runtime};
+{{#if license_header}}
+{{ license_header }}
+{{/if}}
+use serde::de::DeserializeOwned;
+use tauri::{plugin::PluginApi, AppHandle, Runtime};
 
 use crate::models::*;
 
-impl<R: Runtime, T: Manager<R>> crate::{{ plugin_name_pascal_case }}Ext<R> for T {
-  fn ping(&self, payload: PingRequest) -> tauri::Result<Result<PingResponse, String>> {
-    Ok(ping(payload))
-  }
+pub fn init<R: Runtime, C: DeserializeOwned>(
+  app: &AppHandle<R>,
+  _api: PluginApi<R, C>,
+) -> crate::Result<{{ plugin_name_pascal_case }}<R>> {
+  Ok({{ plugin_name_pascal_case }}(app.clone()))
 }
 
-fn ping(payload: PingRequest) -> Result<PingResponse, String> {
-  Ok(PingResponse {
-    value: payload.value,
-  })
+/// Access to the {{ plugin_name }} APIs.
+pub struct {{ plugin_name_pascal_case }}<R: Runtime>(AppHandle<R>);
+
+impl<R: Runtime> {{ plugin_name_pascal_case }}<R> {
+  pub fn ping(&self, payload: PingRequest) -> crate::Result<PingResponse> {
+    Ok(PingResponse {
+      value: payload.value,
+    })
+  }
 }

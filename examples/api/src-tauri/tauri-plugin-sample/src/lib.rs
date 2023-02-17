@@ -1,6 +1,6 @@
 use tauri::{
   plugin::{Builder, TauriPlugin},
-  Runtime,
+  Manager, Runtime,
 };
 
 pub use models::*;
@@ -9,18 +9,36 @@ pub use models::*;
 mod desktop;
 #[cfg(mobile)]
 mod mobile;
+
+mod error;
 mod models;
 
-// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the sample APIs.
+#[cfg(desktop)]
+use desktop::Sample;
+#[cfg(mobile)]
+use mobile::Sample;
+
+pub use error::*;
+
+/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the sample APIs.
 pub trait SampleExt<R: Runtime> {
-  fn ping(&self, payload: PingRequest) -> tauri::Result<Result<PingResponse, String>>;
+  fn sample(&self) -> &Sample<R>;
+}
+
+impl<R: Runtime, T: Manager<R>> crate::SampleExt<R> for T {
+  fn sample(&self) -> &Sample<R> {
+    self.state::<Sample<R>>().inner()
+  }
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("sample")
-    .setup(|_app, _api| {
-      #[cfg(any(target_os = "android", target_os = "ios"))]
-      mobile::init(_app, _api)?;
+    .setup(|app, api| {
+      #[cfg(mobile)]
+      let sample = mobile::init(app, api)?;
+      #[cfg(desktop)]
+      let sample = desktop::init(app, api)?;
+      app.manage(sample);
 
       Ok(())
     })

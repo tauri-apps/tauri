@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 use tauri::{
-  plugin::{PluginApi, PluginHandle, Result as PluginResult},
-  AppHandle, Manager, Runtime,
+  plugin::{PluginApi, PluginHandle},
+  AppHandle, Runtime,
 };
 
 use crate::models::*;
@@ -16,28 +16,24 @@ extern "C" {
 
 // initializes the Kotlin or Swift plugin classes
 pub fn init<R: Runtime, C: DeserializeOwned>(
-  app: &AppHandle<R>,
+  _app: &AppHandle<R>,
   api: PluginApi<R, C>,
-) -> PluginResult<()> {
+) -> crate::Result<Sample<R>> {
   #[cfg(target_os = "android")]
   let handle = api.register_android_plugin(PLUGIN_IDENTIFIER, "ExamplePlugin")?;
   #[cfg(target_os = "ios")]
   let handle = api.register_ios_plugin(init_plugin_sample)?;
-  app.manage(SamplePlugin(handle));
-  Ok(())
+  Ok(Sample(handle))
 }
 
-impl<R: Runtime, T: Manager<R>> crate::SampleExt<R> for T {
-  fn ping(&self, payload: PingRequest) -> tauri::Result<Result<PingResponse, String>> {
-    self.state::<SamplePlugin<R>>().ping(payload)
-  }
-}
+/// A helper class to access the sample APIs.
+pub struct Sample<R: Runtime>(PluginHandle<R>);
 
-// A helper class to access the mobile sample APIs.
-struct SamplePlugin<R: Runtime>(PluginHandle<R>);
-
-impl<R: Runtime> SamplePlugin<R> {
-  fn ping(&self, payload: PingRequest) -> tauri::Result<Result<PingResponse, String>> {
-    self.0.run_mobile_plugin("ping", payload)
+impl<R: Runtime> Sample<R> {
+  pub fn ping(&self, payload: PingRequest) -> crate::Result<PingResponse> {
+    self
+      .0
+      .run_mobile_plugin("ping", payload)
+      .map_err(Into::into)
   }
 }

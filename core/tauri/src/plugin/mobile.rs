@@ -229,7 +229,7 @@ impl<R: Runtime> PluginHandle<R> {
     }
   }
 
-  /// Executes the given iOS method.
+  // Executes the given iOS method.
   #[cfg(target_os = "ios")]
   fn run_ios_plugin<T: serde::de::DeserializeOwned>(
     &self,
@@ -294,7 +294,7 @@ impl<R: Runtime> PluginHandle<R> {
       .map_err(|e| serde_json::from_value::<ErrorResponse>(e).unwrap().into())
   }
 
-  /// Executes the given Android method.
+  // Executes the given Android method.
   #[cfg(target_os = "android")]
   fn run_android_plugin<T: serde::de::DeserializeOwned>(
     &self,

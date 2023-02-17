@@ -152,7 +152,7 @@ fn run_build(
         app_version.push_extra(build_number);
       }
 
-      target.build(config, env, noise_level, profile)?;
+      target.build(config, env, NoiseLevel::FranklyQuitePedantic, profile)?;
       target.archive(config, env, noise_level, profile, Some(app_version))?;
       target.export(config, env, noise_level)?;
 

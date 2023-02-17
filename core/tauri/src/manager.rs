@@ -1297,7 +1297,7 @@ impl<R: Runtime> WindowManager<R> {
           .call_method(
             ctx.activity,
             "getPluginManager",
-            format!("()Lapp/tauri/plugin/PluginManager;"),
+            "()Lapp/tauri/plugin/PluginManager;",
             &[],
           )?
           .l()?;
@@ -1306,7 +1306,7 @@ impl<R: Runtime> WindowManager<R> {
         ctx.env.call_method(
           plugin_manager,
           "onWebViewCreated",
-          format!("(Landroid/webkit/WebView;)V"),
+          "(Landroid/webkit/WebView;)V",
           &[ctx.webview.into()],
         )?;
 

@@ -1,70 +1,55 @@
 {{#if license_header}}
 {{ license_header }}
 {{/if}}
-
-use serde::{ser::Serializer, Serialize};
 use tauri::{
-  command,
-  plugin::{Builder, PluginHandle, TauriPlugin},
-  AppHandle, Manager, Runtime, State, Window,
+  plugin::{Builder, TauriPlugin},
+  Manager, Runtime,
 };
 
 use std::{collections::HashMap, sync::Mutex};
 
-type Result<T> = std::result::Result<T, Error>;
+pub use models::*;
 
-#[cfg(target_os = "android")]
-const PLUGIN_IDENTIFIER: &str = "{{ android_package_id }}";
+#[cfg(desktop)]
+mod desktop;
+#[cfg(mobile)]
+mod mobile;
 
-#[cfg(target_os = "ios")]
-extern "C" {
-  fn init_plugin_{{ plugin_name }}(webview: tauri::cocoa::base::id);
-}
+mod commands;
+mod error;
+mod models;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-  #[error(transparent)]
-  Io(#[from] std::io::Error),
-}
+pub use error::{Error, Result};
 
-impl Serialize for Error {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    serializer.serialize_str(self.to_string().as_ref())
-  }
-}
+#[cfg(desktop)]
+use desktop::{{ plugin_name_pascal_case }};
+#[cfg(mobile)]
+use mobile::{{ plugin_name_pascal_case }};
 
 #[derive(Default)]
 struct MyState(Mutex<HashMap<String, String>>);
 
-pub struct {{ plugin_name_pascal_case }}Plugin<R: Runtime>(PluginHandle<R>);
+/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the {{ plugin_name }} APIs.
+pub trait {{ plugin_name_pascal_case }}Ext<R: Runtime> {
+  fn {{ plugin_name_snake_case }}(&self) -> &{{ plugin_name_pascal_case }}<R>;
+}
 
-#[command]
-async fn execute<R: Runtime>(
-  _app: AppHandle<R>,
-  _window: Window<R>,
-  state: State<'_, MyState>,
-) -> Result<String> {
-  state.0.lock().unwrap().insert("key".into(), "value".into());
-  Ok("success".to_string())
+impl<R: Runtime, T: Manager<R>> crate::{{ plugin_name_pascal_case }}Ext<R> for T {
+  fn {{ plugin_name_snake_case }}(&self) -> &{{ plugin_name_pascal_case }}<R> {
+    self.state::<{{ plugin_name_pascal_case }}<R>>().inner()
+  }
 }
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("{{ plugin_name }}")
-    .invoke_handler(tauri::generate_handler![execute])
+    .invoke_handler(tauri::generate_handler![commands::execute])
     .setup(|app, api| {
-      // initialize mobile plugins
-      #[cfg(any(target_os = "android", target_os = "ios"))]
-      {
-        #[cfg(target_os = "android")]
-        let handle = api.register_android_plugin(PLUGIN_IDENTIFIER, "ExamplePlugin")?;
-        #[cfg(target_os = "ios")]
-        let handle = api.register_ios_plugin(init_plugin_{{ plugin_name }})?;
-        app.manage({{ plugin_name_pascal_case }}Plugin(handle));
-      }
+      #[cfg(mobile)]
+      let {{ plugin_name_snake_case }} = mobile::init(app, api)?;
+      #[cfg(desktop)]
+      let {{ plugin_name_snake_case }} = desktop::init(app, api)?;
+      app.manage({{ plugin_name_snake_case }});
 
       // manage state so it is accessible by the commands
       app.manage(MyState::default());

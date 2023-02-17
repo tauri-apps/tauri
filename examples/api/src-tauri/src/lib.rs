@@ -16,6 +16,7 @@ pub use mobile::*;
 
 use serde::Serialize;
 use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, WindowUrl};
+use tauri_plugin_sample::{PingRequest, SampleExt};
 
 #[derive(Clone, Serialize)]
 struct Reply {
@@ -94,6 +95,15 @@ impl AppBuilder {
 
         #[cfg(debug_assertions)]
         window.open_devtools();
+
+        let value = Some("test".to_string());
+        let response = app.sample().ping(PingRequest {
+          value: value.clone(),
+        });
+        println!("got response: {:?}", response);
+        if let Ok(res) = response {
+          assert_eq!(res.value, value);
+        }
 
         #[cfg(desktop)]
         std::thread::spawn(|| {

@@ -3159,8 +3159,10 @@ name = "tauri-plugin-sample"
 version = "0.1.0"
 dependencies = [
  "log",
+ "serde",
  "tauri",
  "tauri-build",
+ "thiserror",
 ]
 
 [[package]]

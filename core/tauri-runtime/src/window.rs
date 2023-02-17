@@ -245,6 +245,7 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
 
   #[cfg(target_os = "android")]
+  #[allow(clippy::type_complexity)]
   pub on_webview_created:
     Option<Box<dyn Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send>>,
 }

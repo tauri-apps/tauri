@@ -90,7 +90,7 @@ abstract class Plugin(private val activity: Activity) {
 
       // If call was made with a list of specific permission aliases to request, save them
       // to be requested
-      val providedPerms: JSArray = invoke.getArray("permissions", JSArray())!!
+      val providedPerms: JSArray = invoke.getArray("permissions", JSArray())
       var providedPermsList: List<String?>? = null
       try {
         providedPermsList = providedPerms.toList()

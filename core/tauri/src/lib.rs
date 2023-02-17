@@ -240,7 +240,7 @@ macro_rules! android_binding {
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
-pub use plugin::handle_android_plugin_response;
+pub use plugin::mobile::handle_android_plugin_response;
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;

@@ -3,8 +3,10 @@ package app.tauri.plugin
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.webkit.WebView
 import androidx.core.app.ActivityCompat
+import app.tauri.FsUtils
 import app.tauri.Logger
 import app.tauri.PermissionHelper
 import app.tauri.PermissionState
@@ -48,6 +50,17 @@ abstract class Plugin(private val activity: Activity) {
    */
   protected fun getLogTag(): String {
     return Logger.tags(this.javaClass.simpleName)
+  }
+
+  /**
+   * Convert an URI to an URL that can be loaded by the webview.
+   */
+  fun assetUrl(u: Uri): String {
+    var path = FsUtils.getFileUrlForUri(activity, u)
+    if (path?.startsWith("file://") == true) {
+      path = path.replace("file://", "")
+    }
+    return "asset://localhost$path"
   }
 
   /**

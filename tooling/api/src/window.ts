@@ -1238,12 +1238,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                type: size.type,
-                data: {
-                  width: size.width,
-                  height: size.height
+                  type: size.type,
+                  data: {
+                    width: size.width,
+                    height: size.height
+                  }
                 }
-              }
               : null
           }
         }
@@ -1280,12 +1280,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                type: size.type,
-                data: {
-                  width: size.width,
-                  height: size.height
+                  type: size.type,
+                  data: {
+                    width: size.width,
+                    height: size.height
+                  }
                 }
-              }
               : null
           }
         }
@@ -2151,11 +2151,11 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-      name: m.name,
-      scaleFactor: m.scaleFactor,
-      position: new PhysicalPosition(m.position.x, m.position.y),
-      size: new PhysicalSize(m.size.width, m.size.height)
-    }
+        name: m.name,
+        scaleFactor: m.scaleFactor,
+        position: new PhysicalPosition(m.position.x, m.position.y),
+        size: new PhysicalSize(m.size.width, m.size.height)
+      }
 }
 
 /**

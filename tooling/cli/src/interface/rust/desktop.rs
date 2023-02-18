@@ -291,7 +291,7 @@ fn build_command(
     args.push(features.join(","));
   }
 
-  if !options.debug {
+  if !options.debug && !args.contains(&"--profile".to_string()) {
     args.push("--release".into());
   }
 

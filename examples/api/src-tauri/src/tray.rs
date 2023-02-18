@@ -1,67 +1,13 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   api::{
-    dialog::{ask, MessageDialogBuilder, MessageDialogButtons},
+    dialog::{MessageDialogBuilder, MessageDialogButtons},
     shell,
   },
-  CustomMenuItem, GlobalShortcutManager, Manager, RunEvent, SystemTray, SystemTrayEvent,
-  SystemTrayMenu, WindowBuilder, WindowEvent, WindowUrl,
+  CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
 };
 
-pub fn main() {
-  api::AppBuilder::new()
-    .setup(|app| {
-      create_tray(app)?;
-      Ok(())
-    })
-    .on_event(|app_handle, e| match e {
-      // Application is ready (triggered only once)
-      RunEvent::Ready => {
-        let app_handle = app_handle.clone();
-        app_handle
-          .global_shortcut_manager()
-          .register("CmdOrCtrl+1", move || {
-            let app_handle = app_handle.clone();
-            let window = app_handle.get_window("main").unwrap();
-            window.set_title("New title!").unwrap();
-          })
-          .unwrap();
-      }
-
-      // Triggered when a window is trying to close
-      RunEvent::WindowEvent {
-        label,
-        event: WindowEvent::CloseRequested { api, .. },
-        ..
-      } => {
-        // for other windows, we handle it in JS
-        if label == "main" {
-          let app_handle = app_handle.clone();
-          let window = app_handle.get_window(&label).unwrap();
-          // use the exposed close api, and prevent the event loop to close
-          api.prevent_close();
-          // ask the user if he wants to quit
-          ask(
-            Some(&window),
-            "Tauri API",
-            "Are you sure that you want to close this window?",
-            move |answer| {
-              if answer {
-                // .close() cannot be called on the main thread
-                std::thread::spawn(move || {
-                  app_handle.get_window(&label).unwrap().close().unwrap();
-                });
-              }
-            },
-          );
-        }
-      }
-      _ => (),
-    })
-    .run()
-}
-
-fn create_tray(app: &tauri::App) -> tauri::Result<()> {
+pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
   let mut tray_menu1 = SystemTrayMenu::new()
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
     .add_item(CustomMenuItem::new("new", "New window"))

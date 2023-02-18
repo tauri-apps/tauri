@@ -131,7 +131,7 @@ impl Interface for Rust {
       let (tx, rx) = sync_channel(1);
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
         if let Ok(events) = r {
-          tx.send(events).unwrap()
+          let _ = tx.send(events);
         }
       })
       .unwrap();

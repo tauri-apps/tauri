@@ -205,7 +205,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use serde::Serialize;
-use std::marker::PhantomData;
 use std::{collections::HashMap, fmt, sync::Arc};
 
 // Export types likely to be used by the application.
@@ -362,7 +361,6 @@ macro_rules! tauri_build_context {
 }
 
 pub use pattern::Pattern;
-use tauri_runtime::window::CursorIcon::Default;
 
 /// A icon definition.
 #[derive(Debug, Clone)]
@@ -610,11 +608,11 @@ impl<A: Assets> Context<A> {
       system_tray_icon: None,
       package_info,
       _info_plist: (),
-      pattern: Pattern::Brownfield(PhantomData),
+      pattern: Pattern::Brownfield(::std::marker::PhantomData),
       #[cfg(shell_scope)]
       shell_scope: scope::ShellScopeConfig {
-        open: None,
-        scopes: HashMap::new(),
+        open: Default::default(),
+        scopes: Default::default(),
       },
     }
   }

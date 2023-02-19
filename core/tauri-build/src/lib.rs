@@ -274,7 +274,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let last = s.clone().count() - 1;
   let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
-    if i != last {
+    if i == 0 || i != last {
       android_package_prefix.push_str(w);
       android_package_prefix.push('_');
     }

@@ -384,7 +384,8 @@ pub mod blocking {
   /// ```
   ///
   /// ```rust,no_run
-  /// # let context = tauri_codegen_test::context();  /// use tauri::api::dialog::blocking::ask;
+  /// # let context = tauri_codegen_test::context();
+  /// use tauri::api::dialog::blocking::ask;
   /// # let app = tauri::Builder::default().build(context).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// let answer = ask(Some(&window), "Tauri", "Is Tauri awesome?");

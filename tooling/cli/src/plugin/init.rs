@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -110,7 +110,7 @@ pub fn command(mut options: Options) -> Result<()> {
       data.insert(
         "license_header",
         to_json(
-          "// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+          "// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
              // SPDX-License-Identifier: Apache-2.0
              // SPDX-License-Identifier: MIT\n\n"
             .replace("  ", "")

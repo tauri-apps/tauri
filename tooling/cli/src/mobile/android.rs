@@ -5,6 +5,7 @@
 use clap::{Parser, Subcommand};
 use std::{
   env::set_var,
+  process::exit,
   thread::{sleep, spawn},
   time::Duration,
 };
@@ -124,19 +125,24 @@ pub fn get_config(
     format!("{}.{}", app.reverse_domain(), app.name_snake()),
   );
   set_var("WRY_ANDROID_LIBRARY", app.lib_name());
+  set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
+
+  let src_main_dir = config.project_dir().join("app/src/main").join(format!(
+    "java/{}/{}",
+    app.reverse_domain().replace('.', "/"),
+    app.name_snake()
+  ));
+  if config.project_dir().exists() && !src_main_dir.exists() {
+    log::error!(
+      "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
+      src_main_dir.display()
+    );
+    exit(1);
+  }
   set_var(
     "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
-    config
-      .project_dir()
-      .join("app/src/main")
-      .join(format!(
-        "java/{}/{}",
-        app.reverse_domain().replace('.', "/"),
-        app.name_snake()
-      ))
-      .join("generated"),
+    src_main_dir.join("generated"),
   );
-  set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
 
   (app, config, metadata)
 }

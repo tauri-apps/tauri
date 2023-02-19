@@ -12,7 +12,7 @@
 import * as eventApi from './helpers/event'
 import type { EventCallback, UnlistenFn, Event } from './helpers/event'
 
-export type EventName = TauriEvent | string
+export type EventName = `${TauriEvent}`
 
 /**
  * @since 1.1.0

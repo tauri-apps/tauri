@@ -12,7 +12,19 @@ members = [
 
   # integration tests
   "core/tests/restart",
-  "core/tests/app-updater"
+  "core/tests/app-updater",
+  "core/tests/tauri-codegen-test",
+
+  # simple examples
+  "examples/commands",
+  "examples/helloworld",
+  "examples/isolation",
+  "examples/multiwindow",
+  "examples/navigation",
+  "examples/parent-window",
+  "examples/splashscreen",
+  "examples/state",
+  "examples/streaming",
 ]
 
 exclude = [

@@ -7,10 +7,16 @@
   windows_subsystem = "windows"
 )]
 
+use std::time::Instant;
+
+#[tauri::command]
+fn ping() {
+  dbg!(format!("ping: {:?}", Instant::now()));
+}
+
 fn main() {
   tauri::Builder::default()
-    .run(tauri::generate_context!(
-      "../../examples/navigation/tauri.conf.json"
-    ))
+    .invoke_handler(tauri::generate_handler![ping])
+    .run(tauri::tauri_build_context!())
     .expect("error while running tauri application");
 }

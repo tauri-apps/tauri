@@ -142,6 +142,9 @@ impl CodegenContext {
       root: quote::quote!(::tauri),
     })?;
 
+    //let syn_file = syn::parse2(module)?;
+    //let pretty = prettyplease::unparse(&syn_file);
+
     // get the full output file path
     let out = var("OUT_DIR")
       .map(PathBuf::from)

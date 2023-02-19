@@ -379,9 +379,13 @@ pub mod blocking {
   ///
   /// # Examples
   ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
   /// ```rust,no_run
-  /// use tauri::api::dialog::blocking::ask;
-  /// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+  /// # let context = tauri_codegen_test::context();  /// use tauri::api::dialog::blocking::ask;
+  /// # let app = tauri::Builder::default().build(context).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// let answer = ask(Some(&window), "Tauri", "Is Tauri awesome?");
   /// // do something with `answer`
@@ -402,9 +406,14 @@ pub mod blocking {
   ///
   /// # Examples
   ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
   /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// use tauri::api::dialog::blocking::confirm;
-  /// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+  /// # let app = tauri::Builder::default().build(context).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// let answer = confirm(Some(&window), "Tauri", "Are you sure?");
   /// // do something with `answer`
@@ -425,9 +434,14 @@ pub mod blocking {
   ///
   /// # Examples
   ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
   /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// use tauri::api::dialog::blocking::message;
-  /// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+  /// # let app = tauri::Builder::default().build(context).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// message(Some(&window), "Tauri", "Tauri is awesome!");
   /// ```
@@ -479,10 +493,15 @@ mod nonblocking {
     ///
     /// # Examples
     ///
+    /// ```ignore
+    /// let context = tauri::tauri_build_context!();
+    /// ```
+    ///
     /// ```rust,no_run
+    /// # let context = tauri_codegen_test::context();
     /// use tauri::api::dialog::FileDialogBuilder;
     /// tauri::Builder::default()
-    ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+    ///   .build(context)
     ///   .expect("failed to build tauri app")
     ///   .run(|_app, _event| {
     ///     FileDialogBuilder::new().pick_file(|file_path| {
@@ -503,10 +522,15 @@ mod nonblocking {
     ///
     /// # Examples
     ///
+    /// ```ignore
+    /// let context = tauri::tauri_build_context!();
+    /// ```
+    ///
     /// ```rust,no_run
+    /// # let context = tauri_codegen_test::context();
     /// use tauri::api::dialog::FileDialogBuilder;
     /// tauri::Builder::default()
-    ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+    ///   .build(context)
     ///   .expect("failed to build tauri app")
     ///   .run(|_app, _event| {
     ///     FileDialogBuilder::new().pick_files(|file_paths| {
@@ -529,10 +553,15 @@ mod nonblocking {
     ///
     /// # Examples
     ///
+    /// ```ignore
+    /// let context = tauri::tauri_build_context!();
+    /// ```
+    ///
     /// ```rust,no_run
+    /// # let context = tauri_codegen_test::context();
     /// use tauri::api::dialog::FileDialogBuilder;
     /// tauri::Builder::default()
-    ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+    ///   .build(context)
     ///   .expect("failed to build tauri app")
     ///   .run(|_app, _event| {
     ///     FileDialogBuilder::new().pick_folder(|folder_path| {
@@ -553,10 +582,15 @@ mod nonblocking {
     ///
     /// # Examples
     ///
+    /// ```ignore
+    /// let context = tauri::tauri_build_context!();
+    /// ```
+    ///
     /// ```rust,no_run
+    /// # let context = tauri_codegen_test::context();
     /// use tauri::api::dialog::FileDialogBuilder;
     /// tauri::Builder::default()
-    ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+    ///   .build(context)
     ///   .expect("failed to build tauri app")
     ///   .run(|_app, _event| {
     ///     FileDialogBuilder::new().pick_folders(|file_paths| {
@@ -580,10 +614,16 @@ mod nonblocking {
     ///
     /// # Examples
     ///
+    /// ```ignore
+    /// let context = tauri::tauri_build_context!();
+    /// ```
+    ///
     /// ```rust,no_run
+    /// # let context = tauri_codegen_test::context();
     /// use tauri::api::dialog::FileDialogBuilder;
+    ///
     /// tauri::Builder::default()
-    ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+    ///   .build(context)
     ///   .expect("failed to build tauri app")
     ///   .run(|_app, _event| {
     ///     FileDialogBuilder::new().save_file(|file_path| {
@@ -617,9 +657,14 @@ mod nonblocking {
   ///
   /// # Examples
   ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
   /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// use tauri::api::dialog::ask;
-  /// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+  /// # let app = tauri::Builder::default().build(context).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// ask(Some(&window), "Tauri", "Is Tauri awesome?", |answer| {
   ///   // do something with `answer`
@@ -649,9 +694,14 @@ mod nonblocking {
   ///
   /// # Examples
   ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
   /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// use tauri::api::dialog::confirm;
-  /// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+  /// # let app = tauri::Builder::default().build(context).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// confirm(Some(&window), "Tauri", "Are you sure?", |answer| {
   ///   // do something with `answer`
@@ -681,9 +731,14 @@ mod nonblocking {
   ///
   /// # Examples
   ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
   /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// use tauri::api::dialog::message;
-  /// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+  /// # let app = tauri::Builder::default().build(context).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// message(Some(&window), "Tauri", "Tauri is awesome!");
   /// ```

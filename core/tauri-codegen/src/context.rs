@@ -356,11 +356,9 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .expect("failed to write Info.plist");
 
     let info_plist_path = out_path.display().to_string();
-    quote!({
-      tauri::embed_plist::embed_info_plist!(#info_plist_path);
-    })
+    quote!(tauri::embed_plist::embed_info_plist!(#info_plist_path);)
   } else {
-    quote!(())
+    quote!()
   };
   #[cfg(not(target_os = "macos"))]
   let info_plist = quote!(());
@@ -440,17 +438,20 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   #[cfg(not(feature = "shell-scope"))]
   let shell_scope_config = quote!();
 
-  Ok(quote!(#root::Context::new(
-    #config,
-    ::std::sync::Arc::new(#assets),
-    #default_window_icon,
-    #app_icon,
-    #system_tray_icon,
-    #package_info,
-    #info_plist,
-    #pattern,
-    #shell_scope_config
-  )))
+  Ok(quote!({
+    #info_plist
+    #root::Context::new(
+      #config,
+      ::std::sync::Arc::new(#assets),
+      #default_window_icon,
+      #app_icon,
+      #system_tray_icon,
+      #package_info,
+      (),
+      #pattern,
+      #shell_scope_config
+    )
+  }))
 }
 
 fn ico_icon<P: AsRef<Path>>(

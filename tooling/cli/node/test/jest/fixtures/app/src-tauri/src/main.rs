@@ -15,6 +15,6 @@ fn main() {
       window.eval("window.onTauriInit()").unwrap();
     })
     .invoke_handler(tauri::generate_handler![exit])
-    .run(tauri::generate_context!())
+    .run(tauri::tauri_build_context!())
     .expect("error encountered while running tauri application");
 }

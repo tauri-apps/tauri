@@ -110,9 +110,7 @@ fn main() {
 
       response.mimetype("video/mp4").status(status_code).body(buf)
     })
-    .run(tauri::generate_context!(
-      "../../examples/streaming/tauri.conf.json"
-    ))
+    .run(tauri::tauri_build_context!())
     .expect("error while running tauri application");
 }
 

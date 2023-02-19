@@ -14,11 +14,16 @@
 //!
 //! To listen to the updater events, for example to check for error messages, you need to use [`RunEvent::Updater`](crate::RunEvent) in [`App::run`](crate::App#method.run).
 //!
-//! ```no_run
+//! ```ignore
+//! let context = tauri::tauri_build_context!();
+//! ```
+//!
+//! ```rust,no_run
+//! # let context = tauri_codegen_test::context();
 //! let app = tauri::Builder::default()
-//!   // on an actual app, remove the string argument
-//!   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!   .build(context)
 //!   .expect("error while building tauri application");
+//!
 //! app.run(|_app_handle, event| match event {
 //!   tauri::RunEvent::Updater(updater_event) => {
 //!     match updater_event {

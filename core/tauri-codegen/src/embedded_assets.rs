@@ -409,15 +409,17 @@ impl ToTokens for EmbeddedAssets {
       },));
     }
 
+    let csp_hash = quote!(::tauri::utils::assets::CspHash);
+
     let mut global_hashes = TokenStream::new();
     for script_hash in &self.csp_hashes.scripts {
       let hash = script_hash.as_str();
-      global_hashes.append_all(quote!(CspHash::Script(#hash),));
+      global_hashes.append_all(quote!(#csp_hash::Script(#hash),));
     }
 
     for style_hash in &self.csp_hashes.styles {
       let hash = style_hash.as_str();
-      global_hashes.append_all(quote!(CspHash::Style(#hash),));
+      global_hashes.append_all(quote!(#csp_hash::Style(#hash),));
     }
 
     let mut html_hashes = TokenStream::new();
@@ -426,14 +428,14 @@ impl ToTokens for EmbeddedAssets {
       let mut value = TokenStream::new();
       for script_hash in hashes {
         let hash = script_hash.as_str();
-        value.append_all(quote!(CspHash::Script(#hash),));
+        value.append_all(quote!(#csp_hash::Script(#hash),));
       }
       html_hashes.append_all(quote!(#key => &[#value],));
     }
 
     // we expect phf related items to be in path when generating the path code
     tokens.append_all(quote! {{
-        use ::tauri::utils::assets::{CspHash, EmbeddedAssets, phf, phf::phf_map};
+        use ::tauri::utils::assets::{EmbeddedAssets, phf, phf::phf_map};
         EmbeddedAssets::new(phf_map! { #assets }, &[#global_hashes], phf_map! { #html_hashes })
     }});
   }

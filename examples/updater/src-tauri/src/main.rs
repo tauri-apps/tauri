@@ -15,6 +15,6 @@ fn my_custom_command(argument: String) {
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![my_custom_command])
-    .run(tauri::generate_context!())
+    .run(tauri::tauri_build_context!())
     .expect("error while running tauri application");
 }

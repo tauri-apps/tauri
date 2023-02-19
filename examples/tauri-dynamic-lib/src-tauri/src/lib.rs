@@ -13,6 +13,6 @@
 #[no_mangle]
 pub extern "C" fn run_tauri() {
   tauri::Builder::default()
-    .run(tauri::generate_context!("./tauri.conf.json"))
+    .run(tauri::tauri_build_context!())
     .expect("error while running tauri application");
 }

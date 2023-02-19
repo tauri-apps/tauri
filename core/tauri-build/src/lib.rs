@@ -443,6 +443,15 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
   }
 
+  #[cfg(feature = "codegen")]
+  {
+    let mut codegen = CodegenContext::new();
+    if !has_feature("custom-protocol") {
+      codegen = codegen.dev();
+    }
+    codegen.build();
+  }
+
   Ok(())
 }
 

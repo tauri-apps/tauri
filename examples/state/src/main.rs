@@ -81,8 +81,6 @@ fn main() {
       disconnect,
       connection_send
     ])
-    .run(tauri::generate_context!(
-      "../../examples/state/tauri.conf.json"
-    ))
+    .run(tauri::tauri_build_context!())
     .expect("error while running tauri application");
 }

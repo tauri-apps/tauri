@@ -12,12 +12,17 @@ use std::path::MAIN_SEPARATOR as SEP;
 /// Allows you to construct a Notification data and send it.
 ///
 /// # Examples
+///
+/// ```ignore
+/// let context = tauri::tauri_build_context!();
+/// ```
+///
 /// ```rust,no_run
+/// # let context = tauri_codegen_test::context();
 /// use tauri::api::notification::Notification;
 /// // first we build the application to access the Tauri configuration
 /// let app = tauri::Builder::default()
-///   // on an actual app, remove the string argument
-///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///   .build(context)
 ///   .expect("error while building tauri application");
 ///
 /// // shows a notification with the given title and body
@@ -76,11 +81,14 @@ impl Notification {
   ///
   /// # Examples
   ///
-  /// ```no_run
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
+  /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// use tauri::api::notification::Notification;
   ///
-  /// // on an actual app, remove the string argument
-  /// let context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
   /// Notification::new(&context.config().tauri.bundle.identifier)
   ///   .title("Tauri")
   ///   .body("Tauri is awesome!")
@@ -140,11 +148,14 @@ impl Notification {
   ///
   /// # Examples
   ///
-  /// ```no_run
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
+  /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// use tauri::api::notification::Notification;
   ///
-  /// // on an actual app, remove the string argument
-  /// let context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
   /// let identifier = context.config().tauri.bundle.identifier.clone();
   ///
   /// tauri::Builder::default()

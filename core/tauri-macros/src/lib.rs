@@ -56,6 +56,7 @@ pub fn generate_handler(item: TokenStream) -> TokenStream {
 /// The output of this macro is managed internally by Tauri,
 /// and should not be accessed directly on normal applications.
 /// It may have breaking changes in the future.
+#[deprecated]
 #[proc_macro]
 pub fn generate_context(items: TokenStream) -> TokenStream {
   // this macro is exported from the context module

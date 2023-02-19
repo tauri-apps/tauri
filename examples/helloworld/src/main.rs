@@ -7,10 +7,11 @@
   windows_subsystem = "windows"
 )]
 
+//include!(concat!(env!("OUT_DIR"), "/tauri-build-context.rs"));
+
 fn main() {
   tauri::Builder::default()
-    .run(tauri::generate_context!(
-      "../../examples/helloworld/tauri.conf.json"
-    ))
+    .run(tauri::tauri_build_context!())
+    //.run(__tauri_build_context::context())
     .expect("error while running tauri application");
 }

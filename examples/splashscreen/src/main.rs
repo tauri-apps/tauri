@@ -86,7 +86,7 @@ mod ui {
 }
 
 fn context() -> tauri::Context<tauri::utils::assets::EmbeddedAssets> {
-  tauri::generate_context!("../../examples/splashscreen/tauri.conf.json")
+  tauri::tauri_build_context!()
 }
 
 fn main() {

@@ -205,6 +205,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use serde::Serialize;
+use std::marker::PhantomData;
 use std::{collections::HashMap, fmt, sync::Arc};
 
 // Export types likely to be used by the application.
@@ -361,6 +362,7 @@ macro_rules! tauri_build_context {
 }
 
 pub use pattern::Pattern;
+use tauri_runtime::window::CursorIcon::Default;
 
 /// A icon definition.
 #[derive(Debug, Clone)]
@@ -555,6 +557,68 @@ impl<A: Assets> Context<A> {
     &self.shell_scope
   }
 
+  #[doc(hidden)]
+  #[inline(always)]
+  #[allow(clippy::type_complexity)]
+  pub fn into_parts(
+    self,
+  ) -> (
+    Config,
+    Arc<A>,
+    //Option<Icon>,
+    Option<Vec<u8>>,
+    //Option<Icon>,
+    PackageInfo,
+    //Pattern,
+  ) {
+    (
+      self.config,
+      self.assets,
+      //self.default_window_icon,
+      self.app_icon,
+      //self.system_tray_icon,
+      self.package_info,
+      //self.pattern,
+    )
+  }
+
+  #[doc(hidden)]
+  #[inline(always)]
+  #[allow(clippy::type_complexity)]
+  pub fn from_parts(
+    (
+      config,
+      assets,
+      /*default_window_icon,*/ app_icon,
+      /*system_tray_icon,*/ package_info,
+      //pattern,
+    ): (
+      Config,
+      Arc<A>,
+      //Option<Icon>,
+      Option<Vec<u8>>,
+      //Option<Icon>,
+      PackageInfo,
+      //Pattern,
+    ),
+  ) -> Self {
+    Self {
+      config,
+      assets,
+      default_window_icon: None,
+      app_icon,
+      system_tray_icon: None,
+      package_info,
+      _info_plist: (),
+      pattern: Pattern::Brownfield(PhantomData),
+      #[cfg(shell_scope)]
+      shell_scope: scope::ShellScopeConfig {
+        open: None,
+        scopes: HashMap::new(),
+      },
+    }
+  }
+
   /// Create a new [`Context`] from the minimal required items.
   #[inline(always)]
   #[allow(clippy::too_many_arguments)]
@@ -664,7 +728,12 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// Since the managed state is global and must be [`Send`] + [`Sync`], mutations can only happen through interior mutability:
   ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
   /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// use std::{collections::HashMap, sync::Mutex};
   /// use tauri::State;
   /// // here we use Mutex to achieve interior mutability
@@ -692,14 +761,17 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   .manage(Storage { store: Default::default() })
   ///   .manage(DbConnection { db: Default::default() })
   ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
-  ///   // on an actual app, remove the string argument
-  ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .run(context)
   ///   .expect("error while running tauri application");
   /// ```
   ///
   /// # Examples
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
   ///
   /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// use tauri::{Manager, State};
   ///
   /// struct MyInt(isize);
@@ -731,7 +803,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   })
   ///   .invoke_handler(tauri::generate_handler![int_command, string_command])
   ///   // on an actual app, remove the string argument
-  ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .run(context)
   ///   .expect("error while running tauri application");
   /// ```
   fn manage<T>(&self, state: T) -> bool

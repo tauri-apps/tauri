@@ -39,8 +39,6 @@ fn main() {
         .build()?;
       Ok(())
     })
-    .run(tauri::generate_context!(
-      "../../examples/parent-window/tauri.conf.json"
-    ))
+    .run(tauri::tauri_build_context!())
     .expect("failed to run tauri application");
 }

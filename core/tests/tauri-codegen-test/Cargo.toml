@@ -1,0 +1,10 @@
+[package]
+name = "tauri-codegen-test"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { path = "../../tauri-build" }
+
+[dependencies]
+tauri = { path = "../../tauri" }

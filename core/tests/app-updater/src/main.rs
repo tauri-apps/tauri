@@ -8,7 +8,7 @@
 )]
 
 fn main() {
-  let mut context = tauri::generate_context!();
+  let mut context = tauri::tauri_build_context!();
   if std::env::var("TARGET").unwrap_or_default() == "nsis" {
     context.config_mut().tauri.updater.windows.installer_args = vec![format!(
       "/D={}",

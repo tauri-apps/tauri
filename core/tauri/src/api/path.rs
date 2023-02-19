@@ -230,10 +230,14 @@ pub fn parse<P: AsRef<Path>>(
 ///
 /// ## Before initializing the application
 ///
+/// ```ignore
+/// let context = tauri::tauri_build_context!();
+/// ```
+///
 /// ```rust,no_run
+/// # let context = tauri_codegen_test::context();
 /// use tauri::{api::path::{BaseDirectory, resolve_path}, Env};
-/// // on an actual app, remove the string argument
-/// let context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
+///
 /// let path = resolve_path(
 ///   context.config(),
 ///   context.package_info(),

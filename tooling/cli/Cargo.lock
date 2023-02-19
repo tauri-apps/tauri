@@ -841,6 +841,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "duct"
+version = "0.13.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37ae3fc31835f74c2a7ceda3aeede378b0ae2e74c8f1c36559fcc9ae2a4e7d3e"
+dependencies = [
+ "libc",
+ "once_cell",
+ "os_pipe",
+ "shared_child",
+]
+
+[[package]]
 name = "dunce"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3936,14 +3948,15 @@ dependencies = [
 
 [[package]]
 name = "tauri-mobile"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "030f6c282001e94a89a347f4d1684f146091140058b57d0af04862a53694dbe5"
+checksum = "f4302fff5bc9599a7c9021e8e0062a3efddad43e6d4ee101828d4756377b2650"
 dependencies = [
  "cocoa",
  "colored 1.9.3",
  "core-foundation 0.7.0",
  "deunicode",
+ "duct",
  "dunce",
  "embed-resource",
  "english-numbers",
@@ -3969,6 +3982,7 @@ dependencies = [
  "thiserror",
  "toml",
  "ureq",
+ "which",
  "winapi",
  "windows 0.39.0",
 ]
@@ -4671,6 +4685,17 @@ name = "weezl"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9193164d4de03a926d909d3bc7c30543cecb35400c02114792c2cae20d5e2dbb"
+
+[[package]]
+name = "which"
+version = "4.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2441c784c52b289a054b7201fc93253e288f094e2f4be9058343127c4226a269"
+dependencies = [
+ "either",
+ "libc",
+ "once_cell",
+]
 
 [[package]]
 name = "winapi"

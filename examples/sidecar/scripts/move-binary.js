@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 /**
  * This script is used to rename the binary with the platform specific postfix.
  * When `tauri build` is ran, it looks for the binary name appended with the platform specific postfix.

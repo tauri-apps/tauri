@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use cocoa::base::{id, nil, NO, YES};
 use objc::*;
 use serde_json::Value as JsonValue;
@@ -25,7 +29,7 @@ extern "C" {
     callback: PluginMessageCallback,
   );
 
-  pub fn on_webview_created(webview: id);
+  pub fn on_webview_created(webview: id, controller: id);
 }
 
 pub fn json_to_dictionary(json: JsonValue) -> id {

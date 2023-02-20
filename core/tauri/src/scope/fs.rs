@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -256,10 +256,9 @@ fn escaped_pattern(p: &str) -> Result<Pattern, glob::PatternError> {
 
 fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternError> {
   Pattern::new(&format!(
-    "{}{}{}",
+    "{}{}{append}",
     glob::Pattern::escape(p),
-    MAIN_SEPARATOR,
-    append
+    MAIN_SEPARATOR
   ))
 }
 

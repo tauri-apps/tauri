@@ -1,12 +1,14 @@
-// swift-tools-version:5.7
-// The swift-tools-version declares the minimum version of Swift required to build this package.
+// swift-tools-version: 5.7
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 import PackageDescription
 
 let package = Package(
     name: "tauri-plugin-sample",
     platforms: [
-        .iOS(.v11),
+        .iOS(.v13),
     ],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
@@ -17,7 +19,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(name: "Tauri", path: "./tauri-api")
+        .package(name: "Tauri", path: "../../../../../core/tauri/mobile/ios-api")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -27,7 +27,7 @@ use std::{
   fs::{create_dir_all, read_to_string, write},
   net::SocketAddr,
   path::PathBuf,
-  process::ExitStatus,
+  process::{exit, ExitStatus},
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -256,18 +256,17 @@ fn get_app(config: &TauriConfig) -> App {
     domain.push_str(w);
     domain.push('.');
   }
-  domain.pop();
-
-  let s = config.tauri.bundle.identifier.split('.');
-  let last = s.clone().count() - 1;
-  let mut reverse_domain = String::new();
-  for (i, w) in s.enumerate() {
-    if i != last {
-      reverse_domain.push_str(w);
-      reverse_domain.push('.');
+  if domain.is_empty() {
+    domain = config.tauri.bundle.identifier.clone();
+    if domain.is_empty() {
+      log::error!(
+        "Bundle identifier set in `tauri.conf.json > tauri > bundle > identifier` cannot be empty"
+      );
+      exit(1);
     }
+  } else {
+    domain.pop();
   }
-  reverse_domain.pop();
 
   let interface = AppInterface::new(
     config,

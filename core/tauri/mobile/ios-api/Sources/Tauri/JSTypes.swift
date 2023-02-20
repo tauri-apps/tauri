@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import Foundation
 
 // declare our empty protocol, and conformance, for typing
@@ -121,52 +125,52 @@ extension JSObjectContainer {
 public protocol JSValueContainer: JSStringContainer, JSBoolContainer, JSIntContainer, JSFloatContainer,
 	JSDoubleContainer, JSDateContainer, JSArrayContainer, JSObjectContainer {
 	static var jsDateFormatter: ISO8601DateFormatter { get }
-	var jsObjectRepresentation: JSObject { get }
+	var data: JSObject { get }
 }
 
 extension JSValueContainer {
 	public func getValue(_ key: String) -> JSValue? {
-		return jsObjectRepresentation[key]
+		return data[key]
 	}
 
 	public func getString(_ key: String) -> String? {
-		return jsObjectRepresentation[key] as? String
+		return data[key] as? String
 	}
 
 	public func getBool(_ key: String) -> Bool? {
-		return jsObjectRepresentation[key] as? Bool
+		return data[key] as? Bool
 	}
 
 	public func getInt(_ key: String) -> Int? {
-		return jsObjectRepresentation[key] as? Int
+		return data[key] as? Int
 	}
 
 	public func getFloat(_ key: String) -> Float? {
-		if let floatValue = jsObjectRepresentation[key] as? Float {
+		if let floatValue = data[key] as? Float {
 			return floatValue
-		} else if let doubleValue = jsObjectRepresentation[key] as? Double {
+		} else if let doubleValue = data[key] as? Double {
 			return Float(doubleValue)
 		}
 		return nil
 	}
 
 	public func getDouble(_ key: String) -> Double? {
-		return jsObjectRepresentation[key] as? Double
+		return data[key] as? Double
 	}
 
 	public func getDate(_ key: String) -> Date? {
-		if let isoString = jsObjectRepresentation[key] as? String {
+		if let isoString = data[key] as? String {
 			return Self.jsDateFormatter.date(from: isoString)
 		}
-		return jsObjectRepresentation[key] as? Date
+		return data[key] as? Date
 	}
 
 	public func getArray(_ key: String) -> JSArray? {
-		return jsObjectRepresentation[key] as? JSArray
+		return data[key] as? JSArray
 	}
 
 	public func getObject(_ key: String) -> JSObject? {
-		return jsObjectRepresentation[key] as? JSObject
+		return data[key] as? JSObject
 	}
 }
 

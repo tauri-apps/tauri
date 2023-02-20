@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -89,32 +89,39 @@ fn command_internal(mut options: Options) -> Result<()> {
 pub fn local_ip_address() -> &'static IpAddr {
   static LOCAL_IP: OnceCell<IpAddr> = OnceCell::new();
   LOCAL_IP.get_or_init(|| {
-    let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()
-      .expect("failed to list networks")
-      .into_iter()
-      .map(|(_, ipaddr)| ipaddr)
-      .filter(|ipaddr| match ipaddr {
-        IpAddr::V4(i) => i != &Ipv4Addr::LOCALHOST,
-        _ => false,
-      })
-      .collect();
-    match addresses.len() {
-      0 => panic!("No external IP detected."),
-      1 => {
-        let ipaddr = addresses.first().unwrap();
-        log::info!("Detected external IP {ipaddr}.");
-        *ipaddr
+    let ip = local_ip_address::local_ip().unwrap_or_else(|_| {
+      let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()
+        .expect("failed to list networks")
+        .into_iter()
+        .map(|(_, ipaddr)| ipaddr)
+        .filter(|ipaddr| match ipaddr {
+          IpAddr::V4(i) => i != &Ipv4Addr::LOCALHOST,
+          _ => false,
+        })
+        .collect();
+      match addresses.len() {
+        0 => panic!("No external IP detected."),
+        1 => {
+          let ipaddr = addresses.first().unwrap();
+          *ipaddr
+        }
+        _ => {
+          let selected = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
+            .with_prompt(
+              "Failed to detect external IP, What IP should we use to access your development server?",
+            )
+            .items(&addresses)
+            .default(0)
+            .interact()
+            .expect("failed to select external IP");
+          *addresses.get(selected).unwrap()
+        }
       }
-      _ => {
-        let selected = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
-          .with_prompt("What external IP should we use for your development server?")
-          .items(&addresses)
-          .default(0)
-          .interact()
-          .expect("failed to select external IP");
-        *addresses.get(selected).unwrap()
-      }
-    }
+    });
+
+    log::info!("Using {ip} to access the development server.");
+
+    ip
   })
 }
 

@@ -1,12 +1,14 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 package app.tauri.plugin
 
-import org.json.JSONArray
-import org.json.JSONException
-import org.json.JSONObject
 import app.tauri.Logger
 
 class Invoke(
-  private val sendResponse: (succcess: PluginResult?, error: PluginResult?) -> Unit,
+  val id: Long,
+  private val sendResponse: (success: PluginResult?, error: PluginResult?) -> Unit,
   val data: JSObject) {
 
   fun resolve(data: JSObject?) {
@@ -64,10 +66,14 @@ class Invoke(
   }
 
   fun getString(name: String): String? {
-    return this.getString(name, null)
+    return getStringInternal(name, null)
   }
 
-  fun getString(name: String, defaultValue: String?): String? {
+  fun getString(name: String, defaultValue: String): String {
+    return getStringInternal(name, defaultValue)!!
+  }
+
+  private fun getStringInternal(name: String, defaultValue: String?): String? {
     val value = data.opt(name) ?: return defaultValue
     return if (value is String) {
       value
@@ -75,10 +81,14 @@ class Invoke(
   }
 
   fun getInt(name: String): Int? {
-    return this.getInt(name, null)
+    return getIntInternal(name, null)
   }
 
-  fun getInt(name: String, defaultValue: Int?): Int? {
+  fun getInt(name: String, defaultValue: Int): Int {
+    return getIntInternal(name, defaultValue)!!
+  }
+
+  private fun getIntInternal(name: String, defaultValue: Int?): Int? {
     val value = data.opt(name) ?: return defaultValue
     return if (value is Int) {
       value
@@ -86,10 +96,14 @@ class Invoke(
   }
 
   fun getLong(name: String): Long? {
-    return this.getLong(name, null)
+    return getLongInternal(name, null)
   }
 
-  fun getLong(name: String, defaultValue: Long?): Long? {
+  fun getLong(name: String, defaultValue: Long): Long {
+    return getLongInternal(name, defaultValue)!!
+  }
+
+  private fun getLongInternal(name: String, defaultValue: Long?): Long? {
     val value = data.opt(name) ?: return defaultValue
     return if (value is Long) {
       value
@@ -97,10 +111,14 @@ class Invoke(
   }
 
   fun getFloat(name: String): Float? {
-    return this.getFloat(name, null)
+    return getFloatInternal(name, null)
   }
 
-  fun getFloat(name: String, defaultValue: Float?): Float? {
+  fun getFloat(name: String, defaultValue: Float): Float {
+    return getFloatInternal(name, defaultValue)!!
+  }
+
+  private fun getFloatInternal(name: String, defaultValue: Float?): Float? {
     val value = data.opt(name) ?: return defaultValue
     if (value is Float) {
       return value
@@ -114,10 +132,14 @@ class Invoke(
   }
 
   fun getDouble(name: String): Double? {
-    return this.getDouble(name, null)
+    return getDoubleInternal(name, null)
   }
 
-  fun getDouble(name: String, defaultValue: Double?): Double? {
+  fun getDouble(name: String, defaultValue: Double): Double {
+    return getDoubleInternal(name, defaultValue)!!
+  }
+
+  private fun getDoubleInternal(name: String, defaultValue: Double?): Double? {
     val value = data.opt(name) ?: return defaultValue
     if (value is Double) {
       return value
@@ -131,10 +153,14 @@ class Invoke(
   }
 
   fun getBoolean(name: String): Boolean? {
-    return this.getBoolean(name, null)
+    return getBooleanInternal(name, null)
   }
 
-  fun getBoolean(name: String, defaultValue: Boolean?): Boolean? {
+  fun getBoolean(name: String, defaultValue: Boolean): Boolean {
+    return getBooleanInternal(name, defaultValue)!!
+  }
+
+  private fun getBooleanInternal(name: String, defaultValue: Boolean?): Boolean? {
     val value = data.opt(name) ?: return defaultValue
     return if (value is Boolean) {
       value
@@ -142,19 +168,27 @@ class Invoke(
   }
 
   fun getObject(name: String): JSObject? {
-    return this.getObject(name, null)
+    return getObjectInternal(name, null)
   }
 
-  fun getObject(name: String, defaultValue: JSObject?): JSObject? {
+  fun getObject(name: String, defaultValue: JSObject): JSObject {
+    return getObjectInternal(name, defaultValue)!!
+  }
+
+  private fun getObjectInternal(name: String, defaultValue: JSObject?): JSObject? {
     val value = data.opt(name) ?: return defaultValue
     return if (value is JSObject) value else defaultValue
   }
 
   fun getArray(name: String): JSArray? {
-    return this.getArray(name, null)
+    return getArrayInternal(name, null)
   }
 
-  fun getArray(name: String, defaultValue: JSArray?): JSArray? {
+  fun getArray(name: String, defaultValue: JSArray): JSArray {
+    return getArrayInternal(name, defaultValue)!!
+  }
+
+  private fun getArrayInternal(name: String, defaultValue: JSArray?): JSArray? {
     val value = data.opt(name) ?: return defaultValue
     return if (value is JSArray) value else defaultValue
   }

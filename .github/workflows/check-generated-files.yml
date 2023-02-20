@@ -1,10 +1,18 @@
-# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
 name: Check generated files
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/check-generated-files.yml'
+      - 'tooling/api/src/**'
+      - 'core/tauri/scripts/bundle.global.js'
+      - 'core/tauri-utils/src/config.rs'
+      - 'tooling/cli/schema.json'
+      - 'core/config-schema/schema.json'
   push:
     paths:
       - '.github/workflows/check-generated-files.yml'

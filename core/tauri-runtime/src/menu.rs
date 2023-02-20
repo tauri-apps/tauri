@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -154,6 +154,7 @@ pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
   fn set_icon_as_template(&self, is_template: bool) -> crate::Result<()>;
   #[cfg(target_os = "macos")]
   fn set_title(&self, title: &str) -> crate::Result<()>;
+  fn set_tooltip(&self, tooltip: &str) -> crate::Result<()>;
   fn destroy(&self) -> crate::Result<()>;
 }
 

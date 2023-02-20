@@ -1,13 +1,11 @@
-import MetalKit
+import UIKit
 import WebKit
 import Tauri
 
-class ExamplePlugin: NSObject, Plugin {
-	@objc func load(webview: WKWebView) {}
-
+class ExamplePlugin: Plugin {
 	@objc public func ping(_ invoke: Invoke) throws {
 		let value = invoke.getString("value")
-		invoke.resolve(.dictionary(["value": value as Any]))
+		invoke.resolve(["value": value as Any])
 	}
 }
 

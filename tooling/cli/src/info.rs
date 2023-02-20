@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -288,7 +288,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
   );
   // check 64bit machine-wide installation
   let output = Command::new(&powershell_path)
-      .args(&["-NoProfile", "-Command"])
+      .args(["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
   if output.status.success() {
@@ -298,7 +298,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
   }
   // check 32bit machine-wide installation
   let output = Command::new(&powershell_path)
-        .args(&["-NoProfile", "-Command"])
+        .args(["-NoProfile", "-Command"])
         .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
         .output()?;
   if output.status.success() {
@@ -308,7 +308,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
   }
   // check user-wide installation
   let output = Command::new(&powershell_path)
-      .args(&["-NoProfile", "-Command"])
+      .args(["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
   if output.status.success() {
@@ -342,7 +342,7 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
     }
   }
   let output = cross_command(vswhere.to_str().unwrap())
-    .args(&[
+    .args([
       "-prerelease",
       "-products",
       "*",
@@ -499,10 +499,10 @@ fn crate_version(
 
   let crate_version = found_crate_versions
     .into_iter()
-    .map(|v| semver::Version::parse(&v).unwrap())
+    .map(|v| semver::Version::parse(&v).ok())
     .max();
   let suffix = match (crate_version, crate_latest_version(name)) {
-    (Some(version), Some(target_version)) => {
+    (Some(Some(version)), Some(target_version)) => {
       let target_version = semver::Version::parse(&target_version).unwrap();
       if version < target_version {
         Some(format!(" (outdated, latest: {target_version})"))

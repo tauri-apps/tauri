@@ -1,10 +1,14 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use std::{
   env::{var, var_os},
-  fs::{self, rename},
+  fs::{copy, create_dir, read_to_string, remove_dir_all, rename, write},
   path::{Path, PathBuf},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 #[derive(Default)]
 pub struct PluginBuilder {
@@ -33,6 +37,10 @@ impl PluginBuilder {
   /// Injects the mobile templates in the given path relative to the manifest root.
   pub fn run(self) -> Result<()> {
     let target_os = var("CARGO_CFG_TARGET_OS").unwrap();
+    let mobile = target_os == "android" || target_os == "ios";
+    crate::cfg_alias("mobile", mobile);
+    crate::cfg_alias("desktop", !mobile);
+
     match target_os.as_str() {
       "android" => {
         if let Some(path) = self.android_path {
@@ -46,37 +54,43 @@ impl PluginBuilder {
             Path::new(&tauri_library_path),
             &source.join("tauri-api"),
             &[],
-          )?;
+          )
+          .context("failed to copy tauri-api to the plugin project")?;
 
           if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
             let pkg_name = var("CARGO_PKG_NAME").unwrap();
             println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
             let android_plugin_project_path = project_dir.join("tauri-plugins").join(&pkg_name);
 
-            inject_android_project(&source, android_plugin_project_path, &["tauri-api"])?;
+            inject_android_project(&source, android_plugin_project_path, &["tauri-api"])
+              .context("failed to inject plugin Android project")?;
 
             let gradle_settings_path = project_dir.join("tauri.settings.gradle");
-            let gradle_settings = fs::read_to_string(&gradle_settings_path)?;
+            let gradle_settings = read_to_string(&gradle_settings_path)
+              .context("failed to read tauri.settings.gradle")?;
             let include = format!(
               "include ':{pkg_name}'
 project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
             );
             if !gradle_settings.contains(&include) {
-              fs::write(
+              write(
                 &gradle_settings_path,
                 format!("{gradle_settings}\n{include}"),
-              )?;
+              )
+              .context("failed to write tauri.settings.gradle")?;
             }
 
             let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
-            let app_build_gradle = fs::read_to_string(&app_build_gradle_path)?;
+            let app_build_gradle = read_to_string(&app_build_gradle_path)
+              .context("failed to read tauri.build.gradle.kts")?;
             let implementation = format!(r#"implementation(project(":{pkg_name}"))"#);
             let target = "dependencies {";
             if !app_build_gradle.contains(&implementation) {
-              fs::write(
+              write(
                 &app_build_gradle_path,
                 app_build_gradle.replace(target, &format!("{target}\n  {implementation}")),
-              )?
+              )
+              .context("failed to write tauri.build.gradle.kts")?;
             }
           }
         }
@@ -92,7 +106,8 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
             &Path::new(&tauri_library_path),
             &path.join("tauri-api"),
             &[".build", "Package.resolved", "Tests"],
-          )?;
+          )
+          .context("failed to copy tauri-api to the plugin project")?;
           link_swift_library(&var("CARGO_PKG_NAME").unwrap(), manifest_dir.join(path));
         }
       }
@@ -111,7 +126,7 @@ pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
   let curr_dir = std::env::current_dir().unwrap();
   std::env::set_current_dir(&source).unwrap();
   swift_rs::build::SwiftLinker::new("10.13")
-    .with_ios("11")
+    .with_ios("13.0")
     .with_package(name, source)
     .link();
   std::env::set_current_dir(&curr_dir).unwrap();
@@ -130,16 +145,17 @@ pub fn inject_android_project(
   let build_path = target.join("build");
   let out_dir = if build_path.exists() {
     let out_dir = target.parent().unwrap().join(".tauri-tmp-build");
-    rename(&build_path, &out_dir)?;
+    let _ = remove_dir_all(&out_dir);
+    rename(&build_path, &out_dir).context("failed to rename build directory")?;
     Some(out_dir)
   } else {
     None
   };
 
-  copy_folder(source, target, ignore_paths)?;
+  copy_folder(source, target, ignore_paths).context("failed to copy Android project")?;
 
   if let Some(out_dir) = out_dir {
-    rename(out_dir, &build_path)?;
+    rename(out_dir, &build_path).context("failed to restore build directory")?;
   }
 
   let rerun_path = target.join("build.gradle.kts");
@@ -147,7 +163,8 @@ pub fn inject_android_project(
   filetime::set_file_mtime(
     &rerun_path,
     filetime::FileTime::from_last_modification_time(&metadata),
-  )?;
+  )
+  .context("failed to update build.gradle.kts mtime")?;
 
   println!("cargo:rerun-if-changed={}", rerun_path.display());
 
@@ -155,7 +172,7 @@ pub fn inject_android_project(
 }
 
 fn copy_folder(source: &Path, target: &Path, ignore_paths: &[&str]) -> Result<()> {
-  let _ = fs::remove_dir_all(target);
+  let _ = remove_dir_all(target);
 
   for entry in walkdir::WalkDir::new(source) {
     let entry = entry?;
@@ -170,9 +187,16 @@ fn copy_folder(source: &Path, target: &Path, ignore_paths: &[&str]) -> Result<()
     let dest_path = target.join(rel_path);
 
     if entry.file_type().is_dir() {
-      fs::create_dir(&dest_path)?;
+      create_dir(&dest_path)
+        .with_context(|| format!("failed to create directory {}", dest_path.display()))?;
     } else {
-      fs::copy(entry.path(), &dest_path)?;
+      copy(entry.path(), &dest_path).with_context(|| {
+        format!(
+          "failed to copy {} to {}",
+          entry.path().display(),
+          dest_path.display()
+        )
+      })?;
       println!("cargo:rerun-if-changed={}", entry.path().display());
     }
   }

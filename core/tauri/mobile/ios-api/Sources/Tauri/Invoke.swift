@@ -1,11 +1,11 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import Foundation
-import MetalKit
+import UIKit
 
 @objc public class Invoke: NSObject, JSValueContainer, BridgedJSValueContainer {
-	public var jsObjectRepresentation: JSObject {
-		return data as? JSObject ?? [:]
-	}
-
 	public var dictionaryRepresentation: NSDictionary {
 		return data as NSDictionary
 	}
@@ -15,14 +15,22 @@ import MetalKit
 	}()
 
 	var sendResponse: (JsonValue?, JsonValue?) -> Void
-	var data: NSDictionary
+	public var data: JSObject
 
-	public init(sendResponse: @escaping (JsonValue?, JsonValue?) -> Void, data: NSDictionary) {
+	public init(sendResponse: @escaping (JsonValue?, JsonValue?) -> Void, data: JSObject?) {
 		self.sendResponse = sendResponse
-		self.data = data
+		self.data = data ?? [:]
 	}
 
-	public func resolve(_ data: JsonValue? = nil) {
+	public func resolve() {
+		sendResponse(nil, nil)
+	}
+
+	public func resolve(_ data: JsonObject) {
+		resolve(.dictionary(data))
+	}
+
+	public func resolve(_ data: JsonValue) {
 		sendResponse(data, nil)
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -23,8 +23,8 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, resources::resource_relpath, Env},
-  Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
-  StateManager, Theme, Window,
+  Context, DeviceEventFilter, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager,
+  Runtime, Scopes, StateManager, Theme, Window,
 };
 
 #[cfg(shell_scope)]
@@ -382,90 +382,6 @@ impl<R: Runtime> AppHandle<R> {
   #[allow(dead_code)]
   pub(crate) fn create_proxy(&self) -> R::EventLoopProxy {
     self.runtime_handle.create_proxy()
-  }
-
-  /// Initializes an iOS plugin.
-  #[cfg(target_os = "ios")]
-  pub fn initialize_ios_plugin(
-    &self,
-    init_fn: unsafe extern "C" fn(cocoa::base::id),
-  ) -> crate::Result<()> {
-    if let Some(window) = self.windows().values().next() {
-      window.with_webview(move |w| {
-        unsafe { init_fn(w.inner()) };
-      })?;
-    } else {
-      unsafe { init_fn(cocoa::base::nil) };
-    }
-    Ok(())
-  }
-
-  /// Initializes an Android plugin.
-  #[cfg(target_os = "android")]
-  pub fn initialize_android_plugin(
-    &self,
-    plugin_name: &'static str,
-    plugin_identifier: &str,
-    class_name: &str,
-  ) -> crate::Result<()> {
-    use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
-
-    fn initialize_plugin<'a, R: Runtime>(
-      env: JNIEnv<'a>,
-      activity: JObject<'a>,
-      webview: JObject<'a>,
-      runtime_handle: &R::Handle,
-      plugin_name: &'static str,
-      plugin_class: String,
-    ) -> Result<(), JniError> {
-      let plugin_manager = env
-        .call_method(
-          activity,
-          "getPluginManager",
-          format!("()Lapp/tauri/plugin/PluginManager;"),
-          &[],
-        )?
-        .l()?;
-
-      // instantiate plugin
-      let plugin_class = runtime_handle.find_class(env, activity, plugin_class)?;
-      let plugin = env.new_object(
-        plugin_class,
-        "(Landroid/app/Activity;)V",
-        &[activity.into()],
-      )?;
-
-      // load plugin
-      env.call_method(
-        plugin_manager,
-        "load",
-        format!("(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;)V"),
-        &[
-          webview.into(),
-          env.new_string(plugin_name)?.into(),
-          plugin.into(),
-        ],
-      )?;
-
-      Ok(())
-    }
-
-    let plugin_class = format!("{}/{}", plugin_identifier.replace(".", "/"), class_name);
-    let runtime_handle = self.runtime_handle.clone();
-    self
-      .runtime_handle
-      .run_on_android_context(move |env, activity, webview| {
-        let _ = initialize_plugin::<R>(
-          env,
-          activity,
-          webview,
-          &runtime_handle,
-          plugin_name,
-          plugin_class,
-        );
-      });
-
-    Ok(())
   }
 }
 
@@ -876,156 +792,6 @@ macro_rules! shared_app_impl {
         }
         Ok(())
       }
-
-      /// Executes the given plugin mobile method.
-      #[cfg(mobile)]
-      pub fn run_mobile_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
-        &self,
-        plugin: impl AsRef<str>,
-        method: impl AsRef<str>,
-        payload: impl serde::Serialize
-      ) -> crate::Result<Result<T, E>> {
-        #[cfg(target_os = "ios")]
-        {
-          Ok(self.run_ios_plugin(plugin, method, payload))
-        }
-        #[cfg(target_os = "android")]
-        {
-          self.run_android_plugin(plugin, method, payload).map_err(Into::into)
-        }
-      }
-
-      /// Executes the given iOS plugin method.
-      #[cfg(target_os = "ios")]
-      fn run_ios_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
-        &self,
-        plugin: impl AsRef<str>,
-        method: impl AsRef<str>,
-        payload: impl serde::Serialize
-      ) -> Result<T, E> {
-        use std::{os::raw::{c_int, c_char}, ffi::CStr, sync::mpsc::channel};
-
-        let id: i32 = rand::random();
-        let (tx, rx) = channel();
-        PENDING_PLUGIN_CALLS
-          .get_or_init(Default::default)
-          .lock()
-          .unwrap().insert(id, Box::new(move |arg| {
-            tx.send(arg).unwrap();
-          }));
-
-        unsafe {
-          extern "C" fn plugin_method_response_handler(id: c_int, success: c_int, payload: *const c_char) {
-            let payload = unsafe {
-              assert!(!payload.is_null());
-              CStr::from_ptr(payload)
-            };
-
-            if let Some(handler) = PENDING_PLUGIN_CALLS
-              .get_or_init(Default::default)
-              .lock()
-              .unwrap()
-              .remove(&id)
-            {
-              let payload = serde_json::from_str(payload.to_str().unwrap()).unwrap();
-              handler(if success == 1 { Ok(payload) } else { Err(payload) });
-            }
-          }
-
-          crate::ios::run_plugin_method(
-            id,
-            &plugin.as_ref().into(),
-            &method.as_ref().into(),
-            crate::ios::json_to_dictionary(serde_json::to_value(payload).unwrap()),
-            plugin_method_response_handler,
-          );
-        }
-        rx.recv().unwrap()
-          .map(|r| serde_json::from_value(r).unwrap())
-          .map_err(|e| serde_json::from_value(e).unwrap())
-      }
-
-      /// Executes the given Android plugin method.
-      #[cfg(target_os = "android")]
-      fn run_android_plugin<T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned>(
-        &self,
-        plugin: impl AsRef<str>,
-        method: impl AsRef<str>,
-        payload: impl serde::Serialize
-      ) -> Result<Result<T, E>, jni::errors::Error> {
-        use jni::{
-          errors::Error as JniError,
-          objects::JObject,
-          JNIEnv,
-        };
-
-        fn run<R: Runtime>(
-          id: i32,
-          plugin: String,
-          method: String,
-          payload: serde_json::Value,
-          runtime_handle: &R::Handle,
-          env: JNIEnv<'_>,
-          activity: JObject<'_>,
-        ) -> Result<(), JniError> {
-          let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, payload)?;
-          let plugin_manager = env
-            .call_method(
-              activity,
-              "getPluginManager",
-              "()Lapp/tauri/plugin/PluginManager;",
-              &[],
-            )?
-            .l()?;
-
-          env.call_method(
-            plugin_manager,
-            "runPluginMethod",
-            "(ILjava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;)V",
-            &[
-              id.into(),
-              env.new_string(plugin)?.into(),
-              env.new_string(&method)?.into(),
-              data.into(),
-            ],
-          )?;
-
-          Ok(())
-        }
-
-        let handle = match self.runtime() {
-          RuntimeOrDispatch::Runtime(r) => r.handle(),
-          RuntimeOrDispatch::RuntimeHandle(h) => h,
-          _ => unreachable!(),
-        };
-
-        let id: i32 = rand::random();
-        let plugin = plugin.as_ref().to_string();
-        let method = method.as_ref().to_string();
-        let payload = serde_json::to_value(payload).unwrap();
-        let handle_ = handle.clone();
-
-        let (tx, rx) = std::sync::mpsc::channel();
-        let tx_ = tx.clone();
-        PENDING_PLUGIN_CALLS
-          .get_or_init(Default::default)
-          .lock()
-          .unwrap().insert(id, Box::new(move |arg| {
-            tx.send(Ok(arg)).unwrap();
-          }));
-
-        handle.run_on_android_context(move |env, activity, _webview| {
-          if let Err(e) = run::<R>(id, plugin, method, payload, &handle_, env, activity) {
-            tx_.send(Err(e)).unwrap();
-          }
-        });
-
-        rx.recv().unwrap().map(|response| {
-          response
-            .map(|r| serde_json::from_value(r).unwrap())
-            .map_err(|e| serde_json::from_value(e).unwrap())
-        })
-      }
     }
   };
 }
@@ -1059,6 +825,35 @@ impl<R: Runtime> App<R> {
       .as_mut()
       .unwrap()
       .set_activation_policy(activation_policy);
+  }
+
+  /// Change the device event filter mode.
+  ///
+  /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
+  /// will ignore them by default for unfocused windows on Windows. This method allows changing
+  /// the filter to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// let mut app = tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application");
+  /// app.set_device_event_filter(tauri::DeviceEventFilter::Always);
+  /// app.run(|_app_handle, _event| {});
+  /// ```
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  pub fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
+    self
+      .runtime
+      .as_mut()
+      .unwrap()
+      .set_device_event_filter(filter);
   }
 
   /// Gets the argument matches of the CLI definition configured in `tauri.conf.json`.
@@ -1275,6 +1070,9 @@ pub struct Builder<R: Runtime> {
   /// The updater configuration.
   #[cfg(updater)]
   updater_settings: UpdaterSettings,
+
+  /// The device event filter.
+  device_event_filter: DeviceEventFilter,
 }
 
 impl<R: Runtime> Builder<R> {
@@ -1287,7 +1085,7 @@ impl<R: Runtime> Builder<R> {
       invoke_handler: Box::new(|_| false),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
-        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (message) => window.ipc.postMessage(JSON.stringify(message)) })".into(),
+        format!("Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {{ value: (message) => window.ipc.postMessage({}(message)) }})", crate::manager::STRINGIFY_IPC_MESSAGE_FN),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -1303,6 +1101,7 @@ impl<R: Runtime> Builder<R> {
       system_tray_event_listeners: Vec::new(),
       #[cfg(updater)]
       updater_settings: Default::default(),
+      device_event_filter: Default::default(),
     }
   }
 
@@ -1410,7 +1209,7 @@ impl<R: Runtime> Builder<R> {
   ///   }
   ///   pub fn init<R: Runtime>() -> TauriPlugin<R> {
   ///     PluginBuilder::new("window")
-  ///       .setup(|app| {
+  ///       .setup(|app, api| {
   ///         // initialize the plugin here
   ///         Ok(())
   ///       })
@@ -1737,7 +1536,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   /// let kind = if cfg!(debug_assertions) { "debug" } else { "release" };
   /// tauri::Builder::default()
-  ///   .updater_target(format!("{}-{}", tauri::updater::target().unwrap(), kind));
+  ///   .updater_target(format!("{}-{kind}", tauri::updater::target().unwrap()));
   /// ```
   ///
   /// - Use the platform's target triple:
@@ -1749,6 +1548,28 @@ impl<R: Runtime> Builder<R> {
   #[cfg(updater)]
   pub fn updater_target<T: Into<String>>(mut self, target: T) -> Self {
     self.updater_settings.target.replace(target.into());
+    self
+  }
+
+  /// Change the device event filter mode.
+  ///
+  /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
+  /// will ignore them by default for unfocused windows on Windows. This method allows changing
+  /// the filter to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .device_event_filter(tauri::DeviceEventFilter::Always);
+  /// ```
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  pub fn device_event_filter(mut self, filter: DeviceEventFilter) -> Self {
+    self.device_event_filter = filter;
     self
   }
 
@@ -1785,6 +1606,9 @@ impl<R: Runtime> Builder<R> {
       if let Some(ua) = &config.user_agent {
         webview_attributes = webview_attributes.user_agent(&ua.to_string());
       }
+      if let Some(args) = &config.additional_browser_args {
+        webview_attributes = webview_attributes.additional_browser_args(&args.to_string());
+      }
       if !config.file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();
       }
@@ -1797,13 +1621,15 @@ impl<R: Runtime> Builder<R> {
     }
 
     #[cfg(any(windows, target_os = "linux"))]
-    let runtime = if self.runtime_any_thread {
+    let mut runtime = if self.runtime_any_thread {
       R::new_any_thread()?
     } else {
       R::new()?
     };
     #[cfg(not(any(windows, target_os = "linux")))]
-    let runtime = R::new()?;
+    let mut runtime = R::new()?;
+
+    runtime.set_device_event_filter(self.device_event_filter);
 
     let runtime_handle = runtime.handle();
 
@@ -2031,57 +1857,6 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
 impl Default for Builder<crate::Wry> {
   fn default() -> Self {
     Self::new()
-  }
-}
-
-#[cfg(mobile)]
-type PendingPluginCallHandler =
-  Box<dyn FnOnce(std::result::Result<serde_json::Value, serde_json::Value>) + Send + 'static>;
-
-#[cfg(mobile)]
-static PENDING_PLUGIN_CALLS: once_cell::sync::OnceCell<
-  std::sync::Mutex<HashMap<i32, PendingPluginCallHandler>>,
-> = once_cell::sync::OnceCell::new();
-
-#[cfg(target_os = "android")]
-#[doc(hidden)]
-pub fn handle_android_plugin_response(
-  env: jni::JNIEnv<'_>,
-  id: i32,
-  success: jni::objects::JString<'_>,
-  error: jni::objects::JString<'_>,
-) {
-  let (payload, is_ok): (serde_json::Value, bool) = match (
-    env
-      .is_same_object(success, jni::objects::JObject::default())
-      .unwrap_or_default(),
-    env
-      .is_same_object(error, jni::objects::JObject::default())
-      .unwrap_or_default(),
-  ) {
-    // both null
-    (true, true) => (serde_json::Value::Null, true),
-    // error null
-    (false, true) => (
-      serde_json::from_str(env.get_string(success).unwrap().to_str().unwrap()).unwrap(),
-      true,
-    ),
-    // success null
-    (true, false) => (
-      serde_json::from_str(env.get_string(error).unwrap().to_str().unwrap()).unwrap(),
-      false,
-    ),
-    // both are set - impossible in the Kotlin code
-    (false, false) => unreachable!(),
-  };
-
-  if let Some(handler) = PENDING_PLUGIN_CALLS
-    .get_or_init(Default::default)
-    .lock()
-    .unwrap()
-    .remove(&id)
-  {
-    handler(if is_ok { Ok(payload) } else { Err(payload) });
   }
 }
 

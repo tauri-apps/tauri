@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -12,10 +12,14 @@ use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, result::Result as StdResult};
+
+/// Mobile APIs.
+#[cfg(mobile)]
+pub mod mobile;
 
 /// The result type of Tauri plugin module.
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub type Result<T> = StdResult<T, Box<dyn std::error::Error>>;
 
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {
@@ -35,7 +39,7 @@ pub trait Plugin<R: Runtime>: Send {
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
-  /// so global variables must be assigned to `window` instead of implicity declared.
+  /// so global variables must be assigned to `window` instead of implicitly declared.
   fn initialization_script(&self) -> Option<String> {
     None
   }
@@ -59,12 +63,35 @@ pub trait Plugin<R: Runtime>: Send {
   }
 }
 
-type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send;
-type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send;
+type SetupHook<R, C> = dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send;
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
 type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
+
+/// A handle to a plugin.
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct PluginHandle<R: Runtime> {
+  name: &'static str,
+  handle: AppHandle<R>,
+}
+
+/// Api exposed to the plugin setup hook.
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct PluginApi<R: Runtime, C: DeserializeOwned> {
+  handle: AppHandle<R>,
+  name: &'static str,
+  config: C,
+}
+
+impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
+  /// Returns the plugin configuration.
+  pub fn config(&self) -> &C {
+    &self.config
+  }
+}
 
 /// Builds a [`TauriPlugin`].
 ///
@@ -128,7 +155,7 @@ type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 ///
 ///   pub fn build<R: Runtime>(self) -> TauriPlugin<R> {
 ///     PluginBuilder::new("example")
-///       .setup(move |app_handle| {
+///       .setup(move |app_handle, api| {
 ///         // use the options here to do stuff
 ///         println!("a: {}, b: {}, c: {}", self.option_a, self.option_b, self.option_c);
 ///
@@ -141,8 +168,7 @@ type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
-  setup: Option<Box<SetupHook<R>>>,
-  setup_with_config: Option<Box<SetupWithConfigHook<R, C>>>,
+  setup: Option<Box<SetupHook<R, C>>>,
   js_init_script: Option<String>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
@@ -156,7 +182,6 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     Self {
       name,
       setup: None,
-      setup_with_config: None,
       js_init_script: None,
       invoke_handler: Box::new(|_| false),
       on_page_load: Box::new(|_, _| ()),
@@ -205,7 +230,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
-  /// so global variables must be assigned to `window` instead of implicity declared.
+  /// so global variables must be assigned to `window` instead of implicitly declared.
   ///
   /// Note that calling this function multiple times overrides previous values.
   ///
@@ -236,10 +261,6 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
 
   /// Define a closure that runs when the plugin is registered.
   ///
-  /// This is a convenience function around [setup_with_config], without the need to specify a configuration object.
-  ///
-  /// The closure gets called before the [setup_with_config] closure.
-  ///
   /// # Examples
   ///
   /// ```rust
@@ -253,58 +274,20 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   /// Builder::new("example")
-  ///   .setup(|app_handle| {
-  ///     app_handle.manage(PluginState::default());
+  ///   .setup(|app, api| {
+  ///     app.manage(PluginState::default());
   ///
   ///     Ok(())
   ///   })
   ///   .build()
   /// }
   /// ```
-  ///
-  /// [setup_with_config]: struct.Builder.html#method.setup_with_config
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>) -> Result<()> + Send + 'static,
+    F: FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send + 'static,
   {
     self.setup.replace(Box::new(setup));
-    self
-  }
-
-  /// Define a closure that runs when the plugin is registered, accepting a configuration object set on `tauri.conf.json > plugins > yourPluginName`.
-  ///
-  /// If your plugin is not pulling a configuration object from `tauri.conf.json`, use [setup].
-  ///
-  /// The closure gets called after the [setup] closure.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,no_run
-  /// #[derive(serde::Deserialize)]
-  /// struct Config {
-  ///   api_url: String,
-  /// }
-  ///
-  /// fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R, Config> {
-  ///   tauri::plugin::Builder::<R, Config>::new("api")
-  ///     .setup_with_config(|_app_handle, config| {
-  ///       println!("config: {:?}", config.api_url);
-  ///       Ok(())
-  ///     })
-  ///     .build()
-  /// }
-  ///
-  /// tauri::Builder::default().plugin(init());
-  /// ```
-  ///
-  /// [setup]: struct.Builder.html#method.setup
-  #[must_use]
-  pub fn setup_with_config<F>(mut self, setup_with_config: F) -> Self
-  where
-    F: FnOnce(&AppHandle<R>, C) -> Result<()> + Send + 'static,
-  {
-    self.setup_with_config.replace(Box::new(setup_with_config));
     self
   }
 
@@ -420,7 +403,6 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       app: None,
       invoke_handler: self.invoke_handler,
       setup: self.setup,
-      setup_with_config: self.setup_with_config,
       js_init_script: self.js_init_script,
       on_page_load: self.on_page_load,
       on_webview_ready: self.on_webview_ready,
@@ -435,8 +417,7 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   app: Option<AppHandle<R>>,
   invoke_handler: Box<InvokeHandler<R>>,
-  setup: Option<Box<SetupHook<R>>>,
-  setup_with_config: Option<Box<SetupWithConfigHook<R, C>>>,
+  setup: Option<Box<SetupHook<R, C>>>,
   js_init_script: Option<String>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
@@ -460,10 +441,14 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
   fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
     self.app.replace(app.clone());
     if let Some(s) = self.setup.take() {
-      (s)(app)?;
-    }
-    if let Some(s) = self.setup_with_config.take() {
-      (s)(app, serde_json::from_value(config)?)?;
+      (s)(
+        app,
+        PluginApi {
+          name: self.name,
+          handle: app.clone(),
+          config: serde_json::from_value(config)?,
+        },
+      )?;
     }
     Ok(())
   }

@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use super::{
   configure_cargo, detect_target_ok, ensure_init, env, log_finished, open_and_wait, with_config,
   MobileTarget,
@@ -60,6 +64,7 @@ impl From<Options> for BuildOptions {
       bundles: None,
       config: options.config,
       args: Vec::new(),
+      ci: false,
     }
   }
 }
@@ -151,7 +156,7 @@ fn run_build(
         app_version.push_extra(build_number);
       }
 
-      target.build(config, env, noise_level, profile)?;
+      target.build(config, env, NoiseLevel::FranklyQuitePedantic, profile)?;
       target.archive(config, env, noise_level, profile, Some(app_version))?;
       target.export(config, env, noise_level)?;
 

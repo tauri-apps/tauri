@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -39,7 +39,7 @@ interface SubcommandMatch {
  * @since 1.0.0
  */
 interface CliMatches {
-  args: { [name: string]: ArgMatch }
+  args: Record<string, ArgMatch>
   subcommand: SubcommandMatch | null
 }
 

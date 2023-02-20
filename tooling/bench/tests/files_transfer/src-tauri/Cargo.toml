@@ -14,5 +14,4 @@ serde = { version = "1.0", features = [ "derive" ] }
 tauri = { path = "../../../../../core/tauri", features = ["fs-read-file"] }
 
 [features]
-default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]

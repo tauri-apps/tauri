@@ -41,6 +41,11 @@
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
 
+## \[1.2.3]
+
+- Pin `ignore` to `=0.4.18`.
+  - [adcb082b](https://www.github.com/tauri-apps/tauri/commit/adcb082b1651ecb2a6208b093e12f4185aa3fc98) chore(deps): pin `ignore` to =0.4.18 on 2023-01-17
+
 ## \[1.2.2]
 
 - Detect SvelteKit and Vite for the init and info commands.

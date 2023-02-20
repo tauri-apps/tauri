@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-tauri-mobile = { version = "0.2", default-features = false, features = ["openssl-vendored"] }
+tauri-mobile = { version = "0.2.3", default-features = false, features = ["openssl-vendored"] }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.16", features = [ "client", "server" ] }
 thiserror = "1"
@@ -62,14 +62,14 @@ jsonschema = "0.16"
 handlebars = "4.3"
 include_dir = "0.7"
 minisign = "0.7"
-base64 = "0.13.0"
+base64 = "0.21.0"
 ureq = "2.5"
 os_info = "3.5"
 semver = "1.0"
 regex = "1.6.0"
 unicode-width = "0.1"
 zeroize = "1.5"
-heck = "0.4"
+heck = { version = "0.4", features = [ "unicode" ] }
 dialoguer = "0.10"
 url = { version = "2.3", features = [ "serde" ] }
 os_pipe = "1"
@@ -84,6 +84,8 @@ html5ever = "0.25"
 kuchiki = "0.8"
 tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
+serde-value = "0.7.0"
+itertools = "0.10"
 local-ip-address = "0.4"
 css-color = "0.2"
 

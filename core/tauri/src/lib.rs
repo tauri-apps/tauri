@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -137,6 +137,7 @@
 //! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
 //! - **window-set-shadow**: Enables the [`setShadow` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setshadow).
 //! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
+//! - **window-set-content-protected**: Enables the [`setContentProtected` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcontentprotected).
 //! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
 //! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
 //! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
@@ -239,7 +240,7 @@ macro_rules! android_binding {
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
-pub use app::handle_android_plugin_response;
+pub use plugin::mobile::handle_android_plugin_response;
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;
@@ -290,7 +291,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    RunIteration, UserAttentionType,
+    DeviceEventFilter, RunIteration, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{

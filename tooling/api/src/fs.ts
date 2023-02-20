@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -363,7 +363,7 @@ async function writeBinaryFile(
   if (contents && 'dir' in contents) {
     fileOptions = contents
   } else if (typeof path === 'string') {
-    // @ts-expect-error
+    // @ts-expect-error in this case `contents` is always a BinaryFileContents
     file.contents = contents ?? []
   }
 

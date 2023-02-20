@@ -5,6 +5,7 @@
 use clap::{Parser, Subcommand};
 use std::{
   env::set_var,
+  fs::create_dir,
   process::exit,
   thread::{sleep, spawn},
   time::Duration,
@@ -132,12 +133,16 @@ pub fn get_config(
     app.reverse_domain().replace('.', "/"),
     app.name_snake()
   ));
-  if config.project_dir().exists() && !src_main_dir.exists() {
-    log::error!(
+  if config.project_dir().exists() {
+    if src_main_dir.exists() {
+      let _ = create_dir(src_main_dir.join("generated"));
+    } else {
+      log::error!(
       "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
       src_main_dir.display()
     );
-    exit(1);
+      exit(1);
+    }
   }
   set_var(
     "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",

@@ -66,7 +66,7 @@ pub struct Options {
   pub no_dev_server: bool,
   /// Specify port for the dev server for static files. Defaults to 1430
   #[clap(long)]
-  pub dev_server_port: Option<u16>,
+  pub port: Option<u16>,
 }
 
 pub fn command(options: Options) -> Result<()> {

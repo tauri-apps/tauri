@@ -247,7 +247,10 @@ impl<T: UserEvent> Context<T> {
   }
 }
 
+#[cfg(all(desktop, feature = "global-shortcut"))]
 pub struct GlobalHotKeyManagerWrapper(GlobalHotKeyManager);
+
+#[cfg(all(desktop, feature = "global-shortcut"))]
 impl std::fmt::Debug for GlobalHotKeyManagerWrapper {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_tuple("GlobalHotKeyManagerWrapper")

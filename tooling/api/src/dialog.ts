@@ -171,8 +171,7 @@ async function open(
     Object.freeze(options)
   }
 
-  return invokeTauriCommand({
-    __tauriModule: 'Dialog',
+  return invokeTauriCommand('Dialog', {
     message: {
       cmd: 'openDialog',
       options
@@ -209,8 +208,7 @@ async function save(options: SaveDialogOptions = {}): Promise<string | null> {
     Object.freeze(options)
   }
 
-  return invokeTauriCommand({
-    __tauriModule: 'Dialog',
+  return invokeTauriCommand('Dialog', {
     message: {
       cmd: 'saveDialog',
       options
@@ -240,8 +238,7 @@ async function message(
   options?: string | MessageDialogOptions
 ): Promise<void> {
   const opts = typeof options === 'string' ? { title: options } : options
-  return invokeTauriCommand({
-    __tauriModule: 'Dialog',
+  return invokeTauriCommand('Dialog', {
     message: {
       cmd: 'messageDialog',
       message: message.toString(),
@@ -273,8 +270,7 @@ async function ask(
   options?: string | ConfirmDialogOptions
 ): Promise<boolean> {
   const opts = typeof options === 'string' ? { title: options } : options
-  return invokeTauriCommand({
-    __tauriModule: 'Dialog',
+  return invokeTauriCommand('Dialog', {
     message: {
       cmd: 'askDialog',
       message: message.toString(),
@@ -309,8 +305,7 @@ async function confirm(
   options?: string | ConfirmDialogOptions
 ): Promise<boolean> {
   const opts = typeof options === 'string' ? { title: options } : options
-  return invokeTauriCommand({
-    __tauriModule: 'Dialog',
+  return invokeTauriCommand('Dialog', {
     message: {
       cmd: 'confirmDialog',
       message: message.toString(),

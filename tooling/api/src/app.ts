@@ -39,8 +39,7 @@ import { invokeTauriCommand } from './helpers/tauri'
  * @since 1.0.0
  */
 async function getVersion(): Promise<string> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
+  return invokeTauriCommand('App', {
     message: {
       cmd: 'getAppVersion'
     }
@@ -58,8 +57,7 @@ async function getVersion(): Promise<string> {
  * @since 1.0.0
  */
 async function getName(): Promise<string> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
+  return invokeTauriCommand('App', {
     message: {
       cmd: 'getAppName'
     }
@@ -78,8 +76,7 @@ async function getName(): Promise<string> {
  * @since 1.0.0
  */
 async function getTauriVersion(): Promise<string> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
+  return invokeTauriCommand('App', {
     message: {
       cmd: 'getTauriVersion'
     }
@@ -98,8 +95,7 @@ async function getTauriVersion(): Promise<string> {
  * @since 1.2.0
  */
 async function show(): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
+  return invokeTauriCommand('App', {
     message: {
       cmd: 'show'
     }
@@ -118,8 +114,7 @@ async function show(): Promise<void> {
  * @since 1.2.0
  */
 async function hide(): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
+  return invokeTauriCommand('App', {
     message: {
       cmd: 'hide'
     }

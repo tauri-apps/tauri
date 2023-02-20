@@ -5,7 +5,8 @@
 node_modules
 target
 dist
-/core/tauri/scripts
+/core/tauri/scripts/bundle.global.js
+/core/tauri/scripts/stringify-ipc-message-fn.js
 /tooling/cli/templates
 /tooling/cli/node
 /tooling/cli/schema.json

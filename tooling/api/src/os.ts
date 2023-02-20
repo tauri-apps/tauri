@@ -75,8 +75,7 @@ const EOL = isWindows() ? '\r\n' : '\n'
  *
  */
 async function platform(): Promise<Platform> {
-  return invokeTauriCommand<Platform>({
-    __tauriModule: 'Os',
+  return invokeTauriCommand<Platform>('Os', {
     message: {
       cmd: 'platform'
     }
@@ -94,8 +93,7 @@ async function platform(): Promise<Platform> {
  * @since 1.0.0
  */
 async function version(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Os',
+  return invokeTauriCommand<string>('Os', {
     message: {
       cmd: 'version'
     }
@@ -113,8 +111,7 @@ async function version(): Promise<string> {
  * @since 1.0.0
  */
 async function type(): Promise<OsType> {
-  return invokeTauriCommand<OsType>({
-    __tauriModule: 'Os',
+  return invokeTauriCommand<OsType>('Os', {
     message: {
       cmd: 'osType'
     }
@@ -133,8 +130,7 @@ async function type(): Promise<OsType> {
  * @since 1.0.0
  */
 async function arch(): Promise<Arch> {
-  return invokeTauriCommand<Arch>({
-    __tauriModule: 'Os',
+  return invokeTauriCommand<Arch>('Os', {
     message: {
       cmd: 'arch'
     }
@@ -152,8 +148,7 @@ async function arch(): Promise<Arch> {
  * @since 1.0.0
  */
 async function tempdir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Os',
+  return invokeTauriCommand<string>('Os', {
     message: {
       cmd: 'tempdir'
     }

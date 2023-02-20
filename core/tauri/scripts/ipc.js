@@ -6,8 +6,7 @@
  * @typedef {{callback: string, error: string, data: *}} IsolationPayload - a valid isolation payload
  */
 
-;
-(function () {
+;(function () {
   /**
    * @type {string}
    */

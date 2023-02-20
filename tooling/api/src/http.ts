@@ -320,8 +320,7 @@ class Client {
    * ```
    */
   async drop(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Http',
+    return invokeTauriCommand('Http', {
       message: {
         cmd: 'dropClient',
         client: this.id
@@ -347,8 +346,7 @@ class Client {
     if (jsonResponse) {
       options.responseType = ResponseType.Text
     }
-    return invokeTauriCommand<IResponse<T>>({
-      __tauriModule: 'Http',
+    return invokeTauriCommand<IResponse<T>>('Http', {
       message: {
         cmd: 'httpRequest',
         client: this.id,
@@ -509,8 +507,7 @@ class Client {
  * @since 1.0.0
  */
 async function getClient(options?: ClientOptions): Promise<Client> {
-  return invokeTauriCommand<number>({
-    __tauriModule: 'Http',
+  return invokeTauriCommand<number>('Http', {
     message: {
       cmd: 'createClient',
       options

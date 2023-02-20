@@ -1026,7 +1026,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// The client area is the content of the window, excluding the title bar and borders.
   pub fn inner_size(&self) -> crate::Result<PhysicalSize<u32>> {
-    self.window.dispatcher.inner_size().map_err(Into::into)
+    tauri_runtime::Dispatch::inner_size(&self.window.dispatcher).map_err(Into::into)
   }
 
   /// Returns the physical size of the entire window.
@@ -1068,7 +1068,7 @@ impl<R: Runtime> Window<R> {
 
   /// Gets the window's current title.
   pub fn title(&self) -> crate::Result<String> {
-    self.window.dispatcher.title().map_err(Into::into)
+    tauri_runtime::Dispatch::title(&self.window.dispatcher).map_err(Into::into)
   }
 
   /// Returns the monitor on which the window currently resides.
@@ -1159,7 +1159,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// - **macOS**: Only supported on macOS 10.14+.
   pub fn theme(&self) -> crate::Result<Theme> {
-    self.window.dispatcher.theme().map_err(Into::into)
+    tauri_runtime::Dispatch::theme(&self.window.dispatcher).map_err(Into::into)
   }
 }
 
@@ -1456,7 +1456,7 @@ impl<R: Runtime> Window<R> {
     let manager = self.manager.clone();
     match payload.cmd.as_str() {
       "__initialized" => {
-        let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
+        let payload: PageLoadPayload = serde_json::from_value(payload.args)?;
         manager.run_on_page_load(self, payload);
       }
       _ => {
@@ -1464,19 +1464,14 @@ impl<R: Runtime> Window<R> {
           self.clone(),
           manager.state(),
           payload.cmd.to_string(),
-          payload.inner,
+          payload.args,
         );
         #[allow(clippy::redundant_clone)]
         let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
 
         let mut invoke = Invoke { message, resolver };
-        if let Some(module) = &payload.tauri_module {
-          crate::endpoints::handle(
-            module.to_string(),
-            invoke,
-            manager.config(),
-            manager.package_info(),
-          );
+        if let Some(module) = payload.tauri_module {
+          crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
         } else if payload.cmd.starts_with("plugin:") {
           let command = invoke.message.command.replace("plugin:", "");
           let mut tokens = command.split('|');

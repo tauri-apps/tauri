@@ -176,8 +176,7 @@ async function readTextFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand<string>('Fs', {
     message: {
       cmd: 'readTextFile',
       path: filePath,
@@ -201,8 +200,7 @@ async function readBinaryFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<Uint8Array> {
-  const arr = await invokeTauriCommand<number[]>({
-    __tauriModule: 'Fs',
+  const arr = await invokeTauriCommand<number[]>('Fs', {
     message: {
       cmd: 'readFile',
       path: filePath,
@@ -281,8 +279,7 @@ async function writeTextFile(
     fileOptions = contents
   }
 
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand('Fs', {
     message: {
       cmd: 'writeFile',
       path: file.path,
@@ -367,8 +364,7 @@ async function writeBinaryFile(
     file.contents = contents ?? []
   }
 
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand('Fs', {
     message: {
       cmd: 'writeFile',
       path: file.path,
@@ -406,8 +402,7 @@ async function readDir(
   dir: string,
   options: FsDirOptions = {}
 ): Promise<FileEntry[]> {
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand('Fs', {
     message: {
       cmd: 'readDir',
       path: dir,
@@ -435,8 +430,7 @@ async function createDir(
   dir: string,
   options: FsDirOptions = {}
 ): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand('Fs', {
     message: {
       cmd: 'createDir',
       path: dir,
@@ -463,8 +457,7 @@ async function removeDir(
   dir: string,
   options: FsDirOptions = {}
 ): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand('Fs', {
     message: {
       cmd: 'removeDir',
       path: dir,
@@ -491,8 +484,7 @@ async function copyFile(
   destination: string,
   options: FsOptions = {}
 ): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand('Fs', {
     message: {
       cmd: 'copyFile',
       source,
@@ -519,8 +511,7 @@ async function removeFile(
   file: string,
   options: FsOptions = {}
 ): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand('Fs', {
     message: {
       cmd: 'removeFile',
       path: file,
@@ -547,8 +538,7 @@ async function renameFile(
   newPath: string,
   options: FsOptions = {}
 ): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand('Fs', {
     message: {
       cmd: 'renameFile',
       oldPath,
@@ -570,8 +560,7 @@ async function renameFile(
  * @since 1.1.0
  */
 async function exists(path: string, options: FsOptions = {}): Promise<boolean> {
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
+  return invokeTauriCommand('Fs', {
     message: {
       cmd: 'exists',
       path,

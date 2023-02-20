@@ -440,8 +440,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns The window's monitor scale factor.
    * */
   async scaleFactor(): Promise<number> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -465,8 +464,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns The window's inner position.
    *  */
   async innerPosition(): Promise<PhysicalPosition> {
-    return invokeTauriCommand<{ x: number; y: number }>({
-      __tauriModule: 'Window',
+    return invokeTauriCommand<{ x: number; y: number }>('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -490,8 +488,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns The window's outer position.
    *  */
   async outerPosition(): Promise<PhysicalPosition> {
-    return invokeTauriCommand<{ x: number; y: number }>({
-      __tauriModule: 'Window',
+    return invokeTauriCommand<{ x: number; y: number }>('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -516,8 +513,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns The window's inner size.
    */
   async innerSize(): Promise<PhysicalSize> {
-    return invokeTauriCommand<{ width: number; height: number }>({
-      __tauriModule: 'Window',
+    return invokeTauriCommand<{ width: number; height: number }>('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -542,8 +538,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns The window's outer size.
    */
   async outerSize(): Promise<PhysicalSize> {
-    return invokeTauriCommand<{ width: number; height: number }>({
-      __tauriModule: 'Window',
+    return invokeTauriCommand<{ width: number; height: number }>('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -567,8 +562,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns Whether the window is in fullscreen mode or not.
    *  */
   async isFullscreen(): Promise<boolean> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -592,8 +586,7 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.3.0
    * */
   async isMinimized(): Promise<boolean> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -617,8 +610,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns Whether the window is maximized or not.
    * */
   async isMaximized(): Promise<boolean> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -642,8 +634,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns Whether the window is decorated or not.
    *  */
   async isDecorated(): Promise<boolean> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -667,8 +658,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns Whether the window is resizable or not.
    *  */
   async isResizable(): Promise<boolean> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -692,8 +682,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns Whether the window is visible or not.
    *  */
   async isVisible(): Promise<boolean> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -717,8 +706,7 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.3.0
    * */
   async title(): Promise<string> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -747,8 +735,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns The window theme.
    * */
   async theme(): Promise<Theme | null> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -775,8 +762,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async center(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -821,8 +807,7 @@ class WindowManager extends WebviewWindowHandle {
         requestType_ = { type: 'Informational' }
       }
     }
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -848,8 +833,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setResizable(resizable: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -875,8 +859,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setTitle(title: string): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -901,8 +884,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async maximize(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -926,8 +908,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async unmaximize(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -951,8 +932,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async toggleMaximize(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -976,8 +956,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async minimize(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1001,8 +980,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async unminimize(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1026,8 +1004,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async show(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1051,8 +1028,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async hide(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1076,8 +1052,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async close(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1102,8 +1077,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setDecorations(decorations: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1139,8 +1113,7 @@ class WindowManager extends WebviewWindowHandle {
    * @since 2.0
    */
   async setShadow(enable: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1166,8 +1139,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1194,8 +1166,7 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.2.0
    */
   async setContentProtected(protected_: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1226,8 +1197,7 @@ class WindowManager extends WebviewWindowHandle {
         'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
       )
     }
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1266,8 +1236,7 @@ class WindowManager extends WebviewWindowHandle {
         'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
       )
     }
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1276,12 +1245,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                type: size.type,
-                data: {
-                  width: size.width,
-                  height: size.height
+                  type: size.type,
+                  data: {
+                    width: size.width,
+                    height: size.height
+                  }
                 }
-              }
               : null
           }
         }
@@ -1308,8 +1277,7 @@ class WindowManager extends WebviewWindowHandle {
         'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
       )
     }
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1318,12 +1286,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                type: size.type,
-                data: {
-                  width: size.width,
-                  height: size.height
+                  type: size.type,
+                  data: {
+                    width: size.width,
+                    height: size.height
+                  }
                 }
-              }
               : null
           }
         }
@@ -1353,8 +1321,7 @@ class WindowManager extends WebviewWindowHandle {
         'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
       )
     }
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1386,8 +1353,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setFullscreen(fullscreen: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1412,8 +1378,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setFocus(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1445,8 +1410,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setIcon(icon: string | Uint8Array): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1479,8 +1443,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSkipTaskbar(skip: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1514,8 +1477,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setCursorGrab(grab: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1547,8 +1509,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setCursorVisible(visible: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1574,8 +1535,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setCursorIcon(icon: CursorIcon): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1611,8 +1571,7 @@ class WindowManager extends WebviewWindowHandle {
         'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
       )
     }
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1645,8 +1604,7 @@ class WindowManager extends WebviewWindowHandle {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setIgnoreCursorEvents(ignore: boolean): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -1671,8 +1629,7 @@ class WindowManager extends WebviewWindowHandle {
    * @return A promise indicating the success or failure of the operation.
    */
   async startDragging(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Window',
+    return invokeTauriCommand('Window', {
       message: {
         cmd: 'manage',
         data: {
@@ -2029,8 +1986,7 @@ class WebviewWindow extends WindowManager {
     super(label)
     // @ts-expect-error `skip` is not a public API so it is not defined in WindowOptions
     if (!options?.skip) {
-      invokeTauriCommand({
-        __tauriModule: 'Window',
+      invokeTauriCommand('Window', {
         message: {
           cmd: 'createWebview',
           data: {
@@ -2203,11 +2159,11 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-      name: m.name,
-      scaleFactor: m.scaleFactor,
-      position: new PhysicalPosition(m.position.x, m.position.y),
-      size: new PhysicalSize(m.size.width, m.size.height)
-    }
+        name: m.name,
+        scaleFactor: m.scaleFactor,
+        position: new PhysicalPosition(m.position.x, m.position.y),
+        size: new PhysicalSize(m.size.width, m.size.height)
+      }
 }
 
 /**
@@ -2222,8 +2178,7 @@ function mapMonitor(m: Monitor | null): Monitor | null {
  * @since 1.0.0
  */
 async function currentMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand<Monitor | null>({
-    __tauriModule: 'Window',
+  return invokeTauriCommand<Monitor | null>('Window', {
     message: {
       cmd: 'manage',
       data: {
@@ -2247,8 +2202,7 @@ async function currentMonitor(): Promise<Monitor | null> {
  * @since 1.0.0
  */
 async function primaryMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand<Monitor | null>({
-    __tauriModule: 'Window',
+  return invokeTauriCommand<Monitor | null>('Window', {
     message: {
       cmd: 'manage',
       data: {
@@ -2271,8 +2225,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
  * @since 1.0.0
  */
 async function availableMonitors(): Promise<Monitor[]> {
-  return invokeTauriCommand<Monitor[]>({
-    __tauriModule: 'Window',
+  return invokeTauriCommand<Monitor[]>('Window', {
     message: {
       cmd: 'manage',
       data: {

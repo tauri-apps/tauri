@@ -3,15 +3,18 @@
 // SPDX-License-Identifier: MIT
 
 window.print = function () {
-  return window.__TAURI_INVOKE__('tauri', {
-    __tauriModule: 'Window',
-    message: {
-      cmd: 'manage',
-      data: {
-        cmd: {
-          type: 'print'
+  return window.__TAURI_INVOKE__(
+    'tauri',
+    {
+      message: {
+        cmd: 'manage',
+        data: {
+          cmd: {
+            type: 'print'
+          }
         }
       }
-    }
-  })
+    },
+    'Window'
+  )
 }

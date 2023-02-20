@@ -9,7 +9,10 @@ import { internalIpV4 } from 'internal-ip'
 
 // https://vitejs.dev/config/
 export default defineConfig(async ({ command, mode }) => {
-  const host = process.env.TAURI_PLATFORM === 'android' || process.env.TAURI_PLATFORM === 'ios' ? (await internalIpV4()) : 'localhost'
+  const mobile =
+    process.env.TAURI_PLATFORM === 'android' ||
+    process.env.TAURI_PLATFORM === 'ios'
+
   return {
     plugins: [Unocss(), svelte()],
     build: {
@@ -22,14 +25,16 @@ export default defineConfig(async ({ command, mode }) => {
       }
     },
     server: {
-      host: '0.0.0.0',
+      host: mobile ? '0.0.0.0' : 'localhost',
       port: 5173,
       strictPort: true,
-      hmr: {
-        protocol: 'ws',
-        host,
-        port: 5183
-      },
+      hmr: mobile
+        ? {
+            protocol: 'ws',
+            host: await internalIpV4(),
+            port: 5183
+          }
+        : undefined,
       fs: {
         allow: ['.', '../../tooling/api/dist']
       }

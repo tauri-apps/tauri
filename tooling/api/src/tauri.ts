@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+import { invoke_internal, TauriModule } from './helpers/tauri'
+
 /**
  * Invoke your custom commands.
  *
@@ -13,7 +15,13 @@
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
-    __TAURI_IPC__: (message: any) => void
+    __TAURI_IPC__: (message: {
+      cmd: string
+      args: InvokeArgs
+      callback: number
+      error: number
+      tauri_module?: TauriModule
+    }) => void
     ipc: {
       postMessage: (args: string) => void
     }
@@ -77,23 +85,7 @@ type InvokeArgs = Record<string, unknown>
  * @since 1.0.0
  */
 async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const callback = transformCallback((e: T) => {
-      resolve(e)
-      Reflect.deleteProperty(window, `_${error}`)
-    }, true)
-    const error = transformCallback((e) => {
-      reject(e)
-      Reflect.deleteProperty(window, `_${callback}`)
-    }, true)
-
-    window.__TAURI_IPC__({
-      cmd,
-      callback,
-      error,
-      ...args
-    })
-  })
+  return invoke_internal(cmd, args)
 }
 
 /**

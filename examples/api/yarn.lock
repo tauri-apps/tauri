@@ -97,8 +97,9 @@
     magic-string "^0.26.2"
     svelte-hmr "^0.14.12"
 
-"@tauri-apps/api@../../tooling/api/dist":
-  version "1.0.2"
+"@tauri-apps/api@link:../../tooling/api/dist":
+  version "0.0.0"
+  uid ""
 
 "@unocss/cli@0.39.3":
   version "0.39.3"

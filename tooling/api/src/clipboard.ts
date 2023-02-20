@@ -42,8 +42,7 @@ import { invokeTauriCommand } from './helpers/tauri'
  * @since 1.0.0.
  */
 async function writeText(text: string): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Clipboard',
+  return invokeTauriCommand('Clipboard', {
     message: {
       cmd: 'writeText',
       data: text
@@ -61,8 +60,7 @@ async function writeText(text: string): Promise<void> {
  * @since 1.0.0.
  */
 async function readText(): Promise<string | null> {
-  return invokeTauriCommand({
-    __tauriModule: 'Clipboard',
+  return invokeTauriCommand('Clipboard', {
     message: {
       cmd: 'readText',
       // if data is not set, `serde` will ignore the custom deserializer

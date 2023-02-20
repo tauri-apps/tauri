@@ -57,8 +57,7 @@ async function isPermissionGranted(): Promise<boolean> {
   if (window.Notification.permission !== 'default') {
     return Promise.resolve(window.Notification.permission === 'granted')
   }
-  return invokeTauriCommand({
-    __tauriModule: 'Notification',
+  return invokeTauriCommand('Notification', {
     message: {
       cmd: 'isNotificationPermissionGranted'
     }

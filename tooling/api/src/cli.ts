@@ -64,8 +64,7 @@ interface CliMatches {
  * @since 1.0.0
  */
 async function getMatches(): Promise<CliMatches> {
-  return invokeTauriCommand<CliMatches>({
-    __tauriModule: 'Cli',
+  return invokeTauriCommand<CliMatches>('Cli', {
     message: {
       cmd: 'cliMatches'
     }

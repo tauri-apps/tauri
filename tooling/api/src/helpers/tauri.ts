@@ -4,7 +4,7 @@
 
 /** @ignore */
 
-import { invoke } from '../tauri'
+import { InvokeArgs, transformCallback } from '../tauri'
 
 type TauriModule =
   | 'App'
@@ -24,14 +24,41 @@ type TauriModule =
   | 'Clipboard'
 
 interface TauriCommand {
-  __tauriModule: TauriModule
   [key: string]: unknown
 }
 
-async function invokeTauriCommand<T>(command: TauriCommand): Promise<T> {
-  return invoke('tauri', command)
+async function invokeTauriCommand<T>(
+  module: TauriModule,
+  command: TauriCommand
+): Promise<T> {
+  return invoke_internal('tauri', command, module)
+}
+
+async function invoke_internal<T>(
+  cmd: string,
+  args: InvokeArgs = {},
+  tauri_module?: TauriModule
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const callback = transformCallback((e: T) => {
+      resolve(e)
+      Reflect.deleteProperty(window, `_${error}`)
+    }, true)
+    const error = transformCallback((e) => {
+      reject(e)
+      Reflect.deleteProperty(window, `_${callback}`)
+    }, true)
+
+    window.__TAURI_IPC__({
+      cmd,
+      callback,
+      error,
+      args,
+      tauri_module
+    })
+  })
 }
 
 export type { TauriModule, TauriCommand }
 
-export { invokeTauriCommand }
+export { invokeTauriCommand, invoke_internal }

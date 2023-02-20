@@ -133,8 +133,7 @@ async function execute(
     Object.freeze(args)
   }
 
-  return invokeTauriCommand<number>({
-    __tauriModule: 'Shell',
+  return invokeTauriCommand<number>('Shell', {
     message: {
       cmd: 'execute',
       program,
@@ -340,8 +339,7 @@ class Child {
    * @returns A promise indicating the success or failure of the operation.
    */
   async write(data: string | Uint8Array): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Shell',
+    return invokeTauriCommand('Shell', {
       message: {
         cmd: 'stdinWrite',
         pid: this.pid,
@@ -357,8 +355,7 @@ class Child {
    * @returns A promise indicating the success or failure of the operation.
    */
   async kill(): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Shell',
+    return invokeTauriCommand('Shell', {
       message: {
         cmd: 'killChild',
         pid: this.pid
@@ -560,8 +557,7 @@ type CommandEvent =
  * @since 1.0.0
  */
 async function open(path: string, openWith?: string): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Shell',
+  return invokeTauriCommand('Shell', {
     message: {
       cmd: 'open',
       path,

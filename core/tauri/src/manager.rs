@@ -1058,8 +1058,7 @@ impl<R: Runtime> WindowManager<R> {
       "
       {};
       window.hotkeys('{}', () => {{
-        window.__TAURI_INVOKE__('tauri', {{
-          __tauriModule: 'Window',
+        window.__TAURI_INVOKE_TAURI_COMMAND__('Window', {{
           message: {{
             cmd: 'manage',
             data: {{

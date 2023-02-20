@@ -49,8 +49,7 @@ async function appDir(): Promise<string> {
  * @since 1.2.0
  */
 async function appConfigDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -71,8 +70,7 @@ async function appConfigDir(): Promise<string> {
  * @since 1.2.0
  */
 async function appDataDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -93,8 +91,7 @@ async function appDataDir(): Promise<string> {
  * @since 1.2.0
  */
 async function appLocalDataDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -115,8 +112,7 @@ async function appLocalDataDir(): Promise<string> {
  * @since 1.2.0
  */
 async function appCacheDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -142,8 +138,7 @@ async function appCacheDir(): Promise<string> {
  * @since 1.0.0
  */
 async function audioDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -169,8 +164,7 @@ async function audioDir(): Promise<string> {
  * @since 1.0.0
  */
 async function cacheDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -196,8 +190,7 @@ async function cacheDir(): Promise<string> {
  * @since 1.0.0
  */
 async function configDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -223,8 +216,7 @@ async function configDir(): Promise<string> {
  * @since 1.0.0
  */
 async function dataDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -250,8 +242,7 @@ async function dataDir(): Promise<string> {
  * @since 1.0.0
  */
 async function desktopDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -277,8 +268,7 @@ async function desktopDir(): Promise<string> {
  * @since 1.0.0
  */
 async function documentDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -304,8 +294,7 @@ async function documentDir(): Promise<string> {
  * @since 1.0.0
  */
 async function downloadDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -331,8 +320,7 @@ async function downloadDir(): Promise<string> {
  * @since 1.0.0
  */
 async function executableDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -358,8 +346,7 @@ async function executableDir(): Promise<string> {
  * @since 1.0.0
  */
 async function fontDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -385,8 +372,7 @@ async function fontDir(): Promise<string> {
  * @since 1.0.0
  */
 async function homeDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -412,8 +398,7 @@ async function homeDir(): Promise<string> {
  * @since 1.0.0
  */
 async function localDataDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -439,8 +424,7 @@ async function localDataDir(): Promise<string> {
  * @since 1.0.0
  */
 async function pictureDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -466,8 +450,7 @@ async function pictureDir(): Promise<string> {
  * @since 1.0.0
  */
 async function publicDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -488,8 +471,7 @@ async function publicDir(): Promise<string> {
  * @since 1.0.0
  */
 async function resourceDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -513,8 +495,7 @@ async function resourceDir(): Promise<string> {
  * @since 1.0.0
  */
 async function resolveResource(resourcePath: string): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: resourcePath,
@@ -540,8 +521,7 @@ async function resolveResource(resourcePath: string): Promise<string> {
  * @since 1.0.0
  */
 async function runtimeDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -567,8 +547,7 @@ async function runtimeDir(): Promise<string> {
  * @since 1.0.0
  */
 async function templateDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -594,8 +573,7 @@ async function templateDir(): Promise<string> {
  * @since 1.0.0
  */
 async function videoDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -631,8 +609,7 @@ async function logDir(): Promise<string> {
  * @since 1.2.0
  */
 async function appLogDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -671,8 +648,7 @@ const delimiter = isWindows() ? ';' : ':'
  * @since 1.0.0
  */
 async function resolve(...paths: string[]): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'resolve',
       paths
@@ -692,8 +668,7 @@ async function resolve(...paths: string[]): Promise<string> {
  * @since 1.0.0
  */
 async function normalize(path: string): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'normalize',
       path
@@ -713,8 +688,7 @@ async function normalize(path: string): Promise<string> {
  * @since 1.0.0
  */
 async function join(...paths: string[]): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'join',
       paths
@@ -734,8 +708,7 @@ async function join(...paths: string[]): Promise<string> {
  * @since 1.0.0
  */
 async function dirname(path: string): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'dirname',
       path
@@ -756,8 +729,7 @@ async function dirname(path: string): Promise<string> {
  * @since 1.0.0
  */
 async function extname(path: string): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'extname',
       path
@@ -780,8 +752,7 @@ async function extname(path: string): Promise<string> {
  * @since 1.0.0
  */
 async function basename(path: string, ext?: string): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<string>('Path', {
     message: {
       cmd: 'basename',
       path,
@@ -801,8 +772,7 @@ async function basename(path: string, ext?: string): Promise<string> {
  * @since 1.0.0
  */
 async function isAbsolute(path: string): Promise<boolean> {
-  return invokeTauriCommand<boolean>({
-    __tauriModule: 'Path',
+  return invokeTauriCommand<boolean>('Path', {
     message: {
       cmd: 'isAbsolute',
       path

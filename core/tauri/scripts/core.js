@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-; (function () {
+;(function () {
   function uid() {
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
@@ -48,7 +48,7 @@
     }
   }
 
-  window.__TAURI_INVOKE__ = function invoke(cmd, args = {}) {
+  window.__TAURI_INVOKE__ = function invoke(cmd, args = {}, tauri_module) {
     return new Promise(function (resolve, reject) {
       var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r)
@@ -59,19 +59,13 @@
         delete window[`_${callback}`]
       }, true)
 
-      if (typeof cmd === 'string') {
-        args.cmd = cmd
-      } else if (typeof cmd === 'object') {
-        args = cmd
-      } else {
-        return reject(new Error('Invalid argument type.'))
-      }
-
       const action = () => {
         window.__TAURI_IPC__({
-          ...args,
+          cmd,
+          args,
           callback,
-          error: error
+          error,
+          tauri_module
         })
       }
       if (window.__TAURI_IPC__) {
@@ -86,34 +80,35 @@
     })
   }
 
+  window.__TAURI_INVOKE_TAURI_COMMAND__ = (module, args) =>
+    window.__TAURI_INVOKE__('tauri', args, module)
+
   // open <a href="..."> links with the Tauri API
   function __openLinks() {
-    document.querySelector('body').addEventListener(
-      'click',
-      function (e) {
-        var target = e.target
-        while (target != null) {
-          if (target.matches('a')) {
-            if (
-              target.href &&
-              (['http://', 'https://', 'mailto:', 'tel:'].some(v => target.href.startsWith(v))) &&
-              target.target === '_blank'
-            ) {
-              window.__TAURI_INVOKE__('tauri', {
-                __tauriModule: 'Shell',
-                message: {
-                  cmd: 'open',
-                  path: target.href
-                }
-              })
-              e.preventDefault()
-            }
-            break
+    document.querySelector('body').addEventListener('click', function (e) {
+      var target = e.target
+      while (target != null) {
+        if (target.matches('a')) {
+          if (
+            target.href &&
+            ['http://', 'https://', 'mailto:', 'tel:'].some((v) =>
+              target.href.startsWith(v)
+            ) &&
+            target.target === '_blank'
+          ) {
+            window.__TAURI_INVOKE_TAURI_COMMAND__('Shell', {
+              message: {
+                cmd: 'open',
+                path: target.href
+              }
+            })
+            e.preventDefault()
           }
-          target = target.parentElement
+          break
         }
+        target = target.parentElement
       }
-    )
+    })
   }
 
   if (
@@ -141,8 +136,7 @@
       e.stopImmediatePropagation()
 
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
-      window.__TAURI_INVOKE__('tauri', {
-        __tauriModule: 'Window',
+      window.__TAURI_INVOKE_TAURI_COMMAND__('Window', {
         message: {
           cmd: 'manage',
           data: {
@@ -162,8 +156,7 @@
     if (window.Notification.permission !== 'default') {
       return Promise.resolve(window.Notification.permission === 'granted')
     }
-    return window.__TAURI_INVOKE__('tauri', {
-      __tauriModule: 'Notification',
+    return window.__TAURI_INVOKE_TAURI_COMMAND__('Notification', {
       message: {
         cmd: 'isNotificationPermissionGranted'
       }
@@ -178,8 +171,7 @@
 
   function requestPermission() {
     return window
-      .__TAURI_INVOKE__('tauri', {
-        __tauriModule: 'Notification',
+      .__TAURI_INVOKE_TAURI_COMMAND__('Notification', {
         message: {
           cmd: 'requestNotificationPermission'
         }
@@ -195,15 +187,14 @@
       Object.freeze(options)
     }
 
-    return window.__TAURI_INVOKE__('tauri', {
-      __tauriModule: 'Notification',
+    return window.__TAURI_INVOKE_TAURI_COMMAND__('Notification', {
       message: {
         cmd: 'notification',
         options:
           typeof options === 'string'
             ? {
-              title: options
-            }
+                title: options
+              }
             : options
       }
     })

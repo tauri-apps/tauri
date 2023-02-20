@@ -66,12 +66,7 @@ export function mockIPC(
   cb: (cmd: string, args: Record<string, unknown>) => any | Promise<any>
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  window.__TAURI_IPC__ = async ({
-    cmd,
-    callback,
-    error,
-    ...args
-  }: IPCMessage) => {
+  window.__TAURI_IPC__ = async ({ cmd, callback, error, args }: IPCMessage) => {
     try {
       // @ts-expect-error The function key is dynamic and therefore not typed
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call

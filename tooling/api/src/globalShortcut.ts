@@ -47,8 +47,7 @@ async function register(
   shortcut: string,
   handler: ShortcutHandler
 ): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'GlobalShortcut',
+  return invokeTauriCommand('GlobalShortcut', {
     message: {
       cmd: 'register',
       shortcut,
@@ -76,8 +75,7 @@ async function registerAll(
   shortcuts: string[],
   handler: ShortcutHandler
 ): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'GlobalShortcut',
+  return invokeTauriCommand('GlobalShortcut', {
     message: {
       cmd: 'registerAll',
       shortcuts,
@@ -99,8 +97,7 @@ async function registerAll(
  * @since 1.0.0
  */
 async function isRegistered(shortcut: string): Promise<boolean> {
-  return invokeTauriCommand({
-    __tauriModule: 'GlobalShortcut',
+  return invokeTauriCommand('GlobalShortcut', {
     message: {
       cmd: 'isRegistered',
       shortcut
@@ -121,8 +118,7 @@ async function isRegistered(shortcut: string): Promise<boolean> {
  * @since 1.0.0
  */
 async function unregister(shortcut: string): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'GlobalShortcut',
+  return invokeTauriCommand('GlobalShortcut', {
     message: {
       cmd: 'unregister',
       shortcut
@@ -141,8 +137,7 @@ async function unregister(shortcut: string): Promise<void> {
  * @since 1.0.0
  */
 async function unregisterAll(): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'GlobalShortcut',
+  return invokeTauriCommand('GlobalShortcut', {
     message: {
       cmd: 'unregisterAll'
     }

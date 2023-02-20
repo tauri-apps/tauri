@@ -31,8 +31,7 @@ export type UnlistenFn = () => void
  * @returns
  */
 async function _unlisten(event: string, eventId: number): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Event',
+  return invokeTauriCommand('Event', {
     message: {
       cmd: 'unlisten',
       event,
@@ -54,8 +53,7 @@ async function emit(
   windowLabel?: WindowLabel,
   payload?: unknown
 ): Promise<void> {
-  await invokeTauriCommand({
-    __tauriModule: 'Event',
+  await invokeTauriCommand('Event', {
     message: {
       cmd: 'emit',
       event,
@@ -77,8 +75,7 @@ async function listen<T>(
   windowLabel: string | null,
   handler: EventCallback<T>
 ): Promise<UnlistenFn> {
-  return invokeTauriCommand<number>({
-    __tauriModule: 'Event',
+  return invokeTauriCommand<number>('Event', {
     message: {
       cmd: 'listen',
       event,

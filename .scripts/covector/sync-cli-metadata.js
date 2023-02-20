@@ -49,7 +49,9 @@ const inc = (version) => {
     }
   }
   if (bump === 'premajor') {
-    const pre = JSON.parse(readFileSync(resolve(filePath, '../../../.changes/pre.json'), 'utf-8'))
+    const pre = JSON.parse(
+      readFileSync(resolve(filePath, '../../../.changes/pre.json'), 'utf-8')
+    )
     return `${v.join('.')}-${pre.tag}.0`
   }
   return v.join('.')

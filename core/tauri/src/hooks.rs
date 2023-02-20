@@ -58,11 +58,10 @@ impl PageLoadPayload {
 }
 
 /// The payload used on the IPC invoke.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct InvokePayload {
   /// The invoke command.
   pub cmd: String,
-  #[serde(rename = "__tauriModule")]
   #[doc(hidden)]
   pub tauri_module: Option<String>,
   /// The success callback.
@@ -70,8 +69,7 @@ pub struct InvokePayload {
   /// The error callback.
   pub error: CallbackFn,
   /// The payload of the message.
-  #[serde(flatten)]
-  pub inner: JsonValue,
+  pub args: JsonValue,
 }
 
 /// The message and resolver given to a custom command.

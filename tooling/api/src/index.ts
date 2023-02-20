@@ -30,7 +30,7 @@ import * as updater from './updater'
 import * as window from './window'
 import * as os from './os'
 
-/** Re-export, see {@link tauri.invoke} for documentation.*/
+/** Re-export, see {@link tauri.invoke} for documentation. */
 const invoke = tauri.invoke
 
 export {

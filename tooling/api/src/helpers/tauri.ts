@@ -4,7 +4,7 @@
 
 /** @ignore */
 
-import { InvokeArgs, transformCallback } from '../tauri'
+import { type InvokeArgs, transformCallback } from '../tauri'
 
 type TauriModule =
   | 'App'
@@ -23,21 +23,17 @@ type TauriModule =
   | 'Process'
   | 'Clipboard'
 
-interface TauriCommand {
-  [key: string]: unknown
-}
-
 async function invokeTauriCommand<T>(
   module: TauriModule,
-  command: TauriCommand
+  command: Record<any, any>
 ): Promise<T> {
-  return invoke_internal('tauri', command, module)
+  return invokeInternal('tauri', command, module)
 }
 
-async function invoke_internal<T>(
+async function invokeInternal<T>(
   cmd: string,
   args: InvokeArgs = {},
-  tauri_module?: TauriModule
+  tauriModule?: TauriModule
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const callback = transformCallback((e: T) => {
@@ -54,11 +50,11 @@ async function invoke_internal<T>(
       callback,
       error,
       args,
-      tauri_module
+      tauri_module: tauriModule
     })
   })
 }
 
-export type { TauriModule, TauriCommand }
+export type { TauriModule }
 
-export { invokeTauriCommand, invoke_internal }
+export { invokeTauriCommand, invokeInternal }

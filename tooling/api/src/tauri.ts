@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { invoke_internal, TauriModule } from './helpers/tauri'
+import { invokeInternal, type TauriModule } from './helpers/tauri'
 
 /**
  * Invoke your custom commands.
@@ -85,7 +85,7 @@ type InvokeArgs = Record<string, unknown>
  * @since 1.0.0
  */
 async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
-  return invoke_internal(cmd, args)
+  return invokeInternal(cmd, args)
 }
 
 /**

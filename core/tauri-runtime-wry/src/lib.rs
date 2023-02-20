@@ -4,6 +4,7 @@
 
 //! The [`wry`] Tauri [`Runtime`].
 
+#[cfg(all(desktop, feature = "global-shortcut"))]
 use global_hotkey::GlobalHotKeyManager;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{

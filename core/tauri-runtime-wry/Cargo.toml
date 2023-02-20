@@ -19,6 +19,8 @@ tauri-utils = { version = "2.0.0-alpha.1", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
+
+[target."cfg(any(target_os = \"macOS\", target_os = \"windows\", target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 global-hotkey = "0.1"
 
 [target."cfg(windows)".dependencies]

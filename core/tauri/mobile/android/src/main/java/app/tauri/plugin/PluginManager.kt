@@ -78,8 +78,8 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun postIpcMessage(webView: WebView, pluginId: String, methodName: String, data: JSObject, callback: Long, error: Long) {
-    val invoke = Invoke(callback, { successResult, errorResult ->
+  fun postIpcMessage(webView: WebView, pluginId: String, command: String, data: JSObject, callback: Long, error: Long) {
+    val invoke = Invoke(callback, command, { successResult, errorResult ->
       val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(
         error,
         errorResult
@@ -87,22 +87,22 @@ class PluginManager(val activity: AppCompatActivity) {
       webView.evaluateJavascript("window['_$fn']($result)", null)
     }, data)
 
-    dispatchPluginMessage(invoke, pluginId, methodName)
+    dispatchPluginMessage(invoke, pluginId)
   }
 
   @JniMethod
-  fun runPluginMethod(id: Int, pluginId: String, methodName: String, data: JSObject) {
-    val invoke = Invoke(id.toLong(), { successResult, errorResult ->
+  fun runPluginMethod(id: Int, pluginId: String, command: String, data: JSObject) {
+    val invoke = Invoke(id.toLong(), command, { successResult, errorResult ->
       handlePluginResponse(id, successResult?.toString(), errorResult?.toString())
     }, data)
 
-    dispatchPluginMessage(invoke, pluginId, methodName)
+    dispatchPluginMessage(invoke, pluginId)
   }
 
-  private fun dispatchPluginMessage(invoke: Invoke, pluginId: String, methodName: String) {
+  private fun dispatchPluginMessage(invoke: Invoke, pluginId: String) {
     Logger.verbose(
       Logger.tags("Plugin"),
-      "Tauri plugin: pluginId: $pluginId, methodName: $methodName"
+      "Tauri plugin: pluginId: $pluginId, command: $invoke.command"
     )
 
     try {
@@ -110,7 +110,7 @@ class PluginManager(val activity: AppCompatActivity) {
       if (plugin == null) {
         invoke.reject("Plugin $pluginId not initialized")
       } else {
-        plugins[pluginId]?.invoke(methodName, invoke)
+        plugins[pluginId]?.invoke(invoke)
       }
     } catch (e: Exception) {
       invoke.reject(e.toString())

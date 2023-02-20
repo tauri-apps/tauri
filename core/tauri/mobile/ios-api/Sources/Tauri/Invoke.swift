@@ -14,12 +14,14 @@ import UIKit
 		return ISO8601DateFormatter()
 	}()
 
-	var sendResponse: (JsonValue?, JsonValue?) -> Void
+  public var command: String
 	public var data: JSObject
+	var sendResponse: (JsonValue?, JsonValue?) -> Void
 
-	public init(sendResponse: @escaping (JsonValue?, JsonValue?) -> Void, data: JSObject?) {
-		self.sendResponse = sendResponse
+	public init(command: String, sendResponse: @escaping (JsonValue?, JsonValue?) -> Void, data: JSObject?) {
+    self.command = command
 		self.data = data ?? [:]
+		self.sendResponse = sendResponse
 	}
 
 	public func resolve() {

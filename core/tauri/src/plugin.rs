@@ -77,6 +77,13 @@ pub struct PluginHandle<R: Runtime> {
   handle: AppHandle<R>,
 }
 
+impl<R: Runtime> PluginHandle<R> {
+  /// Returns the application handle.
+  pub fn app(&self) -> &AppHandle<R> {
+    &self.handle
+  }
+}
+
 /// Api exposed to the plugin setup hook.
 #[derive(Clone)]
 #[allow(dead_code)]

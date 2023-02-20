@@ -102,7 +102,7 @@ class PluginManager(val activity: AppCompatActivity) {
   private fun dispatchPluginMessage(invoke: Invoke, pluginId: String) {
     Logger.verbose(
       Logger.tags("Plugin"),
-      "Tauri plugin: pluginId: $pluginId, command: $invoke.command"
+      "Tauri plugin: pluginId: $pluginId, command: ${invoke.command}"
     )
 
     try {

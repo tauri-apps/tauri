@@ -8,6 +8,7 @@ import app.tauri.Logger
 
 class Invoke(
   val id: Long,
+  val command: String,
   private val sendResponse: (success: PluginResult?, error: PluginResult?) -> Unit,
   val data: JSObject) {
 

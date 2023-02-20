@@ -55,10 +55,10 @@ public class PluginManager {
 		plugins[name] = handle
 	}
 
-	func invoke(name: String, methodName: String, invoke: Invoke) {
+	func invoke(name: String, invoke: Invoke) {
 		if let plugin = plugins[name] {
 			ipcDispatchQueue.async {
-				let selectorWithThrows = Selector(("\(methodName):error:"))
+				let selectorWithThrows = Selector(("\(invoke.command):error:"))
 				if plugin.instance.responds(to: selectorWithThrows) {
 					var error: NSError? = nil
 					withUnsafeMutablePointer(to: &error) {
@@ -70,11 +70,11 @@ public class PluginManager {
 						let _ = toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
 					}
 				} else {
-					let selector = Selector(("\(methodName):"))
+					let selector = Selector(("\(invoke.command):"))
 					if plugin.instance.responds(to: selector) {
 						plugin.instance.perform(selector, with: invoke)
 					} else {
-						invoke.reject("No method \(methodName) found for plugin \(name)")
+						invoke.reject("No command \(invoke.command) found for plugin \(name)")
 					}
 				}
 			}
@@ -105,8 +105,8 @@ func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
 }
 
 @_cdecl("post_ipc_message")
-func postIpcMessage(webview: WKWebView, name: UnsafePointer<SRString>, methodName: UnsafePointer<SRString>, data: NSDictionary, callback: UInt, error: UInt) {
-	let invoke = Invoke(sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
+func postIpcMessage(webview: WKWebView, name: UnsafePointer<SRString>, command: UnsafePointer<SRString>, data: NSDictionary, callback: UInt, error: UInt) {
+	let invoke = Invoke(command: command.pointee.to_string(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
 		let (fn, payload) = errorResult == nil ? (callback, successResult) : (error, errorResult)
 		var payloadJson: String
 		do {
@@ -116,18 +116,18 @@ func postIpcMessage(webview: WKWebView, name: UnsafePointer<SRString>, methodNam
 		}
 		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
 	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
-	PluginManager.shared.invoke(name: name.pointee.to_string(), methodName: methodName.pointee.to_string(), invoke: invoke)
+	PluginManager.shared.invoke(name: name.pointee.to_string(), invoke: invoke)
 }
 
 @_cdecl("run_plugin_method")
 func runPluginMethod(
 	id: Int,
 	name: UnsafePointer<SRString>,
-	methodName: UnsafePointer<SRString>,
+	command: UnsafePointer<SRString>,
 	data: NSDictionary,
 	callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>?) -> Void
 ) {
-	let invoke = Invoke(sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
+	let invoke = Invoke(command: command.pointee.to_string(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
 		let (success, payload) = errorResult == nil ? (true, successResult) : (false, errorResult)
 		var payloadJson: String = ""
 		do {
@@ -137,5 +137,5 @@ func runPluginMethod(
 		}
 		callback(id, success, payloadJson.cString(using: String.Encoding.utf8))
 	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
-	PluginManager.shared.invoke(name: name.pointee.to_string(), methodName: methodName.pointee.to_string(), invoke: invoke)
+	PluginManager.shared.invoke(name: name.pointee.to_string(), invoke: invoke)
 }

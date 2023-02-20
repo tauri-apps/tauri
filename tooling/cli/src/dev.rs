@@ -65,6 +65,7 @@ pub struct Options {
   #[clap(long)]
   pub no_dev_server: bool,
   /// Specify port for the dev server for static files. Defaults to 1430
+  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
   #[clap(long)]
   pub port: Option<u16>,
 }
@@ -229,7 +230,7 @@ fn command_internal(mut options: Options) -> Result<()> {
       use crate::helpers::web_dev_server::start_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
-        let server_url = start_dev_server(path, options.dev_server_port);
+        let server_url = start_dev_server(path, options.port);
         let server_url = format!("http://{server_url}");
         dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 

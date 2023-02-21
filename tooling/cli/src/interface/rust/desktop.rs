@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
 use crate::CommandExt;
 use tauri_utils::display_path;
@@ -291,7 +295,7 @@ fn build_command(
     args.push(features.join(","));
   }
 
-  if !options.debug {
+  if !options.debug && !args.contains(&"--profile".to_string()) {
     args.push("--release".into());
   }
 

@@ -196,6 +196,8 @@ use tauri_runtime as runtime;
 mod ios;
 #[cfg(target_os = "android")]
 mod jni_helpers;
+/// Path APIs.
+pub mod path;
 /// The allowlist scopes.
 pub mod scope;
 mod state;

@@ -1102,7 +1102,11 @@ impl<R: Runtime> Builder<R> {
       #[cfg(updater)]
       updater_settings: Default::default(),
       device_event_filter: Default::default(),
-    }
+    }.register_core_plugins()
+  }
+
+  fn register_core_plugins(self) -> Self {
+    self.plugin(crate::path::init())
   }
 
   /// Builds a new Tauri application running on any thread, bypassing the main thread requirement.

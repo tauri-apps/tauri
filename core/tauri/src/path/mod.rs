@@ -6,7 +6,7 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::{
   plugin::{Builder, TauriPlugin},
-  AppHandle, Manager, Runtime, State,
+  Manager, Runtime,
 };
 
 use serde_repr::{Deserialize_repr, Serialize_repr};

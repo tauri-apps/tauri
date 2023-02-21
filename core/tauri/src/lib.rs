@@ -279,8 +279,8 @@ pub use {
 };
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, PathResolver,
-    RunEvent, WindowEvent,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
+    WindowEvent,
   },
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokePayload, InvokeResolver,

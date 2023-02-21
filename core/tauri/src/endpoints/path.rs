@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![allow(unused_imports)]
+#![allow(unused_imports, deprecated)]
 
 use crate::{api::path::BaseDirectory, Runtime};
 #[cfg(path_all)]

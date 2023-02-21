@@ -4,6 +4,8 @@
 
 //! Types and functions related to file system path operations.
 
+#![allow(deprecated)]
+
 use std::{
   env::temp_dir,
   path::{Component, Path, PathBuf},

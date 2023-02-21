@@ -22,7 +22,7 @@ use crate::{
   scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
-  utils::{assets::Assets, resources::resource_relpath, Env},
+  utils::{assets::Assets, Env},
   Context, DeviceEventFilter, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager,
   Runtime, Scopes, StateManager, Theme, Window,
 };
@@ -41,7 +41,6 @@ use tauri_utils::PackageInfo;
 use std::{
   collections::HashMap,
   fmt,
-  path::{Path, PathBuf},
   sync::{mpsc::Sender, Arc, Weak},
 };
 
@@ -240,111 +239,6 @@ impl<R: Runtime> GlobalWindowEvent<R> {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct UpdaterSettings {
   pub(crate) target: Option<String>,
-}
-
-/// The path resolver is a helper for the application-specific [`crate::api::path`] APIs.
-#[derive(Debug, Clone)]
-pub struct PathResolver {
-  env: Env,
-  config: Arc<Config>,
-  package_info: PackageInfo,
-}
-
-impl PathResolver {
-  /// Returns the path to the resource directory of this app.
-  ///
-  /// Helper function for [`crate::api::path::resource_dir`].
-  pub fn resource_dir(&self) -> Option<PathBuf> {
-    crate::api::path::resource_dir(&self.package_info, &self.env)
-  }
-
-  /// Resolves the path of the given resource.
-  /// Note that the path must be the same as provided in `tauri.conf.json`.
-  ///
-  /// This function is helpful when your resource path includes a root dir (`/`) or parent component (`..`),
-  /// because Tauri replaces them with a parent folder, so simply using [`Self::resource_dir`] and joining the path
-  /// won't work.
-  ///
-  /// # Examples
-  ///
-  /// `tauri.conf.json`:
-  /// ```json
-  /// {
-  ///   "tauri": {
-  ///     "bundle": {
-  ///       "resources": ["../assets/*"]
-  ///     }
-  ///   }
-  /// }
-  /// ```
-  ///
-  /// ```no_run
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let resource_path = app.path_resolver()
-  ///       .resolve_resource("../assets/logo.svg")
-  ///       .expect("failed to resolve resource dir");
-  ///     Ok(())
-  ///   });
-  /// ```
-  pub fn resolve_resource<P: AsRef<Path>>(&self, path: P) -> Option<PathBuf> {
-    self
-      .resource_dir()
-      .map(|dir| dir.join(resource_relpath(path.as_ref())))
-  }
-
-  /// Returns the path to the suggested directory for your app's config files.
-  ///
-  /// Helper function for [`crate::api::path::app_config_dir`].
-  pub fn app_config_dir(&self) -> Option<PathBuf> {
-    crate::api::path::app_config_dir(&self.config)
-  }
-
-  /// Returns the path to the suggested directory for your app's data files.
-  ///
-  /// Helper function for [`crate::api::path::app_data_dir`].
-  pub fn app_data_dir(&self) -> Option<PathBuf> {
-    crate::api::path::app_data_dir(&self.config)
-  }
-
-  /// Returns the path to the suggested directory for your app's local data files.
-  ///
-  /// Helper function for [`crate::api::path::app_local_data_dir`].
-  pub fn app_local_data_dir(&self) -> Option<PathBuf> {
-    crate::api::path::app_local_data_dir(&self.config)
-  }
-
-  /// Returns the path to the suggested directory for your app's cache files.
-  ///
-  /// Helper function for [`crate::api::path::app_cache_dir`].
-  pub fn app_cache_dir(&self) -> Option<PathBuf> {
-    crate::api::path::app_cache_dir(&self.config)
-  }
-
-  /// Returns the path to the suggested directory for your app's log files.
-  ///
-  /// Helper function for [`crate::api::path::app_log_dir`].
-  pub fn app_log_dir(&self) -> Option<PathBuf> {
-    crate::api::path::app_log_dir(&self.config)
-  }
-
-  /// Returns the path to the suggested directory for your app's config files.
-  #[deprecated(
-    since = "1.2.0",
-    note = "Will be removed in 2.0.0. Use `app_config_dir` or `app_data_dir` instead."
-  )]
-  pub fn app_dir(&self) -> Option<PathBuf> {
-    self.app_config_dir()
-  }
-
-  /// Returns the path to the suggested directory for your app's log files.
-  #[deprecated(
-    since = "1.2.0",
-    note = "Will be removed in 2.0.0. Use `app_log_dir` instead."
-  )]
-  pub fn log_dir(&self) -> Option<PathBuf> {
-    self.app_log_dir()
-  }
 }
 
 /// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
@@ -729,15 +623,6 @@ macro_rules! shared_app_impl {
         self
           .manager()
           .get_tray(id)
-      }
-
-      /// The path resolver for the application.
-      pub fn path_resolver(&self) -> PathResolver {
-        PathResolver {
-          env: self.state::<Env>().inner().clone(),
-          config: self.manager.config(),
-          package_info: self.manager.package_info().clone(),
-        }
       }
 
       /// Gets a copy of the global shortcut manager instance.
@@ -1667,23 +1552,16 @@ impl<R: Runtime> Builder<R> {
 
     let env = Env::default();
     app.manage(Scopes {
-      fs: FsScope::for_fs_api(
-        &app.manager.config(),
-        app.package_info(),
-        &env,
-        &app.config().tauri.allowlist.fs.scope,
-      )?,
+      fs: FsScope::for_fs_api(&app, &app.config().tauri.allowlist.fs.scope)?,
       #[cfg(protocol_asset)]
       asset_protocol: FsScope::for_fs_api(
-        &app.manager.config(),
-        app.package_info(),
-        &env,
+        &app,
         &app.config().tauri.allowlist.protocol.asset_scope,
       )?,
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
       #[cfg(shell_scope)]
-      shell: ShellScope::new(&app.manager.config(), app.package_info(), &env, shell_scope),
+      shell: ShellScope::new(&app, shell_scope),
     });
     app.manage(env);
 
@@ -1876,8 +1754,5 @@ mod tests {
       crate::test_utils::assert_send::<super::AssetResolver<crate::Wry>>();
       crate::test_utils::assert_sync::<super::AssetResolver<crate::Wry>>();
     }
-
-    crate::test_utils::assert_send::<super::PathResolver>();
-    crate::test_utils::assert_sync::<super::PathResolver>();
   }
 }

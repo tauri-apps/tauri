@@ -683,6 +683,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().config()
   }
 
+  /// The [`PackageInfo`] the manager was created with.
+  fn package_info(&self) -> &PackageInfo {
+    self.manager().package_info()
+  }
+
   /// Emits a event to all windows.
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, None, payload, |_| true)

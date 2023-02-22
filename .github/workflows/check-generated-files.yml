@@ -9,6 +9,7 @@ on:
     paths:
       - '.github/workflows/check-generated-files.yml'
       - 'tooling/api/src/**'
+      - 'tooling/api/docs/js-api.json'
       - 'core/tauri/scripts/bundle.global.js'
       - 'core/tauri-utils/src/config.rs'
       - 'tooling/cli/schema.json'
@@ -17,6 +18,7 @@ on:
     paths:
       - '.github/workflows/check-generated-files.yml'
       - 'tooling/api/src/**'
+      - 'tooling/api/docs/js-api.json'
       - 'core/tauri/scripts/bundle.global.js'
       - 'core/tauri-utils/src/config.rs'
       - 'tooling/cli/schema.json'
@@ -30,7 +32,7 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      bundle: ${{ steps.filter.outputs.bundle }}
+      api: ${{ steps.filter.outputs.api }}
       schema: ${{ steps.filter.outputs.schema }}
     steps:
       - uses: actions/checkout@v3
@@ -38,25 +40,26 @@ jobs:
         id: filter
         with:
           filters: |
-            bundle:
+            api:
               - 'tooling/api/src/**'
+              - 'tooling/api/docs/js-api.json'
               - 'core/tauri/scripts/bundle.global.js'
             schema:
               - 'core/tauri-utils/src/config.rs'
               - 'tooling/cli/schema.json'
               - 'core/config-schema/schema.json'
 
-  check-bundle:
+  check-api:
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.bundle == 'true'
+    if: needs.changes.outputs.api == 'true'
     steps:
       - uses: actions/checkout@v3
 
-      - name: generate bundle
+      - name: build api
         working-directory: tooling/api
         run: yarn && yarn build
-      - name: check bundle
+      - name: check api
         run: ./.scripts/ci/has-diff.sh
 
   check-schema:

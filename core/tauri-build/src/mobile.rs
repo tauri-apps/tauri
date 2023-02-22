@@ -4,7 +4,7 @@
 
 use std::{
   env::{var, var_os},
-  fs::{copy, create_dir, read_to_string, remove_dir_all, rename, write},
+  fs::{copy, create_dir, remove_dir_all, rename},
   path::{Path, PathBuf},
 };
 
@@ -64,34 +64,6 @@ impl PluginBuilder {
 
             inject_android_project(&source, android_plugin_project_path, &["tauri-api"])
               .context("failed to inject plugin Android project")?;
-
-            let gradle_settings_path = project_dir.join("tauri.settings.gradle");
-            let gradle_settings = read_to_string(&gradle_settings_path)
-              .context("failed to read tauri.settings.gradle")?;
-            let include = format!(
-              "include ':{pkg_name}'
-project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
-            );
-            if !gradle_settings.contains(&include) {
-              write(
-                &gradle_settings_path,
-                format!("{gradle_settings}\n{include}"),
-              )
-              .context("failed to write tauri.settings.gradle")?;
-            }
-
-            let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
-            let app_build_gradle = read_to_string(&app_build_gradle_path)
-              .context("failed to read tauri.build.gradle.kts")?;
-            let implementation = format!(r#"implementation(project(":{pkg_name}"))"#);
-            let target = "dependencies {";
-            if !app_build_gradle.contains(&implementation) {
-              write(
-                &app_build_gradle_path,
-                app_build_gradle.replace(target, &format!("{target}\n  {implementation}")),
-              )
-              .context("failed to write tauri.build.gradle.kts")?;
-            }
           }
         }
       }

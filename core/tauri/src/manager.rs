@@ -1173,8 +1173,8 @@ mod test {
 }
 
 impl<R: Runtime> WindowManager<R> {
-  pub fn run_invoke_handler(&self, invoke: Invoke<R>) {
-    (self.inner.invoke_handler)(invoke);
+  pub fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
+    (self.inner.invoke_handler)(invoke)
   }
 
   pub fn run_on_page_load(&self, window: Window<R>, payload: PageLoadPayload) {

@@ -1487,22 +1487,28 @@ impl<R: Runtime> Window<R> {
             .map(|c| c.to_string())
             .unwrap_or_else(String::new);
 
+          let command = invoke.message.command.clone();
+          let resolver = invoke.resolver.clone();
           #[cfg(mobile)]
-          let (message, resolver) = (invoke.message.clone(), invoke.resolver.clone());
+          let message = invoke.message.clone();
 
-          #[allow(unused_variables)]
-          let handled = manager.extend_api(plugin, invoke);
+          #[allow(unused_mut)]
+          let mut handled = manager.extend_api(plugin, invoke);
 
           #[cfg(target_os = "ios")]
           {
             if !handled {
+              handled = true;
               let plugin = plugin.to_string();
+              let (callback, error) = (resolver.callback, resolver.error);
               self.with_webview(move |webview| {
                 unsafe {
                   crate::ios::post_ipc_message(
                     webview.inner(),
                     &plugin.as_str().into(),
-                    &message.command.as_str().into(),
+                    &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
+                      .as_str()
+                      .into(),
                     crate::ios::json_to_dictionary(message.payload),
                     resolver.callback.0,
                     resolver.error.0,
@@ -1515,6 +1521,8 @@ impl<R: Runtime> Window<R> {
           #[cfg(target_os = "android")]
           {
             if !handled {
+              handled = true;
+              let resolver_ = resolver.clone();
               let runtime_handle = self.app_handle.runtime_handle.clone();
               let plugin = plugin.to_string();
               self.with_webview(move |webview| {
@@ -1552,7 +1560,7 @@ impl<R: Runtime> Window<R> {
                       &[
                         webview.into(),
                         env.new_string(plugin)?.into(),
-                        env.new_string(&message.command)?.into(),
+                        env.new_string(&heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str()))?.into(),
                         data,
                         (callback.0 as i64).into(),
                         (error.0 as i64).into(),
@@ -1566,19 +1574,28 @@ impl<R: Runtime> Window<R> {
                     &plugin,
                     &runtime_handle,
                     message,
-                    (resolver.callback, resolver.error),
+                    (resolver_.callback, resolver_.error),
                     env,
                     activity,
                     webview,
                   ) {
-                    resolver.reject(format!("failed to reach Android layer: {e}"));
+                    resolver_.reject(format!("failed to reach Android layer: {e}"));
                   }
                 });
               })?;
             }
           }
+
+          if !handled {
+            resolver.reject(format!("Command {command} not found"));
+          }
         } else {
-          manager.run_invoke_handler(invoke);
+          let command = invoke.message.command.clone();
+          let resolver = invoke.resolver.clone();
+          let handled = manager.run_invoke_handler(invoke);
+          if !handled {
+            resolver.reject(format!("Command {command} not found"));
+          }
         }
       }
     }

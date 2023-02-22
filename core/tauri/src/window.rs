@@ -1492,7 +1492,7 @@ impl<R: Runtime> Window<R> {
           #[cfg(mobile)]
           let message = invoke.message.clone();
 
-          #[allow(unused_variables)]
+          #[allow(unused_mut)]
           let mut handled = manager.extend_api(plugin, invoke);
 
           #[cfg(target_os = "ios")]

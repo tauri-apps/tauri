@@ -1506,7 +1506,9 @@ impl<R: Runtime> Window<R> {
                   crate::ios::post_ipc_message(
                     webview.inner(),
                     &plugin.as_str().into(),
-                    &message.command.as_str().into(),
+                    &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
+                      .as_str()
+                      .into(),
                     crate::ios::json_to_dictionary(message.payload),
                     resolver.callback.0,
                     resolver.error.0,
@@ -1558,7 +1560,7 @@ impl<R: Runtime> Window<R> {
                       &[
                         webview.into(),
                         env.new_string(plugin)?.into(),
-                        env.new_string(&message.command)?.into(),
+                        env.new_string(&heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str()))?.into(),
                         data,
                         (callback.0 as i64).into(),
                         (error.0 as i64).into(),

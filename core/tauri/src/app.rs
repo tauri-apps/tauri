@@ -685,6 +685,11 @@ shared_app_impl!(App<R>);
 shared_app_impl!(AppHandle<R>);
 
 impl<R: Runtime> App<R> {
+  fn register_core_plugins(&self) -> crate::Result<()> {
+    self.handle.plugin(crate::path::init())?;
+    Ok(())
+  }
+
   /// Gets a handle to the application instance.
   pub fn handle(&self) -> AppHandle<R> {
     self.handle.clone()
@@ -987,11 +992,7 @@ impl<R: Runtime> Builder<R> {
       #[cfg(updater)]
       updater_settings: Default::default(),
       device_event_filter: Default::default(),
-    }.register_core_plugins()
-  }
-
-  fn register_core_plugins(self) -> Self {
-    self.plugin(crate::path::init())
+    }
   }
 
   /// Builds a new Tauri application running on any thread, bypassing the main thread requirement.
@@ -1550,7 +1551,11 @@ impl<R: Runtime> Builder<R> {
       },
     };
 
+    app.register_core_plugins()?;
+
     let env = Env::default();
+    app.manage(env);
+
     app.manage(Scopes {
       fs: FsScope::for_fs_api(&app, &app.config().tauri.allowlist.fs.scope)?,
       #[cfg(protocol_asset)]
@@ -1563,7 +1568,6 @@ impl<R: Runtime> Builder<R> {
       #[cfg(shell_scope)]
       shell: ShellScope::new(&app, shell_scope),
     });
-    app.manage(env);
 
     #[cfg(windows)]
     {

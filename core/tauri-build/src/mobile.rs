@@ -60,10 +60,13 @@ impl PluginBuilder {
           if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
             let pkg_name = var("CARGO_PKG_NAME").unwrap();
             println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
-            let android_plugin_project_path = project_dir.join("tauri-plugins").join(&pkg_name);
 
-            inject_android_project(&source, android_plugin_project_path, &["tauri-api"])
-              .context("failed to inject plugin Android project")?;
+            inject_android_project(
+              &source,
+              project_dir.join("tauri-plugins").join(pkg_name),
+              &["tauri-api"],
+            )
+            .context("failed to inject plugin Android project")?;
           }
         }
       }

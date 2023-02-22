@@ -119,11 +119,17 @@ impl BaseDirectory {
       Self::AppCache => "$APPCACHE",
       Self::AppLog => "$APPLOG",
 
+      #[cfg(desktop)]
       Self::Desktop => "$DESKTOP",
+      #[cfg(desktop)]
       Self::Executable => "$EXE",
+      #[cfg(desktop)]
       Self::Font => "$FONT",
+      #[cfg(desktop)]
       Self::Home => "$HOME",
+      #[cfg(desktop)]
       Self::Runtime => "$RUNTIME",
+      #[cfg(desktop)]
       Self::Template => "$TEMPLATE",
     }
   }
@@ -150,11 +156,17 @@ impl BaseDirectory {
       "$APPCACHE" => Self::AppCache,
       "$APPLOG" => Self::AppLog,
 
+      #[cfg(desktop)]
       "$DESKTOP" => Self::Desktop,
+      #[cfg(desktop)]
       "$EXE" => Self::Executable,
+      #[cfg(desktop)]
       "$FONT" => Self::Font,
+      #[cfg(desktop)]
       "$HOME" => Self::Home,
+      #[cfg(desktop)]
       "$RUNTIME" => Self::Runtime,
+      #[cfg(desktop)]
       "$TEMPLATE" => Self::Template,
 
       _ => return None,

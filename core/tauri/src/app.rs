@@ -1579,7 +1579,8 @@ impl<R: Runtime> Builder<R> {
         .windows
         .webview_install_mode
       {
-        if let Some(resource_dir) = app.path_resolver().resource_dir() {
+        use crate::path::PathExt;
+        if let Some(resource_dir) = app.path().resource_dir() {
           std::env::set_var(
             "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER",
             resource_dir.join(path),

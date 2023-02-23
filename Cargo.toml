@@ -28,7 +28,7 @@ members = [
 ]
 
 exclude = [
-  # examples that can be compiled with the tauri CLI
+  # examples that require NodeJS and/or NPM
   "examples/api/src-tauri",
   "examples/updater/src-tauri",
   "examples/resources/src-tauri",

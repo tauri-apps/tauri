@@ -240,7 +240,7 @@ impl<R: Runtime> PathResolver<R> {
     let path = dirs_next::home_dir().ok_or(Error::UnknownPath).map(|dir| {
       dir
         .join("Library/Logs")
-        .join(&config.tauri.bundle.identifier)
+        .join(&self.0.config().tauri.bundle.identifier)
     });
 
     #[cfg(not(target_os = "macos"))]

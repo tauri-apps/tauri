@@ -83,7 +83,7 @@ fn normalize_path_no_absolute(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn resolve_path<R: Runtime>(
-  resolver: State<'_, PathResolver<R>>,
+  resolver: &PathResolver<R>,
   directory: BaseDirectory,
   path: Option<PathBuf>,
 ) -> Result<PathBuf> {
@@ -106,17 +106,17 @@ pub(crate) fn resolve_path<R: Runtime>(
     BaseDirectory::AppLocalData => resolver.app_local_data_dir(),
     BaseDirectory::AppCache => resolver.app_cache_dir(),
     BaseDirectory::AppLog => resolver.app_log_dir(),
-    #[cfg(desktop)]
+    #[cfg(not(target_os = "android"))]
     BaseDirectory::Desktop => resolver.desktop_dir(),
-    #[cfg(desktop)]
+    #[cfg(not(target_os = "android"))]
     BaseDirectory::Executable => resolver.executable_dir(),
-    #[cfg(desktop)]
+    #[cfg(not(target_os = "android"))]
     BaseDirectory::Font => resolver.font_dir(),
-    #[cfg(desktop)]
+    #[cfg(not(target_os = "android"))]
     BaseDirectory::Home => resolver.home_dir(),
-    #[cfg(desktop)]
+    #[cfg(not(target_os = "android"))]
     BaseDirectory::Runtime => resolver.runtime_dir(),
-    #[cfg(desktop)]
+    #[cfg(not(target_os = "android"))]
     BaseDirectory::Template => resolver.template_dir(),
   }?;
 
@@ -149,7 +149,7 @@ pub fn resolve_directory<R: Runtime>(
   directory: BaseDirectory,
   path: Option<PathBuf>,
 ) -> Result<PathBuf> {
-  resolve_path(resolver, directory, path)
+  resolve_path(&resolver, directory, path)
 }
 
 #[crate::command(root = "crate")]

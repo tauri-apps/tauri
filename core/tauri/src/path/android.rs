@@ -6,7 +6,7 @@ use super::Result;
 use crate::{plugin::PluginHandle, Runtime};
 use std::path::PathBuf;
 
-/// A helper class to access the mobile camera APIs.
+/// A helper class to access the mobile path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) PluginHandle<R>);
 
 #[derive(serde::Deserialize)]
@@ -14,7 +14,6 @@ struct PathResponse {
   path: PathBuf,
 }
 
-#[cfg(target_os = "android")]
 impl<R: Runtime> PathResolver<R> {
   fn resolve(&self, dir: &str) -> Result<PathBuf> {
     self

@@ -15,15 +15,15 @@ mod commands;
 mod error;
 pub use error::*;
 
-#[cfg(desktop)]
+#[cfg(target_os = "android")]
+mod android;
+#[cfg(not(target_os = "android"))]
 mod desktop;
-#[cfg(mobile)]
-mod mobile;
 
-#[cfg(desktop)]
+#[cfg(target_os = "android")]
+use android::PathResolver;
+#[cfg(not(target_os = "android"))]
 use desktop::PathResolver;
-#[cfg(mobile)]
-use mobile::PathResolver;
 
 /// A base directory to be used in [`resolve_directory`].
 ///
@@ -78,22 +78,22 @@ pub enum BaseDirectory {
   AppLog,
 
   /// The Desktop directory.
-  #[cfg(desktop)]
+  #[cfg(not(target_os = "android"))]
   Desktop,
   /// The Executable directory.
-  #[cfg(desktop)]
+  #[cfg(not(target_os = "android"))]
   Executable,
   /// The Font directory.
-  #[cfg(desktop)]
+  #[cfg(not(target_os = "android"))]
   Font,
   /// The Home directory.
-  #[cfg(desktop)]
+  #[cfg(not(target_os = "android"))]
   Home,
   /// The Runtime directory.
-  #[cfg(desktop)]
+  #[cfg(not(target_os = "android"))]
   Runtime,
   /// The Template directory.
-  #[cfg(desktop)]
+  #[cfg(not(target_os = "android"))]
   Template,
 }
 
@@ -119,17 +119,17 @@ impl BaseDirectory {
       Self::AppCache => "$APPCACHE",
       Self::AppLog => "$APPLOG",
 
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       Self::Desktop => "$DESKTOP",
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       Self::Executable => "$EXE",
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       Self::Font => "$FONT",
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       Self::Home => "$HOME",
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       Self::Runtime => "$RUNTIME",
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       Self::Template => "$TEMPLATE",
     }
   }
@@ -156,17 +156,17 @@ impl BaseDirectory {
       "$APPCACHE" => Self::AppCache,
       "$APPLOG" => Self::AppLog,
 
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       "$DESKTOP" => Self::Desktop,
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       "$EXE" => Self::Executable,
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       "$FONT" => Self::Font,
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       "$HOME" => Self::Home,
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       "$RUNTIME" => Self::Runtime,
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       "$TEMPLATE" => Self::Template,
 
       _ => return None,
@@ -223,7 +223,7 @@ impl<R: Runtime, T: Manager<R>> PathExt<R> for T {
     base_directory: BaseDirectory,
   ) -> Result<PathBuf> {
     commands::resolve_path::<R>(
-      self.state(),
+      self.path(),
       base_directory,
       Some(path.as_ref().to_path_buf()),
     )
@@ -236,7 +236,7 @@ impl<R: Runtime, T: Manager<R>> PathExt<R> for T {
       Some(Component::Normal(str)) => {
         if let Some(base_directory) = BaseDirectory::from_variable(&str.to_string_lossy()) {
           p.push(commands::resolve_path::<R>(
-            self.state(),
+            self.path(),
             base_directory,
             None,
           )?);
@@ -273,13 +273,13 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::is_absolute
     ])
     .setup(|app, _api| {
-      #[cfg(mobile)]
+      #[cfg(target_os = "android")]
       {
         let handle = _api.register_android_plugin("app.tauri", "PathPlugin")?;
         app.manage(PathResolver(handle));
       }
 
-      #[cfg(desktop)]
+      #[cfg(not(target_os = "android"))]
       {
         app.manage(PathResolver(app.clone()));
       }

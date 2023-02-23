@@ -23,11 +23,11 @@ pub enum Error {
   #[error("failed to read current dir: {0}")]
   CurrentDir(std::io::Error),
   /// Unknown path.
-  #[cfg(desktop)]
+  #[cfg(not(target_os = "android"))]
   #[error("unknown path")]
   UnknownPath,
   /// Failed to invoke mobile plugin.
-  #[cfg(mobile)]
+  #[cfg(target_os = "android")]
   #[error(transparent)]
   PluginInvoke(#[from] crate::plugin::mobile::PluginInvokeError),
 }

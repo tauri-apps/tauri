@@ -141,6 +141,7 @@ fn run_dev(
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
     debug: !dev_options.release_mode,
+    target: dev_options.target.clone(),
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();

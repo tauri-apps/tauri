@@ -116,6 +116,7 @@ fn run_build(
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
     debug: build_options.debug,
+    target: build_options.target.clone(),
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();

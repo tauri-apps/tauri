@@ -1510,8 +1510,8 @@ impl<R: Runtime> Window<R> {
                       .as_str()
                       .into(),
                     crate::ios::json_to_dictionary(message.payload),
-                    resolver.callback.0,
-                    resolver.error.0,
+                    callback.0,
+                    error.0,
                   )
                 };
               })?;

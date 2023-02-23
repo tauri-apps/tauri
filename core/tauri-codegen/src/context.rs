@@ -356,7 +356,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .expect("failed to write Info.plist");
 
     let info_plist_path = out_path.display().to_string();
-    quote!(tauri::embed_plist::embed_info_plist!(#info_plist_path);)
+    quote!(tauri::embed_plist::embed_info_plist!(#info_plist_path))
   } else {
     quote!()
   };
@@ -439,7 +439,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let shell_scope_config = quote!();
 
   Ok(quote!({
-    #info_plist
+    #info_plist;
     #root::Context::new(
       #config,
       ::std::sync::Arc::new(#assets),

@@ -83,16 +83,10 @@ export enum BaseDirectory {
   Config,
   Data,
   LocalData,
-  Desktop,
   Document,
   Download,
-  Executable,
-  Font,
-  Home,
   Picture,
   Public,
-  Runtime,
-  Template,
   Video,
   Resource,
   App,
@@ -102,7 +96,14 @@ export enum BaseDirectory {
   AppData,
   AppLocalData,
   AppCache,
-  AppLog
+  AppLog,
+
+  Desktop,
+  Executable,
+  Font,
+  Home,
+  Runtime,
+  Template
 }
 
 /**

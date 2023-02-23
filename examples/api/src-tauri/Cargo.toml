@@ -22,6 +22,7 @@ tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 
 [patch.'https://github.com/tauri-apps/tauri']
 tauri = { path = "../../../core/tauri" }
+tauri-build = { path = "../../../core/tauri-build" }
 
 [dependencies.tauri]
 path = "../../../core/tauri"

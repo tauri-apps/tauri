@@ -142,7 +142,7 @@ fn run_dev(
   let target = Target::all()
     .values()
     .find(|t| t.triple == target_triple)
-    .unwrap_or(Target::all().values().next().unwrap());
+    .unwrap_or_else(|| Target::all().values().next().unwrap());
   target.build(config, metadata, &env, noise_level, true, Profile::Debug)?;
 
   let open = options.open;

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![allow(unused_imports, deprecated)]
+#![allow(unused_imports)]
 
 use crate::{
   api::{
     dir,
     file::{self, SafePathBuf},
-    path::BaseDirectory,
   },
+  path::{BaseDirectory, PathExt},
   scope::Scopes,
   Config, Env, Manager, PackageInfo, Runtime, Window,
 };
@@ -129,13 +129,7 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   ) -> super::Result<Vec<u8>> {
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.and_then(|o| o.dir),
-    )?;
+    let resolved_path = resolve_path(&context.window, path, options.and_then(|o| o.dir))?;
     file::read_binary(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(Into::into)
@@ -147,13 +141,7 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   ) -> super::Result<String> {
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.and_then(|o| o.dir),
-    )?;
+    let resolved_path = resolve_path(&context.window, path, options.and_then(|o| o.dir))?;
     file::read_string(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(Into::into)
@@ -166,13 +154,7 @@ impl Cmd {
     contents: Vec<u8>,
     options: Option<FileOperationOptions>,
   ) -> super::Result<()> {
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.and_then(|o| o.dir),
-    )?;
+    let resolved_path = resolve_path(&context.window, path, options.and_then(|o| o.dir))?;
     File::create(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(Into::into)
@@ -190,13 +172,7 @@ impl Cmd {
     } else {
       (false, None)
     };
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      dir,
-    )?;
+    let resolved_path = resolve_path(&context.window, path, dir)?;
     dir::read_dir_with_options(
       &resolved_path,
       recursive,
@@ -217,20 +193,8 @@ impl Cmd {
   ) -> super::Result<()> {
     let (src, dest) = match options.and_then(|o| o.dir) {
       Some(dir) => (
-        resolve_path(
-          &context.config,
-          &context.package_info,
-          &context.window,
-          source,
-          Some(dir),
-        )?,
-        resolve_path(
-          &context.config,
-          &context.package_info,
-          &context.window,
-          destination,
-          Some(dir),
-        )?,
+        resolve_path(&context.window, source, Some(dir))?,
+        resolve_path(&context.window, destination, Some(dir))?,
       ),
       None => (source, destination),
     };
@@ -250,13 +214,7 @@ impl Cmd {
     } else {
       (false, None)
     };
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      dir,
-    )?;
+    let resolved_path = resolve_path(&context.window, path, dir)?;
     if recursive {
       fs::create_dir_all(&resolved_path)
         .with_context(|| format!("path: {}", resolved_path.display()))?;
@@ -279,13 +237,7 @@ impl Cmd {
     } else {
       (false, None)
     };
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      dir,
-    )?;
+    let resolved_path = resolve_path(&context.window, path, dir)?;
     if recursive {
       fs::remove_dir_all(&resolved_path)
         .with_context(|| format!("path: {}", resolved_path.display()))?;
@@ -303,13 +255,7 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   ) -> super::Result<()> {
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.and_then(|o| o.dir),
-    )?;
+    let resolved_path = resolve_path(&context.window, path, options.and_then(|o| o.dir))?;
     fs::remove_file(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))?;
     Ok(())
@@ -324,20 +270,8 @@ impl Cmd {
   ) -> super::Result<()> {
     let (old, new) = match options.and_then(|o| o.dir) {
       Some(dir) => (
-        resolve_path(
-          &context.config,
-          &context.package_info,
-          &context.window,
-          old_path,
-          Some(dir),
-        )?,
-        resolve_path(
-          &context.config,
-          &context.package_info,
-          &context.window,
-          new_path,
-          Some(dir),
-        )?,
+        resolve_path(&context.window, old_path, Some(dir))?,
+        resolve_path(&context.window, new_path, Some(dir))?,
       ),
       None => (old_path, new_path),
     };
@@ -352,27 +286,22 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   ) -> super::Result<bool> {
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.and_then(|o| o.dir),
-    )?;
+    let resolved_path = resolve_path(&context.window, path, options.and_then(|o| o.dir))?;
     Ok(resolved_path.as_ref().exists())
   }
 }
 
 #[allow(dead_code)]
 fn resolve_path<R: Runtime>(
-  config: &Config,
-  package_info: &PackageInfo,
   window: &Window<R>,
   path: SafePathBuf,
   dir: Option<BaseDirectory>,
 ) -> super::Result<SafePathBuf> {
-  let env = window.state::<Env>().inner();
-  match crate::api::path::resolve_path(config, package_info, env, &path, dir) {
+  match if let Some(dir) = dir {
+    window.resolve_path(&path, dir)
+  } else {
+    Ok(path.as_ref().to_path_buf())
+  } {
     Ok(path) => {
       if window.state::<Scopes>().fs.is_allowed(&path) {
         Ok(

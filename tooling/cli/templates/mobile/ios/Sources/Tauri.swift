@@ -1,8 +1,3 @@
-//
-//  Tauri.swift
-//  api_iOS
-//
-//  Created by Lucas Nogueira on 29/01/23.
-//
+// This dummy file is required for the project to work with Swift libraries.
 
 import Foundation

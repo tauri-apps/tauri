@@ -1,4 +1,4 @@
-// swift-tools-version: 5.7
+// swift-tools-version:5.3
 // Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
@@ -16,7 +16,7 @@ let package = Package(
 	],
 	dependencies: [
 		// Dependencies declare other packages that this package depends on.
-		.package(url: "https://github.com/Brendonovich/swift-rs", revision: "56b14aa4aa61e93d0fddf695d0cad78b6dd392b4"),
+		.package(url: "https://github.com/lucasfernog/swift-rs", .revision("8ef01d39519619e16218e2d46bdd2defd5bdb750")),
 	],
 	targets: [
 		// Targets are the basic building blocks of a package. A target can define a module or a test suite.

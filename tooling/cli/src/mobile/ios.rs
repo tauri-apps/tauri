@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use clap::{Parser, Subcommand};
 use sublime_fuzzy::best_match;
 use tauri_mobile::{
@@ -19,6 +18,7 @@ use tauri_mobile::{
   config::app::App,
   env::Env,
   opts::NoiseLevel,
+  os,
   util::prompt,
 };
 
@@ -34,7 +34,6 @@ use crate::{
 };
 
 use std::{
-  path::PathBuf,
   process::exit,
   thread::{sleep, spawn},
   time::Duration,
@@ -272,34 +271,10 @@ fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
 
 fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
   log::info!("Opening Xcode");
-  if let Err(e) = open_xcode(env, config.project_dir()) {
+  if let Err(e) = os::open_file_with("Xcode", config.project_dir(), env) {
     log::error!("{}", e);
   }
   loop {
     sleep(Duration::from_secs(24 * 60 * 60));
   }
-}
-
-#[cfg(target_arch = "aarch64")]
-fn open_xcode(env: &Env, path: PathBuf) -> Result<()> {
-  let xcode_select_output = tauri_mobile::bossy::Command::impure("xcode-select")
-    .with_arg("-print-path")
-    .run_and_wait_for_output()
-    .context("failed to run `xcode-select -print-path`")?;
-  // outputs something like `/Applications/Xcode.app/Contents/Developer`
-  let xcode_path = PathBuf::from(String::from_utf8_lossy(xcode_select_output.stdout()).trim());
-
-  // force Xcode to use arm64
-  tauri_mobile::bossy::Command::impure("arch")
-    .with_arg("-arm64")
-    .with_arg(xcode_path.parent().unwrap().join("MacOS").join("Xcode"))
-    .with_arg(&path)
-    .run_and_detach()?;
-
-  Ok(())
-}
-
-#[cfg(not(target_arch = "aarch64"))]
-fn open_xcode(env: &Env, path: PathBuf) -> Result<()> {
-  tauri_mobile::os::open_file_with("Xcode", config.project_dir(), env).map_err(Into::into)
 }

@@ -2896,6 +2896,16 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 [[package]]
 name = "swift-rs"
 version = "0.3.0"
+source = "git+https://github.com/Brendonovich/swift-rs?rev=56b14aa4aa61e93d0fddf695d0cad78b6dd392b4#56b14aa4aa61e93d0fddf695d0cad78b6dd392b4"
+dependencies = [
+ "base64 0.13.1",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "swift-rs"
+version = "0.3.0"
 source = "git+https://github.com/Brendonovich/swift-rs?rev=eb6de914ad57501da5019154d476d45660559999#eb6de914ad57501da5019154d476d45660559999"
 dependencies = [
  "base64 0.13.1",
@@ -3045,7 +3055,7 @@ dependencies = [
  "serialize-to-javascript",
  "shared_child",
  "state",
- "swift-rs",
+ "swift-rs 0.3.0 (git+https://github.com/Brendonovich/swift-rs?rev=56b14aa4aa61e93d0fddf695d0cad78b6dd392b4)",
  "tar",
  "tauri-build",
  "tauri-macros",
@@ -3078,7 +3088,7 @@ dependencies = [
  "semver 1.0.16",
  "serde",
  "serde_json",
- "swift-rs",
+ "swift-rs 0.3.0 (git+https://github.com/Brendonovich/swift-rs?rev=56b14aa4aa61e93d0fddf695d0cad78b6dd392b4)",
  "tauri-codegen",
  "tauri-utils",
  "tauri-winres",
@@ -3134,7 +3144,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
- "swift-rs",
+ "swift-rs 0.3.0 (git+https://github.com/Brendonovich/swift-rs?rev=eb6de914ad57501da5019154d476d45660559999)",
  "tauri",
  "tauri-build",
  "time",

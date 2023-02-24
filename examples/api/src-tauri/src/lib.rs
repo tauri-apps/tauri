@@ -65,7 +65,7 @@ pub fn run() {
       let response = app.sample().ping(PingRequest {
         value: value.clone(),
       });
-      println!("got response: {:?}", response);
+      log::info!("got response: {:?}", response);
       if let Ok(res) = response {
         assert_eq!(res.value, value);
       }

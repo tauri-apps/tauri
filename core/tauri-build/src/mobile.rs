@@ -100,10 +100,12 @@ pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
   println!("cargo:rerun-if-changed={}", source.display());
   let curr_dir = std::env::current_dir().unwrap();
   std::env::set_current_dir(&source).unwrap();
-  swift_rs::build::SwiftLinker::new("10.13")
-    .with_ios("13.0")
-    .with_package(name, source)
-    .link();
+  swift_rs::build::SwiftLinker::new(
+    &std::env::var("MACOSX_DEPLOYMENT_TARGET").unwrap_or_else(|_| "10.13".into()),
+  )
+  .with_ios(&std::env::var("IOS_DEPLOYMENT_TARGET").unwrap_or_else(|_| "13.0".into()))
+  .with_package(name, source)
+  .link();
   std::env::set_current_dir(&curr_dir).unwrap();
 }
 

@@ -2904,16 +2904,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "swift-rs"
-version = "0.3.0"
-source = "git+https://github.com/Brendonovich/swift-rs?rev=eb6de914ad57501da5019154d476d45660559999#eb6de914ad57501da5019154d476d45660559999"
-dependencies = [
- "base64 0.13.1",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "syn"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3055,7 +3045,7 @@ dependencies = [
  "serialize-to-javascript",
  "shared_child",
  "state",
- "swift-rs 0.3.0 (git+https://github.com/Brendonovich/swift-rs?rev=56b14aa4aa61e93d0fddf695d0cad78b6dd392b4)",
+ "swift-rs",
  "tar",
  "tauri-build",
  "tauri-macros",
@@ -3088,7 +3078,7 @@ dependencies = [
  "semver 1.0.16",
  "serde",
  "serde_json",
- "swift-rs 0.3.0 (git+https://github.com/Brendonovich/swift-rs?rev=56b14aa4aa61e93d0fddf695d0cad78b6dd392b4)",
+ "swift-rs",
  "tauri-codegen",
  "tauri-utils",
  "tauri-winres",
@@ -3135,7 +3125,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-log"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/plugins-workspace?branch=next#961602bd1b15e9c0d83d4c32c221a075fbabd83b"
+source = "git+https://github.com/tauri-apps/plugins-workspace?branch=feat/update-swift#2c60c51192088e552ac3e15931693558eff1f013"
 dependencies = [
  "android_logger",
  "byte-unit",
@@ -3144,7 +3134,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
- "swift-rs 0.3.0 (git+https://github.com/Brendonovich/swift-rs?rev=eb6de914ad57501da5019154d476d45660559999)",
+ "swift-rs",
  "tauri",
  "tauri-build",
  "time",

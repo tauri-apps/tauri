@@ -132,28 +132,115 @@
   }
 
   // drag region
-  document.addEventListener('mousedown', (e) => {
-    if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
+  document.addEventListener("mousedown", (e) => {
+    const DragType = {
+      Unset: "",
+      None: "none",
+      Self: "self",
+      SelfTitle: "self-title",
+      Container: "container",
+      ContainerTitle: "container-title",
+      ContainerNone: "container-none",
+    }
+
+    /**
+     * @param {HTMLElement} element
+     * @return {DragType}
+     */
+    function elementType(element) {
+      const value = element.getAttribute("data-tauri-drag-region");
+      switch (value) {
+        case null:
+        case undefined: {
+          return DragType.Unset;
+        }
+        case "false": {
+          return DragType.None;
+        }
+        case DragType.None:
+        case DragType.Self:
+        case DragType.SelfTitle:
+        case DragType.Container:
+        case DragType.ContainerTitle:
+        case DragType.ContainerNone: {
+          return value;
+        }
+        default: {
+          return DragType.SelfTitle;
+        }
+      }
+    }
+
+    /**
+     * @param {HTMLElement} element
+     * @return {DragType}
+     */
+    function parentsType(element) {
+      let current = element.parentElement;
+
+      while (current) {
+        const type = elementType(current);
+        if (
+          type === DragType.Container ||
+          type === DragType.ContainerTitle ||
+          type === DragType.ContainerNone
+        )
+          return type;
+        current = current.parentElement;
+      }
+
+      return DragType.None;
+    }
+
+    if (!e.target) return;
+    if (e.buttons !== 1) return; // check is left click
+
+    /**
+     * @type {HTMLElement}
+     */
+    const element = e.target;
+
+    let type = elementType(element);
+
+    if (type === DragType.Unset) type = parentsType(element);
+
+    let drag = true;
+    let isTitle = false;
+
+    switch (type) {
+      case DragType.Unset:
+      case DragType.None:
+      case DragType.ContainerNone:
+        drag = false;
+        break;
+      case DragType.SelfTitle:
+      case DragType.ContainerTitle:
+        isTitle = true;
+        break;
+    }
+
+    if (drag) {
       // prevents text cursor
-      e.preventDefault()
+      e.preventDefault();
       // fix #2549: double click on drag region edge causes content to maximize without window sizing change
       // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
-      e.stopImmediatePropagation()
+      e.stopImmediatePropagation();
 
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
-      window.__TAURI_INVOKE__('tauri', {
-        __tauriModule: 'Window',
+      window.__TAURI_INVOKE__("tauri", {
+        __tauriModule: "Window",
         message: {
-          cmd: 'manage',
+          cmd: "manage",
           data: {
             cmd: {
-              type: e.detail === 2 ? '__toggleMaximize' : 'startDragging'
-            }
-          }
-        }
-      })
+              type:
+                isTitle && e.detail === 2 ? "__toggleMaximize" : "startDragging",
+            },
+          },
+        },
+      });
     }
-  })
+  });
 
   let permissionSettable = false
   let permissionValue = 'default'

@@ -160,8 +160,8 @@
 
       const drag = dragAttr !== "false";
       const container = containerAttr != null && containerAttr !== "false";
-      // default enable if not set, for backwards compatibility
-      const title = (titleAttr != null || drag) && titleAttr !== "false";
+      // default enable if not set and container not enable; for backwards compatibility
+      const title = (titleAttr != null || (drag && !container)) && titleAttr !== "false";
       // only can enable on container
       const interactable =
         interactableAttr != null && interactableAttr !== "false" && container;

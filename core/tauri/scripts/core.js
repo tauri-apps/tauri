@@ -199,6 +199,8 @@
     if (info == null) info = parentsDragInfo(element);
     // if all unset then directly return
     if (info == null) return;
+    // if drag disabled then directly return
+    if (!info.drag) return;
 
     if (isClick) {
       // prevents click on button in container when interact-able not enable

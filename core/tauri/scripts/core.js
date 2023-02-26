@@ -208,6 +208,8 @@
       return;
     }
 
+    if (elementInteractable && info.interactable) return;
+
     if (info.drag) {
       // prevents text cursor
       event.preventDefault();

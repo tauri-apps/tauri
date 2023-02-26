@@ -201,6 +201,7 @@
     if (info == null) return;
 
     if (isClick) {
+      // prevents click on button in container when interact-able not enable
       if (info.container && !info.interactable && elementInteractable) {
         event.stopImmediatePropagation();
       }
@@ -209,7 +210,6 @@
 
     if (info.drag) {
       // prevents text cursor
-      // prevents button click in container
       event.preventDefault();
       // fix #2549: double-click on drag region edge causes content to maximize without window sizing change
       // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908

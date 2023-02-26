@@ -153,7 +153,7 @@
       const dragAttr = element.getAttribute("data-tauri-drag-region");
       const containerAttr = element.getAttribute("data-tauri-drag-region-container");
       const titleAttr = element.getAttribute("data-tauri-drag-region-title");
-      const interactableAttr = element.getAttribute("data-tauri-drag-region-interactable");
+      const interactableAttr = element.getAttribute("data-tauri-drag-region-interact-able");
 
       // return null if unset
       if (dragAttr == null) return null;

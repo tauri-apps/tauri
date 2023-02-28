@@ -141,7 +141,7 @@
      * @typedef {Object} DragInfo
      * @property {boolean} drag
      * @property {boolean} container
-     * @property {boolean} title
+     * @property {boolean} titlebar
      * @property {boolean} interactive
      */
 
@@ -152,7 +152,7 @@
     function elementDragInfo(element) {
       const dragAttr = element.getAttribute("data-tauri-drag-region");
       const containerAttr = element.getAttribute("data-tauri-drag-region-container");
-      const titleAttr = element.getAttribute("data-tauri-drag-region-title");
+      const titlebarAttr = element.getAttribute("data-tauri-drag-region-titlebar");
       const interactiveAttr = element.getAttribute("data-tauri-drag-region-interactive");
 
       // return null if unset
@@ -161,12 +161,12 @@
       const drag = dragAttr !== "false";
       const container = containerAttr != null && containerAttr !== "false";
       // default enable if not set and container not enable; for backwards compatibility
-      const title = (titleAttr != null || (drag && !container)) && titleAttr !== "false";
+      const titlebar = (titlebarAttr != null || (drag && !container)) && titlebarAttr !== "false";
       // only can enable on container
       const interactive =
         interactiveAttr != null && interactiveAttr !== "false" && container;
 
-      return {drag, container, title, interactive};
+      return {drag, container, titlebar, interactive};
     }
 
     /**
@@ -182,7 +182,7 @@
         current = current.parentElement;
       }
 
-      return {container: false, interactive: false, title: false, drag: false};
+      return {container: false, interactive: false, titlebar: false, drag: false};
     }
 
     if (!event.target) return;
@@ -227,7 +227,7 @@
           data: {
             cmd: {
               type:
-                info.title && event.detail === 2
+                info.titlebar && event.detail === 2
                   ? "__toggleMaximize"
                   : "startDragging",
             },

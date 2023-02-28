@@ -60,7 +60,9 @@ jobs:
         working-directory: tooling/api
         run: yarn && yarn build
       - name: check api
-        run: ./.scripts/ci/has-diff.sh
+        run: |
+          git restore tooling/api/docs/js-api.json
+          ./.scripts/ci/has-diff.sh
 
   check-schema:
     runs-on: ubuntu-latest

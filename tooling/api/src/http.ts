@@ -123,11 +123,7 @@ class Body {
    * // alternatively, use a FormData:
    * const form = new FormData();
    * form.append('key', 'value');
-   * form.append('image', {
-   *   file: '/path/to/file',
-   *   mime: 'image/jpeg',
-   *   fileName: 'image.jpg'
-   * });
+   * form.append('image', file, 'image.png');
    * const formBody = Body.form(form);
    * ```
    *

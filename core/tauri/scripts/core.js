@@ -156,15 +156,26 @@
 
       // return drag false if exclude
       if (excludeAttr && excludeAttr !== "false") return {drag: false, container: false, titlebar: false};
+
       // return null if unset
-      if (dragAttr == null) return null;
+      if (!dragAttr && !containerAttr) return null;
 
-      const drag = dragAttr !== "false";
-      const container = containerAttr != null && containerAttr !== "false";
-      // default enable if not set and container not enable; for backwards compatibility
-      const titlebar = (titlebarAttr != null || (drag && !container)) && titlebarAttr !== "false";
+      // enable titlebar if titlebarAttr not set or titlebarAttr is set and not equal to "false"
+      if (dragAttr) return {
+        drag: dragAttr !== "false",
+        container: false,
+        titlebar: titlebarAttr ? titlebarAttr !== "false" : true
+      };
 
-      return {drag, container, titlebar};
+      // enable titlebar only if titlebarAttr is set and not equal to "false"
+      if (containerAttr) return {
+        drag: containerAttr !== "false",
+        container: containerAttr !== "false",
+        titlebar: titlebarAttr ? titlebarAttr !== "false" : false
+      };
+
+      // above code should handle all the conditions
+      return {drag: false, container: false, titlebar: false};
     }
 
     /**

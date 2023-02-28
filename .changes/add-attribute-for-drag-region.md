@@ -17,21 +17,12 @@ Description:
 Example:
 
 ```html
-
-<div>
-  <div class="title"
-       data-tauri-drag-region-container="true"
-       data-tauri-drag-region-titlebar="true"
-  >
-    <div>Title</div>
-    <div>Some decoration</div>
-    <button data-tauri-drag-region-exclude>close</button>
-  </div>
-  <div class="content"
-       data-tauri-drag-region-container="true"
-  >
-    <div>content</div>
-    <div>content</div>
-  </div>
+<div class="titlebar"
+     data-tauri-drag-region-container="true"
+     data-tauri-drag-region-titlebar="true"
+>
+  <div>Title</div>
+  <div>Some decoration</div>
+  <button data-tauri-drag-region-exclude>close</button>
 </div>
 ```

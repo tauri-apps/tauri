@@ -12,8 +12,7 @@ Description:
 
 `data-tauri-drag-region-titlebar`: the "drag region" maximizes window on double click (default when only `data-tauri-drag-region` is used)
 
-`data-tauri-drag-region-interactive`: mark the "drag region" wouldn't prevent event to its children that interact-able,
-like button, input, etc. (check by "is property 'value' exists")
+`data-tauri-drag-region-exclude`: this element doesn't trigger `drag`
 
 Example:
 
@@ -23,14 +22,10 @@ Example:
   <div class="title"
        data-tauri-drag-region-container="true"
        data-tauri-drag-region-titlebar="true"
-       data-tauri-drag-region-interactive="true"
   >
     <div>Title</div>
     <div>Some decoration</div>
-    <button>close</button>
-    <div data-tauri-drag-region="false" onclick="alert('clicked')">
-      some element not interactive by default
-    </div>
+    <button data-tauri-drag-region-exclude>close</button>
   </div>
   <div class="content"
        data-tauri-drag-region-container="true"

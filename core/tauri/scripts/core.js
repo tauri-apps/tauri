@@ -142,7 +142,6 @@
      * @property {boolean} drag
      * @property {boolean} container
      * @property {boolean} titlebar
-     * @property {boolean} interactive
      */
 
     /**
@@ -153,8 +152,10 @@
       const dragAttr = element.getAttribute("data-tauri-drag-region");
       const containerAttr = element.getAttribute("data-tauri-drag-region-container");
       const titlebarAttr = element.getAttribute("data-tauri-drag-region-titlebar");
-      const interactiveAttr = element.getAttribute("data-tauri-drag-region-interactive");
+      const excludeAttr = element.getAttribute("data-tauri-drag-region-exclude");
 
+      // return drag false if exclude
+      if (excludeAttr && excludeAttr !== "false") return {drag: false, container: false, titlebar: false};
       // return null if unset
       if (dragAttr == null) return null;
 
@@ -162,11 +163,8 @@
       const container = containerAttr != null && containerAttr !== "false";
       // default enable if not set and container not enable; for backwards compatibility
       const titlebar = (titlebarAttr != null || (drag && !container)) && titlebarAttr !== "false";
-      // only can enable on container
-      const interactive =
-        interactiveAttr != null && interactiveAttr !== "false" && container;
 
-      return {drag, container, titlebar, interactive};
+      return {drag, container, titlebar};
     }
 
     /**
@@ -182,7 +180,7 @@
         current = current.parentElement;
       }
 
-      return {container: false, interactive: false, titlebar: false, drag: false};
+      return {container: false, titlebar: false, drag: false};
     }
 
     if (!event.target) return;
@@ -192,7 +190,6 @@
      * @type {HTMLElement}
      */
     const element = event.target;
-    const elementInteractable = event.target.value !== undefined;
 
     let info = elementDragInfo(element);
     // get parent info if current is unset
@@ -203,37 +200,33 @@
     if (!info.drag) return;
 
     if (isClick) {
-      // prevents click on button in container when interact-able not enable
-      if (info.container && !info.interactive && elementInteractable) {
-        event.stopImmediatePropagation();
-      }
-      return;
-    }
-
-    if (elementInteractable && info.interactive) return;
-
-    if (info.drag) {
-      // prevents text cursor
+      // prevents click
       event.preventDefault();
-      // fix #2549: double-click on drag region edge causes content to maximize without window sizing change
-      // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
       event.stopImmediatePropagation();
+    } else {
+      if (info.drag) {
+        // prevents text cursor
+        event.preventDefault();
+        // fix #2549: double-click on drag region edge causes content to maximize without window sizing change
+        // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
+        event.stopImmediatePropagation();
 
-      // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
-      window.__TAURI_INVOKE__("tauri", {
-        __tauriModule: "Window",
-        message: {
-          cmd: "manage",
-          data: {
-            cmd: {
-              type:
-                info.titlebar && event.detail === 2
-                  ? "__toggleMaximize"
-                  : "startDragging",
+        // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
+        window.__TAURI_INVOKE__("tauri", {
+          __tauriModule: "Window",
+          message: {
+            cmd: "manage",
+            data: {
+              cmd: {
+                type:
+                  info.titlebar && event.detail === 2
+                    ? "__toggleMaximize"
+                    : "startDragging",
+              },
             },
           },
-        },
-      });
+        });
+      }
     }
   }
 

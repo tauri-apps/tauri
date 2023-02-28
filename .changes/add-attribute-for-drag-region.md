@@ -2,18 +2,15 @@
 "tauri": "minor"
 ---
 
-Added
-attribute `data-tauri-drag-region-container`, `data-tauri-drag-region-title`, `data-tauri-drag-region-interactive`, to
-enable drag on children, control maximize on double click, control is or not interactable on button/input/etc.
+Added new drag attributes,`data-tauri-drag-region-container`, `data-tauri-drag-region-title`, `data-tauri-drag-region-interactive`, to enable drag on children, control maximize on double click, control interactive elements behavior.
 
 Description:
 
 `data-tauri-drag-region`: mark this element as "drag region"
 
-`data-tauri-drag-region-container`: mark the "drag region" effects its children
+`data-tauri-drag-region-container`: children are also considered drag regions
 
-`data-tauri-drag-region-title`: mark the "drag region" maximize on double click (default add when
-only `data-tauri-drag-region` is set)
+`data-tauri-drag-region-title`: the "drag region" maximizes window on double click (default when only `data-tauri-drag-region` is used)
 
 `data-tauri-drag-region-interactive`: mark the "drag region" wouldn't prevent event to its children that interact-able,
 like button, input, etc. (check by "is property 'value' exists")

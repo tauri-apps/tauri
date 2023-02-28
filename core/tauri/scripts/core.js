@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-; (function () {
+;(function () {
   function uid() {
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
@@ -142,7 +142,7 @@
      * @property {boolean} drag
      * @property {boolean} container
      * @property {boolean} title
-     * @property {boolean} interactable
+     * @property {boolean} interactive
      */
 
     /**
@@ -153,7 +153,7 @@
       const dragAttr = element.getAttribute("data-tauri-drag-region");
       const containerAttr = element.getAttribute("data-tauri-drag-region-container");
       const titleAttr = element.getAttribute("data-tauri-drag-region-title");
-      const interactableAttr = element.getAttribute("data-tauri-drag-region-interact-able");
+      const interactiveAttr = element.getAttribute("data-tauri-drag-region-interactive");
 
       // return null if unset
       if (dragAttr == null) return null;
@@ -163,10 +163,10 @@
       // default enable if not set and container not enable; for backwards compatibility
       const title = (titleAttr != null || (drag && !container)) && titleAttr !== "false";
       // only can enable on container
-      const interactable =
-        interactableAttr != null && interactableAttr !== "false" && container;
+      const interactive =
+        interactiveAttr != null && interactiveAttr !== "false" && container;
 
-      return { drag, container, title, interactable };
+      return {drag, container, title, interactive};
     }
 
     /**
@@ -182,7 +182,7 @@
         current = current.parentElement;
       }
 
-      return { container: false, interactable: false, title: false, drag: false };
+      return {container: false, interactive: false, title: false, drag: false};
     }
 
     if (!event.target) return;
@@ -204,13 +204,13 @@
 
     if (isClick) {
       // prevents click on button in container when interact-able not enable
-      if (info.container && !info.interactable && elementInteractable) {
+      if (info.container && !info.interactive && elementInteractable) {
         event.stopImmediatePropagation();
       }
       return;
     }
 
-    if (elementInteractable && info.interactable) return;
+    if (elementInteractable && info.interactive) return;
 
     if (info.drag) {
       // prevents text cursor

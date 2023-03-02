@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 #![cfg(protocol_asset)]
 
 use crate::api::file::SafePathBuf;
@@ -56,7 +60,7 @@ pub fn asset_protocol_handler(
     let mime_type = {
       let mut magic_bytes = [0; 8192];
       let old_pos = file.seek(SeekFrom::Current(0)).await?;
-      file.read(&mut magic_bytes).await?;
+      file.read_exact(&mut magic_bytes).await?;
       file.seek(SeekFrom::Start(old_pos)).await?;
       MimeType::parse(&magic_bytes, &path)
     };
@@ -172,7 +176,7 @@ pub fn asset_protocol_handler(
       }
     } else {
       resp = resp.header(CONTENT_LENGTH, len);
-      let mut buf = vec![0; len as usize];
+      let mut buf = vec![0_u8; len as usize];
       file.read_to_end(&mut buf).await?;
       resp.body(buf)
     };
@@ -182,11 +186,11 @@ pub fn asset_protocol_handler(
 }
 
 fn random_boundary() -> String {
-  let mut x = [0 as u8; 30];
+  let mut x = [0_u8; 30];
   rand::thread_rng().fill_bytes(&mut x);
-  (&x[..])
+  (x[..])
     .iter()
-    .map(|&x| format!("{:x}", x))
+    .map(|&x| format!("{x:x}"))
     .fold(String::new(), |mut a, x| {
       a.push_str(x.as_str());
       a

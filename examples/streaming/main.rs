@@ -51,7 +51,7 @@ fn main() {
       let mut file = std::fs::File::open(&path)?;
 
       let len = {
-        let old_pos = file.seek(SeekFrom::Current(0))?;
+        let old_pos = file.stream_position()?;
         let len = file.seek(SeekFrom::End(0))?;
         file.seek(SeekFrom::Start(old_pos))?;
         len

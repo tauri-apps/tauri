@@ -51,7 +51,7 @@ pub fn asset_protocol_handler(
     let mut file = File::open(&path).await?;
     // get file length
     let len = {
-      let old_pos = file.seek(SeekFrom::Current(0)).await?;
+      let old_pos = file.stream_position().await?;
       let len = file.seek(SeekFrom::End(0)).await?;
       file.seek(SeekFrom::Start(old_pos)).await?;
       len
@@ -59,7 +59,7 @@ pub fn asset_protocol_handler(
     // get file mime type
     let mime_type = {
       let mut magic_bytes = [0; 8192];
-      let old_pos = file.seek(SeekFrom::Current(0)).await?;
+      let old_pos = file.stream_position().await?;
       file.read_exact(&mut magic_bytes).await?;
       file.seek(SeekFrom::Start(old_pos)).await?;
       MimeType::parse(&magic_bytes, &path)

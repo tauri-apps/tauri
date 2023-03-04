@@ -8,14 +8,13 @@ use crate::api::file::SafePathBuf;
 use crate::scope::FsScope;
 use rand::RngCore;
 use std::io::SeekFrom;
-use std::pin::Pin;
 use tauri_runtime::http::HttpRange;
 use tauri_runtime::http::{
   header::*, status::StatusCode, MimeType, Request, Response, ResponseBuilder,
 };
 use tauri_utils::debug_eprintln;
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use url::Position;
 use url::Url;
 
@@ -93,7 +92,7 @@ pub fn asset_protocol_handler(
         return not_satisfiable();
       };
 
-      /// only send 1MB or less at a time
+      /// The Maximum bytes we send in one range
       const MAX_LEN: u64 = 1000 * 1024;
 
       if ranges.len() == 1 {
@@ -107,18 +106,15 @@ pub fn asset_protocol_handler(
           return not_satisfiable();
         }
 
-        // adjust for MAX_LEN
+        // adjust end byte for MAX_LEN
         end = start + (end - start).min(len - start).min(MAX_LEN - 1);
 
+        // calculate number of bytes needed to be read
+        let bytes_to_read = end + 1 - start;
+
+        let mut buf = Vec::with_capacity(bytes_to_read as usize);
         file.seek(SeekFrom::Start(start)).await?;
-
-        let mut stream: Pin<Box<dyn AsyncRead>> = Box::pin(file);
-        if end + 1 < len {
-          stream = Box::pin(stream.take(end + 1 - start));
-        }
-
-        let mut buf = Vec::new();
-        stream.read_to_end(&mut buf).await?;
+        file.read_buf(&mut buf).await?;
 
         resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
         resp = resp.header(CONTENT_LENGTH, end + 1 - start);
@@ -136,6 +132,7 @@ pub fn asset_protocol_handler(
             if start >= len || end >= len || end < start {
               None
             } else {
+              // adjust end byte for MAX_LEN
               end = start + (end - start).min(len - start).min(MAX_LEN - 1);
               Some((start, end))
             }
@@ -151,25 +148,29 @@ pub fn asset_protocol_handler(
           format!("multipart/byteranges; boundary={boundary}"),
         );
 
-        drop(file);
-
         for (end, start) in ranges {
+          // a new range is being written, write the range boundary
           buf.write_all(boundary_sep.as_bytes()).await?;
+
+          // write the needed headers `Content-Type` and `Content-Range`
           buf
             .write_all(format!("{CONTENT_TYPE}: {mime_type}\r\n").as_bytes())
             .await?;
           buf
             .write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())
             .await?;
+
+          // separator to indicate start of the range body
           buf.write_all("\r\n".as_bytes()).await?;
 
-          let mut file = File::open(&path).await?;
+          // calculate number of bytes needed to be read
+          let bytes_to_read = end + 1 - start;
+
+          buf.reserve_exact(bytes_to_read as usize);
           file.seek(SeekFrom::Start(start)).await?;
-          file
-            .take(if end + 1 < len { end + 1 - start } else { len })
-            .read_to_end(&mut buf)
-            .await?;
+          file.read_buf(&mut buf).await?;
         }
+        // all ranges have been written, write the closing boundary
         buf.write_all(boundary_closer.as_bytes()).await?;
 
         resp.body(buf)

@@ -176,7 +176,7 @@ pub fn asset_protocol_handler(
       }
     } else {
       resp = resp.header(CONTENT_LENGTH, len);
-      let mut buf = vec![0_u8; len as usize];
+      let mut buf = Vec::with_capacity(len as usize);
       file.read_to_end(&mut buf).await?;
       resp.body(buf)
     };

@@ -151,6 +151,9 @@ fn main() {
             // separator to indicate start of the range body
             buf.write_all("\r\n".as_bytes())?;
 
+            // calculate number of bytes needed to be read
+            let bytes_to_read = end + 1 - start;
+
             let mut local_buf = vec![0_u8, bytes_to_read as usize];
             file.seek(SeekFrom::Start(start));
             file.read_exact(&mut local_buf);

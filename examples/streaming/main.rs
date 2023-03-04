@@ -148,17 +148,18 @@ fn main() {
             buf.write_all(format!("{CONTENT_TYPE}: video/mp4\r\n").as_bytes())?;
             buf.write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())?;
 
-            // separator to indicate start of the range body
+            // write the separator to indicate the start of the range body
             buf.write_all("\r\n".as_bytes())?;
 
             // calculate number of bytes needed to be read
             let bytes_to_read = end + 1 - start;
 
-            let mut local_buf = vec![0_u8, bytes_to_read as usize];
+            let mut local_buf = vec![0_u8; bytes_to_read as usize];
             file.seek(SeekFrom::Start(start));
             file.read_exact(&mut local_buf);
             buf.extend_from_slice(&local_buf);
           }
+          // all ranges have been written, write the closing boundary
           buf.write_all(boundary_closer.as_bytes())?;
 
           resp.body(buf)

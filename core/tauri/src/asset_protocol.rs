@@ -116,7 +116,7 @@ pub fn asset_protocol_handler(
 
         let mut buf = Vec::with_capacity(bytes_to_read as usize);
         file.seek(SeekFrom::Start(start)).await?;
-        file.read_buf(&mut buf).await?;
+        file.take(bytes_to_read).read_to_end(&mut buf).await?;
 
         resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
         resp = resp.header(CONTENT_LENGTH, end + 1 - start);
@@ -162,7 +162,7 @@ pub fn asset_protocol_handler(
             .write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())
             .await?;
 
-          // separator to indicate start of the range body
+          // write the separator to indicate the start of the range body
           buf.write_all("\r\n".as_bytes()).await?;
 
           // calculate number of bytes needed to be read

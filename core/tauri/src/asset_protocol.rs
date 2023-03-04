@@ -48,6 +48,7 @@ pub fn asset_protocol_handler(
 
   crate::async_runtime::block_on(async move {
     let mut file = File::open(&path).await?;
+
     // get file length
     let len = {
       let old_pos = file.stream_position().await?;
@@ -55,6 +56,7 @@ pub fn asset_protocol_handler(
       file.seek(SeekFrom::Start(old_pos)).await?;
       len
     };
+
     // get file mime type
     let mime_type = {
       let mut magic_bytes = [0; 8192];
@@ -166,9 +168,10 @@ pub fn asset_protocol_handler(
           // calculate number of bytes needed to be read
           let bytes_to_read = end + 1 - start;
 
-          buf.reserve_exact(bytes_to_read as usize);
+          let mut local_buf = Vec::with_capacity(bytes_to_read as usize);
           file.seek(SeekFrom::Start(start)).await?;
-          file.read_buf(&mut buf).await?;
+          file.read_buf(&mut local_buf).await?;
+          buf.extend_from_slice(&local_buf);
         }
         // all ranges have been written, write the closing boundary
         buf.write_all(boundary_closer.as_bytes()).await?;

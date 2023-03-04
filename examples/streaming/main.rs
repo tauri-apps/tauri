@@ -50,6 +50,7 @@ fn main() {
 
       let mut file = std::fs::File::open(&path)?;
 
+      // get file length
       let len = {
         let old_pos = file.stream_position()?;
         let len = file.seek(SeekFrom::End(0))?;
@@ -80,7 +81,7 @@ fn main() {
           return not_satisfiable();
         };
 
-        /// only send 1MB or less at a time
+        /// The Maximum bytes we send in one range
         const MAX_LEN: u64 = 1000 * 1024;
 
         if ranges.len() == 1 {
@@ -94,18 +95,18 @@ fn main() {
             return not_satisfiable();
           }
 
-          // adjust for MAX_LEN
+          // adjust end byte for MAX_LEN
           end = start + (end - start).min(len - start).min(MAX_LEN - 1);
 
+          // calculate number of bytes needed to be read
+          let bytes_to_read = end + 1 - start;
+
+          // allocate a buf with a suitable capacity
+          let mut buf = Vec::with_capacity(bytes_to_read as usize);
+          // seek the file to the starting byte
           file.seek(SeekFrom::Start(start))?;
-
-          let mut stream: Box<dyn Read> = Box::new(file);
-          if end + 1 < len {
-            stream = Box::new(stream.take(end + 1 - start));
-          }
-
-          let mut buf = Vec::new();
-          stream.read_to_end(&mut buf)?;
+          // read the needed bytes
+          file.take(bytes_to_read).read_to_end(&mut buf)?;
 
           resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
           resp = resp.header(CONTENT_LENGTH, end + 1 - start);
@@ -123,6 +124,7 @@ fn main() {
               if start >= len || end >= len || end < start {
                 None
               } else {
+                // adjust end byte for MAX_LEN
                 end = start + (end - start).min(len - start).min(MAX_LEN - 1);
                 Some((start, end))
               }
@@ -138,19 +140,21 @@ fn main() {
             format!("multipart/byteranges; boundary={boundary}"),
           );
 
-          drop(file);
-
           for (end, start) in ranges {
+            // a new range is being written, write the range boundary
             buf.write_all(boundary_sep.as_bytes())?;
+
+            // write the needed headers `Content-Type` and `Content-Range`
             buf.write_all(format!("{CONTENT_TYPE}: video/mp4\r\n").as_bytes())?;
             buf.write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())?;
+
+            // separator to indicate start of the range body
             buf.write_all("\r\n".as_bytes())?;
 
-            let mut file = std::fs::File::open(&path)?;
-            file.seek(SeekFrom::Start(start))?;
-            file
-              .take(if end + 1 < len { end + 1 - start } else { len })
-              .read_to_end(&mut buf)?;
+            let mut local_buf = vec![0_u8, bytes_to_read as usize];
+            file.seek(SeekFrom::Start(start));
+            file.read_exact(&mut local_buf);
+            buf.extend_from_slice(&local_buf);
           }
           buf.write_all(boundary_closer.as_bytes())?;
 

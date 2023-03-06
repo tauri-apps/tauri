@@ -133,7 +133,10 @@ pub struct CliOptions {
   pub vars: HashMap<String, OsString>,
 }
 
-fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> {
+fn setup_dev_config(
+  config_extension: &mut Option<String>,
+  force_ip_prompt: bool,
+) -> crate::Result<()> {
   let config = get_config(config_extension.as_deref())?;
 
   let mut dev_path = config
@@ -154,7 +157,7 @@ fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> 
       _ => false,
     };
     if localhost {
-      let ip = crate::dev::local_ip_address();
+      let ip = crate::dev::local_ip_address(force_ip_prompt);
       url.set_host(Some(&ip.to_string())).unwrap();
       if let Some(c) = config_extension {
         let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;

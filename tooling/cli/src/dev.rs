@@ -65,6 +65,9 @@ pub struct Options {
   /// Disable the dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
+  /// Force prompting for an IP to use to connect to the dev server on mobile.
+  #[clap(long)]
+  pub force_ip_prompt: bool,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -86,10 +89,10 @@ fn command_internal(mut options: Options) -> Result<()> {
   })
 }
 
-pub fn local_ip_address() -> &'static IpAddr {
+pub fn local_ip_address(force: bool) -> &'static IpAddr {
   static LOCAL_IP: OnceCell<IpAddr> = OnceCell::new();
   LOCAL_IP.get_or_init(|| {
-    let ip = local_ip_address::local_ip().unwrap_or_else(|_| {
+    let prompt_for_ip = || {
       let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()
         .expect("failed to list networks")
         .into_iter()
@@ -117,10 +120,14 @@ pub fn local_ip_address() -> &'static IpAddr {
           *addresses.get(selected).unwrap()
         }
       }
-    });
+    };
 
+    let ip = if force {
+      prompt_for_ip()
+    } else {
+      local_ip_address::local_ip().unwrap_or_else(|_| prompt_for_ip())
+    };
     log::info!("Using {ip} to access the development server.");
-
     ip
   })
 }
@@ -175,7 +182,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     if let Some(mut before_dev) = script {
       if before_dev.contains("$HOST") {
         if mobile {
-          let local_ip_address = local_ip_address().to_string();
+          let local_ip_address = local_ip_address(options.force_ip_prompt).to_string();
           before_dev = before_dev.replace("$HOST", &local_ip_address);
           if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
             url.set_host(Some(&local_ip_address))?;
@@ -293,7 +300,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     use crate::helpers::web_dev_server::start_dev_server;
     if path.exists() {
       let ip = if mobile {
-        *local_ip_address()
+        *local_ip_address(options.force_ip_prompt)
       } else {
         Ipv4Addr::new(127, 0, 0, 1).into()
       };

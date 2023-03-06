@@ -24,7 +24,7 @@ use crate::{
   utils::config::Config,
   utils::{assets::Assets, resources::resource_relpath, Env},
   Context, DeviceEventFilter, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager,
-  Runtime, Scopes, StateManager, Theme, Window,
+  Monitor, Runtime, Scopes, StateManager, Theme, Window,
 };
 
 #[cfg(shell_scope)]
@@ -747,6 +747,36 @@ macro_rules! shared_app_impl {
         AssetResolver {
           manager: self.manager.clone(),
         }
+      }
+
+      /// Returns the primary monitor of the system.
+      ///
+      /// Returns None if it can't identify any monitor as a primary one.
+      pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
+       Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h
+            .primary_monitor().map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) =>  h
+            .primary_monitor().map(Into::into),
+          _ => unreachable!()
+        })
+      }
+
+      /// Returns the list of all the monitors available on the system.
+      pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h
+            .available_monitors()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+          RuntimeOrDispatch::RuntimeHandle(h) => h
+            .available_monitors()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+          _ => unreachable!()
+        })
       }
 
       /// Shows the application, but does not automatically focus it.

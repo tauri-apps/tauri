@@ -13,7 +13,4 @@ class PluginMethodData(
 
   // The name of the method
   val name: String = method.name
-
-  // The return type of the method (see PluginMethod for constants)
-  val returnType: String = methodDecorator.returnType
 }

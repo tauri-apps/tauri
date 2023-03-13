@@ -29,7 +29,7 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::{WindowConfig, WindowUrl},
+  utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
   EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
   Runtime, Theme, WindowEvent,
 };
@@ -224,6 +224,10 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let app_handle = manager.app_handle();
     let url = config.url.clone();
     let file_drop_enabled = config.file_drop_enabled;
+    let mut webview_attributes = WebviewAttributes::new(url);
+    if let Some(effects) = config.window_effects.clone() {
+      webview_attributes = webview_attributes.window_effects(effects);
+    }
     let mut builder = Self {
       manager: manager.manager().clone(),
       runtime,
@@ -232,7 +236,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
         config,
       ),
-      webview_attributes: WebviewAttributes::new(url),
+      webview_attributes,
       web_resource_request_handler: None,
       navigation_handler: None,
     };
@@ -331,6 +335,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       &labels,
       web_resource_request_handler,
     )?;
+    let window_effects = pending.webview_attributes.window_effects.clone();
     pending.navigation_handler = self.navigation_handler.take();
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
@@ -339,6 +344,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     }
     .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
 
+    if let Some(effects) = window_effects {
+      crate::vibrancy::set_window_effects(&window, Some(effects))?;
+    }
     self.manager.eval_script_all(format!(
       "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
       window_labels_array = serde_json::to_string(&self.manager.labels())?,
@@ -600,6 +608,12 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn accept_first_mouse(mut self, accept: bool) -> Self {
     self.webview_attributes.accept_first_mouse = accept;
+    self
+  }
+
+  /// Sets window effects
+  pub fn window_effects(mut self, effects: WindowEffectsConfig) -> Self {
+    self.webview_attributes = self.webview_attributes.window_effects(effects);
     self
   }
 }
@@ -1285,6 +1299,11 @@ impl<R: Runtime> Window<R> {
       .dispatcher
       .set_shadow(enable)
       .map_err(Into::into)
+  }
+
+  /// Sets window effects, pass `None` to clear any effects applied if possible.
+  pub fn set_window_effects(&self, effects: Option<WindowEffectsConfig>) -> crate::Result<()> {
+    crate::vibrancy::set_window_effects(&self, effects)
   }
 
   /// Determines if this window should always be on top of other windows.

@@ -136,6 +136,7 @@
 //! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
 //! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
 //! - **window-set-shadow**: Enables the [`setShadow` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setshadow).
+//! - **window-set-window-effects**: Enables the [`setWindowEffects` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setwindoweffects).
 //! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
 //! - **window-set-content-protected**: Enables the [`setContentProtected` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcontentprotected).
 //! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
@@ -190,6 +191,7 @@ mod hooks;
 mod manager;
 mod pattern;
 pub mod plugin;
+mod vibrancy;
 pub mod window;
 use tauri_runtime as runtime;
 #[cfg(target_os = "ios")]
@@ -296,8 +298,8 @@ pub use {
   self::state::{State, StateManager},
   self::utils::{
     assets::Assets,
-    config::{Config, WindowUrl},
-    Env, PackageInfo, Theme,
+    config::{Color, Config, WindowEffectsConfig, WindowUrl},
+    Env, PackageInfo, Theme, WindowEffectState, WindowEffects,
   },
   self::window::{Monitor, Window, WindowBuilder},
   scope::*,

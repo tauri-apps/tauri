@@ -17,6 +17,7 @@ use crate::{
 };
 use serde::Deserialize;
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
+use tauri_utils::config::WindowEffectsConfig;
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -102,6 +103,8 @@ pub enum WindowManagerCmd {
   SetDecorations(bool),
   #[cfg(window_set_shadow)]
   SetShadow(bool),
+  #[cfg(window_set_window_effects)]
+  SetWindowEffects(Option<WindowEffectsConfig>),
   #[cfg(window_set_always_on_top)]
   #[serde(rename_all = "camelCase")]
   SetAlwaysOnTop(bool),
@@ -168,6 +171,7 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     "close" => crate::Error::ApiNotAllowlisted("window > close".to_string()),
     "setDecorations" => crate::Error::ApiNotAllowlisted("window > setDecorations".to_string()),
     "setShadow" => crate::Error::ApiNotAllowlisted("window > setShadow".to_string()),
+    "setWindowEffects" => crate::Error::ApiNotAllowlisted("window > setWindowEffects".to_string()),
     "setAlwaysOnTop" => crate::Error::ApiNotAllowlisted("window > setAlwaysOnTop".to_string()),
     "setContentProtected" => {
       crate::Error::ApiNotAllowlisted("window > setContentProtected".to_string())
@@ -298,6 +302,10 @@ impl Cmd {
       WindowManagerCmd::SetDecorations(decorations) => window.set_decorations(decorations)?,
       #[cfg(all(desktop, window_set_shadow))]
       WindowManagerCmd::SetShadow(enable) => window.set_shadow(enable)?,
+      #[cfg(all(desktop, window_set_window_effects))]
+      WindowManagerCmd::SetWindowEffects(effects) => {
+        crate::vibrancy::set_window_effects(&window, effects)?
+      }
       #[cfg(all(desktop, window_set_always_on_top))]
       WindowManagerCmd::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
       #[cfg(all(desktop, window_set_content_protected))]

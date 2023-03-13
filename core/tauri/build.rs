@@ -86,6 +86,7 @@ fn main() {
       "close",
       "set-decorations",
       "set-shadow",
+      "set-window-effects",
       "set-always-on-top",
       "set-content-protected",
       "set-size",

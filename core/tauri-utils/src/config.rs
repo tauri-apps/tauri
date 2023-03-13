@@ -34,7 +34,7 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::TitleBarStyle;
+use crate::{TitleBarStyle, WindowEffectState, WindowEffects};
 
 pub use self::parse::parse;
 
@@ -851,6 +851,30 @@ impl CliConfig {
   }
 }
 
+/// a tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Color(pub u8, pub u8, pub u8, pub u8);
+
+/// The window effects configuration object
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowEffectsConfig {
+  /// List of Window effects to apply to the Window.
+  /// Conflicting effects will apply the first one and ignore the rest.
+  pub effects: Vec<WindowEffects>,
+  /// Window effect state **macOS Only**
+  pub state: Option<WindowEffectState>,
+  /// Window effect corner radius **macOS Only**
+  pub radius: Option<f64>,
+  /// Window effect color. Affects [`WindowEffects::Blur`] and [`WindowEffects::Acrylic`] only
+  /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
+  pub color: Option<Color>,
+}
+
 /// The window configuration object.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
@@ -966,6 +990,9 @@ pub struct WindowConfig {
   /// - **Linux:** Unsupported.
   #[serde(default)]
   pub shadow: bool,
+  /// Window effects
+  #[serde(default, alias = "window-effects")]
+  pub window_effects: Option<WindowEffectsConfig>,
 }
 
 impl Default for WindowConfig {
@@ -1002,6 +1029,7 @@ impl Default for WindowConfig {
       tabbing_identifier: None,
       additional_browser_args: None,
       shadow: false,
+      window_effects: None,
     }
   }
 }
@@ -1401,6 +1429,9 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the shadow flag of the window.
   #[serde(default, alias = "set-shadow")]
   pub set_shadow: bool,
+  /// Allows setting the shadow flag of the window.
+  #[serde(default, alias = "set-window-effects")]
+  pub set_window_effects: bool,
   /// Allows setting the always_on_top flag of the window.
   #[serde(default, alias = "set-always-on-top")]
   pub set_always_on_top: bool,
@@ -1487,6 +1518,7 @@ impl Allowlist for WindowAllowlistConfig {
       set_cursor_position: true,
       set_ignore_cursor_events: true,
       set_shadow: true,
+      set_window_effects: true,
       start_dragging: true,
       print: true,
     };
@@ -1519,6 +1551,12 @@ impl Allowlist for WindowAllowlistConfig {
       check_feature!(self, features, close, "window-close");
       check_feature!(self, features, set_decorations, "window-set-decorations");
       check_feature!(self, features, set_shadow, "window-set-shadow");
+      check_feature!(
+        self,
+        features,
+        set_window_effects,
+        "window-set-window-effects"
+      );
       check_feature!(
         self,
         features,
@@ -3068,7 +3106,7 @@ mod build {
         ::tauri::utils::config::$struct {
           $($field: #$field),+
         }
-      });
+      })
     };
   }
 
@@ -3100,6 +3138,23 @@ mod build {
     }
   }
 
+  impl ToTokens for Color {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let Color(r, g, b, a) = self;
+      tokens.append_all(quote! {::tauri::utils::Color(#r,#g,#b,#a)});
+    }
+  }
+  impl ToTokens for WindowEffectsConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let effects = vec_lit(self.effects.clone(), |d| d);
+      let state = opt_lit(self.state.as_ref());
+      let radius = opt_lit(self.radius.as_ref());
+      let color = opt_lit(self.color.as_ref());
+
+      literal_struct!(tokens, WindowEffectsConfig, effects, state, radius, color)
+    }
+  }
+
   impl ToTokens for crate::TitleBarStyle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let prefix = quote! { ::tauri::utils::TitleBarStyle };
@@ -3108,6 +3163,51 @@ mod build {
         Self::Visible => quote! { #prefix::Visible },
         Self::Transparent => quote! { #prefix::Transparent },
         Self::Overlay => quote! { #prefix::Overlay },
+      })
+    }
+  }
+
+  impl ToTokens for crate::WindowEffects {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::WindowEffects };
+
+      #[allow(deprecated)]
+      tokens.append_all(match self {
+        WindowEffects::AppearanceBased => quote! { #prefix::AppearanceBased},
+        WindowEffects::Light => quote! { #prefix::Light},
+        WindowEffects::Dark => quote! { #prefix::Dark},
+        WindowEffects::MediumLight => quote! { #prefix::MediumLight},
+        WindowEffects::UltraDark => quote! { #prefix::UltraDark},
+        WindowEffects::Titlebar => quote! { #prefix::Titlebar},
+        WindowEffects::Selection => quote! { #prefix::Selection},
+        WindowEffects::Menu => quote! { #prefix::Menu},
+        WindowEffects::Popover => quote! { #prefix::Popover},
+        WindowEffects::Sidebar => quote! { #prefix::Sidebar},
+        WindowEffects::HeaderView => quote! { #prefix::HeaderView},
+        WindowEffects::Sheet => quote! { #prefix::Sheet},
+        WindowEffects::WindowBackground => quote! { #prefix::WindowBackground},
+        WindowEffects::HudWindow => quote! { #prefix::HudWindow},
+        WindowEffects::FullScreenUI => quote! { #prefix::FullScreenUI},
+        WindowEffects::Tooltip => quote! { #prefix::Tooltip},
+        WindowEffects::ContentBackground => quote! { #prefix::ContentBackground},
+        WindowEffects::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
+        WindowEffects::UnderPageBackground => quote! { #prefix::UnderPageBackground},
+        WindowEffects::Mica => quote! { #prefix::Mica},
+        WindowEffects::Blur => quote! { #prefix::Blur},
+        WindowEffects::Acrylic => quote! { #prefix::Acrylic},
+      })
+    }
+  }
+
+  impl ToTokens for crate::WindowEffectState {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::WindowEffectState };
+
+      #[allow(deprecated)]
+      tokens.append_all(match self {
+        WindowEffectState::Active => quote! { #prefix::Active},
+        WindowEffectState::FollowsWindowActiveState => quote! { #prefix::FollowsWindowActiveState},
+        WindowEffectState::Inactive => quote! { #prefix::Inactive},
       })
     }
   }
@@ -3145,6 +3245,7 @@ mod build {
       let tabbing_identifier = opt_str_lit(self.tabbing_identifier.as_ref());
       let additional_browser_args = opt_str_lit(self.additional_browser_args.as_ref());
       let shadow = self.shadow;
+      let window_effects = opt_lit(self.window_effects.as_ref());
 
       literal_struct!(
         tokens,
@@ -3179,7 +3280,8 @@ mod build {
         accept_first_mouse,
         tabbing_identifier,
         additional_browser_args,
-        shadow
+        shadow,
+        window_effects
       );
     }
   }

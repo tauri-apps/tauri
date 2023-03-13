@@ -1600,6 +1600,7 @@ impl<R: Runtime> Builder<R> {
     for config in manager.config().tauri.windows.clone() {
       let url = config.url.clone();
       let label = config.label.clone();
+      let window_effects = config.window_effects.clone();
 
       let mut webview_attributes =
         WebviewAttributes::new(url).accept_first_mouse(config.accept_first_mouse);
@@ -1611,6 +1612,9 @@ impl<R: Runtime> Builder<R> {
       }
       if !config.file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();
+      }
+      if let Some(effects) = window_effects {
+        webview_attributes = webview_attributes.window_effects(effects);
       }
 
       self.pending_windows.push(PendingWindow::with_config(
@@ -1768,13 +1772,18 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         app
           .manager
           .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
+      let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app.handle().runtime() {
         runtime.create_window(pending)?
       } else {
         // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
         unreachable!()
       };
-      let _window = app.manager.attach_window(app.handle(), detached);
+      let window = app.manager.attach_window(app.handle(), detached);
+
+      if let Some(effects) = window_effects {
+        crate::vibrancy::set_window_effects(&window, Some(effects))?;
+      }
     }
   }
 

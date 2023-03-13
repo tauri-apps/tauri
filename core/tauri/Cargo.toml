@@ -258,6 +258,7 @@ window-all = [
   "window-close",
   "window-set-decorations",
   "window-set-shadow",
+  "window-set-window-effects",
   "window-set-always-on-top",
   "window-set-content-protected",
   "window-set-size",
@@ -290,6 +291,7 @@ window-hide = [ ]
 window-close = [ ]
 window-set-decorations = [ ]
 window-set-shadow = [ ]
+window-set-window-effects = [ ]
 window-set-always-on-top = [ ]
 window-set-content-protected = [ ]
 window-set-size = [ ]

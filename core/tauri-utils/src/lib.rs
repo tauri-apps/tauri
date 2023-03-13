@@ -55,6 +55,95 @@ impl PackageInfo {
   }
 }
 
+#[allow(deprecated)]
+mod window_effects {
+  use super::*;
+
+  #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+  #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+  #[serde(rename_all = "camelCase")]
+  /// Platform-specific window effects
+  pub enum WindowEffects {
+    /// A default material appropriate for the view's effectiveAppearance. **macOS 10.14-**
+    #[deprecated(
+      since = "macOS 10.14",
+      note = "You should instead choose an appropriate semantic material."
+    )]
+    AppearanceBased,
+    /// **macOS 10.14-**
+    #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+    Light,
+    /// **macOS 10.14-**
+    #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+    Dark,
+    /// **macOS 10.14-**
+    #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+    MediumLight,
+    /// **macOS 10.14-**
+    #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+    UltraDark,
+    /// **macOS 10.10+**
+    Titlebar,
+    /// **macOS 10.10+**
+    Selection,
+    /// **macOS 10.11+**
+    Menu,
+    /// **macOS 10.11+**
+    Popover,
+    /// **macOS 10.11+**
+    Sidebar,
+    /// **macOS 10.14+**
+    HeaderView,
+    /// **macOS 10.14+**
+    Sheet,
+    /// **macOS 10.14+**
+    WindowBackground,
+    /// **macOS 10.14+**
+    HudWindow,
+    /// **macOS 10.14+**
+    FullScreenUI,
+    /// **macOS 10.14+**
+    Tooltip,
+    /// **macOS 10.14+**
+    ContentBackground,
+    /// **macOS 10.14+**
+    UnderWindowBackground,
+    /// **macOS 10.14+**
+    UnderPageBackground,
+    /// **Windows 11 Only**
+    Mica,
+    /// **Windows 7/10/11(22H1) Only**
+    ///
+    /// ## Notes
+    ///
+    /// This effect has bad performance when resizing/dragging the window on Windows 11 build 22621.
+    Blur,
+    /// **Windows 10/11**
+    ///
+    /// ## Notes
+    ///
+    /// This effect has bad performance when resizing/dragging the window on Windows 10 v1903+ and Windows 11 build 22000.
+    Acrylic,
+  }
+
+  /// Window effect state **macOS only**
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nsvisualeffectview/state>
+  #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+  #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+  #[serde(rename_all = "camelCase")]
+  pub enum WindowEffectState {
+    /// Make window effect state follow the window's active state **macOS only**
+    FollowsWindowActiveState,
+    /// Make window effect state always active **macOS only**
+    Active,
+    /// Make window effect state always inactive **macOS only**
+    Inactive,
+  }
+}
+
+pub use window_effects::{WindowEffectState, WindowEffects};
+
 /// How the window title bar should be displayed on macOS.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

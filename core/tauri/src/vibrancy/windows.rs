@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 #![cfg(windows)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]

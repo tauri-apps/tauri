@@ -4,6 +4,7 @@
 
 //! Tauri utility helpers
 #![warn(missing_docs, rust_2018_idioms)]
+#![allow(clippy::deprecated_semver)]
 
 use std::{
   fmt::Display,

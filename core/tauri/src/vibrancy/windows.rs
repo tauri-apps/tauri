@@ -5,6 +5,7 @@
 #![cfg(windows)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
+#![allow(clippy::upper_case_acronyms)]
 
 use std::ffi::c_void;
 
@@ -72,7 +73,7 @@ fn clear_blur(hwnd: HWND) {
     };
     let _ = unsafe { DwmEnableBlurBehindWindow(hwnd, &bb) };
   } else if is_swca_supported() {
-    let _ = unsafe { SetWindowCompositionAttribute(hwnd, ACCENT_STATE::ACCENT_DISABLED, None) };
+    unsafe { SetWindowCompositionAttribute(hwnd, ACCENT_STATE::ACCENT_DISABLED, None) };
   } else {
     return;
   }

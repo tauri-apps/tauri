@@ -1303,7 +1303,7 @@ impl<R: Runtime> Window<R> {
 
   /// Sets window effects, pass `None` to clear any effects applied if possible.
   pub fn set_window_effects(&self, effects: Option<WindowEffectsConfig>) -> crate::Result<()> {
-    crate::vibrancy::set_window_effects(&self, effects)
+    crate::vibrancy::set_window_effects(self, effects)
   }
 
   /// Determines if this window should always be on top of other windows.

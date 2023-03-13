@@ -203,6 +203,7 @@ impl<'de> Deserialize<'de> for CursorIcon {
   }
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for CursorIcon {
   fn default() -> Self {
     CursorIcon::Default

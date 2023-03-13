@@ -24,7 +24,7 @@ pub fn set_window_effects<R: Runtime>(
     #[cfg(target_os = "macos")]
     {
       let ns_window = window.ns_window()?;
-      macos::apply_effects(ns_window, effects);
+      macos::apply_effects(ns_window as _, effects);
     }
   } else {
     #[cfg(windows)]

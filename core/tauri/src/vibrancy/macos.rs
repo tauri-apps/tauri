@@ -22,6 +22,7 @@ pub fn apply_effects(window: id, effects: WindowEffectsConfig) {
     effects,
     radius,
     state,
+    ..
   } = effects;
   let mut appearance: NSVisualEffectMaterial = if let Some(effect) = effects.iter().find(|e| {
     matches!(

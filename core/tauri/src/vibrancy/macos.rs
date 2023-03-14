@@ -53,6 +53,10 @@ pub fn apply_effects(window: id, effects: WindowEffectsConfig) {
     return;
   };
 
+  let state: NSVisualEffectState = state
+    .into()
+    .unwrap_or(NSVisualEffectState::FollowsWindowActiveState);
+
   unsafe {
     if NSAppKitVersionNumber < NSAppKitVersionNumber10_10 {
       return;
@@ -77,11 +81,7 @@ pub fn apply_effects(window: id, effects: WindowEffectsConfig) {
     blurred_view.setMaterial_(appearance);
     blurred_view.setCornerRadius_(radius.unwrap_or(0.0));
     blurred_view.setBlendingMode_(NSVisualEffectBlendingMode::BehindWindow);
-    blurred_view.setState_(
-      state
-        .into()
-        .unwrap_or(NSVisualEffectState::FollowsWindowActiveState),
-    );
+    blurred_view.setState_(state);
     NSVisualEffectView::setAutoresizingMask_(
       blurred_view,
       NSViewWidthSizable | NSViewHeightSizable,

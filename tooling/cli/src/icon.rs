@@ -69,7 +69,7 @@ pub fn command(options: Options) -> Result<()> {
 
   let source = if let Some(extension) = input.extension() {
     if extension == "svg" {
-      svg_to_dynimg(&input).context("could not convert svg to rasterized image")?
+      svg_to_dynimg(&input).context("Could not convert svg to rasterized image")?
     }
     else {
     DynamicImage::ImageRgba8(open(&input)

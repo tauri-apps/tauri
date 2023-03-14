@@ -60,7 +60,7 @@ impl PackageInfo {
 mod window_effects {
   use super::*;
 
-  #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+  #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
   #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
   #[serde(rename_all = "camelCase")]
   /// Platform-specific window effects
@@ -130,7 +130,7 @@ mod window_effects {
   /// Window effect state **macOS only**
   ///
   /// <https://developer.apple.com/documentation/appkit/nsvisualeffectview/state>
-  #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+  #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
   #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
   #[serde(rename_all = "camelCase")]
   pub enum WindowEffectState {

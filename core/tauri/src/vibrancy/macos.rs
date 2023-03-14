@@ -24,7 +24,7 @@ pub fn apply_effects(window: id, effects: WindowEffectsConfig) {
     state,
     ..
   } = effects;
-  let mut appearance: NSVisualEffectMaterial = if let Some(effect) = effects.iter().find(|e| {
+  let mut appearance: NSVisualEffectMaterial = if let Some(effect) = effects.into_iter().find(|e| {
     matches!(
       e,
       WindowEffects::AppearanceBased
@@ -48,7 +48,7 @@ pub fn apply_effects(window: id, effects: WindowEffectsConfig) {
         | WindowEffects::UnderPageBackground
     )
   }) {
-    (*effect).into()
+    effect.into()
   } else {
     return;
   };

@@ -81,6 +81,7 @@ tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
 serde-value = "0.7.0"
 itertools = "0.10"
+nsvg = "0.5.1"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }

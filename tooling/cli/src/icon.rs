@@ -20,8 +20,9 @@ use image::{
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open, ColorType, DynamicImage, ImageEncoder,
+  open, ColorType, DynamicImage, ImageEncoder, RgbaImage, ImageBuffer,
 };
+use nsvg;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -67,11 +68,18 @@ pub fn command(options: Options) -> Result<()> {
   let png_icon_sizes = options.png.unwrap_or_default();
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
-  let source = open(input)
+  let source = if let Some(extension) = input.clone().extension() {
+    if extension == "svg" {
+      svg_to_dynimg(&input).context("could not convert svg to rasterized image")?
+    }
+    else {
+    DynamicImage::ImageRgba8(open(&input)
     .context("Can't read and decode source image")?
-    .into_rgba8();
-
-  let source = DynamicImage::ImageRgba8(source);
+    .into_rgba8())
+    }
+  } else {
+    panic!("Error loading image");
+  };
 
   if source.height() != source.width() {
     panic!("Source image must be square");
@@ -186,6 +194,15 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   out_file.flush()?;
 
   Ok(())
+}
+
+fn svg_to_dynimg(input: &PathBuf) -> Result<DynamicImage> {
+  let svg = nsvg::parse_file(input, nsvg::Units::Pixel, 96.0).context("Cannot read SVG file")?;
+  let scale = 2.0;
+  let bytes = svg.rasterize_to_raw_rgba(scale).context("failed to rasterize svg")?;
+  let image:RgbaImage = ImageBuffer::from_raw(bytes.0, bytes.1, bytes.2).unwrap();
+  let res = DynamicImage::ImageRgba8(image);
+  Ok(res)
 }
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)

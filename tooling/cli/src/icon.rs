@@ -22,7 +22,6 @@ use image::{
   imageops::FilterType,
   open, ColorType, DynamicImage, ImageEncoder, RgbaImage, ImageBuffer,
 };
-use nsvg;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -68,7 +67,7 @@ pub fn command(options: Options) -> Result<()> {
   let png_icon_sizes = options.png.unwrap_or_default();
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
-  let source = if let Some(extension) = input.clone().extension() {
+  let source = if let Some(extension) = input.extension() {
     if extension == "svg" {
       svg_to_dynimg(&input).context("could not convert svg to rasterized image")?
     }
@@ -196,7 +195,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   Ok(())
 }
 
-fn svg_to_dynimg(input: &PathBuf) -> Result<DynamicImage> {
+fn svg_to_dynimg(input: &Path) -> Result<DynamicImage> {
   let svg = nsvg::parse_file(input, nsvg::Units::Pixel, 96.0).context("Cannot read SVG file")?;
   let scale = 2.0;
   let bytes = svg.rasterize_to_raw_rgba(scale).context("failed to rasterize svg")?;

@@ -275,10 +275,7 @@ fn get_app(config: &TauriConfig) -> App {
   )
   .expect("failed to load interface");
 
-  let app_name = interface
-    .app_settings()
-    .app_name()
-    .unwrap_or(app_name.clone());
+  let app_name = interface.app_settings().app_name().unwrap_or(app_name);
   let lib_name = interface
     .app_settings()
     .lib_name()

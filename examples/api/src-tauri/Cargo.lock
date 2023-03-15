@@ -2895,20 +2895,11 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "swift-rs"
-version = "0.3.0"
-source = "git+https://github.com/Brendonovich/swift-rs?rev=56b14aa4aa61e93d0fddf695d0cad78b6dd392b4#56b14aa4aa61e93d0fddf695d0cad78b6dd392b4"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "806ff0904302a8a91644422fcfeee4828c3a9dbcfd1757ba495f1a755c2ac873"
 dependencies = [
- "base64 0.13.1",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "swift-rs"
-version = "0.3.0"
-source = "git+https://github.com/lucasfernog/swift-rs?rev=8ef01d39519619e16218e2d46bdd2defd5bdb750#8ef01d39519619e16218e2d46bdd2defd5bdb750"
-dependencies = [
- "base64 0.13.1",
+ "base64 0.21.0",
  "serde",
  "serde_json",
 ]
@@ -3055,7 +3046,7 @@ dependencies = [
  "serialize-to-javascript",
  "shared_child",
  "state",
- "swift-rs 0.3.0 (git+https://github.com/lucasfernog/swift-rs?rev=8ef01d39519619e16218e2d46bdd2defd5bdb750)",
+ "swift-rs",
  "tar",
  "tauri-build",
  "tauri-macros",
@@ -3088,7 +3079,7 @@ dependencies = [
  "semver 1.0.16",
  "serde",
  "serde_json",
- "swift-rs 0.3.0 (git+https://github.com/lucasfernog/swift-rs?rev=8ef01d39519619e16218e2d46bdd2defd5bdb750)",
+ "swift-rs",
  "tauri-codegen",
  "tauri-utils",
  "tauri-winres",
@@ -3135,7 +3126,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-log"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/plugins-workspace?branch=feat/update-swift#2c60c51192088e552ac3e15931693558eff1f013"
+source = "git+https://github.com/tauri-apps/plugins-workspace?branch=feat/update-swift#409ec4074f39749e2da25f3de2ca2599719e619a"
 dependencies = [
  "android_logger",
  "byte-unit",
@@ -3144,7 +3135,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
- "swift-rs 0.3.0 (git+https://github.com/Brendonovich/swift-rs?rev=56b14aa4aa61e93d0fddf695d0cad78b6dd392b4)",
+ "swift-rs",
  "tauri",
  "tauri-build",
  "time",
@@ -4121,7 +4112,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.27.0"
-source = "git+https://github.com/tauri-apps/wry?branch=dev#7795356a45b1bd015fad0e9973fc5af58c8c339b"
+source = "git+https://github.com/tauri-apps/wry?branch=dev#db6618b560b9fbaed7e333bb6bb2463f5196ca17"
 dependencies = [
  "base64 0.13.1",
  "block",

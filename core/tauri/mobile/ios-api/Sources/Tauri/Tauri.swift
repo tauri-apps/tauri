@@ -107,7 +107,7 @@ func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
 
 @_cdecl("post_ipc_message")
 func postIpcMessage(webview: WKWebView, name: SRString, command: SRString, data: NSDictionary, callback: UInt, error: UInt) {
-	let invoke = Invoke(command: command.to_string(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
+	let invoke = Invoke(command: command.toString(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
 		let (fn, payload) = errorResult == nil ? (callback, successResult) : (error, errorResult)
 		var payloadJson: String
 		do {
@@ -117,7 +117,7 @@ func postIpcMessage(webview: WKWebView, name: SRString, command: SRString, data:
 		}
 		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
 	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
-	PluginManager.shared.invoke(name: name.to_string(), invoke: invoke)
+	PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
 }
 
 @_cdecl("run_plugin_method")
@@ -128,7 +128,7 @@ func runPluginMethod(
 	data: NSDictionary,
 	callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>?) -> Void
 ) {
-	let invoke = Invoke(command: command.to_string(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
+	let invoke = Invoke(command: command.toString(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
 		let (success, payload) = errorResult == nil ? (true, successResult) : (false, errorResult)
 		var payloadJson: String = ""
 		do {
@@ -138,5 +138,5 @@ func runPluginMethod(
 		}
 		callback(id, success, payloadJson.cString(using: String.Encoding.utf8))
 	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
-	PluginManager.shared.invoke(name: name.to_string(), invoke: invoke)
+	PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
 }

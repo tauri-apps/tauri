@@ -120,7 +120,7 @@ jni = "0.20"
 libc = "0.2"
 objc = "0.2"
 cocoa = "0.24"
-swift-rs = { git = "https://github.com/lucasfernog/swift-rs", rev = "8ef01d39519619e16218e2d46bdd2defd5bdb750" }
+swift-rs = "1.0.1"
 
 [build-dependencies]
 heck = "0.4"

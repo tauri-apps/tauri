@@ -3,13 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use clap::{Parser, Subcommand};
-use std::{
-  env::set_var,
-  fs::create_dir,
-  process::exit,
-  thread::{sleep, spawn},
-  time::Duration,
-};
+use std::{env::set_var, fs::create_dir, process::exit, thread::sleep, time::Duration};
 use sublime_fuzzy::best_match;
 use tauri_mobile::{
   android::{
@@ -269,10 +263,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     Ok(device)
   } else {
     let emulator = emulator_prompt(env, target)?;
-    let handle = emulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
+    emulator.start_detached(env)?;
     loop {
       sleep(Duration::from_secs(2));
       if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {

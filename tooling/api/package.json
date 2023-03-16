@@ -11,7 +11,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "yarn tsup && node ./scripts/after-build.cjs",
+    "build": "yarn tsup && node ./scripts/after-build.cjs && yarn generate-docs",
     "npm-pack": "yarn build && cd ./dist && npm pack",
     "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
@@ -41,9 +41,9 @@
     "yarn": ">= 1.19.1"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "5.51.0",
-    "@typescript-eslint/parser": "5.51.0",
-    "eslint": "8.33.0",
+    "@typescript-eslint/eslint-plugin": "5.52.0",
+    "@typescript-eslint/parser": "5.52.0",
+    "eslint": "8.34.0",
     "eslint-config-prettier": "8.6.0",
     "eslint-config-standard-with-typescript": "32.0.0",
     "eslint-plugin-import": "2.27.5",
@@ -52,8 +52,8 @@
     "eslint-plugin-promise": "6.1.1",
     "eslint-plugin-security": "1.7.1",
     "prettier": "2.8.4",
-    "tsup": "6.6.0",
-    "typedoc": "0.23.24",
+    "tsup": "6.6.3",
+    "typedoc": "0.23.25",
     "typedoc-plugin-markdown": "3.14.0",
     "typedoc-plugin-mdn-links": "2.0.2",
     "typescript": "4.9.5"

@@ -20,7 +20,7 @@ use shared_child::SharedChild;
 
 use std::{
   env::set_current_dir,
-  net::{IpAddr, Ipv4Addr, SocketAddr},
+  net::{IpAddr, Ipv4Addr},
   process::{exit, Command, ExitStatus, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -65,6 +65,10 @@ pub struct Options {
   /// Disable the dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
+  /// Specify port for the dev server for static files. Defaults to 1430
+  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
+  #[clap(long)]
+  pub port: Option<u16>,
   /// Force prompting for an IP to use to connect to the dev server on mobile.
   #[clap(long)]
   pub force_ip_prompt: bool,
@@ -296,31 +300,34 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     cargo_features.extend(features.clone());
   }
 
-  if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
-    use crate::helpers::web_dev_server::start_dev_server;
-    if path.exists() {
-      let ip = if mobile {
-        *local_ip_address(options.force_ip_prompt)
-      } else {
-        Ipv4Addr::new(127, 0, 0, 1).into()
-      };
-      let port = 1430;
-      let server_address = SocketAddr::new(ip, port);
-      let path = path.canonicalize()?;
-      start_dev_server(server_address, path);
-      let server_url = format!("http://{server_address}");
-      dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
+  let mut dev_path = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .dev_path
+    .clone();
+  if !options.no_dev_server {
+    if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
+      use crate::helpers::web_dev_server::start_dev_server;
+      if path.exists() {
+        let path = path.canonicalize()?;
+        let server_url = start_dev_server(path, options.port);
+        let server_url = format!("http://{server_url}");
+        dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 
-      // TODO: in v2, use an env var to pass the url to the app context
-      // or better separate the config passed from the cli internally and
-      // config passed by the user in `--config` into to separate env vars
-      // and the context merges, the user first, then the internal cli config
-      if let Some(c) = &options.config {
-        let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
-        c.build.dev_path = dev_path.clone();
-        options.config = Some(serde_json::to_string(&c).unwrap());
-      } else {
-        options.config = Some(format!(r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#))
+        // TODO: in v2, use an env var to pass the url to the app context
+        // or better separate the config passed from the cli internally and
+        // config passed by the user in `--config` into to separate env vars
+        // and the context merges, the user first, then the internal cli config
+        if let Some(c) = &options.config {
+          let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
+          c.build.dev_path = dev_path.clone();
+          options.config = Some(serde_json::to_string(&c).unwrap());
+        } else {
+          options.config = Some(format!(r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#))
+        }
       }
     }
 

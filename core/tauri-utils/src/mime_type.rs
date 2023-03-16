@@ -49,7 +49,7 @@ impl MimeType {
     let suffix = uri.split('.').last();
     match suffix {
       Some("bin") => Self::OctetStream,
-      Some("css") => Self::Css,
+      Some("css" | "less" | "sass" | "styl") => Self::Css,
       Some("csv") => Self::Csv,
       Some("html") => Self::Html,
       Some("ico") => Self::Ico,

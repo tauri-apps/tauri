@@ -14,7 +14,7 @@ use kuchiki::{traits::TendrilSink, NodeRef};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::{
-  net::SocketAddr,
+  net::{Ipv4Addr, SocketAddr},
   path::{Path, PathBuf},
   sync::{mpsc::sync_channel, Arc},
   thread,
@@ -31,8 +31,17 @@ struct State {
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, path: P) {
+pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> SocketAddr {
   let serve_dir = path.as_ref().to_path_buf();
+  let server_url = SocketAddr::new(
+    Ipv4Addr::new(127, 0, 0, 1).into(),
+    port.unwrap_or_else(|| {
+      std::env::var("TAURI_DEV_SERVER_PORT")
+        .unwrap_or_else(|_| "1430".to_string())
+        .parse()
+        .unwrap()
+    }),
+  );
 
   std::thread::spawn(move || {
     tokio::runtime::Builder::new_current_thread()
@@ -68,9 +77,9 @@ pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, path: P) {
         let state = Arc::new(State {
           serve_dir,
           tx,
-          address,
+          address: server_url,
         });
-        let server_router = Router::new()
+        let router = Router::new()
           .fallback(
             Router::new().nest(
               "/",
@@ -87,13 +96,14 @@ pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, path: P) {
               ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
             }),
           );
-
-        Server::bind(&address)
-          .serve(server_router.into_make_service())
+        Server::bind(&server_url)
+          .serve(router.into_make_service())
           .await
           .unwrap();
       })
   });
+
+  server_url
 }
 
 async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {

@@ -134,6 +134,7 @@ pub fn exec(
         // remove script path, we'll use `npm_lifecycle_event` instead
         build_args.remove(0);
       }
+      build_args.insert(0, "--".into());
       build_args.insert(0, var("npm_lifecycle_event").unwrap());
       build_args.insert(0, "run".into());
     }

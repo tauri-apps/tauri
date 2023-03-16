@@ -2895,10 +2895,11 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "swift-rs"
-version = "0.3.0"
-source = "git+https://github.com/Brendonovich/swift-rs?rev=eb6de914ad57501da5019154d476d45660559999#eb6de914ad57501da5019154d476d45660559999"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "806ff0904302a8a91644422fcfeee4828c3a9dbcfd1757ba495f1a755c2ac873"
 dependencies = [
- "base64 0.13.1",
+ "base64 0.21.0",
  "serde",
  "serde_json",
 ]
@@ -3125,7 +3126,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-log"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/plugins-workspace?branch=next#961602bd1b15e9c0d83d4c32c221a075fbabd83b"
+source = "git+https://github.com/tauri-apps/plugins-workspace?branch=feat/update-swift#409ec4074f39749e2da25f3de2ca2599719e619a"
 dependencies = [
  "android_logger",
  "byte-unit",
@@ -4111,7 +4112,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.27.0"
-source = "git+https://github.com/tauri-apps/wry?branch=dev#7795356a45b1bd015fad0e9973fc5af58c8c339b"
+source = "git+https://github.com/tauri-apps/wry?branch=dev#db6618b560b9fbaed7e333bb6bb2463f5196ca17"
 dependencies = [
  "base64 0.13.1",
  "block",

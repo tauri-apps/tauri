@@ -67,7 +67,8 @@ public class PluginManager {
 					}
 					if let error = error {
 						invoke.reject("\(error)")
-						let _ = toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
+						// TODO: app crashes without this leak
+						let _ = Unmanaged.passRetained(error)
 					}
 				} else {
 					let selector = Selector(("\(invoke.command):"))
@@ -105,8 +106,8 @@ func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
 }
 
 @_cdecl("post_ipc_message")
-func postIpcMessage(webview: WKWebView, name: UnsafePointer<SRString>, command: UnsafePointer<SRString>, data: NSDictionary, callback: UInt, error: UInt) {
-	let invoke = Invoke(command: command.pointee.to_string(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
+func postIpcMessage(webview: WKWebView, name: SRString, command: SRString, data: NSDictionary, callback: UInt, error: UInt) {
+	let invoke = Invoke(command: command.toString(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
 		let (fn, payload) = errorResult == nil ? (callback, successResult) : (error, errorResult)
 		var payloadJson: String
 		do {
@@ -116,18 +117,18 @@ func postIpcMessage(webview: WKWebView, name: UnsafePointer<SRString>, command: 
 		}
 		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
 	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
-	PluginManager.shared.invoke(name: name.pointee.to_string(), invoke: invoke)
+	PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
 }
 
 @_cdecl("run_plugin_method")
 func runPluginMethod(
 	id: Int,
-	name: UnsafePointer<SRString>,
-	command: UnsafePointer<SRString>,
+	name: SRString,
+	command: SRString,
 	data: NSDictionary,
 	callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>?) -> Void
 ) {
-	let invoke = Invoke(command: command.pointee.to_string(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
+	let invoke = Invoke(command: command.toString(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
 		let (success, payload) = errorResult == nil ? (true, successResult) : (false, errorResult)
 		var payloadJson: String = ""
 		do {
@@ -137,5 +138,5 @@ func runPluginMethod(
 		}
 		callback(id, success, payloadJson.cString(using: String.Encoding.utf8))
 	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
-	PluginManager.shared.invoke(name: name.pointee.to_string(), invoke: invoke)
+	PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
 }

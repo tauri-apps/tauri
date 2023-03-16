@@ -284,8 +284,8 @@ impl<R: Runtime> PluginHandle<R> {
         id,
         &self.name.into(),
         &method.as_ref().into(),
-        crate::ios::json_to_dictionary(serde_json::to_value(payload).unwrap()),
-        plugin_method_response_handler,
+        crate::ios::json_to_dictionary(serde_json::to_value(payload).unwrap()) as _,
+        crate::ios::PluginMessageCallback(plugin_method_response_handler),
       );
     }
     rx.recv()

@@ -78,7 +78,7 @@ impl PluginBuilder {
             .expect("missing `DEP_TAURI_IOS_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
 
           copy_folder(
-            &Path::new(&tauri_library_path),
+            Path::new(&tauri_library_path),
             &path.join("tauri-api"),
             &[".build", "Package.resolved", "Tests"],
           )
@@ -99,12 +99,14 @@ pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
   let source = source.as_ref();
   println!("cargo:rerun-if-changed={}", source.display());
   let curr_dir = std::env::current_dir().unwrap();
-  std::env::set_current_dir(&source).unwrap();
-  swift_rs::build::SwiftLinker::new("10.13")
-    .with_ios("13.0")
-    .with_package(name, source)
-    .link();
-  std::env::set_current_dir(&curr_dir).unwrap();
+  std::env::set_current_dir(source).unwrap();
+  swift_rs::SwiftLinker::new(
+    &std::env::var("MACOSX_DEPLOYMENT_TARGET").unwrap_or_else(|_| "10.13".into()),
+  )
+  .with_ios(&std::env::var("IOS_DEPLOYMENT_TARGET").unwrap_or_else(|_| "13.0".into()))
+  .with_package(name, source)
+  .link();
+  std::env::set_current_dir(curr_dir).unwrap();
 }
 
 #[doc(hidden)]

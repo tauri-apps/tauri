@@ -120,7 +120,7 @@ fn run_build(
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
+  let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let cli_options = CliOptions {
     features: build_options.features.clone(),

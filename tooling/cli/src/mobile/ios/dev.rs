@@ -149,7 +149,7 @@ fn run_dev(
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
+  let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   configure_cargo(app, None)?;
 

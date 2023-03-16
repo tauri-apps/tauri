@@ -163,7 +163,7 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use cocoa;
 #[cfg(target_os = "macos")]

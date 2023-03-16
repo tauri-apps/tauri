@@ -214,7 +214,7 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
     } else {
       device_list.into_iter().next().unwrap()
     };
-    println!(
+    log::info!(
       "Detected connected device: {} with target {:?}",
       device,
       device.target().triple,
@@ -278,6 +278,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
       if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
         return Ok(device);
       }
+      log::info!("Waiting for emulator to start...");
     }
   }
 }

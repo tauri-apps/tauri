@@ -37,9 +37,6 @@ targets = [
   "x86_64-apple-darwin"
 ]
 
-[package.metadata.cargo-udeps.ignore]
-normal = [ "attohttpc", "reqwest" ]
-
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
@@ -68,9 +65,8 @@ dirs-next = "2.0"
 percent-encoding = "2.2"
 base64 = { version = "0.21", optional = true }
 clap = { version = "3", optional = true }
-reqwest = { version = "0.11", default-features = false, features = [ "json", "stream" ], optional = true }
-bytes = { version = "1", features = [ "serde" ], optional = true }
-attohttpc = { version = "0.24", default-features = false, features = [ "compress", "json", "form" ] }
+reqwest = { version = "0.11", default-features = false, features = [ "json", "stream" ] }
+bytes = { version = "1", features = [ "serde" ] }
 open = { version = "3.0", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
@@ -157,14 +153,11 @@ updater = [
   "fs-extract-api"
 ]
 http-api = [ ]
-http-multipart = [ "attohttpc/multipart-form", "reqwest/multipart" ]
+http-multipart = [ "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
-reqwest-client = [ "reqwest", "bytes" ]
-reqwest-default-tls = [ "reqwest-client", "reqwest/default-tls" ]
-default-tls = [ "attohttpc/tls-native" ]
-reqwest-native-tls-vendored = [ "reqwest-client", "reqwest/native-tls-vendored" ]
-native-tls-vendored = [ "attohttpc/tls-vendored" ]
+default-tls = [ "reqwest/default-tls" ]
+native-tls-vendored = [ "reqwest/native-tls-vendored" ]
 process-command-api = [ "shared_child", "os_pipe" ]
 global-shortcut = [
   "tauri-runtime/global-shortcut",

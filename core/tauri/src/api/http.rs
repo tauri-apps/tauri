@@ -13,11 +13,7 @@ use url::Url;
 
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
-#[cfg(feature = "reqwest-client")]
 pub use reqwest::header;
-
-#[cfg(not(feature = "reqwest-client"))]
-pub use attohttpc::header;
 
 use header::{HeaderName, HeaderValue};
 
@@ -73,13 +69,6 @@ impl ClientBuilder {
   }
 
   /// Builds the Client.
-  #[cfg(not(feature = "reqwest-client"))]
-  pub fn build(self) -> crate::api::Result<Client> {
-    Ok(Client(self))
-  }
-
-  /// Builds the Client.
-  #[cfg(feature = "reqwest-client")]
   pub fn build(self) -> crate::api::Result<Client> {
     let mut client_builder = reqwest::Client::builder();
 
@@ -101,146 +90,9 @@ impl ClientBuilder {
 }
 
 /// The HTTP client based on [`reqwest`].
-#[cfg(feature = "reqwest-client")]
 #[derive(Debug, Clone)]
 pub struct Client(reqwest::Client);
 
-/// The HTTP client.
-#[cfg(not(feature = "reqwest-client"))]
-#[derive(Debug, Clone)]
-pub struct Client(ClientBuilder);
-
-#[cfg(not(feature = "reqwest-client"))]
-impl Client {
-  /// Executes an HTTP request.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,no_run
-  /// use tauri::api::http::{ClientBuilder, HttpRequestBuilder, ResponseType};
-  /// async fn run_request() {
-  ///   let client = ClientBuilder::new().build().unwrap();
-  ///   let response = client.send(
-  ///     HttpRequestBuilder::new("GET", "https://www.rust-lang.org")
-  ///       .unwrap()
-  ///       .response_type(ResponseType::Binary)
-  ///   ).await;
-  ///   if let Ok(response) = response {
-  ///     let bytes = response.bytes();
-  ///   }
-  /// }
-  /// ```
-  pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
-    let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
-
-    let mut request_builder = attohttpc::RequestBuilder::try_new(method, &request.url)?;
-
-    if let Some(query) = request.query {
-      request_builder = request_builder.params(&query);
-    }
-
-    if let Some(headers) = &request.headers {
-      for (name, value) in headers.0.iter() {
-        request_builder = request_builder.header(name, value);
-      }
-    }
-
-    if let Some(max_redirections) = self.0.max_redirections {
-      if max_redirections == 0 {
-        request_builder = request_builder.follow_redirects(false);
-      } else {
-        request_builder = request_builder.max_redirections(max_redirections as u32);
-      }
-    }
-
-    if let Some(timeout) = request.timeout {
-      request_builder = request_builder.timeout(timeout);
-    }
-
-    let response = if let Some(body) = request.body {
-      match body {
-        Body::Bytes(data) => request_builder.body(attohttpc::body::Bytes(data)).send()?,
-        Body::Text(text) => request_builder.body(attohttpc::body::Bytes(text)).send()?,
-        Body::Json(json) => request_builder.json(&json)?.send()?,
-        Body::Form(form_body) => {
-          #[allow(unused_variables)]
-          fn send_form(
-            request_builder: attohttpc::RequestBuilder,
-            headers: &Option<HeaderMap>,
-            form_body: FormBody,
-          ) -> crate::api::Result<attohttpc::Response> {
-            #[cfg(feature = "http-multipart")]
-            if matches!(
-              headers
-                .as_ref()
-                .and_then(|h| h.0.get("content-type"))
-                .map(|v| v.as_bytes()),
-              Some(b"multipart/form-data")
-            ) {
-              let mut multipart = attohttpc::MultipartBuilder::new();
-              let mut byte_cache: HashMap<String, Vec<u8>> = Default::default();
-
-              for (name, part) in &form_body.0 {
-                if let FormPart::File { file, .. } = part {
-                  byte_cache.insert(name.to_string(), file.clone().try_into()?);
-                }
-              }
-              for (name, part) in &form_body.0 {
-                multipart = match part {
-                  FormPart::File {
-                    file,
-                    mime,
-                    file_name,
-                  } => {
-                    // safe to unwrap: always set by previous loop
-                    let mut file =
-                      attohttpc::MultipartFile::new(name, byte_cache.get(name).unwrap());
-                    if let Some(mime) = mime {
-                      file = file.with_type(mime)?;
-                    }
-                    if let Some(file_name) = file_name {
-                      file = file.with_filename(file_name);
-                    }
-                    multipart.with_file(file)
-                  }
-                  FormPart::Text(value) => multipart.with_text(name, value),
-                };
-              }
-              return request_builder
-                .body(multipart.build()?)
-                .send()
-                .map_err(Into::into);
-            }
-
-            let mut form = Vec::new();
-            for (name, part) in form_body.0 {
-              match part {
-                FormPart::File { file, .. } => {
-                  let bytes: Vec<u8> = file.try_into()?;
-                  form.push((name, serde_json::to_string(&bytes)?))
-                }
-                FormPart::Text(value) => form.push((name, value)),
-              }
-            }
-            request_builder.form(&form)?.send().map_err(Into::into)
-          }
-
-          send_form(request_builder, &request.headers, form_body)?
-        }
-      }
-    } else {
-      request_builder.send()?
-    };
-
-    Ok(Response(
-      request.response_type.unwrap_or(ResponseType::Json),
-      response,
-      request.url,
-    ))
-  }
-}
-
-#[cfg(feature = "reqwest-client")]
 impl Client {
   /// Executes an HTTP request
   ///
@@ -557,13 +409,8 @@ impl HttpRequestBuilder {
 }
 
 /// The HTTP response.
-#[cfg(feature = "reqwest-client")]
 #[derive(Debug)]
 pub struct Response(ResponseType, reqwest::Response);
-/// The HTTP response.
-#[cfg(not(feature = "reqwest-client"))]
-#[derive(Debug)]
-pub struct Response(ResponseType, attohttpc::Response, Url);
 
 impl Response {
   /// Get the [`StatusCode`] of this Response.
@@ -579,18 +426,8 @@ impl Response {
   /// Reads the response as raw bytes.
   pub async fn bytes(self) -> crate::api::Result<RawResponse> {
     let status = self.status().as_u16();
-    #[cfg(feature = "reqwest-client")]
     let data = self.1.bytes().await?.to_vec();
-    #[cfg(not(feature = "reqwest-client"))]
-    let data = self.1.bytes()?;
     Ok(RawResponse { status, data })
-  }
-
-  #[cfg(not(feature = "reqwest-client"))]
-  #[allow(dead_code)]
-  pub(crate) fn reader(self) -> attohttpc::ResponseReader {
-    let (_, _, reader) = self.1.split();
-    reader
   }
 
   // Convert the response into a Stream of [`bytes::Bytes`] from the body.
@@ -612,7 +449,6 @@ impl Response {
   // # Ok(())
   // # }
   // ```
-  #[cfg(feature = "reqwest-client")]
   #[allow(dead_code)]
   pub(crate) fn bytes_stream(
     self,
@@ -625,10 +461,7 @@ impl Response {
   ///
   /// Note that the body is serialized to a [`Value`].
   pub async fn read(self) -> crate::api::Result<ResponseData> {
-    #[cfg(feature = "reqwest-client")]
     let url = self.1.url().clone();
-    #[cfg(not(feature = "reqwest-client"))]
-    let url = self.2;
 
     let mut headers = HashMap::new();
     let mut raw_headers = HashMap::new();
@@ -650,18 +483,10 @@ impl Response {
     }
     let status = self.1.status().as_u16();
 
-    #[cfg(feature = "reqwest-client")]
     let data = match self.0 {
       ResponseType::Json => self.1.json().await?,
       ResponseType::Text => Value::String(self.1.text().await?),
       ResponseType::Binary => serde_json::to_value(&self.1.bytes().await?)?,
-    };
-
-    #[cfg(not(feature = "reqwest-client"))]
-    let data = match self.0 {
-      ResponseType::Json => self.1.json()?,
-      ResponseType::Text => Value::String(self.1.text()?),
-      ResponseType::Binary => serde_json::to_value(self.1.bytes()?)?,
     };
 
     Ok(ResponseData {

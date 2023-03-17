@@ -911,7 +911,7 @@ impl<R: Runtime> WindowManager<R> {
     struct CachedResponse {
       status: http::StatusCode,
       headers: http::HeaderMap,
-      body: Cow<'static, [u8]>,
+      body: bytes::Bytes,
     }
 
     #[cfg(all(dev, mobile))]
@@ -938,16 +938,22 @@ impl<R: Runtime> WindowManager<R> {
 
       #[cfg(all(dev, mobile))]
       let mut response = {
-        use attohttpc::StatusCode;
+        use reqwest::StatusCode;
         let decoded_path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
         let url = format!("{url}{decoded_path}");
-        let mut proxy_builder = attohttpc::get(&url).danger_accept_invalid_certs(true);
+        #[allow(unused_mut)]
+        let mut client_builder = reqwest::ClientBuilder::new();
+        #[cfg(feature = "default-tls")]
+        {
+          client_builder = client_builder.danger_accept_invalid_certs(true);
+        }
+        let mut proxy_builder = client_builder.build().unwrap().get(&url);
         for (name, value) in request.headers() {
           proxy_builder = proxy_builder.header(name, value);
         }
-        match proxy_builder.send() {
+        match crate::async_runtime::block_on(proxy_builder.send()) {
           Ok(r) => {
             let mut response_cache_ = response_cache.lock().unwrap();
             let mut response = None;
@@ -957,12 +963,13 @@ impl<R: Runtime> WindowManager<R> {
             let response = if let Some(r) = response {
               r
             } else {
-              let (status, headers, reader) = r.split();
-              let body = reader.bytes()?;
+              let status = r.status();
+              let headers = r.headers().clone();
+              let body = crate::async_runtime::block_on(r.bytes())?;
               let response = CachedResponse {
                 status,
                 headers,
-                body: body.into(),
+                body,
               };
               response_cache_.insert(url.clone(), response);
               response_cache_.get(&url).unwrap()
@@ -972,7 +979,7 @@ impl<R: Runtime> WindowManager<R> {
             }
             builder
               .status(response.status)
-              .body(response.body.clone())?
+              .body(response.body.to_vec())?
           }
           Err(e) => {
             debug_eprintln!("Failed to request {}: {}", url.as_str(), e);

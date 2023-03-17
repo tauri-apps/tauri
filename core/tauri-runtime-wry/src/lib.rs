@@ -199,6 +199,7 @@ pub struct Context<T: UserEvent> {
   main_thread_id: ThreadId,
   pub proxy: WryEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
+  plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -1738,8 +1739,6 @@ pub trait Plugin<T: UserEvent> {
 pub struct Wry<T: UserEvent> {
   context: Context<T>,
 
-  plugins: Vec<Box<dyn Plugin<T>>>,
-
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager_handle: GlobalShortcutManagerHandle<T>,
 
@@ -1829,6 +1828,18 @@ impl<T: UserEvent> WryHandle<T> {
       .send_event(message)
       .map_err(|_| Error::FailedToSendMessage)?;
     Ok(())
+  }
+
+  pub fn plugin<P: PluginBuilder<T> + 'static>(&mut self, plugin: P)
+  where
+    <P as PluginBuilder<T>>::Plugin: Send,
+  {
+    self
+      .context
+      .plugins
+      .lock()
+      .unwrap()
+      .push(Box::new(plugin.build(self.context.clone())));
   }
 }
 
@@ -1944,6 +1955,7 @@ impl<T: UserEvent> Wry<T> {
         #[cfg(all(desktop, feature = "system-tray"))]
         system_tray_manager,
       },
+      plugins: Default::default(),
     };
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -1962,8 +1974,6 @@ impl<T: UserEvent> Wry<T> {
     Ok(Self {
       context,
 
-      plugins: Default::default(),
-
       #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager_handle,
 
@@ -1972,12 +1982,6 @@ impl<T: UserEvent> Wry<T> {
 
       event_loop,
     })
-  }
-
-  pub fn plugin<P: PluginBuilder<T> + 'static>(&mut self, plugin: P) {
-    self
-      .plugins
-      .push(Box::new(plugin.build(self.context.clone())));
   }
 }
 
@@ -2142,7 +2146,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = &self.context.main_thread.web_context;
-    let plugins = &mut self.plugins;
+    let plugins = self.context.plugins.clone();
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
 
@@ -2165,7 +2169,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           *control_flow = ControlFlow::Exit;
         }
 
-        for p in plugins.iter_mut() {
+        for p in plugins.lock().unwrap().iter_mut() {
           let prevent_default = p.on_event(
             &event,
             event_loop,
@@ -2219,7 +2223,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = self.context.main_thread.web_context;
-    let mut plugins = self.plugins;
+    let plugins = self.context.plugins.clone();
 
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager;
@@ -2235,7 +2239,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let proxy = self.event_loop.create_proxy();
 
     self.event_loop.run(move |event, event_loop, control_flow| {
-      for p in &mut plugins {
+      for p in plugins.lock().unwrap().iter_mut() {
         let prevent_default = p.on_event(
           &event,
           event_loop,

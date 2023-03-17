@@ -203,7 +203,7 @@ fn main() {
 
         for line in stdout.lines() {
           if line.contains("libraries: =") {
-            let path = line.split('=').skip(1).next().unwrap();
+            let path = line.split('=').nth(1).unwrap();
             return format!("{}/lib/darwin", path);
           }
         }

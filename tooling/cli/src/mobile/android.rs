@@ -3,13 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use clap::{Parser, Subcommand};
-use std::{
-  env::set_var,
-  fs::create_dir,
-  process::exit,
-  thread::{sleep, spawn},
-  time::Duration,
-};
+use std::{env::set_var, fs::create_dir, process::exit, thread::sleep, time::Duration};
 use sublime_fuzzy::best_match;
 use tauri_mobile::{
   android::{
@@ -214,6 +208,7 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
     } else {
       device_list.into_iter().next().unwrap()
     };
+
     log::info!(
       "Detected connected device: {} with target {:?}",
       device,
@@ -269,16 +264,20 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     Ok(device)
   } else {
     let emulator = emulator_prompt(env, target)?;
-    let handle = emulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
+    log::info!("Starting emulator {}", emulator.name());
+    emulator.start_detached(env)?;
+    let mut tries = 0;
     loop {
       sleep(Duration::from_secs(2));
       if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
         return Ok(device);
       }
-      log::info!("Waiting for emulator to start...");
+      if tries >= 3 {
+        log::info!("Waiting for emulator to start... (maybe the emulator is unathorized or offline, run `adb devices` to check)");
+      } else {
+        log::info!("Waiting for emulator to start...");
+      }
+      tries += 1;
     }
   }
 }

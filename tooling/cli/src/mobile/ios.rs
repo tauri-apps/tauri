@@ -33,11 +33,7 @@ use crate::{
   Result,
 };
 
-use std::{
-  process::exit,
-  thread::{sleep, spawn},
-  time::Duration,
-};
+use std::{process::exit, thread::sleep, time::Duration};
 
 mod build;
 mod dev;
@@ -241,10 +237,7 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device
     };
 
     log::info!("Starting simulator {}", device.name());
-    let handle = device.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
+    device.start_detached(env)?;
 
     Ok(device)
   } else {
@@ -257,10 +250,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     Ok(device)
   } else {
     let simulator = simulator_prompt(env, target)?;
-    let handle = simulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
+    simulator.start_detached(env)?;
     Ok(simulator.into())
   }
 }

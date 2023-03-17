@@ -185,6 +185,31 @@ fn main() {
         PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/ios-api");
       tauri_build::mobile::link_swift_library("Tauri", &lib_path);
       println!("cargo:ios_library_path={}", lib_path.display());
+
+      println!("cargo:rustc-link-lib=clang_rt.ios");
+      println!("cargo:rustc-link-search={}", clang_link_search_path());
+
+      fn clang_link_search_path() -> String {
+        let output = std::process::Command::new("clang")
+          .arg("--print-search-dirs")
+          .output()
+          .unwrap();
+        if !output.status.success() {
+          panic!("Can't get search paths from clang");
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if !stdout.contains("libraries: ") {}
+
+        for line in stdout.lines() {
+          if line.contains("libraries: =") {
+            let path = line.split('=').skip(1).next().unwrap();
+            return format!("{}/lib/darwin", path);
+          }
+        }
+
+        panic!("clang is missing search paths");
+      }
     }
   }
 }

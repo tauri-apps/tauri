@@ -174,8 +174,7 @@ impl Assets for EmbeddedAssets {
             .get(html_path.as_ref())
             .copied()
             .into_iter()
-            .flatten()
-            .into_iter(),
+            .flatten(),
         )
         .copied(),
     )

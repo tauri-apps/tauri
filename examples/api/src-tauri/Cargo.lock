@@ -2865,9 +2865,9 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "swift-rs"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "806ff0904302a8a91644422fcfeee4828c3a9dbcfd1757ba495f1a755c2ac873"
+checksum = "2706dd533c2a96dfdbe942221fe0d3bb24857257aac26f938537f197c543b27e"
 dependencies = [
  "base64 0.21.0",
  "serde",

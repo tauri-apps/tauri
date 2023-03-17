@@ -33,7 +33,7 @@ filetime = "0.2"
 tauri-winres = "0.1"
 semver = "1"
 [target."cfg(target_os = \"macos\")".dependencies]
-swift-rs = { version = "1.0.1", features = ["build"] }
+swift-rs = { version = "1.0.2", features = ["build"] }
 
 [features]
 codegen = [ "tauri-codegen", "quote" ]

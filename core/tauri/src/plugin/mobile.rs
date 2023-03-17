@@ -324,7 +324,7 @@ impl<R: Runtime> PluginHandle<R> {
 
       env.call_method(
         plugin_manager,
-        "runPluginMethod",
+        "runCommand",
         "(ILjava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;)V",
         &[
           id.into(),

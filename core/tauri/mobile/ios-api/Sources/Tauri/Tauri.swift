@@ -121,7 +121,7 @@ func postIpcMessage(webview: WKWebView, name: SRString, command: SRString, data:
 }
 
 @_cdecl("run_plugin_method")
-func runPluginMethod(
+func runCommand(
 	id: Int,
 	name: SRString,
 	command: SRString,

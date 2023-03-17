@@ -22,11 +22,8 @@
 //! - **shell-open-api**: Enables the [`api::shell`] module.
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
-//! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
-//! - **default-tls**: Provides TLS support to connect over HTTPS (applies to the default HTTP client).
-//! - **reqwest-default-tls**: Provides TLS support to connect over HTTPS (applies to the `reqwest` HTTP client).
-//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
-//! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
+//! - **default-tls**: Provides TLS support to connect over HTTPS.
+//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **global-shortcut**: Enables the global shortcut APIs.
 //! - **clipboard**: Enables the clipboard APIs.

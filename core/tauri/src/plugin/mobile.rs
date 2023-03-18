@@ -115,19 +115,20 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   #[cfg(target_os = "ios")]
   pub fn register_ios_plugin(
     &self,
-    init_fn: unsafe extern "C" fn(cocoa::base::id),
+    init_fn: unsafe fn(&swift_rs::SRString, *const std::ffi::c_void),
   ) -> Result<PluginHandle<R>, PluginInvokeError> {
     if let Some(window) = self.handle.manager.windows().values().next() {
       let (tx, rx) = channel();
+      let name = self.name;
       window
         .with_webview(move |w| {
-          unsafe { init_fn(w.inner()) };
+          unsafe { init_fn(&name.into(), w.inner() as _) };
           tx.send(()).unwrap();
         })
         .map_err(|_| PluginInvokeError::UnreachableWebview)?;
       rx.recv().unwrap();
     } else {
-      unsafe { init_fn(cocoa::base::nil) };
+      unsafe { init_fn(&self.name.into(), std::ptr::null()) };
     }
     Ok(PluginHandle {
       name: self.name,

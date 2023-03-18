@@ -5,6 +5,7 @@
 import UIKit
 import WebKit
 import Tauri
+import SwiftRs
 
 class ExamplePlugin: Plugin {
 	@objc public func ping(_ invoke: Invoke) throws {
@@ -14,6 +15,6 @@ class ExamplePlugin: Plugin {
 }
 
 @_cdecl("init_plugin_sample")
-func initPlugin(webview: WKWebView?) {
-	Tauri.registerPlugin(webview: webview, name: "sample", plugin: ExamplePlugin())
+func initPlugin(name: SRString, webview: WKWebView?) {
+	Tauri.registerPlugin(webview: webview, name: name.toString(), plugin: ExamplePlugin())
 }

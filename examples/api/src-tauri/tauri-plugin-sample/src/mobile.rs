@@ -14,9 +14,7 @@ use crate::models::*;
 const PLUGIN_IDENTIFIER: &str = "com.plugin.sample";
 
 #[cfg(target_os = "ios")]
-extern "C" {
-  fn init_plugin_sample(webview: tauri::cocoa::base::id);
-}
+tauri::ios_plugin_binding!(init_plugin_sample);
 
 // initializes the Kotlin or Swift plugin classes
 pub fn init<R: Runtime, C: DeserializeOwned>(

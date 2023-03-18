@@ -235,10 +235,6 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device
     } else {
       simulator_list.into_iter().next().unwrap()
     };
-
-    log::info!("Starting simulator {}", device.name());
-    device.start_detached(env)?;
-
     Ok(device)
   } else {
     Err(anyhow::anyhow!("No available iOS Simulator detected"))
@@ -250,6 +246,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     Ok(device)
   } else {
     let simulator = simulator_prompt(env, target)?;
+    log::info!("Starting simulator {}", simulator.name());
     simulator.start_detached(env)?;
     Ok(simulator.into())
   }

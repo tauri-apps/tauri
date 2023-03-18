@@ -160,6 +160,14 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+/// Setups the binding that initializes an iOS plugin.
+#[cfg(target_os = "ios")]
+#[macro_export]
+macro_rules! ios_plugin_binding {
+  ($fn_name: ident) => {
+    tauri::swift_rs::swift!(fn $fn_name(name: &::tauri::swift_rs::SRString, webview: *const ::std::ffi::c_void));
+  }
+}
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use cocoa;
@@ -171,6 +179,9 @@ pub use error::Error;
 #[cfg(shell_scope)]
 #[doc(hidden)]
 pub use regex;
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub use swift_rs;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};

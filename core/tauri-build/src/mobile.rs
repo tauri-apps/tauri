@@ -97,7 +97,7 @@ impl PluginBuilder {
 #[doc(hidden)]
 pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
   let source = source.as_ref();
-  println!("cargo:rerun-if-changed={}", source.display());
+
   let curr_dir = std::env::current_dir().unwrap();
   std::env::set_current_dir(source).unwrap();
   swift_rs::SwiftLinker::new(

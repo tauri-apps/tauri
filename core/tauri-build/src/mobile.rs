@@ -79,7 +79,7 @@ impl PluginBuilder {
 
           copy_folder(
             Path::new(&tauri_library_path),
-            &path.join("tauri-api"),
+            &path.parent().unwrap().join("tauri-api"),
             &[".build", "Package.resolved", "Tests"],
           )
           .context("failed to copy tauri-api to the plugin project")?;

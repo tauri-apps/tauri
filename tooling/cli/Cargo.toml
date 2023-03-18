@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-tauri-mobile = { git ="https://github.com/tauri-apps/tauri-mobile", version = "0.2.3", default-features = false, features = ["openssl-vendored"] }
+tauri-mobile = { version = "0.2.5", default-features = false, features = ["openssl-vendored"] }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.16", features = [ "ws-client", "client-ws-transport-no-tls", "server" ] }
 thiserror = "1"

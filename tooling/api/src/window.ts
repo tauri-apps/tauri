@@ -307,6 +307,7 @@ export type WindowLabel = string
 /**
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
  *
+ * @ignore
  * @since 1.0.0
  */
 class WebviewWindowHandle {
@@ -406,6 +407,7 @@ class WebviewWindowHandle {
     return emit(event, this.label, payload)
   }
 
+  /** @ignore */
   _handleTauriEvent<T>(event: string, handler: EventCallback<T>): boolean {
     if (localTauriEvents.includes(event)) {
       if (!(event in this.listeners)) {
@@ -424,6 +426,7 @@ class WebviewWindowHandle {
 /**
  * Manage the current window object.
  *
+ * @ignore
  * @since 1.0.0
  */
 class WindowManager extends WebviewWindowHandle {

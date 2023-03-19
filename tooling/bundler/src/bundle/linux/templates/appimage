@@ -55,9 +55,9 @@ chmod +x "{{tauri_tools_path}}/AppRun-${ARCH}"
 cp "{{tauri_tools_path}}/AppRun-${ARCH}" AppRun
 
 cp "{{icon_path}}" .DirIcon
-ln -s "{{icon_path}}" "{{app_name}}.png"
+ln -sf "{{icon_path}}" "{{app_name}}.png"
 
-ln -s "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
+ln -sf "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
 
 cd ..
 

@@ -30,7 +30,7 @@ tauri-utils = { version = "1.2.1", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 http = "0.2.4"
 http-range = "0.1.4"
-raw-window-handle = "0.5"
+raw-window-handle = "=0.5.0"
 rand = "0.8"
 url = { version = "2" }
 

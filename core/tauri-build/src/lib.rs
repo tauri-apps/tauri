@@ -298,7 +298,7 @@ val implementation by configurations
 dependencies {"
       .to_string();
 
-    for entry in read_dir(project_dir.join("tauri-plugins"))? {
+    for entry in read_dir(project_dir.join(".tauri").join("plugins"))? {
       let pkg_name = entry?
         .path()
         .file_name()
@@ -308,7 +308,7 @@ dependencies {"
       gradle_settings.push_str(&format!("include ':{pkg_name}'"));
       gradle_settings.push('\n');
       gradle_settings.push_str(&format!(
-        "project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
+        "project(':{pkg_name}').projectDir = new File('./.tauri/plugins/{pkg_name}')"
       ));
       gradle_settings.push('\n');
 

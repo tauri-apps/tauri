@@ -4,7 +4,7 @@
 
 use std::{
   env::{var, var_os},
-  fs::{copy, create_dir, remove_dir_all, rename},
+  fs::{copy, create_dir, create_dir_all, remove_dir_all, rename},
   path::{Path, PathBuf},
 };
 
@@ -50,9 +50,10 @@ impl PluginBuilder {
           let tauri_library_path = std::env::var("DEP_TAURI_ANDROID_LIBRARY_PATH")
             .expect("missing `DEP_TAURI_ANDROID_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
 
+          create_dir_all(source.join(".tauri")).context("failed to create .tauri directory")?;
           copy_folder(
             Path::new(&tauri_library_path),
-            &source.join("tauri-api"),
+            &source.join(".tauri").join("tauri-api"),
             &[],
           )
           .context("failed to copy tauri-api to the plugin project")?;
@@ -63,7 +64,7 @@ impl PluginBuilder {
 
             inject_android_project(
               &source,
-              project_dir.join("tauri-plugins").join(pkg_name),
+              project_dir.join(".tauri").join("plugins").join(pkg_name),
               &["tauri-api"],
             )
             .context("failed to inject plugin Android project")?;
@@ -77,9 +78,11 @@ impl PluginBuilder {
           let tauri_library_path = std::env::var("DEP_TAURI_IOS_LIBRARY_PATH")
             .expect("missing `DEP_TAURI_IOS_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
 
+          let tauri_dep_path = &path.parent().unwrap().join(".tauri");
+          create_dir_all(&tauri_dep_path).context("failed to create .tauri directory")?;
           copy_folder(
             Path::new(&tauri_library_path),
-            &path.parent().unwrap().join("tauri-api"),
+            &tauri_dep_path.join("tauri-api"),
             &[".build", "Package.resolved", "Tests"],
           )
           .context("failed to copy tauri-api to the plugin project")?;

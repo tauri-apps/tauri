@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.1]
+
+- Added the `shadow` option when creating a window and `setShadow` function.
+  - [a81750d7](https://www.github.com/tauri-apps/tauri/commit/a81750d779bc72f0fdb7de90b7fbddfd8049b328) feat(core): add shadow APIs ([#6206](https://www.github.com/tauri-apps/tauri/pull/6206)) on 2023-02-08
+
 ## \[2.0.0-alpha.0]
 
 - First mobile alpha release!

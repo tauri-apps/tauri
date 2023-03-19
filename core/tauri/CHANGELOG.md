@@ -1,5 +1,32 @@
 # Changelog
 
+## \[2.0.0-alpha.4]
+
+- Allow a wry plugin to be registered at runtime.
+  - [ae296f3d](https://www.github.com/tauri-apps/tauri/commit/ae296f3de16fb6a8badbad5555075a5861681fe5) refactor(tauri-runtime-wry): register runtime plugin after run() ([#6478](https://www.github.com/tauri-apps/tauri/pull/6478)) on 2023-03-17
+- Inject `proguard-tauri.pro` file in the Android project.
+  - [bef4ef51](https://www.github.com/tauri-apps/tauri/commit/bef4ef51bc2c633b88db121c2087a38dddb7d6bf) feat(android): enable minify on release, add proguard rules ([#6257](https://www.github.com/tauri-apps/tauri/pull/6257)) on 2023-02-13
+- Return `bool` in the invoke handler.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+- Use correct lib name in xcode project.
+  - [d1752fb1](https://www.github.com/tauri-apps/tauri/commit/d1752fb1f6223fa47d224cb6c62df9b74944a507) fix(cli): use correct lib name in xcode project ([#6387](https://www.github.com/tauri-apps/tauri/pull/6387)) on 2023-03-08
+- Run Android and iOS native plugins on the invoke handler if a Rust plugin command is not found.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+- Added `initialize_android_plugin` and `initialize_ios_plugin` APIs on `AppHandle`.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+- Changed the plugin setup hook to take a second argument of type `PluginApi`.
+  - [6aaba834](https://www.github.com/tauri-apps/tauri/commit/6aaba83476339fa413fe34d28877a932cb485117) refactor(plugin): add PluginApi and PluginHandle, expose on setup hook ([#6291](https://www.github.com/tauri-apps/tauri/pull/6291)) on 2023-02-16
+- Refactored the implementation of the `mobile_entry_point` macro.
+  - [9feab904](https://www.github.com/tauri-apps/tauri/commit/9feab904bf08b5c168d4779c21d0419409a68d30) feat(core): add API to call Android plugin ([#6239](https://www.github.com/tauri-apps/tauri/pull/6239)) on 2023-02-10
+- Removed the attohttpc client. The `reqwest-*` Cargo features were also removed.
+  - [dddaa943](https://www.github.com/tauri-apps/tauri/commit/dddaa943e7e0bf13935d567ef2f3f73e1c913300) refactor(core): remove attohttpc client, closes [#6415](https://www.github.com/tauri-apps/tauri/pull/6415) ([#6468](https://www.github.com/tauri-apps/tauri/pull/6468)) on 2023-03-17
+- Added `App::run_mobile_plugin` and `AppHandle::run_mobile_plugin`.
+  - [bfb2ab24](https://www.github.com/tauri-apps/tauri/commit/bfb2ab24e0b1d0860ea6e37688b5209541f0eda1) feat: add API to call iOS plugin ([#6242](https://www.github.com/tauri-apps/tauri/pull/6242)) on 2023-02-11
+- Added the `shadow` option when creating a window and `Window::set_shadow`.
+  - [a81750d7](https://www.github.com/tauri-apps/tauri/commit/a81750d779bc72f0fdb7de90b7fbddfd8049b328) feat(core): add shadow APIs ([#6206](https://www.github.com/tauri-apps/tauri/pull/6206)) on 2023-02-08
+- Implemented `with_webview` on Android and iOS.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+
 ## \[2.0.0-alpha.3]
 
 - Update gtk to 0.16.

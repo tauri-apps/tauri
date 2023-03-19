@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "2.0.0-alpha.1"
+version = "2.0.0-alpha.2"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -19,8 +19,8 @@ rustdoc-args = [ "--cfg", "doc_cfg" ]
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "2.0.0-alpha.1", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "2.0.0-alpha.1", path = "../tauri-utils", features = [ "build", "resources" ] }
+tauri-codegen = { version = "2.0.0-alpha.2", path = "../tauri-codegen", optional = true }
+tauri-utils = { version = "2.0.0-alpha.2", path = "../tauri-utils", features = [ "build", "resources" ] }
 cargo_toml = "0.14"
 serde = "1"
 serde_json = "1"
@@ -28,12 +28,11 @@ heck = "0.4"
 json-patch = "0.3"
 walkdir = "2"
 filetime = "0.2"
-
-# dependencies for Windows targets
 tauri-winres = "0.1"
 semver = "1"
+
 [target."cfg(target_os = \"macos\")".dependencies]
-swift-rs = { version = "1.0.3", features = ["build"] }
+swift-rs = { version = "1.0.3", features = [ "build" ] }
 
 [features]
 codegen = [ "tauri-codegen", "quote" ]

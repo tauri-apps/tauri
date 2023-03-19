@@ -210,7 +210,7 @@
   "additionalProperties": false,
   "definitions": {
     "PackageConfig": {
-      "description": "The package configuration.",
+      "description": "The package configuration.\n\nSee more: https://tauri.app/v1/api/config#packageconfig",
       "type": "object",
       "properties": {
         "productName": {
@@ -233,7 +233,7 @@
       "additionalProperties": false
     },
     "TauriConfig": {
-      "description": "The Tauri configuration object.",
+      "description": "The Tauri configuration object.\n\nSee more: https://tauri.app/v1/api/config#tauriconfig",
       "type": "object",
       "properties": {
         "pattern": {
@@ -512,7 +512,7 @@
       ]
     },
     "WindowConfig": {
-      "description": "The window configuration object.",
+      "description": "The window configuration object.\n\nSee more: https://tauri.app/v1/api/config#windowconfig",
       "type": "object",
       "properties": {
         "label": {
@@ -773,7 +773,7 @@
       ]
     },
     "CliConfig": {
-      "description": "describes a CLI configuration",
+      "description": "describes a CLI configuration\n\nSee more: https://tauri.app/v1/api/config#cliconfig",
       "type": "object",
       "properties": {
         "description": {
@@ -1019,7 +1019,7 @@
       "additionalProperties": false
     },
     "BundleConfig": {
-      "description": "Configuration for tauri-bundler.",
+      "description": "Configuration for tauri-bundler.\n\nSee more: https://tauri.app/v1/api/config#bundleconfig",
       "type": "object",
       "required": [
         "identifier"
@@ -1254,7 +1254,7 @@
       ]
     },
     "AppImageConfig": {
-      "description": "Configuration for AppImage bundles.",
+      "description": "Configuration for AppImage bundles.\n\nSee more: https://tauri.app/v1/api/config#appimageconfig",
       "type": "object",
       "properties": {
         "bundleMediaFramework": {
@@ -1266,7 +1266,7 @@
       "additionalProperties": false
     },
     "DebConfig": {
-      "description": "Configuration for Debian (.deb) bundles.",
+      "description": "Configuration for Debian (.deb) bundles.\n\nSee more: https://tauri.app/v1/api/config#debconfig",
       "type": "object",
       "properties": {
         "depends": {
@@ -1291,7 +1291,7 @@
       "additionalProperties": false
     },
     "MacConfig": {
-      "description": "Configuration for the macOS bundles.",
+      "description": "Configuration for the macOS bundles.\n\nSee more: https://tauri.app/v1/api/config#macconfig",
       "type": "object",
       "properties": {
         "frameworks": {
@@ -1351,7 +1351,7 @@
       "additionalProperties": false
     },
     "WindowsConfig": {
-      "description": "Windows bundler configuration.",
+      "description": "Windows bundler configuration.\n\nSee more: https://tauri.app/v1/api/config#windowsconfig",
       "type": "object",
       "properties": {
         "digestAlgorithm": {
@@ -1535,7 +1535,7 @@
       ]
     },
     "WixConfig": {
-      "description": "Configuration for the MSI bundle using WiX.",
+      "description": "Configuration for the MSI bundle using WiX.\n\nSee more: https://tauri.app/v1/api/config#wixconfig",
       "type": "object",
       "properties": {
         "language": {
@@ -1660,7 +1660,7 @@
       ]
     },
     "WixLanguageConfig": {
-      "description": "Configuration for a target language for the WiX build.",
+      "description": "Configuration for a target language for the WiX build.\n\nSee more: https://tauri.app/v1/api/config#wixlanguageconfig",
       "type": "object",
       "properties": {
         "localePath": {
@@ -1989,7 +1989,7 @@
       "additionalProperties": false
     },
     "FsAllowlistConfig": {
-      "description": "Allowlist for the file system APIs.",
+      "description": "Allowlist for the file system APIs.\n\nSee more: https://tauri.app/v1/api/config#fsallowlistconfig",
       "type": "object",
       "properties": {
         "scope": {
@@ -2089,7 +2089,7 @@
       ]
     },
     "WindowAllowlistConfig": {
-      "description": "Allowlist for the window APIs.",
+      "description": "Allowlist for the window APIs.\n\nSee more: https://tauri.app/v1/api/config#windowallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2256,7 +2256,7 @@
       "additionalProperties": false
     },
     "ShellAllowlistConfig": {
-      "description": "Allowlist for the shell APIs.",
+      "description": "Allowlist for the shell APIs.\n\nSee more: https://tauri.app/v1/api/config#shellallowlistconfig",
       "type": "object",
       "properties": {
         "scope": {
@@ -2387,7 +2387,7 @@
       ]
     },
     "DialogAllowlistConfig": {
-      "description": "Allowlist for the dialog APIs.",
+      "description": "Allowlist for the dialog APIs.\n\nSee more: https://tauri.app/v1/api/config#dialogallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2424,7 +2424,7 @@
       "additionalProperties": false
     },
     "HttpAllowlistConfig": {
-      "description": "Allowlist for the HTTP APIs.",
+      "description": "Allowlist for the HTTP APIs.\n\nSee more: https://tauri.app/v1/api/config#httpallowlistconfig",
       "type": "object",
       "properties": {
         "scope": {
@@ -2458,7 +2458,7 @@
       }
     },
     "NotificationAllowlistConfig": {
-      "description": "Allowlist for the notification APIs.",
+      "description": "Allowlist for the notification APIs.\n\nSee more: https://tauri.app/v1/api/config#notificationallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2470,7 +2470,7 @@
       "additionalProperties": false
     },
     "GlobalShortcutAllowlistConfig": {
-      "description": "Allowlist for the global shortcut APIs.",
+      "description": "Allowlist for the global shortcut APIs.\n\nSee more: https://tauri.app/v1/api/config#globalshortcutallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2482,7 +2482,7 @@
       "additionalProperties": false
     },
     "OsAllowlistConfig": {
-      "description": "Allowlist for the OS APIs.",
+      "description": "Allowlist for the OS APIs.\n\nSee more: https://tauri.app/v1/api/config#osallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2494,7 +2494,7 @@
       "additionalProperties": false
     },
     "PathAllowlistConfig": {
-      "description": "Allowlist for the path APIs.",
+      "description": "Allowlist for the path APIs.\n\nSee more: https://tauri.app/v1/api/config#pathallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2506,7 +2506,7 @@
       "additionalProperties": false
     },
     "ProtocolAllowlistConfig": {
-      "description": "Allowlist for the custom protocols.",
+      "description": "Allowlist for the custom protocols.\n\nSee more: https://tauri.app/v1/api/config#protocolallowlistconfig",
       "type": "object",
       "properties": {
         "assetScope": {
@@ -2532,7 +2532,7 @@
       "additionalProperties": false
     },
     "ProcessAllowlistConfig": {
-      "description": "Allowlist for the process APIs.",
+      "description": "Allowlist for the process APIs.\n\nSee more: https://tauri.app/v1/api/config#processallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2559,7 +2559,7 @@
       "additionalProperties": false
     },
     "ClipboardAllowlistConfig": {
-      "description": "Allowlist for the clipboard APIs.",
+      "description": "Allowlist for the clipboard APIs.\n\nSee more: https://tauri.app/v1/api/config#clipboardallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2581,7 +2581,7 @@
       "additionalProperties": false
     },
     "AppAllowlistConfig": {
-      "description": "Allowlist for the app APIs.",
+      "description": "Allowlist for the app APIs.\n\nSee more: https://tauri.app/v1/api/config#appallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2603,7 +2603,7 @@
       "additionalProperties": false
     },
     "SecurityConfig": {
-      "description": "Security configuration.",
+      "description": "Security configuration.\n\nSee more: https://tauri.app/v1/api/config#securityconfig",
       "type": "object",
       "properties": {
         "csp": {
@@ -2694,7 +2694,7 @@
       ]
     },
     "UpdaterConfig": {
-      "description": "The Updater configuration object.",
+      "description": "The Updater configuration object.\n\nSee more: https://tauri.app/v1/api/config#updaterconfig",
       "type": "object",
       "properties": {
         "active": {
@@ -2743,7 +2743,7 @@
       "format": "uri"
     },
     "UpdaterWindowsConfig": {
-      "description": "The updater configuration for Windows.",
+      "description": "The updater configuration for Windows.\n\nSee more: https://tauri.app/v1/api/config#updaterwindowsconfig",
       "type": "object",
       "properties": {
         "installerArgs": {
@@ -2793,7 +2793,7 @@
       ]
     },
     "SystemTrayConfig": {
-      "description": "Configuration for application system tray icon.",
+      "description": "Configuration for application system tray icon.\n\nSee more: https://tauri.app/v1/api/config#systemtrayconfig",
       "type": "object",
       "required": [
         "iconPath"
@@ -2824,7 +2824,7 @@
       "additionalProperties": false
     },
     "BuildConfig": {
-      "description": "The Build configuration object.",
+      "description": "The Build configuration object.\n\nSee more: https://tauri.app/v1/api/config#buildconfig",
       "type": "object",
       "properties": {
         "runner": {
@@ -2987,7 +2987,7 @@
       ]
     },
     "PluginConfig": {
-      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.",
+      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\nSee more: https://tauri.app/v1/api/config#pluginconfig",
       "type": "object",
       "additionalProperties": true
     }

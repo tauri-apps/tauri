@@ -2166,10 +2166,10 @@ function mapMonitor(m: Monitor | null): Monitor | null {
         size: new PhysicalSize(m.size.width, m.size.height)
       }
 }
-function mapPhsyicalPosition<T>(m: PhysicalPosition): PhysicalPosition {
+function mapPhsyicalPosition(m: PhysicalPosition): PhysicalPosition {
   return new PhysicalPosition(m.x, m.y)
 }
-function mapPhsyicalSize<T>(m: PhysicalSize): PhysicalSize {
+function mapPhsyicalSize(m: PhysicalSize): PhysicalSize {
   return new PhysicalSize(m.width, m.height)
 }
 

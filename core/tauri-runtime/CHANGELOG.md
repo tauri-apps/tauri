@@ -1,5 +1,14 @@
 # Changelog
 
+## \[0.13.0-alpha.2]
+
+- Add `find_class`, `run_on_android_context` on `RuntimeHandle`.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+- Added the `shadow` option when creating a window and `Window::set_shadow`.
+  - [a81750d7](https://www.github.com/tauri-apps/tauri/commit/a81750d779bc72f0fdb7de90b7fbddfd8049b328) feat(core): add shadow APIs ([#6206](https://www.github.com/tauri-apps/tauri/pull/6206)) on 2023-02-08
+- Implemented `with_webview` on Android and iOS.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+
 ## \[0.13.0-alpha.1]
 
 - Update gtk to 0.16.

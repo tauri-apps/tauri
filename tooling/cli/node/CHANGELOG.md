@@ -1,5 +1,34 @@
 # Changelog
 
+## \[2.0.0-alpha.3]
+
+- Added `plugin android add` and `plugin ios add` commands to add mobile plugin functionality to existing projects.
+  - [14d03d42](https://www.github.com/tauri-apps/tauri/commit/14d03d426e86d966950a790926c04560c76203b3) refactor(cli): enhance plugin commands for mobile ([#6289](https://www.github.com/tauri-apps/tauri/pull/6289)) on 2023-02-16
+- Add commands to add native Android and iOS functionality to plugins.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+- Use temp file instead of environment variable to pass CLI IPC websocket address to the IDE.
+  - [894a8d06](https://www.github.com/tauri-apps/tauri/commit/894a8d060c12a482a0fc5b3714f3848189b809de) refactor(cli): use temp file to communicate IPC websocket address ([#6219](https://www.github.com/tauri-apps/tauri/pull/6219)) on 2023-02-08
+- Change the Android template to enable minification on release and pull ProGuard rules from proguard-tauri.pro.
+  - [bef4ef51](https://www.github.com/tauri-apps/tauri/commit/bef4ef51bc2c633b88db121c2087a38dddb7d6bf) feat(android): enable minify on release, add proguard rules ([#6257](https://www.github.com/tauri-apps/tauri/pull/6257)) on 2023-02-13
+- Print an error if the Android project was generated with an older bundle identifier or package name.
+  - [79eb0542](https://www.github.com/tauri-apps/tauri/commit/79eb054292b04bb089a0e4df401a5986b33b691e) feat(cli): handle Android package identifier change ([#6314](https://www.github.com/tauri-apps/tauri/pull/6314)) on 2023-02-19
+- Fixes the generated mobile build script when using an NPM runner.
+  - [62f15265](https://www.github.com/tauri-apps/tauri/commit/62f152659204ce1218178596f463f0bcfbd4e6dc) fix(cli): generate build script using NPM runner if it was used ([#6233](https://www.github.com/tauri-apps/tauri/pull/6233)) on 2023-02-10
+- Resolve Android package name from single word bundle identifiers.
+  - [60a8b07d](https://www.github.com/tauri-apps/tauri/commit/60a8b07dc7c56c9c45331cb57d9afb410e7eadf3) fix: handle single word bundle identifier when resolving Android domain ([#6313](https://www.github.com/tauri-apps/tauri/pull/6313)) on 2023-02-19
+- Update Android project template with fix to crash on orientation change.
+  - [947eb391](https://www.github.com/tauri-apps/tauri/commit/947eb391ca41cebdb11abd9ffaec642baffbf44a) fix(android): crash on orientation change due to activity recreation ([#6261](https://www.github.com/tauri-apps/tauri/pull/6261)) on 2023-02-13
+- Added `--ios-color` option to the `tauri icon` command.
+  - [67755425](https://www.github.com/tauri-apps/tauri/commit/677554257e40e05b1af0dd61c982d6be8a8a033c) feat(cli): add `--ios-color` option to set iOS icon background color ([#6247](https://www.github.com/tauri-apps/tauri/pull/6247)) on 2023-02-12
+- Fixes HMR on mobile when devPath is configured to load a filesystem path.
+  - [4a82da29](https://www.github.com/tauri-apps/tauri/commit/4a82da2919e0564ec993b2005dc65b5b49407b36) fix(cli): use local ip address for reload ([#6285](https://www.github.com/tauri-apps/tauri/pull/6285)) on 2023-02-16
+- Ignore the `gen` folder on the dev watcher.
+  - [cab4ff95](https://www.github.com/tauri-apps/tauri/commit/cab4ff95b98aeac88401c1fed2d8b8940e4180cb) fix(cli): ignore the `gen` folder on the dev watcher ([#6232](https://www.github.com/tauri-apps/tauri/pull/6232)) on 2023-02-09
+- Correctly pass arguments from `npm run` to `tauri`.
+  - [1b343bd1](https://www.github.com/tauri-apps/tauri/commit/1b343bd11686f47f24a87298d8192097c66250f6) fix(cli): use `npm run tauri -- foo` for correctly passing args to tauri ([#6448](https://www.github.com/tauri-apps/tauri/pull/6448)) on 2023-03-16
+- Changed the `--api` flag on `plugin init` to `--no-api`.
+  - [14d03d42](https://www.github.com/tauri-apps/tauri/commit/14d03d426e86d966950a790926c04560c76203b3) refactor(cli): enhance plugin commands for mobile ([#6289](https://www.github.com/tauri-apps/tauri/pull/6289)) on 2023-02-16
+
 ## \[2.0.0-alpha.2]
 
 - Fixes `TAURI_*` environment variables for hook scripts on mobile commands.

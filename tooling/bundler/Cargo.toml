@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "2.0.0-alpha.1"
+version = "2.0.0-alpha.2"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -17,7 +17,7 @@ rust-version = "1.64"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-alpha.1", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "2.0.0-alpha.2", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.5"
 libflate = "1.2"
 anyhow = "1.0"
@@ -33,8 +33,6 @@ log = { version = "0.4.17", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 encoding_rs = "0.8"
 os_pipe = "1"
-
-# dependencies for Windows targets
 attohttpc = "0.24"
 hex = "0.4"
 semver = "1"
@@ -42,13 +40,11 @@ sha1 = "0.10"
 sha2 = "0.10"
 zip = "0.6"
 
-# dependencies for code signing on Windows hosts
 [target."cfg(target_os = \"windows\")".dependencies]
 uuid = { version = "1", features = [ "v4", "v5" ] }
 bitness = "0.4"
-winreg = "0.10" # Can only be compiled for Windows hosts
+winreg = "0.10"
 glob = "0.3"
-
 
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = { package = "tauri-icns", version = "0.1" }

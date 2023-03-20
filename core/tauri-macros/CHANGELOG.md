@@ -1,5 +1,14 @@
 # Changelog
 
+## \[2.0.0-alpha.2]
+
+- Resolve Android package name from single word bundle identifiers.
+  - [60a8b07d](https://www.github.com/tauri-apps/tauri/commit/60a8b07dc7c56c9c45331cb57d9afb410e7eadf3) fix: handle single word bundle identifier when resolving Android domain ([#6313](https://www.github.com/tauri-apps/tauri/pull/6313)) on 2023-02-19
+- Return `bool` in the invoke handler.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+- Refactored the implementation of the `mobile_entry_point` macro.
+  - [9feab904](https://www.github.com/tauri-apps/tauri/commit/9feab904bf08b5c168d4779c21d0419409a68d30) feat(core): add API to call Android plugin ([#6239](https://www.github.com/tauri-apps/tauri/pull/6239)) on 2023-02-10
+
 ## \[2.0.0-alpha.1]
 
 - Refactor mobile environment variables.

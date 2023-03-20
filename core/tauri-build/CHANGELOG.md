@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.2]
+
+- Add `mobile::PluginBuilder` for running build tasks related to Tauri plugins.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+
 ## \[2.0.0-alpha.1]
 
 - Refactor mobile environment variables.

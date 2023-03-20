@@ -27,8 +27,10 @@ pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);
-  let response = attohttpc::get(url).send()?;
-  response.bytes().map_err(Into::into)
+  let response = ureq::get(url).call()?;
+  let mut bytes = Vec::new();
+  response.into_reader().read_to_end(&mut bytes)?;
+  Ok(bytes)
 }
 
 pub enum HashAlgorithm {

@@ -73,7 +73,7 @@ heck = { version = "0.4", features = [ "unicode" ] }
 dialoguer = "0.10"
 url = { version = "2.3", features = [ "serde" ] }
 os_pipe = "1"
-ignore = "=0.4.18"
+ignore = "0.4"
 ctrlc = "3.2"
 log = { version = "0.4.17", features = [ "kv_unstable", "kv_unstable_std" ] }
 env_logger = "0.9.1"

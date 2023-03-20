@@ -38,6 +38,9 @@ pkg-fmt = "zip"
 name = "cargo-tauri"
 path = "src/main.rs"
 
+[features]
+openssl-vendored = ["tauri-mobile/openssl-vendored"]
+
 [dependencies]
 tauri-mobile = { version = "0.2.5", default-features = false }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }

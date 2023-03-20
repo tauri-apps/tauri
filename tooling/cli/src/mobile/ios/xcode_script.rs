@@ -10,7 +10,7 @@ use crate::{
 };
 
 use clap::Parser;
-use tauri_mobile::{apple::target::Target, opts::Profile, util};
+use tauri_mobile::{apple::target::Target, opts::Profile};
 
 use std::{collections::HashMap, env::var_os, ffi::OsStr, path::PathBuf};
 
@@ -72,13 +72,7 @@ pub fn command(options: Options) -> Result<()> {
   let macos = macos_from_platform(&options.platform);
 
   with_config(None, |_root_conf, config, metadata, cli_options| {
-    let env = env()?;
-    // The `PATH` env var Xcode gives us is missing any additions
-    // made by the user's profile, so we'll manually add cargo's
-    // `PATH`.
-    let env = env
-      .explicit_env_vars(cli_options.vars)
-      .prepend_to_path(util::home_dir()?.join(".cargo/bin"));
+    let env = env()?.explicit_env_vars(cli_options.vars);
 
     if !options.sdk_root.is_dir() {
       return Err(anyhow::anyhow!(

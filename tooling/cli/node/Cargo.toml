@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 # Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
 napi = { version = "2.10", default-features = false, features = ["napi4"] }
 napi-derive = "2.10"
-tauri-cli = { path = ".." }
+tauri-cli = { path = "..", features = ["openssl-vendored"] }
 log = "0.4.17"
 
 [build-dependencies]

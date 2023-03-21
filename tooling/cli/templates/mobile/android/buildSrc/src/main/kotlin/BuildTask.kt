@@ -1,6 +1,7 @@
 package {{reverse-domain app.domain}}
 
 import java.io.File
+import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.logging.LogLevel
@@ -26,7 +27,7 @@ open class BuildTask : DefaultTask() {
         val release = release ?: throw GradleException("release cannot be null")
         project.exec {
             workingDir(File(project.projectDir, rootDirRel.path))
-            executable("""{{ tauri-binary }}""")
+            executable({{executable}})
             args(listOf({{quote-and-join tauri-binary-args}}))
             if (project.logger.isEnabled(LogLevel.DEBUG)) {
                 args("-vv")

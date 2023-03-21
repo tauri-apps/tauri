@@ -44,7 +44,10 @@ openssl-vendored = [ "tauri-mobile/openssl-vendored" ]
 [dependencies]
 tauri-mobile = { version = "0.2.5", default-features = false }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
-jsonrpsee = { version = "0.16", features = [ "ws-client", "client-ws-transport-no-tls", "server" ] }
+jsonrpsee = { version = "0.16", features = [ "server" ] }
+jsonrpsee-core = "0.16"
+jsonrpsee-client-transport = { version = "0.16", features = ["ws"] }
+jsonrpsee-ws-client = { version = "0.16", default-features = false }
 thiserror = "1"
 sublime_fuzzy = "0.7"
 clap = { version = "4.0", features = [ "derive" ] }

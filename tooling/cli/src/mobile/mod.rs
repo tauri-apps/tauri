@@ -12,10 +12,10 @@ use crate::{
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
 use anyhow::{bail, Result};
-use jsonrpsee::client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
-use jsonrpsee::rpc_params;
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
+use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
+use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 use shared_child::SharedChild;
 

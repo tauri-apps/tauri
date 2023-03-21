@@ -6,7 +6,7 @@
 
 use std::io::BufRead;
 
-/// Read a line breaking in both \n and \r.
+/// Read all bytes until a newline (the `0xA` byte) is reached, and append them to the provided buffer.
 ///
 /// Adapted from <https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_line>.
 pub fn read_line<R: BufRead + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> std::io::Result<usize> {
@@ -20,29 +20,18 @@ pub fn read_line<R: BufRead + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> std::io::
       };
       match memchr::memchr(b'\n', available) {
         Some(i) => {
-          let end = i + 1;
-          buf.extend_from_slice(&available[..end]);
-          (true, end)
+          buf.extend_from_slice(&available[..=i]);
+          (true, i + 1)
         }
-        None => match memchr::memchr(b'\r', available) {
-          Some(i) => {
-            let end = i + 1;
-            buf.extend_from_slice(&available[..end]);
-            (true, end)
-          }
-          None => {
-            buf.extend_from_slice(available);
-            (false, available.len())
-          }
-        },
+        None => {
+          buf.extend_from_slice(available);
+          (false, available.len())
+        }
       }
     };
     r.consume(used);
     read += used;
     if done || used == 0 {
-      if buf.ends_with(&[b'\n']) {
-        buf.pop();
-      }
       return Ok(read);
     }
   }

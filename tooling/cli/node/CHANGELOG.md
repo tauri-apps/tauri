@@ -1,5 +1,14 @@
 # Changelog
 
+## \[2.0.0-alpha.4]
+
+- Fix android project build crashing when using `pnpm` caused by extra `--`.
+  - [c787f749](https://www.github.com/tauri-apps/tauri/commit/c787f749de01b79d891615aad8c37b23037fff4c) fix(cli): only add `--` to generated android template for npm ([#6508](https://www.github.com/tauri-apps/tauri/pull/6508)) on 2023-03-21
+- Fixes the Android build gradle plugin implementation on Windows.
+  - [00241fa9](https://www.github.com/tauri-apps/tauri/commit/00241fa92d104870068a701519340633cc35b716) fix(cli): append .cmd on the gradle plugin binary on Windows, fix [#6502](https://www.github.com/tauri-apps/tauri/pull/6502) ([#6503](https://www.github.com/tauri-apps/tauri/pull/6503)) on 2023-03-21
+- Update `napi-rs` dependencies to latest to fix CLI hanging up forever.
+  - [d5ac76b5](https://www.github.com/tauri-apps/tauri/commit/d5ac76b53c7f35253db84ddfbf4ecf975ff6307d) chore(deps): update napi-rs, closes [#6502](https://www.github.com/tauri-apps/tauri/pull/6502) ([#6513](https://www.github.com/tauri-apps/tauri/pull/6513)) on 2023-03-21
+
 ## \[2.0.0-alpha.3]
 
 - Added `plugin android add` and `plugin ios add` commands to add mobile plugin functionality to existing projects.

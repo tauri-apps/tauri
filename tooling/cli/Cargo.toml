@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "2.0.0-alpha.3"
+version = "2.0.0-alpha.4"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.64"
@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [features]
-openssl-vendored = ["tauri-mobile/openssl-vendored"]
+openssl-vendored = [ "tauri-mobile/openssl-vendored" ]
 
 [dependencies]
 tauri-mobile = { version = "0.2.5", default-features = false }

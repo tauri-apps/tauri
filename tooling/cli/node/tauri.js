@@ -51,7 +51,10 @@ else if (binStem.match(/(nodejs|node)\-?([1-9]*)*$/g)) {
   arguments.unshift(bin)
 }
 
-cli.run(arguments, binName).catch((err) => {
-  cli.logError(err.message)
-  process.exit(1)
-})
+cli
+  .run(arguments, binName)
+  .then(process.exit)
+  .catch((err) => {
+    cli.logError(err.message)
+    process.exit(1)
+  })

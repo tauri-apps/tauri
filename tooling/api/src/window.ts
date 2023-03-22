@@ -2069,7 +2069,7 @@ class WebviewWindow extends WindowManager {
    *
    * @since 1.4
    */
-  static getFocusedWindow(): WebviewWindow | undefined {
+  static async getFocusedWindow(): Promise<WebviewWindow | undefined> {
     return getAll().find((w) => w.isFocused())
   }
 }

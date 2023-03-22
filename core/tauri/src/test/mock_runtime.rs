@@ -375,6 +375,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn is_focused(&self) -> Result<bool> {
+    Ok(false)
+  }
+
   fn is_decorated(&self) -> Result<bool> {
     Ok(false)
   }

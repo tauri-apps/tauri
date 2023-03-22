@@ -634,6 +634,33 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window's current focus state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const focused = await appWindow.isFocused();
+   * ```
+   *
+   * @returns Whether the window is focused or not.
+   *
+   * @since 1.4
+   * */
+  async isFocused(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isFocused'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current decorated state.
    * @example
    * ```typescript
@@ -2028,6 +2055,22 @@ class WebviewWindow extends WindowManager {
       return new WebviewWindow(label, { skip: true })
     }
     return null
+  }
+
+  /**
+   *  Gets the focused window.
+   * @example
+   * ```typescript
+   * import { WebviewWindow } from '@tauri-apps/api/window';
+   * const focusedWindow = WebviewWindow.getFocusedWindow();
+   * ```
+   *
+   * @returns The WebviewWindow instance to communicate with the webview or `undefined` if there is not any focused window.
+   *
+   * @since 1.4
+   */
+  static getFocusedWindow(): WebviewWindow | undefined {
+    return getAll().find((w) => w.isFocused())
   }
 }
 

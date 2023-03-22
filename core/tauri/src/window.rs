@@ -1006,6 +1006,11 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
   }
 
+  /// Gets the window's current focus state.
+  pub fn is_focused(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_focused().map_err(Into::into)
+  }
+
   /// Gets the window’s current decoration state.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_decorated().map_err(Into::into)

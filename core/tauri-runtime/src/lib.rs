@@ -576,6 +576,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Gets the window's current maximized state.
   fn is_maximized(&self) -> Result<bool>;
 
+  /// Gets the window's current focus state.
+  fn is_focused(&self) -> Result<bool>;
+
   /// Gets the window’s current decoration state.
   fn is_decorated(&self) -> Result<bool>;
 

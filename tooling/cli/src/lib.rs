@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -160,7 +160,7 @@ where
   }
 
   match cli.command {
-    Commands::Build(options) => build::command(options)?,
+    Commands::Build(options) => build::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
     Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,

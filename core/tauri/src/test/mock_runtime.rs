@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -590,6 +590,10 @@ impl TrayHandle for MockTrayHandler {
 
   #[cfg(target_os = "macos")]
   fn set_title(&self, title: &str) -> tauri_runtime::Result<()> {
+    Ok(())
+  }
+
+  fn set_tooltip(&self, tooltip: &str) -> Result<()> {
     Ok(())
   }
 

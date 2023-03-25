@@ -1,9 +1,15 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::{
   fs,
   path::{Path, PathBuf},
 };
+
+use tauri_utils::display_path;
 
 struct PathAncestors<'a> {
   current: Option<&'a Path>,
@@ -51,10 +57,18 @@ impl Config {
     let mut config = Self::default();
 
     let get_config = |path: PathBuf| -> Result<ConfigSchema> {
-      let contents = fs::read_to_string(&path)
-        .with_context(|| format!("failed to read configuration file `{}`", path.display()))?;
-      toml::from_str(&contents)
-        .with_context(|| format!("could not parse TOML configuration in `{}`", path.display()))
+      let contents = fs::read_to_string(&path).with_context(|| {
+        format!(
+          "failed to read configuration file `{}`",
+          display_path(&path)
+        )
+      })?;
+      toml::from_str(&contents).with_context(|| {
+        format!(
+          "could not parse TOML configuration in `{}`",
+          display_path(&path)
+        )
+      })
     };
 
     for current in PathAncestors::new(path) {
@@ -121,9 +135,9 @@ fn get_file_path(
       if !skip_warning {
         log::warn!(
           "Both `{}` and `{}` exist. Using `{}`",
-          possible.display(),
-          possible_with_extension.display(),
-          possible.display()
+          display_path(&possible),
+          display_path(&possible_with_extension),
+          display_path(&possible)
         );
       }
     }

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -288,7 +288,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
   );
   // check 64bit machine-wide installation
   let output = Command::new(&powershell_path)
-      .args(&["-NoProfile", "-Command"])
+      .args(["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
   if output.status.success() {
@@ -298,7 +298,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
   }
   // check 32bit machine-wide installation
   let output = Command::new(&powershell_path)
-        .args(&["-NoProfile", "-Command"])
+        .args(["-NoProfile", "-Command"])
         .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
         .output()?;
   if output.status.success() {
@@ -308,7 +308,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
   }
   // check user-wide installation
   let output = Command::new(&powershell_path)
-      .args(&["-NoProfile", "-Command"])
+      .args(["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
   if output.status.success() {
@@ -342,7 +342,7 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
     }
   }
   let output = cross_command(vswhere.to_str().unwrap())
-    .args(&[
+    .args([
       "-prerelease",
       "-products",
       "*",
@@ -636,7 +636,7 @@ pub fn command(_options: Options) -> Result<()> {
       InfoBlock::new("MSVC", "").display();
       for i in build_tools {
         indent(6);
-        println!("{}", format!("{} {}", "-".cyan(), i));
+        println!("{} {}", "-".cyan(), i);
       }
     }
   }

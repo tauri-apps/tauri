@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -72,6 +72,9 @@ const WINDOW_FILE_DROP_EVENT: &str = "tauri://file-drop";
 const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
+
+pub(crate) const STRINGIFY_IPC_MESSAGE_FN: &str =
+  include_str!("../scripts/stringify-ipc-message-fn.js");
 
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
@@ -634,7 +637,7 @@ impl<R: Runtime> WindowManager<R> {
                 .insert("Content-Length", real_length.to_string());
               data.headers.insert(
                 "Content-Range",
-                format!("bytes {}-{}/{}", range.start, last_byte, file_size),
+                format!("bytes {}-{last_byte}/{file_size}", range.start),
               );
 
               if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
@@ -740,6 +743,7 @@ impl<R: Runtime> WindowManager<R> {
               let asset = String::from_utf8_lossy(asset.as_ref());
               let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
                 runtime_aes_gcm_key: &aes_gcm_key,
+                stringify_ipc_message_fn: STRINGIFY_IPC_MESSAGE_FN,
               };
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponseBuilder::new()
@@ -1306,6 +1310,14 @@ impl<R: Runtime> WindowManager<R> {
       .values()
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit_internal(event, source_window_label, payload.clone()))
+  }
+
+  pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {
+    let script = script.into();
+    self
+      .windows_lock()
+      .values()
+      .try_for_each(|window| window.eval(&script))
   }
 
   pub fn labels(&self) -> HashSet<String> {

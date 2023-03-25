@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -279,9 +279,8 @@ fn set_perms(
 ) -> crate::api::Result<()> {
   _set_perms(dst, f, mode, preserve).map_err(|_| {
     crate::api::Error::Extract(format!(
-      "failed to set permissions to {:o} \
+      "failed to set permissions to {mode:o} \
                for `{}`",
-      mode,
       dst.display()
     ))
   })

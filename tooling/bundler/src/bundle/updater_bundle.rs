@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -11,28 +11,49 @@ use super::macos::app;
 #[cfg(target_os = "linux")]
 use super::linux::appimage;
 
-#[cfg(target_os = "windows")]
-use super::windows::msi;
-use log::error;
-#[cfg(target_os = "windows")]
-use std::{fs::File, io::prelude::*};
-#[cfg(target_os = "windows")]
-use zip::write::FileOptions;
+use crate::{
+  bundle::{
+    windows::{
+      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, WIX_OUTPUT_FOLDER_NAME,
+      WIX_UPDATER_OUTPUT_FOLDER_NAME,
+    },
+    Bundle,
+  },
+  Settings,
+};
+use tauri_utils::display_path;
 
-use crate::{bundle::Bundle, Settings};
+use std::{
+  fs::{self, File},
+  io::{prelude::*, Write},
+  path::{Path, PathBuf},
+};
+
 use anyhow::Context;
 use log::info;
-use std::path::{Path, PathBuf};
-use std::{fs, io::Write};
+use zip::write::FileOptions;
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
-  if cfg!(unix) || cfg!(windows) || cfg!(macos) {
-    // Create our archive bundle
-    let bundle_result = bundle_update(settings, bundles)?;
-    Ok(bundle_result)
-  } else {
-    error!("Current platform do not support updates");
+  let target_os = settings
+    .target()
+    .split('-')
+    .nth(2)
+    .unwrap_or(std::env::consts::OS)
+    .replace("darwin", "macos");
+
+  if target_os == "windows" {
+    return bundle_update_windows(settings, bundles);
+  }
+
+  #[cfg(target_os = "macos")]
+  return bundle_update_macos(settings, bundles);
+  #[cfg(target_os = "linux")]
+  return bundle_update_linux(settings, bundles);
+
+  #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+  {
+    log::error!("Current platform does not support updates");
     Ok(vec![])
   }
 }
@@ -40,7 +61,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 // Create simple update-macos.tar.gz
 // This is the Mac OS App packaged
 #[cfg(target_os = "macos")]
-fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update_macos(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use std::ffi::OsStr;
 
   // find our .app or rebuild our bundle
@@ -73,7 +94,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   create_tar(source_path, &osx_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  info!(action = "Bundling"; "{} ({})", osx_archived, osx_archived_path.display());
+  info!(action = "Bundling"; "{} ({})", osx_archived, display_path(&osx_archived_path));
 
   Ok(vec![osx_archived_path])
 }
@@ -83,7 +104,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 // Right now in linux we hot replace the bin and request a restart
 // No assets are replaced
 #[cfg(target_os = "linux")]
-fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update_linux(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use std::ffi::OsStr;
 
   // build our app actually we support only appimage on linux
@@ -115,7 +136,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   create_tar(source_path, &appimage_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  info!(action = "Bundling"; "{} ({})", appimage_archived, appimage_archived_path.display());
+  info!(action = "Bundling"; "{} ({})", appimage_archived, display_path(&appimage_archived_path));
 
   Ok(vec![appimage_archived_path])
 }
@@ -124,61 +145,89 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 // Including the binary as root
 // Right now in windows we hot replace the bin and request a restart
 // No assets are replaced
-#[cfg(target_os = "windows")]
-fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use crate::bundle::settings::WebviewInstallMode;
+  #[cfg(target_os = "windows")]
+  use crate::bundle::windows::msi;
+  use crate::bundle::windows::nsis;
+  use crate::PackageType;
 
-  // find our .msi or rebuild
-  let bundle_paths = if matches!(
+  // find our installers or rebuild
+  let mut bundle_paths = Vec::new();
+  let mut rebuild_installers = || -> crate::Result<()> {
+    for bundle in bundles {
+      match bundle.package_type {
+        #[cfg(target_os = "windows")]
+        PackageType::WindowsMsi => bundle_paths.extend(msi::bundle_project(settings, true)?),
+        PackageType::Nsis => bundle_paths.extend(nsis::bundle_project(settings, true)?),
+        _ => {}
+      };
+    }
+    Ok(())
+  };
+
+  if matches!(
     settings.windows().webview_install_mode,
     WebviewInstallMode::OfflineInstaller { .. } | WebviewInstallMode::EmbedBootstrapper { .. }
   ) {
-    msi::bundle_project(settings, true)?
+    rebuild_installers()?;
   } else {
     let paths = bundles
       .iter()
-      .find(|bundle| bundle.package_type == crate::PackageType::WindowsMsi)
-      .map(|bundle| bundle.bundle_paths.clone())
-      .unwrap_or_default();
+      .filter(|bundle| {
+        matches!(
+          bundle.package_type,
+          PackageType::WindowsMsi | PackageType::Nsis
+        )
+      })
+      .flat_map(|bundle| bundle.bundle_paths.clone())
+      .collect::<Vec<_>>();
 
-    // we expect our .msi files to be on `bundle_paths`
+    // we expect our installer files to be on `bundle_paths`
     if paths.is_empty() {
-      msi::bundle_project(settings, false)?
+      rebuild_installers()?;
     } else {
-      paths
+      bundle_paths.extend(paths);
     }
   };
 
-  let mut msi_archived_paths = Vec::new();
-
+  let mut installers_archived_paths = Vec::new();
   for source_path in bundle_paths {
     // add .zip to our path
-    let msi_archived_path = source_path
-      .components()
-      .fold(PathBuf::new(), |mut p, c| {
-        if let std::path::Component::Normal(name) = c {
-          if name == msi::MSI_UPDATER_FOLDER_NAME {
-            p.push(msi::MSI_FOLDER_NAME);
-            return p;
-          }
-        }
-        p.push(c);
-        p
-      })
-      .with_extension("msi.zip");
+    let (archived_path, bundle_name) =
+      source_path
+        .components()
+        .fold((PathBuf::new(), String::new()), |(mut p, mut b), c| {
+          if let std::path::Component::Normal(name) = c {
+            if let Some(name) = name.to_str() {
+              // installers bundled for updater should be put in a directory named `${bundle_name}-updater`
+              if name == WIX_UPDATER_OUTPUT_FOLDER_NAME || name == NSIS_UPDATER_OUTPUT_FOLDER_NAME {
+                b = name.strip_suffix("-updater").unwrap().to_string();
+                p.push(&b);
+                return (p, b);
+              }
 
-    info!(action = "Bundling"; "{}", msi_archived_path.display());
+              if name == WIX_OUTPUT_FOLDER_NAME || name == NSIS_OUTPUT_FOLDER_NAME {
+                b = name.to_string();
+              }
+            }
+          }
+          p.push(c);
+          (p, b)
+        });
+    let archived_path = archived_path.with_extension(format!("{}.zip", bundle_name));
+
+    info!(action = "Bundling"; "{}", display_path(&archived_path));
 
     // Create our gzip file
-    create_zip(&source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;
+    create_zip(&source_path, &archived_path).with_context(|| "Failed to zip update bundle")?;
 
-    msi_archived_paths.push(msi_archived_path);
+    installers_archived_paths.push(archived_path);
   }
 
-  Ok(msi_archived_paths)
+  Ok(installers_archived_paths)
 }
 
-#[cfg(target_os = "windows")]
 pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
   let parent_dir = dst_file.parent().expect("No data in parent");
   fs::create_dir_all(parent_dir)?;
@@ -197,7 +246,7 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
   let mut f = File::open(src_file)?;
   let mut buffer = Vec::new();
   f.read_to_end(&mut buffer)?;
-  zip.write_all(&*buffer)?;
+  zip.write_all(&buffer)?;
   buffer.clear();
 
   Ok(dst_file.to_owned())

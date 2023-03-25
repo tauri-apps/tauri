@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "1.2.2"
+version = "1.2.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.59"
@@ -57,7 +57,7 @@ jsonschema = "0.16"
 handlebars = "4.3"
 include_dir = "0.7"
 minisign = "0.7"
-base64 = "0.13.0"
+base64 = "0.21.0"
 ureq = "2.5"
 os_info = "3.5"
 semver = "1.0"
@@ -68,7 +68,7 @@ heck = { version = "0.4", features = [ "unicode" ] }
 dialoguer = "0.10"
 url = { version = "2.3", features = [ "serde" ] }
 os_pipe = "1"
-ignore = "0.4"
+ignore = "=0.4.18"
 ctrlc = "3.2"
 log = { version = "0.4.17", features = [ "kv_unstable", "kv_unstable_std" ] }
 env_logger = "0.9.1"
@@ -80,6 +80,7 @@ kuchiki = "0.8"
 tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
 serde-value = "0.7.0"
+itertools = "0.10"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }

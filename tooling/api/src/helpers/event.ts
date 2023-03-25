@@ -1,11 +1,11 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { WindowLabel } from '../window'
+import { type WindowLabel } from '../window'
 import { invokeTauriCommand } from './tauri'
 import { transformCallback } from '../tauri'
-import type { EventName } from '../event'
+import { type EventName } from '../event'
 
 export interface Event<T> {
   /** Event name */

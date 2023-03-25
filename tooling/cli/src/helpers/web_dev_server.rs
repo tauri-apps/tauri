@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use axum::{
   extract::{ws::WebSocket, WebSocketUpgrade},
   http::{header::CONTENT_TYPE, Request, StatusCode},
@@ -10,9 +14,8 @@ use kuchiki::{traits::TendrilSink, NodeRef};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::{
-  net::SocketAddr,
+  net::{Ipv4Addr, SocketAddr},
   path::{Path, PathBuf},
-  str::FromStr,
   sync::{mpsc::sync_channel, Arc},
   thread,
   time::Duration,
@@ -21,15 +24,23 @@ use tauri_utils::mime_type::MimeType;
 use tokio::sync::broadcast::{channel, Sender};
 
 const AUTO_RELOAD_SCRIPT: &str = include_str!("./auto-reload.js");
-pub const SERVER_URL: &str = "http://127.0.0.1:1430";
 
 struct State {
   serve_dir: PathBuf,
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(path: P) {
+pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> SocketAddr {
   let serve_dir = path.as_ref().to_path_buf();
+  let server_url = SocketAddr::new(
+    Ipv4Addr::new(127, 0, 0, 1).into(),
+    port.unwrap_or_else(|| {
+      std::env::var("TAURI_DEV_SERVER_PORT")
+        .unwrap_or_else(|_| "1430".to_string())
+        .parse()
+        .unwrap()
+    }),
+  );
 
   std::thread::spawn(move || {
     tokio::runtime::Builder::new_current_thread()
@@ -80,12 +91,14 @@ pub fn start_dev_server<P: AsRef<Path>>(path: P) {
               ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
             }),
           );
-        Server::bind(&SocketAddr::from_str(SERVER_URL.split('/').nth(2).unwrap()).unwrap())
+        Server::bind(&server_url)
           .serve(router.into_make_service())
           .await
           .unwrap();
       })
   });
+
+  server_url
 }
 
 async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {
@@ -126,7 +139,7 @@ async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {
           head.prepend(script_el);
         });
 
-        f = document.to_string().as_bytes().to_vec();
+        f = tauri_utils::html::serialize_node(&document);
       }
 
       (StatusCode::OK, [(CONTENT_TYPE, mime_type)], f)

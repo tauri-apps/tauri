@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -215,19 +215,9 @@ impl Cmd {
     context: InvokeContext<R>,
     options: Box<WindowConfig>,
   ) -> super::Result<()> {
-    let label = options.label.clone();
-    let url = options.url.clone();
-    let file_drop_enabled = options.file_drop_enabled;
-
-    let mut builder = crate::window::Window::builder(&context.window, label, url);
-    if !file_drop_enabled {
-      builder = builder.disable_file_drop_handler();
-    }
-
-    builder.window_builder =
-      <<R::Dispatcher as Dispatch<crate::EventLoopMessage>>::WindowBuilder>::with_config(*options);
-    builder.build().map_err(crate::error::into_anyhow)?;
-
+    crate::window::WindowBuilder::from_config(&context.window, *options)
+      .build()
+      .map_err(crate::error::into_anyhow)?;
     Ok(())
   }
 

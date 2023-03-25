@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -26,10 +26,10 @@ fn main() {
   let mut all_data: Vec<utils::BenchResult> =
     serde_json::from_reader(all_data_buffer).expect("Unable to read all data buffer");
 
-  // add current data to alls data
+  // add current data to all data
   all_data.push(current_data);
 
-  // use only latest 20 elements from alls data
+  // use only latest 20 elements from all data
   let recent: Vec<utils::BenchResult> = if all_data.len() > 20 {
     all_data[all_data.len() - 20..].to_vec()
   } else {
@@ -41,7 +41,7 @@ fn main() {
     tauri_data
       .to_str()
       .expect("Something wrong with tauri_data"),
-    &serde_json::to_value(&all_data).expect("Unable to build final json (alls)"),
+    &serde_json::to_value(&all_data).expect("Unable to build final json (all)"),
   )
   .unwrap_or_else(|_| panic!("Unable to write {:?}", tauri_data));
 

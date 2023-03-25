@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -228,6 +228,17 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         .file_name()
         .expect("Couldn't get framework filename");
       common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
+      continue;
+    } else if framework.ends_with(".dylib") {
+      let src_path = PathBuf::from(framework);
+      if !src_path.exists() {
+        return Err(crate::Error::GenericError(format!(
+          "Library not found: {}",
+          framework
+        )));
+      }
+      let src_name = src_path.file_name().expect("Couldn't get library filename");
+      common::copy_file(&src_path, &dest_dir.join(&src_name))?;
       continue;
     } else if framework.contains('/') {
       return Err(crate::Error::GenericError(format!(

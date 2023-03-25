@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -81,6 +81,7 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
+  borrow::Cow,
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
@@ -286,7 +287,7 @@ impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
 }
 
 // response
-struct HttpResponseWrapper(WryResponse<Vec<u8>>);
+struct HttpResponseWrapper(WryResponse<Cow<'static, [u8]>>);
 impl From<HttpResponse> for HttpResponseWrapper {
   fn from(response: HttpResponse) -> Self {
     let (parts, body) = response.into_parts();
@@ -300,7 +301,7 @@ impl From<HttpResponse> for HttpResponseWrapper {
       res_builder = res_builder.header(name, val);
     }
 
-    let res = res_builder.body(body).unwrap();
+    let res = res_builder.body(Cow::Owned(body)).unwrap();
     Self(res)
   }
 }
@@ -749,6 +750,12 @@ impl WindowBuilder for WindowBuilderWrapper {
       ");
     }
 
+    #[cfg(target_os = "linux")]
+    {
+      // Mouse event is disabled on Linux since sudden event bursts could block event loop.
+      window.inner = window.inner.with_cursor_moved_event(false);
+    }
+
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
       window = window.min_inner_size(min_width, min_height);
     }
@@ -1123,6 +1130,7 @@ pub enum TrayMessage {
   UpdateIconAsTemplate(bool),
   #[cfg(target_os = "macos")]
   UpdateTitle(String),
+  UpdateTooltip(String),
   Create(SystemTray, Sender<Result<()>>),
   Destroy(Sender<Result<()>>),
 }
@@ -2575,14 +2583,18 @@ fn handle_user_message<T: UserEvent>(
     Message::Tray(tray_id, tray_message) => {
       let mut trays = system_tray_manager.trays.lock().unwrap();
 
-      if let TrayMessage::Create(tray, tx) = tray_message {
+      if let TrayMessage::Create(mut tray, tx) = tray_message {
+        let mut listeners = Vec::new();
+        if let Some(l) = tray.on_event.take() {
+          listeners.push(Arc::new(l));
+        }
         match create_tray(WryTrayId(tray_id), tray, event_loop) {
           Ok((tray, items)) => {
             trays.insert(
               tray_id,
               TrayContext {
                 tray: Arc::new(Mutex::new(Some(tray))),
-                listeners: Default::default(),
+                listeners: Arc::new(Mutex::new(listeners)),
                 items: Arc::new(Mutex::new(items)),
               },
             );
@@ -2633,6 +2645,11 @@ fn handle_user_message<T: UserEvent>(
           TrayMessage::UpdateTitle(title) => {
             if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
               tray.set_title(&title);
+            }
+          }
+          TrayMessage::UpdateTooltip(tooltip) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              tray.set_tooltip(&tooltip);
             }
           }
           TrayMessage::Create(_tray, _tx) => {
@@ -2850,6 +2867,19 @@ fn handle_event_loop<T: UserEvent>(
         }
 
         match event {
+          #[cfg(windows)]
+          WryWindowEvent::ThemeChanged(theme) => {
+            if let Some(window) = windows.borrow().get(&window_id) {
+              if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
+                let theme = match theme {
+                  WryTheme::Dark => wry::webview::Theme::Dark,
+                  WryTheme::Light => wry::webview::Theme::Light,
+                  _ => wry::webview::Theme::Light,
+                };
+                inner.set_theme(theme);
+              }
+            }
+          }
           WryWindowEvent::CloseRequested => {
             on_close_requested(callback, window_id, windows.clone());
           }
@@ -3024,6 +3054,9 @@ fn create_webview<T: UserEvent>(
       .with_drag_and_drop(webview_attributes.file_drop_handler_enabled);
   }
 
+  #[cfg(windows)]
+  let window_theme = window_builder.inner.window.preferred_theme;
+
   #[cfg(target_os = "macos")]
   {
     if window_builder.tabbing_identifier.is_none()
@@ -3060,6 +3093,11 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
   }
+  if let Some(navigation_handler) = pending.navigation_handler {
+    webview_builder = webview_builder.with_navigation_handler(move |url| {
+      Url::parse(&url).map(&navigation_handler).unwrap_or(true)
+    });
+  }
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }
@@ -3067,6 +3105,15 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
     webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
+  }
+
+  #[cfg(windows)]
+  if let Some(theme) = window_theme {
+    webview_builder = webview_builder.with_theme(match theme {
+      WryTheme::Dark => wry::webview::Theme::Dark,
+      WryTheme::Light => wry::webview::Theme::Light,
+      _ => wry::webview::Theme::Light,
+    });
   }
 
   if let Some(handler) = ipc_handler {

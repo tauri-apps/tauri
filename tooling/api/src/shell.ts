@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -57,11 +57,13 @@
  * Configuration:
  * ```json
  * {
- *   "scope": {
- *     "name": "run-git-commit",
- *     "cmd": "git",
- *     "args": ["commit", "-m", { "validator": "\\S+" }]
- *   }
+ *   "scope": [
+ *     {
+ *       "name": "run-git-commit",
+ *       "cmd": "git",
+ *       "args": ["commit", "-m", { "validator": "\\S+" }]
+ *     }
+ *   ]
  * }
  * ```
  * Usage:
@@ -85,7 +87,7 @@ interface SpawnOptions {
   /** Current working directory. */
   cwd?: string
   /** Environment variables. set to `null` to clear the process env. */
-  env?: { [name: string]: string }
+  env?: Record<string, string>
   /**
    * Character encoding for stdout/stderr
    *

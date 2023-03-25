@@ -1399,7 +1399,7 @@ impl<R: Runtime> Window<R> {
       url: Default::default(),
       windows: Vec::with_capacity(0),
       plugins: Vec::with_capacity(0),
-      disable_tauri_api: false,
+      enable_tauri_api: true,
     };
 
     let mut scope_not_found_error_message = format!(
@@ -1450,7 +1450,7 @@ impl<R: Runtime> Window<R> {
         }
 
         if let Some(module) = &payload.tauri_module {
-          if !is_local && scope.map(|s| s.disable_tauri_api).unwrap_or_default() {
+          if !is_local && scope.map(|s| !s.enable_tauri_api).unwrap_or_default() {
             invoke.resolver.reject("Not allowed by the scope");
             return Ok(());
           }

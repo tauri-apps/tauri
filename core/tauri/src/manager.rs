@@ -496,7 +496,7 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
-    let window_url = Url::parse(&pending.url).unwrap();
+    let window_url = pending.current_url.lock().unwrap().clone();
     let window_origin =
       if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
         format!("https://{}.localhost", window_url.scheme())
@@ -1182,7 +1182,7 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    pending.url = url.to_string();
+    *pending.current_url.lock().unwrap() = url;
 
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
@@ -1230,6 +1230,17 @@ impl<R: Runtime> WindowManager<R> {
         create_dir_all(user_data_dir)?;
       }
     }
+
+    let current_url_ = pending.current_url.clone();
+    let navigation_handler = pending.navigation_handler.take();
+    pending.navigation_handler = Some(Box::new(move |url| {
+      *current_url_.lock().unwrap() = url.clone();
+      if let Some(handler) = &navigation_handler {
+        handler(url)
+      } else {
+        true
+      }
+    }));
 
     Ok(pending)
   }

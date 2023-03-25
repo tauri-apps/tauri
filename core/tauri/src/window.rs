@@ -317,13 +317,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       self.label.clone(),
     )?;
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    let mut pending = self.manager.prepare_window(
+    let pending = self.manager.prepare_window(
       self.app_handle.clone(),
       pending,
       &labels,
       web_resource_request_handler,
     )?;
-    pending.navigation_handler = self.navigation_handler.take();
+
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
@@ -1384,14 +1384,14 @@ impl<R: Runtime> Window<R> {
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
   /// Returns the current url of the webview.
-  pub fn url(&self) -> crate::Result<Url> {
-    self.window.dispatcher.url().map_err(Into::into)
+  pub fn url(&self) -> Url {
+    self.window.current_url.lock().unwrap().clone()
   }
 
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
-    let current_url = self.url()?;
+    let current_url = self.url();
     let config_url = manager.get_url();
     let is_local = config_url.make_relative(&current_url).is_some();
 

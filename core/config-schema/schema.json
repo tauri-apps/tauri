@@ -1431,7 +1431,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Download the bootstrapper and run it. Requires internet connection. Results in a smaller installer size, but is not recommended on Windows 7.",
+          "description": "Download the bootstrapper and run it. Requires an internet connection. Results in a smaller installer size, but is not recommended on Windows 7.",
           "type": "object",
           "required": [
             "type"
@@ -1452,7 +1452,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Embed the bootstrapper and run it. Requires internet connection. Increases the installer size by around 1.8MB, but offers better support on Windows 7.",
+          "description": "Embed the bootstrapper and run it. Requires an internet connection. Increases the installer size by around 1.8MB, but offers better support on Windows 7.",
           "type": "object",
           "required": [
             "type"
@@ -1473,7 +1473,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Embed the offline installer and run it. Does not require internet connection. Increases the installer size by around 127MB.",
+          "description": "Embed the offline installer and run it. Does not require an internet connection. Increases the installer size by around 127MB.",
           "type": "object",
           "required": [
             "type"

@@ -1,8 +1,13 @@
-use colored::Colorize;
-use serde::Deserialize;
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 use super::SectionItem;
 use super::Status;
+use colored::Colorize;
+#[cfg(windows)]
+use serde::Deserialize;
+use std::process::Command;
 
 #[cfg(windows)]
 #[derive(Deserialize, Debug)]
@@ -16,8 +21,6 @@ const VSWHERE: &[u8] = include_bytes!("../../scripts/vswhere.exe");
 
 #[cfg(windows)]
 fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
-  use std::process::Command;
-
   let mut vswhere = std::env::temp_dir();
   vswhere.push("vswhere.exe");
 
@@ -57,8 +60,6 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
 
 #[cfg(windows)]
 fn webview2_version() -> crate::Result<Option<String>> {
-  use std::process::Command;
-
   let powershell_path = std::env::var("SYSTEMROOT").map_or_else(
     |_| "powershell.exe".to_string(),
     |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
@@ -105,7 +106,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
   target_os = "netbsd"
 ))]
 fn pkg_conf_version(package: &str) -> Option<String> {
-  std::process::Command::new("pkg-config")
+  Command::new("pkg-config")
     .args([package, "--print-provides"])
     .output()
     .map(|o| {
@@ -133,7 +134,7 @@ fn webkit2gtk_ver() -> Option<String> {
   target_os = "openbsd",
   target_os = "netbsd"
 ))]
-fn rsvg2_ver() -> bool {
+fn rsvg2_ver() -> Option<String> {
   pkg_conf_version("librsvg-2.0")
 }
 
@@ -171,7 +172,7 @@ pub fn items() -> Vec<SectionItem> {
           format!(
             "Webview2: {}\nVisit {}",
             "not installed!".red(),
-            "https://developer.microsoft.com/en-us/microsoft-edge/webview2/".blue()
+            "https://developer.microsoft.com/en-us/microsoft-edge/webview2/".cyan()
           )
         };
         Some(
@@ -196,7 +197,7 @@ pub fn items() -> Vec<SectionItem> {
           Some((
             format!(
               "Couldn't detect Visual Studio or Visual Studio Build Tools. Download from {}",
-              "https://aka.ms/vs/17/release/vs_BuildTools.exe".blue()
+              "https://aka.ms/vs/17/release/vs_BuildTools.exe".cyan()
             ),
             Status::Error,
           ))
@@ -205,11 +206,11 @@ pub fn items() -> Vec<SectionItem> {
             format!(
               "MSVC: {}{}",
               if build_tools.len() > 1 {
-                format!("\n  {} ", "-".blue())
+                format!("\n  {} ", "-".cyan())
               } else {
                 "".into()
               },
-              build_tools.join(format!("\n  {} ", "-".blue()).as_str()),
+              build_tools.join(format!("\n  {} ", "-".cyan()).as_str()),
             ),
             Status::Success,
           ))
@@ -229,11 +230,11 @@ pub fn items() -> Vec<SectionItem> {
       || {
         Some(
           webkit2gtk_ver()
-            .map(|v| (format!("webkit2gtk: {}", v), Status::Success))
+            .map(|v| (format!("webkit2gtk-4.0: {}", v), Status::Success))
             .unwrap_or_else(|| {
               (
                 format!(
-                  "webkit2gtk: {}\nVisit {} to learn more about tauri prerequisites",
+                  "webkit2gtk-4.0: {}\nVisit {} to learn more about tauri prerequisites",
                   "not installed".red(),
                   "https://tauri.app/v1/guides/getting-started/prerequisites".cyan()
                 ),
@@ -275,14 +276,18 @@ pub fn items() -> Vec<SectionItem> {
     #[cfg(target_os = "macos")]
     SectionItem::new(
       || {
-        Some(if is_xcode_command_line_tools_installed {
+        Some(if is_xcode_command_line_tools_installed() {
           (
             "Xcode Command Line Tools: installed".into(),
             Status::Success,
           )
         } else {
           (
-            format!("Xcode Command Line Tools: {}", "not installed!".red()),
+            format!(
+              "Xcode Command Line Tools: {}\n Run `{}`",
+              "not installed!".red(),
+              "xcode-select --install".cyan()
+            ),
             Status::Error,
           )
         })

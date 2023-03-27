@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use super::SectionItem;
 use super::Status;
 use colored::Colorize;
@@ -29,7 +33,7 @@ pub fn items() -> Vec<SectionItem> {
                 format!(
                   "rustc: {}\nmaybe you don't have rust installed! Visist {}",
                   "not installed!".red(),
-                  "https://rustup.rs/".blue()
+                  "https://rustup.rs/".cyan()
                 ),
                 Status::Error,
               )
@@ -63,7 +67,7 @@ pub fn items() -> Vec<SectionItem> {
                 format!(
                   "Cargo: {}\nmaybe you don't have rust installed! Visit {}",
                   "not installed!".red(),
-                  "https://rustup.rs/".blue()
+                  "https://rustup.rs/".cyan()
                 ),
                 Status::Error,
               )
@@ -97,7 +101,7 @@ pub fn items() -> Vec<SectionItem> {
                 format!(
                   "rustup: {}\nIf you have rust installed some other way, we recommend uninstalling it\nthen use rustup instead. Visit {}",
                   "not installed!".red(),
-                  "https://rustup.rs/".blue()
+                  "https://rustup.rs/".cyan()
                 ),
                 Status::Warning,
               )
@@ -127,7 +131,7 @@ pub fn items() -> Vec<SectionItem> {
             .unwrap_or_else(|| {
               (
                 format!(
-                  "Rust toolchain: couldn't be deteceted!\nmaybe you don't have rustup installed? if so, Visit {}", "https://rustup.rs/".blue()
+                  "Rust toolchain: couldn't be deteceted!\nmaybe you don't have rustup installed? if so, Visit {}", "https://rustup.rs/".cyan()
                 ),
                 Status::Warning,
               )

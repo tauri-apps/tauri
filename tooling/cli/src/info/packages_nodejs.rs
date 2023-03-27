@@ -1,11 +1,13 @@
-use std::fmt::Display;
-use std::path::{Path, PathBuf};
-
-use colored::Colorize;
-use serde::Deserialize;
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 use super::{cross_command, VersionMetadata};
 use super::{SectionItem, Status};
+use colored::Colorize;
+use serde::Deserialize;
+use std::fmt::Display;
+use std::path::{Path, PathBuf};
 
 #[derive(Deserialize)]
 struct YarnVersionInfo {

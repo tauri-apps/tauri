@@ -1,7 +1,10 @@
-use colored::Colorize;
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 use super::{cross_command, VersionMetadata};
 use super::{SectionItem, Status};
+use colored::Colorize;
 
 pub fn items(metadata: &VersionMetadata) -> (Vec<SectionItem>, Option<String>) {
   let yarn_version = cross_command("yarn")

@@ -25,20 +25,43 @@ open class BuildTask : DefaultTask() {
         val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
         val target = target ?: throw GradleException("target cannot be null")
         val release = release ?: throw GradleException("release cannot be null")
-        project.exec {
-            workingDir(File(project.projectDir, rootDirRel.path))
-            executable({{executable}})
-            args(listOf({{quote-and-join tauri-binary-args}}))
-            if (project.logger.isEnabled(LogLevel.DEBUG)) {
-                args("-vv")
-            } else if (project.logger.isEnabled(LogLevel.INFO)) {
-                args("-v")
+        val executable = {{executable}};
+        val args = listOf({{quote-and-join tauri-binary-args}});
+        try {
+            project.exec {
+                workingDir(File(project.projectDir, rootDirRel.path))
+                executable(executable)
+                args(args)
+                if (project.logger.isEnabled(LogLevel.DEBUG)) {
+                    args("-vv")
+                } else if (project.logger.isEnabled(LogLevel.INFO)) {
+                    args("-v")
+                }
+                if (release) {
+                    args("--release")
+                }
+                args(listOf("--target", target))
+            }.assertNormalExitValue()
+        } catch (e: Exception){
+            if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+                project.exec {
+                    workingDir(File(project.projectDir, rootDirRel.path))
+                    executable("$executable.cmd")
+                    args(args)
+                    if (project.logger.isEnabled(LogLevel.DEBUG)) {
+                        args("-vv")
+                    } else if (project.logger.isEnabled(LogLevel.INFO)) {
+                        args("-v")
+                    }
+                    if (release) {
+                        args("--release")
+                    }
+                    args(listOf("--target", target))
+                }.assertNormalExitValue()
+            } else {
+                throw e;
             }
-            if (release) {
-                args("--release")
-            }
-            args(listOf("--target", target))
-        }.assertNormalExitValue()
+        }
     }
 }
 

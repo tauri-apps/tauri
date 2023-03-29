@@ -11,7 +11,6 @@ use tauri_mobile::{
     config::Config as AndroidConfig, env::Env as AndroidEnv, target::Target as AndroidTarget,
   },
   config::app::App,
-  dot_cargo,
   target::TargetTrait as _,
   util::{
     self,

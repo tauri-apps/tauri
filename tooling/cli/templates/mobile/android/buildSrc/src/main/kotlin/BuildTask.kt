@@ -22,13 +22,28 @@ open class BuildTask : DefaultTask() {
 
     @TaskAction
     fun build() {
+        val executable = """{{tauri-binary}}""";
+        try {
+            runTauriCli(executable)
+        } catch (e: Exception){
+            if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+                runTauriCli("$executable.cmd")
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    fun runTauriCli(executable: String) {
         val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
         val target = target ?: throw GradleException("target cannot be null")
         val release = release ?: throw GradleException("release cannot be null")
+        val args = listOf({{quote-and-join tauri-binary-args}});
+
         project.exec {
             workingDir(File(project.projectDir, rootDirRel.path))
-            executable({{executable}})
-            args(listOf({{quote-and-join tauri-binary-args}}))
+            executable(executable)
+            args(args)
             if (project.logger.isEnabled(LogLevel.DEBUG)) {
                 args("-vv")
             } else if (project.logger.isEnabled(LogLevel.INFO)) {
@@ -41,4 +56,3 @@ open class BuildTask : DefaultTask() {
         }.assertNormalExitValue()
     }
 }
-

@@ -581,6 +581,7 @@ struct BinarySettings {
 
 /// The package settings.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct CargoPackageSettings {
   /// the package's name.
   pub name: Option<String>,

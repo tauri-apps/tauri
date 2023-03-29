@@ -24,6 +24,7 @@
     ".changes/fix-dev-server-proxy-path.md",
     ".changes/fix-empty-identifier.md",
     ".changes/fix-ios-run-xcode14.md",
+    ".changes/fix-ios-template.md",
     ".changes/fix-mobile-env-vars.md",
     ".changes/fix-orientation-crash.md",
     ".changes/fix-tauri-binary-windows.md",

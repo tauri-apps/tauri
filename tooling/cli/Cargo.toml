@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "2.0.0-alpha.4"
+version = "2.0.0-alpha.5"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.64"
@@ -46,7 +46,7 @@ tauri-mobile = { version = "0.2.5", default-features = false }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.16", features = [ "server" ] }
 jsonrpsee-core = "0.16"
-jsonrpsee-client-transport = { version = "0.16", features = ["ws"] }
+jsonrpsee-client-transport = { version = "0.16", features = [ "ws" ] }
 jsonrpsee-ws-client = { version = "0.16", default-features = false }
 thiserror = "1"
 sublime_fuzzy = "0.7"

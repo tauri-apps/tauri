@@ -22,7 +22,7 @@ open class BuildTask : DefaultTask() {
 
     @TaskAction
     fun build() {
-        val executable = {{executable}};
+        val executable = """{{tauri-binary}}""";
         try {
             runTauriCli(executable)
         } catch (e: Exception){

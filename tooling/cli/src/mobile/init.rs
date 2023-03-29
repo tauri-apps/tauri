@@ -142,10 +142,7 @@ pub fn exec(
       }
     }
   }
-  map.insert(
-    "executable",
-    format!(r#""""{}""""#, binary.to_string_lossy()),
-  );
+
   map.insert("tauri-binary", binary.to_string_lossy());
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));

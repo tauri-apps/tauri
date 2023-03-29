@@ -1,0 +1,30 @@
+name: {{package-name}}
+base: core22
+version: {{version}}
+summary: {{package-summary}}
+description: {{package-description}}
+grade: devel
+confinement: strict
+apps:
+  {{app-name}}:
+    command: {{app-name}}
+    extensions:
+      - gnome
+    desktop: {{app-name}}.desktop
+parts:
+  dump-binary:
+    plugin: dump
+    source: release
+    source-type: local
+    stage:
+      - lib
+      - icons
+      - {{app-name}}
+      - {{app-name}}.desktop
+    prime:
+      - lib
+      - icons
+      - {{app-name}}
+      - {{app-name}}.desktop
+    stage-packages:
+      - libc6

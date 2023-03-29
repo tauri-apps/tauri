@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.5]
+
+- Fixes the iOS project script to build the Rust library.
+  - [6e3e4c22](https://www.github.com/tauri-apps/tauri/commit/6e3e4c22be51500bec7856d90dcb2e40ef7fe1b4) fix(cli): use correct variable on script to build Rust iOS code ([#6581](https://www.github.com/tauri-apps/tauri/pull/6581)) on 2023-03-29
+
 ## \[2.0.0-alpha.4]
 
 - Fix android project build crashing when using `pnpm` caused by extra `--`.

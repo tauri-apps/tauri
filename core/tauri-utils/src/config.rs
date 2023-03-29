@@ -506,7 +506,7 @@ pub enum WebviewInstallMode {
   /// Do not install the Webview2 as part of the Windows Installer.
   Skip,
   /// Download the bootstrapper and run it.
-  /// Requires internet connection.
+  /// Requires an internet connection.
   /// Results in a smaller installer size, but is not recommended on Windows 7.
   DownloadBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
@@ -514,7 +514,7 @@ pub enum WebviewInstallMode {
     silent: bool,
   },
   /// Embed the bootstrapper and run it.
-  /// Requires internet connection.
+  /// Requires an internet connection.
   /// Increases the installer size by around 1.8MB, but offers better support on Windows 7.
   EmbedBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
@@ -522,7 +522,7 @@ pub enum WebviewInstallMode {
     silent: bool,
   },
   /// Embed the offline installer and run it.
-  /// Does not require internet connection.
+  /// Does not require an internet connection.
   /// Increases the installer size by around 127MB.
   OfflineInstaller {
     /// Instructs the installer to run the installer in silent mode. Defaults to `true`.

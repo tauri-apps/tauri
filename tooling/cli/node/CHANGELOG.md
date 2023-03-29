@@ -4,6 +4,9 @@
 
 - Fixes the iOS project script to build the Rust library.
   - [6e3e4c22](https://www.github.com/tauri-apps/tauri/commit/6e3e4c22be51500bec7856d90dcb2e40ef7fe1b4) fix(cli): use correct variable on script to build Rust iOS code ([#6581](https://www.github.com/tauri-apps/tauri/pull/6581)) on 2023-03-29
+- Fix `tauri anroid build/dev` crashing when used with standalone `pnpm` executable on Windows.
+  - [39df2c98](https://www.github.com/tauri-apps/tauri/commit/39df2c982e5e2ee8617b40f829a2f2e4abfce412) fix(cli/android): fallback to `${program}.cmd` ([#6576](https://www.github.com/tauri-apps/tauri/pull/6576)) on 2023-03-29
+  - [6b469c40](https://www.github.com/tauri-apps/tauri/commit/6b469c40c6244ba773d7478adbb41db6fdc72822) chore(changes): adjust change file for Android script execution fix on 2023-03-29
 
 ## \[2.0.0-alpha.4]
 

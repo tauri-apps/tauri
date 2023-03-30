@@ -1,10 +1,14 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use super::{
-  detect_target_ok, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
+  configure_cargo, detect_target_ok, ensure_init, env, log_finished, open_and_wait, with_config,
   MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
-  helpers::flock,
+  helpers::{config::get as get_config, flock},
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
@@ -60,6 +64,7 @@ impl From<Options> for BuildOptions {
       bundles: None,
       config: options.config,
       args: Vec::new(),
+      ci: false,
     }
   }
 }
@@ -71,7 +76,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       ensure_init(config.project_dir(), MobileTarget::Ios)?;
 
       let mut env = env()?;
-      init_dot_cargo(app, None)?;
+      configure_cargo(app, None)?;
 
       let open = options.open;
       run_build(options, config, &mut env, noise_level)?;
@@ -111,10 +116,11 @@ fn run_build(
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
     debug: build_options.debug,
+    target: build_options.target.clone(),
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
+  let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let cli_options = CliOptions {
     features: build_options.features.clone(),
@@ -122,7 +128,17 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  let _handle = write_options(cli_options, env)?;
+  let _handle = write_options(
+    &get_config(options.config.as_deref())?
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .tauri
+      .bundle
+      .identifier,
+    cli_options,
+  )?;
 
   options
     .features
@@ -141,7 +157,7 @@ fn run_build(
         app_version.push_extra(build_number);
       }
 
-      target.build(config, env, noise_level, profile)?;
+      target.build(config, env, NoiseLevel::FranklyQuitePedantic, profile)?;
       target.archive(config, env, noise_level, profile, Some(app_version))?;
       target.export(config, env, noise_level)?;
 

@@ -105,6 +105,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
             "setCursorPosition": false,
@@ -147,6 +148,7 @@
             "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "nsis": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -170,7 +172,8 @@
           "dialog": true,
           "pubkey": "",
           "windows": {
-            "installMode": "passive"
+            "installMode": "passive",
+            "installerArgs": []
           }
         },
         "windows": []
@@ -207,7 +210,7 @@
   "additionalProperties": false,
   "definitions": {
     "PackageConfig": {
-      "description": "The package configuration.",
+      "description": "The package configuration.\n\nSee more: https://tauri.app/v1/api/config#packageconfig",
       "type": "object",
       "properties": {
         "productName": {
@@ -230,7 +233,7 @@
       "additionalProperties": false
     },
     "TauriConfig": {
-      "description": "The Tauri configuration object.",
+      "description": "The Tauri configuration object.\n\nSee more: https://tauri.app/v1/api/config#tauriconfig",
       "type": "object",
       "properties": {
         "pattern": {
@@ -284,6 +287,7 @@
               "allowDowngrades": true,
               "certificateThumbprint": null,
               "digestAlgorithm": null,
+              "nsis": null,
               "timestampUrl": null,
               "tsp": false,
               "webviewFixedRuntimePath": null,
@@ -381,6 +385,7 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setContentProtected": false,
               "setCursorGrab": false,
               "setCursorIcon": false,
               "setCursorPosition": false,
@@ -429,7 +434,8 @@
             "dialog": true,
             "pubkey": "",
             "windows": {
-              "installMode": "passive"
+              "installMode": "passive",
+              "installerArgs": []
             }
           },
           "allOf": [
@@ -506,7 +512,7 @@
       ]
     },
     "WindowConfig": {
-      "description": "The window configuration object.",
+      "description": "The window configuration object.\n\nSee more: https://tauri.app/v1/api/config#windowconfig",
       "type": "object",
       "properties": {
         "label": {
@@ -645,6 +651,11 @@
           "default": false,
           "type": "boolean"
         },
+        "contentProtected": {
+          "description": "Prevents the window contents from being captured by other apps.",
+          "default": false,
+          "type": "boolean"
+        },
         "skipTaskbar": {
           "description": "If `true`, hides the window icon from the taskbar on Windows and Linux.",
           "default": false,
@@ -682,6 +693,13 @@
         },
         "tabbingIdentifier": {
           "description": "Defines the window [tabbing identifier] for macOS.\n\nWindows with matching tabbing identifiers will be grouped together. If the tabbing identifier is not set, automatic tabbing will be disabled.\n\n[tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "additionalBrowserArgs": {
+          "description": "Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection` so if you use this method, you also need to disable these components by yourself if you want.",
           "type": [
             "string",
             "null"
@@ -755,7 +773,7 @@
       ]
     },
     "CliConfig": {
-      "description": "describes a CLI configuration",
+      "description": "describes a CLI configuration\n\nSee more: https://tauri.app/v1/api/config#cliconfig",
       "type": "object",
       "properties": {
         "description": {
@@ -1001,7 +1019,7 @@
       "additionalProperties": false
     },
     "BundleConfig": {
-      "description": "Configuration for tauri-bundler.",
+      "description": "Configuration for tauri-bundler.\n\nSee more: https://tauri.app/v1/api/config#bundleconfig",
       "type": "object",
       "required": [
         "identifier"
@@ -1013,7 +1031,7 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
@@ -1127,6 +1145,7 @@
             "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "nsis": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -1205,6 +1224,13 @@
           ]
         },
         {
+          "description": "The NSIS bundle (.exe).",
+          "type": "string",
+          "enum": [
+            "nsis"
+          ]
+        },
+        {
           "description": "The macOS application bundle (.app).",
           "type": "string",
           "enum": [
@@ -1228,7 +1254,7 @@
       ]
     },
     "AppImageConfig": {
-      "description": "Configuration for AppImage bundles.",
+      "description": "Configuration for AppImage bundles.\n\nSee more: https://tauri.app/v1/api/config#appimageconfig",
       "type": "object",
       "properties": {
         "bundleMediaFramework": {
@@ -1240,7 +1266,7 @@
       "additionalProperties": false
     },
     "DebConfig": {
-      "description": "Configuration for Debian (.deb) bundles.",
+      "description": "Configuration for Debian (.deb) bundles.\n\nSee more: https://tauri.app/v1/api/config#debconfig",
       "type": "object",
       "properties": {
         "depends": {
@@ -1265,7 +1291,7 @@
       "additionalProperties": false
     },
     "MacConfig": {
-      "description": "Configuration for the macOS bundles.",
+      "description": "Configuration for the macOS bundles.\n\nSee more: https://tauri.app/v1/api/config#macconfig",
       "type": "object",
       "properties": {
         "frameworks": {
@@ -1325,7 +1351,7 @@
       "additionalProperties": false
     },
     "WindowsConfig": {
-      "description": "Windows bundler configuration.",
+      "description": "Windows bundler configuration.\n\nSee more: https://tauri.app/v1/api/config#windowsconfig",
       "type": "object",
       "properties": {
         "digestAlgorithm": {
@@ -1383,6 +1409,17 @@
           "anyOf": [
             {
               "$ref": "#/definitions/WixConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nsis": {
+          "description": "Configuration for the installer generated with NSIS.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NsisConfig"
             },
             {
               "type": "null"
@@ -1498,7 +1535,7 @@
       ]
     },
     "WixConfig": {
-      "description": "Configuration for the MSI bundle using WiX.",
+      "description": "Configuration for the MSI bundle using WiX.\n\nSee more: https://tauri.app/v1/api/config#wixconfig",
       "type": "object",
       "properties": {
         "language": {
@@ -1623,7 +1660,7 @@
       ]
     },
     "WixLanguageConfig": {
-      "description": "Configuration for a target language for the WiX build.",
+      "description": "Configuration for a target language for the WiX build.\n\nSee more: https://tauri.app/v1/api/config#wixlanguageconfig",
       "type": "object",
       "properties": {
         "localePath": {
@@ -1635,6 +1672,91 @@
         }
       },
       "additionalProperties": false
+    },
+    "NsisConfig": {
+      "description": "Configuration for the Installer bundle using NSIS.",
+      "type": "object",
+      "properties": {
+        "license": {
+          "description": "The path to the license file to render on the installer.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headerImage": {
+          "description": "The path to a bitmap file to display on the header of installers pages.\n\nThe recommended dimensions are 150px x 57px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sidebarImage": {
+          "description": "The path to a bitmap file for the Welcome page and the Finish page.\n\nThe recommended dimensions are 164px x 314px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "installerIcon": {
+          "description": "The path to an icon file used as the installer icon.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "installMode": {
+          "description": "Whether the installation will be for all users or just the current user.",
+          "default": "currentUser",
+          "allOf": [
+            {
+              "$ref": "#/definitions/NSISInstallerMode"
+            }
+          ]
+        },
+        "languages": {
+          "description": "A list of installer languages. By default the OS language is used. If the OS language is not in the list of languages, the first language will be used. To allow the user to select the language, set `display_language_selector` to `true`.\n\nSee <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "displayLanguageSelector": {
+          "description": "Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not. By default the OS language is selected, with a fallback to the first language in the `languages` array.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "NSISInstallerMode": {
+      "description": "Install Modes for the NSIS installer.",
+      "oneOf": [
+        {
+          "description": "Default mode for the installer.\n\nInstall the app by default in a directory that doesn't require Administrator access.\n\nInstaller metadata will be saved under the `HKCU` registry path.",
+          "type": "string",
+          "enum": [
+            "currentUser"
+          ]
+        },
+        {
+          "description": "Install the app by default in the `Program Files` folder directory requires Administrator access for the installation.\n\nInstaller metadata will be saved under the `HKLM` registry path.",
+          "type": "string",
+          "enum": [
+            "perMachine"
+          ]
+        },
+        {
+          "description": "Combines both modes and allows the user to choose at install time whether to install for the current user or per machine. Note that this mode will require Administrator access even if the user wants to install it for the current user only.\n\nInstaller metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.",
+          "type": "string",
+          "enum": [
+            "both"
+          ]
+        }
+      ]
     },
     "IosConfig": {
       "description": "General configuration for the iOS target.",
@@ -1651,7 +1773,7 @@
       "additionalProperties": false
     },
     "AllowlistConfig": {
-      "description": "Allowlist configuration.",
+      "description": "Allowlist configuration. The allowlist is a translation of the [Cargo allowlist features](https://docs.rs/tauri/latest/tauri/#cargo-allowlist-features).\n\n# Notes\n\n- Endpoints that don't have their own allowlist option are enabled by default. - There is only \"opt-in\", no \"opt-out\". Setting an option to `false` has no effect.\n\n# Examples\n\n- * [`\"app-all\": true`](https://tauri.app/v1/api/config/#appallowlistconfig.all) will make the [hide](https://tauri.app/v1/api/js/app#hide) endpoint be available regardless of whether `hide` is set to `false` or `true` in the allowlist.",
       "type": "object",
       "properties": {
         "all": {
@@ -1693,6 +1815,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
             "setCursorPosition": false,
@@ -1866,7 +1989,7 @@
       "additionalProperties": false
     },
     "FsAllowlistConfig": {
-      "description": "Allowlist for the file system APIs.",
+      "description": "Allowlist for the file system APIs.\n\nSee more: https://tauri.app/v1/api/config#fsallowlistconfig",
       "type": "object",
       "properties": {
         "scope": {
@@ -1966,7 +2089,7 @@
       ]
     },
     "WindowAllowlistConfig": {
-      "description": "Allowlist for the window APIs.",
+      "description": "Allowlist for the window APIs.\n\nSee more: https://tauri.app/v1/api/config#windowallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2049,6 +2172,11 @@
           "default": false,
           "type": "boolean"
         },
+        "setContentProtected": {
+          "description": "Allows preventing the window contents from being captured by other apps.",
+          "default": false,
+          "type": "boolean"
+        },
         "setSize": {
           "description": "Allows setting the window size.",
           "default": false,
@@ -2128,7 +2256,7 @@
       "additionalProperties": false
     },
     "ShellAllowlistConfig": {
-      "description": "Allowlist for the shell APIs.",
+      "description": "Allowlist for the shell APIs.\n\nSee more: https://tauri.app/v1/api/config#shellallowlistconfig",
       "type": "object",
       "properties": {
         "scope": {
@@ -2249,7 +2377,7 @@
       "description": "Defines the `shell > open` api scope.",
       "anyOf": [
         {
-          "description": "If the shell open API should be enabled.\n\nIf enabled, the default validation regex (`^https?://`) is used.",
+          "description": "If the shell open API should be enabled.\n\nIf enabled, the default validation regex (`^((mailto:\\w+)|(tel:\\w+)|(https?://\\w+)).+`) is used.",
           "type": "boolean"
         },
         {
@@ -2259,7 +2387,7 @@
       ]
     },
     "DialogAllowlistConfig": {
-      "description": "Allowlist for the dialog APIs.",
+      "description": "Allowlist for the dialog APIs.\n\nSee more: https://tauri.app/v1/api/config#dialogallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2296,7 +2424,7 @@
       "additionalProperties": false
     },
     "HttpAllowlistConfig": {
-      "description": "Allowlist for the HTTP APIs.",
+      "description": "Allowlist for the HTTP APIs.\n\nSee more: https://tauri.app/v1/api/config#httpallowlistconfig",
       "type": "object",
       "properties": {
         "scope": {
@@ -2330,7 +2458,7 @@
       }
     },
     "NotificationAllowlistConfig": {
-      "description": "Allowlist for the notification APIs.",
+      "description": "Allowlist for the notification APIs.\n\nSee more: https://tauri.app/v1/api/config#notificationallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2342,7 +2470,7 @@
       "additionalProperties": false
     },
     "GlobalShortcutAllowlistConfig": {
-      "description": "Allowlist for the global shortcut APIs.",
+      "description": "Allowlist for the global shortcut APIs.\n\nSee more: https://tauri.app/v1/api/config#globalshortcutallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2354,7 +2482,7 @@
       "additionalProperties": false
     },
     "OsAllowlistConfig": {
-      "description": "Allowlist for the OS APIs.",
+      "description": "Allowlist for the OS APIs.\n\nSee more: https://tauri.app/v1/api/config#osallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2366,7 +2494,7 @@
       "additionalProperties": false
     },
     "PathAllowlistConfig": {
-      "description": "Allowlist for the path APIs.",
+      "description": "Allowlist for the path APIs.\n\nSee more: https://tauri.app/v1/api/config#pathallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2378,7 +2506,7 @@
       "additionalProperties": false
     },
     "ProtocolAllowlistConfig": {
-      "description": "Allowlist for the custom protocols.",
+      "description": "Allowlist for the custom protocols.\n\nSee more: https://tauri.app/v1/api/config#protocolallowlistconfig",
       "type": "object",
       "properties": {
         "assetScope": {
@@ -2404,7 +2532,7 @@
       "additionalProperties": false
     },
     "ProcessAllowlistConfig": {
-      "description": "Allowlist for the process APIs.",
+      "description": "Allowlist for the process APIs.\n\nSee more: https://tauri.app/v1/api/config#processallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2431,7 +2559,7 @@
       "additionalProperties": false
     },
     "ClipboardAllowlistConfig": {
-      "description": "Allowlist for the clipboard APIs.",
+      "description": "Allowlist for the clipboard APIs.\n\nSee more: https://tauri.app/v1/api/config#clipboardallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2453,7 +2581,7 @@
       "additionalProperties": false
     },
     "AppAllowlistConfig": {
-      "description": "Allowlist for the app APIs.",
+      "description": "Allowlist for the app APIs.\n\nSee more: https://tauri.app/v1/api/config#appallowlistconfig",
       "type": "object",
       "properties": {
         "all": {
@@ -2475,7 +2603,7 @@
       "additionalProperties": false
     },
     "SecurityConfig": {
-      "description": "Security configuration.",
+      "description": "Security configuration.\n\nSee more: https://tauri.app/v1/api/config#securityconfig",
       "type": "object",
       "properties": {
         "csp": {
@@ -2566,7 +2694,7 @@
       ]
     },
     "UpdaterConfig": {
-      "description": "The Updater configuration object.",
+      "description": "The Updater configuration object.\n\nSee more: https://tauri.app/v1/api/config#updaterconfig",
       "type": "object",
       "properties": {
         "active": {
@@ -2597,7 +2725,8 @@
         "windows": {
           "description": "The Windows configuration for the updater.",
           "default": {
-            "installMode": "passive"
+            "installMode": "passive",
+            "installerArgs": []
           },
           "allOf": [
             {
@@ -2614,9 +2743,17 @@
       "format": "uri"
     },
     "UpdaterWindowsConfig": {
-      "description": "The updater configuration for Windows.",
+      "description": "The updater configuration for Windows.\n\nSee more: https://tauri.app/v1/api/config#updaterwindowsconfig",
       "type": "object",
       "properties": {
+        "installerArgs": {
+          "description": "Additional arguments given to the NSIS or WiX installer.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "installMode": {
           "description": "The installation mode for the update on Windows. Defaults to `passive`.",
           "default": "passive",
@@ -2640,7 +2777,7 @@
           ]
         },
         {
-          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does.",
+          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does (WiX).",
           "type": "string",
           "enum": [
             "quiet"
@@ -2656,7 +2793,7 @@
       ]
     },
     "SystemTrayConfig": {
-      "description": "Configuration for application system tray icon.",
+      "description": "Configuration for application system tray icon.\n\nSee more: https://tauri.app/v1/api/config#systemtrayconfig",
       "type": "object",
       "required": [
         "iconPath"
@@ -2687,7 +2824,7 @@
       "additionalProperties": false
     },
     "BuildConfig": {
-      "description": "The Build configuration object.",
+      "description": "The Build configuration object.\n\nSee more: https://tauri.app/v1/api/config#buildconfig",
       "type": "object",
       "properties": {
         "runner": {
@@ -2850,7 +2987,7 @@
       ]
     },
     "PluginConfig": {
-      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.",
+      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\nSee more: https://tauri.app/v1/api/config#pluginconfig",
       "type": "object",
       "additionalProperties": true
     }

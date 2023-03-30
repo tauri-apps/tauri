@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -72,6 +72,9 @@ const WINDOW_FILE_DROP_EVENT: &str = "tauri://file-drop";
 const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
+
+pub(crate) const STRINGIFY_IPC_MESSAGE_FN: &str =
+  include_str!("../scripts/stringify-ipc-message-fn.js");
 
 // we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
 // and we do not get a secure context without the custom protocol that proxies to the dev server
@@ -624,7 +627,7 @@ impl<R: Runtime> WindowManager<R> {
                 .insert("Content-Length", real_length.to_string());
               data.headers.insert(
                 "Content-Range",
-                format!("bytes {}-{}/{}", range.start, last_byte, file_size),
+                format!("bytes {}-{last_byte}/{file_size}", range.start),
               );
 
               if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
@@ -719,8 +722,8 @@ impl<R: Runtime> WindowManager<R> {
     } = &self.inner.pattern
     {
       let assets = assets.clone();
-      let _schema_ = schema.clone();
-      let url_base = format!("{schema}://localhost");
+      let schema_ = schema.clone();
+      let url_base = format!("{schema_}://localhost");
       let aes_gcm_key = *crypto_keys.aes_gcm().raw();
 
       pending.register_uri_scheme_protocol(schema, move |request| {
@@ -730,6 +733,7 @@ impl<R: Runtime> WindowManager<R> {
               let asset = String::from_utf8_lossy(asset.as_ref());
               let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
                 runtime_aes_gcm_key: &aes_gcm_key,
+                stringify_ipc_message_fn: STRINGIFY_IPC_MESSAGE_FN,
               };
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponseBuilder::new()
@@ -907,7 +911,7 @@ impl<R: Runtime> WindowManager<R> {
     struct CachedResponse {
       status: http::StatusCode,
       headers: http::HeaderMap,
-      body: Cow<'static, [u8]>,
+      body: bytes::Bytes,
     }
 
     #[cfg(all(dev, mobile))]
@@ -934,16 +938,22 @@ impl<R: Runtime> WindowManager<R> {
 
       #[cfg(all(dev, mobile))]
       let mut response = {
-        use attohttpc::StatusCode;
+        use reqwest::StatusCode;
         let decoded_path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
         let url = format!("{url}{decoded_path}");
-        let mut proxy_builder = attohttpc::get(&url).danger_accept_invalid_certs(true);
+        #[allow(unused_mut)]
+        let mut client_builder = reqwest::ClientBuilder::new();
+        #[cfg(any(feature = "native-tls", feature = "rustls-tls"))]
+        {
+          client_builder = client_builder.danger_accept_invalid_certs(true);
+        }
+        let mut proxy_builder = client_builder.build().unwrap().get(&url);
         for (name, value) in request.headers() {
           proxy_builder = proxy_builder.header(name, value);
         }
-        match proxy_builder.send() {
+        match crate::async_runtime::block_on(proxy_builder.send()) {
           Ok(r) => {
             let mut response_cache_ = response_cache.lock().unwrap();
             let mut response = None;
@@ -953,12 +963,13 @@ impl<R: Runtime> WindowManager<R> {
             let response = if let Some(r) = response {
               r
             } else {
-              let (status, headers, reader) = r.split();
-              let body = reader.bytes()?;
+              let status = r.status();
+              let headers = r.headers().clone();
+              let body = crate::async_runtime::block_on(r.bytes())?;
               let response = CachedResponse {
                 status,
                 headers,
-                body: body.into(),
+                body,
               };
               response_cache_.insert(url.clone(), response);
               response_cache_.get(&url).unwrap()
@@ -968,7 +979,7 @@ impl<R: Runtime> WindowManager<R> {
             }
             builder
               .status(response.status)
-              .body(response.body.clone())?
+              .body(response.body.to_vec())?
           }
           Err(e) => {
             debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
@@ -1169,8 +1180,8 @@ mod test {
 }
 
 impl<R: Runtime> WindowManager<R> {
-  pub fn run_invoke_handler(&self, invoke: Invoke<R>) {
-    (self.inner.invoke_handler)(invoke);
+  pub fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
+    (self.inner.invoke_handler)(invoke)
   }
 
   pub fn run_on_page_load(&self, window: Window<R>, payload: PageLoadPayload) {
@@ -1293,7 +1304,7 @@ impl<R: Runtime> WindowManager<R> {
           .call_method(
             ctx.activity,
             "getPluginManager",
-            format!("()Lapp/tauri/plugin/PluginManager;"),
+            "()Lapp/tauri/plugin/PluginManager;",
             &[],
           )?
           .l()?;
@@ -1302,7 +1313,7 @@ impl<R: Runtime> WindowManager<R> {
         ctx.env.call_method(
           plugin_manager,
           "onWebViewCreated",
-          format!("(Landroid/webkit/WebView;)V"),
+          "(Landroid/webkit/WebView;)V",
           &[ctx.webview.into()],
         )?;
 
@@ -1400,6 +1411,15 @@ impl<R: Runtime> WindowManager<R> {
         .created(window_);
     });
 
+    #[cfg(target_os = "ios")]
+    {
+      window
+        .with_webview(|w| {
+          unsafe { crate::ios::on_webview_created(w.inner() as _, w.view_controller() as _) };
+        })
+        .expect("failed to run on_webview_created hook");
+    }
+
     window
   }
 
@@ -1424,6 +1444,14 @@ impl<R: Runtime> WindowManager<R> {
       .values()
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit_internal(event, source_window_label, payload.clone()))
+  }
+
+  pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {
+    let script = script.into();
+    self
+      .windows_lock()
+      .values()
+      .try_for_each(|window| window.eval(&script))
   }
 
   pub fn labels(&self) -> HashSet<String> {

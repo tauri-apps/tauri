@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -22,11 +22,9 @@
 //! - **shell-open-api**: Enables the [`api::shell`] module.
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
-//! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
-//! - **default-tls**: Provides TLS support to connect over HTTPS (applies to the default HTTP client).
-//! - **reqwest-default-tls**: Provides TLS support to connect over HTTPS (applies to the `reqwest` HTTP client).
-//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
-//! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
+//! - **native-tls**: Provides TLS support to connect over HTTPS.
+//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
+//! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **global-shortcut**: Enables the global shortcut APIs.
 //! - **clipboard**: Enables the clipboard APIs.
@@ -137,6 +135,7 @@
 //! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
 //! - **window-set-shadow**: Enables the [`setShadow` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setshadow).
 //! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
+//! - **window-set-content-protected**: Enables the [`setContentProtected` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcontentprotected).
 //! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
 //! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
 //! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
@@ -162,6 +161,17 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+/// Setups the binding that initializes an iOS plugin.
+#[cfg(target_os = "ios")]
+#[macro_export]
+macro_rules! ios_plugin_binding {
+  ($fn_name: ident) => {
+    tauri::swift_rs::swift!(fn $fn_name(name: &::tauri::swift_rs::SRString, webview: *const ::std::ffi::c_void));
+  }
+}
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub use cocoa;
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;
@@ -170,6 +180,9 @@ pub use error::Error;
 #[cfg(shell_scope)]
 #[doc(hidden)]
 pub use regex;
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub use swift_rs;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
@@ -188,6 +201,10 @@ mod pattern;
 pub mod plugin;
 pub mod window;
 use tauri_runtime as runtime;
+#[cfg(target_os = "ios")]
+mod ios;
+#[cfg(target_os = "android")]
+mod jni_helpers;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
@@ -204,11 +221,35 @@ pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", target_os = "android"))))]
-pub use tauri_runtime_wry::wry::android_binding as wry_android_binding;
+#[doc(hidden)]
+#[macro_export]
+macro_rules! android_binding {
+  ($domain:ident, $package:ident, $main: ident, $wry: path) => {
+    ::tauri::wry::android_binding!($domain, $package, $main, $wry);
+    ::tauri::wry::application::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      handlePluginResponse,
+      [i32, JString, JString],
+    );
+
+    #[allow(non_snake_case)]
+    pub unsafe fn handlePluginResponse(
+      env: JNIEnv,
+      _: JClass,
+      id: i32,
+      success: JString,
+      error: JString,
+    ) {
+      ::tauri::handle_android_plugin_response(env, id, success, error);
+    }
+  };
+}
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
-pub use paste;
+pub use plugin::mobile::handle_android_plugin_response;
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;
@@ -234,7 +275,7 @@ pub use self::utils::TitleBarStyle;
 #[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle},
+  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
   self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {
@@ -259,7 +300,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    RunIteration, UserAttentionType,
+    DeviceEventFilter, RunIteration, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{

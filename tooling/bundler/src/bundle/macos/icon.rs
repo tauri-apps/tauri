@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -15,7 +15,7 @@ use std::{
 use image::GenericImageView;
 
 // Given a list of icon files, try to produce an ICNS file in the out_dir
-// nd return the path to it.  Returns `Ok(None)` if no usable icons
+// and return the path to it.  Returns `Ok(None)` if no usable icons
 // were provided.
 pub fn create_icns_file(out_dir: &Path, settings: &Settings) -> crate::Result<Option<PathBuf>> {
   if settings.icon_files().count() == 0 {

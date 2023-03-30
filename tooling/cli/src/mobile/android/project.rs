@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -97,7 +97,7 @@ pub fn gen(
     map.inner(),
     &TEMPLATE_DIR,
     &dest,
-    &mut |path| generate_out_file(path, &dest, &package_path, &mut created_dirs),
+    &mut |path| generate_out_file(&path, &dest, &package_path, &mut created_dirs),
   )
   .with_context(|| "failed to process template")?;
 
@@ -146,7 +146,7 @@ pub fn gen(
   Ok(())
 }
 
-pub(crate) fn generate_out_file(
+fn generate_out_file(
   path: &Path,
   dest: &Path,
   package_path: &str,

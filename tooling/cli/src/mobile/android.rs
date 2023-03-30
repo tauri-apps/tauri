@@ -1,13 +1,9 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use clap::{Parser, Subcommand};
-use std::{
-  env::set_var,
-  thread::{sleep, spawn},
-  time::Duration,
-};
+use std::{env::set_var, fs::create_dir, process::exit, thread::sleep, time::Duration};
 use sublime_fuzzy::best_match;
 use tauri_mobile::{
   android::{
@@ -26,7 +22,7 @@ use tauri_mobile::{
 
 use super::{
   ensure_init, get_app,
-  init::{command as init_command, init_dot_cargo},
+  init::{command as init_command, configure_cargo},
   log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
@@ -124,30 +120,27 @@ pub fn get_config(
     format!("{}.{}", app.reverse_domain(), app.name_snake()),
   );
   set_var("WRY_ANDROID_LIBRARY", app.lib_name());
+  set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
+
+  let src_main_dir = config.project_dir().join("app/src/main").join(format!(
+    "java/{}/{}",
+    app.reverse_domain().replace('.', "/"),
+    app.name_snake()
+  ));
+  if config.project_dir().exists() {
+    if src_main_dir.exists() {
+      let _ = create_dir(src_main_dir.join("generated"));
+    } else {
+      log::error!(
+      "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
+      src_main_dir.display()
+    );
+      exit(1);
+    }
+  }
   set_var(
     "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
-    config
-      .project_dir()
-      .join("app/src/main")
-      .join(format!(
-        "java/{}/{}",
-        app.reverse_domain().replace('.', "/"),
-        app.name_snake()
-      ))
-      .join("generated"),
-  );
-  let plugin_output_path = config.project_dir().join("tauri-plugins");
-  set_var("TAURI_PLUGIN_OUTPUT_PATH", plugin_output_path);
-  set_var(
-    "TAURI_GRADLE_SETTINGS_PATH",
-    config.project_dir().join("tauri.settings.gradle"),
-  );
-  set_var(
-    "TAURI_APP_GRADLE_BUILD_PATH",
-    config
-      .project_dir()
-      .join("app")
-      .join("tauri.build.gradle.kts"),
+    src_main_dir.join("generated"),
   );
 
   (app, config, metadata)
@@ -161,7 +154,8 @@ pub fn with_config<T>(
     let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = cli_options.unwrap_or_else(read_options);
+    let cli_options =
+      cli_options.unwrap_or_else(|| read_options(&tauri_config_.tauri.bundle.identifier));
     let (app, config, metadata) = get_config(None, tauri_config_, &cli_options);
     (app, config, metadata, cli_options)
   };
@@ -214,7 +208,8 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
     } else {
       device_list.into_iter().next().unwrap()
     };
-    println!(
+
+    log::info!(
       "Detected connected device: {} with target {:?}",
       device,
       device.target().triple,
@@ -269,15 +264,20 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     Ok(device)
   } else {
     let emulator = emulator_prompt(env, target)?;
-    let handle = emulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
+    log::info!("Starting emulator {}", emulator.name());
+    emulator.start_detached(env)?;
+    let mut tries = 0;
     loop {
       sleep(Duration::from_secs(2));
       if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
         return Ok(device);
       }
+      if tries >= 3 {
+        log::info!("Waiting for emulator to start... (maybe the emulator is unathorized or offline, run `adb devices` to check)");
+      } else {
+        log::info!("Waiting for emulator to start...");
+      }
+      tries += 1;
     }
   }
 }

@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 const cli = require('./main')
 const path = require('path')
 
@@ -16,7 +20,7 @@ if (bin === '@tauri-apps/cli') {
 }
 // Even if started by a package manager, the binary will be NodeJS.
 // Some distribution still use "nodejs" as the binary name.
-else if (binStem.match(/(nodejs|node)([1-9]*)*$/g)) {
+else if (binStem.match(/(nodejs|node)\-?([1-9]*)*$/g)) {
   const managerStem = process.env.npm_execpath
     ? path.parse(process.env.npm_execpath).name.toLowerCase()
     : null

@@ -64,4 +64,5 @@ package-lock.json
 .vscode/settings.json
 
 # Documentation output
-docs
+docs/*
+!docs/js-api.json

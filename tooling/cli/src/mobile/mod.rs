@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -11,25 +11,23 @@ use crate::{
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
-use anyhow::{bail, Context, Result};
-use include_dir::{include_dir, Dir};
-use jsonrpsee::client_transport::ws::WsTransportClientBuilder;
+use anyhow::{bail, Result};
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
-use jsonrpsee::rpc_params;
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
+use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
+use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 use shared_child::SharedChild;
 
 use std::{
   collections::HashMap,
-  env::set_var,
-  env::var,
+  env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, remove_dir_all},
+  fs::{create_dir_all, read_to_string, write},
   net::SocketAddr,
   path::PathBuf,
-  process::ExitStatus,
+  process::{exit, ExitStatus},
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -54,7 +52,6 @@ mod init;
 pub mod ios;
 
 const MIN_DEVICE_MATCH_SCORE: isize = 0;
-static ANDROID_API_PROJECT_DIR: Dir<'_> = include_dir!("mobile/android");
 
 #[derive(Clone)]
 pub struct DevChild {
@@ -136,7 +133,10 @@ pub struct CliOptions {
   pub vars: HashMap<String, OsString>,
 }
 
-fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> {
+fn setup_dev_config(
+  config_extension: &mut Option<String>,
+  force_ip_prompt: bool,
+) -> crate::Result<()> {
   let config = get_config(config_extension.as_deref())?;
 
   let mut dev_path = config
@@ -157,7 +157,7 @@ fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> 
       _ => false,
     };
     if localhost {
-      let ip = crate::dev::local_ip_address();
+      let ip = crate::dev::local_ip_address(force_ip_prompt);
       url.set_host(Some(&ip.to_string())).unwrap();
       if let Some(c) = config_extension {
         let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
@@ -180,6 +180,7 @@ fn env_vars() -> HashMap<String, OsString> {
     let k = k.to_string_lossy();
     if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
       || k.starts_with("WRY")
+      || k.starts_with("CARGO_")
       || k == "TMPDIR"
       || k == "PATH"
     {
@@ -196,8 +197,8 @@ fn env() -> Result<Env, EnvError> {
 
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
 pub fn write_options(
+  identifier: &str,
   mut options: CliOptions,
-  env: &mut Env,
 ) -> crate::Result<(Runtime, ServerHandle)> {
   options.vars.extend(env_vars());
 
@@ -215,12 +216,15 @@ pub fn write_options(
   });
   let (handle, addr) = r?;
 
-  env.insert_env_var("TAURI_OPTIONS_SERVER_ADDR".into(), addr.to_string().into());
+  write(
+    temp_dir().join(format!("{identifier}-server-addr")),
+    addr.to_string(),
+  )?;
 
   Ok((runtime, handle))
 }
 
-fn read_options() -> CliOptions {
+fn read_options(identifier: &str) -> CliOptions {
   let runtime = tokio::runtime::Runtime::new().unwrap();
   let options = runtime
     .block_on(async move {
@@ -228,7 +232,8 @@ fn read_options() -> CliOptions {
         .build(
           format!(
             "ws://{}",
-            var("TAURI_OPTIONS_SERVER_ADDR").expect("missing addr environment variable")
+            read_to_string(temp_dir().join(format!("{identifier}-server-addr")))
+              .expect("missing addr file")
           )
           .parse()
           .unwrap(),
@@ -254,18 +259,17 @@ fn get_app(config: &TauriConfig) -> App {
     domain.push_str(w);
     domain.push('.');
   }
-  domain.pop();
-
-  let s = config.tauri.bundle.identifier.split('.');
-  let last = s.clone().count() - 1;
-  let mut reverse_domain = String::new();
-  for (i, w) in s.enumerate() {
-    if i != last {
-      reverse_domain.push_str(w);
-      reverse_domain.push('.');
+  if domain.is_empty() {
+    domain = config.tauri.bundle.identifier.clone();
+    if domain.is_empty() {
+      log::error!(
+        "Bundle identifier set in `tauri.conf.json > tauri > bundle > identifier` cannot be empty"
+      );
+      exit(1);
     }
+  } else {
+    domain.pop();
   }
-  reverse_domain.pop();
 
   let interface = AppInterface::new(
     config,
@@ -275,11 +279,14 @@ fn get_app(config: &TauriConfig) -> App {
   .expect("failed to load interface");
 
   let app_name = interface.app_settings().app_name().unwrap_or(app_name);
-  let lib_name = interface.app_settings().lib_name();
+  let lib_name = interface
+    .app_settings()
+    .lib_name()
+    .unwrap_or(app_name.clone());
 
   let raw = RawAppConfig {
     name: app_name,
-    lib_name,
+    lib_name: Some(lib_name),
     stylized_name: config.package.product_name.clone(),
     domain,
     asset_dir: None,
@@ -309,21 +316,7 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       target.command_name(),
     )
   } else {
-    create_dir_all(project_dir.join("tauri-plugins"))?;
-
-    #[allow(irrefutable_let_patterns)]
-    if let Target::Android = target {
-      let tauri_api_dir_path = project_dir.join("tauri-api");
-      if tauri_api_dir_path.exists() {
-        remove_dir_all(&tauri_api_dir_path)?;
-      }
-      create_dir_all(&tauri_api_dir_path)?;
-
-      ANDROID_API_PROJECT_DIR
-        .extract(tauri_api_dir_path)
-        .context("failed to extract Tauri API project")?;
-    }
-
+    create_dir_all(project_dir.join(".tauri").join("plugins"))?;
     Ok(())
   }
 }

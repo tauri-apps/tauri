@@ -225,7 +225,8 @@
         "tauri-macros",
         "tauri-utils",
         "tauri-runtime",
-        "tauri-runtime-wry"
+        "tauri-runtime-wry",
+        "tauri-build"
       ],
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },

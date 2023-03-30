@@ -36,8 +36,11 @@ android {
             }
         }
         getByName("release") {
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
+            isMinifyEnabled = true
+            val proguards = fileTree(".") {
+              include("*.pro")
+            }
+            proguardFiles(*proguards.toList().toTypedArray())
         }
     }
     flavorDimensions.add("abi")

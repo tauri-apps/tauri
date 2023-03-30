@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -24,7 +24,7 @@ use tauri_mobile::{
 
 use super::{
   ensure_init, env, get_app,
-  init::{command as init_command, init_dot_cargo},
+  init::{command as init_command, configure_cargo},
   log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
@@ -33,11 +33,7 @@ use crate::{
   Result,
 };
 
-use std::{
-  process::exit,
-  thread::{sleep, spawn},
-  time::Duration,
-};
+use std::{process::exit, thread::sleep, time::Duration};
 
 mod build;
 mod dev;
@@ -46,6 +42,7 @@ pub(crate) mod project;
 mod xcode_script;
 
 pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "TAURI_APPLE_DEVELOPMENT_TEAM";
+const TARGET_IOS_VERSION: &str = "13.0";
 
 #[derive(Parser)]
 #[clap(
@@ -124,6 +121,7 @@ pub fn get_config(
     ios_features: ios_options.features.clone(),
     bundle_version: config.package.version.clone(),
     bundle_version_short: config.package.version.clone(),
+    ios_version: Some(TARGET_IOS_VERSION.into()),
     ..Default::default()
   };
   let config = AppleConfig::from_raw(app.clone(), Some(raw)).unwrap();
@@ -149,7 +147,8 @@ fn with_config<T>(
     let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = cli_options.unwrap_or_else(read_options);
+    let cli_options =
+      cli_options.unwrap_or_else(|| read_options(&tauri_config_.tauri.bundle.identifier));
     let (app, config, metadata) = get_config(None, tauri_config_, &cli_options);
     (app, config, metadata, cli_options)
   };
@@ -236,13 +235,6 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device
     } else {
       simulator_list.into_iter().next().unwrap()
     };
-
-    log::info!("Starting simulator {}", device.name());
-    let handle = device.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
-
     Ok(device)
   } else {
     Err(anyhow::anyhow!("No available iOS Simulator detected"))
@@ -254,10 +246,8 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     Ok(device)
   } else {
     let simulator = simulator_prompt(env, target)?;
-    let handle = simulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
+    log::info!("Starting simulator {}", simulator.name());
+    simulator.start_detached(env)?;
     Ok(simulator.into())
   }
 }

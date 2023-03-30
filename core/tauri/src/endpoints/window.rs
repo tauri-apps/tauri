@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -68,6 +68,7 @@ pub enum WindowManagerCmd {
   IsDecorated,
   IsResizable,
   IsVisible,
+  Title,
   CurrentMonitor,
   PrimaryMonitor,
   AvailableMonitors,
@@ -104,6 +105,8 @@ pub enum WindowManagerCmd {
   #[cfg(window_set_always_on_top)]
   #[serde(rename_all = "camelCase")]
   SetAlwaysOnTop(bool),
+  #[cfg(window_set_content_protected)]
+  SetContentProtected(bool),
   #[cfg(window_set_size)]
   SetSize(Size),
   #[cfg(window_set_min_size)]
@@ -166,6 +169,9 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     "setDecorations" => crate::Error::ApiNotAllowlisted("window > setDecorations".to_string()),
     "setShadow" => crate::Error::ApiNotAllowlisted("window > setShadow".to_string()),
     "setAlwaysOnTop" => crate::Error::ApiNotAllowlisted("window > setAlwaysOnTop".to_string()),
+    "setContentProtected" => {
+      crate::Error::ApiNotAllowlisted("window > setContentProtected".to_string())
+    }
     "setSize" => crate::Error::ApiNotAllowlisted("window > setSize".to_string()),
     "setMinSize" => crate::Error::ApiNotAllowlisted("window > setMinSize".to_string()),
     "setMaxSize" => crate::Error::ApiNotAllowlisted("window > setMaxSize".to_string()),
@@ -184,9 +190,10 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     }
     "startDragging" => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
     "print" => crate::Error::ApiNotAllowlisted("window > print".to_string()),
-    "internalToggleMaximize" => {
+    "__toggleMaximize" => {
       crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
     }
+    "__toggleDevtools" => crate::Error::ApiNotAllowlisted("devtools".to_string()),
     _ => crate::Error::ApiNotAllowlisted("window".to_string()),
   }
 }
@@ -211,19 +218,9 @@ impl Cmd {
     context: InvokeContext<R>,
     options: Box<WindowConfig>,
   ) -> super::Result<()> {
-    let label = options.label.clone();
-    let url = options.url.clone();
-    let file_drop_enabled = options.file_drop_enabled;
-
-    let mut builder = crate::window::Window::builder(&context.window, label, url);
-    if !file_drop_enabled {
-      builder = builder.disable_file_drop_handler();
-    }
-
-    builder.window_builder =
-      <<R::Dispatcher as Dispatch<crate::EventLoopMessage>>::WindowBuilder>::with_config(*options);
-    builder.build().map_err(crate::error::into_anyhow)?;
-
+    crate::window::WindowBuilder::from_config(&context.window, *options)
+      .build()
+      .map_err(crate::error::into_anyhow)?;
     Ok(())
   }
 
@@ -262,6 +259,7 @@ impl Cmd {
       WindowManagerCmd::IsDecorated => return Ok(window.is_decorated()?.into()),
       WindowManagerCmd::IsResizable => return Ok(window.is_resizable()?.into()),
       WindowManagerCmd::IsVisible => return Ok(window.is_visible()?.into()),
+      WindowManagerCmd::Title => return Ok(window.title()?.into()),
       WindowManagerCmd::CurrentMonitor => return Ok(window.current_monitor()?.into()),
       WindowManagerCmd::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
       WindowManagerCmd::AvailableMonitors => return Ok(window.available_monitors()?.into()),
@@ -302,6 +300,10 @@ impl Cmd {
       WindowManagerCmd::SetShadow(enable) => window.set_shadow(enable)?,
       #[cfg(all(desktop, window_set_always_on_top))]
       WindowManagerCmd::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
+      #[cfg(all(desktop, window_set_content_protected))]
+      WindowManagerCmd::SetContentProtected(protected) => {
+        window.set_content_protected(protected)?
+      }
       #[cfg(all(desktop, window_set_size))]
       WindowManagerCmd::SetSize(size) => window.set_size(size)?,
       #[cfg(all(desktop, window_set_min_size))]

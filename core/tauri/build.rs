@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,7 +8,12 @@ use heck::ToSnakeCase;
 
 use once_cell::sync::OnceCell;
 
-use std::{path::Path, sync::Mutex};
+use std::env::var_os;
+use std::{
+  env::var,
+  path::{Path, PathBuf},
+  sync::Mutex,
+};
 
 static CHECKED_FEATURES: OnceCell<Mutex<Vec<String>>> = OnceCell::new();
 
@@ -82,6 +87,7 @@ fn main() {
       "set-decorations",
       "set-shadow",
       "set-always-on-top",
+      "set-content-protected",
       "set-size",
       "set-min-size",
       "set-max-size",
@@ -134,13 +140,53 @@ fn main() {
 
   alias_module("app", &["show", "hide"], api_all);
 
-  let checked_features_out_path =
-    Path::new(&std::env::var("OUT_DIR").unwrap()).join("checked_features");
+  let checked_features_out_path = Path::new(&var("OUT_DIR").unwrap()).join("checked_features");
   std::fs::write(
     checked_features_out_path,
     CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
   )
   .expect("failed to write checked_features file");
+
+  // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error
+  // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
+  let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
+  let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").map_or(false, |v| v == "true");
+  if is_tauri_workspace && target_os == "windows" && Ok("msvc") == target_env.as_deref() {
+    add_manifest();
+  }
+
+  if target_os == "android" {
+    if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+      tauri_build::mobile::inject_android_project(
+        "./mobile/android",
+        project_dir.join(".tauri").join("tauri-api"),
+        &[],
+      )
+      .expect("failed to copy tauri-api Android project");
+      let tauri_proguard = include_str!("./mobile/proguard-tauri.pro").replace(
+        "$PACKAGE",
+        &var("WRY_ANDROID_PACKAGE").expect("missing `WRY_ANDROID_PACKAGE` environment variable"),
+      );
+      std::fs::write(
+        project_dir.join("app").join("proguard-tauri.pro"),
+        tauri_proguard,
+      )
+      .expect("failed to write proguard-tauri.pro");
+    }
+    let lib_path =
+      PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/android");
+    println!("cargo:android_library_path={}", lib_path.display());
+  }
+
+  #[cfg(target_os = "macos")]
+  {
+    if target_os == "ios" {
+      let lib_path =
+        PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/ios-api");
+      tauri_build::mobile::link_swift_library("Tauri", &lib_path);
+      println!("cargo:ios_library_path={}", lib_path.display());
+    }
+  }
 }
 
 // create aliases for the given module with its apis.
@@ -169,4 +215,23 @@ fn alias_module(module: &str, apis: &[&str], api_all: bool) {
   }
 
   alias(&format!("{}_any", AsSnakeCase(module)), any);
+}
+
+fn add_manifest() {
+  static WINDOWS_MANIFEST_FILE: &str = "window-app-manifest.xml";
+
+  let manifest = std::env::current_dir()
+    .unwrap()
+    .join("../tauri-build/src")
+    .join(WINDOWS_MANIFEST_FILE);
+
+  println!("cargo:rerun-if-changed={}", manifest.display());
+  // Embed the Windows application manifest file.
+  println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+  println!(
+    "cargo:rustc-link-arg=/MANIFESTINPUT:{}",
+    manifest.to_str().unwrap()
+  );
+  // Turn linker warnings into errors.
+  println!("cargo:rustc-link-arg=/WX");
 }

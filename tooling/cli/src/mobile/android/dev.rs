@@ -1,10 +1,14 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use super::{
-  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait,
+  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, open_and_wait,
   setup_dev_config, with_config, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
-  helpers::flock,
+  helpers::{config::get as get_config, flock},
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
@@ -16,9 +20,11 @@ use tauri_mobile::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     device::Device,
     env::Env,
+    target::Target,
   },
   config::app::App,
   opts::{FilterLevel, NoiseLevel, Profile},
+  target::TargetTrait,
 };
 
 use std::env::set_var;
@@ -55,6 +61,13 @@ pub struct Options {
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
+  /// Specify port for the dev server for static files. Defaults to 1430
+  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
+  #[clap(long)]
+  pub port: Option<u16>,
+  /// Force prompting for an IP to use to connect to the dev server on mobile.
+  #[clap(long)]
+  pub force_ip_prompt: bool,
 }
 
 impl From<Options> for DevOptions {
@@ -69,6 +82,8 @@ impl From<Options> for DevOptions {
       args: Vec::new(),
       no_watch: options.no_watch,
       no_dev_server: options.no_dev_server,
+      port: options.port,
+      force_ip_prompt: options.force_ip_prompt,
     }
   }
 }
@@ -97,8 +112,8 @@ fn run_dev(
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  setup_dev_config(&mut options.config)?;
-  let env = env()?;
+  setup_dev_config(&mut options.config, options.force_ip_prompt)?;
+  let mut env = env()?;
   let device = if options.open {
     None
   } else {
@@ -112,12 +127,11 @@ fn run_dev(
   };
 
   let mut dev_options: DevOptions = options.clone().into();
-  dev_options.target = Some(
-    device
-      .as_ref()
-      .map(|d| d.target().triple.to_string())
-      .unwrap_or_else(|| "aarch64-linux-android".into()),
-  );
+  let target_triple = device
+    .as_ref()
+    .map(|d| d.target().triple.to_string())
+    .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
+  dev_options.target = Some(target_triple.clone());
   let mut interface = crate::dev::setup(&mut dev_options, true)?;
 
   let interface_options = InterfaceOptions {
@@ -131,10 +145,14 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
-  init_dot_cargo(app, Some((&env, config)))?;
+  configure_cargo(app, Some((&mut env, config)))?;
 
   // run an initial build to initialize plugins
-  interface.build(interface_options)?;
+  let target = Target::all()
+    .values()
+    .find(|t| t.triple == target_triple)
+    .unwrap_or_else(|| Target::all().values().next().unwrap());
+  target.build(config, metadata, &env, noise_level, true, Profile::Debug)?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
@@ -148,14 +166,23 @@ fn run_dev(
       no_watch: options.no_watch,
     },
     |options| {
-      let mut env = env.clone();
       let cli_options = CliOptions {
         features: options.features.clone(),
         args: options.args.clone(),
         noise_level,
         vars: Default::default(),
       };
-      let _handle = write_options(cli_options, &mut env.base)?;
+      let _handle = write_options(
+        &get_config(options.config.as_deref())?
+          .lock()
+          .unwrap()
+          .as_ref()
+          .unwrap()
+          .tauri
+          .bundle
+          .identifier,
+        cli_options,
+      )?;
 
       if open {
         open_and_wait(config, &env)

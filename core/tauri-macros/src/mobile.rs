@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
@@ -62,8 +66,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
         ::tauri::log_stdout();
         #[cfg(target_os = "android")]
         {
-          use ::tauri::paste;
-          ::tauri::wry_android_binding!(#domain, #app_name, _start_app, ::tauri::wry);
+          ::tauri::android_binding!(#domain, #app_name, _start_app, ::tauri::wry);
         }
         stop_unwind(#function_name);
       }

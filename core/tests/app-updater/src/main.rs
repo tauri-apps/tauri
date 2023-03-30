@@ -1,13 +1,17 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+  let mut context = tauri::generate_context!();
+  if std::env::var("TARGET").unwrap_or_default() == "nsis" {
+    context.config_mut().tauri.updater.windows.installer_args = vec![format!(
+      "/D={}",
+      std::env::current_exe().unwrap().parent().unwrap().display()
+    )];
+  }
   tauri::Builder::default()
     .setup(|app| {
       let handle = app.handle();
@@ -28,6 +32,6 @@ fn main() {
       });
       Ok(())
     })
-    .run(tauri::generate_context!())
+    .run(context)
     .expect("error while running tauri application");
 }

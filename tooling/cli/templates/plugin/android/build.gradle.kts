@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.plugin.test"
+    namespace = "{{android_package_id}}"
     compileSdk = 32
 
     defaultConfig {

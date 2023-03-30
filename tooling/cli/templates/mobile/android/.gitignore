@@ -16,5 +16,4 @@ build
 .cxx
 local.properties
 
-/tauri-plugins
-/tauri-api
+/.tauri

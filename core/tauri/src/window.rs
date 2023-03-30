@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,6 +7,7 @@
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
+use url::Url;
 
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
@@ -28,7 +29,7 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::WindowUrl,
+  utils::config::{WindowConfig, WindowUrl},
   EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
   Runtime, Theme, WindowEvent,
 };
@@ -56,6 +57,7 @@ use std::{
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -116,6 +118,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+  navigation_handler: Option<Box<NavigationHandler>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
@@ -189,7 +192,56 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
+      navigation_handler: None,
     }
+  }
+
+  /// Initializes a webview window builder from a window config from tauri.conf.json.
+  /// Keep in mind that you can't create 2 windows with the same `label` so make sure
+  /// that the initial window was closed or change the label of the new `WindowBuilder`.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
+  ///
+  /// # Examples
+  ///
+  /// - Create a window in a command:
+  ///
+  /// ```
+  /// #[tauri::command]
+  /// async fn reopen_window(app: tauri::AppHandle) {
+  ///   let window = tauri::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
+    let runtime = manager.runtime();
+    let app_handle = manager.app_handle();
+    let url = config.url.clone();
+    let file_drop_enabled = config.file_drop_enabled;
+    let mut builder = Self {
+      manager: manager.manager().clone(),
+      runtime,
+      app_handle,
+      label: config.label.clone(),
+      window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
+        config,
+      ),
+      webview_attributes: WebviewAttributes::new(url),
+      web_resource_request_handler: None,
+      navigation_handler: None,
+    };
+
+    if !file_drop_enabled {
+      builder = builder.disable_file_drop_handler();
+    }
+
+    builder
   }
 
   /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.
@@ -237,6 +289,33 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Defines a closure to be executed when the webview navigates to a URL. Returning `false` cancels the navigation.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   http::header::HeaderValue,
+  ///   window::WindowBuilder,
+  /// };
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
+  ///       .on_navigation(|url| {
+  ///         // allow the production URL or localhost on dev
+  ///         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_navigation<F: Fn(Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.navigation_handler.replace(Box::new(f));
+    self
+  }
+
   /// Creates a new webview window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
     let web_resource_request_handler = self.web_resource_request_handler.take();
@@ -246,18 +325,24 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       self.label.clone(),
     )?;
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    let pending = self.manager.prepare_window(
+    let mut pending = self.manager.prepare_window(
       self.app_handle.clone(),
       pending,
       &labels,
       web_resource_request_handler,
     )?;
+    pending.navigation_handler = self.navigation_handler.take();
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending),
     }
     .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
+
+    self.manager.eval_script_all(format!(
+      "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+      window_labels_array = serde_json::to_string(&self.manager.labels())?,
+    ))?;
 
     self.manager.emit_filter(
       "tauri://window-created",
@@ -405,6 +490,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn always_on_top(mut self, always_on_top: bool) -> Self {
     self.window_builder = self.window_builder.always_on_top(always_on_top);
+    self
+  }
+
+  /// Whether the window should always be on top of other windows.
+  #[must_use]
+  pub fn content_protected(mut self, protected: bool) -> Self {
+    self.window_builder = self.window_builder.content_protected(protected);
     self
   }
 
@@ -559,6 +651,22 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Set additional arguments for the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux / Android / iOS**: Unsupported.
+  ///
+  /// ## Warning
+  ///
+  /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you use this method, you also need to disable these components by yourself if you want.
+  #[must_use]
+  pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
+    self.webview_attributes.additional_browser_args = Some(additional_args.to_string());
+    self
+  }
+
   /// Data directory for the webview.
   #[must_use]
   pub fn data_directory(mut self, data_directory: PathBuf) -> Self {
@@ -673,14 +781,11 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 }
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
-#[cfg(all(any(desktop, target_os = "android"), feature = "wry"))]
-#[cfg_attr(
-  doc_cfg,
-  doc(cfg(all(any(desktop, target_os = "android"), feature = "wry")))
-)]
+#[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
-#[cfg(all(any(desktop, target_os = "android"), feature = "wry"))]
+#[cfg(feature = "wry")]
 impl PlatformWebview {
   /// Returns [`webkit2gtk::WebView`] handle.
   #[cfg(any(
@@ -716,8 +821,8 @@ impl PlatformWebview {
   /// Returns the [WKWebView] handle.
   ///
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
-  #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn inner(&self) -> cocoa::base::id {
     self.0.webview
   }
@@ -725,8 +830,8 @@ impl PlatformWebview {
   /// Returns WKWebView [controller] handle.
   ///
   /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
-  #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn controller(&self) -> cocoa::base::id {
     self.0.manager
   }
@@ -738,6 +843,15 @@ impl PlatformWebview {
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn ns_window(&self) -> cocoa::base::id {
     self.0.ns_window
+  }
+
+  /// Returns [UIViewController] used by the WKWebView webview NSWindow.
+  ///
+  /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
+  #[cfg(target_os = "ios")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "ios")))]
+  pub fn view_controller(&self) -> cocoa::base::id {
+    self.0.view_controller
   }
 
   /// Returns handle for JNI execution.
@@ -869,11 +983,8 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// }
   /// ```
-  #[cfg(all(feature = "wry", any(desktop, target_os = "android")))]
-  #[cfg_attr(
-    doc_cfg,
-    doc(all(feature = "wry", any(desktop, target_os = "android")))
-  )]
+  #[cfg(all(feature = "wry"))]
+  #[cfg_attr(doc_cfg, doc(all(feature = "wry")))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,
@@ -953,6 +1064,11 @@ impl<R: Runtime> Window<R> {
   /// Gets the window's current visibility state.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
+  }
+
+  /// Gets the window's current title.
+  pub fn title(&self) -> crate::Result<String> {
+    self.window.dispatcher.title().map_err(Into::into)
   }
 
   /// Returns the monitor on which the window currently resides.
@@ -1180,6 +1296,15 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
+  /// Prevents the window contents from being captured by other apps.
+  pub fn set_content_protected(&self, protected: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_content_protected(protected)
+      .map_err(Into::into)
+  }
+
   /// Resizes this window.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
     self
@@ -1321,6 +1446,11 @@ impl<R: Runtime> Window<R> {
 
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
+  /// Returns the current url of the webview.
+  pub fn url(&self) -> crate::Result<Url> {
+    self.window.dispatcher.url().map_err(Into::into)
+  }
+
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
@@ -1357,114 +1487,63 @@ impl<R: Runtime> Window<R> {
             .map(|c| c.to_string())
             .unwrap_or_else(String::new);
 
-          #[cfg(target_os = "android")]
-          let (message, resolver) = (invoke.message.clone(), invoke.resolver.clone());
+          let command = invoke.message.command.clone();
+          let resolver = invoke.resolver.clone();
+          #[cfg(mobile)]
+          let message = invoke.message.clone();
 
-          #[allow(unused_variables)]
-          let handled = manager.extend_api(plugin, invoke);
+          #[allow(unused_mut)]
+          let mut handled = manager.extend_api(plugin, invoke);
+
+          #[cfg(target_os = "ios")]
+          {
+            if !handled {
+              handled = true;
+              let plugin = plugin.to_string();
+              let (callback, error) = (resolver.callback, resolver.error);
+              self.with_webview(move |webview| {
+                unsafe {
+                  crate::ios::post_ipc_message(
+                    webview.inner() as _,
+                    &plugin.as_str().into(),
+                    &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
+                      .as_str()
+                      .into(),
+                    crate::ios::json_to_dictionary(message.payload) as _,
+                    callback.0,
+                    error.0,
+                  )
+                };
+              })?;
+            }
+          }
 
           #[cfg(target_os = "android")]
           {
             if !handled {
+              handled = true;
+              let resolver_ = resolver.clone();
               let runtime_handle = self.app_handle.runtime_handle.clone();
               let plugin = plugin.to_string();
               self.with_webview(move |webview| {
                 webview.jni_handle().exec(move |env, activity, webview| {
-                  use crate::api::ipc::CallbackFn;
                   use jni::{
                     errors::Error as JniError,
-                    objects::{JObject, JValue},
+                    objects::JObject,
                     JNIEnv,
                   };
-                  use serde_json::Value as JsonValue;
-
-                  fn json_to_java<'a, R: Runtime>(
-                    env: JNIEnv<'a>,
-                    activity: JObject<'a>,
-                    runtime_handle: &R::Handle,
-                    json: JsonValue,
-                  ) -> Result<(&'static str, JValue<'a>), JniError> {
-                    let (class, v) = match json {
-                      JsonValue::Null => ("Ljava/lang/Object;", JObject::null().into()),
-                      JsonValue::Bool(val) => ("Z", val.into()),
-                      JsonValue::Number(val) => {
-                        if let Some(v) = val.as_i64() {
-                          ("J", v.into())
-                        } else if let Some(v) = val.as_f64() {
-                          ("D", v.into())
-                        } else {
-                          ("Ljava/lang/Object;", JObject::null().into())
-                        }
-                      }
-                      JsonValue::String(val) => (
-                        "Ljava/lang/Object;",
-                        JObject::from(env.new_string(&val)?).into(),
-                      ),
-                      JsonValue::Array(val) => {
-                        let js_array_class =
-                          runtime_handle.find_class(env, activity, "app/tauri/plugin/JSArray")?;
-                        let data = env.new_object(js_array_class, "()V", &[])?;
-
-                        for v in val {
-                          let (signature, val) =
-                            json_to_java::<R>(env, activity, runtime_handle, v)?;
-                          env.call_method(
-                            data,
-                            "put",
-                            format!("({signature})Lorg/json/JSONArray;"),
-                            &[val],
-                          )?;
-                        }
-
-                        ("Ljava/lang/Object;", data.into())
-                      }
-                      JsonValue::Object(val) => {
-                        let js_object_class =
-                          runtime_handle.find_class(env, activity, "app/tauri/plugin/JSObject")?;
-                        let data = env.new_object(js_object_class, "()V", &[])?;
-
-                        for (key, value) in val {
-                          let (signature, val) =
-                            json_to_java::<R>(env, activity, runtime_handle, value)?;
-                          env.call_method(
-                            data,
-                            "put",
-                            format!("(Ljava/lang/String;{signature})Lapp/tauri/plugin/JSObject;"),
-                            &[env.new_string(&key)?.into(), val],
-                          )?;
-                        }
-
-                        ("Ljava/lang/Object;", data.into())
-                      }
-                    };
-                    Ok((class, v))
-                  }
-
-                  fn to_jsobject<'a, R: Runtime>(
-                    env: JNIEnv<'a>,
-                    activity: JObject<'a>,
-                    runtime_handle: &R::Handle,
-                    json: JsonValue,
-                  ) -> Result<JValue<'a>, JniError> {
-                    if let JsonValue::Object(_) = &json {
-                      json_to_java::<R>(env, activity, runtime_handle, json)
-                        .map(|(_class, data)| data)
-                    } else {
-                      Ok(JObject::null().into())
-                    }
-                  }
+                  use crate::api::ipc::CallbackFn;
 
                   fn handle_message<R: Runtime>(
                     plugin: &str,
                     runtime_handle: &R::Handle,
                     message: InvokeMessage<R>,
-                    callback: CallbackFn,
-                    error: CallbackFn,
+                    (callback, error): (CallbackFn, CallbackFn),
                     env: JNIEnv<'_>,
                     activity: JObject<'_>,
                     webview: JObject<'_>,
                   ) -> Result<(), JniError> {
-                    let data = to_jsobject::<R>(env, activity, runtime_handle, message.payload)?;
+                    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, message.payload)?;
                     let plugin_manager = env
                       .call_method(
                         activity,
@@ -1476,13 +1555,13 @@ impl<R: Runtime> Window<R> {
 
                     env.call_method(
                       plugin_manager,
-                      "postMessage",
+                      "postIpcMessage",
                       "(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;JJ)V",
                       &[
                         webview.into(),
                         env.new_string(plugin)?.into(),
-                        env.new_string(&message.command)?.into(),
-                        data.into(),
+                        env.new_string(&heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str()))?.into(),
+                        data,
                         (callback.0 as i64).into(),
                         (error.0 as i64).into(),
                       ],
@@ -1495,20 +1574,28 @@ impl<R: Runtime> Window<R> {
                     &plugin,
                     &runtime_handle,
                     message,
-                    resolver.callback,
-                    resolver.error,
+                    (resolver_.callback, resolver_.error),
                     env,
                     activity,
                     webview,
                   ) {
-                    resolver.reject(format!("failed to reach Android layer: {e}"));
+                    resolver_.reject(format!("failed to reach Android layer: {e}"));
                   }
                 });
               })?;
             }
           }
+
+          if !handled {
+            resolver.reject(format!("Command {command} not found"));
+          }
         } else {
-          manager.run_invoke_handler(invoke);
+          let command = invoke.message.command.clone();
+          let resolver = invoke.resolver.clone();
+          let handled = manager.run_invoke_handler(invoke);
+          if !handled {
+            resolver.reject(format!("Command {command} not found"));
+          }
         }
       }
     }

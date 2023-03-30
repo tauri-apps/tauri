@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -23,6 +23,17 @@ mod imp {
     pub webview: id,
     pub manager: id,
     pub ns_window: id,
+  }
+}
+
+#[cfg(target_os = "ios")]
+mod imp {
+  use cocoa::base::id;
+
+  pub struct Webview {
+    pub webview: id,
+    pub manager: id,
+    pub view_controller: id,
   }
 }
 

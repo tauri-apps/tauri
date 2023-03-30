@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -42,27 +42,21 @@ pub fn render<P: AsRef<Path>, D: Serialize>(
 ) -> crate::Result<()> {
   let out_dir = out_dir.as_ref();
   let mut created_dirs = Vec::new();
-  render_with_generator(
-    handlebars,
-    data,
-    dir,
-    out_dir,
-    &mut |file_path: &PathBuf| {
-      let path = out_dir.join(file_path);
-      let parent = path.parent().unwrap().to_path_buf();
-      if !created_dirs.contains(&parent) {
-        create_dir_all(&parent)?;
-        created_dirs.push(parent);
-      }
-      File::create(path).map(Some)
-    },
-  )
+  render_with_generator(handlebars, data, dir, out_dir, &mut |file_path: PathBuf| {
+    let path = out_dir.join(file_path);
+    let parent = path.parent().unwrap().to_path_buf();
+    if !created_dirs.contains(&parent) {
+      create_dir_all(&parent)?;
+      created_dirs.push(parent);
+    }
+    File::create(path).map(Some)
+  })
 }
 
 pub fn render_with_generator<
   P: AsRef<Path>,
   D: Serialize,
-  F: FnMut(&PathBuf) -> std::io::Result<Option<File>>,
+  F: FnMut(PathBuf) -> std::io::Result<Option<File>>,
 >(
   handlebars: &Handlebars<'_>,
   data: &D,
@@ -80,7 +74,7 @@ pub fn render_with_generator<
         file_path.set_extension("toml");
       }
     }
-    if let Some(mut output_file) = out_file_generator(&file_path)? {
+    if let Some(mut output_file) = out_file_generator(file_path)? {
       if let Some(utf8) = file.contents_utf8() {
         handlebars
           .render_template_to_write(utf8, &data, &mut output_file)

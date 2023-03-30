@@ -150,7 +150,7 @@ async function execute<O extends IOPayload>(
 /**
  * @since 1.0.0
  */
-class EventEmitter<E extends { [key: string]: any }> {
+class EventEmitter<E extends Record<string, any>> {
   /** @ignore */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   private eventListeners: Record<keyof E, Array<(arg: any) => void>> =

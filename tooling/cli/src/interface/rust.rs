@@ -350,13 +350,17 @@ fn shared_options(
   app_settings: &RustAppSettings,
 ) {
   if mobile {
+    features
+      .get_or_insert(Vec::new())
+      .push("tauri/rustls-tls".into());
+  } else {
     let all_features = app_settings
       .manifest
       .all_enabled_features(if let Some(f) = features { f } else { &[] });
-    if all_features.contains(&"tauri/default-tls".into()) {
+    if !all_features.contains(&"tauri/rustls-tls".into()) {
       features
         .get_or_insert(Vec::new())
-        .push("tauri/native-tls-vendored".into());
+        .push("tauri/native-tls".into());
     }
   }
 }

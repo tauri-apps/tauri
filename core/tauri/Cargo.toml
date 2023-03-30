@@ -155,8 +155,9 @@ http-api = [ ]
 http-multipart = [ "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
-default-tls = [ "reqwest/default-tls" ]
+native-tls = [ "reqwest/native-tls" ]
 native-tls-vendored = [ "reqwest/native-tls-vendored" ]
+rustls-tls = [ "reqwest/rustls-tls" ]
 process-command-api = [ "shared_child", "os_pipe" ]
 global-shortcut = [
   "tauri-runtime/global-shortcut",

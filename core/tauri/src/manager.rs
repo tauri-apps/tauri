@@ -945,7 +945,7 @@ impl<R: Runtime> WindowManager<R> {
         let url = format!("{url}{decoded_path}");
         #[allow(unused_mut)]
         let mut client_builder = reqwest::ClientBuilder::new();
-        #[cfg(feature = "default-tls")]
+        #[cfg(any(feature = "native-tls", feature = "rustls-tls"))]
         {
           client_builder = client_builder.danger_accept_invalid_certs(true);
         }

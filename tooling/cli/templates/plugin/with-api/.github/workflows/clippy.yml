@@ -29,9 +29,8 @@ jobs:
             toolchain: stable
             override: true
             components: clippy
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions-rs/cargo@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          command: clippy
           args: --manifest-path=Cargo.toml --all-targets --all-features -- -D warnings
-          name: clippy
 {{{{/raw}}}}

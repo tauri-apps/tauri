@@ -222,7 +222,7 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<Secti
                 version_string,
                 version_suffix
                   .clone()
-                  .map(|s| format!(",{}", s))
+                  .map(|s| format!(",{s}"))
                   .unwrap_or_else(|| "".into())
               ),
               Status::Neutral,

@@ -92,7 +92,7 @@ pub fn items(metadata: &VersionMetadata) -> (Vec<SectionItem>, Option<String>) {
         move || {
           yarn_version_c
             .as_ref()
-            .map(|v| (format!("yarn: {}", v), Status::Neutral))
+            .map(|v| (format!("yarn: {v}"), Status::Neutral))
         },
         || None,
         false,

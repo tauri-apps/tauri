@@ -230,7 +230,7 @@ pub fn items() -> Vec<SectionItem> {
       || {
         Some(
           webkit2gtk_ver()
-            .map(|v| (format!("webkit2gtk-4.0: {}", v), Status::Success))
+            .map(|v| (format!("webkit2gtk-4.0: {v}"), Status::Success))
             .unwrap_or_else(|| {
               (
                 format!(
@@ -257,7 +257,7 @@ pub fn items() -> Vec<SectionItem> {
       || {
         Some(
           rsvg2_ver()
-            .map(|v| (format!("rsvg2: {}", v), Status::Success))
+            .map(|v| (format!("rsvg2: {v}"), Status::Success))
             .unwrap_or_else(|| {
               (
                 format!(

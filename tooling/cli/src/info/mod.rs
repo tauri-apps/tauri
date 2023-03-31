@@ -191,7 +191,7 @@ impl Section<'_> {
       }
     }
 
-    let status_str = format!("[{}]", status);
+    let status_str = format!("[{status}]");
     let status = match status {
       Status::Neutral => status_str.normal(),
       Status::Success => status_str.green(),
@@ -203,7 +203,7 @@ impl Section<'_> {
     println!("{} {}", status, self.label.bold().yellow());
     for item in &self.items {
       if item.description.is_some() {
-        println!("    {}", item);
+        println!("    {item}");
       }
     }
   }

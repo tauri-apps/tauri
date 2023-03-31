@@ -19,7 +19,7 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<Secti
         "build".to_string()
       };
       items.push(SectionItem::new(
-        move || Some((format!("build-type: {}", bundle_or_build), Status::Neutral)),
+        move || Some((format!("build-type: {bundle_or_build}"), Status::Neutral)),
         || None,
         false,
       ));
@@ -32,21 +32,21 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<Secti
         .map(|c| c.to_string())
         .unwrap_or_else(|| "unset".to_string());
       items.push(SectionItem::new(
-        move || Some((format!("CSP: {}", csp), Status::Neutral)),
+        move || Some((format!("CSP: {csp}"), Status::Neutral)),
         || None,
         false,
       ));
 
       let dist_dir = config.build.dist_dir.to_string();
       items.push(SectionItem::new(
-        move || Some((format!("distDir: {}", dist_dir), Status::Neutral)),
+        move || Some((format!("distDir: {dist_dir}"), Status::Neutral)),
         || None,
         false,
       ));
 
       let dev_path = config.build.dev_path.to_string();
       items.push(SectionItem::new(
-        move || Some((format!("devPath: {}", dev_path), Status::Neutral)),
+        move || Some((format!("devPath: {dev_path}"), Status::Neutral)),
         || None,
         false,
       ));
@@ -56,14 +56,14 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<Secti
           let (framework, bundler) = framework::infer_from_package_json(&package_json);
           if let Some(framework) = framework {
             items.push(SectionItem::new(
-              move || Some((format!("framework: {}", framework), Status::Neutral)),
+              move || Some((format!("framework: {framework}"), Status::Neutral)),
               || None,
               false,
             ));
           }
           if let Some(bundler) = bundler {
             items.push(SectionItem::new(
-              move || Some((format!("bundler: {}", bundler), Status::Neutral)),
+              move || Some((format!("bundler: {bundler}"), Status::Neutral)),
               || None,
               false,
             ));

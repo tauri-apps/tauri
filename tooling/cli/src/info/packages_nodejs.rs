@@ -180,7 +180,7 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
   let mut found = Vec::new();
 
   if use_npm {
-    found.push(PackageManager::Pnpm);
+    found.push(PackageManager::Npm);
   }
   if use_pnpm {
     found.push(PackageManager::Pnpm);

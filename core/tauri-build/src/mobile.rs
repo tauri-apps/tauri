@@ -106,7 +106,7 @@ pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
   swift_rs::SwiftLinker::new(
     &std::env::var("MACOSX_DEPLOYMENT_TARGET").unwrap_or_else(|_| "10.13".into()),
   )
-  .with_ios(&std::env::var("IOS_DEPLOYMENT_TARGET").unwrap_or_else(|_| "13.0".into()))
+  .with_ios(&std::env::var("IPHONEOS_DEPLOYMENT_TARGET").unwrap_or_else(|_| "13.0".into()))
   .with_package(name, source)
   .link();
   std::env::set_current_dir(curr_dir).unwrap();

@@ -1,9 +1,19 @@
 -keep class app.tauri.** {
   @app.tauri.JniMethod public <methods>;
+  native <methods>;
 }
 
--keep class app.tauri.JSArray,app.tauri.JSObject {
+-keep class app.tauri.plugin.JSArray {
   public <init>(...);
+}
+
+-keepclassmembers class org.json.JSONArray {
+  public put(...);
+}
+
+-keep class app.tauri.plugin.JSObject {
+  public <init>(...);
+  public put(...);
 }
 
 -keep @app.tauri.annotation.TauriPlugin public class * {

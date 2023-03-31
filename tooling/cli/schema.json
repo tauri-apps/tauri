@@ -163,7 +163,7 @@
         },
         "security": {
           "dangerousDisableAssetCspModification": false,
-          "dangerousExternalCommandAccess": [],
+          "dangerousRemoteUrlIpcAccess": [],
           "freezePrototype": false
         },
         "updater": {
@@ -416,7 +416,7 @@
           "description": "Security configuration.",
           "default": {
             "dangerousDisableAssetCspModification": false,
-            "dangerousExternalCommandAccess": [],
+            "dangerousRemoteUrlIpcAccess": [],
             "freezePrototype": false
           },
           "allOf": [
@@ -2606,12 +2606,12 @@
             }
           ]
         },
-        "dangerousExternalCommandAccess": {
-          "description": "Allow external urls to send command to Tauri.\n\nBy default, external urls do not have access to `window.__TAURI__`, which means they cannot communicate with the commands defined in Rust. This prevents attacks where an externally loaded malicious or compromised sites could start executing commands on the user's device.\n\nThis configuration allows a set of external urls to have access to the Tauri commands. Wildcards patterns are accepted and can be used to allow either all paths or a subset of paths for a domain.\n\n**WARNING:** Only use this option if you either have internal checks against malicious external sites or you can trust the allowed external sites. You application might be vulnerable to dangerous Tauri command related attacks otherwise.",
+        "dangerousRemoteUrlIpcAccess": {
+          "description": "Allow external domains to send command to Tauri.\n\nBy default, external domains do not have access to `window.__TAURI__`, which means they cannot communicate with the commands defined in Rust. This prevents attacks where an externally loaded malicious or compromised sites could start executing commands on the user's device.\n\nThis configuration allows a set of external domains to have access to the Tauri commands. Wildcards patterns are accepted and can be used to allow either all paths or a subset of paths for a domain.\n\n**WARNING:** Only use this option if you either have internal checks against malicious external sites or you can trust the allowed external sites. You application might be vulnerable to dangerous Tauri command related attacks otherwise.",
           "default": [],
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ExternalCommandAccessScope"
+            "$ref": "#/definitions/RemoteDomainAccessScope"
           }
         }
       },
@@ -2665,18 +2665,17 @@
         }
       ]
     },
-    "ExternalCommandAccessScope": {
+    "RemoteDomainAccessScope": {
       "description": "External command access definition.",
       "type": "object",
       "required": [
-        "url",
+        "domain",
         "windows"
       ],
       "properties": {
-        "url": {
-          "description": "The url to allow, matched against the webview URL using a glob pattern.",
-          "type": "string",
-          "format": "uri"
+        "domain": {
+          "description": "The domain to allow.",
+          "type": "string"
         },
         "windows": {
           "description": "The list of window labels this scope applies to.",

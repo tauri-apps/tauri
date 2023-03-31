@@ -199,14 +199,6 @@ fn replace_csp_nonce(
   }
 }
 
-/// External command access definition.
-pub struct ExternalCommandAccessScope {
-  pub url: glob::Pattern,
-  pub windows: Vec<String>,
-  pub plugins: Vec<String>,
-  pub enable_tauri_api: bool,
-}
-
 #[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
   windows: Mutex<HashMap<String, Window<R>>>,
@@ -227,7 +219,6 @@ pub struct InnerWindowManager<R: Runtime> {
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
   pub(crate) tray_icon: Option<Icon>,
-  pub(crate) external_command_access: Vec<ExternalCommandAccessScope>,
 
   package_info: PackageInfo,
   /// The webview protocols available to all windows.
@@ -316,21 +307,6 @@ impl<R: Runtime> WindowManager<R> {
       *key = uuid::Uuid::new_v4().to_string();
     }
 
-    let external_command_access = context
-      .config
-      .tauri
-      .security
-      .dangerous_external_command_access
-      .clone()
-      .into_iter()
-      .map(|s| ExternalCommandAccessScope {
-        url: glob::Pattern::new(s.url.as_str()).expect("invalid external command access scope"),
-        windows: s.windows,
-        plugins: s.plugins,
-        enable_tauri_api: s.enable_tauri_api,
-      })
-      .collect();
-
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
@@ -346,7 +322,6 @@ impl<R: Runtime> WindowManager<R> {
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
         tray_icon: context.system_tray_icon,
-        external_command_access,
         package_info: context.package_info,
         pattern: context.pattern,
         uri_scheme_protocols,

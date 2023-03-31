@@ -19,7 +19,7 @@ use crate::{
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
-  scope::FsScope,
+  scope::{FsScope, IpcScope},
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, resources::resource_relpath, Env},
@@ -1571,10 +1571,10 @@ impl<R: Runtime> Builder<R> {
       let mut webview_attributes =
         WebviewAttributes::new(url).accept_first_mouse(config.accept_first_mouse);
       if let Some(ua) = &config.user_agent {
-        webview_attributes = webview_attributes.user_agent(&ua.to_string());
+        webview_attributes = webview_attributes.user_agent(ua);
       }
       if let Some(args) = &config.additional_browser_args {
-        webview_attributes = webview_attributes.additional_browser_args(&args.to_string());
+        webview_attributes = webview_attributes.additional_browser_args(args);
       }
       if !config.file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();
@@ -1627,6 +1627,14 @@ impl<R: Runtime> Builder<R> {
 
     let env = Env::default();
     app.manage(Scopes {
+      ipc: IpcScope::new(
+        app
+          .config()
+          .tauri
+          .security
+          .dangerous_remote_url_ipc_access
+          .clone(),
+      ),
       fs: FsScope::for_fs_api(
         &app.manager.config(),
         app.package_info(),

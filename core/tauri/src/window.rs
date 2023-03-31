@@ -16,7 +16,7 @@ use crate::{
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   hooks::{InvokePayload, InvokeResponder},
-  manager::{ExternalCommandAccessScope, WindowManager},
+  manager::WindowManager,
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
     menu::Menu,
@@ -1395,39 +1395,28 @@ impl<R: Runtime> Window<R> {
     let config_url = manager.get_url();
     let is_local = config_url.make_relative(&current_url).is_some();
 
-    let default_scope = ExternalCommandAccessScope {
-      url: Default::default(),
-      windows: Vec::with_capacity(0),
-      plugins: Vec::with_capacity(0),
-      enable_tauri_api: true,
-    };
-
     let mut scope_not_found_error_message = format!(
       "Scope not defined for window `{}` and URL `{current_url}`",
       self.window.label
     );
     let scope = if is_local {
-      Some(&default_scope)
+      None
     } else {
-      let mut scope = None;
-      let mut found_scope_for_window = false;
-      let mut found_scope_for_url = false;
-      for s in &manager.inner.external_command_access {
-        let matches_window = s.windows.contains(&self.window.label);
-        let matches_url = s.url.matches(current_url.as_str());
-        found_scope_for_window = found_scope_for_window || matches_window;
-        found_scope_for_url = found_scope_for_url || matches_url;
-        if matches_window && matches_url && scope.is_none() {
-          scope.replace(s);
+      match self
+        .ipc_scope()
+        .remote_access_for(&self.window.label, &current_url)
+      {
+        Ok(scope) => Some(scope),
+        Err(e) => {
+          if e.matches_window {
+            scope_not_found_error_message = format!("Scope not defined for URL `{current_url}`");
+          } else if e.matches_domain {
+            scope_not_found_error_message =
+              format!("Scope not defined for window `{}`", self.window.label);
+          }
+          None
         }
       }
-      if found_scope_for_window {
-        scope_not_found_error_message = format!("Scope not defined for URL `{current_url}`");
-      } else if found_scope_for_url {
-        scope_not_found_error_message =
-          format!("Scope not defined for window `{}`", self.window.label);
-      }
-      scope
     };
     match payload.cmd.as_str() {
       "__initialized" => {
@@ -1450,7 +1439,7 @@ impl<R: Runtime> Window<R> {
         }
 
         if let Some(module) = &payload.tauri_module {
-          if !is_local && scope.map(|s| !s.enable_tauri_api).unwrap_or_default() {
+          if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
             invoke.resolver.reject("Not allowed by the scope");
             return Ok(());
           }
@@ -1465,7 +1454,7 @@ impl<R: Runtime> Window<R> {
             let command = invoke.message.command.replace("plugin:", "");
             let plugin_name = command.split('|').next().unwrap().to_string();
             if !scope
-              .map(|s| s.plugins.contains(&plugin_name))
+              .map(|s| s.plugins().contains(&plugin_name))
               .unwrap_or(true)
             {
               invoke.resolver.reject("Plugin not allowed");

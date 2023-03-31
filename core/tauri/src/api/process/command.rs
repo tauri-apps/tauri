@@ -18,6 +18,7 @@ use std::os::windows::process::CommandExt;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+const NEWLINE_BYTE: u8 = b'\n';
 
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
 
@@ -345,10 +346,9 @@ impl Command {
 
     let output = crate::async_runtime::safe_block_on(async move {
       let mut code = None;
-      let mut stdout = Vec::<u8>::new();
-      let mut stderr = Vec::<u8>::new();
+      let mut stdout = Vec::new();
+      let mut stderr = Vec::new();
 
-      const NEWLINE_BYTE: u8 = b'\n';
       while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Terminated(payload) => {

@@ -78,7 +78,7 @@ impl PluginBuilder {
           let tauri_library_path = std::env::var("DEP_TAURI_IOS_LIBRARY_PATH")
             .expect("missing `DEP_TAURI_IOS_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
 
-          let tauri_dep_path = &path.parent().unwrap().join(".tauri");
+          let tauri_dep_path = path.parent().unwrap().join(".tauri");
           create_dir_all(&tauri_dep_path).context("failed to create .tauri directory")?;
           copy_folder(
             Path::new(&tauri_library_path),

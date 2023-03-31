@@ -2144,10 +2144,6 @@ interface WindowOptions {
    * The user agent for the webview.
    */
   userAgent?: string
-  /**
-   * Additional arguments for the webview. **Windows Only**
-   */
-  additionalBrowserArguments?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

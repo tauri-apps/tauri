@@ -213,8 +213,9 @@ impl Cmd {
   #[module_command_handler(window_create)]
   async fn create_webview<R: Runtime>(
     context: InvokeContext<R>,
-    options: Box<WindowConfig>,
+    mut options: Box<WindowConfig>,
   ) -> super::Result<()> {
+    options.additional_browser_args = None;
     crate::window::WindowBuilder::from_config(&context.window, *options)
       .build()
       .map_err(crate::error::into_anyhow)?;

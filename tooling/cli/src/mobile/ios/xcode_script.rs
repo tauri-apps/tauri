@@ -201,13 +201,13 @@ pub fn command(options: Options) -> Result<()> {
         return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"rlib\"]`", lib_path.display()));
       }
       std::fs::create_dir_all(format!(
-        "gen/apple/Externals/{}",
+        "src-tauri/gen/apple/Externals/{}",
         profile.as_str()
       ))?;
       std::fs::copy(
         lib_path,
         format!(
-          "gen/apple/Externals/{}/lib{}.a",
+          "src-tauri/gen/apple/Externals/{}/lib{}.a",
           profile.as_str(),
           config.app().lib_name()
         ),

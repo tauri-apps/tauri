@@ -10,21 +10,26 @@ use crate::Settings;
 
 use std::{path::PathBuf, path::Path, process::Command, collections::BTreeMap, fs::{write, self}};
 
-/// Bundles the project.
-/// Not implemented yet.
+/// Bundles the project with snapcraft
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let release_folder = settings.project_out_directory();
   let target_folder = release_folder.clone().parent().expect("Unable to find target folder in your project");
   let snap_folder = target_folder.clone().join("snap");
-  info!("Generating yaml files");
+  info!("Generating yaml files to target/snap folder...");
   generate_yaml(&settings, &snap_folder).expect("Failed to generate yaml files.");
   //check for snapcraft on system
   check_snapcraft().expect("Snaft cannot be found on your system. Please install Snapcraft");
   info!("Running 'snapcraft' bundler...");
   let snapcraft_output = run_snapcraft(&target_folder).expect("Error running Snapcraft").wait();
-  println!("{:#?} Snapcraft Output", &snapcraft_output);
   info!("✅ Successfully bundled snap package in target folder!");
-  let snap_file = fs::read_dir(&target_folder).expect("Unable to read target folder").filter_map(|entry| entry.ok()).filter(|entry| entry.path().extension().unwrap_or_default() == "snap").max_by_key(|entry| entry.metadata().expect("Unable to get metadata").modified().expect("Unable to get modified date")).expect("Unable to find snap file in target folder").path();
+  let snap_file = fs::read_dir(&target_folder)
+    .expect("Unable to read target folder")
+    .filter_map(|entry| entry.ok())
+    .filter(|entry| entry.path().extension().unwrap_or_default() == "snap")
+    .max_by_key(|entry| entry.metadata().expect("Unable to get metadata").modified()
+    .expect("Unable to get modified date"))
+    .expect("Unable to find snap file in target folder")
+    .path();
   Ok(vec![snap_file])
 }
 
@@ -63,7 +68,6 @@ fn check_snapcraft() -> Result<std::process::Output, std::io::Error> {
 }
 
 fn run_snapcraft(target_folder: &Path) -> Result<std::process::Child, std::io::Error> {
-  info!("run_snapcraft target folder: {:#?}", &target_folder);
   let output = Command::new("/bin/sh")
       .current_dir(&target_folder)
       .arg("-c")

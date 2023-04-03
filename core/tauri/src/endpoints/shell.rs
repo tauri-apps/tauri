@@ -5,13 +5,9 @@
 #![allow(unused_imports)]
 
 use super::InvokeContext;
-use crate::{
-  api::{
-    ipc::CallbackFn,
-    process::{CommandEvent, TerminatedPayload},
-  },
-  Runtime,
-};
+#[cfg(any(shell_execute, shell_sidecar))]
+use crate::api::process::{CommandEvent, TerminatedPayload};
+use crate::{api::ipc::CallbackFn, Runtime};
 #[cfg(shell_scope)]
 use crate::{Manager, Scopes};
 use encoding_rs::Encoding;
@@ -38,6 +34,7 @@ fn command_child_store() -> &'static ChildStore {
   &STORE
 }
 
+#[cfg(any(shell_execute, shell_sidecar))]
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event", content = "payload")]
 #[non_exhaustive]
@@ -52,6 +49,7 @@ enum JSCommandEvent {
   Terminated(TerminatedPayload),
 }
 
+#[cfg(any(shell_execute, shell_sidecar))]
 fn get_event_buffer(line: Vec<u8>, encoding: EncodingWrapper) -> Result<Buffer, FromUtf8Error> {
   match encoding {
     EncodingWrapper::Text(character_encoding) => match character_encoding {
@@ -64,6 +62,7 @@ fn get_event_buffer(line: Vec<u8>, encoding: EncodingWrapper) -> Result<Buffer, 
   }
 }
 
+#[cfg(any(shell_execute, shell_sidecar))]
 impl JSCommandEvent {
   pub fn new(event: CommandEvent, encoding: EncodingWrapper) -> Self {
     match event {
@@ -87,6 +86,7 @@ pub enum Buffer {
   Raw(Vec<u8>),
 }
 
+#[cfg(any(shell_execute, shell_sidecar))]
 #[derive(Debug, Copy, Clone)]
 pub enum EncodingWrapper {
   Raw,

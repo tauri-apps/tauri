@@ -1673,7 +1673,7 @@ class WindowManager extends WebviewWindowHandle {
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
     return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, (e) => {
-      e.payload = mapPhsyicalSize(e.payload)
+      e.payload = mapPhysicalSize(e.payload)
       handler(e)
     })
   }
@@ -1699,7 +1699,7 @@ class WindowManager extends WebviewWindowHandle {
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
     return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, (e) => {
-      e.payload = mapPhsyicalPosition(e.payload)
+      e.payload = mapPhysicalPosition(e.payload)
       handler(e)
     })
   }
@@ -2162,14 +2162,16 @@ function mapMonitor(m: Monitor | null): Monitor | null {
     : {
         name: m.name,
         scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position.x, m.position.y),
-        size: new PhysicalSize(m.size.width, m.size.height)
+        position: mapPhysicalPosition(m.position),
+        size: mapPhysicalSize(m.size)
       }
 }
-function mapPhsyicalPosition(m: PhysicalPosition): PhysicalPosition {
+
+function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
   return new PhysicalPosition(m.x, m.y)
 }
-function mapPhsyicalSize(m: PhysicalSize): PhysicalSize {
+
+function mapPhysicalSize(m: PhysicalSize): PhysicalSize {
   return new PhysicalSize(m.width, m.height)
 }
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.13.0-alpha.3]
+
+- Pull changes from Tauri 1.3 release.
+  - [](https://www.github.com/tauri-apps/tauri/commit/undefined)  on undefined
+
 ## \[0.13.0-alpha.2]
 
 - Add `find_class`, `run_on_android_context` on `RuntimeHandle`.

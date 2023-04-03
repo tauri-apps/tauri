@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.3]
+
+- Pull changes from Tauri 1.3 release.
+  - [](https://www.github.com/tauri-apps/tauri/commit/undefined)  on undefined
+
 ## \[2.0.0-alpha.2]
 
 - Added the `shadow` option to the window configuration and `set_shadow` option to the `window` allow list.

@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.6]
+
+- Fix compilation issues without the shell API features.
+  - [a8137927](https://www.github.com/tauri-apps/tauri/commit/a813792786b55c51173e557834f515d4b2f7ce00) fix(core): compilation issues without execute or sidecar features ([#6621](https://www.github.com/tauri-apps/tauri/pull/6621)) on 2023-04-03
+
 ## \[2.0.0-alpha.5]
 
 - Fixes ProGuard rules.

@@ -29,6 +29,7 @@
     ".changes/fix-mobile-env-vars.md",
     ".changes/fix-orientation-crash.md",
     ".changes/fix-proguard-rules.md",
+    ".changes/fix-shell-build.md",
     ".changes/fix-tauri-binary-windows.md",
     ".changes/force-colored-logs.md",
     ".changes/gtk16.md",

@@ -1722,6 +1722,7 @@ class WindowManager extends WebviewWindowHandle {
    *
    * @since 1.0.2
    */
+  /* eslint-disable @typescript-eslint/promise-function-async */
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
@@ -1734,6 +1735,7 @@ class WindowManager extends WebviewWindowHandle {
       })
     })
   }
+  /* eslint-enable */
 
   /**
    * Listen to window focus change.

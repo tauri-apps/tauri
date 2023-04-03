@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.3]
+
+- Read the `IPHONEOS_DEPLOYMENT_TARGET` environment variable to set the Swift iOS target version, defaults to 13.
+  - [4c3b9ecf](https://www.github.com/tauri-apps/tauri/commit/4c3b9ecfdcd1a4489b1e466727f11045ef34d67a) fix(build): iOS deployment target env var is IPHONEOS_DEPLOYMENT_TARGET ([#6602](https://www.github.com/tauri-apps/tauri/pull/6602)) on 2023-03-31
+
 ## \[2.0.0-alpha.2]
 
 - Add `mobile::PluginBuilder` for running build tasks related to Tauri plugins.

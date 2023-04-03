@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-alpha.2]
+
+- Added `raw` encoding option to read stdout and stderr raw bytes.
+  - [f992e7f5](https://www.github.com/tauri-apps/tauri/commit/f992e7f58bf975c654a3daf36780b31a32bac064) chore(changes): readd change file on 2023-04-03
+- Removed shell's `Command` constructor and added the `Command.create` static function instead.
+  - [509d4678](https://www.github.com/tauri-apps/tauri/commit/509d4678b12816c1dd08a9a5efa71ba556d91c27) Support sending raw byte data to the "data" event for child command's stdout and stderr ([#5789](https://www.github.com/tauri-apps/tauri/pull/5789)) on 2023-03-31
+
 ## \[2.0.0-alpha.1]
 
 - Added the `shadow` option when creating a window and `setShadow` function.

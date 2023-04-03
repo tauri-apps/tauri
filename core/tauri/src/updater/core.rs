@@ -384,18 +384,16 @@ impl<R: Runtime> UpdateBuilder<R> {
       // If we got a success, we stop the loop
       // and we set our remote_release variable
       if let Ok(res) = resp {
-        let res = res.read().await?;
+        let status = res.status();
         // got status code 2XX
-        if StatusCode::from_u16(res.status)
-          .map_err(|e| Error::Builder(e.to_string()))?
-          .is_success()
-        {
+        if status.is_success() {
           // if we got 204
-          if StatusCode::NO_CONTENT.as_u16() == res.status {
+          if status == StatusCode::NO_CONTENT {
             // return with `UpToDate` error
             // we should catch on the client
             return Err(Error::UpToDate);
           };
+          let res = res.read().await?;
           // Convert the remote result to our local struct
           let built_release = serde_json::from_value(res.data).map_err(Into::into);
           // make sure all went well and the remote data is compatible

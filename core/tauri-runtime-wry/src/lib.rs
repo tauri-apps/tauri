@@ -2602,21 +2602,7 @@ fn handle_user_message<T: UserEvent>(
           let _ = webview.print();
         }
       }
-      WebviewMessage::WebviewEvent(event) => {
-        let window_event_listeners = windows
-          .borrow()
-          .get(&id)
-          .map(|w| w.window_event_listeners.clone());
-        if let Some(window_event_listeners) = window_event_listeners {
-          if let Some(event) = WindowEventWrapper::from(&event).0 {
-            let listeners = window_event_listeners.lock().unwrap();
-            let handlers = listeners.values();
-            for handler in handlers {
-              handler(&event);
-            }
-          }
-        }
-      }
+      WebviewMessage::WebviewEvent(_event) => { /* already handled */ }
     },
     Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
@@ -2908,6 +2894,24 @@ fn handle_event_loop<T: UserEvent>(
       let global_listeners_iter = global_listeners.iter();
       for global_listener in global_listeners_iter {
         global_listener(id.0, &event);
+      }
+    }
+    Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {
+      if let Some(event) = WindowEventWrapper::from(&event).0 {
+        let windows = windows.borrow();
+        let window = windows.get(&id);
+        if let Some(window) = window {
+          callback(RunEvent::WindowEvent {
+            label: window.label.clone(),
+            event: event.clone(),
+          });
+
+          let listeners = window.window_event_listeners.lock().unwrap();
+          let handlers = listeners.values();
+          for handler in handlers {
+            handler(&event);
+          }
+        }
       }
     }
     Event::WindowEvent {

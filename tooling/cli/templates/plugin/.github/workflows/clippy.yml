@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: install webkit2gtk
         run: |
           sudo apt-get update

@@ -31,17 +31,10 @@ struct State {
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> SocketAddr {
+pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> crate::Result<SocketAddr> {
   let serve_dir = path.as_ref().to_path_buf();
-  let server_url = SocketAddr::new(
-    Ipv4Addr::new(127, 0, 0, 1).into(),
-    port.unwrap_or_else(|| {
-      std::env::var("TAURI_DEV_SERVER_PORT")
-        .unwrap_or_else(|_| "1430".to_string())
-        .parse()
-        .unwrap()
-    }),
-  );
+
+  let (server_url_tx, server_url_rx) = std::sync::mpsc::channel();
 
   std::thread::spawn(move || {
     tokio::runtime::Builder::new_current_thread()
@@ -74,6 +67,32 @@ pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> SocketAdd
           }
         });
 
+        let mut auto_port = false;
+        let mut port = port.unwrap_or_else(|| {
+          std::env::var("TAURI_DEV_SERVER_PORT")
+            .unwrap_or_else(|_| {
+              auto_port = true;
+              "1430".to_string()
+            })
+            .parse()
+            .unwrap()
+        });
+
+        let (server, server_url) = loop {
+          let server_url = SocketAddr::new(Ipv4Addr::new(127, 0, 0, 1).into(), port);
+          let server = Server::try_bind(&server_url);
+
+          if !auto_port {
+            break (server, server_url);
+          }
+
+          if server.is_ok() {
+            break (server, server_url);
+          }
+
+          port += 1;
+        };
+
         let state = Arc::new(State {
           serve_dir,
           tx,
@@ -96,14 +115,24 @@ pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> SocketAdd
               ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
             }),
           );
-        Server::bind(&server_url)
-          .serve(router.into_make_service())
-          .await
-          .unwrap();
+
+        match server {
+          Ok(server) => {
+            server_url_tx.send(Ok(server_url)).unwrap();
+            server.serve(router.into_make_service()).await.unwrap();
+          }
+          Err(e) => {
+            server_url_tx
+              .send(Err(anyhow::anyhow!(
+                "failed to start development server on {server_url}: {e}"
+              )))
+              .unwrap();
+          }
+        }
       })
   });
 
-  server_url
+  server_url_rx.recv().unwrap()
 }
 
 async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {

@@ -678,7 +678,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 #[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
-  window: DetachedWindow<EventLoopMessage, R>,
+  pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
@@ -1388,6 +1388,11 @@ impl<R: Runtime> Window<R> {
     self.window.current_url.lock().unwrap().clone()
   }
 
+  #[cfg(test)]
+  pub(crate) fn navigate(&self, url: Url) {
+    *self.window.current_url.lock().unwrap() = url;
+  }
+
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
@@ -1395,10 +1400,8 @@ impl<R: Runtime> Window<R> {
     let config_url = manager.get_url();
     let is_local = config_url.make_relative(&current_url).is_some();
 
-    let mut scope_not_found_error_message = format!(
-      "Scope not defined for window `{}` and URL `{current_url}`",
-      self.window.label
-    );
+    let mut scope_not_found_error_message =
+      ipc_scope_not_found_error_message(&self.window.label, current_url.as_str());
     let scope = if is_local {
       None
     } else {
@@ -1409,10 +1412,9 @@ impl<R: Runtime> Window<R> {
         Ok(scope) => Some(scope),
         Err(e) => {
           if e.matches_window {
-            scope_not_found_error_message = format!("Scope not defined for URL `{current_url}`");
+            scope_not_found_error_message = ipc_scope_domain_error_message(current_url.as_str());
           } else if e.matches_domain {
-            scope_not_found_error_message =
-              format!("Scope not defined for window `{}`", self.window.label);
+            scope_not_found_error_message = ipc_scope_window_error_message(&self.window.label);
           }
           None
         }
@@ -1440,7 +1442,7 @@ impl<R: Runtime> Window<R> {
 
         if let Some(module) = &payload.tauri_module {
           if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
-            invoke.resolver.reject("Not allowed by the scope");
+            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
             return Ok(());
           }
           crate::endpoints::handle(
@@ -1457,7 +1459,7 @@ impl<R: Runtime> Window<R> {
               .map(|s| s.plugins().contains(&plugin_name))
               .unwrap_or(true)
             {
-              invoke.resolver.reject("Plugin not allowed");
+              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
               return Ok(());
             }
           }
@@ -1690,6 +1692,20 @@ impl<R: Runtime> Window<R> {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
   }
+}
+
+pub(crate) const IPC_SCOPE_DOES_NOT_ALLOW: &str = "Not allowed by the scope";
+
+pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> String {
+  format!("Scope not defined for window `{label}` and URL `{url}`",)
+}
+
+pub(crate) fn ipc_scope_window_error_message(label: &str) -> String {
+  format!("Scope not defined for window `{}`", label)
+}
+
+pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
+  format!("Scope not defined for URL `{url}`")
 }
 
 #[cfg(test)]

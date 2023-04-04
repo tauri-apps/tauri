@@ -83,7 +83,7 @@ pub fn start_dev_server<P: AsRef<Path>>(
         });
 
         let (server, server_url) = loop {
-          let server_url = SocketAddr::new(ip.into(), port);
+          let server_url = SocketAddr::new(ip, port);
           let server = Server::try_bind(&server_url);
 
           if !auto_port {

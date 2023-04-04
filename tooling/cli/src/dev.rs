@@ -314,7 +314,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
       if path.exists() {
         let path = path.canonicalize()?;
         let ip = if mobile {
-          local_ip_address(options.force_ip_prompt).clone()
+          *local_ip_address(options.force_ip_prompt)
         } else {
           Ipv4Addr::new(127, 0, 0, 1).into()
         };

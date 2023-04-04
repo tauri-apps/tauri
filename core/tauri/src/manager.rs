@@ -373,6 +373,9 @@ impl<R: Runtime> WindowManager<R> {
   pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
+      #[cfg(windows)]
+      _ => Cow::Owned(Url::parse("https://tauri.localhost").unwrap()),
+      #[cfg(not(windows))]
       _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
     }
   }
@@ -1065,7 +1068,16 @@ mod test {
     );
 
     #[cfg(custom_protocol)]
-    assert_eq!(manager.get_url().to_string(), "tauri://localhost");
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) {
+          "https://tauri.localhost"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
 
     #[cfg(dev)]
     assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");

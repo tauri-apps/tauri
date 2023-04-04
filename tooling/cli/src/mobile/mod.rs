@@ -316,7 +316,9 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       target.command_name(),
     )
   } else {
-    create_dir_all(project_dir.join(".tauri").join("plugins"))?;
+    if let Target::Android = target {
+      create_dir_all(project_dir.join(".tauri").join("plugins"))?;
+    }
     Ok(())
   }
 }

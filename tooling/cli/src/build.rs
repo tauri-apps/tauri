@@ -240,20 +240,15 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 }
 
 pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
-  let (merge_config, merge_config_path) = if let Some(config) = &options.config {
-    if config.starts_with('{') {
-      (Some(config.to_string()), None)
-    } else {
-      (
-        Some(
-          std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?,
-        ),
-        Some(config.clone()),
-      )
-    }
-  } else {
-    (None, None)
+  let (merge_config, merge_config_path) = match &options.config {
+    Some(config) if config.starts_with('{') => (Some(config.to_string()), None),
+    Some(config) => (
+      Some(std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?),
+      Some(config.clone()),
+    ),
+    None => (None, None),
   };
+
   options.config = merge_config;
 
   let tauri_path = tauri_dir();

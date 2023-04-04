@@ -21,6 +21,11 @@ open class RustPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         config = project.extensions.create("rust", Config::class.java)
         project.afterEvaluate {
+            val abiList = (findProperty("abiList") as? String)?.split(",")?.map { it.trim() }  ?: listOf(
+                {{~#each targets}}
+                "{{this.abi}}",{{/each}}
+            )
+
             if (config.targets == null) {
                 throw GradleException("targets cannot be null")
             }
@@ -50,7 +55,9 @@ open class RustPlugin : Plugin<Project> {
                         target = targetName
                         release = profile == "release"
                     }
-                    buildTask.dependsOn(targetBuildTask)
+                    if (abiList.contains(targetName)) {
+                        buildTask.dependsOn(targetBuildTask)
+                    }
                     project.tasks.findByName("preBuild")?.mustRunAfter(targetBuildTask)
                 }
             }

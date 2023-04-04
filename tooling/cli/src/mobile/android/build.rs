@@ -181,7 +181,7 @@ fn run_build(
       env,
       noise_level,
       profile,
-      get_targets_or_all(Vec::new())?,
+      get_targets_or_all(options.targets.clone().unwrap_or_default())?,
       options.split_per_abi,
     )?
   } else {
@@ -194,7 +194,7 @@ fn run_build(
       env,
       noise_level,
       profile,
-      get_targets_or_all(Vec::new())?,
+      get_targets_or_all(options.targets.unwrap_or_default())?,
       options.split_per_abi,
     )?
   } else {

@@ -181,7 +181,7 @@ fn run_build(
       env,
       noise_level,
       profile,
-      get_targets_or_all(options.targets.clone().unwrap_or_default())?,
+      get_targets(options.targets.clone().unwrap_or_default())?,
       options.split_per_abi,
     )?
   } else {
@@ -194,7 +194,7 @@ fn run_build(
       env,
       noise_level,
       profile,
-      get_targets_or_all(options.targets.unwrap_or_default())?,
+      get_targets(options.targets.unwrap_or_default())?,
       options.split_per_abi,
     )?
   } else {
@@ -207,28 +207,24 @@ fn run_build(
   Ok(())
 }
 
-fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {
-  if targets.is_empty() {
-    Ok(Target::all().iter().map(|t| t.1).collect())
-  } else {
-    let mut outs = Vec::new();
+fn get_targets<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {
+  let mut outs = Vec::new();
 
-    let possible_targets = Target::all()
-      .keys()
-      .map(|key| key.to_string())
-      .collect::<Vec<String>>()
-      .join(",");
+  let possible_targets = Target::all()
+    .keys()
+    .map(|key| key.to_string())
+    .collect::<Vec<String>>()
+    .join(",");
 
-    for t in targets {
-      let target = Target::for_name(&t).ok_or_else(|| {
-        anyhow::anyhow!(
-          "Target {} is invalid; the possible targets are {}",
-          t,
-          possible_targets
-        )
-      })?;
-      outs.push(target);
-    }
-    Ok(outs)
+  for t in targets {
+    let target = Target::for_name(&t).ok_or_else(|| {
+      anyhow::anyhow!(
+        "Target {} is invalid; the possible targets are {}",
+        t,
+        possible_targets
+      )
+    })?;
+    outs.push(target);
   }
+  Ok(outs)
 }

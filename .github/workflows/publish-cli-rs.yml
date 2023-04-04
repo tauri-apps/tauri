@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             rust_target: x86_64-unknown-linux-gnu
             ext: ''
           - os: macos-latest
@@ -39,7 +39,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
-          
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.config.rust_target }}

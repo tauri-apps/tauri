@@ -2,6 +2,7 @@
 
 ## \[2.0.0-alpha.6]
 
+- Use Ubuntu 20.04 to compile the CLI for cargo-binstall, increasing the minimum libc required.
 - Automatically enable the `rustls-tls` tauri feature on mobile and `native-tls` on desktop if `rustls-tls` is not enabled.
   - [cfdee00f](https://www.github.com/tauri-apps/tauri/commit/cfdee00f2b1455a9719bc44823fdaeabbe4c1cb2) refactor(core): fix tls features, use rustls on mobile ([#6591](https://www.github.com/tauri-apps/tauri/pull/6591)) on 2023-03-30
 

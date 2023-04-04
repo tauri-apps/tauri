@@ -14,7 +14,7 @@ use kuchiki::{traits::TendrilSink, NodeRef};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::{
-  net::{Ipv4Addr, SocketAddr},
+  net::{IpAddr, SocketAddr},
   path::{Path, PathBuf},
   sync::{mpsc::sync_channel, Arc},
   thread,
@@ -31,7 +31,11 @@ struct State {
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> crate::Result<SocketAddr> {
+pub fn start_dev_server<P: AsRef<Path>>(
+  path: P,
+  ip: IpAddr,
+  port: Option<u16>,
+) -> crate::Result<SocketAddr> {
   let serve_dir = path.as_ref().to_path_buf();
 
   let (server_url_tx, server_url_rx) = std::sync::mpsc::channel();
@@ -79,7 +83,7 @@ pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> crate::Re
         });
 
         let (server, server_url) = loop {
-          let server_url = SocketAddr::new(Ipv4Addr::new(127, 0, 0, 1).into(), port);
+          let server_url = SocketAddr::new(ip.into(), port);
           let server = Server::try_bind(&server_url);
 
           if !auto_port {

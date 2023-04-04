@@ -355,7 +355,7 @@ jobs:
             set -e
             export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
             apt-get update
-            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip webkit2gtk-4.1 libayatana-appindicator3-dev
+            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip libayatana-appindicator3-dev
             bash
             curl https://sh.rustup.rs -sSf | bash -s -- -y
             curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell

@@ -4,7 +4,7 @@
 
 use std::{
   env::{var, var_os},
-  fs::{copy, create_dir, create_dir_all, remove_dir_all, rename},
+  fs::{copy, create_dir_all},
   path::{Path, PathBuf},
 };
 
@@ -121,22 +121,7 @@ pub fn inject_android_project(
   let source = source.as_ref();
   let target = target.as_ref();
 
-  // keep build folder if it exists
-  let build_path = target.join("build");
-  let out_dir = if build_path.exists() {
-    let out_dir = target.parent().unwrap().join(".tauri-tmp-build");
-    let _ = remove_dir_all(&out_dir);
-    rename(&build_path, &out_dir).context("failed to rename build directory")?;
-    Some(out_dir)
-  } else {
-    None
-  };
-
   copy_folder(source, target, ignore_paths).context("failed to copy Android project")?;
-
-  if let Some(out_dir) = out_dir {
-    rename(out_dir, &build_path).context("failed to restore build directory")?;
-  }
 
   let rerun_path = target.join("build.gradle.kts");
   let metadata = source.join("build.gradle.kts").metadata()?;
@@ -152,8 +137,6 @@ pub fn inject_android_project(
 }
 
 fn copy_folder(source: &Path, target: &Path, ignore_paths: &[&str]) -> Result<()> {
-  let _ = remove_dir_all(target);
-
   for entry in walkdir::WalkDir::new(source) {
     let entry = entry?;
     let rel_path = entry.path().strip_prefix(source)?;
@@ -167,7 +150,7 @@ fn copy_folder(source: &Path, target: &Path, ignore_paths: &[&str]) -> Result<()
     let dest_path = target.join(rel_path);
 
     if entry.file_type().is_dir() {
-      create_dir(&dest_path)
+      create_dir_all(&dest_path)
         .with_context(|| format!("failed to create directory {}", dest_path.display()))?;
     } else {
       copy(entry.path(), &dest_path).with_context(|| {

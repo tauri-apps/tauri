@@ -1072,7 +1072,7 @@ mod test {
       assert_eq!(
         manager.get_url().to_string(),
         if cfg!(windows) {
-          "https://tauri.localhost"
+          "https://tauri.localhost/"
         } else {
           "tauri://localhost"
         }

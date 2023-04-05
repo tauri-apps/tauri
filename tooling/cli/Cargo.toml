@@ -42,7 +42,7 @@ path = "src/main.rs"
 openssl-vendored = [ "tauri-mobile/openssl-vendored" ]
 
 [dependencies]
-tauri-mobile = { version = "0.2.5", default-features = false }
+tauri-mobile = { version = "0.3", default-features = false }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.16", features = [ "server" ] }
 jsonrpsee-core = "0.16"

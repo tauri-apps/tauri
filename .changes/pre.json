@@ -78,6 +78,8 @@
     ".changes/tauri-mobile-entry-point.md",
     ".changes/tls-features-automatically-enabled.md",
     ".changes/tls-features-refactor.md",
+    ".changes/ubuntu-20.04-cli.js.md",
+    ".changes/ubuntu-20.04-cli.rs.md",
     ".changes/with-webview.md",
     ".changes/wry26.md"
   ]

@@ -96,7 +96,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     "--volname",
     product_name,
     "--icon",
-    product_name,
+    &bundle_file_name,
     "180",
     "170",
     "--app-drop-link",

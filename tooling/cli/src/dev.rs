@@ -64,6 +64,10 @@ pub struct Options {
   /// Disable the dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
+  /// Specify port for the dev server for static files. Defaults to 1430
+  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
+  #[clap(long)]
+  pub port: Option<u16>,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -223,11 +227,12 @@ fn command_internal(mut options: Options) -> Result<()> {
     .clone();
   if !options.no_dev_server {
     if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
-      use crate::helpers::web_dev_server::{start_dev_server, SERVER_URL};
+      use crate::helpers::web_dev_server::start_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
-        start_dev_server(path);
-        dev_path = AppUrl::Url(WindowUrl::External(SERVER_URL.parse().unwrap()));
+        let server_url = start_dev_server(path, options.port)?;
+        let server_url = format!("http://{server_url}");
+        dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 
         // TODO: in v2, use an env var to pass the url to the app context
         // or better separate the config passed from the cli internally and
@@ -238,7 +243,7 @@ fn command_internal(mut options: Options) -> Result<()> {
           c.build.dev_path = dev_path.clone();
           options.config = Some(serde_json::to_string(&c).unwrap());
         } else {
-          options.config = Some(format!(r#"{{ "build": {{ "devPath": "{SERVER_URL}" }} }}"#))
+          options.config = Some(format!(r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#))
         }
       }
     }

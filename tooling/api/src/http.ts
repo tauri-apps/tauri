@@ -57,11 +57,11 @@ interface Duration {
  * @since 1.0.0
  */
 interface ClientOptions {
-  maxRedirections?: number
   /**
    * Defines the maximum number of redirects the client should follow.
    * If set to 0, no redirects will be followed.
    */
+  maxRedirections?: number
   connectTimeout?: number | Duration
 }
 
@@ -123,11 +123,7 @@ class Body {
    * // alternatively, use a FormData:
    * const form = new FormData();
    * form.append('key', 'value');
-   * form.append('image', {
-   *   file: '/path/to/file',
-   *   mime: 'image/jpeg',
-   *   fileName: 'image.jpg'
-   * });
+   * form.append('image', file, 'image.png');
    * const formBody = Body.form(form);
    * ```
    *

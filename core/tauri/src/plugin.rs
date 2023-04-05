@@ -70,11 +70,20 @@ type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
 /// A handle to a plugin.
-#[derive(Clone)]
+#[derive(Debug)]
 #[allow(dead_code)]
 pub struct PluginHandle<R: Runtime> {
   name: &'static str,
   handle: AppHandle<R>,
+}
+
+impl<R: Runtime> Clone for PluginHandle<R> {
+  fn clone(&self) -> Self {
+    Self {
+      name: self.name,
+      handle: self.handle.clone(),
+    }
+  }
 }
 
 impl<R: Runtime> PluginHandle<R> {

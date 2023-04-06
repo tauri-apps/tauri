@@ -1504,12 +1504,12 @@ impl<R: Runtime> Window<R> {
               self.with_webview(move |webview| {
                 unsafe {
                   crate::ios::post_ipc_message(
-                    webview.inner(),
+                    webview.inner() as _,
                     &plugin.as_str().into(),
                     &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
                       .as_str()
                       .into(),
-                    crate::ios::json_to_dictionary(message.payload),
+                    crate::ios::json_to_dictionary(message.payload) as _,
                     callback.0,
                     error.0,
                   )

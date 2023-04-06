@@ -16,7 +16,7 @@ import app.tauri.PermissionHelper
 import app.tauri.PermissionState
 import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.PermissionCallback
-import app.tauri.annotation.PluginMethod
+import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
 import org.json.JSONException
 import java.util.*
@@ -72,7 +72,7 @@ abstract class Plugin(private val activity: Activity) {
    * declared on the plugin. This plugin call responds with a mapping of permissions to
    * the associated granted status.
    */
-  @PluginMethod
+  @Command
   @PermissionCallback
   fun checkPermissions(invoke: Invoke) {
     val permissionsResult: Map<String, PermissionState?> = getPermissionStates()
@@ -97,7 +97,7 @@ abstract class Plugin(private val activity: Activity) {
    *
    * @param invoke
    */
-  @PluginMethod
+  @Command
   open fun requestPermissions(invoke: Invoke) {
     val annotation = handle?.annotation
     if (annotation != null) {

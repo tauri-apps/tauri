@@ -5,32 +5,40 @@
 use cocoa::base::{id, nil, NO, YES};
 use objc::*;
 use serde_json::Value as JsonValue;
-use swift_rs::SRString;
+use swift_rs::{swift, SRString, SwiftArg};
 
-use std::os::raw::{c_char, c_int};
+use std::{
+  ffi::c_void,
+  os::raw::{c_char, c_int},
+};
 
-type PluginMessageCallback = unsafe extern "C" fn(c_int, c_int, *const c_char);
+type PluginMessageCallbackFn = unsafe extern "C" fn(c_int, c_int, *const c_char);
+pub struct PluginMessageCallback(pub PluginMessageCallbackFn);
 
-extern "C" {
-  pub fn post_ipc_message(
-    webview: id,
-    name: &SRString,
-    method: &SRString,
-    data: id,
-    callback: usize,
-    error: usize,
-  );
+impl<'a> SwiftArg<'a> for PluginMessageCallback {
+  type ArgType = PluginMessageCallbackFn;
 
-  pub fn run_plugin_method(
-    id: i32,
-    name: &SRString,
-    method: &SRString,
-    data: id,
-    callback: PluginMessageCallback,
-  );
-
-  pub fn on_webview_created(webview: id, controller: id);
+  unsafe fn as_arg(&'a self) -> Self::ArgType {
+    self.0
+  }
 }
+
+swift!(pub fn post_ipc_message(
+  webview: *const c_void,
+  name: &SRString,
+  method: &SRString,
+  data: *const c_void,
+  callback: usize,
+  error: usize
+));
+swift!(pub fn run_plugin_method(
+  id: i32,
+  name: &SRString,
+  method: &SRString,
+  data: *const c_void,
+  callback: PluginMessageCallback
+));
+swift!(pub fn on_webview_created(webview: *const c_void, controller: *const c_void));
 
 pub fn json_to_dictionary(json: JsonValue) -> id {
   if let serde_json::Value::Object(map) = json {

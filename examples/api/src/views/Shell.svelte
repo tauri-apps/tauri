@@ -26,10 +26,10 @@
 
   function spawn() {
     child = null
-    const command = new Command(cmd, [...args, script], {
+    const command = Command.create(cmd, [...args, script], {
       cwd: cwd || null,
       env: _getEnv(),
-      encoding,
+      encoding: encoding || undefined,
     })
 
     command.on('close', (data) => {

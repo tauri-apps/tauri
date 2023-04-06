@@ -15,9 +15,7 @@ enum class PermissionState(private val state: String) {
 
   companion object {
     fun byState(state: String): PermissionState {
-      var state = state
-      state = state.uppercase(Locale.ROOT).replace('-', '_')
-      return valueOf(state)
+      return valueOf(state.uppercase(Locale.ROOT).replace('-', '_'))
     }
   }
 }

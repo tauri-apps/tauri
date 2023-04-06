@@ -141,7 +141,7 @@ fn bundle_paths(root_dir: &Path, version: &str) -> Vec<(BundleTarget, PathBuf)> 
 fn bundle_paths(root_dir: &Path, _version: &str) -> Vec<(BundleTarget, PathBuf)> {
   vec![(
     BundleTarget::App,
-    root_dir.join(format!("target/debug/bundle/macos/app-updater.app")),
+    root_dir.join("target/debug/bundle/macos/app-updater.app"),
   )]
 }
 
@@ -149,13 +149,13 @@ fn bundle_paths(root_dir: &Path, _version: &str) -> Vec<(BundleTarget, PathBuf)>
 fn bundle_paths(root_dir: &Path, _version: &str) -> Vec<(BundleTarget, PathBuf)> {
   vec![(
     BundleTarget::App,
-    root_dir.join(format!("target/debug/bundle/ios/app-updater.ipa")),
+    root_dir.join("target/debug/bundle/ios/app-updater.ipa"),
   )]
 }
 
 #[cfg(target_os = "android")]
 fn bundle_path(root_dir: &Path, _version: &str) -> PathBuf {
-  root_dir.join(format!("target/debug/bundle/android/app-updater.apk"))
+  root_dir.join("target/debug/bundle/android/app-updater.apk")
 }
 
 #[cfg(windows)]

@@ -22,11 +22,9 @@
 //! - **shell-open-api**: Enables the [`api::shell`] module.
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
-//! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
-//! - **default-tls**: Provides TLS support to connect over HTTPS (applies to the default HTTP client).
-//! - **reqwest-default-tls**: Provides TLS support to connect over HTTPS (applies to the `reqwest` HTTP client).
-//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
-//! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
+//! - **native-tls**: Provides TLS support to connect over HTTPS.
+//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
+//! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **global-shortcut**: Enables the global shortcut APIs.
 //! - **clipboard**: Enables the clipboard APIs.
@@ -163,7 +161,15 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
+/// Setups the binding that initializes an iOS plugin.
+#[cfg(target_os = "ios")]
+#[macro_export]
+macro_rules! ios_plugin_binding {
+  ($fn_name: ident) => {
+    tauri::swift_rs::swift!(fn $fn_name(name: &::tauri::swift_rs::SRString, webview: *const ::std::ffi::c_void));
+  }
+}
+#[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use cocoa;
 #[cfg(target_os = "macos")]
@@ -174,6 +180,9 @@ pub use error::Error;
 #[cfg(shell_scope)]
 #[doc(hidden)]
 pub use regex;
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub use swift_rs;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
@@ -268,7 +277,7 @@ pub use self::utils::TitleBarStyle;
 #[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle},
+  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
   self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {

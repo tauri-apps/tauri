@@ -12,10 +12,10 @@ use crate::{
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
 use anyhow::{bail, Result};
-use jsonrpsee::client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
-use jsonrpsee::rpc_params;
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
+use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
+use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 use shared_child::SharedChild;
 
@@ -133,7 +133,10 @@ pub struct CliOptions {
   pub vars: HashMap<String, OsString>,
 }
 
-fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> {
+fn setup_dev_config(
+  config_extension: &mut Option<String>,
+  force_ip_prompt: bool,
+) -> crate::Result<()> {
   let config = get_config(config_extension.as_deref())?;
 
   let mut dev_path = config
@@ -154,7 +157,7 @@ fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> 
       _ => false,
     };
     if localhost {
-      let ip = crate::dev::local_ip_address();
+      let ip = crate::dev::local_ip_address(force_ip_prompt);
       url.set_host(Some(&ip.to_string())).unwrap();
       if let Some(c) = config_extension {
         let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
@@ -276,11 +279,14 @@ fn get_app(config: &TauriConfig) -> App {
   .expect("failed to load interface");
 
   let app_name = interface.app_settings().app_name().unwrap_or(app_name);
-  let lib_name = interface.app_settings().lib_name();
+  let lib_name = interface
+    .app_settings()
+    .lib_name()
+    .unwrap_or(app_name.clone());
 
   let raw = RawAppConfig {
     name: app_name,
-    lib_name,
+    lib_name: Some(lib_name),
     stylized_name: config.package.product_name.clone(),
     domain,
     asset_dir: None,
@@ -310,7 +316,9 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       target.command_name(),
     )
   } else {
-    create_dir_all(project_dir.join("tauri-plugins"))?;
+    if let Target::Android = target {
+      create_dir_all(project_dir.join(".tauri").join("plugins"))?;
+    }
     Ok(())
   }
 }

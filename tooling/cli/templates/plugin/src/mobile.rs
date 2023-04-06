@@ -13,9 +13,7 @@ use crate::models::*;
 const PLUGIN_IDENTIFIER: &str = "{{ android_package_id }}";
 
 #[cfg(target_os = "ios")]
-extern "C" {
-  fn init_plugin_{{ plugin_name }}(webview: tauri::cocoa::base::id);
-}
+tauri::ios_plugin_binding!(init_plugin_{{ plugin_name }});
 
 // initializes the Kotlin or Swift plugin classes
 pub fn init<R: Runtime, C: DeserializeOwned>(

@@ -61,6 +61,13 @@ pub struct Options {
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
+  /// Specify port for the dev server for static files. Defaults to 1430
+  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
+  #[clap(long)]
+  pub port: Option<u16>,
+  /// Force prompting for an IP to use to connect to the dev server on mobile.
+  #[clap(long)]
+  pub force_ip_prompt: bool,
 }
 
 impl From<Options> for DevOptions {
@@ -75,6 +82,8 @@ impl From<Options> for DevOptions {
       args: Vec::new(),
       no_watch: options.no_watch,
       no_dev_server: options.no_dev_server,
+      port: options.port,
+      force_ip_prompt: options.force_ip_prompt,
     }
   }
 }
@@ -103,7 +112,7 @@ fn run_dev(
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  setup_dev_config(&mut options.config)?;
+  setup_dev_config(&mut options.config, options.force_ip_prompt)?;
   let mut env = env()?;
   let device = if options.open {
     None
@@ -142,7 +151,7 @@ fn run_dev(
   let target = Target::all()
     .values()
     .find(|t| t.triple == target_triple)
-    .unwrap_or(Target::all().values().next().unwrap());
+    .unwrap_or_else(|| Target::all().values().next().unwrap());
   target.build(config, metadata, &env, noise_level, true, Profile::Debug)?;
 
   let open = options.open;

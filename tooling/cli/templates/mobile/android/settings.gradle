@@ -3,6 +3,6 @@ include ':app'
 include ':{{this}}'{{/each}}
 
 include ':tauri-android'
-project(':tauri-android').projectDir = new File('./tauri-api')
+project(':tauri-android').projectDir = new File('./.tauri/tauri-api')
 
 apply from: 'tauri.settings.gradle'

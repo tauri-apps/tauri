@@ -115,19 +115,20 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   #[cfg(target_os = "ios")]
   pub fn register_ios_plugin(
     &self,
-    init_fn: unsafe extern "C" fn(cocoa::base::id),
+    init_fn: unsafe fn(&swift_rs::SRString, *const std::ffi::c_void),
   ) -> Result<PluginHandle<R>, PluginInvokeError> {
     if let Some(window) = self.handle.manager.windows().values().next() {
       let (tx, rx) = channel();
+      let name = self.name;
       window
         .with_webview(move |w| {
-          unsafe { init_fn(w.inner()) };
+          unsafe { init_fn(&name.into(), w.inner() as _) };
           tx.send(()).unwrap();
         })
         .map_err(|_| PluginInvokeError::UnreachableWebview)?;
       rx.recv().unwrap();
     } else {
-      unsafe { init_fn(cocoa::base::nil) };
+      unsafe { init_fn(&self.name.into(), std::ptr::null()) };
     }
     Ok(PluginHandle {
       name: self.name,
@@ -284,8 +285,8 @@ impl<R: Runtime> PluginHandle<R> {
         id,
         &self.name.into(),
         &method.as_ref().into(),
-        crate::ios::json_to_dictionary(serde_json::to_value(payload).unwrap()),
-        plugin_method_response_handler,
+        crate::ios::json_to_dictionary(serde_json::to_value(payload).unwrap()) as _,
+        crate::ios::PluginMessageCallback(plugin_method_response_handler),
       );
     }
     rx.recv()
@@ -324,7 +325,7 @@ impl<R: Runtime> PluginHandle<R> {
 
       env.call_method(
         plugin_manager,
-        "runPluginMethod",
+        "runCommand",
         "(ILjava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;)V",
         &[
           id.into(),

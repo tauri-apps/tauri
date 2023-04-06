@@ -523,11 +523,13 @@ impl App<crate::Wry> {
   /// # Stability
   ///
   /// This API is unstable.
-  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + 'static>(
+  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + Send + 'static>(
     &mut self,
     plugin: P,
-  ) {
-    self.runtime.as_mut().unwrap().plugin(plugin);
+  ) where
+    <P as tauri_runtime_wry::PluginBuilder<EventLoopMessage>>::Plugin: Send,
+  {
+    self.handle.runtime_handle.plugin(plugin);
   }
 }
 

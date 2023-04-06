@@ -14,7 +14,7 @@ use kuchiki::{traits::TendrilSink, NodeRef};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::{
-  net::SocketAddr,
+  net::{IpAddr, SocketAddr},
   path::{Path, PathBuf},
   sync::{mpsc::sync_channel, Arc},
   thread,
@@ -31,8 +31,14 @@ struct State {
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, path: P) {
+pub fn start_dev_server<P: AsRef<Path>>(
+  path: P,
+  ip: IpAddr,
+  port: Option<u16>,
+) -> crate::Result<SocketAddr> {
   let serve_dir = path.as_ref().to_path_buf();
+
+  let (server_url_tx, server_url_rx) = std::sync::mpsc::channel();
 
   std::thread::spawn(move || {
     tokio::runtime::Builder::new_current_thread()
@@ -65,12 +71,38 @@ pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, path: P) {
           }
         });
 
+        let mut auto_port = false;
+        let mut port = port.unwrap_or_else(|| {
+          std::env::var("TAURI_DEV_SERVER_PORT")
+            .unwrap_or_else(|_| {
+              auto_port = true;
+              "1430".to_string()
+            })
+            .parse()
+            .unwrap()
+        });
+
+        let (server, server_url) = loop {
+          let server_url = SocketAddr::new(ip, port);
+          let server = Server::try_bind(&server_url);
+
+          if !auto_port {
+            break (server, server_url);
+          }
+
+          if server.is_ok() {
+            break (server, server_url);
+          }
+
+          port += 1;
+        };
+
         let state = Arc::new(State {
           serve_dir,
           tx,
-          address,
+          address: server_url,
         });
-        let server_router = Router::new()
+        let router = Router::new()
           .fallback(
             Router::new().nest(
               "/",
@@ -88,12 +120,23 @@ pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, path: P) {
             }),
           );
 
-        Server::bind(&address)
-          .serve(server_router.into_make_service())
-          .await
-          .unwrap();
+        match server {
+          Ok(server) => {
+            server_url_tx.send(Ok(server_url)).unwrap();
+            server.serve(router.into_make_service()).await.unwrap();
+          }
+          Err(e) => {
+            server_url_tx
+              .send(Err(anyhow::anyhow!(
+                "failed to start development server on {server_url}: {e}"
+              )))
+              .unwrap();
+          }
+        }
       })
   });
+
+  server_url_rx.recv().unwrap()
 }
 
 async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {

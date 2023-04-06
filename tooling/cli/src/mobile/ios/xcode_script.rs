@@ -10,9 +10,9 @@ use crate::{
 };
 
 use clap::Parser;
-use tauri_mobile::{apple::target::Target, opts::Profile, util};
+use tauri_mobile::{apple::target::Target, opts::Profile};
 
-use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
+use std::{collections::HashMap, env::var_os, ffi::OsStr, path::PathBuf};
 
 #[derive(Debug, Parser)]
 pub struct Options {
@@ -55,28 +55,24 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  // `xcode-script` is ran from the `gen/apple` folder.
-  std::env::set_current_dir(
-    std::env::current_dir()
-      .unwrap()
-      .parent()
-      .unwrap()
-      .parent()
-      .unwrap(),
-  )
-  .unwrap();
+  // `xcode-script` is ran from the `gen/apple` folder when not using NPM.
+  if var_os("npm_lifecycle_event").is_none() {
+    std::env::set_current_dir(
+      std::env::current_dir()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap(),
+    )
+    .unwrap();
+  }
 
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
   with_config(None, |_root_conf, config, metadata, cli_options| {
-    let env = env()?;
-    // The `PATH` env var Xcode gives us is missing any additions
-    // made by the user's profile, so we'll manually add cargo's
-    // `PATH`.
-    let env = env
-      .explicit_env_vars(cli_options.vars)
-      .prepend_to_path(util::home_dir()?.join(".cargo/bin"));
+    let env = env()?.explicit_env_vars(cli_options.vars);
 
     if !options.sdk_root.is_dir() {
       return Err(anyhow::anyhow!(
@@ -134,13 +130,22 @@ pub fn command(options: Options) -> Result<()> {
 
     let tauri_config = get_config(None)?;
 
-    for arch in options.arches {
+    // when using Xcode, the arches will be ['Simulator', 'arm64'] instead of ['arm64-sim']
+    let arches = if options.arches.contains(&"Simulator".into()) {
+      vec![if cfg!(target_arch = "aarch64") {
+        "arm64-sim".to_string()
+      } else {
+        "x86_64".to_string()
+      }]
+    } else {
+      options.arches
+    };
+    for arch in arches {
       // Set target-specific flags
       let (env_triple, rust_triple) = match arch.as_str() {
         "arm64" => ("aarch64_apple_ios", "aarch64-apple-ios"),
         "arm64-sim" => ("aarch64_apple_ios_sim", "aarch64-apple-ios-sim"),
         "x86_64" => ("x86_64_apple_ios", "x86_64-apple-ios"),
-        "Simulator" => continue,
         _ => {
           return Err(anyhow::anyhow!(
             "Arch specified by Xcode was invalid. {} isn't a known arch",
@@ -196,13 +201,13 @@ pub fn command(options: Options) -> Result<()> {
         return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"rlib\"]`", lib_path.display()));
       }
       std::fs::create_dir_all(format!(
-        "gen/apple/Externals/{rust_triple}/{}",
+        "gen/apple/Externals/{}",
         profile.as_str()
       ))?;
       std::fs::copy(
         lib_path,
         format!(
-          "gen/apple/Externals/{rust_triple}/{}/lib{}.a",
+          "gen/apple/Externals/{}/lib{}.a",
           profile.as_str(),
           config.app().lib_name()
         ),

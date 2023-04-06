@@ -91,7 +91,7 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun runPluginMethod(id: Int, pluginId: String, command: String, data: JSObject) {
+  fun runCommand(id: Int, pluginId: String, command: String, data: JSObject) {
     val invoke = Invoke(id.toLong(), command, { successResult, errorResult ->
       handlePluginResponse(id, successResult?.toString(), errorResult?.toString())
     }, data)

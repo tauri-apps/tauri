@@ -10,6 +10,7 @@ use crate::{
   AppHandle, Manager, Runtime,
 };
 use base64::Engine;
+use futures_util::StreamExt;
 use http::{
   header::{HeaderName, HeaderValue},
   HeaderMap, StatusCode,
@@ -383,18 +384,16 @@ impl<R: Runtime> UpdateBuilder<R> {
       // If we got a success, we stop the loop
       // and we set our remote_release variable
       if let Ok(res) = resp {
-        let res = res.read().await?;
+        let status = res.status();
         // got status code 2XX
-        if StatusCode::from_u16(res.status)
-          .map_err(|e| Error::Builder(e.to_string()))?
-          .is_success()
-        {
+        if status.is_success() {
           // if we got 204
-          if StatusCode::NO_CONTENT.as_u16() == res.status {
+          if status == StatusCode::NO_CONTENT {
             // return with `UpToDate` error
             // we should catch on the client
             return Err(Error::UpToDate);
           };
+          let res = res.read().await?;
           // Convert the remote result to our local struct
           let built_release = serde_json::from_value(res.data).map_err(Into::into);
           // make sure all went well and the remote data is compatible
@@ -561,35 +560,13 @@ impl<R: Runtime> Update<R> {
       .and_then(|value| value.parse().ok());
 
     let mut buffer = Vec::new();
-    #[cfg(feature = "reqwest-client")]
-    {
-      use futures_util::StreamExt;
-      let mut stream = response.bytes_stream();
-      while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        let bytes = chunk.as_ref().to_vec();
-        on_chunk(bytes.len(), content_length);
-        buffer.extend(bytes);
-      }
-    }
-    #[cfg(not(feature = "reqwest-client"))]
-    {
-      let mut reader = response.reader();
-      let mut buf = [0; 16384];
-      loop {
-        match reader.read(&mut buf) {
-          Ok(b) => {
-            if b == 0 {
-              break;
-            } else {
-              let bytes = buf[0..b].to_vec();
-              on_chunk(bytes.len(), content_length);
-              buffer.extend(bytes);
-            }
-          }
-          Err(e) => return Err(e.into()),
-        }
-      }
+
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+      let chunk = chunk?;
+      let bytes = chunk.as_ref().to_vec();
+      on_chunk(bytes.len(), content_length);
+      buffer.extend(bytes);
     }
 
     on_download_finish();

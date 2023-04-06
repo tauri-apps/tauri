@@ -199,6 +199,7 @@ pub struct Context<T: UserEvent> {
   main_thread_id: ThreadId,
   pub proxy: WryEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
+  plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -1738,8 +1739,6 @@ pub trait Plugin<T: UserEvent> {
 pub struct Wry<T: UserEvent> {
   context: Context<T>,
 
-  plugins: Vec<Box<dyn Plugin<T>>>,
-
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager_handle: GlobalShortcutManagerHandle<T>,
 
@@ -1829,6 +1828,18 @@ impl<T: UserEvent> WryHandle<T> {
       .send_event(message)
       .map_err(|_| Error::FailedToSendMessage)?;
     Ok(())
+  }
+
+  pub fn plugin<P: PluginBuilder<T> + 'static>(&mut self, plugin: P)
+  where
+    <P as PluginBuilder<T>>::Plugin: Send,
+  {
+    self
+      .context
+      .plugins
+      .lock()
+      .unwrap()
+      .push(Box::new(plugin.build(self.context.clone())));
   }
 }
 
@@ -1944,6 +1955,7 @@ impl<T: UserEvent> Wry<T> {
         #[cfg(all(desktop, feature = "system-tray"))]
         system_tray_manager,
       },
+      plugins: Default::default(),
     };
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -1962,8 +1974,6 @@ impl<T: UserEvent> Wry<T> {
     Ok(Self {
       context,
 
-      plugins: Default::default(),
-
       #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager_handle,
 
@@ -1972,12 +1982,6 @@ impl<T: UserEvent> Wry<T> {
 
       event_loop,
     })
-  }
-
-  pub fn plugin<P: PluginBuilder<T> + 'static>(&mut self, plugin: P) {
-    self
-      .plugins
-      .push(Box::new(plugin.build(self.context.clone())));
   }
 }
 
@@ -2142,7 +2146,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = &self.context.main_thread.web_context;
-    let plugins = &mut self.plugins;
+    let plugins = self.context.plugins.clone();
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
 
@@ -2165,7 +2169,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           *control_flow = ControlFlow::Exit;
         }
 
-        for p in plugins.iter_mut() {
+        for p in plugins.lock().unwrap().iter_mut() {
           let prevent_default = p.on_event(
             &event,
             event_loop,
@@ -2219,7 +2223,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = self.context.main_thread.web_context;
-    let mut plugins = self.plugins;
+    let plugins = self.context.plugins.clone();
 
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager;
@@ -2235,7 +2239,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let proxy = self.event_loop.create_proxy();
 
     self.event_loop.run(move |event, event_loop, control_flow| {
-      for p in &mut plugins {
+      for p in plugins.lock().unwrap().iter_mut() {
         let prevent_default = p.on_event(
           &event,
           event_loop,
@@ -2598,21 +2602,7 @@ fn handle_user_message<T: UserEvent>(
           let _ = webview.print();
         }
       }
-      WebviewMessage::WebviewEvent(event) => {
-        let window_event_listeners = windows
-          .borrow()
-          .get(&id)
-          .map(|w| w.window_event_listeners.clone());
-        if let Some(window_event_listeners) = window_event_listeners {
-          if let Some(event) = WindowEventWrapper::from(&event).0 {
-            let listeners = window_event_listeners.lock().unwrap();
-            let handlers = listeners.values();
-            for handler in handlers {
-              handler(&event);
-            }
-          }
-        }
-      }
+      WebviewMessage::WebviewEvent(_event) => { /* already handled */ }
     },
     Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
@@ -2904,6 +2894,24 @@ fn handle_event_loop<T: UserEvent>(
       let global_listeners_iter = global_listeners.iter();
       for global_listener in global_listeners_iter {
         global_listener(id.0, &event);
+      }
+    }
+    Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {
+      if let Some(event) = WindowEventWrapper::from(&event).0 {
+        let windows = windows.borrow();
+        let window = windows.get(&id);
+        if let Some(window) = window {
+          callback(RunEvent::WindowEvent {
+            label: window.label.clone(),
+            event: event.clone(),
+          });
+
+          let listeners = window.window_event_listeners.lock().unwrap();
+          let handlers = listeners.values();
+          for handler in handlers {
+            handler(&event);
+          }
+        }
       }
     }
     Event::WindowEvent {

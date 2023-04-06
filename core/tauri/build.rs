@@ -159,7 +159,7 @@ fn main() {
     if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
       tauri_build::mobile::inject_android_project(
         "./mobile/android",
-        project_dir.join("tauri-api"),
+        project_dir.join(".tauri").join("tauri-api"),
         &[],
       )
       .expect("failed to copy tauri-api Android project");

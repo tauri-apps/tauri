@@ -120,24 +120,29 @@ pub fn exec(
 
   let binary_path = PathBuf::from(&binary);
   let bin_stem = binary_path.file_stem().unwrap().to_string_lossy();
-  let r = regex::Regex::new("(nodejs|node)([1-9]*)*$").unwrap();
+  let r = regex::Regex::new("(nodejs|node)\\-?([1-9]*)*$").unwrap();
   if r.is_match(&bin_stem) {
     if let Some(npm_execpath) = var_os("npm_execpath").map(PathBuf::from) {
       let manager_stem = npm_execpath.file_stem().unwrap().to_os_string();
-      let manager = if manager_stem == "npm-cli" {
+      binary = if manager_stem == "npm-cli" {
         "npm".into()
       } else {
         manager_stem
       };
-      binary = manager;
       if !build_args.is_empty() {
         // remove script path, we'll use `npm_lifecycle_event` instead
         build_args.remove(0);
       }
+      if binary == "npm" {
+        build_args.insert(0, "--".into());
+      }
       build_args.insert(0, var("npm_lifecycle_event").unwrap());
-      build_args.insert(0, "run".into());
+      if binary == "npm" {
+        build_args.insert(0, "run".into());
+      }
     }
   }
+
   map.insert("tauri-binary", binary.to_string_lossy());
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));

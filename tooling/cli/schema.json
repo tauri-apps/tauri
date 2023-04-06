@@ -163,7 +163,7 @@
         },
         "security": {
           "dangerousDisableAssetCspModification": false,
-          "dangerousRemoteUrlIpcAccess": [],
+          "dangerousRemoteDomainIpcAccess": [],
           "freezePrototype": false
         },
         "updater": {
@@ -416,7 +416,7 @@
           "description": "Security configuration.",
           "default": {
             "dangerousDisableAssetCspModification": false,
-            "dangerousRemoteUrlIpcAccess": [],
+            "dangerousRemoteDomainIpcAccess": [],
             "freezePrototype": false
           },
           "allOf": [
@@ -2606,8 +2606,8 @@
             }
           ]
         },
-        "dangerousRemoteUrlIpcAccess": {
-          "description": "Allow external domains to send command to Tauri.\n\nBy default, external domains do not have access to `window.__TAURI__`, which means they cannot communicate with the commands defined in Rust. This prevents attacks where an externally loaded malicious or compromised sites could start executing commands on the user's device.\n\nThis configuration allows a set of external domains to have access to the Tauri commands. Wildcards patterns are accepted and can be used to allow either all paths or a subset of paths for a domain.\n\n**WARNING:** Only use this option if you either have internal checks against malicious external sites or you can trust the allowed external sites. You application might be vulnerable to dangerous Tauri command related attacks otherwise.",
+        "dangerousRemoteDomainIpcAccess": {
+          "description": "Allow external domains to send command to Tauri.\n\nBy default, external domains do not have access to `window.__TAURI__`, which means they cannot communicate with the commands defined in Rust. This prevents attacks where an externally loaded malicious or compromised sites could start executing commands on the user's device.\n\nThis configuration allows a set of external domains to have access to the Tauri commands. When you configure a domain to be allowed to access the IPC, all subpaths are allowed. Subdomains are not allowed.\n\n**WARNING:** Only use this option if you either have internal checks against malicious external sites or you can trust the allowed external sites. You application might be vulnerable to dangerous Tauri command related attacks otherwise.",
           "default": [],
           "type": "array",
           "items": {

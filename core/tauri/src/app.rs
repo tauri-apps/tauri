@@ -1632,7 +1632,7 @@ impl<R: Runtime> Builder<R> {
           .config()
           .tauri
           .security
-          .dangerous_remote_url_ipc_access
+          .dangerous_remote_domain_ipc_access
           .clone(),
       ),
       fs: FsScope::for_fs_api(

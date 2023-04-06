@@ -104,6 +104,7 @@ pub fn get_config(
         .logcat()
       ),
     ],
+    min_sdk_version: Some(config.tauri.bundle.android.min_sdk_version),
     ..Default::default()
   };
   let config = AndroidConfig::from_raw(app.clone(), Some(raw)).unwrap();

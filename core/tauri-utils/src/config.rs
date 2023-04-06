@@ -680,6 +680,9 @@ pub struct BundleConfig {
   /// iOS configuration.
   #[serde(rename = "iOS", default)]
   pub ios: IosConfig,
+  /// Android configuration.
+  #[serde(default)]
+  pub android: AndroidConfig,
 }
 
 /// A CLI argument definition.
@@ -2626,6 +2629,30 @@ pub struct IosConfig {
   pub development_team: Option<String>,
 }
 
+/// General configuration for the iOS target.
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AndroidConfig {
+  /// The minimum API level required for the application to run.
+  /// The Android system will prevent the user from installing the application if the system's API level is lower than the value specified.
+  #[serde(alias = "min-sdk-version", default = "default_min_sdk_version")]
+  pub min_sdk_version: u32,
+}
+
+impl Default for AndroidConfig {
+  fn default() -> Self {
+    Self {
+      min_sdk_version: default_min_sdk_version(),
+    }
+  }
+}
+
+fn default_min_sdk_version() -> u32 {
+  24
+}
+
 /// Defines the URL or assets to embed in the application.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -3416,6 +3443,7 @@ mod build {
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
       let ios = quote!(Default::default());
+      let android = quote!(Default::default());
 
       literal_struct!(
         tokens,
@@ -3435,7 +3463,8 @@ mod build {
         macos,
         external_bin,
         windows,
-        ios
+        ios,
+        android
       );
     }
   }

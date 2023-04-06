@@ -131,6 +131,9 @@
         },
         "bundle": {
           "active": false,
+          "android": {
+            "minSdkVersion": 24
+          },
           "appimage": {
             "bundleMediaFramework": false
           },
@@ -270,6 +273,9 @@
           "description": "The bundler configuration.",
           "default": {
             "active": false,
+            "android": {
+              "minSdkVersion": 24
+            },
             "appimage": {
               "bundleMediaFramework": false
             },
@@ -1169,6 +1175,17 @@
               "$ref": "#/definitions/IosConfig"
             }
           ]
+        },
+        "android": {
+          "description": "Android configuration.",
+          "default": {
+            "minSdkVersion": 24
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AndroidConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1768,6 +1785,20 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "AndroidConfig": {
+      "description": "General configuration for the iOS target.",
+      "type": "object",
+      "properties": {
+        "minSdkVersion": {
+          "description": "The minimum API level required for the application to run. The Android system will prevent the user from installing the application if the system's API level is lower than the value specified.",
+          "default": 24,
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
         }
       },
       "additionalProperties": false

@@ -1325,7 +1325,7 @@ impl<R: Runtime> WindowManager<R> {
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      let local_app_data = app_handle.resolve_path(
+      let local_app_data = app_handle.path().resolve(
         &self.inner.config.tauri.bundle.identifier,
         BaseDirectory::LocalData,
       );

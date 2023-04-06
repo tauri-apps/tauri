@@ -6,7 +6,7 @@ package app.tauri
 
 import android.app.Activity
 import android.os.Environment
-import app.tauri.annotation.PluginMethod
+import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
@@ -20,58 +20,58 @@ class PathPlugin(private val activity: Activity): Plugin(activity) {
         invoke.resolve(obj)
     }
 
-    @PluginMethod
+    @Command
     fun getAudioDir(invoke: Invoke) {
         resolvePath(invoke, activity.getExternalFilesDir(Environment.DIRECTORY_MUSIC)?.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getExternalCacheDir(invoke: Invoke) {
         resolvePath(invoke, activity.externalCacheDir?.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getConfigDir(invoke: Invoke) {
         resolvePath(invoke, activity.dataDir.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getDataDir(invoke: Invoke) {
         resolvePath(invoke, activity.dataDir.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getDocumentDir(invoke: Invoke) {
         resolvePath(invoke, activity.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)?.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getDownloadDir(invoke: Invoke) {
         resolvePath(invoke, activity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getPictureDir(invoke: Invoke) {
         resolvePath(invoke, activity.getExternalFilesDir(Environment.DIRECTORY_PICTURES)?.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getPublicDir(invoke: Invoke) {
         resolvePath(invoke, activity.getExternalFilesDir(Environment.DIRECTORY_DCIM)?.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getVideoDir(invoke: Invoke) {
         resolvePath(invoke, activity.externalCacheDir?.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getResourcesDir(invoke: Invoke) {
         // TODO
         resolvePath(invoke, activity.cacheDir.absolutePath)
     }
 
-    @PluginMethod
+    @Command
     fun getCacheDir(invoke: Invoke) {
         resolvePath(invoke, activity.cacheDir.absolutePath)
     }

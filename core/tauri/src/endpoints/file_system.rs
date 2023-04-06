@@ -298,7 +298,7 @@ fn resolve_path<R: Runtime>(
   dir: Option<BaseDirectory>,
 ) -> super::Result<SafePathBuf> {
   match if let Some(dir) = dir {
-    window.resolve_path(&path, dir)
+    window.path().resolve(&path, dir)
   } else {
     Ok(path.as_ref().to_path_buf())
   } {

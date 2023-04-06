@@ -87,7 +87,7 @@ impl Scope {
   ) -> crate::Result<Self> {
     let mut allowed_patterns = HashSet::new();
     for path in scope.allowed_paths() {
-      if let Ok(path) = manager.parse_path(path) {
+      if let Ok(path) = manager.path().parse(path) {
         push_pattern(&mut allowed_patterns, path, Pattern::new)?;
       }
     }
@@ -95,7 +95,7 @@ impl Scope {
     let mut forbidden_patterns = HashSet::new();
     if let Some(forbidden_paths) = scope.forbidden_paths() {
       for path in forbidden_paths {
-        if let Ok(path) = manager.parse_path(path) {
+        if let Ok(path) = manager.path().parse(path) {
           push_pattern(&mut forbidden_patterns, path, Pattern::new)?;
         }
       }

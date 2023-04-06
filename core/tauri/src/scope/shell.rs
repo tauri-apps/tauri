@@ -196,7 +196,7 @@ impl Scope {
   /// Creates a new shell scope.
   pub(crate) fn new<R: Runtime, M: Manager<R>>(manager: &M, mut scope: ScopeConfig) -> Self {
     for cmd in scope.scopes.values_mut() {
-      if let Ok(path) = manager.parse_path(&cmd.command) {
+      if let Ok(path) = manager.path().parse(&cmd.command) {
         cmd.command = path;
       }
     }

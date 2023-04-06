@@ -4,9 +4,9 @@
 
 #![allow(unused_imports, deprecated)]
 
-use crate::{api::path::BaseDirectory, Runtime};
+use crate::{path::BaseDirectory, Runtime};
 #[cfg(path_all)]
-use crate::{Env, Manager};
+use crate::{path::PathExt, Env, Manager};
 use std::path::PathBuf;
 #[cfg(path_all)]
 use std::path::{Component, Path, MAIN_SEPARATOR};
@@ -48,14 +48,13 @@ impl Cmd {
     path: String,
     directory: Option<BaseDirectory>,
   ) -> super::Result<PathBuf> {
-    crate::api::path::resolve_path(
-      &context.config,
-      &context.package_info,
-      context.window.state::<Env>().inner(),
-      path,
-      directory,
-    )
-    .map_err(Into::into)
+    if let Some(dir) = directory {
+      context.window.path().resolve(path, dir).map_err(Into::into)
+    } else {
+      let mut dir_path = PathBuf::new();
+      dir_path.push(path);
+      Ok(dir_path)
+    }
   }
 
   #[module_command_handler(path_all)]

@@ -179,7 +179,15 @@ impl BaseDirectory {
 pub trait PathExt<R: Runtime> {
   /// The path resolver.
   fn path(&self) -> &PathResolver<R>;
+}
 
+impl<R: Runtime, T: Manager<R>> PathExt<R> for T {
+  fn path(&self) -> &PathResolver<R> {
+    self.state::<PathResolver<R>>().inner()
+  }
+}
+
+impl<R: Runtime> PathResolver<R> {
   /// Resolves the path with the base directory.
   ///
   /// # Examples
@@ -188,13 +196,14 @@ pub trait PathExt<R: Runtime> {
   /// use tauri::{api::path::{BaseDirectory, resolve_path}, Manager};
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let path = app.resolve_path("path/to/something", BaseDirectory::Config)?;
+  ///     let path = app.path().resolve("path/to/something", BaseDirectory::Config)?;
   ///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.config/path/to/something");
   ///     Ok(())
   ///   });
   /// ```
-  fn resolve_path<P: AsRef<Path>>(&self, path: P, base_directory: BaseDirectory)
-    -> Result<PathBuf>;
+  pub fn resolve<P: AsRef<Path>>(&self, path: P, base_directory: BaseDirectory) -> Result<PathBuf> {
+    commands::resolve_path::<R>(self, base_directory, Some(path.as_ref().to_path_buf()))
+  }
 
   /// Parse the given path, resolving a [`BaseDirectory`] variable if the path starts with one.
   ///
@@ -204,42 +213,18 @@ pub trait PathExt<R: Runtime> {
   /// use tauri::Manager;
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let path = app.parse_path("$HOME/.bashrc")?;
+  ///     let path = app.path().parse("$HOME/.bashrc")?;
   ///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.bashrc");
   ///     Ok(())
   ///   });
   /// ```
-  fn parse_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf>;
-}
-
-impl<R: Runtime, T: Manager<R>> PathExt<R> for T {
-  fn path(&self) -> &PathResolver<R> {
-    self.state::<PathResolver<R>>().inner()
-  }
-
-  fn resolve_path<P: AsRef<Path>>(
-    &self,
-    path: P,
-    base_directory: BaseDirectory,
-  ) -> Result<PathBuf> {
-    commands::resolve_path::<R>(
-      self.path(),
-      base_directory,
-      Some(path.as_ref().to_path_buf()),
-    )
-  }
-
-  fn parse_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
+  pub fn parse<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
     let mut p = PathBuf::new();
     let mut components = path.as_ref().components();
     match components.next() {
       Some(Component::Normal(str)) => {
         if let Some(base_directory) = BaseDirectory::from_variable(&str.to_string_lossy()) {
-          p.push(commands::resolve_path::<R>(
-            self.path(),
-            base_directory,
-            None,
-          )?);
+          p.push(commands::resolve_path::<R>(self, base_directory, None)?);
         } else {
           p.push(str);
         }

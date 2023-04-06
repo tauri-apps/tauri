@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  env::temp_dir,
-  path::{Component, Path, PathBuf, MAIN_SEPARATOR},
-};
+use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
 
 use super::{BaseDirectory, Error, PathResolver, Result};
 use crate::{command, AppHandle, Runtime, State};
@@ -82,66 +79,6 @@ fn normalize_path_no_absolute(path: &Path) -> PathBuf {
   ret
 }
 
-pub(crate) fn resolve_path<R: Runtime>(
-  resolver: &PathResolver<R>,
-  directory: BaseDirectory,
-  path: Option<PathBuf>,
-) -> Result<PathBuf> {
-  let resolve_resource = matches!(directory, BaseDirectory::Resource);
-  let mut base_dir_path = match directory {
-    BaseDirectory::Audio => resolver.audio_dir(),
-    BaseDirectory::Cache => resolver.cache_dir(),
-    BaseDirectory::Config => resolver.config_dir(),
-    BaseDirectory::Data => resolver.data_dir(),
-    BaseDirectory::LocalData => resolver.local_data_dir(),
-    BaseDirectory::Document => resolver.document_dir(),
-    BaseDirectory::Download => resolver.download_dir(),
-    BaseDirectory::Picture => resolver.picture_dir(),
-    BaseDirectory::Public => resolver.public_dir(),
-    BaseDirectory::Video => resolver.video_dir(),
-    BaseDirectory::Resource => resolver.resource_dir(),
-    BaseDirectory::Temp => Ok(temp_dir()),
-    BaseDirectory::AppConfig => resolver.app_config_dir(),
-    BaseDirectory::AppData => resolver.app_data_dir(),
-    BaseDirectory::AppLocalData => resolver.app_local_data_dir(),
-    BaseDirectory::AppCache => resolver.app_cache_dir(),
-    BaseDirectory::AppLog => resolver.app_log_dir(),
-    #[cfg(not(target_os = "android"))]
-    BaseDirectory::Desktop => resolver.desktop_dir(),
-    #[cfg(not(target_os = "android"))]
-    BaseDirectory::Executable => resolver.executable_dir(),
-    #[cfg(not(target_os = "android"))]
-    BaseDirectory::Font => resolver.font_dir(),
-    #[cfg(not(target_os = "android"))]
-    BaseDirectory::Home => resolver.home_dir(),
-    #[cfg(not(target_os = "android"))]
-    BaseDirectory::Runtime => resolver.runtime_dir(),
-    #[cfg(not(target_os = "android"))]
-    BaseDirectory::Template => resolver.template_dir(),
-  }?;
-
-  if let Some(path) = path {
-    // use the same path resolution mechanism as the bundler's resource injection algorithm
-    if resolve_resource {
-      let mut resource_path = PathBuf::new();
-      for component in path.components() {
-        match component {
-          Component::Prefix(_) => {}
-          Component::RootDir => resource_path.push("_root_"),
-          Component::CurDir => {}
-          Component::ParentDir => resource_path.push("_up_"),
-          Component::Normal(p) => resource_path.push(p),
-        }
-      }
-      base_dir_path.push(resource_path);
-    } else {
-      base_dir_path.push(path);
-    }
-  }
-
-  Ok(base_dir_path)
-}
-
 #[command(root = "crate")]
 pub fn resolve_directory<R: Runtime>(
   _app: AppHandle<R>,
@@ -149,7 +86,7 @@ pub fn resolve_directory<R: Runtime>(
   directory: BaseDirectory,
   path: Option<PathBuf>,
 ) -> Result<PathBuf> {
-  resolve_path(&resolver, directory, path)
+  super::resolve_path(&resolver, directory, path)
 }
 
 #[command(root = "crate")]

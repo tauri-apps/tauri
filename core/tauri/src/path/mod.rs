@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::{Component, Path, PathBuf};
+use std::{
+  env::temp_dir,
+  path::{Component, Path, PathBuf},
+};
 
 use crate::{
   plugin::{Builder, TauriPlugin},
@@ -11,6 +14,7 @@ use crate::{
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+#[cfg(path_all)]
 mod commands;
 mod error;
 pub use error::*;
@@ -202,7 +206,7 @@ impl<R: Runtime> PathResolver<R> {
   ///   });
   /// ```
   pub fn resolve<P: AsRef<Path>>(&self, path: P, base_directory: BaseDirectory) -> Result<PathBuf> {
-    commands::resolve_path::<R>(self, base_directory, Some(path.as_ref().to_path_buf()))
+    resolve_path::<R>(self, base_directory, Some(path.as_ref().to_path_buf()))
   }
 
   /// Parse the given path, resolving a [`BaseDirectory`] variable if the path starts with one.
@@ -224,7 +228,7 @@ impl<R: Runtime> PathResolver<R> {
     match components.next() {
       Some(Component::Normal(str)) => {
         if let Some(base_directory) = BaseDirectory::from_variable(&str.to_string_lossy()) {
-          p.push(commands::resolve_path::<R>(self, base_directory, None)?);
+          p.push(resolve_path::<R>(self, base_directory, None)?);
         } else {
           p.push(str);
         }
@@ -244,10 +248,74 @@ impl<R: Runtime> PathResolver<R> {
   }
 }
 
+fn resolve_path<R: Runtime>(
+  resolver: &PathResolver<R>,
+  directory: BaseDirectory,
+  path: Option<PathBuf>,
+) -> Result<PathBuf> {
+  let resolve_resource = matches!(directory, BaseDirectory::Resource);
+  let mut base_dir_path = match directory {
+    BaseDirectory::Audio => resolver.audio_dir(),
+    BaseDirectory::Cache => resolver.cache_dir(),
+    BaseDirectory::Config => resolver.config_dir(),
+    BaseDirectory::Data => resolver.data_dir(),
+    BaseDirectory::LocalData => resolver.local_data_dir(),
+    BaseDirectory::Document => resolver.document_dir(),
+    BaseDirectory::Download => resolver.download_dir(),
+    BaseDirectory::Picture => resolver.picture_dir(),
+    BaseDirectory::Public => resolver.public_dir(),
+    BaseDirectory::Video => resolver.video_dir(),
+    BaseDirectory::Resource => resolver.resource_dir(),
+    BaseDirectory::Temp => Ok(temp_dir()),
+    BaseDirectory::AppConfig => resolver.app_config_dir(),
+    BaseDirectory::AppData => resolver.app_data_dir(),
+    BaseDirectory::AppLocalData => resolver.app_local_data_dir(),
+    BaseDirectory::AppCache => resolver.app_cache_dir(),
+    BaseDirectory::AppLog => resolver.app_log_dir(),
+    #[cfg(not(target_os = "android"))]
+    BaseDirectory::Desktop => resolver.desktop_dir(),
+    #[cfg(not(target_os = "android"))]
+    BaseDirectory::Executable => resolver.executable_dir(),
+    #[cfg(not(target_os = "android"))]
+    BaseDirectory::Font => resolver.font_dir(),
+    #[cfg(not(target_os = "android"))]
+    BaseDirectory::Home => resolver.home_dir(),
+    #[cfg(not(target_os = "android"))]
+    BaseDirectory::Runtime => resolver.runtime_dir(),
+    #[cfg(not(target_os = "android"))]
+    BaseDirectory::Template => resolver.template_dir(),
+  }?;
+
+  if let Some(path) = path {
+    // use the same path resolution mechanism as the bundler's resource injection algorithm
+    if resolve_resource {
+      let mut resource_path = PathBuf::new();
+      for component in path.components() {
+        match component {
+          Component::Prefix(_) => {}
+          Component::RootDir => resource_path.push("_root_"),
+          Component::CurDir => {}
+          Component::ParentDir => resource_path.push("_up_"),
+          Component::Normal(p) => resource_path.push(p),
+        }
+      }
+      base_dir_path.push(resource_path);
+    } else {
+      base_dir_path.push(path);
+    }
+  }
+
+  Ok(base_dir_path)
+}
+
 /// Initializes the plugin.
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
-  Builder::new("path")
-    .invoke_handler(crate::generate_handler![
+  #[allow(unused_mut)]
+  let mut builder = Builder::new("path");
+
+  #[cfg(path_all)]
+  {
+    builder = builder.invoke_handler(crate::generate_handler![
       commands::resolve_directory,
       commands::resolve,
       commands::normalize,
@@ -256,7 +324,10 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::extname,
       commands::basename,
       commands::is_absolute
-    ])
+    ]);
+  }
+
+  builder
     .setup(|app, _api| {
       #[cfg(target_os = "android")]
       {

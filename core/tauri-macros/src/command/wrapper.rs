@@ -47,8 +47,14 @@ impl Parse for WrapperAttributes {
             }
           } else if v.path.is_ident("root") {
             if let Lit::Str(s) = v.lit {
-              let ident = Ident::new(&s.value(), Span::call_site());
-              wrapper_attributes.root = quote!(#ident);
+              let lit = s.value();
+
+              wrapper_attributes.root = if lit == "crate" {
+                quote!($crate)
+              } else {
+                let ident = Ident::new(&lit, Span::call_site());
+                quote!(#ident)
+              };
             }
           }
         }

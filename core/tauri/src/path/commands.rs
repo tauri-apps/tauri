@@ -8,7 +8,7 @@ use std::{
 };
 
 use super::{BaseDirectory, Error, PathResolver, Result};
-use crate::{AppHandle, Runtime, State};
+use crate::{command, AppHandle, Runtime, State};
 
 /// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util.
 /// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
@@ -142,7 +142,7 @@ pub(crate) fn resolve_path<R: Runtime>(
   Ok(base_dir_path)
 }
 
-#[crate::command(root = "crate")]
+#[command(root = "crate")]
 pub fn resolve_directory<R: Runtime>(
   _app: AppHandle<R>,
   resolver: State<'_, PathResolver<R>>,
@@ -152,7 +152,7 @@ pub fn resolve_directory<R: Runtime>(
   resolve_path(&resolver, directory, path)
 }
 
-#[crate::command(root = "crate")]
+#[command(root = "crate")]
 pub fn resolve(paths: Vec<String>) -> Result<PathBuf> {
   // Start with current directory then start adding paths from the vector one by one using `PathBuf.push()` which
   // will ensure that if an absolute path is encountered in the iteration, it will be used as the current full path.
@@ -167,7 +167,7 @@ pub fn resolve(paths: Vec<String>) -> Result<PathBuf> {
   Ok(normalize_path(&path))
 }
 
-#[crate::command(root = "crate")]
+#[command(root = "crate")]
 pub fn normalize(path: String) -> String {
   let mut p = normalize_path_no_absolute(Path::new(&path))
     .to_string_lossy()
@@ -188,7 +188,7 @@ pub fn normalize(path: String) -> String {
   }
 }
 
-#[crate::command(root = "crate")]
+#[command(root = "crate")]
 pub fn join(mut paths: Vec<String>) -> String {
   let path = PathBuf::from(
     paths
@@ -216,7 +216,7 @@ pub fn join(mut paths: Vec<String>) -> String {
   }
 }
 
-#[crate::command(root = "crate")]
+#[command(root = "crate")]
 pub fn dirname(path: String) -> Result<PathBuf> {
   match Path::new(&path).parent() {
     Some(p) => Ok(p.to_path_buf()),
@@ -224,7 +224,7 @@ pub fn dirname(path: String) -> Result<PathBuf> {
   }
 }
 
-#[crate::command(root = "crate")]
+#[command(root = "crate")]
 pub fn extname(path: String) -> Result<String> {
   match Path::new(&path)
     .extension()
@@ -235,7 +235,7 @@ pub fn extname(path: String) -> Result<String> {
   }
 }
 
-#[crate::command(root = "crate")]
+#[command(root = "crate")]
 pub fn basename(path: String, ext: Option<String>) -> Result<String> {
   match Path::new(&path)
     .file_name()
@@ -250,7 +250,7 @@ pub fn basename(path: String, ext: Option<String>) -> Result<String> {
   }
 }
 
-#[crate::command(root = "crate")]
+#[command(root = "crate")]
 pub fn is_absolute(path: String) -> bool {
   Path::new(&path).is_absolute()
 }

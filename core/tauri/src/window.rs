@@ -1697,15 +1697,15 @@ impl<R: Runtime> Window<R> {
 pub(crate) const IPC_SCOPE_DOES_NOT_ALLOW: &str = "Not allowed by the scope";
 
 pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> String {
-  format!("Scope not defined for window `{label}` and URL `{url}`",)
+  format!("Scope not defined for window `{label}` and URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
 }
 
 pub(crate) fn ipc_scope_window_error_message(label: &str) -> String {
-  format!("Scope not defined for window `{}`", label)
+  format!("Scope not defined for window `{}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access", label)
 }
 
 pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
-  format!("Scope not defined for URL `{url}`")
+  format!("Scope not defined for URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
 }
 
 #[cfg(test)]

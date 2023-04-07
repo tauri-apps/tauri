@@ -1405,10 +1405,7 @@ impl<R: Runtime> Window<R> {
     let scope = if is_local {
       None
     } else {
-      match self
-        .ipc_scope()
-        .remote_access_for(&self.window.label, &current_url)
-      {
+      match self.ipc_scope().remote_access_for(&self, &current_url) {
         Ok(scope) => Some(scope),
         Err(e) => {
           if e.matches_window {

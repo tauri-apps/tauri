@@ -1201,6 +1201,8 @@ impl Default for DisabledCspModificationKind {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RemoteDomainAccessScope {
+  /// The URL scheme to allow. By default, all schemas are allowed.
+  pub scheme: Option<String>,
   /// The domain to allow.
   pub domain: String,
   /// The list of window labels this scope applies to.
@@ -3623,6 +3625,7 @@ mod build {
 
   impl ToTokens for RemoteDomainAccessScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let scheme = opt_str_lit(self.scheme.as_ref());
       let domain = str_lit(&self.domain);
       let windows = vec_lit(&self.windows, str_lit);
       let plugins = vec_lit(&self.plugins, str_lit);
@@ -3631,6 +3634,7 @@ mod build {
       literal_struct!(
         tokens,
         RemoteDomainAccessScope,
+        scheme,
         domain,
         windows,
         plugins,

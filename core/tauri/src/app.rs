@@ -1627,14 +1627,7 @@ impl<R: Runtime> Builder<R> {
 
     let env = Env::default();
     app.manage(Scopes {
-      ipc: IpcScope::new(
-        app
-          .config()
-          .tauri
-          .security
-          .dangerous_remote_domain_ipc_access
-          .clone(),
-      ),
+      ipc: IpcScope::new(&app.config(), &app.manager),
       fs: FsScope::for_fs_api(
         &app.manager.config(),
         app.package_info(),

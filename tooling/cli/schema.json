@@ -2673,6 +2673,13 @@
         "windows"
       ],
       "properties": {
+        "scheme": {
+          "description": "The URL scheme to allow. By default, all schemas are allowed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "domain": {
           "description": "The domain to allow.",
           "type": "string"

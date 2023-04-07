@@ -4,11 +4,15 @@
 
 use std::sync::{Arc, Mutex};
 
+use crate::{manager::WindowManager, Config, Runtime, Window};
+#[cfg(feature = "isolation")]
+use crate::{pattern::ISOLATION_IFRAME_SRC_DOMAIN, sealed::ManagerBase, Pattern};
 use url::Url;
 
 /// IPC access configuration for a remote domain.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RemoteDomainAccessScope {
+  scheme: Option<String>,
   domain: String,
   windows: Vec<String>,
   plugins: Vec<String>,
@@ -19,11 +23,18 @@ impl RemoteDomainAccessScope {
   /// Creates a new access scope.
   pub fn new(domain: impl Into<String>) -> Self {
     Self {
+      scheme: None,
       domain: domain.into(),
       windows: Vec::new(),
       plugins: Vec::new(),
       enable_tauri_api: false,
     }
+  }
+
+  /// Sets the scheme of the URL to allow in this scope. By default, all schemes with the given domain are allowed.
+  pub fn allow_on_scheme(mut self, scheme: impl Into<String>) -> Self {
+    self.scheme.replace(scheme.into());
+    self
   }
 
   /// Adds the given window label to the list of windows that uses this scope.
@@ -77,19 +88,37 @@ pub struct Scope {
 }
 
 impl Scope {
-  pub(crate) fn new(config: Vec<crate::utils::config::RemoteDomainAccessScope>) -> Self {
+  #[allow(unused_variables)]
+  pub(crate) fn new<R: Runtime>(config: &Config, manager: &WindowManager<R>) -> Self {
+    #[allow(unused_mut)]
+    let mut remote_access: Vec<RemoteDomainAccessScope> = config
+      .tauri
+      .security
+      .dangerous_remote_domain_ipc_access
+      .clone()
+      .into_iter()
+      .map(|s| RemoteDomainAccessScope {
+        scheme: s.scheme,
+        domain: s.domain,
+        windows: s.windows,
+        plugins: s.plugins,
+        enable_tauri_api: s.enable_tauri_api,
+      })
+      .collect();
+
+    #[cfg(feature = "isolation")]
+    if let Pattern::Isolation { schema, .. } = &manager.inner.pattern {
+      remote_access.push(RemoteDomainAccessScope {
+        scheme: Some(schema.clone()),
+        domain: ISOLATION_IFRAME_SRC_DOMAIN.into(),
+        windows: Vec::new(),
+        plugins: Vec::new(),
+        enable_tauri_api: true,
+      });
+    }
+
     Self {
-      remote_access: Arc::new(Mutex::new(
-        config
-          .into_iter()
-          .map(|s| RemoteDomainAccessScope {
-            domain: s.domain,
-            windows: s.windows,
-            plugins: s.plugins,
-            enable_tauri_api: s.enable_tauri_api,
-          })
-          .collect(),
-      )),
+      remote_access: Arc::new(Mutex::new(remote_access)),
     }
   }
 
@@ -113,17 +142,35 @@ impl Scope {
     self.remote_access.lock().unwrap().push(access);
   }
 
-  pub(crate) fn remote_access_for(
+  pub(crate) fn remote_access_for<R: Runtime>(
     &self,
-    window_label: &String,
+    window: &Window<R>,
     url: &Url,
   ) -> Result<RemoteDomainAccessScope, RemoteAccessError> {
     let mut scope = None;
     let mut found_scope_for_window = false;
     let mut found_scope_for_domain = false;
+    let label = window.label().to_string();
+
     for s in &*self.remote_access.lock().unwrap() {
-      let matches_window = s.windows.contains(window_label);
-      let matches_domain = url.domain().map(|d| d == s.domain).unwrap_or_default();
+      #[allow(unused_mut)]
+      let mut matches_window = s.windows.contains(&label);
+      // the isolation iframe is always able to access the IPC
+      #[cfg(feature = "isolation")]
+      if let Pattern::Isolation { schema, .. } = &window.manager().inner.pattern {
+        if schema == url.scheme() && url.domain() == Some(ISOLATION_IFRAME_SRC_DOMAIN) {
+          matches_window = true;
+        }
+      }
+
+      let matches_scheme = s
+        .scheme
+        .as_ref()
+        .map(|scheme| scheme == url.scheme())
+        .unwrap_or(true);
+
+      let matches_domain =
+        matches_scheme && url.domain().map(|d| d == s.domain).unwrap_or_default();
       found_scope_for_window = found_scope_for_window || matches_window;
       found_scope_for_domain = found_scope_for_domain || matches_domain;
       if matches_window && matches_domain && scope.is_none() {

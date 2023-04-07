@@ -234,7 +234,7 @@ pub struct InnerWindowManager<R: Runtime> {
   /// The script that initializes the invoke system.
   invoke_initialization_script: String,
   /// Application pattern.
-  pattern: Pattern,
+  pub(crate) pattern: Pattern,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {

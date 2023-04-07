@@ -3882,6 +3882,7 @@ mod test {
         external_bin: None,
         windows: Default::default(),
         ios: Default::default(),
+        android: Default::default(),
       },
       cli: None,
       updater: UpdaterConfig {

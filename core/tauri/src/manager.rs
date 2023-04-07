@@ -56,7 +56,7 @@ use crate::{
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use crate::api::path::{resolve_path, BaseDirectory};
+use crate::path::{BaseDirectory, PathExt};
 
 use crate::{runtime::menu::Menu, MenuEvent};
 
@@ -1321,28 +1321,13 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
-    if is_local {
-      let label = pending.label.clone();
-      pending = self.prepare_pending_window(
-        pending,
-        &label,
-        window_labels,
-        app_handle.clone(),
-        web_resource_request_handler,
-      )?;
-      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
-    }
-
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      let local_app_data = resolve_path(
-        &self.inner.config,
-        &self.inner.package_info,
-        self.inner.state.get::<crate::Env>().inner(),
+      let local_app_data = app_handle.path().resolve(
         &self.inner.config.tauri.bundle.identifier,
-        Some(BaseDirectory::LocalData),
+        BaseDirectory::LocalData,
       );
       if let Ok(user_data_dir) = local_app_data {
         pending.webview_attributes.data_directory = Some(user_data_dir);
@@ -1354,6 +1339,18 @@ impl<R: Runtime> WindowManager<R> {
       if !user_data_dir.exists() {
         create_dir_all(user_data_dir)?;
       }
+    }
+
+    if is_local {
+      let label = pending.label.clone();
+      pending = self.prepare_pending_window(
+        pending,
+        &label,
+        window_labels,
+        app_handle.clone(),
+        web_resource_request_handler,
+      )?;
+      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
     }
 
     Ok(pending)

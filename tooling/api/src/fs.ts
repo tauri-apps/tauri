@@ -62,8 +62,8 @@
  * {@link path.localDataDir | `$LOCALDATA`}, {@link path.desktopDir | `$DESKTOP`}, {@link path.documentDir | `$DOCUMENT`},
  * {@link path.downloadDir | `$DOWNLOAD`}, {@link path.executableDir | `$EXE`}, {@link path.fontDir | `$FONT`}, {@link path.homeDir | `$HOME`},
  * {@link path.pictureDir | `$PICTURE`}, {@link path.publicDir | `$PUBLIC`}, {@link path.runtimeDir | `$RUNTIME`},
- * {@link path.templateDir | `$TEMPLATE`}, {@link path.videoDir | `$VIDEO`}, {@link path.resourceDir | `$RESOURCE`}, {@link path.appDir | `$APP`},
- * {@link path.logDir | `$LOG`}, {@link os.tempdir | `$TEMP`}.
+ * {@link path.templateDir | `$TEMPLATE`}, {@link path.videoDir | `$VIDEO`}, {@link path.resourceDir | `$RESOURCE`},
+ * {@link os.tempdir | `$TEMP`}.
  *
  * Trying to execute any API with a URL not configured on the scope results in a promise rejection due to denied access.
  *
@@ -83,26 +83,25 @@ export enum BaseDirectory {
   Config,
   Data,
   LocalData,
-  Desktop,
   Document,
   Download,
-  Executable,
-  Font,
-  Home,
   Picture,
   Public,
-  Runtime,
-  Template,
   Video,
   Resource,
-  App,
-  Log,
   Temp,
   AppConfig,
   AppData,
   AppLocalData,
   AppCache,
-  AppLog
+  AppLog,
+
+  Desktop,
+  Executable,
+  Font,
+  Home,
+  Runtime,
+  Template
 }
 
 /**

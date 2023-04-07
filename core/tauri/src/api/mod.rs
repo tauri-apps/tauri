@@ -13,7 +13,6 @@ pub mod file;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "http-api")))]
 pub mod http;
 pub mod ipc;
-pub mod path;
 pub mod process;
 #[cfg(feature = "shell-open-api")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "shell-open-api")))]

@@ -205,6 +205,8 @@ use tauri_runtime as runtime;
 mod ios;
 #[cfg(target_os = "android")]
 mod jni_helpers;
+/// Path APIs.
+pub mod path;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
@@ -286,8 +288,8 @@ pub use {
 };
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, PathResolver,
-    RunEvent, WindowEvent,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
+    WindowEvent,
   },
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokePayload, InvokeResolver,
@@ -688,6 +690,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// The [`Config`] the manager was created with.
   fn config(&self) -> Arc<Config> {
     self.manager().config()
+  }
+
+  /// The [`PackageInfo`] the manager was created with.
+  fn package_info(&self) -> &PackageInfo {
+    self.manager().package_info()
   }
 
   /// Emits a event to all windows.

@@ -29,8 +29,6 @@ mod http;
 mod notification;
 #[cfg(os_any)]
 mod operating_system;
-#[cfg(path_any)]
-mod path;
 #[cfg(process_any)]
 mod process;
 #[cfg(shell_any)]
@@ -78,8 +76,6 @@ enum Module {
   Fs(file_system::Cmd),
   #[cfg(os_any)]
   Os(operating_system::Cmd),
-  #[cfg(path_any)]
-  Path(path::Cmd),
   Window(Box<window::Cmd>),
   #[cfg(shell_any)]
   Shell(shell::Cmd),
@@ -126,13 +122,6 @@ impl Module {
       }),
       #[cfg(fs_any)]
       Self::Fs(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(path_any)]
-      Self::Path(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
           .and_then(|r| r.json)

@@ -10,13 +10,10 @@ use std::{
 };
 
 pub use glob::Pattern;
-use tauri_utils::{
-  config::{Config, FsAllowlistScope},
-  Env, PackageInfo,
-};
+use tauri_utils::config::FsAllowlistScope;
 use uuid::Uuid;
 
-use crate::api::path::parse as parse_path;
+use crate::{path::PathExt, Manager, Runtime};
 
 /// Scope change event.
 #[derive(Debug, Clone)]
@@ -84,15 +81,13 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 
 impl Scope {
   /// Creates a new scope from a `FsAllowlistScope` configuration.
-  pub(crate) fn for_fs_api(
-    config: &Config,
-    package_info: &PackageInfo,
-    env: &Env,
+  pub(crate) fn for_fs_api<R: Runtime, M: Manager<R>>(
+    manager: &M,
     scope: &FsAllowlistScope,
   ) -> crate::Result<Self> {
     let mut allowed_patterns = HashSet::new();
     for path in scope.allowed_paths() {
-      if let Ok(path) = parse_path(config, package_info, env, path) {
+      if let Ok(path) = manager.path().parse(path) {
         push_pattern(&mut allowed_patterns, path, Pattern::new)?;
       }
     }
@@ -100,7 +95,7 @@ impl Scope {
     let mut forbidden_patterns = HashSet::new();
     if let Some(forbidden_paths) = scope.forbidden_paths() {
       for path in forbidden_paths {
-        if let Ok(path) = parse_path(config, package_info, env, path) {
+        if let Ok(path) = manager.path().parse(path) {
           push_pattern(&mut forbidden_patterns, path, Pattern::new)?;
         }
       }

@@ -6,9 +6,9 @@
 use crate::api::process::Command;
 #[cfg(feature = "shell-open-api")]
 use crate::api::shell::Program;
+use crate::{path::PathExt, Manager, Runtime};
 
 use regex::Regex;
-use tauri_utils::{config::Config, Env, PackageInfo};
 
 use std::collections::HashMap;
 
@@ -194,14 +194,9 @@ pub enum ScopeError {
 
 impl Scope {
   /// Creates a new shell scope.
-  pub(crate) fn new(
-    config: &Config,
-    package_info: &PackageInfo,
-    env: &Env,
-    mut scope: ScopeConfig,
-  ) -> Self {
+  pub(crate) fn new<R: Runtime, M: Manager<R>>(manager: &M, mut scope: ScopeConfig) -> Self {
     for cmd in scope.scopes.values_mut() {
-      if let Ok(path) = crate::api::path::parse(config, package_info, env, &cmd.command) {
+      if let Ok(path) = manager.path().parse(&cmd.command) {
         cmd.command = path;
       }
     }

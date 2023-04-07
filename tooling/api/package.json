@@ -45,7 +45,7 @@
     "@typescript-eslint/parser": "5.56.0",
     "eslint": "8.36.0",
     "eslint-config-prettier": "8.8.0",
-    "eslint-config-standard-with-typescript": "32.0.0",
+    "eslint-config-standard-with-typescript": "34.0.1",
     "eslint-plugin-import": "2.27.5",
     "eslint-plugin-n": "15.6.1",
     "eslint-plugin-node": "11.1.0",
@@ -55,7 +55,7 @@
     "tsup": "6.7.0",
     "typedoc": "0.23.28",
     "typedoc-plugin-markdown": "3.14.0",
-    "typedoc-plugin-mdn-links": "2.0.2",
-    "typescript": "4.9.5"
+    "typedoc-plugin-mdn-links": "3.0.3",
+    "typescript": "5.0.3"
   }
 }

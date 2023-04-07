@@ -38,7 +38,10 @@ pub enum PluginInvokeError {
   Jni(#[from] jni::errors::Error),
   /// Error returned from direct mobile plugin invoke.
   #[error(transparent)]
-  InvokeRejected(#[from] crate::plugin::mobile::ErrorResponse),
+  InvokeRejected(#[from] ErrorResponse),
+  /// Failed to deserialize response.
+  #[error("failed to deserialize response: {0}")]
+  CannotDeserializeResponse(serde_json::Error),
 }
 
 /// Glue between Rust and the Kotlin code that sends the plugin response back.
@@ -289,10 +292,16 @@ impl<R: Runtime> PluginHandle<R> {
         crate::ios::PluginMessageCallback(plugin_method_response_handler),
       );
     }
-    rx.recv()
-      .unwrap()
-      .map(|r| serde_json::from_value(r).unwrap())
-      .map_err(|e| serde_json::from_value::<ErrorResponse>(e).unwrap().into())
+
+    let response = rx.recv().unwrap();
+    match response {
+      Ok(r) => serde_json::from_value(r).map_err(PluginInvokeError::CannotDeserializeResponse),
+      Err(r) => Err(
+        serde_json::from_value::<ErrorResponse>(r)
+          .map(Into::into)
+          .map_err(PluginInvokeError::CannotDeserializeResponse)?,
+      ),
+    }
   }
 
   // Executes the given Android method.
@@ -370,8 +379,13 @@ impl<R: Runtime> PluginHandle<R> {
     });
 
     let response = rx.recv().unwrap()?;
-    response
-      .map(|r| serde_json::from_value(r).unwrap())
-      .map_err(|e| serde_json::from_value::<ErrorResponse>(e).unwrap().into())
+    match response {
+      Ok(r) => serde_json::from_value(r).map_err(PluginInvokeError::CannotDeserializeResponse),
+      Err(r) => Err(
+        serde_json::from_value::<ErrorResponse>(r)
+          .map(Into::into)
+          .map_err(PluginInvokeError::CannotDeserializeResponse)?,
+      ),
+    }
   }
 }

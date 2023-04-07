@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -679,6 +679,7 @@ impl<R: Runtime> SystemTrayMenuItemHandle<R> {
       .map_err(Into::into)
   }
 
+  /// Sets the native image for this item.
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn set_native_image(&self, image: crate::NativeImage) -> crate::Result<()> {

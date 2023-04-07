@@ -30,7 +30,6 @@ android {
             isMinifyEnabled = false
             packagingOptions {
                 {{~#each targets}}
-
                 jniLibs.keepDebugSymbols.add("*/{{this.abi}}/*.so")
                 {{/each}}
             }
@@ -46,17 +45,14 @@ android {
     flavorDimensions.add("abi")
     productFlavors {
         create("universal") {
-            val abiList = findProperty("abiList") as? String
-
             dimension = "abi"
             ndk {
-                abiFilters += abiList?.split(",")?.map { it.trim() } ?: listOf(
+                abiFilters += (findProperty("abiList") as? String)?.split(",") ?: listOf(
                     {{~#each targets}}
                     "{{this.abi}}",{{/each}}
                 )
             }
         }
-
         {{~#each targets}}
 
         create("{{this.arch}}") {
@@ -74,8 +70,8 @@ android {
 
 rust {
     rootDirRel = "{{root-dir-rel}}"
-    targets = listOf({{quote-and-join target-names}})
-    arches = listOf({{quote-and-join arches}})
+    targets = (findProperty("targetList") as? String)?.split(",") ?: listOf({{quote-and-join target-names}})
+    arches = (findProperty("archList") as? String)?.split(",") ?: listOf({{quote-and-join arches}})
 }
 
 dependencies {
@@ -98,9 +94,11 @@ afterEvaluate {
     android.applicationVariants.all {
         tasks["mergeUniversalReleaseJniLibFolders"].dependsOn(tasks["rustBuildRelease"])
         tasks["mergeUniversalDebugJniLibFolders"].dependsOn(tasks["rustBuildDebug"])
-        productFlavors.filter{ it.name != "universal" }.forEach { _ ->
-            val archAndBuildType = name.capitalize()
-            tasks["merge${archAndBuildType}JniLibFolders"].dependsOn(tasks["rustBuild${archAndBuildType}"])
+        if (findProperty("targetList") == null) {
+            productFlavors.filter{ it.name != "universal" }.forEach { _ ->
+                val archAndBuildType = name.capitalize()
+                tasks["merge${archAndBuildType}JniLibFolders"].dependsOn(tasks["rustBuild${archAndBuildType}"])
+            }
         }
     }
 }

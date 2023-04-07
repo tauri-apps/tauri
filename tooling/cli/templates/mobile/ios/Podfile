@@ -1,0 +1,25 @@
+# Uncomment the next line to define a global platform for your project
+
+target '{{app.name}}_iOS' do
+platform :ios, '{{apple.ios-version}}'
+  # Pods for {{app.name}}_iOS
+  {{~#each ios-pods}}
+  pod '{{this.name}}'{{#if this.version}}, '{{this.version}}'{{/if}}{{/each}}
+end
+
+target '{{app.name}}_macOS' do
+platform :osx, '{{apple.macos-version}}'
+  # Pods for {{app.name}}_macOS
+  {{~#each macos-pods}}
+  pod '{{this.name}}'{{#if this.version}}, '{{this.version}}'{{/if}}{{/each}}
+end
+
+# Delete the deployment target for iOS and macOS, causing it to be inherited from the Podfile
+post_install do |installer|
+ installer.pods_project.targets.each do |target|
+  target.build_configurations.each do |config|
+   config.build_settings.delete 'IPHONEOS_DEPLOYMENT_TARGET'
+   config.build_settings.delete 'MACOSX_DEPLOYMENT_TARGET'
+  end
+ end
+end

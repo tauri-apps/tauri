@@ -1,11 +1,8 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 // we move some basic commands to a separate module just to show it works
 mod commands;
@@ -37,12 +34,12 @@ fn window_label(window: Window) {
 
 #[command]
 async fn async_simple_command(the_argument: String) {
-  println!("{}", the_argument);
+  println!("{the_argument}");
 }
 
 #[command(rename_all = "snake_case")]
 async fn async_simple_command_snake(the_argument: String) {
-  println!("{}", the_argument);
+  println!("{the_argument}");
 }
 
 #[command]
@@ -57,7 +54,7 @@ async fn async_stateful_command(
 
 #[command(async)]
 fn future_simple_command(the_argument: String) -> impl std::future::Future<Output = ()> {
-  println!("{}", the_argument);
+  println!("{the_argument}");
   std::future::ready(())
 }
 
@@ -65,7 +62,7 @@ fn future_simple_command(the_argument: String) -> impl std::future::Future<Outpu
 fn future_simple_command_with_return(
   the_argument: String,
 ) -> impl std::future::Future<Output = String> {
-  println!("{}", the_argument);
+  println!("{the_argument}");
   std::future::ready(the_argument)
 }
 
@@ -73,7 +70,7 @@ fn future_simple_command_with_return(
 fn future_simple_command_with_result(
   the_argument: String,
 ) -> impl std::future::Future<Output = Result<String, ()>> {
-  println!("{}", the_argument);
+  println!("{the_argument}");
   std::future::ready(Ok(the_argument))
 }
 
@@ -85,7 +82,7 @@ fn force_async(the_argument: String) -> String {
 #[command(async)]
 fn force_async_with_result(the_argument: &str) -> Result<&str, MyError> {
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -93,7 +90,7 @@ fn force_async_with_result(the_argument: &str) -> Result<&str, MyError> {
 
 #[command(async, rename_all = "snake_case")]
 fn future_simple_command_snake(the_argument: String) -> impl std::future::Future<Output = ()> {
-  println!("{}", the_argument);
+  println!("{the_argument}");
   std::future::ready(())
 }
 
@@ -101,7 +98,7 @@ fn future_simple_command_snake(the_argument: String) -> impl std::future::Future
 fn future_simple_command_with_return_snake(
   the_argument: String,
 ) -> impl std::future::Future<Output = String> {
-  println!("{}", the_argument);
+  println!("{the_argument}");
   std::future::ready(the_argument)
 }
 
@@ -109,7 +106,7 @@ fn future_simple_command_with_return_snake(
 fn future_simple_command_with_result_snake(
   the_argument: String,
 ) -> impl std::future::Future<Output = Result<String, ()>> {
-  println!("{}", the_argument);
+  println!("{the_argument}");
   std::future::ready(Ok(the_argument))
 }
 
@@ -121,7 +118,7 @@ fn force_async_snake(the_argument: String) -> String {
 #[command(rename_all = "snake_case", async)]
 fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -129,9 +126,9 @@ fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
 
 #[command]
 fn simple_command_with_result(the_argument: String) -> Result<String, MyError> {
-  println!("{}", the_argument);
+  println!("{the_argument}");
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -148,9 +145,9 @@ fn stateful_command_with_result(
 
 #[command(rename_all = "snake_case")]
 fn simple_command_with_result_snake(the_argument: String) -> Result<String, MyError> {
-  println!("{}", the_argument);
+  println!("{the_argument}");
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -167,7 +164,7 @@ fn stateful_command_with_result_snake(
 
 #[command]
 async fn async_simple_command_with_result(the_argument: String) -> Result<String, MyError> {
-  println!("{}", the_argument);
+  println!("{the_argument}");
   Ok(the_argument)
 }
 
@@ -195,7 +192,7 @@ struct Person<'a> {
 
 #[command]
 fn command_arguments_struct(Person { name, age }: Person<'_>) {
-  println!("received person struct with name: {} | age: {}", name, age)
+  println!("received person struct with name: {name} | age: {age}")
 }
 
 #[derive(Deserialize)]
@@ -203,7 +200,7 @@ struct InlinePerson<'a>(&'a str, u8);
 
 #[command]
 fn command_arguments_tuple_struct(InlinePerson(name, age): InlinePerson<'_>) {
-  println!("received person tuple with name: {} | age: {}", name, age)
+  println!("received person tuple with name: {name} | age: {age}")
 }
 
 #[command]

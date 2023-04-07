@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 interface IPCMessage {
   cmd: string
   callback: number
@@ -165,8 +169,8 @@ export function mockWindows(
  * @since 1.0.0
  */
 export function clearMocks(): void {
-  // @ts-expect-error
+  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
   delete window.__TAURI_IPC__
-  // @ts-expect-error
+  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
   delete window.__TAURI_METADATA__
 }

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,10 +13,10 @@ use std::{borrow::Cow, sync::Arc};
 
 #[cfg(shell_scope)]
 use crate::ShellScopeConfig;
-use crate::{Manager, Pattern};
+use crate::{Manager, Pattern, WindowBuilder};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
-  config::{CliConfig, Config, PatternKind, TauriConfig},
+  config::{CliConfig, Config, PatternKind, TauriConfig, WindowUrl},
 };
 
 pub struct NoopAsset {
@@ -46,7 +46,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       package: Default::default(),
       tauri: TauriConfig {
         pattern: PatternKind::Brownfield,
-        windows: vec![Default::default()],
+        windows: Vec::new(),
         cli: Some(CliConfig {
           description: None,
           long_description: None,
@@ -74,6 +74,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       version: "0.1.0".parse().unwrap(),
       authors: "Tauri",
       description: "Tauri test",
+      crate_name: "test",
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
@@ -86,9 +87,15 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
 }
 
 pub fn mock_app() -> crate::App<MockRuntime> {
-  crate::Builder::<MockRuntime>::new()
+  let app = crate::Builder::<MockRuntime>::new()
     .build(mock_context(noop_assets()))
-    .unwrap()
+    .unwrap();
+
+  WindowBuilder::new(&app, "main", WindowUrl::App("index.html".into()))
+    .build()
+    .unwrap();
+
+  app
 }
 
 pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRuntime> {

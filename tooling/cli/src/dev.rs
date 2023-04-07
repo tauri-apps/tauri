@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,18 +8,19 @@ use crate::{
     command_env,
     config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WindowUrl},
   },
-  interface::{AppInterface, ExitReason, Interface},
+  interface::{AppInterface, DevProcess, ExitReason, Interface},
   CommandExt, Result,
 };
-use clap::{ArgAction, Parser};
 
 use anyhow::{bail, Context};
+use clap::{ArgAction, Parser};
 use log::{error, info, warn};
 use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
 
 use std::{
   env::set_current_dir,
+  net::{IpAddr, Ipv4Addr},
   process::{exit, Command, ExitStatus, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -49,7 +50,7 @@ pub struct Options {
   pub features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]
-  exit_on_panic: bool,
+  pub exit_on_panic: bool,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
   pub config: Option<String>,
@@ -61,6 +62,16 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Disable the dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
+  /// Specify port for the dev server for static files. Defaults to 1430
+  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
+  #[clap(long)]
+  pub port: Option<u16>,
+  /// Force prompting for an IP to use to connect to the dev server on mobile.
+  #[clap(long)]
+  pub force_ip_prompt: bool,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -74,6 +85,58 @@ pub fn command(options: Options) -> Result<()> {
 }
 
 fn command_internal(mut options: Options) -> Result<()> {
+  let mut interface = setup(&mut options, false)?;
+  let exit_on_panic = options.exit_on_panic;
+  let no_watch = options.no_watch;
+  interface.dev(options.into(), move |status, reason| {
+    on_app_exit(status, reason, exit_on_panic, no_watch)
+  })
+}
+
+pub fn local_ip_address(force: bool) -> &'static IpAddr {
+  static LOCAL_IP: OnceCell<IpAddr> = OnceCell::new();
+  LOCAL_IP.get_or_init(|| {
+    let prompt_for_ip = || {
+      let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()
+        .expect("failed to list networks")
+        .into_iter()
+        .map(|(_, ipaddr)| ipaddr)
+        .filter(|ipaddr| match ipaddr {
+          IpAddr::V4(i) => i != &Ipv4Addr::LOCALHOST,
+          _ => false,
+        })
+        .collect();
+      match addresses.len() {
+        0 => panic!("No external IP detected."),
+        1 => {
+          let ipaddr = addresses.first().unwrap();
+          *ipaddr
+        }
+        _ => {
+          let selected = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
+            .with_prompt(
+              "Failed to detect external IP, What IP should we use to access your development server?",
+            )
+            .items(&addresses)
+            .default(0)
+            .interact()
+            .expect("failed to select external IP");
+          *addresses.get(selected).unwrap()
+        }
+      }
+    };
+
+    let ip = if force {
+      prompt_for_ip()
+    } else {
+      local_ip_address::local_ip().unwrap_or_else(|_| prompt_for_ip())
+    };
+    log::info!("Using {ip} to access the development server.");
+    ip
+  })
+}
+
+pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
   let tauri_path = tauri_dir();
   options.config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
@@ -85,14 +148,23 @@ fn command_internal(mut options: Options) -> Result<()> {
     None
   };
 
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   let config = get_config(options.config.as_deref())?;
 
-  let mut interface = AppInterface::new(
+  let interface = AppInterface::new(
     config.lock().unwrap().as_ref().unwrap(),
     options.target.clone(),
   )?;
+
+  let mut dev_path = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .dev_path
+    .clone();
 
   if let Some(before_dev) = config
     .lock()
@@ -111,7 +183,25 @@ fn command_internal(mut options: Options) -> Result<()> {
       }
     };
     let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
-    if let Some(before_dev) = script {
+    if let Some(mut before_dev) = script {
+      if before_dev.contains("$HOST") {
+        if mobile {
+          let local_ip_address = local_ip_address(options.force_ip_prompt).to_string();
+          before_dev = before_dev.replace("$HOST", &local_ip_address);
+          if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
+            url.set_host(Some(&local_ip_address))?;
+          }
+        } else {
+          before_dev = before_dev.replace(
+            "$HOST",
+            if let AppUrl::Url(WindowUrl::External(url)) = &dev_path {
+              url.host_str().unwrap_or("0.0.0.0")
+            } else {
+              "0.0.0.0"
+            },
+          );
+        }
+      }
       info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       let mut env = command_env(true);
       env.extend(interface.env());
@@ -159,7 +249,7 @@ fn command_internal(mut options: Options) -> Result<()> {
         command.stderr(os_pipe::dup_stderr()?);
 
         let child = SharedChild::spawn(&mut command)
-          .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
+          .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
         let child = Arc::new(child);
         let child_ = child.clone();
 
@@ -218,31 +308,36 @@ fn command_internal(mut options: Options) -> Result<()> {
     .build
     .dev_path
     .clone();
-  if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
-    use crate::helpers::web_dev_server::{start_dev_server, SERVER_URL};
-    if path.exists() {
-      let path = path.canonicalize()?;
-      start_dev_server(path);
-      dev_path = AppUrl::Url(WindowUrl::External(SERVER_URL.parse().unwrap()));
+  if !options.no_dev_server {
+    if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
+      use crate::helpers::web_dev_server::start_dev_server;
+      if path.exists() {
+        let path = path.canonicalize()?;
+        let ip = if mobile {
+          *local_ip_address(options.force_ip_prompt)
+        } else {
+          Ipv4Addr::new(127, 0, 0, 1).into()
+        };
+        let server_url = start_dev_server(path, ip, options.port)?;
+        let server_url = format!("http://{server_url}");
+        dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 
-      // TODO: in v2, use an env var to pass the url to the app context
-      // or better separate the config passed from the cli internally and
-      // config passed by the user in `--config` into to separate env vars
-      // and the context merges, the user first, then the internal cli config
-      if let Some(c) = options.config {
-        let mut c: tauri_utils::config::Config = serde_json::from_str(&c)?;
-        c.build.dev_path = dev_path.clone();
-        options.config = Some(serde_json::to_string(&c).unwrap());
-      } else {
-        options.config = Some(format!(
-          r#"{{ "build": {{ "devPath": "{}" }} }}"#,
-          SERVER_URL
-        ))
+        // TODO: in v2, use an env var to pass the url to the app context
+        // or better separate the config passed from the cli internally and
+        // config passed by the user in `--config` into to separate env vars
+        // and the context merges, the user first, then the internal cli config
+        if let Some(c) = &options.config {
+          let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
+          c.build.dev_path = dev_path.clone();
+          options.config = Some(serde_json::to_string(&c).unwrap());
+        } else {
+          options.config = Some(format!(r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#))
+        }
       }
     }
-  }
 
-  reload_config(options.config.as_deref())?;
+    reload_config(options.config.as_deref())?;
+  }
 
   if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
     if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {
@@ -295,14 +390,30 @@ fn command_internal(mut options: Options) -> Result<()> {
     }
   }
 
-  let exit_on_panic = options.exit_on_panic;
-  let no_watch = options.no_watch;
-  interface.dev(options.into(), move |status, reason| {
-    on_dev_exit(status, reason, exit_on_panic, no_watch)
-  })
+  Ok(interface)
 }
 
-fn on_dev_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {
+pub fn wait_dev_process<
+  C: DevProcess + Send + 'static,
+  F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static,
+>(
+  child: C,
+  on_exit: F,
+) {
+  std::thread::spawn(move || {
+    let status = child.wait().expect("failed to wait on app");
+    on_exit(
+      status,
+      if child.manually_killed_process() {
+        ExitReason::TriggeredKill
+      } else {
+        ExitReason::NormalExit
+      },
+    );
+  });
+}
+
+pub fn on_app_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {
   if no_watch
     || (!matches!(reason, ExitReason::TriggeredKill)
       && (exit_on_panic || matches!(reason, ExitReason::NormalExit)))
@@ -332,7 +443,7 @@ fn check_for_updates() -> Result<()> {
   Ok(())
 }
 
-fn kill_before_dev_process() {
+pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     let child = child.lock().unwrap();
     KILL_BEFORE_DEV_FLAG

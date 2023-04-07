@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -226,7 +226,7 @@ mod test {
   fn check_test_dir() {
     // create a callback closure that takes in a TempDir type and prints it.
     let callback = |td: &tempfile::TempDir| {
-      println!("{:?}", td);
+      println!("{td:?}");
     };
 
     // execute the with_temp_dir function on the callback

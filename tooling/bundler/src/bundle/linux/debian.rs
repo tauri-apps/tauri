@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -65,13 +65,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     settings.version_string(),
     arch
   );
-  let package_name = format!("{}.deb", package_base_name);
+  let package_name = format!("{package_base_name}.deb");
 
   let base_dir = settings.project_out_directory().join("bundle/deb");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
     fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old {}", package_base_name))?;
+      .with_context(|| format!("Failed to remove old {package_base_name}"))?;
   }
   let package_path = base_dir.join(&package_name);
 
@@ -117,8 +117,8 @@ pub fn generate_data(
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    common::copy_file(&bin_path, &bin_dir.join(bin.name()))
-      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+    common::copy_file(&bin_path, bin_dir.join(bin.name()))
+      .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
   }
 
   copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
@@ -137,7 +137,7 @@ pub fn generate_data(
 /// Generate the application desktop file and store it under the `data_dir`.
 fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   let bin_name = settings.main_binary_name();
-  let desktop_file_name = format!("{}.desktop", bin_name);
+  let desktop_file_name = format!("{bin_name}.desktop");
   let desktop_file_path = data_dir
     .join("usr/share/applications")
     .join(desktop_file_name);
@@ -153,8 +153,8 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   if !settings.short_description().is_empty() {
     writeln!(file, "Comment={}", settings.short_description())?;
   }
-  writeln!(file, "Exec={}", bin_name)?;
-  writeln!(file, "Icon={}", bin_name)?;
+  writeln!(file, "Exec={bin_name}")?;
+  writeln!(file, "Icon={bin_name}")?;
   writeln!(file, "Name={}", settings.product_name())?;
   writeln!(file, "Terminal=false")?;
   writeln!(file, "Type=Application")?;
@@ -174,11 +174,11 @@ fn generate_control_file(
   let mut file = common::create_file(&dest_path)?;
   writeln!(file, "Package: {}", AsKebabCase(settings.product_name()))?;
   writeln!(file, "Version: {}", settings.version_string())?;
-  writeln!(file, "Architecture: {}", arch)?;
+  writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
   let authors = settings.authors_comma_separated().unwrap_or_default();
-  writeln!(file, "Maintainer: {}", authors)?;
+  writeln!(file, "Maintainer: {authors}")?;
   if !settings.homepage_url().is_empty() {
     writeln!(file, "Homepage: {}", settings.homepage_url())?;
   }
@@ -194,13 +194,13 @@ fn generate_control_file(
   if long_description.is_empty() {
     long_description = "(none)";
   }
-  writeln!(file, "Description: {}", short_description)?;
+  writeln!(file, "Description: {short_description}")?;
   for line in long_description.lines() {
     let line = line.trim();
     if line.is_empty() {
       writeln!(file, " .")?;
     } else {
-      writeln!(file, " {}", line)?;
+      writeln!(file, " {line}")?;
     }
   }
   writeln!(file, "Priority: optional")?;
@@ -223,14 +223,14 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
     let mut hash = md5::Context::new();
     io::copy(&mut file, &mut hash)?;
     for byte in hash.compute().iter() {
-      write!(md5sums_file, "{:02x}", byte)?;
+      write!(md5sums_file, "{byte:02x}")?;
     }
     let rel_path = path.strip_prefix(data_dir)?;
     let path_str = rel_path.to_str().ok_or_else(|| {
-      let msg = format!("Non-UTF-8 path: {:?}", rel_path);
+      let msg = format!("Non-UTF-8 path: {rel_path:?}");
       io::Error::new(io::ErrorKind::InvalidData, msg)
     })?;
-    writeln!(md5sums_file, "  {}", path_str)?;
+    writeln!(md5sums_file, "  {path_str}")?;
   }
   Ok(())
 }

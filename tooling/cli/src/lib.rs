@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -11,10 +11,11 @@ mod icon;
 mod info;
 mod init;
 mod interface;
+mod mobile;
 mod plugin;
 mod signer;
 
-use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
 use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
@@ -23,8 +24,32 @@ use std::io::{BufReader, Write};
 use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
   ffi::OsString,
+  fmt::Display,
   sync::{Arc, Mutex},
 };
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum RunMode {
+  Desktop,
+  #[cfg(target_os = "macos")]
+  Ios,
+  Android,
+}
+
+impl Display for RunMode {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Desktop => "desktop",
+        #[cfg(target_os = "macos")]
+        Self::Ios => "iOS",
+        Self::Android => "android",
+      }
+    )
+  }
+}
 
 #[derive(Deserialize)]
 pub struct VersionMetadata {
@@ -68,6 +93,9 @@ enum Commands {
   Init(init::Options),
   Plugin(plugin::Cli),
   Signer(signer::Cli),
+  Android(mobile::android::Cli),
+  #[cfg(target_os = "macos")]
+  Ios(mobile::ios::Cli),
 }
 
 fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
@@ -156,17 +184,20 @@ where
     .try_init();
 
   if let Err(err) = init_res {
-    eprintln!("Failed to attach logger: {}", err);
+    eprintln!("Failed to attach logger: {err}");
   }
 
   match cli.command {
-    Commands::Build(options) => build::command(options)?,
+    Commands::Build(options) => build::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
     Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
+    Commands::Android(c) => mobile::android::command(c, cli.verbose)?,
+    #[cfg(target_os = "macos")]
+    Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,
   }
 
   Ok(())
@@ -204,14 +235,14 @@ impl CommandExt for Command {
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
     let program = self.get_program().to_string_lossy().into_owned();
-    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
     self.status().map_err(Into::into)
   }
 
   fn output_ok(&mut self) -> crate::Result<Output> {
     let program = self.get_program().to_string_lossy().into_owned();
-    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
     self.stdout(Stdio::piped());
     self.stderr(Stdio::piped());

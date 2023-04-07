@@ -1,8 +1,12 @@
-use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, Target};
 use crate::CommandExt;
+use tauri_utils::display_path;
 
 use anyhow::Context;
-#[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use shared_child::SharedChild;
 use std::{
@@ -16,6 +20,52 @@ use std::{
   },
 };
 
+pub struct DevChild {
+  manually_killed_app: Arc<AtomicBool>,
+  build_child: Option<Arc<SharedChild>>,
+  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
+}
+
+impl DevProcess for DevChild {
+  fn kill(&self) -> std::io::Result<()> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.kill()?;
+    } else if let Some(child) = &self.build_child {
+      child.kill()?;
+    }
+    self.manually_killed_app.store(true, Ordering::Relaxed);
+    Ok(())
+  }
+
+  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.try_wait()
+    } else if let Some(child) = &self.build_child {
+      child.try_wait()
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn wait(&self) -> std::io::Result<ExitStatus> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.wait()
+    } else if let Some(child) = &self.build_child {
+      child.wait()
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn manually_killed_process(&self) -> bool {
+    self.manually_killed_app.load(Ordering::Relaxed)
+  }
+
+  fn is_building_app(&self) -> bool {
+    self.app_child.lock().unwrap().is_none()
+  }
+}
+
 pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
   options: Options,
   run_args: Vec<String>,
@@ -24,8 +74,14 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
   app_settings: &RustAppSettings,
   product_name: Option<String>,
   on_exit: F,
-) -> crate::Result<DevChild> {
+) -> crate::Result<impl DevProcess> {
   let bin_path = app_settings.app_binary_path(&options)?;
+  let target_os = options
+    .target
+    .as_ref()
+    .and_then(|t| t.split('-').nth(2))
+    .unwrap_or(std::env::consts::OS)
+    .replace("darwin", "macos");
 
   let manually_killed_app = Arc::new(AtomicBool::default());
   let manually_killed_app_ = manually_killed_app.clone();
@@ -39,24 +95,20 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     move |status, reason| {
       if status.success() {
         let bin_path =
-          rename_app(&bin_path, product_name.as_deref()).expect("failed to rename app");
+          rename_app(target_os, &bin_path, product_name.as_deref()).expect("failed to rename app");
         let mut app = Command::new(bin_path);
         app.stdout(os_pipe::dup_stdout().unwrap());
         app.stderr(os_pipe::dup_stderr().unwrap());
         app.args(run_args);
         let app_child = Arc::new(SharedChild::spawn(&mut app).unwrap());
-        let app_child_t = app_child.clone();
-        std::thread::spawn(move || {
-          let status = app_child_t.wait().expect("failed to wait on app");
-          on_exit(
-            status,
-            if manually_killed_app_.load(Ordering::Relaxed) {
-              ExitReason::TriggeredKill
-            } else {
-              ExitReason::NormalExit
-            },
-          );
-        });
+        crate::dev::wait_dev_process(
+          DevChild {
+            manually_killed_app: manually_killed_app_,
+            build_child: None,
+            app_child: Arc::new(Mutex::new(Some(app_child.clone()))),
+          },
+          on_exit,
+        );
 
         app_child_.lock().unwrap().replace(app_child);
       } else {
@@ -74,7 +126,7 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
 
   Ok(DevChild {
     manually_killed_app,
-    build_child,
+    build_child: Some(build_child),
     app_child,
   })
 }
@@ -95,6 +147,13 @@ pub fn build(
     std::env::set_var("STATIC_VCRUNTIME", "true");
   }
 
+  let target_os = options
+    .target
+    .as_ref()
+    .and_then(|t| t.split('-').nth(2))
+    .unwrap_or(std::env::consts::OS)
+    .replace("darwin", "macos");
+
   if options.target == Some("universal-apple-darwin".into()) {
     std::fs::create_dir_all(out_dir).with_context(|| "failed to create project out directory")?;
 
@@ -109,10 +168,10 @@ pub fn build(
 
       let triple_out_dir = app_settings
         .out_dir(Some(triple.into()), options.debug)
-        .with_context(|| format!("failed to get {} out dir", triple))?;
+        .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())
-        .with_context(|| format!("failed to build {} binary", triple))?;
+        .with_context(|| format!("failed to build {triple} binary"))?;
 
       lipo_cmd.arg(triple_out_dir.join(bin_name));
     }
@@ -120,8 +179,7 @@ pub fn build(
     let lipo_status = lipo_cmd.output_ok()?.status;
     if !lipo_status.success() {
       return Err(anyhow::anyhow!(format!(
-        "Result of `lipo` command was unsuccessful: {}. (Is `lipo` installed?)",
-        lipo_status
+        "Result of `lipo` command was unsuccessful: {lipo_status}. (Is `lipo` installed?)"
       )));
     }
   } else {
@@ -129,7 +187,7 @@ pub fn build(
       .with_context(|| "failed to build app")?;
   }
 
-  rename_app(&bin_path, product_name.as_deref())?;
+  rename_app(target_os, &bin_path, product_name.as_deref())?;
 
   Ok(())
 }
@@ -279,7 +337,7 @@ fn build_command(
     args.push(features.join(","));
   }
 
-  if !options.debug {
+  if !options.debug && !args.contains(&"--profile".to_string()) {
     args.push("--release".into());
   }
 
@@ -288,7 +346,7 @@ fn build_command(
     args.push(target);
   }
 
-  let mut build_cmd = Command::new(&runner);
+  let mut build_cmd = Command::new(runner);
   build_cmd.arg("build");
   build_cmd.args(args);
 
@@ -333,22 +391,29 @@ fn validate_target(available_targets: &Option<Vec<Target>>, target: &str) -> cra
   Ok(())
 }
 
-fn rename_app(bin_path: &Path, product_name: Option<&str>) -> crate::Result<PathBuf> {
+fn rename_app(
+  target_os: String,
+  bin_path: &Path,
+  product_name: Option<&str>,
+) -> crate::Result<PathBuf> {
   if let Some(product_name) = product_name {
-    #[cfg(target_os = "linux")]
-    let product_name = product_name.to_kebab_case();
+    let product_name = if target_os == "linux" {
+      product_name.to_kebab_case()
+    } else {
+      product_name.into()
+    };
 
     let product_path = bin_path
       .parent()
       .unwrap()
-      .join(&product_name)
+      .join(product_name)
       .with_extension(bin_path.extension().unwrap_or_default());
 
     rename(bin_path, &product_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",
-        bin_path.display(),
-        product_path.display(),
+        display_path(bin_path),
+        display_path(&product_path),
       )
     })?;
     Ok(product_path)

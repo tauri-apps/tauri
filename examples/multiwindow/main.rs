@@ -1,11 +1,8 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::WindowBuilder;
 
@@ -14,7 +11,7 @@ fn main() {
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
       window.listen("clicked".to_string(), move |_payload| {
-        println!("got 'clicked' event on window '{}'", label);
+        println!("got 'clicked' event on window '{label}'");
       });
     })
     .setup(|app| {

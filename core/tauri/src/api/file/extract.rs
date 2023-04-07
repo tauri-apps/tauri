@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -150,7 +150,7 @@ impl<'a, R: std::fmt::Debug + Read + Seek> std::fmt::Debug for Extract<'a, R> {
 impl<'a, R: Read + Seek> Extract<'a, R> {
   /// Create archive from reader.
   pub fn from_cursor(mut reader: R, archive_format: ArchiveFormat) -> Extract<'a, R> {
-    if reader.seek(io::SeekFrom::Start(0)).is_err() {
+    if reader.rewind().is_err() {
       #[cfg(debug_assertions)]
       eprintln!("Could not seek to start of the file");
     }
@@ -245,7 +245,7 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
             // such as: τê▒Σ║ñµÿô.app/, that does not work as expected.
             // Here we require the file name must be a valid UTF-8.
             let file_name = String::from_utf8(file.name_raw().to_vec())?;
-            let out_path = into_dir.join(&file_name);
+            let out_path = into_dir.join(file_name);
             if file.is_dir() {
               fs::create_dir_all(&out_path)?;
             } else {
@@ -279,9 +279,8 @@ fn set_perms(
 ) -> crate::api::Result<()> {
   _set_perms(dst, f, mode, preserve).map_err(|_| {
     crate::api::Error::Extract(format!(
-      "failed to set permissions to {:o} \
+      "failed to set permissions to {mode:o} \
                for `{}`",
-      mode,
       dst.display()
     ))
   })

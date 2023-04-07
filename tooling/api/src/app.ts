@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -87,7 +87,7 @@ async function getTauriVersion(): Promise<string> {
 }
 
 /**
- * Shows the application on macOS. This function does not automatically focuses any app window.
+ * Shows the application on macOS. This function does not automatically focus any specific app window.
  *
  * @example
  * ```typescript

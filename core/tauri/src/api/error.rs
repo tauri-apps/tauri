@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -22,20 +22,12 @@ pub enum Error {
   #[error("user cancelled the dialog")]
   DialogCancelled,
   /// The network error.
-  #[cfg(all(feature = "http-api", not(feature = "reqwest-client")))]
-  #[error("Network Error: {0}")]
-  Network(#[from] attohttpc::Error),
-  /// The network error.
-  #[cfg(feature = "reqwest-client")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "reqwest-client")))]
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),
   /// HTTP method error.
   #[error(transparent)]
   HttpMethod(#[from] http::method::InvalidMethod),
   /// Invalid HTTP header value.
-  #[cfg(feature = "reqwest-client")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "reqwest-client")))]
   #[error(transparent)]
   HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
   /// Invalid HTTP header value.

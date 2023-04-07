@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -159,6 +159,7 @@ fn body_async(function: &ItemFn, invoke: &Invoke, case: ArgumentCase) -> syn::Re
         let kind = (&result).async_kind();
         kind.future(result).await
       });
+      return true;
     }
   })
 }
@@ -179,13 +180,14 @@ fn body_blocking(
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
     Ok(arg) => arg,
-    Err(err) => return #resolver.invoke_error(err),
+    Err(err) => {#resolver.invoke_error(err); return true },
   });
 
   Ok(quote! {
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);
+    return true;
   })
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -14,8 +14,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent, RunIteration,
-  Runtime, RuntimeHandle, UserAttentionType, UserEvent,
+  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
+  RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -33,6 +33,8 @@ use wry::application::platform::macos::WindowBuilderExtMacOS;
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+#[cfg(windows)]
+use wry::webview::WebViewBuilderExtWindows;
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
@@ -47,7 +49,8 @@ use wry::{
     },
     event::{Event, StartCause, WindowEvent as WryWindowEvent},
     event_loop::{
-      ControlFlow, EventLoop, EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
+      ControlFlow, DeviceEventFilter as WryDeviceEventFilter, EventLoop,
+      EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
     },
     menu::{
       AboutMetadata as WryAboutMetadata, CustomMenuItem as WryCustomMenuItem, MenuBar,
@@ -61,14 +64,18 @@ use wry::{
     },
   },
   http::{Request as WryRequest, Response as WryResponse},
-  webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder},
+  webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
 };
 
 pub use wry;
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
-
 #[cfg(windows)]
 use wry::webview::WebviewExtWindows;
+#[cfg(target_os = "android")]
+use wry::webview::{
+  prelude::{dispatch, find_class},
+  WebViewBuilderExtAndroid, WebviewExtAndroid,
+};
 
 #[cfg(target_os = "macos")]
 use tauri_runtime::{menu::NativeImage, ActivationPolicy};
@@ -79,6 +86,7 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
+  borrow::Cow,
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
@@ -100,9 +108,7 @@ type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 #[cfg(all(desktop, feature = "system-tray"))]
 pub use tauri_runtime::TrayId;
 
-#[cfg(desktop)]
 mod webview;
-#[cfg(desktop)]
 pub use webview::Webview;
 
 #[cfg(all(desktop, feature = "system-tray"))]
@@ -193,6 +199,7 @@ pub struct Context<T: UserEvent> {
   main_thread_id: ThreadId,
   pub proxy: WryEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
+  plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -284,7 +291,7 @@ impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
 }
 
 // response
-struct HttpResponseWrapper(WryResponse<Vec<u8>>);
+struct HttpResponseWrapper(WryResponse<Cow<'static, [u8]>>);
 impl From<HttpResponse> for HttpResponseWrapper {
   fn from(response: HttpResponse) -> Self {
     let (parts, body) = response.into_parts();
@@ -360,6 +367,18 @@ impl From<MenuItem> for MenuItemWrapper {
       MenuItem::Zoom => Self(WryMenuItem::Zoom),
       MenuItem::Separator => Self(WryMenuItem::Separator),
       _ => unimplemented!(),
+    }
+  }
+}
+
+pub struct DeviceEventFilterWrapper(pub WryDeviceEventFilter);
+
+impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
+  fn from(item: DeviceEventFilter) -> Self {
+    match item {
+      DeviceEventFilter::Always => Self(WryDeviceEventFilter::Always),
+      DeviceEventFilter::Never => Self(WryDeviceEventFilter::Never),
+      DeviceEventFilter::Unfocused => Self(WryDeviceEventFilter::Unfocused),
     }
   }
 }
@@ -696,17 +715,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn with_config(config: WindowConfig) -> Self {
-    let mut window = WindowBuilderWrapper::new()
-      .title(config.title.to_string())
-      .inner_size(config.width, config.height)
-      .visible(config.visible)
-      .resizable(config.resizable)
-      .fullscreen(config.fullscreen)
-      .decorations(config.decorations)
-      .maximized(config.maximized)
-      .always_on_top(config.always_on_top)
-      .skip_taskbar(config.skip_taskbar)
-      .theme(config.theme);
+    let mut window = WindowBuilderWrapper::new();
 
     #[cfg(target_os = "macos")]
     {
@@ -734,18 +743,41 @@ impl WindowBuilder for WindowBuilderWrapper {
       ");
     }
 
-    if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-      window = window.min_inner_size(min_width, min_height);
-    }
-    if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
-      window = window.max_inner_size(max_width, max_height);
-    }
-    if let (Some(x), Some(y)) = (config.x, config.y) {
-      window = window.position(x, y);
+    #[cfg(target_os = "linux")]
+    {
+      // Mouse event is disabled on Linux since sudden event bursts could block event loop.
+      window.inner = window.inner.with_cursor_moved_event(false);
     }
 
-    if config.center {
-      window = window.center();
+    #[cfg(desktop)]
+    {
+      window = window
+        .title(config.title.to_string())
+        .inner_size(config.width, config.height)
+        .visible(config.visible)
+        .resizable(config.resizable)
+        .fullscreen(config.fullscreen)
+        .decorations(config.decorations)
+        .maximized(config.maximized)
+        .always_on_top(config.always_on_top)
+        .content_protected(config.content_protected)
+        .skip_taskbar(config.skip_taskbar)
+        .theme(config.theme)
+        .shadow(config.shadow);
+
+      if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
+        window = window.min_inner_size(min_width, min_height);
+      }
+      if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
+        window = window.max_inner_size(max_width, max_height);
+      }
+      if let (Some(x), Some(y)) = (config.x, config.y) {
+        window = window.position(x, y);
+      }
+
+      if config.center {
+        window = window.center();
+      }
     }
 
     window
@@ -836,6 +868,23 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn always_on_top(mut self, always_on_top: bool) -> Self {
     self.inner = self.inner.with_always_on_top(always_on_top);
+    self
+  }
+
+  fn content_protected(mut self, protected: bool) -> Self {
+    self.inner = self.inner.with_content_protection(protected);
+    self
+  }
+
+  fn shadow(#[allow(unused_mut)] mut self, _enable: bool) -> Self {
+    #[cfg(windows)]
+    {
+      self.inner = self.inner.with_undecorated_shadow(_enable);
+    }
+    #[cfg(target_os = "macos")]
+    {
+      self.inner = self.inner.with_has_shadow(_enable);
+    }
     self
   }
 
@@ -963,10 +1012,10 @@ fn decode_path(path: PathBuf) -> PathBuf {
 impl From<FileDropEventWrapper> for FileDropEvent {
   fn from(event: FileDropEventWrapper) -> Self {
     match event.0 {
-      WryFileDropEvent::Hovered(paths) => {
+      WryFileDropEvent::Hovered { paths, position: _ } => {
         FileDropEvent::Hovered(paths.into_iter().map(decode_path).collect())
       }
-      WryFileDropEvent::Dropped(paths) => {
+      WryFileDropEvent::Dropped { paths, position: _ } => {
         FileDropEvent::Dropped(paths.into_iter().map(decode_path).collect())
       }
       // default to cancelled
@@ -1005,7 +1054,6 @@ pub enum ApplicationMessage {
 }
 
 pub enum WindowMessage {
-  #[cfg(desktop)]
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   AddEventListener(Uuid, Box<dyn Fn(&WindowEvent) + Send>),
   AddMenuEventListener(Uuid, Box<dyn Fn(&MenuEvent) + Send>),
@@ -1017,16 +1065,19 @@ pub enum WindowMessage {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   IsDevToolsOpen(Sender<bool>),
   // Getters
+  Url(Sender<Url>),
   ScaleFactor(Sender<f64>),
   InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
   OuterPosition(Sender<Result<PhysicalPosition<i32>>>),
   InnerSize(Sender<PhysicalSize<u32>>),
   OuterSize(Sender<PhysicalSize<u32>>),
   IsFullscreen(Sender<bool>),
+  IsMinimized(Sender<bool>),
   IsMaximized(Sender<bool>),
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
   IsVisible(Sender<bool>),
+  Title(Sender<String>),
   IsMenuVisible(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
@@ -1056,7 +1107,9 @@ pub enum WindowMessage {
   Hide,
   Close,
   SetDecorations(bool),
+  SetShadow(bool),
   SetAlwaysOnTop(bool),
+  SetContentProtected(bool),
   SetSize(Size),
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
@@ -1099,6 +1152,7 @@ pub enum TrayMessage {
   UpdateIconAsTemplate(bool),
   #[cfg(target_os = "macos")]
   UpdateTitle(String),
+  UpdateTooltip(String),
   Create(SystemTray, Sender<Result<()>>),
   Destroy(Sender<Result<()>>),
 }
@@ -1155,16 +1209,6 @@ pub struct WryDispatcher<T: UserEvent> {
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Sync for WryDispatcher<T> {}
 
-impl<T: UserEvent> WryDispatcher<T> {
-  #[cfg(desktop)]
-  pub fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::WithWebview(Box::new(f))),
-    )
-  }
-}
-
 impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   type Runtime = Wry<T>;
   type WindowBuilder = WindowBuilderWrapper;
@@ -1191,6 +1235,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     id
   }
 
+  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::WithWebview(Box::new(move |webview| f(Box::new(webview)))),
+      ),
+    )
+  }
+
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {
     let _ = send_user_message(
@@ -1214,6 +1268,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 
   // Getters
+
+  fn url(&self) -> Result<Url> {
+    window_getter!(self, WindowMessage::Url)
+  }
 
   fn scale_factor(&self) -> Result<f64> {
     window_getter!(self, WindowMessage::ScaleFactor)
@@ -1239,6 +1297,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     window_getter!(self, WindowMessage::IsFullscreen)
   }
 
+  fn is_minimized(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsMinimized)
+  }
+
   fn is_maximized(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsMaximized)
   }
@@ -1255,6 +1317,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
   fn is_visible(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsVisible)
+  }
+
+  fn title(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::Title)
   }
 
   fn is_menu_visible(&self) -> Result<bool> {
@@ -1419,10 +1485,27 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  fn set_shadow(&self, enable: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetShadow(enable)),
+    )
+  }
+
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetAlwaysOnTop(always_on_top)),
+    )
+  }
+
+  fn set_content_protected(&self, protected: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetContentProtected(protected),
+      ),
     )
   }
 
@@ -1656,8 +1739,6 @@ pub trait Plugin<T: UserEvent> {
 pub struct Wry<T: UserEvent> {
   context: Context<T>,
 
-  plugins: Vec<Box<dyn Plugin<T>>>,
-
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager_handle: GlobalShortcutManagerHandle<T>,
 
@@ -1748,6 +1829,18 @@ impl<T: UserEvent> WryHandle<T> {
       .map_err(|_| Error::FailedToSendMessage)?;
     Ok(())
   }
+
+  pub fn plugin<P: PluginBuilder<T> + 'static>(&mut self, plugin: P)
+  where
+    <P as PluginBuilder<T>>::Plugin: Send,
+  {
+    self
+      .context
+      .plugins
+      .lock()
+      .unwrap()
+      .push(Box::new(plugin.build(self.context.clone())));
+  }
 }
 
 impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
@@ -1808,6 +1901,26 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       Message::Application(ApplicationMessage::Hide),
     )
   }
+
+  #[cfg(target_os = "android")]
+  fn find_class<'a>(
+    &'a self,
+    env: jni::JNIEnv<'a>,
+    activity: jni::objects::JObject<'a>,
+    name: impl Into<String>,
+  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
+    find_class(env, activity, name.into())
+  }
+
+  #[cfg(target_os = "android")]
+  fn run_on_android_context<F>(&self, f: F)
+  where
+    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
+      + Send
+      + 'static,
+  {
+    dispatch(f)
+  }
 }
 
 impl<T: UserEvent> Wry<T> {
@@ -1842,6 +1955,7 @@ impl<T: UserEvent> Wry<T> {
         #[cfg(all(desktop, feature = "system-tray"))]
         system_tray_manager,
       },
+      plugins: Default::default(),
     };
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -1860,8 +1974,6 @@ impl<T: UserEvent> Wry<T> {
     Ok(Self {
       context,
 
-      plugins: Default::default(),
-
       #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager_handle,
 
@@ -1870,12 +1982,6 @@ impl<T: UserEvent> Wry<T> {
 
       event_loop,
     })
-  }
-
-  pub fn plugin<P: PluginBuilder<T> + 'static>(&mut self, plugin: P) {
-    self
-      .plugins
-      .push(Box::new(plugin.build(self.context.clone())));
   }
 }
 
@@ -2028,13 +2134,19 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     self.event_loop.hide_application();
   }
 
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
+    self
+      .event_loop
+      .set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
+  }
+
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = &self.context.main_thread.web_context;
-    let plugins = &mut self.plugins;
+    let plugins = self.context.plugins.clone();
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
 
@@ -2057,7 +2169,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           *control_flow = ControlFlow::Exit;
         }
 
-        for p in plugins.iter_mut() {
+        for p in plugins.lock().unwrap().iter_mut() {
           let prevent_default = p.on_event(
             &event,
             event_loop,
@@ -2111,7 +2223,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = self.context.main_thread.web_context;
-    let mut plugins = self.plugins;
+    let plugins = self.context.plugins.clone();
 
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager;
@@ -2127,7 +2239,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let proxy = self.event_loop.create_proxy();
 
     self.event_loop.run(move |event, event_loop, control_flow| {
-      for p in &mut plugins {
+      for p in plugins.lock().unwrap().iter_mut() {
         let prevent_default = p.on_event(
           &event,
           event_loop,
@@ -2253,7 +2365,6 @@ fn handle_user_message<T: UserEvent>(
         });
         if let Some((Some(window), window_event_listeners, menu_event_listeners)) = w {
           match window_message {
-            #[cfg(desktop)]
             WindowMessage::WithWebview(f) => {
               if let WindowHandle::Webview { inner: w, .. } = &window {
                 #[cfg(any(
@@ -2276,12 +2387,25 @@ fn handle_user_message<T: UserEvent>(
                     ns_window: w.ns_window(),
                   });
                 }
+                #[cfg(target_os = "ios")]
+                {
+                  use wry::{application::platform::ios::WindowExtIOS, webview::WebviewExtIOS};
 
+                  f(Webview {
+                    webview: w.webview(),
+                    manager: w.manager(),
+                    view_controller: w.window().ui_view_controller() as cocoa::base::id,
+                  });
+                }
                 #[cfg(windows)]
                 {
                   f(Webview {
                     controller: w.controller(),
                   });
+                }
+                #[cfg(target_os = "android")]
+                {
+                  f(w.handle())
                 }
               }
             }
@@ -2315,6 +2439,11 @@ fn handle_user_message<T: UserEvent>(
               }
             }
             // Getters
+            WindowMessage::Url(tx) => {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
+                tx.send(w.url()).unwrap();
+              }
+            }
             WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
             WindowMessage::InnerPosition(tx) => tx
               .send(
@@ -2339,10 +2468,12 @@ fn handle_user_message<T: UserEvent>(
               .send(PhysicalSizeWrapper(window.outer_size()).into())
               .unwrap(),
             WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
+            WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
             WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
+            WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
             WindowMessage::IsMenuVisible(tx) => tx.send(window.is_menu_visible()).unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
@@ -2386,7 +2517,16 @@ fn handle_user_message<T: UserEvent>(
               panic!("cannot handle `WindowMessage::Close` on the main thread")
             }
             WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
+            WindowMessage::SetShadow(_enable) => {
+              #[cfg(windows)]
+              window.set_undecorated_shadow(_enable);
+              #[cfg(target_os = "macos")]
+              window.set_has_shadow(_enable);
+            }
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
+            WindowMessage::SetContentProtected(protected) => {
+              window.set_content_protection(protected)
+            }
             WindowMessage::SetSize(size) => {
               window.set_inner_size(SizeWrapper::from(size).0);
             }
@@ -2462,21 +2602,7 @@ fn handle_user_message<T: UserEvent>(
           let _ = webview.print();
         }
       }
-      WebviewMessage::WebviewEvent(event) => {
-        let window_event_listeners = windows
-          .borrow()
-          .get(&id)
-          .map(|w| w.window_event_listeners.clone());
-        if let Some(window_event_listeners) = window_event_listeners {
-          if let Some(event) = WindowEventWrapper::from(&event).0 {
-            let listeners = window_event_listeners.lock().unwrap();
-            let handlers = listeners.values();
-            for handler in handlers {
-              handler(&event);
-            }
-          }
-        }
-      }
+      WebviewMessage::WebviewEvent(_event) => { /* already handled */ }
     },
     Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
@@ -2513,14 +2639,18 @@ fn handle_user_message<T: UserEvent>(
     Message::Tray(tray_id, tray_message) => {
       let mut trays = system_tray_manager.trays.lock().unwrap();
 
-      if let TrayMessage::Create(tray, tx) = tray_message {
+      if let TrayMessage::Create(mut tray, tx) = tray_message {
+        let mut listeners = Vec::new();
+        if let Some(l) = tray.on_event.take() {
+          listeners.push(Arc::new(l));
+        }
         match create_tray(WryTrayId(tray_id), tray, event_loop) {
           Ok((tray, items)) => {
             trays.insert(
               tray_id,
               TrayContext {
                 tray: Arc::new(Mutex::new(Some(tray))),
-                listeners: Default::default(),
+                listeners: Arc::new(Mutex::new(listeners)),
                 items: Arc::new(Mutex::new(items)),
               },
             );
@@ -2571,6 +2701,11 @@ fn handle_user_message<T: UserEvent>(
           TrayMessage::UpdateTitle(title) => {
             if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
               tray.set_title(&title);
+            }
+          }
+          TrayMessage::UpdateTooltip(tooltip) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              tray.set_tooltip(&tooltip);
             }
           }
           TrayMessage::Create(_tray, _tx) => {
@@ -2761,6 +2896,24 @@ fn handle_event_loop<T: UserEvent>(
         global_listener(id.0, &event);
       }
     }
+    Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {
+      if let Some(event) = WindowEventWrapper::from(&event).0 {
+        let windows = windows.borrow();
+        let window = windows.get(&id);
+        if let Some(window) = window {
+          callback(RunEvent::WindowEvent {
+            label: window.label.clone(),
+            event: event.clone(),
+          });
+
+          let listeners = window.window_event_listeners.lock().unwrap();
+          let handlers = listeners.values();
+          for handler in handlers {
+            handler(&event);
+          }
+        }
+      }
+    }
     Event::WindowEvent {
       event, window_id, ..
     } => {
@@ -2788,6 +2941,19 @@ fn handle_event_loop<T: UserEvent>(
         }
 
         match event {
+          #[cfg(windows)]
+          WryWindowEvent::ThemeChanged(theme) => {
+            if let Some(window) = windows.borrow().get(&window_id) {
+              if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
+                let theme = match theme {
+                  WryTheme::Dark => wry::webview::Theme::Dark,
+                  WryTheme::Light => wry::webview::Theme::Light,
+                  _ => wry::webview::Theme::Light,
+                };
+                inner.set_theme(theme);
+              }
+            }
+          }
           WryWindowEvent::CloseRequested => {
             on_close_requested(callback, window_id, windows.clone());
           }
@@ -2947,6 +3113,8 @@ fn create_webview<T: UserEvent>(
     url,
     menu_ids,
     js_event_listeners,
+    #[cfg(target_os = "android")]
+    on_webview_created,
     ..
   } = pending;
   let webview_id_map = context.webview_id_map.clone();
@@ -2961,6 +3129,9 @@ fn create_webview<T: UserEvent>(
       .inner
       .with_drag_and_drop(webview_attributes.file_drop_handler_enabled);
   }
+
+  #[cfg(windows)]
+  let window_theme = window_builder.inner.window.preferred_theme;
 
   #[cfg(target_os = "macos")]
   {
@@ -2998,9 +3169,29 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
   }
+  if let Some(navigation_handler) = pending.navigation_handler {
+    webview_builder = webview_builder.with_navigation_handler(move |url| {
+      Url::parse(&url).map(&navigation_handler).unwrap_or(true)
+    });
+  }
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }
+
+  #[cfg(windows)]
+  if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
+    webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
+  }
+
+  #[cfg(windows)]
+  if let Some(theme) = window_theme {
+    webview_builder = webview_builder.with_theme(match theme {
+      WryTheme::Dark => wry::webview::Theme::Dark,
+      WryTheme::Light => wry::webview::Theme::Light,
+      _ => wry::webview::Theme::Light,
+    });
+  }
+
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,
@@ -3054,6 +3245,19 @@ fn create_webview<T: UserEvent>(
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
     webview_builder = webview_builder.with_devtools(true);
+  }
+
+  #[cfg(target_os = "android")]
+  {
+    if let Some(on_webview_created) = on_webview_created {
+      webview_builder = webview_builder.on_webview_created(move |ctx| {
+        on_webview_created(tauri_runtime::window::CreationContext {
+          env: ctx.env,
+          activity: ctx.activity,
+          webview: ctx.webview,
+        })
+      });
+    }
   }
 
   let webview = webview_builder

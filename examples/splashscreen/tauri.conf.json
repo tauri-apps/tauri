@@ -42,6 +42,7 @@
         "width": 400,
         "height": 200,
         "decorations": false,
+        "shadow": true,
         "resizable": false,
         "url": "splashscreen.html"
       }

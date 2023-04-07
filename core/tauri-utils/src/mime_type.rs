@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -39,7 +39,7 @@ impl std::fmt::Display for MimeType {
       MimeType::Svg => "image/svg+xml",
       MimeType::Mp4 => "video/mp4",
     };
-    write!(f, "{}", mime)
+    write!(f, "{mime}")
   }
 }
 
@@ -49,7 +49,7 @@ impl MimeType {
     let suffix = uri.split('.').last();
     match suffix {
       Some("bin") => Self::OctetStream,
-      Some("css") => Self::Css,
+      Some("css" | "less" | "sass" | "styl") => Self::Css,
       Some("csv") => Self::Csv,
       Some("html") => Self::Html,
       Some("ico") => Self::Ico,

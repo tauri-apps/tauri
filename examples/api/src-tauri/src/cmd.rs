@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,7 +6,7 @@ use serde::Deserialize;
 use tauri::command;
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
+#[allow(unused)]
 pub struct RequestBody {
   id: i32,
   name: String,
@@ -14,7 +14,7 @@ pub struct RequestBody {
 
 #[command]
 pub fn log_operation(event: String, payload: Option<String>) {
-  println!("{} {:?}", event, payload);
+  log::info!("{} {:?}", event, payload);
 }
 
 #[command]

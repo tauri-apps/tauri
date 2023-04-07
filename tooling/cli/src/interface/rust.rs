@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,42 +10,37 @@ use std::{
   path::{Path, PathBuf},
   process::{Command, ExitStatus},
   str::FromStr,
-  sync::{
-    atomic::{AtomicBool, Ordering},
-    mpsc::sync_channel,
-    Arc, Mutex,
-  },
+  sync::{mpsc::sync_channel, Arc, Mutex},
   time::{Duration, Instant},
 };
 
 use anyhow::Context;
-#[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use log::{debug, error, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
-use shared_child::SharedChild;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::parse::is_configuration_file;
 
-use super::{AppSettings, ExitReason, Interface};
+use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::{reload as reload_config, wix_settings, Config},
+  config::{nsis_settings, reload as reload_config, wix_settings, Config},
 };
+use tauri_utils::display_path;
 
 mod cargo_config;
 mod desktop;
-mod manifest;
+pub mod manifest;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Options {
   pub runner: Option<String>,
   pub debug: bool,
@@ -84,30 +79,13 @@ impl From<crate::dev::Options> for Options {
   }
 }
 
-pub struct DevChild {
-  manually_killed_app: Arc<AtomicBool>,
-  build_child: Arc<SharedChild>,
-  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
-}
-
-impl DevChild {
-  fn kill(&self) -> std::io::Result<()> {
-    if let Some(child) = &*self.app_child.lock().unwrap() {
-      child.kill()?;
-    } else {
-      self.build_child.kill()?;
-    }
-    self.manually_killed_app.store(true, Ordering::Relaxed);
-    Ok(())
-  }
-
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    if let Some(child) = &*self.app_child.lock().unwrap() {
-      child.try_wait()
-    } else {
-      self.build_child.try_wait()
-    }
-  }
+#[derive(Debug, Clone)]
+pub struct MobileOptions {
+  pub debug: bool,
+  pub features: Option<Vec<String>>,
+  pub args: Vec<String>,
+  pub config: Option<String>,
+  pub no_watch: bool,
 }
 
 #[derive(Debug)]
@@ -131,7 +109,7 @@ impl Interface for Rust {
       let (tx, rx) = sync_channel(1);
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
         if let Ok(events) = r {
-          tx.send(events).unwrap()
+          let _ = tx.send(events);
         }
       })
       .unwrap();
@@ -156,8 +134,10 @@ impl Interface for Rust {
       std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
     }
 
+    let app_settings = RustAppSettings::new(config, manifest, target)?;
+
     Ok(Self {
-      app_settings: RustAppSettings::new(config, manifest, target)?,
+      app_settings,
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
       available_targets: None,
@@ -168,11 +148,7 @@ impl Interface for Rust {
     &self.app_settings
   }
 
-  fn build(&mut self, mut options: Options) -> crate::Result<()> {
-    options
-      .features
-      .get_or_insert(Vec::new())
-      .push("custom-protocol".into());
+  fn build(&mut self, options: Options) -> crate::Result<()> {
     desktop::build(
       options,
       &self.app_settings,
@@ -185,28 +161,62 @@ impl Interface for Rust {
 
   fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
-    options: Options,
+    mut options: Options,
     on_exit: F,
   ) -> crate::Result<()> {
     let on_exit = Arc::new(on_exit);
 
-    let on_exit_ = on_exit.clone();
+    let mut run_args = Vec::new();
+    dev_options(
+      false,
+      &mut options.args,
+      &mut run_args,
+      &mut options.features,
+      &self.app_settings,
+    );
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, move |status, reason| {
+      self.run_dev(options, run_args, move |status, reason| {
         tx.send(()).unwrap();
-        on_exit_(status, reason)
+        on_exit(status, reason)
       })?;
 
       rx.recv().unwrap();
       Ok(())
     } else {
-      let child = self.run_dev(options.clone(), move |status, reason| {
-        on_exit_(status, reason)
-      })?;
+      let config = options.config.clone();
+      let run = Arc::new(|rust: &mut Rust| {
+        let on_exit = on_exit.clone();
+        rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
+          on_exit(status, reason)
+        })
+      });
+      self.run_dev_watcher(config, run)
+    }
+  }
 
-      self.run_dev_watcher(child, options, on_exit)
+  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess>>>(
+    &mut self,
+    mut options: MobileOptions,
+    runner: R,
+  ) -> crate::Result<()> {
+    let mut run_args = Vec::new();
+    dev_options(
+      true,
+      &mut options.args,
+      &mut run_args,
+      &mut options.features,
+      &self.app_settings,
+    );
+
+    if options.no_watch {
+      runner(options)?;
+      Ok(())
+    } else {
+      let config = options.config.clone();
+      let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
+      self.run_dev_watcher(config, run)
     }
   }
 
@@ -312,7 +322,7 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push(".tauri-dev");
+  default_gitignore.push(".tauri");
   let _ = std::fs::create_dir_all(&default_gitignore);
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
@@ -334,51 +344,85 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
+fn shared_options(
+  mobile: bool,
+  features: &mut Option<Vec<String>>,
+  app_settings: &RustAppSettings,
+) {
+  if mobile {
+    features
+      .get_or_insert(Vec::new())
+      .push("tauri/rustls-tls".into());
+  } else {
+    let all_features = app_settings
+      .manifest
+      .all_enabled_features(if let Some(f) = features { f } else { &[] });
+    if !all_features.contains(&"tauri/rustls-tls".into()) {
+      features
+        .get_or_insert(Vec::new())
+        .push("tauri/native-tls".into());
+    }
+  }
+}
+
+fn dev_options(
+  mobile: bool,
+  args: &mut Vec<String>,
+  run_args: &mut Vec<String>,
+  features: &mut Option<Vec<String>>,
+  app_settings: &RustAppSettings,
+) {
+  let mut dev_args = Vec::new();
+  let mut reached_run_args = false;
+  for arg in args.clone() {
+    if reached_run_args {
+      run_args.push(arg);
+    } else if arg == "--" {
+      reached_run_args = true;
+    } else {
+      dev_args.push(arg);
+    }
+  }
+  *args = dev_args;
+
+  shared_options(mobile, features, app_settings);
+
+  if !args.contains(&"--no-default-features".into()) {
+    let manifest_features = app_settings.manifest.features();
+    let enable_features: Vec<String> = manifest_features
+      .get("default")
+      .cloned()
+      .unwrap_or_default()
+      .into_iter()
+      .filter(|feature| {
+        if let Some(manifest_feature) = manifest_features.get(feature) {
+          !manifest_feature.contains(&"tauri/custom-protocol".into())
+        } else {
+          feature != "tauri/custom-protocol"
+        }
+      })
+      .collect();
+    args.push("--no-default-features".into());
+    if !enable_features.is_empty() {
+      features.get_or_insert(Vec::new()).extend(enable_features);
+    }
+  }
+}
+
 impl Rust {
+  pub fn build_options(&self, features: &mut Option<Vec<String>>, mobile: bool) {
+    features
+      .get_or_insert(Vec::new())
+      .push("custom-protocol".into());
+    shared_options(mobile, features, &self.app_settings);
+  }
+
   fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
-    mut options: Options,
+    options: Options,
+    run_args: Vec<String>,
     on_exit: F,
-  ) -> crate::Result<DevChild> {
-    let mut args = Vec::new();
-    let mut run_args = Vec::new();
-    let mut reached_run_args = false;
-    for arg in options.args.clone() {
-      if reached_run_args {
-        run_args.push(arg);
-      } else if arg == "--" {
-        reached_run_args = true;
-      } else {
-        args.push(arg);
-      }
-    }
-
-    if !args.contains(&"--no-default-features".into()) {
-      let manifest_features = self.app_settings.manifest.features();
-      let enable_features: Vec<String> = manifest_features
-        .get("default")
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|feature| {
-          if let Some(manifest_feature) = manifest_features.get(feature) {
-            !manifest_feature.contains(&"tauri/custom-protocol".into())
-          } else {
-            feature != "tauri/custom-protocol"
-          }
-        })
-        .collect();
-      args.push("--no-default-features".into());
-      if !enable_features.is_empty() {
-        options
-          .features
-          .get_or_insert(Vec::new())
-          .extend(enable_features);
-      }
-    }
-
-    options.args = args;
-
+  ) -> crate::Result<Box<dyn DevProcess>> {
     desktop::run_dev(
       options,
       run_args,
@@ -388,14 +432,16 @@ impl Rust {
       self.product_name.clone(),
       on_exit,
     )
+    .map(|c| Box::new(c) as Box<dyn DevProcess>)
   }
 
-  fn run_dev_watcher<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+  fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess>>>(
     &mut self,
-    child: DevChild,
-    options: Options,
-    on_exit: Arc<F>,
+    config: Option<String>,
+    run: Arc<F>,
   ) -> crate::Result<()> {
+    let child = run(self)?;
+
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
     let app_path = app_dir();
@@ -432,10 +478,10 @@ impl Rust {
     .unwrap();
     for path in watch_folders {
       if !ignore_matcher.is_ignore(path, true) {
-        info!("Watching {} for changes...", path.display());
+        info!("Watching {} for changes...", display_path(path));
         lookup(path, |file_type, p| {
           if p != path {
-            debug!("Watching {} for changes...", p.display());
+            debug!("Watching {} for changes...", display_path(&p));
             let _ = watcher.watcher().watch(
               &p,
               if file_type.is_dir() {
@@ -452,12 +498,11 @@ impl Rust {
     loop {
       if let Ok(events) = rx.recv() {
         for event in events {
-          let on_exit = on_exit.clone();
           let event_path = event.path;
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
             if is_configuration_file(&event_path) {
-              match reload_config(options.config.as_deref()) {
+              match reload_config(config.as_deref()) {
                 Ok(config) => {
                   info!("Tauri configuration changed. Rewriting manifest...");
                   self.app_settings.manifest =
@@ -465,8 +510,7 @@ impl Rust {
                 }
                 Err(err) => {
                   let p = process.lock().unwrap();
-                  let is_building_app = p.app_child.lock().unwrap().is_none();
-                  if is_building_app {
+                  if p.is_building_app() {
                     p.kill().with_context(|| "failed to kill app process")?;
                   }
                   error!("{}", err);
@@ -475,10 +519,7 @@ impl Rust {
             } else {
               info!(
                 "File {} changed. Rebuilding application...",
-                event_path
-                  .strip_prefix(app_path)
-                  .unwrap_or(&event_path)
-                  .display()
+                display_path(event_path.strip_prefix(app_path).unwrap_or(&event_path))
               );
               // When tauri.conf.json is changed, rewrite_manifest will be called
               // which will trigger the watcher again
@@ -491,9 +532,7 @@ impl Rust {
                   break;
                 }
               }
-              *p = self.run_dev(options.clone(), move |status, reason| {
-                on_exit(status, reason)
-              })?;
+              *p = run(self)?;
             }
           }
         }
@@ -502,11 +541,78 @@ impl Rust {
   }
 }
 
+// Taken from https://github.com/rust-lang/cargo/blob/70898e522116f6c23971e2a554b2dc85fd4c84cd/src/cargo/util/toml/mod.rs#L1008-L1065
+/// Enum that allows for the parsing of `field.workspace = true` in a Cargo.toml
+///
+/// It allows for things to be inherited from a workspace or defined as needed
+#[derive(Clone, Debug)]
+pub enum MaybeWorkspace<T> {
+  Workspace(TomlWorkspaceField),
+  Defined(T),
+}
+
+impl<'de, T: Deserialize<'de>> serde::de::Deserialize<'de> for MaybeWorkspace<T> {
+  fn deserialize<D>(deserializer: D) -> Result<MaybeWorkspace<T>, D::Error>
+  where
+    D: serde::de::Deserializer<'de>,
+  {
+    let value = serde_value::Value::deserialize(deserializer)?;
+    if let Ok(workspace) = TomlWorkspaceField::deserialize(
+      serde_value::ValueDeserializer::<D::Error>::new(value.clone()),
+    ) {
+      return Ok(MaybeWorkspace::Workspace(workspace));
+    }
+    T::deserialize(serde_value::ValueDeserializer::<D::Error>::new(value))
+      .map(MaybeWorkspace::Defined)
+  }
+}
+
+impl<T> MaybeWorkspace<T> {
+  fn resolve(
+    self,
+    label: &str,
+    get_ws_field: impl FnOnce() -> anyhow::Result<T>,
+  ) -> anyhow::Result<T> {
+    match self {
+      MaybeWorkspace::Defined(value) => Ok(value),
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: true }) => {
+        get_ws_field().context(format!(
+          "error inheriting `{label}` from workspace root manifest's `workspace.package.{label}`"
+        ))
+      }
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(anyhow::anyhow!(
+        "`workspace=false` is unsupported for `package.{}`",
+        label,
+      )),
+    }
+  }
+  fn _as_defined(&self) -> Option<&T> {
+    match self {
+      MaybeWorkspace::Workspace(_) => None,
+      MaybeWorkspace::Defined(defined) => Some(defined),
+    }
+  }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct TomlWorkspaceField {
+  workspace: bool,
+}
+
 /// The `workspace` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]
 struct WorkspaceSettings {
   /// the workspace members.
   members: Option<Vec<String>>,
+  package: Option<WorkspacePackageSettings>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct WorkspacePackageSettings {
+  authors: Option<Vec<String>>,
+  description: Option<String>,
+  homepage: Option<String>,
+  version: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -517,17 +623,18 @@ struct BinarySettings {
 
 /// The package settings.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct CargoPackageSettings {
   /// the package's name.
   pub name: Option<String>,
   /// the package's version.
-  pub version: Option<String>,
+  pub version: Option<MaybeWorkspace<String>>,
   /// the package's description.
-  pub description: Option<String>,
+  pub description: Option<MaybeWorkspace<String>>,
   /// the package's homepage.
-  pub homepage: Option<String>,
+  pub homepage: Option<MaybeWorkspace<String>>,
   /// the package's authors.
-  pub authors: Option<Vec<String>>,
+  pub authors: Option<MaybeWorkspace<Vec<String>>>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -608,7 +715,7 @@ impl AppSettings for RustAppSettings {
     }
     .into();
 
-    Ok(out_dir.join(bin_name).with_extension(&binary_extension))
+    Ok(out_dir.join(bin_name).with_extension(binary_extension))
   }
 
   fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
@@ -620,6 +727,8 @@ impl AppSettings for RustAppSettings {
       ""
     }
     .into();
+
+    let target_os = target.split('-').nth(2).unwrap_or(std::env::consts::OS);
 
     if let Some(bin) = &self.cargo_settings.bin {
       let default_run = self
@@ -698,14 +807,15 @@ impl AppSettings for RustAppSettings {
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
-        #[cfg(target_os = "linux")]
-        self.package_settings.product_name.to_kebab_case(),
-        #[cfg(not(target_os = "linux"))]
-        format!(
-          "{}{}",
-          self.package_settings.product_name.clone(),
-          &binary_extension
-        ),
+        if target_os == "linux" {
+          self.package_settings.product_name.to_kebab_case()
+        } else {
+          format!(
+            "{}{}",
+            self.package_settings.product_name.clone(),
+            &binary_extension
+          )
+        },
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),
@@ -713,6 +823,30 @@ impl AppSettings for RustAppSettings {
     }
 
     Ok(binaries)
+  }
+
+  fn app_name(&self) -> Option<String> {
+    self
+      .manifest
+      .inner
+      .as_table()
+      .get("package")
+      .and_then(|p| p.as_table())
+      .and_then(|p| p.get("name"))
+      .and_then(|n| n.as_str())
+      .map(|n| n.to_string())
+  }
+
+  fn lib_name(&self) -> Option<String> {
+    self
+      .manifest
+      .inner
+      .as_table()
+      .get("lib")
+      .and_then(|p| p.as_table())
+      .and_then(|p| p.get("name"))
+      .and_then(|n| n.as_str())
+      .map(|n| n.to_string())
   }
 }
 
@@ -729,6 +863,11 @@ impl RustAppSettings {
       }
     };
 
+    let ws_package_settings = CargoSettings::load(&get_workspace_dir()?)
+      .with_context(|| "failed to load cargo settings from workspace root")?
+      .workspace
+      .and_then(|v| v.package);
+
     let package_settings = PackageSettings {
       product_name: config.package.product_name.clone().unwrap_or_else(|| {
         cargo_package_settings
@@ -741,13 +880,52 @@ impl RustAppSettings {
           .version
           .clone()
           .expect("Cargo manifest must have the `package.version` field")
+          .resolve("version", || {
+            ws_package_settings
+              .as_ref()
+              .and_then(|p| p.version.clone())
+              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
+          })
+          .expect("Cargo project does not have a version")
       }),
       description: cargo_package_settings
         .description
         .clone()
+        .map(|description| {
+          description
+            .resolve("description", || {
+              ws_package_settings
+                .as_ref()
+                .and_then(|v| v.description.clone())
+                .ok_or_else(|| {
+                  anyhow::anyhow!("Couldn't inherit value for `description` from workspace")
+                })
+            })
+            .unwrap()
+        })
         .unwrap_or_default(),
-      homepage: cargo_package_settings.homepage.clone(),
-      authors: cargo_package_settings.authors.clone(),
+      homepage: cargo_package_settings.homepage.clone().map(|homepage| {
+        homepage
+          .resolve("homepage", || {
+            ws_package_settings
+              .as_ref()
+              .and_then(|v| v.homepage.clone())
+              .ok_or_else(|| {
+                anyhow::anyhow!("Couldn't inherit value for `homepage` from workspace")
+              })
+          })
+          .unwrap()
+      }),
+      authors: cargo_package_settings.authors.clone().map(|authors| {
+        authors
+          .resolve("authors", || {
+            ws_package_settings
+              .as_ref()
+              .and_then(|v| v.authors.clone())
+              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `authors` from workspace"))
+          })
+          .unwrap()
+      }),
       default_run: cargo_package_settings.default_run.clone(),
     };
 
@@ -759,7 +937,10 @@ impl RustAppSettings {
         .target()
         .map(|t| t.to_string())
         .unwrap_or_else(|| {
-          let output = Command::new("rustc").args(["-vV"]).output().unwrap();
+          let output = Command::new("rustc")
+            .args(["-vV"])
+            .output()
+            .expect("\"rustc\" could not be found, did you install Rust?");
           let stdout = String::from_utf8_lossy(&output.stdout);
           stdout
             .split('\n')
@@ -880,8 +1061,8 @@ fn tauri_config_to_bundle_settings(
       }
     }
 
-    // provides `libwebkit2gtk-4.0.so.37` and all `4.0` versions have the -37 package name
-    depends.push("libwebkit2gtk-4.0-37".to_string());
+    // provides `libwebkit2gtk-4.1.so.37` and all `4.0` versions have the -37 package name
+    depends.push("libwebkit2gtk-4.1-0".to_string());
     depends.push("libgtk-3-0".to_string());
   }
 
@@ -971,6 +1152,7 @@ fn tauri_config_to_bundle_settings(
         wix.license = wix.license.map(|l| tauri_dir().join(l));
         wix
       }),
+      nsis: config.windows.nsis.map(nsis_settings),
       icon_path: windows_icon_path,
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,

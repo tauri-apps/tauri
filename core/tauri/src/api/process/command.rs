@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -18,8 +18,10 @@ use std::os::windows::process::CommandExt;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+const NEWLINE_BYTE: u8 = b'\n';
 
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
+
 pub use encoding_rs::Encoding;
 use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
@@ -54,14 +56,13 @@ pub struct TerminatedPayload {
 }
 
 /// A event sent to the command callback.
-#[derive(Debug, Clone, Serialize)]
-#[serde(tag = "event", content = "payload")]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum CommandEvent {
   /// Stderr bytes until a newline (\n) or carriage return (\r) is found.
-  Stderr(String),
+  Stderr(Vec<u8>),
   /// Stdout bytes until a newline (\n) or carriage return (\r) is found.
-  Stdout(String),
+  Stdout(Vec<u8>),
   /// An error happened waiting for the command to finish or converting the stdout/stderr bytes to an UTF-8 string.
   Error(String),
   /// Command process terminated.
@@ -76,7 +77,6 @@ pub struct Command {
   env_clear: bool,
   env: HashMap<String, String>,
   current_dir: Option<PathBuf>,
-  encoding: Option<&'static Encoding>,
 }
 
 /// Spawned child process.
@@ -129,17 +129,17 @@ pub struct Output {
   /// The status (exit code) of the process.
   pub status: ExitStatus,
   /// The data that the process wrote to stdout.
-  pub stdout: String,
+  pub stdout: Vec<u8>,
   /// The data that the process wrote to stderr.
-  pub stderr: String,
+  pub stderr: Vec<u8>,
 }
 
 fn relative_command_path(command: String) -> crate::Result<String> {
   match platform::current_exe()?.parent() {
     #[cfg(windows)]
-    Some(exe_dir) => Ok(format!("{}\\{}.exe", exe_dir.display(), command)),
+    Some(exe_dir) => Ok(format!("{}\\{command}.exe", exe_dir.display())),
     #[cfg(not(windows))]
-    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.display(), command)),
+    Some(exe_dir) => Ok(format!("{}/{command}", exe_dir.display())),
     None => Err(crate::api::Error::Command("Could not evaluate executable dir".to_string()).into()),
   }
 }
@@ -173,7 +173,6 @@ impl Command {
       env_clear: false,
       env: Default::default(),
       current_dir: None,
-      encoding: None,
     }
   }
 
@@ -219,13 +218,6 @@ impl Command {
     self
   }
 
-  /// Sets the character encoding for stdout/stderr.
-  #[must_use]
-  pub fn encoding(mut self, encoding: &'static Encoding) -> Self {
-    self.encoding.replace(encoding);
-    self
-  }
-
   /// Spawns the command.
   ///
   /// # Examples
@@ -241,7 +233,7 @@ impl Command {
   ///   let mut i = 0;
   ///   while let Some(event) = rx.recv().await {
   ///     if let CommandEvent::Stdout(line) = event {
-  ///       println!("got: {}", line);
+  ///       println!("got: {}", String::from_utf8(line).unwrap());
   ///       i += 1;
   ///       if i == 4 {
   ///         child.write("message from Rust\n".as_bytes()).unwrap();
@@ -252,7 +244,6 @@ impl Command {
   /// });
   /// ```
   pub fn spawn(self) -> crate::api::Result<(Receiver<CommandEvent>, CommandChild)> {
-    let encoding = self.encoding;
     let mut command: StdCommand = self.into();
     let (stdout_reader, stdout_writer) = pipe()?;
     let (stderr_reader, stderr_writer) = pipe()?;
@@ -275,14 +266,12 @@ impl Command {
       guard.clone(),
       stdout_reader,
       CommandEvent::Stdout,
-      encoding,
     );
     spawn_pipe_reader(
       tx.clone(),
       guard.clone(),
       stderr_reader,
       CommandEvent::Stderr,
-      encoding,
     );
 
     spawn(move || {
@@ -350,27 +339,28 @@ impl Command {
   /// use tauri::api::process::Command;
   /// let output = Command::new("echo").args(["TAURI"]).output().unwrap();
   /// assert!(output.status.success());
-  /// assert_eq!(output.stdout, "TAURI");
+  /// assert_eq!(String::from_utf8(output.stdout).unwrap(), "TAURI");
   /// ```
   pub fn output(self) -> crate::api::Result<Output> {
     let (mut rx, _child) = self.spawn()?;
 
     let output = crate::async_runtime::safe_block_on(async move {
       let mut code = None;
-      let mut stdout = String::new();
-      let mut stderr = String::new();
+      let mut stdout = Vec::new();
+      let mut stderr = Vec::new();
+
       while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Terminated(payload) => {
             code = payload.code;
           }
           CommandEvent::Stdout(line) => {
-            stdout.push_str(line.as_str());
-            stdout.push('\n');
+            stdout.extend(line);
+            stdout.push(NEWLINE_BYTE);
           }
           CommandEvent::Stderr(line) => {
-            stderr.push_str(line.as_str());
-            stderr.push('\n');
+            stderr.extend(line);
+            stderr.push(NEWLINE_BYTE);
           }
           CommandEvent::Error(_) => {}
         }
@@ -386,36 +376,25 @@ impl Command {
   }
 }
 
-fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
+fn spawn_pipe_reader<F: Fn(Vec<u8>) -> CommandEvent + Send + Copy + 'static>(
   tx: Sender<CommandEvent>,
   guard: Arc<RwLock<()>>,
   pipe_reader: PipeReader,
   wrapper: F,
-  character_encoding: Option<&'static Encoding>,
 ) {
   spawn(move || {
     let _lock = guard.read().unwrap();
     let mut reader = BufReader::new(pipe_reader);
 
-    let mut buf = Vec::new();
     loop {
-      buf.clear();
+      let mut buf = Vec::new();
       match tauri_utils::io::read_line(&mut reader, &mut buf) {
         Ok(n) => {
           if n == 0 {
             break;
           }
           let tx_ = tx.clone();
-          let line = match character_encoding {
-            Some(encoding) => Ok(encoding.decode_with_bom_removal(&buf).0.into()),
-            None => String::from_utf8(buf.clone()),
-          };
-          block_on_task(async move {
-            let _ = match line {
-              Ok(line) => tx_.send(wrapper(line)).await,
-              Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-            };
-          });
+          let _ = block_on_task(async move { tx_.send(wrapper(buf)).await });
         }
         Err(e) => {
           let tx_ = tx.clone();
@@ -428,14 +407,13 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
 
 // tests for the commands functions.
 #[cfg(test)]
-mod test {
+mod tests {
   #[cfg(not(windows))]
   use super::*;
 
   #[cfg(not(windows))]
   #[test]
-  fn test_cmd_output() {
-    // create a command to run cat.
+  fn test_cmd_spawn_output() {
     let cmd = Command::new("cat").args(["test/api/test.txt"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
@@ -446,7 +424,28 @@ mod test {
             assert_eq!(payload.code, Some(0));
           }
           CommandEvent::Stdout(line) => {
-            assert_eq!(line, "This is a test doc!".to_string());
+            assert_eq!(String::from_utf8(line).unwrap(), "This is a test doc!");
+          }
+          _ => {}
+        }
+      }
+    });
+  }
+
+  #[cfg(not(windows))]
+  #[test]
+  fn test_cmd_spawn_raw_output() {
+    let cmd = Command::new("cat").args(["test/api/test.txt"]);
+    let (mut rx, _) = cmd.spawn().unwrap();
+
+    crate::async_runtime::block_on(async move {
+      while let Some(event) = rx.recv().await {
+        match event {
+          CommandEvent::Terminated(payload) => {
+            assert_eq!(payload.code, Some(0));
+          }
+          CommandEvent::Stdout(line) => {
+            assert_eq!(String::from_utf8(line).unwrap(), "This is a test doc!");
           }
           _ => {}
         }
@@ -457,7 +456,7 @@ mod test {
   #[cfg(not(windows))]
   #[test]
   // test the failure case
-  fn test_cmd_fail() {
+  fn test_cmd_spawn_fail() {
     let cmd = Command::new("cat").args(["test/api/"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
@@ -468,11 +467,65 @@ mod test {
             assert_eq!(payload.code, Some(1));
           }
           CommandEvent::Stderr(line) => {
-            assert_eq!(line, "cat: test/api/: Is a directory".to_string());
+            assert_eq!(
+              String::from_utf8(line).unwrap(),
+              "cat: test/api/: Is a directory"
+            );
           }
           _ => {}
         }
       }
     });
+  }
+
+  #[cfg(not(windows))]
+  #[test]
+  // test the failure case (raw encoding)
+  fn test_cmd_spawn_raw_fail() {
+    let cmd = Command::new("cat").args(["test/api/"]);
+    let (mut rx, _) = cmd.spawn().unwrap();
+
+    crate::async_runtime::block_on(async move {
+      while let Some(event) = rx.recv().await {
+        match event {
+          CommandEvent::Terminated(payload) => {
+            assert_eq!(payload.code, Some(1));
+          }
+          CommandEvent::Stderr(line) => {
+            assert_eq!(
+              String::from_utf8(line).unwrap(),
+              "cat: test/api/: Is a directory"
+            );
+          }
+          _ => {}
+        }
+      }
+    });
+  }
+
+  #[cfg(not(windows))]
+  #[test]
+  fn test_cmd_output_output() {
+    let cmd = Command::new("cat").args(["test/api/test.txt"]);
+    let output = cmd.output().unwrap();
+
+    assert_eq!(String::from_utf8(output.stderr).unwrap(), "");
+    assert_eq!(
+      String::from_utf8(output.stdout).unwrap(),
+      "This is a test doc!\n"
+    );
+  }
+
+  #[cfg(not(windows))]
+  #[test]
+  fn test_cmd_output_output_fail() {
+    let cmd = Command::new("cat").args(["test/api/"]);
+    let output = cmd.output().unwrap();
+
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "");
+    assert_eq!(
+      String::from_utf8(output.stderr).unwrap(),
+      "cat: test/api/: Is a directory\n"
+    );
   }
 }

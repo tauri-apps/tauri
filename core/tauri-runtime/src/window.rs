@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -12,6 +12,7 @@ use crate::{
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use tauri_utils::{config::WindowConfig, Theme};
+use url::Url;
 
 use std::{
   collections::{HashMap, HashSet},
@@ -98,9 +99,10 @@ fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
 
 /// Describes the appearance of the mouse cursor.
 #[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum CursorIcon {
   /// The platform-dependent default cursor.
+  #[default]
   Default,
   /// A simple crosshair.
   Crosshair,
@@ -202,10 +204,11 @@ impl<'de> Deserialize<'de> for CursorIcon {
   }
 }
 
-impl Default for CursorIcon {
-  fn default() -> Self {
-    CursorIcon::Default
-  }
+#[cfg(target_os = "android")]
+pub struct CreationContext<'a> {
+  pub env: jni::JNIEnv<'a>,
+  pub activity: jni::objects::JObject<'a>,
+  pub webview: jni::objects::JObject<'a>,
 }
 
 /// A webview window that has yet to be built.
@@ -232,6 +235,14 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
 
   /// A HashMap mapping JS event names with associated listener ids.
   pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
+
+  /// A handler to decide if incoming url is allowed to navigate.
+  pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
+
+  #[cfg(target_os = "android")]
+  #[allow(clippy::type_complexity)]
+  pub on_webview_created:
+    Option<Box<dyn Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -271,6 +282,9 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
+        navigation_handler: Default::default(),
+        #[cfg(target_os = "android")]
+        on_webview_created: None,
       })
     }
   }
@@ -300,6 +314,9 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
+        navigation_handler: Default::default(),
+        #[cfg(target_os = "android")]
+        on_webview_created: None,
       })
     }
   }
@@ -325,6 +342,17 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     self
       .uri_scheme_protocols
       .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
+  }
+
+  #[cfg(target_os = "android")]
+  pub fn on_webview_created<
+    F: Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send + 'static,
+  >(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.on_webview_created.replace(Box::new(f));
+    self
   }
 }
 

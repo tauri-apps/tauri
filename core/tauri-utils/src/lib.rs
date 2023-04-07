@@ -1,11 +1,14 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 //! Tauri utility helpers
 #![warn(missing_docs, rust_2018_idioms)]
 
-use std::fmt::Display;
+use std::{
+  fmt::Display,
+  path::{Path, PathBuf},
+};
 
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -34,6 +37,8 @@ pub struct PackageInfo {
   pub authors: &'static str,
   /// The crate description.
   pub description: &'static str,
+  /// The crate name.
+  pub crate_name: &'static str,
 }
 
 impl PackageInfo {
@@ -50,7 +55,7 @@ impl PackageInfo {
   }
 }
 
-/// How the window title bar should be displayed.
+/// How the window title bar should be displayed on macOS.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum TitleBarStyle {
@@ -64,7 +69,7 @@ pub enum TitleBarStyle {
   ///
   /// Keep in mind:
   /// - The height of the title bar is different on different OS versions, which can lead to window the controls and title not being where you don't expect.
-  /// - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus (https://github.com/tauri-apps/tauri/issues/4316).
+  /// - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus <https://github.com/tauri-apps/tauri/issues/4316>.
   /// - The color of the window title depends on the system theme.
   Overlay,
 }
@@ -293,4 +298,13 @@ macro_rules! debug_eprintln {
     #[cfg(not(debug_assertions))]
     $crate::consume_unused_variable!($($arg)*);
   };
+}
+
+/// Reconstructs a path from its components using the platform separator then converts it to String
+pub fn display_path<P: AsRef<Path>>(p: P) -> String {
+  p.as_ref()
+    .components()
+    .collect::<PathBuf>()
+    .display()
+    .to_string()
 }

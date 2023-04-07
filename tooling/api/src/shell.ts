@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -32,7 +32,7 @@
  * ### Restricting access to the {@link open | `open`} API
  *
  * On the allowlist, `open: true` means that the {@link open} API can be used with any URL,
- * as the argument is validated with the `^https?://` regex.
+ * as the argument is validated with the `^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+` regex.
  * You can change that regex by changing the boolean value to a string, e.g. `open: ^https://github.com/`.
  *
  * ### Restricting access to the {@link Command | `Command`} APIs
@@ -40,7 +40,7 @@
  * The `shell` allowlist object has a `scope` field that defines an array of CLIs that can be used.
  * Each CLI is a configuration object `{ name: string, cmd: string, sidecar?: bool, args?: boolean | Arg[] }`.
  *
- * - `name`: the unique identifier of the command, passed to the {@link Command.constructor | Command constructor}.
+ * - `name`: the unique identifier of the command, passed to the {@link Command.create | Command.create function}.
  * If it's a sidecar, this must be the value defined on `tauri.conf.json > tauri > bundle > externalBin`.
  * - `cmd`: the program that is executed on this configuration. If it's a sidecar, this value is ignored.
  * - `sidecar`: whether the object configures a sidecar or a system program.
@@ -57,17 +57,19 @@
  * Configuration:
  * ```json
  * {
- *   "scope": {
- *     "name": "run-git-commit",
- *     "cmd": "git",
- *     "args": ["commit", "-m", { "validator": "\\S+" }]
- *   }
+ *   "scope": [
+ *     {
+ *       "name": "run-git-commit",
+ *       "cmd": "git",
+ *       "args": ["commit", "-m", { "validator": "\\S+" }]
+ *     }
+ *   ]
  * }
  * ```
  * Usage:
  * ```typescript
  * import { Command } from '@tauri-apps/api/shell'
- * new Command('run-git-commit', ['commit', '-m', 'the commit message'])
+ * Command.create('run-git-commit', ['commit', '-m', 'the commit message'])
  * ```
  *
  * Trying to execute any API with a program not configured on the scope results in a promise rejection due to denied access.
@@ -85,7 +87,7 @@ interface SpawnOptions {
   /** Current working directory. */
   cwd?: string
   /** Environment variables. set to `null` to clear the process env. */
-  env?: { [name: string]: string }
+  env?: Record<string, string>
   /**
    * Character encoding for stdout/stderr
    *
@@ -102,15 +104,15 @@ interface InternalSpawnOptions extends SpawnOptions {
 /**
  * @since 1.0.0
  */
-interface ChildProcess {
+interface ChildProcess<O extends IOPayload> {
   /** Exit code of the process. `null` if the process was terminated by a signal on Unix. */
   code: number | null
   /** If the process was terminated by a signal, represents that signal. */
   signal: number | null
   /** The data that the process wrote to `stdout`. */
-  stdout: string
+  stdout: O
   /** The data that the process wrote to `stderr`. */
-  stderr: string
+  stderr: O
 }
 
 /**
@@ -123,8 +125,8 @@ interface ChildProcess {
  * @param options Configuration for the process spawn.
  * @returns A promise resolving to the process id.
  */
-async function execute(
-  onEvent: (event: CommandEvent) => void,
+async function execute<O extends IOPayload>(
+  onEvent: (event: CommandEvent<O>) => void,
   program: string,
   args: string | string[] = [],
   options?: InternalSpawnOptions
@@ -148,10 +150,10 @@ async function execute(
 /**
  * @since 1.0.0
  */
-class EventEmitter<E extends string> {
+class EventEmitter<E extends Record<string, any>> {
   /** @ignore */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  private eventListeners: Record<E, Array<(...args: any[]) => void>> =
+  private eventListeners: Record<keyof E, Array<(arg: any) => void>> =
     Object.create(null)
 
   /**
@@ -159,7 +161,10 @@ class EventEmitter<E extends string> {
    *
    * @since 1.1.0
    */
-  addListener(eventName: E, listener: (...args: any[]) => void): this {
+  addListener<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     return this.on(eventName, listener)
   }
 
@@ -168,7 +173,10 @@ class EventEmitter<E extends string> {
    *
    * @since 1.1.0
    */
-  removeListener(eventName: E, listener: (...args: any[]) => void): this {
+  removeListener<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     return this.off(eventName, listener)
   }
 
@@ -182,7 +190,10 @@ class EventEmitter<E extends string> {
    *
    * @since 1.0.0
    */
-  on(eventName: E, listener: (...args: any[]) => void): this {
+  on<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     if (eventName in this.eventListeners) {
       // eslint-disable-next-line security/detect-object-injection
       this.eventListeners[eventName].push(listener)
@@ -201,11 +212,14 @@ class EventEmitter<E extends string> {
    *
    * @since 1.1.0
    */
-  once(eventName: E, listener: (...args: any[]) => void): this {
-    const wrapper = (...args: any[]): void => {
+  once<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
+    const wrapper = (arg: E[typeof eventName]): void => {
       this.removeListener(eventName, wrapper)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      listener(...args)
+      listener(arg)
     }
     return this.addListener(eventName, wrapper)
   }
@@ -216,7 +230,10 @@ class EventEmitter<E extends string> {
    *
    * @since 1.1.0
    */
-  off(eventName: E, listener: (...args: any[]) => void): this {
+  off<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     if (eventName in this.eventListeners) {
       // eslint-disable-next-line security/detect-object-injection
       this.eventListeners[eventName] = this.eventListeners[eventName].filter(
@@ -233,7 +250,7 @@ class EventEmitter<E extends string> {
    *
    * @since 1.1.0
    */
-  removeAllListeners(event?: E): this {
+  removeAllListeners<N extends keyof E>(event?: N): this {
     if (event) {
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete,security/detect-object-injection
       delete this.eventListeners[event]
@@ -251,12 +268,12 @@ class EventEmitter<E extends string> {
    *
    * @returns `true` if the event had listeners, `false` otherwise.
    */
-  emit(eventName: E, ...args: any[]): boolean {
+  emit<N extends keyof E>(eventName: N, arg: E[typeof eventName]): boolean {
     if (eventName in this.eventListeners) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,security/detect-object-injection
       const listeners = this.eventListeners[eventName]
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      for (const listener of listeners) listener(...args)
+      for (const listener of listeners) listener(arg)
       return true
     }
     return false
@@ -267,7 +284,7 @@ class EventEmitter<E extends string> {
    *
    * @since 1.1.0
    */
-  listenerCount(eventName: E): number {
+  listenerCount<N extends keyof E>(eventName: N): number {
     if (eventName in this.eventListeners)
       // eslint-disable-next-line security/detect-object-injection
       return this.eventListeners[eventName].length
@@ -284,7 +301,10 @@ class EventEmitter<E extends string> {
    *
    * @since 1.1.0
    */
-  prependListener(eventName: E, listener: (...args: any[]) => void): this {
+  prependListener<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     if (eventName in this.eventListeners) {
       // eslint-disable-next-line security/detect-object-injection
       this.eventListeners[eventName].unshift(listener)
@@ -303,11 +323,14 @@ class EventEmitter<E extends string> {
    *
    * @since 1.1.0
    */
-  prependOnceListener(eventName: E, listener: (...args: any[]) => void): this {
-    const wrapper = (...args: any[]): void => {
+  prependOnceListener<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
+    const wrapper = (arg: any): void => {
       this.removeListener(eventName, wrapper)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      listener(...args)
+      listener(arg)
     }
     return this.prependListener(eventName, wrapper)
   }
@@ -331,7 +354,7 @@ class Child {
    * @example
    * ```typescript
    * import { Command } from '@tauri-apps/api/shell';
-   * const command = new Command('node');
+   * const command = Command.create('node');
    * const child = await command.spawn();
    * await child.write('message');
    * await child.write([0, 1, 2, 3, 4, 5]);
@@ -339,7 +362,7 @@ class Child {
    *
    * @returns A promise indicating the success or failure of the operation.
    */
-  async write(data: string | Uint8Array): Promise<void> {
+  async write(data: IOPayload): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Shell',
       message: {
@@ -367,13 +390,22 @@ class Child {
   }
 }
 
+interface CommandEvents {
+  close: TerminatedPayload
+  error: string
+}
+
+interface OutputEvents<O extends IOPayload> {
+  data: O
+}
+
 /**
  * The entry point for spawning child processes.
  * It emits the `close` and `error` events.
  * @example
  * ```typescript
  * import { Command } from '@tauri-apps/api/shell';
- * const command = new Command('node');
+ * const command = Command.create('node');
  * command.on('close', data => {
  *   console.log(`command finished with code ${data.code} and signal ${data.signal}`)
  * });
@@ -388,7 +420,7 @@ class Child {
  * @since 1.1.0
  *
  */
-class Command extends EventEmitter<'close' | 'error'> {
+class Command<O extends IOPayload> extends EventEmitter<CommandEvents> {
   /** @ignore Program to execute. */
   private readonly program: string
   /** @ignore Program arguments */
@@ -396,11 +428,12 @@ class Command extends EventEmitter<'close' | 'error'> {
   /** @ignore Spawn options. */
   private readonly options: InternalSpawnOptions
   /** Event emitter for the `stdout`. Emits the `data` event. */
-  readonly stdout = new EventEmitter<'data'>()
+  readonly stdout = new EventEmitter<OutputEvents<O>>()
   /** Event emitter for the `stderr`. Emits the `data` event. */
-  readonly stderr = new EventEmitter<'data'>()
+  readonly stderr = new EventEmitter<OutputEvents<O>>()
 
   /**
+   * @ignore
    * Creates a new `Command` instance.
    *
    * @param program The program name to execute.
@@ -408,7 +441,7 @@ class Command extends EventEmitter<'close' | 'error'> {
    * @param args Program arguments.
    * @param options Spawn options.
    */
-  constructor(
+  private constructor(
     program: string,
     args: string | string[] = [],
     options?: SpawnOptions
@@ -418,6 +451,50 @@ class Command extends EventEmitter<'close' | 'error'> {
     this.args = typeof args === 'string' ? [args] : args
     this.options = options ?? {}
   }
+
+  static create(program: string, args?: string | string[]): Command<string>
+  static create(
+    program: string,
+    args?: string | string[],
+    options?: SpawnOptions & { encoding: 'raw' }
+  ): Command<Uint8Array>
+  static create(
+    program: string,
+    args?: string | string[],
+    options?: SpawnOptions
+  ): Command<string>
+
+  /**
+   * Creates a command to execute the given program.
+   * @example
+   * ```typescript
+   * import { Command } from '@tauri-apps/api/shell';
+   * const command = Command.create('my-app', ['run', 'tauri']);
+   * const output = await command.execute();
+   * ```
+   *
+   * @param program The program to execute.
+   * It must be configured on `tauri.conf.json > tauri > allowlist > shell > scope`.
+   */
+  static create<O extends IOPayload>(
+    program: string,
+    args: string | string[] = [],
+    options?: SpawnOptions
+  ): Command<O> {
+    return new Command(program, args, options)
+  }
+
+  static sidecar(program: string, args?: string | string[]): Command<string>
+  static sidecar(
+    program: string,
+    args?: string | string[],
+    options?: SpawnOptions & { encoding: 'raw' }
+  ): Command<Uint8Array>
+  static sidecar(
+    program: string,
+    args?: string | string[],
+    options?: SpawnOptions
+  ): Command<string>
 
   /**
    * Creates a command to execute the given sidecar program.
@@ -431,12 +508,12 @@ class Command extends EventEmitter<'close' | 'error'> {
    * @param program The program to execute.
    * It must be configured on `tauri.conf.json > tauri > allowlist > shell > scope`.
    */
-  static sidecar(
+  static sidecar<O extends IOPayload>(
     program: string,
     args: string | string[] = [],
     options?: SpawnOptions
-  ): Command {
-    const instance = new Command(program, args, options)
+  ): Command<O> {
+    const instance = new Command<O>(program, args, options)
     instance.options.sidecar = true
     return instance
   }
@@ -447,7 +524,7 @@ class Command extends EventEmitter<'close' | 'error'> {
    * @returns A promise resolving to the child process handle.
    */
   async spawn(): Promise<Child> {
-    return execute(
+    return execute<O>(
       (event) => {
         switch (event.event) {
           case 'Error':
@@ -475,7 +552,7 @@ class Command extends EventEmitter<'close' | 'error'> {
    * @example
    * ```typescript
    * import { Command } from '@tauri-apps/api/shell';
-   * const output = await new Command('echo', 'message').execute();
+   * const output = await Command.create('echo', 'message').execute();
    * assert(output.code === 0);
    * assert(output.signal === null);
    * assert(output.stdout === 'message');
@@ -484,27 +561,41 @@ class Command extends EventEmitter<'close' | 'error'> {
    *
    * @returns A promise resolving to the child process output.
    */
-  async execute(): Promise<ChildProcess> {
+  async execute(): Promise<ChildProcess<O>> {
     return new Promise((resolve, reject) => {
       this.on('error', reject)
-      const stdout: string[] = []
-      const stderr: string[] = []
-      this.stdout.on('data', (line: string) => {
+
+      const stdout: O[] = []
+      const stderr: O[] = []
+      this.stdout.on('data', (line: O) => {
         stdout.push(line)
       })
-      this.stderr.on('data', (line: string) => {
+      this.stderr.on('data', (line: O) => {
         stderr.push(line)
       })
+
       this.on('close', (payload: TerminatedPayload) => {
         resolve({
           code: payload.code,
           signal: payload.signal,
-          stdout: stdout.join('\n'),
-          stderr: stderr.join('\n')
+          stdout: this.collectOutput(stdout) as O,
+          stderr: this.collectOutput(stderr) as O
         })
       })
+
       this.spawn().catch(reject)
     })
+  }
+
+  /** @ignore */
+  private collectOutput(events: O[]): string | Uint8Array {
+    if (this.options.encoding === 'raw') {
+      return events.reduce<Uint8Array>((p, c) => {
+        return new Uint8Array([...p, ...(c as Uint8Array), 10])
+      }, new Uint8Array())
+    } else {
+      return events.join('\n')
+    }
   }
 }
 
@@ -526,10 +617,13 @@ interface TerminatedPayload {
   signal: number | null
 }
 
+/** Event payload type */
+type IOPayload = string | Uint8Array
+
 /** Events emitted by the child process. */
-type CommandEvent =
-  | Event<'Stdout', string>
-  | Event<'Stderr', string>
+type CommandEvent<O extends IOPayload> =
+  | Event<'Stdout', O>
+  | Event<'Stderr', O>
   | Event<'Terminated', TerminatedPayload>
   | Event<'Error', string>
 
@@ -553,7 +647,7 @@ type CommandEvent =
  *
  * @param path The path or URL to open.
  * This value is matched against the string regex defined on `tauri.conf.json > tauri > allowlist > shell > open`,
- * which defaults to `^https?://`.
+ * which defaults to `^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+`.
  * @param openWith The app to open the file or URL with.
  * Defaults to the system default application for the specified path type.
  *
@@ -571,4 +665,11 @@ async function open(path: string, openWith?: string): Promise<void> {
 }
 
 export { Command, Child, EventEmitter, open }
-export type { ChildProcess, SpawnOptions }
+export type {
+  IOPayload,
+  CommandEvents,
+  TerminatedPayload,
+  OutputEvents,
+  ChildProcess,
+  SpawnOptions
+}

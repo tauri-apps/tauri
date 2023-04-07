@@ -1,11 +1,8 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
   use std::{
@@ -23,7 +20,7 @@ fn main() {
   if !video_file.exists() {
     // Downloading with curl this saves us from adding
     // a Rust HTTP client dependency.
-    println!("Downloading {}", video_url);
+    println!("Downloading {video_url}");
     let status = Command::new("curl")
       .arg("-L")
       .arg("-o")
@@ -43,10 +40,7 @@ fn main() {
     .register_uri_scheme_protocol("stream", move |_app, request| {
       // prepare our response
       let mut response = ResponseBuilder::new();
-      // get the wanted path
-      #[cfg(target_os = "windows")]
-      let path = request.uri().strip_prefix("stream://localhost/").unwrap();
-      #[cfg(not(target_os = "windows"))]
+      // get the file path
       let path = request.uri().strip_prefix("stream://localhost/").unwrap();
       let path = percent_encoding::percent_decode(path.as_bytes())
         .decode_utf8_lossy()

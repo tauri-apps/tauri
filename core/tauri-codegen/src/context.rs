@@ -1,10 +1,11 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
+use base64::Engine;
 use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
@@ -57,7 +58,10 @@ fn map_core_assets(
               let mut hasher = Sha256::new();
               hasher.update(&script);
               let hash = hasher.finalize();
-              scripts.push(format!("'sha256-{}'", base64::encode(hash)));
+              scripts.push(format!(
+                "'sha256-{}'",
+                base64::engine::general_purpose::STANDARD.encode(hash)
+              ));
             }
             csp_hashes
               .inline_scripts
@@ -74,9 +78,10 @@ fn map_core_assets(
             let mut hasher = Sha256::new();
             hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
             let hash = hasher.finalize();
-            csp_hashes
-              .styles
-              .push(format!("'sha256-{}'", base64::encode(hash)));
+            csp_hashes.styles.push(format!(
+              "'sha256-{}'",
+              base64::engine::general_purpose::STANDARD.encode(hash)
+            ));
           }
         }
 
@@ -129,33 +134,34 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     root,
   } = data;
 
-  let target = if let Ok(target) = std::env::var("TARGET") {
-    if target.contains("unknown-linux") {
+  let target =
+    if let Ok(target) = std::env::var("TARGET").or_else(|_| std::env::var("TAURI_TARGET_TRIPLE")) {
+      if target.contains("unknown-linux") {
+        Target::Linux
+      } else if target.contains("pc-windows") {
+        Target::Windows
+      } else if target.contains("apple-darwin") {
+        Target::Darwin
+      } else if target.contains("android") {
+        Target::Android
+      } else if target.contains("apple-ios") {
+        Target::Ios
+      } else {
+        panic!("unknown codegen target {target}");
+      }
+    } else if cfg!(target_os = "linux") {
       Target::Linux
-    } else if target.contains("pc-windows") {
+    } else if cfg!(windows) {
       Target::Windows
-    } else if target.contains("apple-darwin") {
+    } else if cfg!(target_os = "macos") {
       Target::Darwin
-    } else if target.contains("android") {
+    } else if cfg!(target_os = "android") {
       Target::Android
-    } else if target.contains("apple-ios") {
+    } else if cfg!(target_os = "ios") {
       Target::Ios
     } else {
-      panic!("unknown codegen target {}", target);
-    }
-  } else if cfg!(target_os = "linux") {
-    Target::Linux
-  } else if cfg!(windows) {
-    Target::Windows
-  } else if cfg!(target_os = "macos") {
-    Target::Darwin
-  } else if cfg!(target_os = "android") {
-    Target::Android
-  } else if cfg!(target_os = "ios") {
-    Target::Ios
-  } else {
-    panic!("unknown codegen target");
-  };
+      panic!("unknown codegen target")
+    };
 
   let mut options = AssetOptions::new(config.tauri.pattern.clone())
     .freeze_prototype(config.tauri.security.freeze_prototype)
@@ -302,6 +308,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       version: #package_version.parse().unwrap(),
       authors: env!("CARGO_PKG_AUTHORS"),
       description: env!("CARGO_PKG_DESCRIPTION"),
+      crate_name: env!("CARGO_PKG_NAME"),
     }
   );
 
@@ -370,10 +377,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     PatternKind::Isolation { dir } => {
       let dir = config_parent.join(dir);
       if !dir.exists() {
-        panic!(
-          "The isolation application path is set to `{:?}` but it does not exist",
-          dir
-        )
+        panic!("The isolation application path is set to `{dir:?}` but it does not exist")
       }
 
       let mut sets_isolation_hook = false;
@@ -414,7 +418,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     let shell_scope_open = match &config.tauri.allowlist.shell.open {
       ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
       ShellAllowlistOpen::Flag(true) => {
-        quote!(::std::option::Option::Some(#root::regex::Regex::new("^https?://").unwrap()))
+        quote!(::std::option::Option::Some(#root::regex::Regex::new(r#"^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+"#).unwrap()))
       }
       ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
         Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),

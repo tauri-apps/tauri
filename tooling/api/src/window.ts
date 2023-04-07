@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -27,7 +27,9 @@
  *         "hide": true,
  *         "close": true,
  *         "setDecorations": true,
+ *         "setShadow": true,
  *         "setAlwaysOnTop": true,
+ *         "setContentProtected": true,
  *         "setSize": true,
  *         "setMinSize": true,
  *         "setMaxSize": true,
@@ -50,9 +52,9 @@
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  *
- * # Window events
+ * ## Window events
  *
- * Events can be listened using `appWindow.listen`:
+ * Events can be listened to using `appWindow.listen`:
  * ```typescript
  * import { appWindow } from "@tauri-apps/api/window";
  * appWindow.listen("my-window-event", ({ event, payload }) => { });
@@ -63,7 +65,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { emit, Event, listen, once } from './helpers/event'
+import { emit, type Event, listen, once } from './helpers/event'
 import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'
@@ -278,7 +280,7 @@ export type CursorIcon =
  */
 function getCurrent(): WebviewWindow {
   return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
   })
 }
@@ -292,7 +294,7 @@ function getAll(): WebviewWindow[] {
   return window.__TAURI_METADATA__.__windows.map(
     (w) =>
       new WebviewWindow(w.label, {
-        // @ts-expect-error
+        // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
         skip: true
       })
   )
@@ -306,13 +308,14 @@ export type WindowLabel = string
 /**
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
  *
+ * @ignore
  * @since 1.0.0
  */
 class WebviewWindowHandle {
   /** The window label. It is a unique identifier for the window, can be used to reference it later. */
   label: WindowLabel
   /** Local event listeners. */
-  listeners: { [key: string]: Array<EventCallback<any>> }
+  listeners: Record<string, Array<EventCallback<any>>>
 
   constructor(label: WindowLabel) {
     this.label = label
@@ -405,6 +408,7 @@ class WebviewWindowHandle {
     return emit(event, this.label, payload)
   }
 
+  /** @ignore */
   _handleTauriEvent<T>(event: string, handler: EventCallback<T>): boolean {
     if (localTauriEvents.includes(event)) {
       if (!(event in this.listeners)) {
@@ -423,6 +427,7 @@ class WebviewWindowHandle {
 /**
  * Manage the current window object.
  *
+ * @ignore
  * @since 1.0.0
  */
 class WindowManager extends WebviewWindowHandle {
@@ -580,6 +585,31 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window's current minimized state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const minimized = await appWindow.isMinimized();
+   * ```
+   *
+   * @since 1.3.0
+   * */
+  async isMinimized(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMinimized'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current maximized state.
    * @example
    * ```typescript
@@ -680,11 +710,35 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window's current title.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const title = await appWindow.title();
+   * ```
+   *
+   * @since 1.3.0
+   * */
+  async title(): Promise<string> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'title'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current theme.
    *
    * #### Platform-specific
    *
-   * - **Linux:** Not implemented, always returns `light`.
    * - **macOS:** Theme was introduced on macOS 10.14. Returns `light` on macOS 10.13 and below.
    *
    * @example
@@ -1067,6 +1121,43 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Whether or not the window should have shadow.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows:**
+   *   - `false` has no effect on decorated window, shadows are always ON.
+   *   - `true` will make ndecorated window have a 1px white border,
+   * and on Windows 11, it will have a rounded corners.
+   * - **Linux:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setShadow(false);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.0
+   */
+  async setShadow(enable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setShadow',
+            payload: enable
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Whether the window should always be on top of other windows.
    * @example
    * ```typescript
@@ -1087,6 +1178,34 @@ class WindowManager extends WebviewWindowHandle {
           cmd: {
             type: 'setAlwaysOnTop',
             payload: alwaysOnTop
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Prevents the window contents from being captured by other apps.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setContentProtected(true);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 1.2.0
+   */
+  async setContentProtected(protected_: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setContentProtected',
+            payload: protected_
           }
         }
       }
@@ -1348,7 +1467,11 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Whether to show the window icon in the task bar or not.
+   * Whether the window icon should be hidden from the taskbar or not.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS:** Unsupported.
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
@@ -1638,7 +1761,7 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.0.2
    */
   async onCloseRequested(
-    handler: (event: CloseRequestedEvent) => void
+    handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
     return this.listen<null>(TauriEvent.WINDOW_CLOSE_REQUESTED, (event) => {
       const evt = new CloseRequestedEvent(event)
@@ -1907,7 +2030,7 @@ class WebviewWindow extends WindowManager {
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {
     super(label)
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not a public API so it is not defined in WindowOptions
     if (!options?.skip) {
       invokeTauriCommand({
         __tauriModule: 'Window',
@@ -1939,7 +2062,7 @@ class WebviewWindow extends WindowManager {
    */
   static getByLabel(label: string): WebviewWindow | null {
     if (getAll().some((w) => w.label === label)) {
-      // @ts-expect-error
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       return new WebviewWindow(label, { skip: true })
     }
     return null
@@ -1952,7 +2075,7 @@ if ('__TAURI_METADATA__' in window) {
   appWindow = new WebviewWindow(
     window.__TAURI_METADATA__.__currentWindow.label,
     {
-      // @ts-expect-error
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       skip: true
     }
   )
@@ -1961,7 +2084,7 @@ if ('__TAURI_METADATA__' in window) {
     `Could not find "window.__TAURI_METADATA__". The "appWindow" value will reference the "main" window label.\nNote that this is not an issue if running this frontend on a browser instead of a Tauri window.`
   )
   appWindow = new WebviewWindow('main', {
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
   })
 }
@@ -2020,8 +2143,24 @@ interface WindowOptions {
   decorations?: boolean
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
+  /** Prevents the window contents from being captured by other apps. */
+  contentProtected?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   *  Whether or not the window has shadow.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows:**
+   *   - `false` has no effect on decorated window, shadows are always ON.
+   *   - `true` will make ndecorated window have a 1px white border,
+   * and on Windows 11, it will have a rounded corners.
+   * - **Linux:** Unsupported.
+   *
+   * @since 2.0
+   */
+  shadow?: boolean
   /**
    * Whether the file drop is enabled or not on the webview. By default it is enabled.
    *
@@ -2043,7 +2182,7 @@ interface WindowOptions {
    */
   hiddenTitle?: boolean
   /**
-   * Whether clicking an inactive window also clicks through to the webview.
+   * Whether clicking an inactive window also clicks through to the webview on macOS.
    */
   acceptFirstMouse?: boolean
   /**

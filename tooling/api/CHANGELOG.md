@@ -1,5 +1,22 @@
 # Changelog
 
+## \[2.0.0-alpha.2]
+
+- Added `raw` encoding option to read stdout and stderr raw bytes.
+  - [f992e7f5](https://www.github.com/tauri-apps/tauri/commit/f992e7f58bf975c654a3daf36780b31a32bac064) chore(changes): readd change file on 2023-04-03
+- Removed shell's `Command` constructor and added the `Command.create` static function instead.
+  - [509d4678](https://www.github.com/tauri-apps/tauri/commit/509d4678b12816c1dd08a9a5efa71ba556d91c27) Support sending raw byte data to the "data" event for child command's stdout and stderr ([#5789](https://www.github.com/tauri-apps/tauri/pull/5789)) on 2023-03-31
+
+## \[2.0.0-alpha.1]
+
+- Added the `shadow` option when creating a window and `setShadow` function.
+  - [a81750d7](https://www.github.com/tauri-apps/tauri/commit/a81750d779bc72f0fdb7de90b7fbddfd8049b328) feat(core): add shadow APIs ([#6206](https://www.github.com/tauri-apps/tauri/pull/6206)) on 2023-02-08
+
+## \[2.0.0-alpha.0]
+
+- First mobile alpha release!
+  - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
 ## \[1.2.0]
 
 - Added the `acceptFirstMouse` window option.

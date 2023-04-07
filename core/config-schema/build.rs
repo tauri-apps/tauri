@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -17,8 +17,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     crate_dir.join("schema.json"),
     crate_dir.join("../../tooling/cli/schema.json"),
   ] {
-    let mut schema_file = BufWriter::new(File::create(&file)?);
-    write!(schema_file, "{}", schema_str)?;
+    let mut schema_file = BufWriter::new(File::create(file)?);
+    write!(schema_file, "{schema_str}")?;
   }
 
   Ok(())

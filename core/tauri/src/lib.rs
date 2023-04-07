@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,6 +13,7 @@
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
+//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
@@ -21,9 +22,9 @@
 //! - **shell-open-api**: Enables the [`api::shell`] module.
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
-//! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
-//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
-//! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
+//! - **native-tls**: Provides TLS support to connect over HTTPS.
+//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
+//! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **global-shortcut**: Enables the global shortcut APIs.
 //! - **clipboard**: Enables the clipboard APIs.
@@ -132,7 +133,9 @@
 //! - **window-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#hide).
 //! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
 //! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
+//! - **window-set-shadow**: Enables the [`setShadow` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setshadow).
 //! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
+//! - **window-set-content-protected**: Enables the [`setContentProtected` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcontentprotected).
 //! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
 //! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
 //! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
@@ -158,6 +161,17 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+/// Setups the binding that initializes an iOS plugin.
+#[cfg(target_os = "ios")]
+#[macro_export]
+macro_rules! ios_plugin_binding {
+  ($fn_name: ident) => {
+    tauri::swift_rs::swift!(fn $fn_name(name: &::tauri::swift_rs::SRString, webview: *const ::std::ffi::c_void));
+  }
+}
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub use cocoa;
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;
@@ -166,6 +180,11 @@ pub use error::Error;
 #[cfg(shell_scope)]
 #[doc(hidden)]
 pub use regex;
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub use swift_rs;
+#[cfg(mobile)]
+pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
 
 pub mod api;
@@ -182,6 +201,10 @@ mod pattern;
 pub mod plugin;
 pub mod window;
 use tauri_runtime as runtime;
+#[cfg(target_os = "ios")]
+mod ios;
+#[cfg(target_os = "android")]
+mod jni_helpers;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
@@ -195,6 +218,41 @@ pub use tauri_utils as utils;
 #[cfg(feature = "wry")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
+
+#[cfg(all(feature = "wry", target_os = "android"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", target_os = "android"))))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! android_binding {
+  ($domain:ident, $package:ident, $main: ident, $wry: path) => {
+    ::tauri::wry::android_binding!($domain, $package, $main, $wry);
+    ::tauri::wry::application::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      handlePluginResponse,
+      [i32, JString, JString],
+    );
+
+    #[allow(non_snake_case)]
+    pub unsafe fn handlePluginResponse(
+      env: JNIEnv,
+      _: JClass,
+      id: i32,
+      success: JString,
+      error: JString,
+    ) {
+      ::tauri::handle_android_plugin_response(env, id, success, error);
+    }
+  };
+}
+
+#[cfg(all(feature = "wry", target_os = "android"))]
+#[doc(hidden)]
+pub use plugin::mobile::handle_android_plugin_response;
+#[cfg(all(feature = "wry", target_os = "android"))]
+#[doc(hidden)]
+pub use tauri_runtime_wry::wry;
 
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;
@@ -217,7 +275,7 @@ pub use self::utils::TitleBarStyle;
 #[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle},
+  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
   self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {
@@ -242,7 +300,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    RunIteration, UserAttentionType,
+    DeviceEventFilter, RunIteration, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -261,6 +319,43 @@ pub use self::runtime::ClipboardManager;
 #[cfg(all(desktop, feature = "global-shortcut"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
+
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub fn log_stdout() {
+  use std::{
+    ffi::CString,
+    fs::File,
+    io::{BufRead, BufReader},
+    os::unix::prelude::*,
+    thread,
+  };
+
+  let mut logpipe: [RawFd; 2] = Default::default();
+  unsafe {
+    libc::pipe(logpipe.as_mut_ptr());
+    libc::dup2(logpipe[1], libc::STDOUT_FILENO);
+    libc::dup2(logpipe[1], libc::STDERR_FILENO);
+  }
+  thread::spawn(move || unsafe {
+    let file = File::from_raw_fd(logpipe[0]);
+    let mut reader = BufReader::new(file);
+    let mut buffer = String::new();
+    loop {
+      buffer.clear();
+      if let Ok(len) = reader.read_line(&mut buffer) {
+        if len == 0 {
+          break;
+        } else if let Ok(msg) = CString::new(buffer.clone())
+          .map_err(|_| ())
+          .and_then(|c| c.into_string().map_err(|_| ()))
+        {
+          log::info!("{}", msg);
+        }
+      }
+    }
+  });
+}
 
 /// Updater events.
 #[cfg(updater)]
@@ -438,8 +533,7 @@ impl TryFrom<Icon> for runtime::Icon {
           })
         }
         _ => panic!(
-          "image `{}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags",
-          extension
+          "image `{extension}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags"
         ),
       }
       }
@@ -843,8 +937,8 @@ mod tests {
     let lib_code = read_to_string(manifest_dir.join("src/lib.rs")).expect("failed to read lib.rs");
 
     for f in get_manifest().features.keys() {
-      if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{}**", f))) {
-        panic!("Feature {} is not documented", f);
+      if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{f}**"))) {
+        panic!("Feature {f} is not documented");
       }
     }
   }
@@ -856,8 +950,7 @@ mod tests {
     for checked_feature in checked_features {
       if !manifest.features.iter().any(|(f, _)| f == checked_feature) {
         panic!(
-          "Feature {} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml",
-          checked_feature
+          "Feature {checked_feature} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml"
         );
       }
     }
@@ -893,24 +986,21 @@ mod tests {
       let module = module_all_feature.replace("-all", "");
       assert!(
         checked_features.contains(&module_all_feature.as_str()),
-        "`{}` is not aliased",
-        module
+        "`{module}` is not aliased"
       );
 
-      let module_prefix = format!("{}-", module);
+      let module_prefix = format!("{module}-");
       // we assume that module features are the ones that start with `<module>-`
       // though it's not 100% accurate, we have an allowed list to fix it
       let module_features = manifest
         .features
-        .iter()
-        .map(|(f, _)| f)
+        .keys()
         .filter(|f| f.starts_with(&module_prefix));
       for module_feature in module_features {
         assert!(
           allowed.contains(&module_feature.as_str())
             || checked_features.contains(&module_feature.as_str()),
-          "`{}` is not aliased",
-          module_feature
+          "`{module_feature}` is not aliased"
         );
       }
     }
@@ -938,7 +1028,7 @@ mod test_utils {
     fn check_spawn_task(task in "[a-z]+") {
       // create dummy task function
       let dummy_task = async move {
-        format!("{}-run-dummy-task", task);
+        format!("{task}-run-dummy-task");
       };
       // call spawn
       crate::async_runtime::spawn(dummy_task);

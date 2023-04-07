@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -23,8 +23,8 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, resources::resource_relpath, Env},
-  Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
-  StateManager, Theme, Window,
+  Context, DeviceEventFilter, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager,
+  Runtime, Scopes, StateManager, Theme, Window,
 };
 
 #[cfg(shell_scope)]
@@ -40,6 +40,7 @@ use tauri_utils::PackageInfo;
 
 use std::{
   collections::HashMap,
+  fmt,
   path::{Path, PathBuf},
   sync::{mpsc::Sender, Arc, Weak},
 };
@@ -151,6 +152,8 @@ impl From<RuntimeWindowEvent> for WindowEvent {
 }
 
 /// An application event, triggered from the event loop.
+///
+/// See [`App::run`](crate::App#method.run) for usage examples.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum RunEvent {
@@ -249,6 +252,8 @@ pub struct PathResolver {
 
 impl PathResolver {
   /// Returns the path to the resource directory of this app.
+  ///
+  /// Helper function for [`crate::api::path::resource_dir`].
   pub fn resource_dir(&self) -> Option<PathBuf> {
     crate::api::path::resource_dir(&self.package_info, &self.env)
   }
@@ -289,26 +294,36 @@ impl PathResolver {
   }
 
   /// Returns the path to the suggested directory for your app's config files.
+  ///
+  /// Helper function for [`crate::api::path::app_config_dir`].
   pub fn app_config_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_config_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's data files.
+  ///
+  /// Helper function for [`crate::api::path::app_data_dir`].
   pub fn app_data_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_data_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's local data files.
+  ///
+  /// Helper function for [`crate::api::path::app_local_data_dir`].
   pub fn app_local_data_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_local_data_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's cache files.
+  ///
+  /// Helper function for [`crate::api::path::app_cache_dir`].
   pub fn app_cache_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_cache_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's log files.
+  ///
+  /// Helper function for [`crate::api::path::app_log_dir`].
   pub fn app_log_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_log_dir(&self.config)
   }
@@ -351,7 +366,7 @@ impl<R: Runtime> AssetResolver<R> {
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct AppHandle<R: Runtime> {
-  runtime_handle: R::Handle,
+  pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: WindowManager<R>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: R::GlobalShortcutManager,
@@ -559,15 +574,32 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 #[default_runtime(crate::Wry, wry)]
-#[derive(Debug)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
+  pending_windows: Option<Vec<PendingWindow<EventLoopMessage, R>>>,
+  setup: Option<SetupHook<R>>,
   manager: WindowManager<R>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: R::GlobalShortcutManager,
   #[cfg(feature = "clipboard")]
   clipboard_manager: R::ClipboardManager,
   handle: AppHandle<R>,
+}
+
+impl<R: Runtime> fmt::Debug for App<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut d = f.debug_struct("App");
+    d.field("runtime", &self.runtime)
+      .field("manager", &self.manager)
+      .field("handle", &self.handle);
+
+    #[cfg(all(desktop, feature = "global-shortcut"))]
+    d.field("global_shortcut_manager", &self.global_shortcut_manager);
+    #[cfg(feature = "clipboard")]
+    d.field("clipboard_manager", &self.clipboard_manager);
+
+    d.finish()
+  }
 }
 
 impl<R: Runtime> Manager<R> for App<R> {}
@@ -577,7 +609,11 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
+    if let Some(runtime) = self.runtime.as_ref() {
+      RuntimeOrDispatch::Runtime(runtime)
+    } else {
+      self.handle.runtime()
+    }
   }
 
   fn managed_app_handle(&self) -> AppHandle<R> {
@@ -593,11 +629,13 @@ impl App<crate::Wry> {
   /// # Stability
   ///
   /// This API is unstable.
-  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + 'static>(
+  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + Send + 'static>(
     &mut self,
     plugin: P,
-  ) {
-    self.runtime.as_mut().unwrap().plugin(plugin);
+  ) where
+    <P as tauri_runtime_wry::PluginBuilder<EventLoopMessage>>::Plugin: Send,
+  {
+    self.handle.runtime_handle.plugin(plugin);
   }
 }
 
@@ -791,6 +829,35 @@ impl<R: Runtime> App<R> {
       .set_activation_policy(activation_policy);
   }
 
+  /// Change the device event filter mode.
+  ///
+  /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
+  /// will ignore them by default for unfocused windows on Windows. This method allows changing
+  /// the filter to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// let mut app = tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application");
+  /// app.set_device_event_filter(tauri::DeviceEventFilter::Always);
+  /// app.run(|_app_handle, _event| {});
+  /// ```
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  pub fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
+    self
+      .runtime
+      .as_mut()
+      .unwrap()
+      .set_device_event_filter(filter);
+  }
+
   /// Gets the argument matches of the CLI definition configured in `tauri.conf.json`.
   ///
   /// # Examples
@@ -830,6 +897,17 @@ impl<R: Runtime> App<R> {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
+      RuntimeRunEvent::Ready => {
+        if let Err(e) = setup(&mut self) {
+          panic!("Failed to setup app: {e}");
+        }
+        on_event_loop_event(
+          &app_handle,
+          RuntimeRunEvent::Ready,
+          &manager,
+          Some(&mut callback),
+        );
+      }
       RuntimeRunEvent::Exit => {
         on_event_loop_event(
           &app_handle,
@@ -994,6 +1072,9 @@ pub struct Builder<R: Runtime> {
   /// The updater configuration.
   #[cfg(updater)]
   updater_settings: UpdaterSettings,
+
+  /// The device event filter.
+  device_event_filter: DeviceEventFilter,
 }
 
 impl<R: Runtime> Builder<R> {
@@ -1003,10 +1084,10 @@ impl<R: Runtime> Builder<R> {
       #[cfg(any(windows, target_os = "linux"))]
       runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
-      invoke_handler: Box::new(|_| ()),
+      invoke_handler: Box::new(|_| false),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
-        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (message) => window.ipc.postMessage(JSON.stringify(message)) })".into(),
+        format!("Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {{ value: (message) => window.ipc.postMessage({}(message)) }})", crate::manager::STRINGIFY_IPC_MESSAGE_FN),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -1022,6 +1103,7 @@ impl<R: Runtime> Builder<R> {
       system_tray_event_listeners: Vec::new(),
       #[cfg(updater)]
       updater_settings: Default::default(),
+      device_event_filter: Default::default(),
     }
   }
 
@@ -1055,7 +1137,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(Invoke<R>) + Send + Sync + 'static,
+    F: Fn(Invoke<R>) -> bool + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self
@@ -1129,7 +1211,7 @@ impl<R: Runtime> Builder<R> {
   ///   }
   ///   pub fn init<R: Runtime>() -> TauriPlugin<R> {
   ///     PluginBuilder::new("window")
-  ///       .setup(|app| {
+  ///       .setup(|app, api| {
   ///         // initialize the plugin here
   ///         Ok(())
   ///       })
@@ -1243,15 +1325,14 @@ impl<R: Runtime> Builder<R> {
     let type_name = std::any::type_name::<T>();
     assert!(
       self.state.set(state),
-      "state for type '{}' is already being managed",
-      type_name
+      "state for type '{type_name}' is already being managed",
     );
     self
   }
 
   /// Sets the given system tray to be built before the app runs.
   ///
-  /// Prefer the [`SystemTray#method.build`] method to create the tray at runtime instead.
+  /// Prefer the [`SystemTray#method.build`](crate::SystemTray#method.build) method to create the tray at runtime instead.
   ///
   /// # Examples
   /// ```
@@ -1293,6 +1374,21 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn menu(mut self, menu: Menu) -> Self {
     self.menu.replace(menu);
+    self
+  }
+
+  /// Enable or disable the default menu on macOS. Enabled by default.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
+  ///
+  /// tauri::Builder::default()
+  ///   .enable_macos_default_menu(false);
+  /// ```
+  #[must_use]
+  pub fn enable_macos_default_menu(mut self, enable: bool) -> Self {
+    self.enable_macos_default_menu = enable;
     self
   }
 
@@ -1362,7 +1458,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Registers a system tray event handler.
   ///
-  /// Prefer the [`SystemTray#method.on_event`] method when creating a tray at runtime instead.
+  /// Prefer the [`SystemTray#method.on_event`](crate::SystemTray#method.on_event) method when creating a tray at runtime instead.
   ///
   /// # Examples
   /// ```
@@ -1442,7 +1538,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   /// let kind = if cfg!(debug_assertions) { "debug" } else { "release" };
   /// tauri::Builder::default()
-  ///   .updater_target(format!("{}-{}", tauri::updater::target().unwrap(), kind));
+  ///   .updater_target(format!("{}-{kind}", tauri::updater::target().unwrap()));
   /// ```
   ///
   /// - Use the platform's target triple:
@@ -1454,6 +1550,28 @@ impl<R: Runtime> Builder<R> {
   #[cfg(updater)]
   pub fn updater_target<T: Into<String>>(mut self, target: T) -> Self {
     self.updater_settings.target.replace(target.into());
+    self
+  }
+
+  /// Change the device event filter mode.
+  ///
+  /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
+  /// will ignore them by default for unfocused windows on Windows. This method allows changing
+  /// the filter to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .device_event_filter(tauri::DeviceEventFilter::Always);
+  /// ```
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  pub fn device_event_filter(mut self, filter: DeviceEventFilter) -> Self {
+    self.device_event_filter = filter;
     self
   }
 
@@ -1490,6 +1608,9 @@ impl<R: Runtime> Builder<R> {
       if let Some(ua) = &config.user_agent {
         webview_attributes = webview_attributes.user_agent(&ua.to_string());
       }
+      if let Some(args) = &config.additional_browser_args {
+        webview_attributes = webview_attributes.additional_browser_args(&args.to_string());
+      }
       if !config.file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();
       }
@@ -1502,13 +1623,15 @@ impl<R: Runtime> Builder<R> {
     }
 
     #[cfg(any(windows, target_os = "linux"))]
-    let runtime = if self.runtime_any_thread {
+    let mut runtime = if self.runtime_any_thread {
       R::new_any_thread()?
     } else {
       R::new()?
     };
     #[cfg(not(any(windows, target_os = "linux")))]
-    let runtime = R::new()?;
+    let mut runtime = R::new()?;
+
+    runtime.set_device_event_filter(self.device_event_filter);
 
     let runtime_handle = runtime.handle();
 
@@ -1518,8 +1641,11 @@ impl<R: Runtime> Builder<R> {
     #[cfg(feature = "clipboard")]
     let clipboard_manager = runtime.clipboard_manager();
 
+    #[allow(unused_mut)]
     let mut app = App {
       runtime: Some(runtime),
+      pending_windows: Some(self.pending_windows),
+      setup: Some(self.setup),
       manager: manager.clone(),
       #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager: global_shortcut_manager.clone(),
@@ -1609,26 +1735,6 @@ impl<R: Runtime> Builder<R> {
 
     app.manager.initialize_plugins(&app.handle())?;
 
-    let window_labels = self
-      .pending_windows
-      .iter()
-      .map(|p| p.label.clone())
-      .collect::<Vec<_>>();
-
-    for pending in self.pending_windows {
-      let pending =
-        app
-          .manager
-          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
-      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
-      let _window = app.manager.attach_window(app.handle(), detached);
-    }
-
-    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e.into()))?;
-
-    #[cfg(updater)]
-    app.run_updater();
-
     Ok(app)
   }
 
@@ -1639,16 +1745,48 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-unsafe impl HasRawDisplayHandle for AppHandle {
+unsafe impl<R: Runtime> HasRawDisplayHandle for AppHandle<R> {
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
     self.runtime_handle.raw_display_handle()
   }
 }
 
-unsafe impl HasRawDisplayHandle for App {
+unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
     self.handle.raw_display_handle()
   }
+}
+
+fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
+  let pending_windows = app.pending_windows.take();
+  if let Some(pending_windows) = pending_windows {
+    let window_labels = pending_windows
+      .iter()
+      .map(|p| p.label.clone())
+      .collect::<Vec<_>>();
+
+    for pending in pending_windows {
+      let pending =
+        app
+          .manager
+          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
+      let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app.handle().runtime() {
+        runtime.create_window(pending)?
+      } else {
+        // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
+        unreachable!()
+      };
+      let _window = app.manager.attach_window(app.handle(), detached);
+    }
+  }
+
+  if let Some(setup) = app.setup.take() {
+    (setup)(app).map_err(|e| crate::Error::Setup(e.into()))?;
+  }
+
+  #[cfg(updater)]
+  app.run_updater();
+  Ok(())
 }
 
 fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(

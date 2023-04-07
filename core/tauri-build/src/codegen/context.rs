@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -86,7 +86,7 @@ impl CodegenContext {
   pub fn build(self) -> PathBuf {
     match self.try_build() {
       Ok(out) => out,
-      Err(error) => panic!("Error found during Codegen::build: {}", error),
+      Err(error) => panic!("Error found during Codegen::build: {error}"),
     }
   }
 
@@ -161,7 +161,7 @@ impl CodegenContext {
       )
     })?;
 
-    writeln!(file, "{}", code).with_context(|| {
+    writeln!(file, "{code}").with_context(|| {
       format!(
         "Unable to write tokenstream to out file during tauri-build {}",
         out.display()

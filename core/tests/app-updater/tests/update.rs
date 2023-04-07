@@ -61,7 +61,7 @@ fn build_app(
   bundle_updater: bool,
   target: BundleTarget,
 ) {
-  let mut command = Command::new(&cli_bin_path);
+  let mut command = Command::new(cli_bin_path);
   command
     .args(["build", "--debug", "--verbose"])
     .arg("--config")
@@ -141,7 +141,7 @@ fn bundle_paths(root_dir: &Path, version: &str) -> Vec<(BundleTarget, PathBuf)> 
 fn bundle_paths(root_dir: &Path, _version: &str) -> Vec<(BundleTarget, PathBuf)> {
   vec![(
     BundleTarget::App,
-    root_dir.join(format!("target/debug/bundle/macos/app-updater.app")),
+    root_dir.join("target/debug/bundle/macos/app-updater.app"),
   )]
 }
 
@@ -149,7 +149,7 @@ fn bundle_paths(root_dir: &Path, _version: &str) -> Vec<(BundleTarget, PathBuf)>
 fn bundle_paths(root_dir: &Path, _version: &str) -> Vec<(BundleTarget, PathBuf)> {
   vec![(
     BundleTarget::App,
-    root_dir.join(format!("target/debug/bundle/ios/app-updater.app")),
+    root_dir.join("target/debug/bundle/ios/app-updater.app"),
   )]
 }
 

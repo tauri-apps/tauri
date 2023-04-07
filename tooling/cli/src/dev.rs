@@ -230,7 +230,7 @@ fn command_internal(mut options: Options) -> Result<()> {
       use crate::helpers::web_dev_server::start_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
-        let server_url = start_dev_server(path, options.port);
+        let server_url = start_dev_server(path, options.port)?;
         let server_url = format!("http://{server_url}");
         dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 

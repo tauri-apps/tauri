@@ -582,10 +582,13 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Gets the window’s current resizable state.
   fn is_resizable(&self) -> Result<bool>;
 
+  /// Gets the window's native maximize button state.
   fn is_maximizable(&self) -> Result<bool>;
 
+  /// Gets the window's native minize button state.
   fn is_minimizable(&self) -> Result<bool>;
 
+  /// Gets the window's native close button state.
   fn is_closable(&self) -> Result<bool>;
 
   /// Gets the window's current visibility state.
@@ -646,10 +649,13 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> Result<()>;
 
+  /// Updates the window's native maximize button state by calling into tao.
   fn set_maximizable(&self, maximizable: bool) -> Result<()>;
 
+  /// Updates the window's native minimize button state by calling into tao.
   fn set_minimizable(&self, minimizable: bool) -> Result<()>;
 
+  /// Updates the window's native close button state by calling into tao.
   fn set_closable(&self, closable: bool) -> Result<()>;
 
   /// Updates the window title.

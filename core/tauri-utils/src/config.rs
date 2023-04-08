@@ -919,16 +919,16 @@ pub struct WindowConfig {
   /// The max window height.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
-  /// Whether the window is resizable or not.
+  /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_resizable")]
   pub resizable: bool,
-  /// Whether the window's native maximizable button is enabled or not.
+  /// Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored.
   #[serde(default = "default_maximizable")]
   pub maximizable: bool,
-  /// Whether the window's native minimizable button is enabled or not.
+  /// Whether the window's native minimize button is enabled or not.
   #[serde(default = "default_minimizable")]
   pub minimizable: bool,
-  /// Whether the window's native closable button is enabled or not.
+  /// Whether the window's native close button is enabled or not.
   #[serde(default = "default_closable")]
   pub closable: bool,
   /// The window title.

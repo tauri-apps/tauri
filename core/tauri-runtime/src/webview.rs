@@ -140,15 +140,20 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self;
 
   /// Whether the window is resizable or not.
+  /// When resizable is set to false, native window's maximize button is automatically disabled.
   #[must_use]
   fn resizable(self, resizable: bool) -> Self;
 
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
   #[must_use]
   fn maximizable(self, maximizable: bool) -> Self;
 
+  /// Whether the window's native minimize button is enabled or not.
   #[must_use]
   fn minimizable(self, minimizable: bool) -> Self;
 
+  /// Whether the window's native close button is enabled or not.
   #[must_use]
   fn closable(self, closable: bool) -> Self;
 

@@ -1317,14 +1317,17 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     window_getter!(self, WindowMessage::IsResizable)
   }
 
+  /// Gets the current native window's maximize button state
   fn is_maximizable(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsMaximizable)
   }
 
+  /// Gets the current native window's minimize button state
   fn is_minimizable(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsMinimizable)
   }
 
+  /// Gets the current native window's close button state
   fn is_closable(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsClosable)
   }

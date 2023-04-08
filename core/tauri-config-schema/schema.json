@@ -603,22 +603,22 @@
           "format": "double"
         },
         "resizable": {
-          "description": "Whether the window is resizable or not.",
+          "description": "Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.",
           "default": true,
           "type": "boolean"
         },
         "maximizable": {
-          "description": "Whether the window's native maximizable button is enabled or not.",
+          "description": "Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored.",
           "default": true,
           "type": "boolean"
         },
         "minimizable": {
-          "description": "Whether the window's native minimizable button is enabled or not.",
+          "description": "Whether the window's native minimize button is enabled or not.",
           "default": true,
           "type": "boolean"
         },
         "closable": {
-          "description": "Whether the window's native closable button is enabled or not.",
+          "description": "Whether the window's native close button is enabled or not.",
           "default": true,
           "type": "boolean"
         },

@@ -922,10 +922,13 @@ pub struct WindowConfig {
   /// Whether the window is resizable or not.
   #[serde(default = "default_resizable")]
   pub resizable: bool,
+  /// Whether the window's native maximizable button is enabled or not.
   #[serde(default = "default_maximizable")]
   pub maximizable: bool,
+  /// Whether the window's native minimizable button is enabled or not.
   #[serde(default = "default_minimizable")]
   pub minimizable: bool,
+  /// Whether the window's native closable button is enabled or not.
   #[serde(default = "default_closable")]
   pub closable: bool,
   /// The window title.

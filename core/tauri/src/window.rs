@@ -399,18 +399,21 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Whether the window's native maximizable button is enabled or not.
   #[must_use]
   pub fn maximizable(mut self, maximizable: bool) -> Self {
     self.window_builder = self.window_builder.maximizable(maximizable);
     self
   }
 
+  /// Whether the window's native minimizable button is enabled or not.
   #[must_use]
   pub fn minimizable(mut self, minimizable: bool) -> Self {
     self.window_builder = self.window_builder.minimizable(minimizable);
     self
   }
 
+  /// Whether the window's native closable button is enabled or not.
   #[must_use]
   pub fn closable(mut self, closable: bool) -> Self {
     self.window_builder = self.window_builder.closable(closable);
@@ -1034,14 +1037,17 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
+  /// Gets the window’s native closable button state (enabled/disabled)
   pub fn is_maximizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximizable().map_err(Into::into)
   }
 
+  /// Gets the window’s native minimizable button state (enabled/disabled)
   pub fn is_minimizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_minimizable().map_err(Into::into)
   }
 
+  /// Gets the window’s native closable button state (enabled/disabled)
   pub fn is_closable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_closable().map_err(Into::into)
   }
@@ -1193,6 +1199,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
+  /// Determines if this window's native maximizable button should be enabled.
   pub fn set_maximizable(&self, maximizable: bool) -> crate::Result<()> {
     self
       .window
@@ -1201,6 +1208,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
+  /// Determines if this window's native minimizable button should be enabled.
   pub fn set_minimizable(&self, minimizable: bool) -> crate::Result<()> {
     self
       .window
@@ -1209,6 +1217,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
+  /// Determines if this window's native closable button should be enabled.
   pub fn set_closable(&self, closable: bool) -> crate::Result<()> {
     self
       .window

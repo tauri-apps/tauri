@@ -399,6 +399,24 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  #[must_use]
+  pub fn maximizable(mut self, maximizable: bool) -> Self {
+    self.window_builder = self.window_builder.maximizable(maximizable);
+    self
+  }
+
+  #[must_use]
+  pub fn minimizable(mut self, minimizable: bool) -> Self {
+    self.window_builder = self.window_builder.minimizable(minimizable);
+    self
+  }
+
+  #[must_use]
+  pub fn closable(mut self, closable: bool) -> Self {
+    self.window_builder = self.window_builder.closable(closable);
+    self
+  }
+
   /// The title of the window in the title bar.
   #[must_use]
   pub fn title<S: Into<String>>(mut self, title: S) -> Self {
@@ -1016,6 +1034,18 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
+  pub fn is_maximizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_maximizable().map_err(Into::into)
+  }
+
+  pub fn is_minimizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_minimizable().map_err(Into::into)
+  }
+
+  pub fn is_closable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_closable().map_err(Into::into)
+  }
+
   /// Gets the window's current visibility state.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
@@ -1160,6 +1190,30 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_resizable(resizable)
+      .map_err(Into::into)
+  }
+
+  pub fn set_maximizable(&self, maximizable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_maximizable(maximizable)
+      .map_err(Into::into)
+  }
+
+  pub fn set_minimizable(&self, minimizable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_minimizable(minimizable)
+      .map_err(Into::into)
+  }
+
+  pub fn set_closable(&self, closable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_closable(closable)
       .map_err(Into::into)
   }
 

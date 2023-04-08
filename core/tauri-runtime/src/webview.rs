@@ -143,6 +143,15 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn resizable(self, resizable: bool) -> Self;
 
+  #[must_use]
+  fn maximizable(self, maximizable: bool) -> Self;
+
+  #[must_use]
+  fn minimizable(self, minimizable: bool) -> Self;
+
+  #[must_use]
+  fn closable(self, closable: bool) -> Self;
+
   /// The title of the window in the title bar.
   #[must_use]
   fn title<S: Into<String>>(self, title: S) -> Self;

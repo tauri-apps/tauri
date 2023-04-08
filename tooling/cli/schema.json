@@ -607,6 +607,21 @@
           "default": true,
           "type": "boolean"
         },
+        "maximizable": {
+          "description": "Whether the window's native maximizable button is enabled or not.",
+          "default": true,
+          "type": "boolean"
+        },
+        "minimizable": {
+          "description": "Whether the window's native minimizable button is enabled or not.",
+          "default": true,
+          "type": "boolean"
+        },
+        "closable": {
+          "description": "Whether the window's native closable button is enabled or not.",
+          "default": true,
+          "type": "boolean"
+        },
         "title": {
           "description": "The window title.",
           "default": "Tauri App",

@@ -716,7 +716,9 @@ impl WindowBuilder for WindowBuilderWrapper {
       .inner_size(config.width, config.height)
       .visible(config.visible)
       .resizable(config.resizable)
-      // TODO-fix-me-before-pr: Add to config
+      .maximizable(config.maximizable)
+      .minimizable(config.minimizable)
+      .closable(config.closable)
       .fullscreen(config.fullscreen)
       .decorations(config.decorations)
       .maximized(config.maximized)

@@ -922,6 +922,12 @@ pub struct WindowConfig {
   /// Whether the window is resizable or not.
   #[serde(default = "default_resizable")]
   pub resizable: bool,
+  #[serde(default = "default_maximizable")]
+  pub maximizable: bool,
+  #[serde(default = "default_minimizable")]
+  pub minimizable: bool,
+  #[serde(default = "default_closable")]
+  pub closable: bool,
   /// The window title.
   #[serde(default = "default_title")]
   pub title: String,
@@ -997,6 +1003,9 @@ impl Default for WindowConfig {
       max_width: None,
       max_height: None,
       resizable: default_resizable(),
+      maximizable: default_maximizable(),
+      minimizable: default_minimizable(),
+      closable: default_closable(),
       title: default_title(),
       fullscreen: false,
       focus: false,
@@ -1030,6 +1039,18 @@ fn default_height() -> f64 {
 }
 
 fn default_resizable() -> bool {
+  true
+}
+
+fn default_maximizable() -> bool {
+  true
+}
+
+fn default_minimizable() -> bool {
+  true
+}
+
+fn default_closable() -> bool {
   true
 }
 
@@ -3194,6 +3215,9 @@ mod build {
       let max_width = opt_lit(self.max_width.as_ref());
       let max_height = opt_lit(self.max_height.as_ref());
       let resizable = self.resizable;
+      let maximizable = self.maximizable;
+      let minimizable = self.minimizable;
+      let closable = self.closable;
       let title = str_lit(&self.title);
       let fullscreen = self.fullscreen;
       let focus = self.focus;
@@ -3228,6 +3252,9 @@ mod build {
         max_width,
         max_height,
         resizable,
+        maximizable,
+        minimizable,
+        closable,
         title,
         fullscreen,
         focus,

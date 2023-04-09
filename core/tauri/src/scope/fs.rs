@@ -13,7 +13,7 @@ pub use glob::Pattern;
 use tauri_utils::config::FsAllowlistScope;
 use uuid::Uuid;
 
-use crate::{path::PathExt, Manager, Runtime};
+use crate::{Manager, Runtime};
 
 /// Scope change event.
 #[derive(Debug, Clone)]

@@ -6,7 +6,7 @@
 use crate::api::process::Command;
 #[cfg(feature = "shell-open-api")]
 use crate::api::shell::Program;
-use crate::{path::PathExt, Manager, Runtime};
+use crate::{Manager, Runtime};
 
 use regex::Regex;
 

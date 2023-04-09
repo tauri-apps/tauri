@@ -9,7 +9,7 @@ use crate::{
     dir,
     file::{self, SafePathBuf},
   },
-  path::{BaseDirectory, PathExt},
+  path::BaseDirectory,
   scope::Scopes,
   Config, Env, Manager, PackageInfo, Runtime, Window,
 };

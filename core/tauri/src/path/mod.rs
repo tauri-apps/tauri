@@ -25,9 +25,9 @@ mod android;
 mod desktop;
 
 #[cfg(target_os = "android")]
-use android::PathResolver;
+pub(crate) use android::PathResolver;
 #[cfg(not(target_os = "android"))]
-use desktop::PathResolver;
+pub(crate) use desktop::PathResolver;
 
 /// A base directory to be used in [`resolve_directory`].
 ///
@@ -179,25 +179,13 @@ impl BaseDirectory {
   }
 }
 
-/// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the path APIs.
-pub trait PathExt<R: Runtime> {
-  /// The path resolver.
-  fn path(&self) -> &PathResolver<R>;
-}
-
-impl<R: Runtime, T: Manager<R>> PathExt<R> for T {
-  fn path(&self) -> &PathResolver<R> {
-    self.state::<PathResolver<R>>().inner()
-  }
-}
-
 impl<R: Runtime> PathResolver<R> {
   /// Resolves the path with the base directory.
   ///
   /// # Examples
   ///
   /// ```rust,no_run
-  /// use tauri::{path::{BaseDirectory, PathExt}, Manager};
+  /// use tauri::{path::BaseDirectory, Manager};
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let path = app.path().resolve("path/to/something", BaseDirectory::Config)?;
@@ -214,7 +202,7 @@ impl<R: Runtime> PathResolver<R> {
   /// # Examples
   ///
   /// ```rust,no_run
-  /// use tauri::{Manager, path::PathExt};
+  /// use tauri::Manager;
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let path = app.path().parse("$HOME/.bashrc")?;

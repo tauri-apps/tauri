@@ -890,6 +890,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn shell_scope(&self) -> ShellScope {
     self.state::<Scopes>().inner().shell.clone()
   }
+
+  /// The path resolver.
+  fn path(&self) -> &crate::path::PathResolver<R> {
+    self.state::<crate::path::PathResolver<R>>().inner()
+  }
 }
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.

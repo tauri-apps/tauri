@@ -56,7 +56,7 @@ use crate::{
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use crate::path::{BaseDirectory, PathExt};
+use crate::path::BaseDirectory;
 
 use crate::{runtime::menu::Menu, MenuEvent};
 

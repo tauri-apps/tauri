@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-alpha.7]
+
+- Add `--release` flag for `tauri android dev` however you will need to sign your Android app, see https://next--tauri.netlify.app/next/guides/distribution/sign-android
+  - [63f088e5](https://www.github.com/tauri-apps/tauri/commit/63f088e5fc9701fd7fb329dad7ffb27a2d8fd5aa) feat(cli): add `--release` for `android dev` ([#6638](https://www.github.com/tauri-apps/tauri/pull/6638)) on 2023-04-05
+- Build only specified rust targets for `tauri android build` instead of all.
+  - [d03e47d1](https://www.github.com/tauri-apps/tauri/commit/d03e47d141c3917520975be9081775dbc4e9d4fd) fix: only build specified rust targets for aab/apk build ([#6625](https://www.github.com/tauri-apps/tauri/pull/6625)) on 2023-04-05
+- Use local ip address for built-in dev server on mobile.
+  - [7fec0f08](https://www.github.com/tauri-apps/tauri/commit/7fec0f083c932dc63ccb8716080d97e2ab985b25) fix(cli): use local ip addr for built-in server on mobile, closes [#6454](https://www.github.com/tauri-apps/tauri/pull/6454) ([#6631](https://www.github.com/tauri-apps/tauri/pull/6631)) on 2023-04-04
+- Readd the Cargo.toml file to the plugin template.
+  - [5288a386](https://www.github.com/tauri-apps/tauri/commit/5288a386f1bf8ac11f991350463c3f5c20983f43) fix(cli): readd Cargo.toml to the plugin template ([#6637](https://www.github.com/tauri-apps/tauri/pull/6637)) on 2023-04-04
+
 ## \[2.0.0-alpha.6]
 
 - Use Ubuntu 20.04 to compile the CLI, increasing the minimum libc version required.

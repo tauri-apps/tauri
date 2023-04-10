@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.3]
+
+- Overload the dialog `open` function to have better TS result types.
+  - [1eacd51d](https://www.github.com/tauri-apps/tauri/commit/1eacd51d185ba69a3c3cb2cc93c792e2d5929843) overloaded the open function for convenient type inference ([#5619](https://www.github.com/tauri-apps/tauri/pull/5619)) on 2023-04-07
+
 ## \[2.0.0-alpha.2]
 
 - Added `raw` encoding option to read stdout and stderr raw bytes.

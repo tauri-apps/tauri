@@ -4393,9 +4393,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.27.0"
+version = "0.27.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26712b3ea99abb29c3b0067b284515e2ccdf5d6df7ac5e21129d71550eb9c3e6"
+checksum = "e8cf0dbfa7ccbd2e3832a3098b19d4b552360ea00a40b244a99caef46bffd84f"
 dependencies = [
  "base64 0.13.1",
  "block",
@@ -4409,6 +4409,7 @@ dependencies = [
  "gtk",
  "html5ever",
  "http",
+ "javascriptcore-rs",
  "kuchiki",
  "libc",
  "log",

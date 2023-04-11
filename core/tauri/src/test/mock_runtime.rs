@@ -69,8 +69,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     Ok(DetachedWindow {
       label: pending.label,
+      current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       dispatcher: MockDispatcher {
         context: self.context.clone(),
+        last_evaluated_script: Default::default(),
       },
       menu_ids: Default::default(),
       js_event_listeners: Default::default(),
@@ -111,6 +113,13 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 #[derive(Debug, Clone)]
 pub struct MockDispatcher {
   context: RuntimeContext,
+  last_evaluated_script: Arc<Mutex<Option<String>>>,
+}
+
+impl MockDispatcher {
+  pub fn last_evaluated_script(&self) -> Option<String> {
+    self.last_evaluated_script.lock().unwrap().clone()
+  }
 }
 
 #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -558,6 +567,11 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    self
+      .last_evaluated_script
+      .lock()
+      .unwrap()
+      .replace(script.into());
     Ok(())
   }
 
@@ -689,8 +703,10 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     Ok(DetachedWindow {
       label: pending.label,
+      current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       dispatcher: MockDispatcher {
         context: self.context.clone(),
+        last_evaluated_script: Default::default(),
       },
       menu_ids: Default::default(),
       js_event_listeners: Default::default(),

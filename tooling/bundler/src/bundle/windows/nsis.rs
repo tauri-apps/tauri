@@ -341,6 +341,21 @@ fn build_nsis_app_installer(
   }
 
   let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(|s| {
+    let mut output = String::new();
+    for c in s.chars() {
+      match c {
+        '\"' => output.push_str("$\\\""),
+        '$' => output.push_str("$$"),
+        '`' => output.push_str("$\\`"),
+        '\n' => output.push_str("$\n"),
+        '\t' => output.push_str("$\t"),
+        '\r' => output.push_str("$\r"),
+        _ => output.push(c),
+      }
+    }
+    output
+  });
   handlebars
     .register_template_string("installer.nsi", include_str!("./templates/installer.nsi"))
     .map_err(|e| e.to_string())

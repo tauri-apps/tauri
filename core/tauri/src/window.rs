@@ -1039,17 +1039,17 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native maximize button state (enabled/disabled)
+  /// Gets the window’s native maximize button state
   pub fn is_maximizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native minimize button state (enabled/disabled)
+  /// Gets the window’s native minimize button state
   pub fn is_minimizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_minimizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native close button state (enabled/disabled)
+  /// Gets the window’s native close button state
   pub fn is_closable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_closable().map_err(Into::into)
   }

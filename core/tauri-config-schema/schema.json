@@ -105,6 +105,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setClosable": false,
             "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
@@ -116,7 +117,9 @@
             "setIcon": false,
             "setIgnoreCursorEvents": false,
             "setMaxSize": false,
+            "setMaximizable": false,
             "setMinSize": false,
+            "setMinimizable": false,
             "setPosition": false,
             "setResizable": false,
             "setSize": false,
@@ -382,6 +385,7 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setClosable": false,
               "setContentProtected": false,
               "setCursorGrab": false,
               "setCursorIcon": false,
@@ -393,7 +397,9 @@
               "setIcon": false,
               "setIgnoreCursorEvents": false,
               "setMaxSize": false,
+              "setMaximizable": false,
               "setMinSize": false,
+              "setMinimizable": false,
               "setPosition": false,
               "setResizable": false,
               "setSize": false,
@@ -1798,6 +1804,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setClosable": false,
             "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
@@ -1809,7 +1816,9 @@
             "setIcon": false,
             "setIgnoreCursorEvents": false,
             "setMaxSize": false,
+            "setMaximizable": false,
             "setMinSize": false,
+            "setMinimizable": false,
             "setPosition": false,
             "setResizable": false,
             "setSize": false,
@@ -2096,6 +2105,21 @@
         },
         "setResizable": {
           "description": "Allows setting the resizable flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setMaximizable": {
+          "description": "Allows setting whether the window's native maximize button is enabled or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setMinimizable": {
+          "description": "Allows setting whether the window's native minimize button is enabled or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setClosable": {
+          "description": "Allows setting whether the window's native close button is enabled or not.",
           "default": false,
           "type": "boolean"
         },

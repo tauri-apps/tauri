@@ -1428,6 +1428,15 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the resizable flag of the window.
   #[serde(default, alias = "set-resizable")]
   pub set_resizable: bool,
+  /// Allows setting the maximizable flag of the window.
+  #[serde(default, alias = "set-maximizable")]
+  pub set_maximizable: bool,
+  /// Allows setting the minimizable flag of the window.
+  #[serde(default, alias = "set-minimizable")]
+  pub set_minimizable: bool,
+  /// Allows setting the closable flag of the window.
+  #[serde(default, alias = "set-closable")]
+  pub set_closable: bool,
   /// Allows changing the window title.
   #[serde(default, alias = "set-title")]
   pub set_title: bool,
@@ -1516,6 +1525,9 @@ impl Allowlist for WindowAllowlistConfig {
       center: true,
       request_user_attention: true,
       set_resizable: true,
+      set_maximizable: true,
+      set_minimizable: true,
+      set_closable: true,
       set_title: true,
       maximize: true,
       unmaximize: true,
@@ -1562,6 +1574,9 @@ impl Allowlist for WindowAllowlistConfig {
         "window-request-user-attention"
       );
       check_feature!(self, features, set_resizable, "window-set-resizable");
+      check_feature!(self, features, set_maximizable, "window-set-maximizable");
+      check_feature!(self, features, set_minimizable, "window-set-minimizable");
+      check_feature!(self, features, set_closable, "window-set-closable");
       check_feature!(self, features, set_title, "window-set-title");
       check_feature!(self, features, maximize, "window-maximize");
       check_feature!(self, features, unmaximize, "window-unmaximize");

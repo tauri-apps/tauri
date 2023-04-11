@@ -230,6 +230,9 @@ window-all = [
   "window-center",
   "window-request-user-attention",
   "window-set-resizable",
+  "window-set-maximizable",
+  "window-set-minimizable",
+  "window-set-closable",
   "window-set-title",
   "window-maximize",
   "window-unmaximize",
@@ -261,6 +264,9 @@ window-create = [ ]
 window-center = [ ]
 window-request-user-attention = [ ]
 window-set-resizable = [ ]
+window-set-maximizable = [ ]
+window-set-minimizable = [ ]
+window-set-closable = [ ]
 window-set-title = [ ]
 window-maximize = [ ]
 window-unmaximize = [ ]

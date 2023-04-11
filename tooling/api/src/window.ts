@@ -18,6 +18,9 @@
  *         "center": true,
  *         "requestUserAttention": true,
  *         "setResizable": true,
+ *         "setMaximizable": true,
+ *         "setMinimizable": true,
+ *         "setClosable": true,
  *         "setTitle": true,
  *         "maximize": true,
  *         "unmaximize": true,
@@ -683,6 +686,51 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
+  async isMaximizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMaximizable'
+          }
+        }
+      }
+    })
+  }
+
+  async isMinimizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMinimizable'
+          }
+        }
+      }
+    })
+  }
+
+  async isClosable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isClosable'
+          }
+        }
+      }
+    })
+  }
+
   /**
    * Gets the window's current visible state.
    * @example
@@ -859,6 +907,54 @@ class WindowManager extends WebviewWindowHandle {
           cmd: {
             type: 'setResizable',
             payload: resizable
+          }
+        }
+      }
+    })
+  }
+
+  async setMaximizable(maximizable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setMaximizable',
+            payload: maximizable
+          }
+        }
+      }
+    })
+  }
+
+  async setMinimizable(minimizable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setMinimizable',
+            payload: minimizable
+          }
+        }
+      }
+    })
+  }
+
+  async setClosable(closable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setClosable',
+            payload: closable
           }
         }
       }

@@ -1428,13 +1428,13 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the resizable flag of the window.
   #[serde(default, alias = "set-resizable")]
   pub set_resizable: bool,
-  /// Allows setting the maximizable flag of the window.
+  /// Allows setting whether the window's native maximize button is enabled or not.
   #[serde(default, alias = "set-maximizable")]
   pub set_maximizable: bool,
-  /// Allows setting the minimizable flag of the window.
+  /// Allows setting whether the window's native minimize button is enabled or not.
   #[serde(default, alias = "set-minimizable")]
   pub set_minimizable: bool,
-  /// Allows setting the closable flag of the window.
+  /// Allows setting whether the window's native close button is enabled or not.
   #[serde(default, alias = "set-closable")]
   pub set_closable: bool,
   /// Allows changing the window title.

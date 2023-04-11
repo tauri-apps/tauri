@@ -686,6 +686,16 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
+  /**
+   * Gets the window’s native maximize button state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const maximizable = await appWindow.isMaximizable();
+   * ```
+   *
+   * @returns Whether the window's native maximize button is enabled or not.
+   *  */
   async isMaximizable(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -701,6 +711,16 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
+  /**
+   * Gets the window’s native minimize button state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const minimizable = await appWindow.isMinimizable();
+   * ```
+   *
+   * @returns Whether the window's native minimize button is enabled or not.
+   *  */
   async isMinimizable(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -716,6 +736,16 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
+  /**
+   * Gets the window’s native close button state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const closable = await appWindow.isClosable();
+   * ```
+   *
+   * @returns Whether the window's native close button is enabled or not.
+   *  */
   async isClosable(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -913,6 +943,18 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
+  /**
+   * Sets whether the window's native maximize button is enabled or not.
+   * If resizable is set to false, this setting is ignored.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setMaximizable(false);
+   * ```
+   *
+   * @param maximizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
   async setMaximizable(maximizable: boolean): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -929,6 +971,17 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
+  /**
+   * Sets whether the window's native minimize button is enabled or not.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setMinimizable(false);
+   * ```
+   *
+   * @param minimizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
   async setMinimizable(minimizable: boolean): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -945,6 +998,17 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
+  /**
+   * Sets whether the window's native close button is enabled or not.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setClosable(false);
+   * ```
+   *
+   * @param closable
+   * @returns A promise indicating the success or failure of the operation.
+   */
   async setClosable(closable: boolean): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',

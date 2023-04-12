@@ -25,7 +25,7 @@ cargo_toml = "0.15"
 serde = "1"
 serde_json = "1"
 heck = "0.4"
-json-patch = "0.3"
+json-patch = "1.0"
 
 # dependencies for Windows targets
 tauri-winres = "0.1"

@@ -1218,6 +1218,7 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
+    #[cfg(feature = "isolation")]
     let pattern = self.pattern().clone();
     let current_url_ = pending.current_url.clone();
     let navigation_handler = pending.navigation_handler.take();

@@ -348,9 +348,9 @@ fn build_nsis_app_installer(
         '\"' => output.push_str("$\\\""),
         '$' => output.push_str("$$"),
         '`' => output.push_str("$\\`"),
-        '\n' => output.push_str("$\n"),
-        '\t' => output.push_str("$\t"),
-        '\r' => output.push_str("$\r"),
+        '\n' => output.push_str("$\\n"),
+        '\t' => output.push_str("$\\t"),
+        '\r' => output.push_str("$\\r"),
         _ => output.push(c),
       }
     }

@@ -1627,7 +1627,7 @@ impl<R: Runtime> Builder<R> {
 
     let env = Env::default();
     app.manage(Scopes {
-      ipc: IpcScope::new(&app.config(), &app.manager),
+      ipc: IpcScope::new(&app.config()),
       fs: FsScope::for_fs_api(
         &app.manager.config(),
         app.package_info(),

@@ -4,9 +4,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use crate::{manager::WindowManager, Config, Runtime, Window};
-#[cfg(feature = "isolation")]
-use crate::{pattern::ISOLATION_IFRAME_SRC_DOMAIN, sealed::ManagerBase, Pattern};
+use crate::{Config, Runtime, Window};
 use url::Url;
 
 /// IPC access configuration for a remote domain.
@@ -88,8 +86,7 @@ pub struct Scope {
 }
 
 impl Scope {
-  #[allow(unused_variables)]
-  pub(crate) fn new<R: Runtime>(config: &Config, manager: &WindowManager<R>) -> Self {
+  pub(crate) fn new(config: &Config) -> Self {
     #[allow(unused_mut)]
     let mut remote_access: Vec<RemoteDomainAccessScope> = config
       .tauri
@@ -105,17 +102,6 @@ impl Scope {
         enable_tauri_api: s.enable_tauri_api,
       })
       .collect();
-
-    #[cfg(feature = "isolation")]
-    if let Pattern::Isolation { schema, .. } = &manager.inner.pattern {
-      remote_access.push(RemoteDomainAccessScope {
-        scheme: Some(schema.clone()),
-        domain: ISOLATION_IFRAME_SRC_DOMAIN.into(),
-        windows: Vec::new(),
-        plugins: Vec::new(),
-        enable_tauri_api: true,
-      });
-    }
 
     Self {
       remote_access: Arc::new(Mutex::new(remote_access)),
@@ -155,13 +141,6 @@ impl Scope {
     for s in &*self.remote_access.lock().unwrap() {
       #[allow(unused_mut)]
       let mut matches_window = s.windows.contains(&label);
-      // the isolation iframe is always able to access the IPC
-      #[cfg(feature = "isolation")]
-      if let Pattern::Isolation { schema, .. } = &window.manager().inner.pattern {
-        if schema == url.scheme() && url.domain() == Some(ISOLATION_IFRAME_SRC_DOMAIN) {
-          matches_window = true;
-        }
-      }
 
       let matches_scheme = s
         .scheme

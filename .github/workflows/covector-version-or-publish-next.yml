@@ -77,7 +77,7 @@ jobs:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
           event-type: publish-clijs
-          client-payload: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
+          client-payload: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}", "ref": "${{ github.ref }}" }'
 
       - name: Trigger cli.rs publishing workflow
         if: |
@@ -88,3 +88,4 @@ jobs:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
           event-type: publish-clirs
+          client-payload: '{"ref": "${{ github.ref }}" }'

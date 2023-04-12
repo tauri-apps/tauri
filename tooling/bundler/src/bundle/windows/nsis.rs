@@ -128,7 +128,7 @@ fn add_build_number_if_needed(version_str: &str) -> anyhow::Result<String> {
         version.major, version.minor, version.patch, version.build
       ));
     } else {
-      anyhow::bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
+      anyhow::bail!("optional build metadata in app version must be numeric-only");
     }
   }
 

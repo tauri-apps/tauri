@@ -383,18 +383,23 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           ));
         }
       }
-      if let Some(version) = &config.package.version {
-        if let Ok(v) = Version::parse(version) {
+      if let Some(version_str) = &config.package.version {
+        if let Ok(v) = Version::parse(version_str) {
           let version = v.major << 48 | v.minor << 32 | v.patch << 16;
           res.set_version_info(VersionInfo::FILEVERSION, version);
           res.set_version_info(VersionInfo::PRODUCTVERSION, version);
         }
-        res.set("FileVersion", version);
-        res.set("ProductVersion", version);
+        res.set("FileVersion", version_str);
+        res.set("ProductVersion", version_str);
       }
       if let Some(product_name) = &config.package.product_name {
         res.set("ProductName", product_name);
-        res.set("FileDescription", product_name);
+      }
+      if let Some(short_description) = &config.tauri.bundle.short_description {
+        res.set("FileDescription", short_description);
+      }
+      if let Some(copyright) = &config.tauri.bundle.copyright {
+        res.set("LegalCopyright", copyright);
       }
       res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
       res.compile().with_context(|| {

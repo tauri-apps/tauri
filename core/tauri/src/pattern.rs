@@ -11,6 +11,9 @@ use serialize_to_javascript::{default_template, Template};
 
 use tauri_utils::assets::{Assets, EmbeddedAssets};
 
+/// The domain of the isolation iframe source.
+pub const ISOLATION_IFRAME_SRC_DOMAIN: &str = "localhost";
+
 /// An application pattern.
 #[derive(Debug, Clone)]
 pub enum Pattern<A: Assets = EmbeddedAssets> {
@@ -87,8 +90,8 @@ pub(crate) struct PatternJavascript {
 #[allow(dead_code)]
 pub(crate) fn format_real_schema(schema: &str) -> String {
   if cfg!(windows) {
-    format!("https://{}.localhost", schema)
+    format!("https://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
   } else {
-    format!("{}://localhost", schema)
+    format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}")
   }
 }

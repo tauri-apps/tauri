@@ -33,6 +33,7 @@ use crate::{
 };
 
 use serde::Serialize;
+use url::Url;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
@@ -510,7 +511,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 #[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
-  window: DetachedWindow<EventLoopMessage, R>,
+  pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
@@ -1184,9 +1185,27 @@ impl<R: Runtime> Window<R> {
 
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
+  /// Returns the current url of the webview.
+  pub fn url(&self) -> Url {
+    self.window.current_url.lock().unwrap().clone()
+  }
+
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
+    let current_url = self.url();
+    let config_url = manager.get_url();
+    #[allow(unused_mut)]
+    let mut is_local = config_url.make_relative(&current_url).is_some();
+    #[cfg(feature = "isolation")]
+    if let crate::Pattern::Isolation { schema, .. } = &self.manager.inner.pattern {
+      if current_url.scheme() == schema
+        && current_url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
+      {
+        is_local = true;
+      }
+    }
+
     match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
@@ -1200,8 +1219,17 @@ impl<R: Runtime> Window<R> {
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
-
         let invoke = Invoke { message, resolver };
+
+        println!("{} {}", config_url, current_url);
+
+        if !is_local {
+          invoke
+            .resolver
+            .reject("Remote URLs are not allowed to access the IPC");
+          return Ok(());
+        }
+
         if let Some(module) = &payload.tauri_module {
           crate::endpoints::handle(
             module.to_string(),

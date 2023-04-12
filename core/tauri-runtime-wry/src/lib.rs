@@ -36,6 +36,7 @@ use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 
 use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
+use url::Url;
 use uuid::Uuid;
 use wry::{
   application::{
@@ -210,6 +211,7 @@ impl<T: UserEvent> Context<T> {
 impl<T: UserEvent> Context<T> {
   fn create_webview(&self, pending: PendingWindow<T, Wry<T>>) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
+    let current_url = pending.current_url.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let context = self.clone();
@@ -231,6 +233,7 @@ impl<T: UserEvent> Context<T> {
     };
     Ok(DetachedWindow {
       label,
+      current_url,
       dispatcher,
       menu_ids,
       js_event_listeners,
@@ -1864,6 +1867,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
+    let current_url = pending.current_url.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let window_id = rand::random();
@@ -1890,6 +1894,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     Ok(DetachedWindow {
       label,
+      current_url,
       dispatcher,
       menu_ids,
       js_event_listeners,
@@ -2848,7 +2853,7 @@ fn create_webview<T: UserEvent>(
     mut window_builder,
     ipc_handler,
     label,
-    url,
+    current_url,
     menu_ids,
     js_event_listeners,
     ..
@@ -2888,17 +2893,23 @@ fn create_webview<T: UserEvent>(
   }
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
-    .with_url(&url)
+    .with_url(current_url.lock().unwrap().as_str())
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent);
   if webview_attributes.file_drop_handler_enabled {
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
   }
+  if let Some(navigation_handler) = pending.navigation_handler {
+    webview_builder = webview_builder.with_navigation_handler(move |url| {
+      Url::parse(&url).map(&navigation_handler).unwrap_or(true)
+    });
+  }
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,
       label.clone(),
+      current_url,
       menu_ids,
       js_event_listeners,
       handler,
@@ -3002,6 +3013,7 @@ fn create_webview<T: UserEvent>(
 fn create_ipc_handler<T: UserEvent>(
   context: Context<T>,
   label: String,
+  current_url: Arc<Mutex<Url>>,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
   handler: WebviewIpcHandler<T, Wry<T>>,
@@ -3010,6 +3022,7 @@ fn create_ipc_handler<T: UserEvent>(
     let window_id = context.webview_id_map.get(&window.id()).unwrap();
     handler(
       DetachedWindow {
+        current_url: current_url.clone(),
         dispatcher: WryDispatcher {
           window_id,
           context: context.clone(),

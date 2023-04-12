@@ -14,6 +14,7 @@ use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod assets;
+mod atomic_counter;
 pub mod config;
 pub mod html;
 pub mod io;
@@ -25,6 +26,8 @@ pub mod resources;
 
 /// Application pattern.
 pub mod pattern;
+
+pub use atomic_counter::AtomicCounter;
 
 /// `tauri::App` package information.
 #[derive(Debug, Clone)]

@@ -4,11 +4,10 @@
 
 pub use crate::{
   runtime::{
-    menu::{
-      MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
-    },
-    window::dpi::{PhysicalPosition, PhysicalSize},
-    RuntimeHandle, SystemTrayEvent as RuntimeSystemTrayEvent,
+    dpi::{PhysicalPosition, PhysicalSize, Rect},
+    menu::{MenuHash, MenuId, MenuIdRef, MenuUpdate},
+    system_tray::SystemTrayEvent as RuntimeSystemTrayEvent,
+    RuntimeHandle,
   },
   Icon, Runtime,
 };
@@ -16,7 +15,9 @@ use crate::{sealed::RuntimeOrDispatch, Manager};
 
 use rand::distributions::{Alphanumeric, DistString};
 use tauri_macros::default_runtime;
-use tauri_runtime::TrayId;
+use tauri_runtime::system_tray::{
+  SystemTrayHandle as RuntimeSystemTrayHandle, SystemTrayId, SystemTrayMenu, SystemTrayMenuEntry,
+};
 use tauri_utils::debug_eprintln;
 
 use std::{
@@ -408,7 +409,7 @@ impl SystemTray {
 
     let tray_id = self.id.clone();
 
-    let mut runtime_tray = tauri_runtime::SystemTray::new();
+    let mut runtime_tray = tauri_runtime::system_tray::SystemTray::new();
     runtime_tray = runtime_tray.with_id(hash(&self.id));
     if let Some(i) = self.icon {
       runtime_tray = runtime_tray.with_icon(i);
@@ -491,10 +492,10 @@ pub enum SystemTrayEvent {
   LeftClick {
     /// The tray id.
     tray_id: String,
-    /// The position of the tray icon.
+    /// The position of the cursor click.
     position: PhysicalPosition<f64>,
-    /// The size of the tray icon.
-    size: PhysicalSize<f64>,
+    /// The bounds of the tray icon.
+    bounds: Rect,
   },
   /// Tray icon received a right click.
   ///
@@ -506,10 +507,10 @@ pub enum SystemTrayEvent {
   RightClick {
     /// The tray id.
     tray_id: String,
-    /// The position of the tray icon.
+    /// The position of the cursor click.
     position: PhysicalPosition<f64>,
-    /// The size of the tray icon.
-    size: PhysicalSize<f64>,
+    /// The bounds of the tray icon.
+    bounds: Rect,
   },
   /// Fired when a menu item receive a `Double click`
   ///
@@ -521,10 +522,10 @@ pub enum SystemTrayEvent {
   DoubleClick {
     /// The tray id.
     tray_id: String,
-    /// The position of the tray icon.
+    /// The position of the cursor click.
     position: PhysicalPosition<f64>,
-    /// The size of the tray icon.
-    size: PhysicalSize<f64>,
+    /// The bounds of the tray icon.
+    bounds: Rect,
   },
 }
 
@@ -539,20 +540,20 @@ impl SystemTrayEvent {
         tray_id,
         id: menu_ids.lock().unwrap().get(id).unwrap().clone(),
       },
-      RuntimeSystemTrayEvent::LeftClick { position, size } => Self::LeftClick {
+      RuntimeSystemTrayEvent::LeftClick { position, bounds } => Self::LeftClick {
         tray_id,
         position: *position,
-        size: *size,
+        bounds: *bounds,
       },
-      RuntimeSystemTrayEvent::RightClick { position, size } => Self::RightClick {
+      RuntimeSystemTrayEvent::RightClick { position, bounds } => Self::RightClick {
         tray_id,
         position: *position,
-        size: *size,
+        bounds: *bounds,
       },
-      RuntimeSystemTrayEvent::DoubleClick { position, size } => Self::DoubleClick {
+      RuntimeSystemTrayEvent::DoubleClick { position, bounds } => Self::DoubleClick {
         tray_id,
         position: *position,
-        size: *size,
+        bounds: *bounds,
       },
     }
   }
@@ -562,9 +563,9 @@ impl SystemTrayEvent {
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct SystemTrayHandle<R: Runtime> {
-  pub(crate) id: TrayId,
+  pub(crate) id: SystemTrayId,
   pub(crate) ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
-  pub(crate) inner: R::TrayHandler,
+  pub(crate) inner: R::SystemTrayHandler,
 }
 
 impl<R: Runtime> Clone for SystemTrayHandle<R> {
@@ -582,7 +583,7 @@ impl<R: Runtime> Clone for SystemTrayHandle<R> {
 #[derive(Debug)]
 pub struct SystemTrayMenuItemHandle<R: Runtime> {
   id: MenuHash,
-  tray_handler: R::TrayHandler,
+  tray_handler: R::SystemTrayHandler,
 }
 
 impl<R: Runtime> Clone for SystemTrayMenuItemHandle<R> {

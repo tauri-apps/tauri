@@ -35,12 +35,13 @@ use crate::{
   hooks::{InvokeHandler, InvokePayload, InvokeResponder, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
+    dpi::PhysicalSize,
     http::{
       MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
     webview::{WebviewIpcHandler, WindowBuilder},
-    window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow},
+    window::{DetachedWindow, FileDropEvent, PendingWindow},
   },
   utils::{
     assets::Assets,

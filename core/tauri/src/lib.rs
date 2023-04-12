@@ -275,8 +275,10 @@ pub use self::utils::TitleBarStyle;
 #[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
-  self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
+  self::app::system_tray::{
+    SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle,
+  },
+  self::runtime::system_tray::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {
   self::app::WindowMenuEvent,
@@ -295,12 +297,10 @@ pub use {
   },
   self::manager::Asset,
   self::runtime::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
     webview::WebviewAttributes,
-    window::{
-      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      CursorIcon, FileDropEvent,
-    },
-    DeviceEventFilter, RunIteration, UserAttentionType,
+    window::{CursorIcon, FileDropEvent, UserAttentionType},
+    DeviceEventFilter, RunIteration,
   },
   self::state::{State, StateManager},
   self::utils::{

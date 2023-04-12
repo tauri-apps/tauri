@@ -6,198 +6,34 @@
 
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+use std::fmt::Debug;
+use std::sync::mpsc::Sender;
+
+use menu::MenuUpdate;
 use raw_window_handle::RawDisplayHandle;
 use serde::Deserialize;
-use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use url::Url;
-use uuid::Uuid;
 
+pub mod dpi;
 pub mod http;
 /// Create window and system tray menus.
 pub mod menu;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
+#[cfg(all(desktop, feature = "system-tray"))]
+pub mod system_tray;
 pub mod webview;
 pub mod window;
 
-use monitor::Monitor;
-use webview::WindowBuilder;
-use window::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  CursorIcon, DetachedWindow, PendingWindow, WindowEvent,
-};
-
-use crate::http::{
-  header::{InvalidHeaderName, InvalidHeaderValue},
-  method::InvalidMethod,
-  status::InvalidStatusCode,
-  InvalidUri,
-};
-
-#[cfg(all(desktop, feature = "system-tray"))]
-use std::fmt;
-
-pub type TrayId = u16;
-pub type TrayEventHandler = dyn Fn(&SystemTrayEvent) + Send + 'static;
-
-#[cfg(all(desktop, feature = "system-tray"))]
-#[non_exhaustive]
-pub struct SystemTray {
-  pub id: TrayId,
-  pub icon: Option<Icon>,
-  pub menu: Option<menu::SystemTrayMenu>,
-  #[cfg(target_os = "macos")]
-  pub icon_as_template: bool,
-  #[cfg(target_os = "macos")]
-  pub menu_on_left_click: bool,
-  #[cfg(target_os = "macos")]
-  pub title: Option<String>,
-  pub on_event: Option<Box<TrayEventHandler>>,
-  pub tooltip: Option<String>,
-}
-
-#[cfg(all(desktop, feature = "system-tray"))]
-impl fmt::Debug for SystemTray {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let mut d = f.debug_struct("SystemTray");
-    d.field("id", &self.id)
-      .field("icon", &self.icon)
-      .field("menu", &self.menu);
-    #[cfg(target_os = "macos")]
-    {
-      d.field("icon_as_template", &self.icon_as_template)
-        .field("menu_on_left_click", &self.menu_on_left_click)
-        .field("title", &self.title);
-    }
-    d.finish()
-  }
-}
-
-#[cfg(all(desktop, feature = "system-tray"))]
-impl Clone for SystemTray {
-  fn clone(&self) -> Self {
-    Self {
-      id: self.id,
-      icon: self.icon.clone(),
-      menu: self.menu.clone(),
-      on_event: None,
-      #[cfg(target_os = "macos")]
-      icon_as_template: self.icon_as_template,
-      #[cfg(target_os = "macos")]
-      menu_on_left_click: self.menu_on_left_click,
-      #[cfg(target_os = "macos")]
-      title: self.title.clone(),
-      tooltip: self.tooltip.clone(),
-    }
-  }
-}
-
-#[cfg(all(desktop, feature = "system-tray"))]
-impl Default for SystemTray {
-  fn default() -> Self {
-    Self {
-      id: rand::random(),
-      icon: None,
-      menu: None,
-      #[cfg(target_os = "macos")]
-      icon_as_template: false,
-      #[cfg(target_os = "macos")]
-      menu_on_left_click: false,
-      #[cfg(target_os = "macos")]
-      title: None,
-      on_event: None,
-      tooltip: None,
-    }
-  }
-}
-
-#[cfg(all(desktop, feature = "system-tray"))]
-impl SystemTray {
-  /// Creates a new system tray that only renders an icon.
-  pub fn new() -> Self {
-    Default::default()
-  }
-
-  pub fn menu(&self) -> Option<&menu::SystemTrayMenu> {
-    self.menu.as_ref()
-  }
-
-  /// Sets the tray id.
-  #[must_use]
-  pub fn with_id(mut self, id: TrayId) -> Self {
-    self.id = id;
-    self
-  }
-
-  /// Sets the tray icon.
-  #[must_use]
-  pub fn with_icon(mut self, icon: Icon) -> Self {
-    self.icon.replace(icon);
-    self
-  }
-
-  /// Sets the tray icon as template.
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
-    self.icon_as_template = is_template;
-    self
-  }
-
-  /// Sets whether the menu should appear when the tray receives a left click. Defaults to `true`.
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  pub fn with_menu_on_left_click(mut self, menu_on_left_click: bool) -> Self {
-    self.menu_on_left_click = menu_on_left_click;
-    self
-  }
-
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  pub fn with_title(mut self, title: &str) -> Self {
-    self.title = Some(title.to_owned());
-    self
-  }
-
-  /// Sets the tray icon tooltip.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux:** Unsupported
-  #[must_use]
-  pub fn with_tooltip(mut self, tooltip: &str) -> Self {
-    self.tooltip = Some(tooltip.to_owned());
-    self
-  }
-
-  /// Sets the menu to show when the system tray is right clicked.
-  #[must_use]
-  pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
-    self.menu.replace(menu);
-    self
-  }
-
-  #[must_use]
-  pub fn on_event<F: Fn(&SystemTrayEvent) + Send + 'static>(mut self, f: F) -> Self {
-    self.on_event.replace(Box::new(f));
-    self
-  }
-}
-
-/// Type of user attention requested on a window.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(tag = "type")]
-pub enum UserAttentionType {
-  /// ## Platform-specific
-  /// - **macOS:** Bounces the dock icon until the application is in focus.
-  /// - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
-  Critical,
-  /// ## Platform-specific
-  /// - **macOS:** Bounces the dock icon once.
-  /// - **Windows:** Flashes the taskbar button until the application is in focus.
-  Informational,
-}
+use crate::dpi::{PhysicalPosition, PhysicalSize, Position, Size};
+use crate::http::header::{InvalidHeaderName, InvalidHeaderValue};
+use crate::http::method::InvalidMethod;
+use crate::http::status::InvalidStatusCode;
+use crate::http::InvalidUri;
+use crate::monitor::Monitor;
+use crate::webview::WindowBuilder;
+use crate::window::{CursorIcon, DetachedWindow, PendingWindow, UserAttentionType, WindowEvent};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "type")]
@@ -322,24 +158,6 @@ pub enum ExitRequestedEventAction {
   Prevent,
 }
 
-/// A system tray event.
-#[derive(Debug)]
-pub enum SystemTrayEvent {
-  MenuItemClick(u16),
-  LeftClick {
-    position: PhysicalPosition<f64>,
-    size: PhysicalSize<f64>,
-  },
-  RightClick {
-    position: PhysicalPosition<f64>,
-    size: PhysicalSize<f64>,
-  },
-  DoubleClick {
-    position: PhysicalPosition<f64>,
-    size: PhysicalSize<f64>,
-  },
-}
-
 /// Metadata for a runtime event loop iteration on `run_iteration`.
 #[derive(Debug, Clone, Default)]
 pub struct RunIteration {
@@ -359,91 +177,6 @@ pub enum ActivationPolicy {
   Prohibited,
 }
 
-/// A [`Send`] handle to the runtime.
-pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
-  type Runtime: Runtime<T, Handle = Self>;
-
-  /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
-  fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
-
-  /// Create a new webview window.
-  fn create_window(
-    &self,
-    pending: PendingWindow<T, Self::Runtime>,
-  ) -> Result<DetachedWindow<T, Self::Runtime>>;
-
-  /// Run a task on the main thread.
-  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
-
-  /// Adds an icon to the system tray with the specified menu items.
-  #[cfg(all(desktop, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "system-tray"))))]
-  fn system_tray(
-    &self,
-    system_tray: SystemTray,
-  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler>;
-
-  fn raw_display_handle(&self) -> RawDisplayHandle;
-
-  /// Shows the application, but does not automatically focus it.
-  #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-  fn show(&self) -> Result<()>;
-
-  /// Hides the application.
-  #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-  fn hide(&self) -> Result<()>;
-
-  /// Finds an Android class in the project scope.
-  #[cfg(target_os = "android")]
-  fn find_class<'a>(
-    &'a self,
-    env: jni::JNIEnv<'a>,
-    activity: jni::objects::JObject<'a>,
-    name: impl Into<String>,
-  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error>;
-
-  /// Dispatch a closure to run on the Android context.
-  ///
-  /// The closure takes the JNI env, the Android activity instance and the possibly null webview.
-  #[cfg(target_os = "android")]
-  fn run_on_android_context<F>(&self, f: F)
-  where
-    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
-      + Send
-      + 'static;
-}
-
-/// A global shortcut manager.
-#[cfg(all(desktop, feature = "global-shortcut"))]
-pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
-  /// Whether the application has registered the given `accelerator`.
-  fn is_registered(&self, accelerator: &str) -> Result<bool>;
-
-  /// Register a global shortcut of `accelerator`.
-  fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()>;
-
-  /// Unregister all accelerators registered by the manager instance.
-  fn unregister_all(&mut self) -> Result<()>;
-
-  /// Unregister the provided `accelerator`.
-  fn unregister(&mut self, accelerator: &str) -> Result<()>;
-}
-
-/// Clipboard manager.
-#[cfg(feature = "clipboard")]
-pub trait ClipboardManager: Debug + Clone + Send + Sync {
-  /// Writes the text into the clipboard as plain text.
-  fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
-  /// Read the content in the clipboard as plain text.
-  fn read_text(&self) -> Result<Option<String>>;
-}
-
-pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
-  fn send_event(&self, event: T) -> Result<()>;
-}
-
 /// The webview runtime interface.
 pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The message dispatcher.
@@ -458,16 +191,16 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   type ClipboardManager: ClipboardManager;
   /// The tray handler type.
   #[cfg(all(desktop, feature = "system-tray"))]
-  type TrayHandler: menu::TrayHandle;
+  type SystemTrayHandler: system_tray::SystemTrayHandle;
   /// The proxy type.
   type EventLoopProxy: EventLoopProxy<T>;
 
-  /// Creates a new webview runtime. Must be used on the main thread.
+  /// Creates a new runtime. Must be used on the main thread.
   fn new() -> Result<Self>;
 
-  /// Creates a new webview runtime on any thread.
-  #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
+  /// Creates a new runtime on any thread.
+  #[cfg(any(windows, linuxy))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(windows, linuxy))))]
   fn new_any_thread() -> Result<Self>;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
@@ -484,18 +217,23 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(feature = "clipboard")]
   fn clipboard_manager(&self) -> Self::ClipboardManager;
 
-  /// Create a new webview window.
+  /// Create a new window.
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>>;
 
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler>;
+  fn system_tray(&self, system_tray: system_tray::SystemTray) -> Result<Self::SystemTrayHandler>;
 
   /// Registers a system tray event handler.
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F);
+  fn on_system_tray_event<
+    F: Fn(system_tray::SystemTrayId, &system_tray::SystemTrayEvent) + Send + 'static,
+  >(
+    &mut self,
+    f: F,
+  );
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   #[cfg(target_os = "macos")]
@@ -529,11 +267,71 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(desktop)]
   fn run_iteration<F: Fn(RunEvent<T>) + 'static>(&mut self, callback: F) -> RunIteration;
 
-  /// Run the webview runtime.
+  /// Run the runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
 }
 
-/// Webview dispatcher. A thread-safe handle to the webview API.
+/// A [`Send`] handle to the runtime.
+pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
+  type Runtime: Runtime<T, Handle = Self>;
+
+  /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
+  fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
+
+  /// Create a new webview window.
+  fn create_window(
+    &self,
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> Result<DetachedWindow<T, Self::Runtime>>;
+
+  /// Run a task on the main thread.
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
+
+  /// Adds an icon to the system tray with the specified menu items.
+  #[cfg(all(desktop, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "system-tray"))))]
+  fn system_tray(
+    &self,
+    system_tray: system_tray::SystemTray,
+  ) -> Result<<Self::Runtime as Runtime<T>>::SystemTrayHandler>;
+
+  fn raw_display_handle(&self) -> RawDisplayHandle;
+
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn show(&self) -> Result<()>;
+
+  /// Hides the application.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn hide(&self) -> Result<()>;
+
+  /// Finds an Android class in the project scope.
+  #[cfg(target_os = "android")]
+  fn find_class<'a>(
+    &'a self,
+    env: jni::JNIEnv<'a>,
+    activity: jni::objects::JObject<'a>,
+    name: impl Into<String>,
+  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error>;
+
+  /// Dispatch a closure to run on the Android context.
+  ///
+  /// The closure takes the JNI env, the Android activity instance and the possibly null webview.
+  #[cfg(target_os = "android")]
+  fn run_on_android_context<F>(&self, f: F)
+  where
+    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
+      + Send
+      + 'static;
+}
+
+pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
+  fn send_event(&self, event: T) -> Result<()>;
+}
+
+/// Dispatcher. A thread-safe handle to the window APIs.
 pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime<T>;
@@ -545,10 +343,12 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
   /// Registers a window event handler.
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> u64;
 
   /// Registers a window event handler.
-  fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
+  fn on_menu_event<F: Fn(&menu::MenuEvent) + Send + 'static>(&self, f: F) -> u64;
+
+  // TODO: figure out a place for the webview specific APIs
 
   /// Runs a closure with the platform webview object as argument.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
@@ -626,13 +426,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
   /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
+  #[cfg(linuxy)]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
 
   fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle>;
@@ -755,5 +549,30 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
 
   /// Applies the specified `update` to the menu item associated with the given `id`.
-  fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> Result<()>;
+  fn update_menu_item(&self, id: u16, update: MenuUpdate) -> Result<()>;
+}
+
+/// A global shortcut manager.
+#[cfg(all(desktop, feature = "global-shortcut"))]
+pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
+  /// Whether the application has registered the given `accelerator`.
+  fn is_registered(&self, accelerator: &str) -> Result<bool>;
+
+  /// Register a global shortcut of `accelerator`.
+  fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()>;
+
+  /// Unregister all accelerators registered by the manager instance.
+  fn unregister_all(&mut self) -> Result<()>;
+
+  /// Unregister the provided `accelerator`.
+  fn unregister(&mut self, accelerator: &str) -> Result<()>;
+}
+
+/// Clipboard manager.
+#[cfg(feature = "clipboard")]
+pub trait ClipboardManager: Debug + Clone + Send + Sync {
+  /// Writes the text into the clipboard as plain text.
+  fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
+  /// Read the content in the clipboard as plain text.
+  fn read_text(&self) -> Result<Option<String>>;
 }

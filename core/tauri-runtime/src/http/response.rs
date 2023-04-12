@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{
-  header::{HeaderMap, HeaderName, HeaderValue},
-  status::StatusCode,
-  version::Version,
-};
-use std::{borrow::Cow, fmt};
+use std::borrow::Cow;
+use std::fmt;
+
+use super::header::{HeaderMap, HeaderName, HeaderValue};
+use super::status::StatusCode;
+use super::version::Version;
 
 type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 

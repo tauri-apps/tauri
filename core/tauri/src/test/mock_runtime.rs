@@ -4,26 +4,22 @@
 
 #![allow(dead_code)]
 
+#[cfg(all(desktop, feature = "system-tray"))]
+use tauri_runtime::system_tray::{
+  SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayId, SystemTrayMenu,
+};
 use tauri_runtime::{
-  menu::{Menu, MenuUpdate},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  menu::{Menu, MenuEvent, MenuUpdate},
   monitor::Monitor,
   webview::{WindowBuilder, WindowBuilderBase},
-  window::{
-    dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
-  },
+  window::{CursorIcon, DetachedWindow, PendingWindow, UserAttentionType, WindowEvent},
   DeviceEventFilter, Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle,
-  UserAttentionType, UserEvent,
-};
-#[cfg(all(desktop, feature = "system-tray"))]
-use tauri_runtime::{
-  menu::{SystemTrayMenu, TrayHandle},
-  SystemTray, SystemTrayEvent, TrayId,
+  UserEvent,
 };
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, Theme};
-use uuid::Uuid;
 
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -87,7 +83,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   fn system_tray(
     &self,
     system_tray: SystemTray,
-  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler> {
+  ) -> Result<<Self::Runtime as Runtime<T>>::SystemTrayHandler> {
     unimplemented!()
   }
 
@@ -338,12 +334,12 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
-    Uuid::new_v4()
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> u64 {
+    0
   }
 
-  fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> Uuid {
-    Uuid::new_v4()
+  fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> u64 {
+    0
   }
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
@@ -600,12 +596,12 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
 
 #[cfg(all(desktop, feature = "system-tray"))]
 #[derive(Debug, Clone)]
-pub struct MockTrayHandler {
+pub struct MockSystemTrayHandler {
   context: RuntimeContext,
 }
 
 #[cfg(all(desktop, feature = "system-tray"))]
-impl TrayHandle for MockTrayHandler {
+impl SystemTrayHandle for MockSystemTrayHandler {
   fn set_icon(&self, icon: Icon) -> Result<()> {
     Ok(())
   }
@@ -651,7 +647,7 @@ pub struct MockRuntime {
   #[cfg(feature = "clipboard")]
   clipboard_manager: MockClipboardManager,
   #[cfg(all(desktop, feature = "system-tray"))]
-  tray_handler: MockTrayHandler,
+  tray_handler: MockSystemTrayHandler,
 }
 
 impl MockRuntime {
@@ -670,7 +666,7 @@ impl MockRuntime {
         context: context.clone(),
       },
       #[cfg(all(desktop, feature = "system-tray"))]
-      tray_handler: MockTrayHandler {
+      tray_handler: MockSystemTrayHandler {
         context: context.clone(),
       },
       context,
@@ -686,7 +682,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg(feature = "clipboard")]
   type ClipboardManager = MockClipboardManager;
   #[cfg(all(desktop, feature = "system-tray"))]
-  type TrayHandler = MockTrayHandler;
+  type SystemTrayHandler = MockSystemTrayHandler;
   type EventLoopProxy = EventProxy;
 
   fn new() -> Result<Self> {
@@ -731,13 +727,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
 
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
+  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::SystemTrayHandler> {
     Ok(self.tray_handler.clone())
   }
 
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F) {}
+  fn on_system_tray_event<F: Fn(SystemTrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F) {
+  }
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]

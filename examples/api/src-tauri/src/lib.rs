@@ -9,7 +9,7 @@
 
 mod cmd;
 #[cfg(desktop)]
-mod tray;
+mod system_tray;
 
 use serde::Serialize;
 use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, WindowUrl};
@@ -35,7 +35,7 @@ pub fn run() {
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
       #[cfg(desktop)]
-      tray::create_tray(app)?;
+      system_tray::create_tray(app)?;
 
       let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());
       #[cfg(desktop)]

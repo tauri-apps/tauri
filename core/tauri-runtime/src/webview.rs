@@ -4,19 +4,19 @@
 
 //! Items specific to the [`Runtime`](crate::Runtime)'s webview.
 
-use crate::{menu::Menu, window::DetachedWindow, Icon};
+use std::fmt;
+use std::path::PathBuf;
 
+use tauri_utils::config::{WindowConfig, WindowUrl};
+use tauri_utils::Theme;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{
-  config::{WindowConfig, WindowUrl},
-  Theme,
-};
-
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
-use std::{fmt, path::PathBuf};
+use crate::menu::Menu;
+use crate::window::DetachedWindow;
+use crate::Icon;
 
 /// The attributes used to create an webview.
 #[derive(Debug, Clone)]

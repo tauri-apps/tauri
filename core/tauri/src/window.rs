@@ -18,13 +18,11 @@ use crate::{
   hooks::{InvokePayload, InvokeResponder},
   manager::WindowManager,
   runtime::{
+    dpi::{PhysicalPosition, PhysicalSize},
     http::{Request as HttpRequest, Response as HttpResponse},
     monitor::Monitor as RuntimeMonitor,
     webview::{WebviewAttributes, WindowBuilder as _},
-    window::{
-      dpi::{PhysicalPosition, PhysicalSize},
-      DetachedWindow, JsEventListenerKey, PendingWindow,
-    },
+    window::{DetachedWindow, JsEventListenerKey, PendingWindow},
     Dispatch, RuntimeHandle,
   },
   sealed::ManagerBase,
@@ -36,9 +34,9 @@ use crate::{
 #[cfg(desktop)]
 use crate::{
   runtime::{
+    dpi::{Position, Size},
     menu::Menu,
-    window::dpi::{Position, Size},
-    UserAttentionType,
+    window::UserAttentionType,
   },
   CursorIcon, Icon,
 };
@@ -919,7 +917,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Registers a menu event listener.
-  pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
+  pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> u64 {
     let menu_ids = self.window.menu_ids.clone();
     self.window.dispatcher.on_menu_event(move |event| {
       let id = menu_ids

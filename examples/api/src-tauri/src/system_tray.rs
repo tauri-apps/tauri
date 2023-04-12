@@ -47,11 +47,7 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     .on_event(move |event| {
       let tray_handle = handle.tray_handle_by_id(&tray_id).unwrap();
       match event {
-        SystemTrayEvent::LeftClick {
-          position: _,
-          size: _,
-          ..
-        } => {
+        SystemTrayEvent::LeftClick { .. } => {
           let window = handle.get_window("main").unwrap();
           window.show().unwrap();
           window.set_focus().unwrap();

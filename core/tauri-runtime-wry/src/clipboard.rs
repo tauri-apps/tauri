@@ -4,15 +4,13 @@
 
 //! Clipboard implementation.
 
+use std::sync::mpsc::{channel, Sender};
+use std::sync::{Arc, Mutex};
+
+use tauri_runtime::{Result, UserEvent};
+use wry::application::clipboard::Clipboard as WryClipboard;
+
 use crate::{getter, Context, Message};
-
-use std::sync::{
-  mpsc::{channel, Sender},
-  Arc, Mutex,
-};
-
-use tauri_runtime::{ClipboardManager, Result, UserEvent};
-pub use wry::application::clipboard::Clipboard;
 
 #[derive(Debug, Clone)]
 pub enum ClipboardMessage {
@@ -21,15 +19,15 @@ pub enum ClipboardMessage {
 }
 
 #[derive(Debug, Clone)]
-pub struct ClipboardManagerWrapper<T: UserEvent> {
+pub struct ClipboardManager<T: UserEvent> {
   pub context: Context<T>,
 }
 
 // SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: UserEvent> Sync for ClipboardManagerWrapper<T> {}
+unsafe impl<T: UserEvent> Sync for ClipboardManager<T> {}
 
-impl<T: UserEvent> ClipboardManager for ClipboardManagerWrapper<T> {
+impl<T: UserEvent> tauri_runtime::ClipboardManager for ClipboardManager<T> {
   fn read_text(&self) -> Result<Option<String>> {
     let (tx, rx) = channel();
     getter!(self, rx, Message::Clipboard(ClipboardMessage::ReadText(tx)))
@@ -46,17 +44,12 @@ impl<T: UserEvent> ClipboardManager for ClipboardManagerWrapper<T> {
   }
 }
 
-pub fn handle_clipboard_message(
-  message: ClipboardMessage,
-  clipboard_manager: &Arc<Mutex<Clipboard>>,
-) {
+pub fn handle_clipboard_message(message: ClipboardMessage, clipboard: &Arc<Mutex<WryClipboard>>) {
   match message {
     ClipboardMessage::WriteText(text, tx) => {
-      clipboard_manager.lock().unwrap().write_text(text);
+      clipboard.lock().unwrap().write_text(text);
       tx.send(()).unwrap();
     }
-    ClipboardMessage::ReadText(tx) => tx
-      .send(clipboard_manager.lock().unwrap().read_text())
-      .unwrap(),
+    ClipboardMessage::ReadText(tx) => tx.send(clipboard.lock().unwrap().read_text()).unwrap(),
   }
 }

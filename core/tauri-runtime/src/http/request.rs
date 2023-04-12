@@ -4,10 +4,8 @@
 
 use std::fmt;
 
-use super::{
-  header::{HeaderMap, HeaderValue},
-  method::Method,
-};
+use super::header::{HeaderMap, HeaderValue};
+use super::method::Method;
 
 /// Represents an HTTP request from the WebView.
 ///

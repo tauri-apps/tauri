@@ -9,8 +9,8 @@ use super::{InvokeContext, InvokeResponse};
 use crate::runtime::{webview::WindowBuilder, Dispatch};
 use crate::{
   runtime::{
-    window::dpi::{Position, Size},
-    UserAttentionType,
+    dpi::{Position, Size},
+    window::UserAttentionType,
   },
   utils::config::WindowConfig,
   CursorIcon, Icon, Manager, Runtime,

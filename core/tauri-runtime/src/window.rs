@@ -4,28 +4,38 @@
 
 //! A layer between raw [`Runtime`] webview windows and Tauri.
 
-use crate::{
-  http::{Request as HttpRequest, Response as HttpResponse},
-  menu::{Menu, MenuEntry, MenuHash, MenuId},
-  webview::{WebviewAttributes, WebviewIpcHandler},
-  Dispatch, Runtime, UserEvent, WindowBuilder,
-};
-use serde::{Deserialize, Deserializer, Serialize};
-use tauri_utils::{config::WindowConfig, Theme};
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
+
+use serde::{Deserialize, Deserializer};
+use tauri_utils::config::WindowConfig;
+use tauri_utils::Theme;
 use url::Url;
 
-use std::{
-  collections::{HashMap, HashSet},
-  hash::{Hash, Hasher},
-  path::PathBuf,
-  sync::{mpsc::Sender, Arc, Mutex},
-};
+use crate::http::{Request as HttpRequest, Response as HttpResponse};
+use crate::menu::{Menu, MenuEntry, MenuHash, MenuId};
+use crate::webview::{WebviewAttributes, WebviewIpcHandler};
+use crate::{dpi, Dispatch, Runtime, UserEvent, WindowBuilder};
 
 type UriSchemeProtocol =
   dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
 
-/// UI scaling utilities.
-pub mod dpi;
+/// Type of user attention requested on a window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(tag = "type")]
+pub enum UserAttentionType {
+  /// ## Platform-specific
+  /// - **macOS:** Bounces the dock icon until the application is in focus.
+  /// - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
+  Critical,
+  /// ## Platform-specific
+  /// - **macOS:** Bounces the dock icon once.
+  /// - **Windows:** Flashes the taskbar button until the application is in focus.
+  Informational,
+}
 
 /// An event from a window.
 #[derive(Debug, Clone)]
@@ -76,13 +86,6 @@ pub enum FileDropEvent {
   Dropped(Vec<PathBuf>),
   /// The file drop was aborted.
   Cancelled,
-}
-
-/// A menu event.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MenuEvent {
-  pub menu_item_id: u16,
 }
 
 fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {

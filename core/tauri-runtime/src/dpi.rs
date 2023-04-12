@@ -399,3 +399,9 @@ impl<P: Pixel> From<LogicalPosition<P>> for Position {
     Position::Logical(position.cast())
   }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct Rect {
+  pub position: PhysicalPosition<f64>,
+  pub size: PhysicalSize<f64>,
+}

@@ -2,15 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  collections::hash_map::DefaultHasher,
-  fmt,
-  hash::{Hash, Hasher},
-};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+use serde::Serialize;
 
 pub type MenuHash = u16;
 pub type MenuId = String;
 pub type MenuIdRef<'a> = &'a str;
+
+/// A menu event.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuEvent {
+  pub menu_item_id: u16,
+}
 
 /// Named images defined by the system.
 #[cfg(target_os = "macos")]
@@ -146,18 +152,6 @@ pub enum MenuUpdate {
   SetNativeImage(NativeImage),
 }
 
-pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
-  fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
-  fn set_menu(&self, menu: crate::menu::SystemTrayMenu) -> crate::Result<()>;
-  fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
-  #[cfg(target_os = "macos")]
-  fn set_icon_as_template(&self, is_template: bool) -> crate::Result<()>;
-  #[cfg(target_os = "macos")]
-  fn set_title(&self, title: &str) -> crate::Result<()>;
-  fn set_tooltip(&self, tooltip: &str) -> crate::Result<()>;
-  fn destroy(&self) -> crate::Result<()>;
-}
-
 /// A window menu.
 #[derive(Debug, Default, Clone)]
 #[non_exhaustive]
@@ -272,7 +266,7 @@ impl Menu {
     }
     menu = menu.add_submenu(Submenu::new("File", file_menu));
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(linuxy))]
     let mut edit_menu = Menu::new();
     #[cfg(target_os = "macos")]
     {
@@ -280,7 +274,7 @@ impl Menu {
       edit_menu = edit_menu.add_native_item(MenuItem::Redo);
       edit_menu = edit_menu.add_native_item(MenuItem::Separator);
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(linuxy))]
     {
       edit_menu = edit_menu.add_native_item(MenuItem::Cut);
       edit_menu = edit_menu.add_native_item(MenuItem::Copy);
@@ -290,7 +284,7 @@ impl Menu {
     {
       edit_menu = edit_menu.add_native_item(MenuItem::SelectAll);
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(linuxy))]
     {
       menu = menu.add_submenu(Submenu::new("Edit", edit_menu));
     }
@@ -423,80 +417,7 @@ impl CustomMenuItem {
   }
 }
 
-/// A system tray menu.
-#[derive(Debug, Default, Clone)]
-#[non_exhaustive]
-pub struct SystemTrayMenu {
-  pub items: Vec<SystemTrayMenuEntry>,
-}
-
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub struct SystemTraySubmenu {
-  pub title: String,
-  pub enabled: bool,
-  pub inner: SystemTrayMenu,
-}
-
-impl SystemTraySubmenu {
-  /// Creates a new submenu with the given title and menu items.
-  pub fn new<S: Into<String>>(title: S, menu: SystemTrayMenu) -> Self {
-    Self {
-      title: title.into(),
-      enabled: true,
-      inner: menu,
-    }
-  }
-}
-
-impl SystemTrayMenu {
-  /// Creates a new system tray menu.
-  pub fn new() -> Self {
-    Default::default()
-  }
-
-  /// Adds the custom menu item to the system tray menu.
-  #[must_use]
-  pub fn add_item(mut self, item: CustomMenuItem) -> Self {
-    self.items.push(SystemTrayMenuEntry::CustomItem(item));
-    self
-  }
-
-  /// Adds a native item to the system tray menu.
-  #[must_use]
-  pub fn add_native_item(mut self, item: SystemTrayMenuItem) -> Self {
-    self.items.push(SystemTrayMenuEntry::NativeItem(item));
-    self
-  }
-
-  /// Adds an entry with submenu.
-  #[must_use]
-  pub fn add_submenu(mut self, submenu: SystemTraySubmenu) -> Self {
-    self.items.push(SystemTrayMenuEntry::Submenu(submenu));
-    self
-  }
-}
-
-/// An entry on the system tray menu.
-#[derive(Debug, Clone)]
-pub enum SystemTrayMenuEntry {
-  /// A custom item.
-  CustomItem(CustomMenuItem),
-  /// A native item.
-  NativeItem(SystemTrayMenuItem),
-  /// An entry with submenu.
-  Submenu(SystemTraySubmenu),
-}
-
-/// System tray menu item.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum SystemTrayMenuItem {
-  /// A separator.
-  Separator,
-}
-
-/// An entry on the system tray menu.
+/// An entry on the window or system tray menu.
 #[derive(Debug, Clone)]
 pub enum MenuEntry {
   /// A custom item.

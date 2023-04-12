@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(all(desktop, feature = "system-tray"))]
-pub(crate) mod tray;
+pub(crate) mod system_tray;
 
 use crate::{
   api::ipc::CallbackFn,
@@ -32,9 +32,9 @@ use crate::scope::ShellScope;
 
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
-use tauri_runtime::window::{
+use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize},
-  FileDropEvent,
+  window::FileDropEvent,
 };
 use tauri_utils::PackageInfo;
 
@@ -58,7 +58,8 @@ use crate::ActivationPolicy;
 pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
 #[cfg(all(desktop, feature = "system-tray"))]
-type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
+type SystemTrayEventListener<R> =
+  Box<dyn Fn(&AppHandle<R>, system_tray::SystemTrayEvent) + Send + Sync>;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -394,7 +395,7 @@ impl AppHandle<crate::Wry> {
   >(
     &self,
     f: F,
-  ) -> crate::Result<Weak<tauri_runtime_wry::Window>> {
+  ) -> crate::Result<Weak<tauri_runtime_wry::wry::application::window::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
 
@@ -407,7 +408,7 @@ impl AppHandle<crate::Wry> {
     self
       .runtime_handle
       .send_event(tauri_runtime_wry::Message::Window(
-        self.runtime_handle.window_id(window_id),
+        self.runtime_handle.webview_id(window_id),
         message,
       ))
       .map_err(Into::into)
@@ -691,7 +692,7 @@ macro_rules! shared_app_impl {
       /// ```
       #[cfg(all(desktop, feature = "system-tray"))]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-      pub fn tray_handle(&self) -> tray::SystemTrayHandle<R> {
+      pub fn tray_handle(&self) -> system_tray::SystemTrayHandle<R> {
         self
           .manager()
           .trays()
@@ -727,7 +728,7 @@ macro_rules! shared_app_impl {
       /// ```
       #[cfg(all(desktop, feature = "system-tray"))]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-      pub fn tray_handle_by_id(&self, id: &str) -> Option<tray::SystemTrayHandle<R>> {
+      pub fn tray_handle_by_id(&self, id: &str) -> Option<system_tray::SystemTrayHandle<R>> {
         self
           .manager()
           .get_tray(id)
@@ -1063,7 +1064,7 @@ pub struct Builder<R: Runtime> {
 
   /// The app system tray.
   #[cfg(all(desktop, feature = "system-tray"))]
-  system_tray: Option<tray::SystemTray>,
+  system_tray: Option<system_tray::SystemTray>,
 
   /// System tray event handlers.
   #[cfg(all(desktop, feature = "system-tray"))]
@@ -1348,7 +1349,7 @@ impl<R: Runtime> Builder<R> {
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[must_use]
-  pub fn system_tray(mut self, system_tray: tray::SystemTray) -> Self {
+  pub fn system_tray(mut self, system_tray: system_tray::SystemTray) -> Self {
     self.system_tray.replace(system_tray);
     self
   }
@@ -1478,7 +1479,7 @@ impl<R: Runtime> Builder<R> {
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[must_use]
   pub fn on_system_tray_event<
-    F: Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync + 'static,
+    F: Fn(&AppHandle<R>, system_tray::SystemTrayEvent) + Send + Sync + 'static,
   >(
     mut self,
     handler: F,
@@ -1725,7 +1726,8 @@ impl<R: Runtime> Builder<R> {
           .on_system_tray_event(move |tray_id, event| {
             if let Some((tray_id, tray)) = app_handle.manager().get_tray_by_runtime_id(tray_id) {
               let app_handle = app_handle.clone();
-              let event = tray::SystemTrayEvent::from_runtime_event(event, tray_id, &tray.ids);
+              let event =
+                system_tray::SystemTrayEvent::from_runtime_event(event, tray_id, &tray.ids);
               let listener = listener.clone();
               listener.lock().unwrap()(&app_handle, event);
             }

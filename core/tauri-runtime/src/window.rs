@@ -12,6 +12,7 @@ use crate::{
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use tauri_utils::{config::WindowConfig, Theme};
+use url::Url;
 
 use std::{
   collections::{HashMap, HashSet},
@@ -226,14 +227,17 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// How to handle IPC calls on the webview window.
   pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
 
-  /// The resolved URL to load on the webview.
-  pub url: String,
-
   /// Maps runtime id to a string menu id.
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 
   /// A HashMap mapping JS event names with associated listener ids.
   pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
+
+  /// A handler to decide if incoming url is allowed to navigate.
+  pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
+
+  /// The current webview URL.
+  pub current_url: Arc<Mutex<Url>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -270,9 +274,10 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
+        navigation_handler: Default::default(),
+        current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       })
     }
   }
@@ -299,9 +304,10 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
+        navigation_handler: Default::default(),
+        current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       })
     }
   }
@@ -342,6 +348,9 @@ pub struct JsEventListenerKey {
 /// A webview window that is not yet managed by Tauri.
 #[derive(Debug)]
 pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
+  /// The current webview URL.
+  pub current_url: Arc<Mutex<Url>>,
+
   /// Name of the window
   pub label: String,
 
@@ -358,6 +367,7 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
   fn clone(&self) -> Self {
     Self {
+      current_url: self.current_url.clone(),
       label: self.label.clone(),
       dispatcher: self.dispatcher.clone(),
       menu_ids: self.menu_ids.clone(),

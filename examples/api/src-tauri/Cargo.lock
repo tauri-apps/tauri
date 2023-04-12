@@ -3132,7 +3132,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.2"
+version = "1.0.8"
 dependencies = [
  "anyhow",
  "attohttpc",
@@ -3194,7 +3194,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.0.2"
+version = "1.0.4"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3209,7 +3209,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "1.0.2"
+version = "1.0.4"
 dependencies = [
  "base64",
  "brotli",
@@ -3233,7 +3233,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "1.0.2"
+version = "1.0.4"
 dependencies = [
  "heck 0.4.0",
  "proc-macro2",
@@ -3245,7 +3245,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "gtk",
  "http",
@@ -3256,6 +3256,7 @@ dependencies = [
  "serde_json",
  "tauri-utils",
  "thiserror",
+ "url",
  "uuid 1.1.2",
  "webview2-com",
  "windows 0.37.0",
@@ -3263,7 +3264,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3272,6 +3273,7 @@ dependencies = [
  "raw-window-handle",
  "tauri-runtime",
  "tauri-utils",
+ "url",
  "uuid 1.1.2",
  "webkit2gtk",
  "webview2-com",
@@ -3281,7 +3283,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "aes-gcm",
  "brotli",

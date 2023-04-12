@@ -119,7 +119,7 @@ impl Notification {
       {
         notification.app_id(&self.identifier);
       }
-      
+
       // will be parsed as a `::winrt_notification::Sound`
       notification.sound_name("Default");
     }

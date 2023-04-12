@@ -19,6 +19,7 @@ tauri-utils = { version = "1.2.1", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
+url = "2"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"

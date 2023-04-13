@@ -25,7 +25,7 @@ open class BuildTask : DefaultTask() {
         val executable = """{{tauri-binary}}""";
         try {
             runTauriCli(executable)
-        } catch (e: Exception){
+        } catch (e: Exception) {
             if (Os.isFamily(Os.FAMILY_WINDOWS)) {
                 runTauriCli("$executable.cmd")
             } else {

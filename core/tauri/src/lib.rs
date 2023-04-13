@@ -220,7 +220,7 @@ pub use self::utils::TitleBarStyle;
 #[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle},
+  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
   self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {
@@ -778,6 +778,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Gets the scope for the filesystem APIs.
   fn fs_scope(&self) -> FsScope {
     self.state::<Scopes>().inner().fs.clone()
+  }
+
+  /// Gets the scope for the IPC.
+  fn ipc_scope(&self) -> IpcScope {
+    self.state::<Scopes>().inner().ipc.clone()
   }
 
   /// Gets the scope for the asset protocol.

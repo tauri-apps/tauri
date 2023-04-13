@@ -772,7 +772,7 @@ async function extname(path: string): Promise<string> {
  * import { basename, resolveResource } from '@tauri-apps/api/path';
  * const resourcePath = await resolveResource('app.conf');
  * const base = await basename(resourcePath);
- * assert(base === 'app');
+ * assert(base === 'app.conf');
  * ```
  *
  * @param ext An optional file extension to be removed from the returned path.

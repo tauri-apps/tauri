@@ -111,23 +111,25 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
   for i in 0..zipa.len() {
     let mut file = zipa.by_index(i)?;
 
-    let dest_path = path.join(file.name());
-    if file.is_dir() {
-      create_dir_all(&dest_path)?;
-      continue;
+    if let Some(name) = file.enclosed_name() {
+      let dest_path = path.join(name);
+      if file.is_dir() {
+        create_dir_all(&dest_path)?;
+        continue;
+      }
+
+      let parent = dest_path.parent().expect("Failed to get parent");
+
+      if !parent.exists() {
+        create_dir_all(parent)?;
+      }
+
+      let mut buff: Vec<u8> = Vec::new();
+      file.read_to_end(&mut buff)?;
+      let mut fileout = File::create(dest_path).expect("Failed to open file");
+
+      fileout.write_all(&buff)?;
     }
-
-    let parent = dest_path.parent().expect("Failed to get parent");
-
-    if !parent.exists() {
-      create_dir_all(parent)?;
-    }
-
-    let mut buff: Vec<u8> = Vec::new();
-    file.read_to_end(&mut buff)?;
-    let mut fileout = File::create(dest_path).expect("Failed to open file");
-
-    fileout.write_all(&buff)?;
   }
 
   Ok(())

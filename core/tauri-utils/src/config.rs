@@ -247,6 +247,8 @@ impl BundleTarget {
 }
 
 /// Configuration for AppImage bundles.
+///
+/// See more: https://tauri.app/v1/api/config#appimageconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -258,6 +260,8 @@ pub struct AppImageConfig {
 }
 
 /// Configuration for Debian (.deb) bundles.
+///
+/// See more: https://tauri.app/v1/api/config#debconfig
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -282,6 +286,8 @@ where
 }
 
 /// Configuration for the macOS bundles.
+///
+/// See more: https://tauri.app/v1/api/config#macconfig
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -338,6 +344,8 @@ fn minimum_system_version() -> Option<String> {
 }
 
 /// Configuration for a target language for the WiX build.
+///
+/// See more: https://tauri.app/v1/api/config#wixlanguageconfig
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -367,6 +375,8 @@ impl Default for WixLanguage {
 }
 
 /// Configuration for the MSI bundle using WiX.
+///
+/// See more: https://tauri.app/v1/api/config#wixconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -496,7 +506,7 @@ pub enum WebviewInstallMode {
   /// Do not install the Webview2 as part of the Windows Installer.
   Skip,
   /// Download the bootstrapper and run it.
-  /// Requires internet connection.
+  /// Requires an internet connection.
   /// Results in a smaller installer size, but is not recommended on Windows 7.
   DownloadBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
@@ -504,7 +514,7 @@ pub enum WebviewInstallMode {
     silent: bool,
   },
   /// Embed the bootstrapper and run it.
-  /// Requires internet connection.
+  /// Requires an internet connection.
   /// Increases the installer size by around 1.8MB, but offers better support on Windows 7.
   EmbedBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
@@ -512,7 +522,7 @@ pub enum WebviewInstallMode {
     silent: bool,
   },
   /// Embed the offline installer and run it.
-  /// Does not require internet connection.
+  /// Does not require an internet connection.
   /// Increases the installer size by around 127MB.
   OfflineInstaller {
     /// Instructs the installer to run the installer in silent mode. Defaults to `true`.
@@ -543,6 +553,8 @@ impl Default for WebviewInstallMode {
 }
 
 /// Windows bundler configuration.
+///
+/// See more: https://tauri.app/v1/api/config#windowsconfig
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -606,6 +618,8 @@ fn default_allow_downgrades() -> bool {
 }
 
 /// Configuration for tauri-bundler.
+///
+/// See more: https://tauri.app/v1/api/config#bundleconfig
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -794,6 +808,8 @@ pub struct CliArg {
 }
 
 /// describes a CLI configuration
+///
+/// See more: https://tauri.app/v1/api/config#cliconfig
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -857,6 +873,8 @@ impl CliConfig {
 }
 
 /// The window configuration object.
+///
+/// See more: https://tauri.app/v1/api/config#windowconfig
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1178,7 +1196,28 @@ impl Default for DisabledCspModificationKind {
   }
 }
 
+/// External command access definition.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteDomainAccessScope {
+  /// The URL scheme to allow. By default, all schemas are allowed.
+  pub scheme: Option<String>,
+  /// The domain to allow.
+  pub domain: String,
+  /// The list of window labels this scope applies to.
+  pub windows: Vec<String>,
+  /// The list of plugins that are allowed in this scope.
+  #[serde(default)]
+  pub plugins: Vec<String>,
+  /// Enables access to the Tauri API.
+  #[serde(default, rename = "enableTauriAPI", alias = "enable-tauri-api")]
+  pub enable_tauri_api: bool,
+}
+
 /// Security configuration.
+///
+/// See more: https://tauri.app/v1/api/config#securityconfig
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1213,6 +1252,20 @@ pub struct SecurityConfig {
   /// Your application might be vulnerable to XSS attacks without this Tauri protection.
   #[serde(default, alias = "dangerous-disable-asset-csp-modification")]
   pub dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
+  /// Allow external domains to send command to Tauri.
+  ///
+  /// By default, external domains do not have access to `window.__TAURI__`, which means they cannot
+  /// communicate with the commands defined in Rust. This prevents attacks where an externally
+  /// loaded malicious or compromised sites could start executing commands on the user's device.
+  ///
+  /// This configuration allows a set of external domains to have access to the Tauri commands.
+  /// When you configure a domain to be allowed to access the IPC, all subpaths are allowed. Subdomains are not allowed.
+  ///
+  /// **WARNING:** Only use this option if you either have internal checks against malicious
+  /// external sites or you can trust the allowed external sites. You application might be
+  /// vulnerable to dangerous Tauri command related attacks otherwise.
+  #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
+  pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
 }
 
 /// Defines an allowlist type.
@@ -1282,6 +1335,8 @@ impl FsAllowlistScope {
 }
 
 /// Allowlist for the file system APIs.
+///
+/// See more: https://tauri.app/v1/api/config#fsallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1361,6 +1416,8 @@ impl Allowlist for FsAllowlistConfig {
 }
 
 /// Allowlist for the window APIs.
+///
+/// See more: https://tauri.app/v1/api/config#windowallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1707,6 +1764,8 @@ impl Default for ShellAllowlistOpen {
 }
 
 /// Allowlist for the shell APIs.
+///
+/// See more: https://tauri.app/v1/api/config#shellallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1763,6 +1822,8 @@ impl Allowlist for ShellAllowlistConfig {
 }
 
 /// Allowlist for the dialog APIs.
+///
+/// See more: https://tauri.app/v1/api/config#dialogallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1831,6 +1892,8 @@ impl Allowlist for DialogAllowlistConfig {
 pub struct HttpAllowlistScope(pub Vec<Url>);
 
 /// Allowlist for the HTTP APIs.
+///
+/// See more: https://tauri.app/v1/api/config#httpallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1870,6 +1933,8 @@ impl Allowlist for HttpAllowlistConfig {
 }
 
 /// Allowlist for the notification APIs.
+///
+/// See more: https://tauri.app/v1/api/config#notificationallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1897,6 +1962,8 @@ impl Allowlist for NotificationAllowlistConfig {
 }
 
 /// Allowlist for the global shortcut APIs.
+///
+/// See more: https://tauri.app/v1/api/config#globalshortcutallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1924,6 +1991,8 @@ impl Allowlist for GlobalShortcutAllowlistConfig {
 }
 
 /// Allowlist for the OS APIs.
+///
+/// See more: https://tauri.app/v1/api/config#osallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1951,6 +2020,8 @@ impl Allowlist for OsAllowlistConfig {
 }
 
 /// Allowlist for the path APIs.
+///
+/// See more: https://tauri.app/v1/api/config#pathallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1978,6 +2049,8 @@ impl Allowlist for PathAllowlistConfig {
 }
 
 /// Allowlist for the custom protocols.
+///
+/// See more: https://tauri.app/v1/api/config#protocolallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -2017,6 +2090,8 @@ impl Allowlist for ProtocolAllowlistConfig {
 }
 
 /// Allowlist for the process APIs.
+///
+/// See more: https://tauri.app/v1/api/config#processallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -2074,6 +2149,8 @@ impl Allowlist for ProcessAllowlistConfig {
 }
 
 /// Allowlist for the clipboard APIs.
+///
+/// See more: https://tauri.app/v1/api/config#clipboardallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -2114,6 +2191,8 @@ impl Allowlist for ClipboardAllowlistConfig {
 }
 
 /// Allowlist for the app APIs.
+///
+/// See more: https://tauri.app/v1/api/config#appallowlistconfig
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -2275,6 +2354,8 @@ impl Default for PatternKind {
 }
 
 /// The Tauri configuration object.
+///
+/// See more: https://tauri.app/v1/api/config#tauriconfig
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2453,6 +2534,8 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
 }
 
 /// The updater configuration for Windows.
+///
+/// See more: https://tauri.app/v1/api/config#updaterwindowsconfig
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2467,6 +2550,8 @@ pub struct UpdaterWindowsConfig {
 }
 
 /// The Updater configuration object.
+///
+/// See more: https://tauri.app/v1/api/config#updaterconfig
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2546,6 +2631,8 @@ impl Default for UpdaterConfig {
 }
 
 /// Configuration for application system tray icon.
+///
+/// See more: https://tauri.app/v1/api/config#systemtrayconfig
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2635,6 +2722,8 @@ pub enum HookCommand {
 }
 
 /// The Build configuration object.
+///
+/// See more: https://tauri.app/v1/api/config#buildconfig
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2768,6 +2857,8 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 }
 
 /// The package configuration.
+///
+/// See more: https://tauri.app/v1/api/config#packageconfig
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -2897,6 +2988,8 @@ pub struct Config {
 }
 
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
+///
+/// See more: https://tauri.app/v1/api/config#pluginconfig
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
@@ -3530,12 +3623,34 @@ mod build {
     }
   }
 
+  impl ToTokens for RemoteDomainAccessScope {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let scheme = opt_str_lit(self.scheme.as_ref());
+      let domain = str_lit(&self.domain);
+      let windows = vec_lit(&self.windows, str_lit);
+      let plugins = vec_lit(&self.plugins, str_lit);
+      let enable_tauri_api = self.enable_tauri_api;
+
+      literal_struct!(
+        tokens,
+        RemoteDomainAccessScope,
+        scheme,
+        domain,
+        windows,
+        plugins,
+        enable_tauri_api
+      );
+    }
+  }
+
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_lit(self.csp.as_ref());
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
+      let dangerous_remote_domain_ipc_access =
+        vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
 
       literal_struct!(
         tokens,
@@ -3543,7 +3658,8 @@ mod build {
         csp,
         dev_csp,
         freeze_prototype,
-        dangerous_disable_asset_csp_modification
+        dangerous_disable_asset_csp_modification,
+        dangerous_remote_domain_ipc_access
       );
     }
   }
@@ -3808,6 +3924,7 @@ mod test {
         dev_csp: None,
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
+        dangerous_remote_domain_ipc_access: Vec::new(),
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

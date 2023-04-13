@@ -58,12 +58,18 @@ pub fn asset_protocol_handler(
     };
 
     // get file mime type
-    let mime_type = {
-      let mut magic_bytes = [0; 8192];
+    let (mime_type, read_bytes) = {
+      let nbytes = len.min(8192);
+      let mut magic_buf = Vec::with_capacity(nbytes as usize);
       let old_pos = file.stream_position().await?;
-      file.read_exact(&mut magic_bytes).await?;
+      (&mut file).take(nbytes).read_to_end(&mut magic_buf).await?;
       file.seek(SeekFrom::Start(old_pos)).await?;
-      MimeType::parse(&magic_bytes, &path)
+      (
+        MimeType::parse(&magic_buf, &path),
+        // return the `magic_bytes` if we read the whole file
+        // to avoid reading it again later if this is not a range request
+        if len < 8192 { Some(magic_buf) } else { None },
+      )
     };
 
     resp = resp.header(CONTENT_TYPE, &mime_type);
@@ -87,7 +93,7 @@ pub fn asset_protocol_handler(
       let ranges = if let Ok(ranges) = HttpRange::parse(&range_header, len) {
         ranges
           .iter()
-          // map the output back to spec range <start-end>, example: 0-499
+          // map the output to spec range <start-end>, example: 0-499
           .map(|r| (r.start, r.start + r.length - 1))
           .collect::<Vec<_>>()
       } else {
@@ -97,6 +103,7 @@ pub fn asset_protocol_handler(
       /// The Maximum bytes we send in one range
       const MAX_LEN: u64 = 1000 * 1024;
 
+      // single-part range header
       if ranges.len() == 1 {
         let &(start, mut end) = ranges.first().unwrap();
 
@@ -112,17 +119,18 @@ pub fn asset_protocol_handler(
         end = start + (end - start).min(len - start).min(MAX_LEN - 1);
 
         // calculate number of bytes needed to be read
-        let bytes_to_read = end + 1 - start;
+        let nbytes = end + 1 - start;
 
-        let mut buf = Vec::with_capacity(bytes_to_read as usize);
+        let mut buf = Vec::with_capacity(nbytes as usize);
         file.seek(SeekFrom::Start(start)).await?;
-        file.take(bytes_to_read).read_to_end(&mut buf).await?;
+        file.take(nbytes).read_to_end(&mut buf).await?;
 
         resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
         resp = resp.header(CONTENT_LENGTH, end + 1 - start);
         resp = resp.status(StatusCode::PARTIAL_CONTENT);
         resp.body(buf)
       } else {
+        // multi-part range header
         let mut buf = Vec::new();
         let ranges = ranges
           .iter()
@@ -166,11 +174,11 @@ pub fn asset_protocol_handler(
           buf.write_all("\r\n".as_bytes()).await?;
 
           // calculate number of bytes needed to be read
-          let bytes_to_read = end + 1 - start;
+          let nbytes = end + 1 - start;
 
-          let mut local_buf = Vec::with_capacity(bytes_to_read as usize);
+          let mut local_buf = Vec::with_capacity(nbytes as usize);
           file.seek(SeekFrom::Start(start)).await?;
-          file.read_buf(&mut local_buf).await?;
+          (&mut file).take(nbytes).read_to_end(&mut local_buf).await?;
           buf.extend_from_slice(&local_buf);
         }
         // all ranges have been written, write the closing boundary
@@ -179,9 +187,16 @@ pub fn asset_protocol_handler(
         resp.body(buf)
       }
     } else {
+      // avoid reading the file if we already read it
+      // as part of mime type detection
+      let buf = if let Some(b) = read_bytes {
+        b
+      } else {
+        let mut local_buf = Vec::with_capacity(len as usize);
+        file.read_to_end(&mut local_buf).await?;
+        local_buf
+      };
       resp = resp.header(CONTENT_LENGTH, len);
-      let mut buf = Vec::with_capacity(len as usize);
-      file.read_to_end(&mut buf).await?;
       resp.body(buf)
     };
 

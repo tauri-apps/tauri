@@ -131,7 +131,8 @@ unsafe fn add_json_entry_to_dictionary(data: id, key: String, value: JsonValue) 
       let () = msg_send![data, setObject:null forKey: key];
     }
     JsonValue::Bool(val) => {
-      let value = if val { YES } else { NO };
+      let flag = if val { YES } else { NO };
+      let value: id = msg_send![class!(NSNumber), numberWithBool: flag];
       let () = msg_send![data, setObject:value forKey: key];
     }
     JsonValue::Number(val) => {

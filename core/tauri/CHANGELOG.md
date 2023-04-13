@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.8]
+
+- Fixes boolean plugin parameters freezing the application.
+  - [9de89791](https://www.github.com/tauri-apps/tauri/commit/9de897919aa7236913ba6ca7c34a68099f4ff600) fix(core): iOS plugin freezing when receiving a bool parameter ([#6700](https://www.github.com/tauri-apps/tauri/pull/6700)) on 2023-04-13
+
 ## \[2.0.0-alpha.7]
 
 - Change minimum Android SDK version to 21 for the plugin library.

@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-alpha.8]
+
+- Do not gitignore the Android project's `buildSrc` folder by default since we removed absolute paths from it.
+  - [ee2d3b97](https://www.github.com/tauri-apps/tauri/commit/ee2d3b971df6d3630b8d935394fb4febcfa3a909) fix(cli): remove buildSrc from Android project gitignored paths ([#6702](https://www.github.com/tauri-apps/tauri/pull/6702)) on 2023-04-13
+- Fixes iOS build script using the wrong path for the app library file.
+  - [abc5f91f](https://www.github.com/tauri-apps/tauri/commit/abc5f91fa3569efc9dfdee46d1c501eda8755944) fix(cli): iOS Xcode script using incorrect library path ([#6699](https://www.github.com/tauri-apps/tauri/pull/6699)) on 2023-04-13
+
 ## \[2.0.0-alpha.7]
 
 - Add `--release` flag for `tauri android dev` however you will need to sign your Android app, see https://next--tauri.netlify.app/next/guides/distribution/sign-android

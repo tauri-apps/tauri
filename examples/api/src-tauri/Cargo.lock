@@ -82,6 +82,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-plugin-cli",
  "tauri-plugin-sample",
  "tiny_http",
  "window-shadows",
@@ -2166,9 +2167,9 @@ dependencies = [
 
 [[package]]
 name = "os_str_bytes"
-version = "6.4.1"
+version = "6.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
+checksum = "ceedf44fb00f2d1984b0bc98102627ce622e083e49a5bacdb3e514fa4238e267"
 
 [[package]]
 name = "overload"
@@ -3227,12 +3228,11 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "2.0.0-alpha.6"
+version = "2.0.0-alpha.8"
 dependencies = [
  "anyhow",
  "base64 0.21.0",
  "bytes",
- "clap",
  "cocoa",
  "dirs-next",
  "embed_plist",
@@ -3293,7 +3293,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-alpha.3"
+version = "2.0.0-alpha.4"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3313,7 +3313,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-alpha.3"
+version = "2.0.0-alpha.4"
 dependencies = [
  "base64 0.21.0",
  "brotli",
@@ -3338,7 +3338,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-alpha.3"
+version = "2.0.0-alpha.4"
 dependencies = [
  "heck 0.4.1",
  "proc-macro2",
@@ -3346,6 +3346,18 @@ dependencies = [
  "syn",
  "tauri-codegen",
  "tauri-utils",
+]
+
+[[package]]
+name = "tauri-plugin-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "thiserror",
 ]
 
 [[package]]
@@ -3361,7 +3373,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.13.0-alpha.3"
+version = "0.13.0-alpha.4"
 dependencies = [
  "gtk",
  "http",
@@ -3381,7 +3393,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.13.0-alpha.3"
+version = "0.13.0-alpha.4"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3400,7 +3412,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-alpha.3"
+version = "2.0.0-alpha.4"
 dependencies = [
  "aes-gcm",
  "brotli",

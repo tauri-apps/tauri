@@ -11,14 +11,7 @@
     "productName": "Tauri API",
     "version": "1.0.0"
   },
-  "tauri": {
-    "pattern": {
-      "use": "isolation",
-      "options": {
-        "dir": "../isolation-dist/"
-      }
-    },
-    "macOSPrivateApi": true,
+  "plugins": {
     "cli": {
       "description": "Tauri API example",
       "args": [
@@ -33,7 +26,11 @@
           "name": "theme",
           "takesValue": true,
           "description": "App theme",
-          "possibleValues": ["light", "dark", "system"]
+          "possibleValues": [
+            "light",
+            "dark",
+            "system"
+          ]
         },
         {
           "short": "v",
@@ -54,7 +51,16 @@
           ]
         }
       }
+    }
+  },
+  "tauri": {
+    "pattern": {
+      "use": "isolation",
+      "options": {
+        "dir": "../isolation-dist/"
+      }
     },
+    "macOSPrivateApi": true,
     "bundle": {
       "active": true,
       "identifier": "com.tauri.api",

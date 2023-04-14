@@ -13,8 +13,6 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 
 mod app;
-#[cfg(cli)]
-mod cli;
 #[cfg(clipboard_any)]
 mod clipboard;
 #[cfg(dialog_any)]

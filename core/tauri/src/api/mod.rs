@@ -19,14 +19,6 @@ pub mod process;
 pub mod shell;
 pub mod version;
 
-#[cfg(feature = "cli")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
-pub mod cli;
-
-#[cfg(feature = "cli")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
-pub use clap;
-
 #[cfg(all(desktop, feature = "notification"))]
 #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "notification"))))]
 pub mod notification;

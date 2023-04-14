@@ -1,10 +1,10 @@
 <script>
-  import { getMatches } from '@tauri-apps/api/cli'
+  import { invoke } from '@tauri-apps/api/tauri'
 
   export let onMessage
 
   function cliMatches() {
-    getMatches().then(onMessage).catch(onMessage)
+    invoke('plugin:cli|cli_matches').then(onMessage).catch(onMessage)
   }
 </script>
 

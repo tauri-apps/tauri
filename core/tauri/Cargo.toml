@@ -20,7 +20,6 @@ features = [
   "custom-protocol",
   "api-all",
   "windows7-compat",
-  "cli",
   "updater",
   "fs-extract-api",
   "system-tray",
@@ -64,7 +63,6 @@ http = "0.2"
 dirs-next = "2.0"
 percent-encoding = "2.2"
 base64 = { version = "0.21", optional = true }
-clap = { version = "3", optional = true }
 reqwest = { version = "0.11", default-features = false, features = [ "json", "stream" ] }
 bytes = { version = "1", features = [ "serde" ] }
 open = { version = "3.0", optional = true }
@@ -166,7 +164,6 @@ global-shortcut = [
 clipboard = [ "tauri-runtime/clipboard", "tauri-runtime-wry/clipboard" ]
 dialog = [ "rfd" ]
 notification = [ "notify-rust" ]
-cli = [ "clap" ]
 system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
 dox = [ "tauri-runtime-wry/dox" ]

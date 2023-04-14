@@ -3,7 +3,7 @@
 'tauri': minor
 'tauri-runtime-wry': minor
 'tauri-runtime': minor
-'tauri-api': minor
+'tauri-utils': minor
 ---
 
 - Added the [`maximizable`, `minimizable`, `closable`] options to the window builder.

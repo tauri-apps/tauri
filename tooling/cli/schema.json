@@ -614,17 +614,17 @@
           "type": "boolean"
         },
         "maximizable": {
-          "description": "Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored.",
+          "description": "Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored. Note that this setting is not supported on Linux, iOS and Android.",
           "default": true,
           "type": "boolean"
         },
         "minimizable": {
-          "description": "Whether the window's native minimize button is enabled or not.",
+          "description": "Whether the window's native minimize button is enabled or not. Note that this setting is not supported on Linux, iOS and Android.",
           "default": true,
           "type": "boolean"
         },
         "closable": {
-          "description": "Whether the window's native close button is enabled or not.",
+          "description": "Whether the window's native close button is enabled or not. Note that this setting is not supported on Linux, iOS and Android.",
           "default": true,
           "type": "boolean"
         },

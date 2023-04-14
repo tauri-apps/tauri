@@ -863,7 +863,6 @@ class WindowManager extends WebviewWindowHandle {
    * await appWindow.center();
    * ```
    *
-   * @param resizable
    * @returns A promise indicating the success or failure of the operation.
    */
   async center(): Promise<void> {
@@ -899,7 +898,7 @@ class WindowManager extends WebviewWindowHandle {
    * await appWindow.requestUserAttention();
    * ```
    *
-   * @param resizable
+   * @param requestType
    * @returns A promise indicating the success or failure of the operation.
    */
   async requestUserAttention(

@@ -107,6 +107,11 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   pub fn config(&self) -> &C {
     &self.config
   }
+
+  /// Returns the application handle.
+  pub fn app(&self) -> &AppHandle<R> {
+    &self.handle
+  }
 }
 
 /// Builds a [`TauriPlugin`].

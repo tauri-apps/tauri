@@ -80,8 +80,6 @@ enum Module {
   Event(event::Cmd),
   #[cfg(dialog_any)]
   Dialog(dialog::Cmd),
-  #[cfg(cli)]
-  Cli(cli::Cmd),
   Notification(notification::Cmd),
   #[cfg(http_any)]
   Http(http::Cmd),
@@ -154,13 +152,6 @@ impl Module {
       }),
       #[cfg(dialog_any)]
       Self::Dialog(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(cli)]
-      Self::Cli(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
           .and_then(|r| r.json)

@@ -692,6 +692,7 @@ class WindowManager extends WebviewWindowHandle {
    * #### Platform-specific
    *
    * - **Linux / iOS / Android:** Unsupported.
+   *
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';

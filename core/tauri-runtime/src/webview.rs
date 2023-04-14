@@ -146,14 +146,26 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Whether the window's native maximize button is enabled or not.
   /// If resizable is set to false, this setting is ignored.
+  ///
+  /// See [`Dispatch::set_maximizable`] for details.
+  ///
+  /// [`Dispatch::set_maximizable`]: crate::Dispatch::set_maximizable
   #[must_use]
   fn maximizable(self, maximizable: bool) -> Self;
 
   /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// See [`Dispatch::set_minimizable`] for details.
+  ///
+  /// [`Dispatch::set_minimizable`]: crate::Dispatch::set_minimizable
   #[must_use]
   fn minimizable(self, minimizable: bool) -> Self;
 
   /// Whether the window's native close button is enabled or not.
+  ///
+  /// See [`Dispatch::set_closable`] for details.
+  ///
+  /// [`Dispatch::set_closable`]: crate::Dispatch::set_closable
   #[must_use]
   fn closable(self, closable: bool) -> Self;
 

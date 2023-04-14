@@ -922,13 +922,13 @@ pub struct WindowConfig {
   /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_resizable")]
   pub resizable: bool,
-  /// Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored.
+  /// Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored. Note that this setting is not supported on Linux, iOS and Android.
   #[serde(default = "default_maximizable")]
   pub maximizable: bool,
-  /// Whether the window's native minimize button is enabled or not.
+  /// Whether the window's native minimize button is enabled or not. Note that this setting is not supported on Linux, iOS and Android.
   #[serde(default = "default_minimizable")]
   pub minimizable: bool,
-  /// Whether the window's native close button is enabled or not.
+  /// Whether the window's native close button is enabled or not. Note that this setting is not supported on Linux, iOS and Android.
   #[serde(default = "default_closable")]
   pub closable: bool,
   /// The window title.

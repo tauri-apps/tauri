@@ -688,6 +688,10 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Gets the window’s native maximize button state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
@@ -713,6 +717,10 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Gets the window’s native minimize button state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
@@ -738,6 +746,10 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Gets the window’s native close button state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
@@ -946,6 +958,11 @@ class WindowManager extends WebviewWindowHandle {
   /**
    * Sets whether the window's native maximize button is enabled or not.
    * If resizable is set to false, this setting is ignored.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+   * - **Linux / iOS / Android:** Unsupported.
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
@@ -973,6 +990,10 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Sets whether the window's native minimize button is enabled or not.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
@@ -1000,6 +1021,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Sets whether the window's native close button is enabled or not.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux:** GTK+ will do its best to convince the window manager not to show a close button. Depending on the system, this function may not have any effect when called on a window that is already visible
+   * - **iOS / Android:** Unsupported.
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';

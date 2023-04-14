@@ -16,7 +16,7 @@ use crate::ShellScopeConfig;
 use crate::{Manager, Pattern, WindowBuilder};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
-  config::{CliConfig, Config, PatternKind, TauriConfig, WindowUrl},
+  config::{Config, PatternKind, TauriConfig, WindowUrl},
 };
 
 pub struct NoopAsset {
@@ -47,14 +47,6 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       tauri: TauriConfig {
         pattern: PatternKind::Brownfield,
         windows: Vec::new(),
-        cli: Some(CliConfig {
-          description: None,
-          long_description: None,
-          before_help: None,
-          after_help: None,
-          args: None,
-          subcommands: None,
-        }),
         bundle: Default::default(),
         allowlist: Default::default(),
         security: Default::default(),

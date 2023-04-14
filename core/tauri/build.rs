@@ -123,8 +123,6 @@ fn main() {
 
   alias_module("http", &["request"], api_all);
 
-  alias("cli", has_feature("cli"));
-
   if !mobile {
     alias_module("notification", &[], api_all);
     alias_module("global-shortcut", &[], api_all);

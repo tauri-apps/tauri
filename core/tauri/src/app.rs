@@ -748,26 +748,6 @@ impl<R: Runtime> App<R> {
       .set_device_event_filter(filter);
   }
 
-  /// Gets the argument matches of the CLI definition configured in `tauri.conf.json`.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let matches = app.get_cli_matches()?;
-  ///     Ok(())
-  ///   });
-  /// ```
-  #[cfg(cli)]
-  pub fn get_cli_matches(&self) -> crate::Result<crate::api::cli::Matches> {
-    if let Some(cli) = &self.manager.config().tauri.cli {
-      crate::api::cli::get_matches(cli, self.manager.package_info()).map_err(Into::into)
-    } else {
-      Ok(Default::default())
-    }
-  }
-
   /// Runs the application.
   ///
   /// # Examples

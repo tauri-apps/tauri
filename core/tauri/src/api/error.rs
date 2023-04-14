@@ -69,11 +69,6 @@ pub enum Error {
   /// failed to detect the current platform.
   #[error("failed to detect platform: {0}")]
   FailedToDetectPlatform(String),
-  /// CLI argument parsing error.
-  #[cfg(feature = "cli")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
-  #[error("failed to parse CLI arguments: {0}")]
-  ParseCliArguments(String),
   /// Shell error.
   #[error("shell error: {0}")]
   Shell(String),
@@ -83,11 +78,4 @@ pub enum Error {
   /// HTTP error.
   #[error(transparent)]
   Http(#[from] http::Error),
-}
-
-#[cfg(feature = "cli")]
-impl From<clap::Error> for Error {
-  fn from(error: clap::Error) -> Self {
-    Self::ParseCliArguments(error.to_string())
-  }
 }

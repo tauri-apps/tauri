@@ -19,6 +19,7 @@ tiny_http = "0.11"
 log = "0.4"
 #tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
+tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
 
 [patch.crates-io]
 tauri = { path = "../../../core/tauri" }
@@ -28,7 +29,6 @@ tauri-build = { path = "../../../core/tauri-build" }
 path = "../../../core/tauri"
 features = [
   "api-all",
-  "cli",
   "global-shortcut",
   "http-multipart",
   "icon-ico",

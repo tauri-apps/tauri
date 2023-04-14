@@ -17,7 +17,6 @@ use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
 use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
-use shared_child::SharedChild;
 
 use std::{
   collections::HashMap,
@@ -34,10 +33,10 @@ use std::{
   },
 };
 use tauri_mobile::{
-  bossy,
   config::app::{App, Raw as RawAppConfig},
   env::Error as EnvError,
   opts::{NoiseLevel, Profile},
+  ChildHandle,
 };
 use tokio::runtime::Runtime;
 
@@ -55,14 +54,14 @@ const MIN_DEVICE_MATCH_SCORE: isize = 0;
 
 #[derive(Clone)]
 pub struct DevChild {
-  child: Arc<SharedChild>,
+  child: Arc<ChildHandle>,
   manually_killed_process: Arc<AtomicBool>,
 }
 
 impl DevChild {
-  fn new(handle: bossy::Handle) -> Self {
+  fn new(handle: ChildHandle) -> Self {
     Self {
-      child: Arc::new(SharedChild::new(handle.into()).unwrap()),
+      child: Arc::new(handle),
       manually_killed_process: Default::default(),
     }
   }
@@ -76,11 +75,11 @@ impl DevProcess for DevChild {
   }
 
   fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    self.child.try_wait()
+    self.child.try_wait().map(|res| res.map(|o| o.status))
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
-    self.child.wait()
+    self.child.wait().map(|o| o.status)
   }
 
   fn manually_killed_process(&self) -> bool {

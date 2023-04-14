@@ -1025,6 +1025,7 @@ class WindowManager extends WebviewWindowHandle {
    *
    * - **Linux:** GTK+ will do its best to convince the window manager not to show a close button. Depending on the system, this function may not have any effect when called on a window that is already visible
    * - **iOS / Android:** Unsupported.
+   *
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';

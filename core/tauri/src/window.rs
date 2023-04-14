@@ -403,9 +403,10 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Whether the window's native maximize button is enabled or not.
   /// If resizable is set to false, this setting is ignored.
   ///
-  /// See [`Window::set_maximizable`] for details.
+  /// ## Platform-specific
   ///
-  /// [`Window::set_maximizable`]: crate::window::Window::set_maximizable
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
   #[must_use]
   pub fn maximizable(mut self, maximizable: bool) -> Self {
     self.window_builder = self.window_builder.maximizable(maximizable);
@@ -414,9 +415,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
   /// Whether the window's native minimize button is enabled or not.
   ///
-  /// See [`Window::set_minimizable`] for details.
+  /// ## Platform-specific
   ///
-  /// [`Window::set_minimizable`]: crate::window::Window::set_minimizable
+  /// - **Linux / iOS / Android:** Unsupported.
   #[must_use]
   pub fn minimizable(mut self, minimizable: bool) -> Self {
     self.window_builder = self.window_builder.minimizable(minimizable);
@@ -425,9 +426,11 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
   /// Whether the window's native close button is enabled or not.
   ///
-  /// See [`Window::set_closable`] for details.
+  /// ## Platform-specific
   ///
-  /// [`Window::set_closable`]: crate::window::Window::set_closable
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
   #[must_use]
   pub fn closable(mut self, closable: bool) -> Self {
     self.window_builder = self.window_builder.closable(closable);

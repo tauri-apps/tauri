@@ -147,25 +147,28 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Whether the window's native maximize button is enabled or not.
   /// If resizable is set to false, this setting is ignored.
   ///
-  /// See [`Dispatch::set_maximizable`] for details.
+  /// ## Platform-specific
   ///
-  /// [`Dispatch::set_maximizable`]: crate::Dispatch::set_maximizable
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
   #[must_use]
   fn maximizable(self, maximizable: bool) -> Self;
 
   /// Whether the window's native minimize button is enabled or not.
   ///
-  /// See [`Dispatch::set_minimizable`] for details.
+  /// ## Platform-specific
   ///
-  /// [`Dispatch::set_minimizable`]: crate::Dispatch::set_minimizable
+  /// - **Linux / iOS / Android:** Unsupported.
   #[must_use]
   fn minimizable(self, minimizable: bool) -> Self;
 
   /// Whether the window's native close button is enabled or not.
   ///
-  /// See [`Dispatch::set_closable`] for details.
+  /// ## Platform-specific
   ///
-  /// [`Dispatch::set_closable`]: crate::Dispatch::set_closable
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
   #[must_use]
   fn closable(self, closable: bool) -> Self;
 

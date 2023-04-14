@@ -962,6 +962,7 @@ class WindowManager extends WebviewWindowHandle {
    *
    * - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
    * - **Linux / iOS / Android:** Unsupported.
+   *
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';

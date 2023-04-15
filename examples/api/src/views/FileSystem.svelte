@@ -3,8 +3,8 @@
     readBinaryFile,
     writeTextFile,
     readDir,
-    Dir
-  } from '@tauri-apps/api/fs'
+    BaseDirectory
+  } from 'tauri-plugin-fs-api'
   import { convertFileSrc } from '@tauri-apps/api/tauri'
 
   export let onMessage
@@ -30,9 +30,9 @@
     reader.readAsDataURL(blob)
   }
 
-  const DirOptions = Object.keys(Dir)
+  const DirOptions = Object.keys(BaseDirectory)
     .filter((key) => isNaN(parseInt(key)))
-    .map((dir) => [dir, Dir[dir]])
+    .map((dir) => [dir, BaseDirectory[dir]])
 
   function read() {
     const isFile = pathToRead.match(/\S+\.\S+$/g)

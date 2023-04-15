@@ -33,6 +33,7 @@ pub fn run() {
         .build(),
     )*/
     .plugin(tauri_plugin_sample::init())
+    .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_cli::init())
     .setup(move |app| {
       #[cfg(desktop)]

@@ -20,8 +20,13 @@ log = "0.4"
 #tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
+tauri-plugin-fs = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/fs-plugin" }
 
 [patch.crates-io]
+tauri = { path = "../../../core/tauri" }
+tauri-build = { path = "../../../core/tauri-build" }
+
+[patch.'https://github.com/tauri-apps/tauri']
 tauri = { path = "../../../core/tauri" }
 tauri-build = { path = "../../../core/tauri-build" }
 

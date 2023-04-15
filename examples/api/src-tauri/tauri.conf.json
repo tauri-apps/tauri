@@ -35,7 +35,6 @@
         {
           "short": "v",
           "name": "verbose",
-          "multipleOccurrences": true,
           "description": "Verbosity level"
         }
       ],

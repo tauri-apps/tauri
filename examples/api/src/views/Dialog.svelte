@@ -1,6 +1,6 @@
 <script>
   import { open, save } from '@tauri-apps/api/dialog'
-  import { readBinaryFile } from '@tauri-apps/api/fs'
+  import { readBinaryFile } from 'tauri-plugin-fs-api'
 
   export let onMessage
   export let insecureRenderHtml

@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@tauri-apps/api": "../../tooling/api/dist",
-    "@zerodevx/svelte-json-view": "0.2.1"
+    "@zerodevx/svelte-json-view": "0.2.1",
+    "tauri-plugin-fs-api": "https://gitpkg.now.sh/tauri-apps/plugins-workspace/plugins/fs?feat/fs-plugin"
   },
   "devDependencies": {
     "@iconify-json/codicon": "^1.1.10",

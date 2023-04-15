@@ -379,11 +379,12 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
 
 #[cfg(test)]
 mod test {
+  use super::SafePathBuf;
   use quickcheck::{Arbitrary, Gen};
 
   use std::path::PathBuf;
 
-  impl Arbitrary for super::SafePathBuf {
+  impl Arbitrary for SafePathBuf {
     fn arbitrary(g: &mut Gen) -> Self {
       Self(PathBuf::arbitrary(g))
     }

@@ -5,11 +5,8 @@
 #![allow(unused_imports)]
 
 use crate::{
-  api::{
-    dir,
-    file::{self, SafePathBuf},
-  },
-  path::BaseDirectory,
+  api::{dir, file},
+  path::{BaseDirectory, SafePathBuf},
   scope::Scopes,
   Config, Env, Manager, PackageInfo, Runtime, Window,
 };

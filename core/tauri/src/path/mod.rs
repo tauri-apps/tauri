@@ -4,7 +4,7 @@
 
 use std::{
   env::temp_dir,
-  path::{Component, Path, PathBuf},
+  path::{Component, Display, Path, PathBuf},
 };
 
 use crate::{
@@ -12,6 +12,7 @@ use crate::{
   Manager, Runtime,
 };
 
+use serde::{de::Error as DeError, Deserialize, Deserializer};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[cfg(path_all)]
@@ -28,6 +29,49 @@ mod desktop;
 pub(crate) use android::PathResolver;
 #[cfg(not(target_os = "android"))]
 pub(crate) use desktop::PathResolver;
+
+/// A wrapper for [`PathBuf`] that prevents path traversal.
+#[derive(Clone, Debug)]
+pub struct SafePathBuf(PathBuf);
+
+impl SafePathBuf {
+  /// Validates the path for directory traversal vulnerabilities and returns a new [`SafePathBuf`] instance if it is safe.
+  pub fn new(path: PathBuf) -> std::result::Result<Self, &'static str> {
+    if path.components().any(|x| matches!(x, Component::ParentDir)) {
+      Err("cannot traverse directory, rewrite the path without the use of `../`")
+    } else {
+      Ok(Self(path))
+    }
+  }
+
+  #[allow(dead_code)]
+  pub(crate) unsafe fn new_unchecked(path: PathBuf) -> Self {
+    Self(path)
+  }
+
+  /// Returns an object that implements [`std::fmt::Display`] for safely printing paths.
+  ///
+  /// See [`PathBuf#method.display`] for more information.
+  pub fn display(&self) -> Display<'_> {
+    self.0.display()
+  }
+}
+
+impl AsRef<Path> for SafePathBuf {
+  fn as_ref(&self) -> &Path {
+    self.0.as_ref()
+  }
+}
+
+impl<'de> Deserialize<'de> for SafePathBuf {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let path = PathBuf::deserialize(deserializer)?;
+    SafePathBuf::new(path).map_err(DeError::custom)
+  }
+}
 
 /// A base directory to be used in [`resolve_directory`].
 ///
@@ -331,4 +375,22 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       Ok(())
     })
     .build()
+}
+
+#[cfg(test)]
+mod test {
+  use super::SafePathBuf;
+  use quickcheck::{Arbitrary, Gen};
+
+  use std::path::PathBuf;
+
+  impl Arbitrary for SafePathBuf {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self(PathBuf::arbitrary(g))
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+      Box::new(self.0.shrink().map(SafePathBuf))
+    }
+  }
 }

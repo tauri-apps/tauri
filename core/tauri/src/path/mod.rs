@@ -44,8 +44,8 @@ impl SafePathBuf {
     }
   }
 
-  /// Returns a new [`SafePathBuf`] instance without checking for security issues.
-  pub unsafe fn new_unchecked(path: PathBuf) -> Self {
+  #[allow(dead_code)]
+  pub(crate) unsafe fn new_unchecked(path: PathBuf) -> Self {
     Self(path)
   }
 

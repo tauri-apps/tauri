@@ -11,7 +11,7 @@
   "dependencies": {
     "@tauri-apps/api": "../../tooling/api/dist",
     "@zerodevx/svelte-json-view": "0.2.1",
-    "tauri-plugin-fs-api": "https://gitpkg.now.sh/tauri-apps/plugins-workspace/plugins/fs?feat/fs-plugin"
+    "tauri-plugin-fs-api": "https://gitpkg.now.sh/tauri-apps/plugins-workspace/plugins/fs?593094cc29393e4017afb5755082ca60e6bef39b&scripts.postinstall=npm%20install%20--ignore-scripts%20%26%26%20npm%20run%20build"
   },
   "devDependencies": {
     "@iconify-json/codicon": "^1.1.10",

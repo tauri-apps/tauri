@@ -17,7 +17,6 @@ import * as app from './app'
 import * as clipboard from './clipboard'
 import * as dialog from './dialog'
 import * as event from './event'
-import * as fs from './fs'
 import * as globalShortcut from './globalShortcut'
 import * as http from './http'
 import * as notification from './notification'
@@ -38,7 +37,6 @@ export {
   clipboard,
   dialog,
   event,
-  fs,
   globalShortcut,
   http,
   notification,

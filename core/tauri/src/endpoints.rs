@@ -18,8 +18,6 @@ mod clipboard;
 #[cfg(dialog_any)]
 mod dialog;
 mod event;
-#[cfg(fs_any)]
-mod file_system;
 #[cfg(global_shortcut_any)]
 mod global_shortcut;
 #[cfg(http_any)]
@@ -70,8 +68,6 @@ enum Module {
   App(app::Cmd),
   #[cfg(process_any)]
   Process(process::Cmd),
-  #[cfg(fs_any)]
-  Fs(file_system::Cmd),
   #[cfg(os_any)]
   Os(operating_system::Cmd),
   Window(Box<window::Cmd>),
@@ -111,13 +107,6 @@ impl Module {
       }),
       #[cfg(process_any)]
       Self::Process(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(fs_any)]
-      Self::Fs(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
           .and_then(|r| r.json)

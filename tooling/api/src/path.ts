@@ -24,8 +24,37 @@
  */
 
 import { invoke } from './tauri'
-import { BaseDirectory } from './fs'
 import { isWindows } from './helpers/os-check'
+
+/**
+ * @since 2.0.0
+ */
+enum BaseDirectory {
+  Audio = 1,
+  Cache,
+  Config,
+  Data,
+  LocalData,
+  Document,
+  Download,
+  Picture,
+  Public,
+  Video,
+  Resource,
+  Temp,
+  AppConfig,
+  AppData,
+  AppLocalData,
+  AppCache,
+  AppLog,
+
+  Desktop,
+  Executable,
+  Font,
+  Home,
+  Runtime,
+  Template
+}
 
 /**
  * Returns the path to the suggested directory for your app's config files.

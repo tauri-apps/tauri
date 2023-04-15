@@ -102,9 +102,7 @@ impl Cmd {
             ..
           } = value
           {
-            if crate::api::file::SafePathBuf::new(path.clone()).is_err()
-              || !scopes.fs.is_allowed(path)
-            {
+            if crate::path::SafePathBuf::new(path.clone()).is_err() || !scopes.fs.is_allowed(path) {
               return Err(crate::Error::PathNotAllowed(path.clone()).into_anyhow());
             }
           }

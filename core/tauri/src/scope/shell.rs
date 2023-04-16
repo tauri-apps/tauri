@@ -58,7 +58,7 @@ impl From<Vec<String>> for ExecuteArgs {
 }
 
 /// Shell scope configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct ScopeConfig {
   /// The validation regex that `shell > open` paths must match against.
   pub open: Option<Regex>,
@@ -106,7 +106,7 @@ impl ScopeAllowedArg {
 }
 
 /// Scope for filesystem access.
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct Scope(ScopeConfig);
 
 /// All errors that can happen while validating a scoped command.

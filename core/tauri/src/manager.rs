@@ -219,6 +219,7 @@ pub struct InnerWindowManager<R: Runtime> {
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
+  #[cfg(desktop)]
   pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
@@ -240,17 +241,21 @@ pub struct InnerWindowManager<R: Runtime> {
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("InnerWindowManager")
-      .field("plugins", &self.plugins)
+    let mut d = f.debug_struct("InnerWindowManager");
+
+    d.field("plugins", &self.plugins)
       .field("state", &self.state)
       .field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
-      .field("tray_icon", &self.tray_icon)
       .field("package_info", &self.package_info)
       .field("menu", &self.menu)
-      .field("pattern", &self.pattern)
-      .finish()
+      .field("pattern", &self.pattern);
+
+    #[cfg(desktop)]
+    d.field("tray_icon", &self.tray_icon);
+
+    d.finish()
   }
 }
 
@@ -322,6 +327,7 @@ impl<R: Runtime> WindowManager<R> {
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
+        #[cfg(desktop)]
         tray_icon: context.system_tray_icon,
         package_info: context.package_info,
         pattern: context.pattern,

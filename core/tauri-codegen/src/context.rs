@@ -125,6 +125,16 @@ enum Target {
   Ios,
 }
 
+impl Target {
+  fn mobile(&self) -> bool {
+    matches!(self, Target::Android | Target::Ios)
+  }
+
+  fn desktop(&self) -> bool {
+    !self.mobile()
+  }
+}
+
 /// Build a `tauri::Context` for including in application code.
 pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
   let ContextData {
@@ -247,7 +257,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         "icons/icon.ico",
       );
       if icon_path.exists() {
-        ico_icon(&root, &out_dir, icon_path)?
+        ico_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
       } else {
         let icon_path = find_icon(
           &config,
@@ -255,7 +265,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
           |i| i.ends_with(".png"),
           "icons/icon.png",
         );
-        png_icon(&root, &out_dir, icon_path)?
+        png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
       }
     } else if target == Target::Linux {
       // handle default window icons for Linux targets
@@ -265,9 +275,9 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      png_icon(&root, &out_dir, icon_path)?
+      png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
     } else {
-      quote!(None)
+      quote!(::std::option::Option::None)
     }
   };
 
@@ -288,7 +298,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
     raw_icon(&out_dir, icon_path)?
   } else {
-    quote!(None)
+    quote!(::std::option::Option::None)
   };
 
   let package_name = if let Some(product_name) = &config.package.product_name {
@@ -312,20 +322,26 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   );
 
-  let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
-    let system_tray_icon_path = config_parent.join(&tray.icon_path);
-    let ext = system_tray_icon_path.extension();
-    if ext.map_or(false, |e| e == "ico") {
-      ico_icon(&root, &out_dir, system_tray_icon_path)?
-    } else if ext.map_or(false, |e| e == "png") {
-      png_icon(&root, &out_dir, system_tray_icon_path)?
+  let with_system_tray_icon_code = if target.desktop() {
+    if let Some(tray) = &config.tauri.system_tray {
+      let system_tray_icon_path = config_parent.join(&tray.icon_path);
+      let ext = system_tray_icon_path.extension();
+      if ext.map_or(false, |e| e == "ico") {
+        ico_icon(&root, &out_dir, system_tray_icon_path)
+          .map(|i| quote!(context.with_system_tray_icon(#i);))?
+      } else if ext.map_or(false, |e| e == "png") {
+        png_icon(&root, &out_dir, system_tray_icon_path)
+          .map(|i| quote!(context.with_system_tray_icon(#i);))?
+      } else {
+        quote!(compile_error!(
+          "The tray icon extension must be either `.ico` or `.png`."
+        ))
+      }
     } else {
-      quote!(compile_error!(
-        "The tray icon extension must be either `.ico` or `.png`."
-      ))
+      quote!()
     }
   } else {
-    quote!(None)
+    quote!()
   };
 
   #[cfg(target_os = "macos")]
@@ -409,7 +425,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   #[cfg(feature = "shell-scope")]
-  let shell_scope_config = {
+  let with_shell_scope_code = {
     use regex::Regex;
     use tauri_utils::config::ShellAllowlistOpen;
 
@@ -433,26 +449,30 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       _ => panic!("unknown shell open format, unable to prepare"),
     };
 
-    quote!(#root::ShellScopeConfig {
+    quote!(context.with_shell_scope(#root::ShellScopeConfig {
       open: #shell_scope_open,
       scopes: #shell_scopes
-    })
+    });)
   };
 
   #[cfg(not(feature = "shell-scope"))]
-  let shell_scope_config = quote!();
+  let with_shell_scope_code = quote!();
 
-  Ok(quote!(#root::Context::new(
-    #config,
-    ::std::sync::Arc::new(#assets),
-    #default_window_icon,
-    #app_icon,
-    #system_tray_icon,
-    #package_info,
-    #info_plist,
-    #pattern,
-    #shell_scope_config
-  )))
+  Ok(quote!({
+    #[allow(unused_mut, clippy::let_and_return)]
+    let mut context = #root::Context::new(
+      #config,
+      ::std::sync::Arc::new(#assets),
+      #default_window_icon,
+      #app_icon,
+      #package_info,
+      #info_plist,
+      #pattern,
+    );
+    #with_system_tray_icon_code
+    #with_shell_scope_code
+    context
+  }))
 }
 
 fn ico_icon<P: AsRef<Path>>(
@@ -483,7 +503,7 @@ fn ico_icon<P: AsRef<Path>>(
 
   let out_path = out_path.display().to_string();
 
-  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  let icon = quote!(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height });
   Ok(icon)
 }
 
@@ -501,7 +521,7 @@ fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, Embe
 
   let out_path = out_path.display().to_string();
 
-  let icon = quote!(Some(include_bytes!(#out_path).to_vec()));
+  let icon = quote!(include_bytes!(#out_path).to_vec());
   Ok(icon)
 }
 
@@ -533,7 +553,7 @@ fn png_icon<P: AsRef<Path>>(
 
   let out_path = out_path.display().to_string();
 
-  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  let icon = quote!(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height });
   Ok(icon)
 }
 

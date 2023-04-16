@@ -614,17 +614,17 @@
           "type": "boolean"
         },
         "maximizable": {
-          "description": "Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored. Note that this setting is not supported on Linux, iOS and Android.",
+          "description": "Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored.\n\n## Platform-specific\n\n- **macOS:** Disables the \"zoom\" button in the window titlebar, which is also used to enter fullscreen mode. - **Linux / iOS / Android:** Unsupported.",
           "default": true,
           "type": "boolean"
         },
         "minimizable": {
-          "description": "Whether the window's native minimize button is enabled or not. Note that this setting is not supported on Linux, iOS and Android.",
+          "description": "Whether the window's native minimize button is enabled or not.\n\n## Platform-specific\n\n- **Linux / iOS / Android:** Unsupported.",
           "default": true,
           "type": "boolean"
         },
         "closable": {
-          "description": "Whether the window's native close button is enabled or not. Note that this setting is not supported on Linux, iOS and Android.",
+          "description": "Whether the window's native close button is enabled or not.\n\n## Platform-specific\n\n- **Linux:** \"GTK+ will do its best to convince the window manager not to show a close button. Depending on the system, this function may not have any effect when called on a window that is already visible\" - **iOS / Android:** Unsupported.",
           "default": true,
           "type": "boolean"
         },

@@ -922,13 +922,29 @@ pub struct WindowConfig {
   /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_resizable")]
   pub resizable: bool,
-  /// Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored. Note that this setting is not supported on Linux, iOS and Android.
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
   #[serde(default = "default_maximizable")]
   pub maximizable: bool,
-  /// Whether the window's native minimize button is enabled or not. Note that this setting is not supported on Linux, iOS and Android.
+  /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
   #[serde(default = "default_minimizable")]
   pub minimizable: bool,
-  /// Whether the window's native close button is enabled or not. Note that this setting is not supported on Linux, iOS and Android.
+  /// Whether the window's native close button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
   #[serde(default = "default_closable")]
   pub closable: bool,
   /// The window title.

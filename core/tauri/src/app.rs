@@ -829,49 +829,15 @@ impl<R: Runtime> App<R> {
 
 #[cfg(updater)]
 impl<R: Runtime> App<R> {
-  /// Runs the updater hook with built-in dialog.
-  fn run_updater_dialog(&self) {
-    let handle = self.handle();
-
-    crate::async_runtime::spawn(async move { updater::check_update_with_dialog(handle).await });
-  }
-
   fn run_updater(&self) {
-    let handle = self.handle();
-    let handle_ = handle.clone();
-    let updater_config = self.manager.config().tauri.updater.clone();
     // check if updater is active or not
-    if updater_config.active {
-      if updater_config.dialog {
-        #[cfg(not(target_os = "linux"))]
-        let updater_enabled = true;
-        #[cfg(target_os = "linux")]
-        let updater_enabled = cfg!(dev) || self.state::<Env>().appimage.is_some();
-        if updater_enabled {
-          // if updater dialog is enabled spawn a new task
-          self.run_updater_dialog();
-          // When dialog is enabled, if user want to recheck
-          // if an update is available after first start
-          // invoke the Event `tauri://update` from JS or rust side.
-          handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
-            let handle = handle_.clone();
-            // re-spawn task inside tokyo to launch the download
-            // we don't need to emit anything as everything is handled
-            // by the process (user is asked to restart at the end)
-            // and it's handled by the updater
-            crate::async_runtime::spawn(
-              async move { updater::check_update_with_dialog(handle).await },
-            );
-          });
-        }
-      } else {
-        // we only listen for `tauri://update`
-        // once we receive the call, we check if an update is available or not
-        // if there is a new update we emit `tauri://update-available` with details
-        // this is the user responsibilities to display dialog and ask if user want to install
-        // to install the update you need to invoke the Event `tauri://update-install`
-        updater::listener(handle);
-      }
+    if self.manager.config().tauri.updater.active {
+      // we only listen for `tauri://update`
+      // once we receive the call, we check if an update is available or not
+      // if there is a new update we emit `tauri://update-available` with details
+      // this is the user responsibilities to display dialog and ask if user want to install
+      // to install the update you need to invoke the Event `tauri://update-install`
+      updater::listener(self.handle());
     }
   }
 }
@@ -1037,10 +1003,7 @@ impl<R: Runtime> Builder<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let main_window = app.get_window("main").unwrap();
-  #[cfg_attr(
-    feature = "dialog",
-    doc = r#"     tauri::api::dialog::blocking::message(Some(&main_window), "Hello", "Welcome back!");"#
-  )]
+  ///     main_window.set_title("Tauri!");
   ///     Ok(())
   ///   });
   /// ```

@@ -82,7 +82,6 @@ ico = { version = "0.2.0", optional = true }
 encoding_rs = "0.8.31"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-rfd = { version = "0.11", optional = true, features = [ "gtk3", "common-controls-v6" ] }
 notify-rust = { version = "4.5", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
@@ -162,7 +161,6 @@ global-shortcut = [
   "tauri-runtime-wry/global-shortcut"
 ]
 clipboard = [ "tauri-runtime/clipboard", "tauri-runtime-wry/clipboard" ]
-dialog = [ "rfd" ]
 notification = [ "notify-rust" ]
 system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
@@ -192,11 +190,11 @@ clipboard-all = [ "clipboard-write-text", "clipboard-read-text" ]
 clipboard-read-text = [ "clipboard" ]
 clipboard-write-text = [ "clipboard" ]
 dialog-all = [ "dialog-open", "dialog-save", "dialog-message", "dialog-ask" ]
-dialog-ask = [ "dialog" ]
-dialog-confirm = [ "dialog" ]
-dialog-message = [ "dialog" ]
-dialog-open = [ "dialog" ]
-dialog-save = [ "dialog" ]
+dialog-ask = [ ]
+dialog-confirm = [ ]
+dialog-message = [ ]
+dialog-open = [ ]
+dialog-save = [ ]
 fs-all = [
   "fs-copy-file",
   "fs-create-dir",

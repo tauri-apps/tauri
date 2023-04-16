@@ -100,11 +100,6 @@
 "@tauri-apps/api@../../tooling/api/dist":
   version "2.0.0-alpha.3"
 
-"@tauri-apps/api@^1.2.0":
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-1.2.0.tgz#1f196b3e012971227f41b98214c846430a4eb477"
-  integrity sha512-lsI54KI6HGf7VImuf/T9pnoejfgkNoXveP14pVV7XarrQ46rOejIVJLFqHI9sRReJMGdh2YuCoI3cc/yCWCsrw==
-
 "@unocss/cli@0.39.3":
   version "0.39.3"
   resolved "https://registry.yarnpkg.com/@unocss/cli/-/cli-0.39.3.tgz#a7e956a4fffb9586579f09727069f83d34c5e358"
@@ -949,12 +944,6 @@ svelte@^3.49.0:
   version "3.49.0"
   resolved "https://registry.yarnpkg.com/svelte/-/svelte-3.49.0.tgz#5baee3c672306de1070c3b7888fc2204e36a4029"
   integrity sha512-+lmjic1pApJWDfPCpUUTc1m8azDqYCG1JN9YEngrx/hUyIcFJo6VZhj0A1Ai0wqoHcEIuQy+e9tk+4uDgdtsFA==
-
-"tauri-plugin-fs-api@https://gitpkg.now.sh/tauri-apps/plugins-workspace/plugins/fs?593094cc29393e4017afb5755082ca60e6bef39b&scripts.postinstall=npm%20install%20--ignore-scripts%20%26%26%20npm%20run%20build":
-  version "0.0.0"
-  resolved "https://gitpkg.now.sh/tauri-apps/plugins-workspace/plugins/fs?593094cc29393e4017afb5755082ca60e6bef39b&scripts.postinstall=npm%20install%20--ignore-scripts%20%26%26%20npm%20run%20build#7329261d89a91cc142f381cd2da4c23ccbe486ae"
-  dependencies:
-    "@tauri-apps/api" "^1.2.0"
 
 to-regex-range@^5.0.1:
   version "5.0.1"

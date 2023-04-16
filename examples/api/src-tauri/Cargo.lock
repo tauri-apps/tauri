@@ -132,7 +132,6 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-cli",
- "tauri-plugin-fs",
  "tauri-plugin-sample",
  "tiny_http",
  "window-shadows",
@@ -3400,19 +3399,6 @@ version = "0.1.0"
 source = "git+https://github.com/tauri-apps/plugins-workspace?branch=next#0fed10fdcebf659458859c820d1d386a8c136327"
 dependencies = [
  "clap",
- "log",
- "serde",
- "serde_json",
- "tauri",
- "thiserror",
-]
-
-[[package]]
-name = "tauri-plugin-fs"
-version = "0.1.0"
-source = "git+https://github.com/tauri-apps/plugins-workspace?branch=feat/fs-plugin#16505edb5ead65d2329334b9bc4b0817ffefc538"
-dependencies = [
- "anyhow",
  "log",
  "serde",
  "serde_json",

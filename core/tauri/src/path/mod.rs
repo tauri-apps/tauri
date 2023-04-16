@@ -44,11 +44,6 @@ impl SafePathBuf {
     }
   }
 
-  #[allow(dead_code)]
-  pub(crate) unsafe fn new_unchecked(path: PathBuf) -> Self {
-    Self(path)
-  }
-
   /// Returns an object that implements [`std::fmt::Display`] for safely printing paths.
   ///
   /// See [`PathBuf#method.display`] for more information.

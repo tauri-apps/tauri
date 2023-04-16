@@ -1,9 +1,7 @@
 <script>
   import { open, save } from '@tauri-apps/api/dialog'
-  import { readBinaryFile } from '@tauri-apps/api/fs'
 
   export let onMessage
-  export let insecureRenderHtml
   let defaultPath = null
   let filter = null
   let multiple = false
@@ -36,36 +34,7 @@
       multiple,
       directory
     })
-      .then(function (res) {
-        if (Array.isArray(res)) {
-          onMessage(res)
-        } else {
-          var pathToRead = res
-          var isFile = pathToRead.match(/\S+\.\S+$/g)
-          readBinaryFile(pathToRead)
-            .then(function (response) {
-              if (isFile) {
-                if (
-                  pathToRead.includes('.png') ||
-                  pathToRead.includes('.jpg')
-                ) {
-                  arrayBufferToBase64(
-                    new Uint8Array(response),
-                    function (base64) {
-                      var src = 'data:image/png;base64,' + base64
-                      insecureRenderHtml('<img src="' + src + '"></img>')
-                    }
-                  )
-                } else {
-                  onMessage(res)
-                }
-              } else {
-                onMessage(res)
-              }
-            })
-            .catch(onMessage(res))
-        }
-      })
+      .then(onMessage)
       .catch(onMessage)
   }
 

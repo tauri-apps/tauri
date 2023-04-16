@@ -25,6 +25,10 @@ tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", br
 tauri = { path = "../../../core/tauri" }
 tauri-build = { path = "../../../core/tauri-build" }
 
+[patch.'https://github.com/tauri-apps/tauri']
+tauri = { path = "../../../core/tauri" }
+tauri-build = { path = "../../../core/tauri-build" }
+
 [dependencies.tauri]
 path = "../../../core/tauri"
 features = [

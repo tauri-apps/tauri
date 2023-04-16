@@ -8,7 +8,6 @@
   import Cli from './views/Cli.svelte'
   import Communication from './views/Communication.svelte'
   import Dialog from './views/Dialog.svelte'
-  import FileSystem from './views/FileSystem.svelte'
   import Http from './views/Http.svelte'
   import Notifications from './views/Notifications.svelte'
   import Window from './views/Window.svelte'
@@ -60,11 +59,6 @@
       label: 'Dialog',
       component: Dialog,
       icon: 'i-codicon-multiple-windows'
-    },
-    {
-      label: 'File system',
-      component: FileSystem,
-      icon: 'i-codicon-files'
     },
     {
       label: 'HTTP',

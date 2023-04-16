@@ -42,7 +42,7 @@ path = "src/main.rs"
 openssl-vendored = [ "tauri-mobile/openssl-vendored" ]
 
 [dependencies]
-tauri-mobile = { git = "https://github.com/tauri-apps/tauri-mobile", branch = "fix/adb-commands", default-features = false }
+tauri-mobile = { git = "https://github.com/tauri-apps/tauri-mobile", branch = "dev", default-features = false }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.16", features = [ "server" ] }
 jsonrpsee-core = "0.16"

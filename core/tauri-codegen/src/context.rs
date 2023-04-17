@@ -521,7 +521,9 @@ fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, Embe
 
   let out_path = out_path.display().to_string();
 
-  let icon = quote!(include_bytes!(#out_path).to_vec());
+  let icon = quote!(::std::option::Option::Some(
+    include_bytes!(#out_path).to_vec()
+  ));
   Ok(icon)
 }
 

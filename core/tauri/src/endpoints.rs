@@ -13,8 +13,6 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 
 mod app;
-#[cfg(clipboard_any)]
-mod clipboard;
 #[cfg(dialog_any)]
 mod dialog;
 mod event;
@@ -81,8 +79,6 @@ enum Module {
   Http(http::Cmd),
   #[cfg(global_shortcut_any)]
   GlobalShortcut(global_shortcut::Cmd),
-  #[cfg(clipboard_any)]
-  Clipboard(clipboard::Cmd),
 }
 
 impl Module {
@@ -162,13 +158,6 @@ impl Module {
       }),
       #[cfg(global_shortcut_any)]
       Self::GlobalShortcut(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(clipboard_any)]
-      Self::Clipboard(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
           .and_then(|r| r.json)

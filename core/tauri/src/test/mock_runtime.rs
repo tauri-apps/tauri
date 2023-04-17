@@ -53,10 +53,19 @@ impl fmt::Debug for RuntimeContext {
 #[derive(Debug, Clone)]
 pub struct MockRuntimeHandle {
   context: RuntimeContext,
+  #[cfg(feature = "clipboard")]
+  clipboard_manager: MockClipboardManager,
 }
 
 impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   type Runtime = MockRuntime;
+  #[cfg(feature = "clipboard")]
+  type ClipboardManager = MockClipboardManager;
+
+  #[cfg(feature = "clipboard")]
+  fn clipboard_manager(&self) -> Self::ClipboardManager {
+    self.clipboard_manager.clone()
+  }
 
   fn create_proxy(&self) -> EventProxy {
     unimplemented!()
@@ -683,8 +692,6 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Handle = MockRuntimeHandle;
   #[cfg(all(desktop, feature = "global-shortcut"))]
   type GlobalShortcutManager = MockGlobalShortcutManager;
-  #[cfg(feature = "clipboard")]
-  type ClipboardManager = MockClipboardManager;
   #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler = MockTrayHandler;
   type EventLoopProxy = EventProxy;
@@ -705,17 +712,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   fn handle(&self) -> Self::Handle {
     MockRuntimeHandle {
       context: self.context.clone(),
+      #[cfg(feature = "clipboard")]
+      clipboard_manager: self.clipboard_manager.clone(),
     }
   }
 
   #[cfg(all(desktop, feature = "global-shortcut"))]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
     self.global_shortcut_manager.clone()
-  }
-
-  #[cfg(feature = "clipboard")]
-  fn clipboard_manager(&self) -> Self::ClipboardManager {
-    self.clipboard_manager.clone()
   }
 
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {

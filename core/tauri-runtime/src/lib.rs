@@ -362,6 +362,13 @@ pub enum ActivationPolicy {
 /// A [`Send`] handle to the runtime.
 pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
   type Runtime: Runtime<T, Handle = Self>;
+  /// The clipboard manager type.
+  #[cfg(feature = "clipboard")]
+  type ClipboardManager: ClipboardManager;
+
+  /// Gets the clipboard manager.
+  #[cfg(feature = "clipboard")]
+  fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
   fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
@@ -453,9 +460,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The global shortcut manager type.
   #[cfg(all(desktop, feature = "global-shortcut"))]
   type GlobalShortcutManager: GlobalShortcutManager;
-  /// The clipboard manager type.
-  #[cfg(feature = "clipboard")]
-  type ClipboardManager: ClipboardManager;
   /// The tray handler type.
   #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler: menu::TrayHandle;
@@ -479,10 +483,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// Gets the global shortcut manager.
   #[cfg(all(desktop, feature = "global-shortcut"))]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
-
-  /// Gets the clipboard manager.
-  #[cfg(feature = "clipboard")]
-  fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Create a new webview window.
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>>;

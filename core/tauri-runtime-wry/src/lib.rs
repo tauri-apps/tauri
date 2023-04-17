@@ -1788,6 +1788,8 @@ impl<T: UserEvent> fmt::Debug for Wry<T> {
 #[derive(Debug, Clone)]
 pub struct WryHandle<T: UserEvent> {
   context: Context<T>,
+  #[cfg(feature = "clipboard")]
+  clipboard_manager_handle: ClipboardManagerWrapper<T>,
 }
 
 // SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
@@ -1845,6 +1847,14 @@ impl<T: UserEvent> WryHandle<T> {
 
 impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   type Runtime = Wry<T>;
+
+  #[cfg(feature = "clipboard")]
+  type ClipboardManager = ClipboardManagerWrapper<T>;
+
+  #[cfg(feature = "clipboard")]
+  fn clipboard_manager(&self) -> Self::ClipboardManager {
+    self.clipboard_manager_handle.clone()
+  }
 
   fn create_proxy(&self) -> EventProxy<T> {
     EventProxy(self.context.proxy.clone())
@@ -1992,9 +2002,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   #[cfg(all(desktop, feature = "global-shortcut"))]
   type GlobalShortcutManager = GlobalShortcutManagerHandle<T>;
 
-  #[cfg(feature = "clipboard")]
-  type ClipboardManager = ClipboardManagerWrapper<T>;
-
   #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler = SystemTrayHandle<T>;
 
@@ -2022,17 +2029,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   fn handle(&self) -> Self::Handle {
     WryHandle {
       context: self.context.clone(),
+      #[cfg(feature = "clipboard")]
+      clipboard_manager_handle: self.clipboard_manager_handle.clone(),
     }
   }
 
   #[cfg(all(desktop, feature = "global-shortcut"))]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
     self.global_shortcut_manager_handle.clone()
-  }
-
-  #[cfg(feature = "clipboard")]
-  fn clipboard_manager(&self) -> Self::ClipboardManager {
-    self.clipboard_manager_handle.clone()
   }
 
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {

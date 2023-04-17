@@ -199,7 +199,7 @@ mod manager;
 mod pattern;
 pub mod plugin;
 pub mod window;
-use tauri_runtime as runtime;
+pub use tauri_runtime as runtime;
 #[cfg(target_os = "ios")]
 mod ios;
 #[cfg(target_os = "android")]

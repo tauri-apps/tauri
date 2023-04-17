@@ -275,11 +275,6 @@ impl<R: Runtime> AppHandle<R> {
   pub(crate) fn create_proxy(&self) -> R::EventLoopProxy {
     self.runtime_handle.create_proxy()
   }
-
-  /// Returns the handle to the application runtime.
-  pub fn runtime_handle(&self) -> &R::Handle {
-    &self.runtime_handle
-  }
 }
 
 /// APIs specific to the wry runtime.

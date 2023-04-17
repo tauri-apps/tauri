@@ -14,7 +14,6 @@
  */
 
 import * as app from './app'
-import * as clipboard from './clipboard'
 import * as dialog from './dialog'
 import * as event from './event'
 import * as globalShortcut from './globalShortcut'
@@ -34,7 +33,6 @@ const invoke = tauri.invoke
 export {
   invoke,
   app,
-  clipboard,
   dialog,
   event,
   globalShortcut,

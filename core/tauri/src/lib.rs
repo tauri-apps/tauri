@@ -27,7 +27,6 @@
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **global-shortcut**: Enables the global shortcut APIs.
-//! - **clipboard**: Enables the clipboard APIs.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`api::process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **dialog**: Enables the [`api::dialog`] module.
 //! - **notification**: Enables the [`api::notification`] module.
@@ -312,10 +311,6 @@ pub use {
   self::window::{Monitor, Window, WindowBuilder},
   scope::*,
 };
-
-#[cfg(feature = "clipboard")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
-pub use self::runtime::ClipboardManager;
 
 #[cfg(all(desktop, feature = "global-shortcut"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]

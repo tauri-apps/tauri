@@ -431,15 +431,6 @@ pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
   fn unregister(&mut self, accelerator: &str) -> Result<()>;
 }
 
-/// Clipboard manager.
-#[cfg(feature = "clipboard")]
-pub trait ClipboardManager: Debug + Clone + Send + Sync {
-  /// Writes the text into the clipboard as plain text.
-  fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
-  /// Read the content in the clipboard as plain text.
-  fn read_text(&self) -> Result<Option<String>>;
-}
-
 pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
   fn send_event(&self, event: T) -> Result<()>;
 }
@@ -453,9 +444,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The global shortcut manager type.
   #[cfg(all(desktop, feature = "global-shortcut"))]
   type GlobalShortcutManager: GlobalShortcutManager;
-  /// The clipboard manager type.
-  #[cfg(feature = "clipboard")]
-  type ClipboardManager: ClipboardManager;
   /// The tray handler type.
   #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler: menu::TrayHandle;
@@ -479,10 +467,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// Gets the global shortcut manager.
   #[cfg(all(desktop, feature = "global-shortcut"))]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
-
-  /// Gets the clipboard manager.
-  #[cfg(feature = "clipboard")]
-  fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Create a new webview window.
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>>;

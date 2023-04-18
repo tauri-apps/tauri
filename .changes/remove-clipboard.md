@@ -1,5 +1,7 @@
 ---
 "tauri": patch
+"tauri-runtime": patch
+"tauri-runtime-wry": patch
 "api": patch
 ---
 

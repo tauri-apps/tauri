@@ -126,12 +126,12 @@ enum Target {
 }
 
 impl Target {
-  fn mobile(&self) -> bool {
+  fn is_mobile(&self) -> bool {
     matches!(self, Target::Android | Target::Ios)
   }
 
-  fn desktop(&self) -> bool {
-    !self.mobile()
+  fn is_desktop(&self) -> bool {
+    !self.is_mobile()
   }
 }
 
@@ -322,7 +322,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   );
 
-  let with_system_tray_icon_code = if target.desktop() {
+  let with_system_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.tauri.system_tray {
       let system_tray_icon_path = config_parent.join(&tray.icon_path);
       let ext = system_tray_icon_path.extension();

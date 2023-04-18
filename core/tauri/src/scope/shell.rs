@@ -12,6 +12,8 @@ use regex::Regex;
 
 use std::collections::HashMap;
 
+const DEFAULT_OPEN_REGEX: &str = r#"^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+"#;
+
 /// Allowed representation of `Execute` command arguments.
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
@@ -58,13 +60,52 @@ impl From<Vec<String>> for ExecuteArgs {
 }
 
 /// Shell scope configuration.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct ScopeConfig {
   /// The validation regex that `shell > open` paths must match against.
   pub open: Option<Regex>,
 
   /// All allowed commands, using their unique command name as the keys.
   pub scopes: HashMap<String, ScopeAllowedCommand>,
+}
+
+impl Default for ScopeConfig {
+  fn default() -> Self {
+    Self {
+      open: Some(Regex::new(DEFAULT_OPEN_REGEX).unwrap()),
+      scopes: Default::default(),
+    }
+  }
+}
+
+impl ScopeConfig {
+  /// Creates a new scope configuration with the default validation regex ^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+.
+  pub fn new() -> Self {
+    Self::default()
+  }
+
+  /// Creates a new scope configuration with the specified validation regex.
+  pub fn with_validator(regex: Regex) -> Self {
+    Self {
+      open: Some(regex),
+      scopes: Default::default(),
+    }
+  }
+
+  /// Unsets the validator regex, allowing any path to be opened.
+  pub fn skip_validation(mut self) -> Self {
+    self.open = None;
+    self
+  }
+
+  /// Sets the commands that are allowed to be executed.
+  pub fn set_allowed_commands<I: IntoIterator<Item = (String, ScopeAllowedCommand)>>(
+    mut self,
+    scopes: I,
+  ) -> Self {
+    self.scopes = scopes.into_iter().collect();
+    self
+  }
 }
 
 /// A configured scoped shell command.
@@ -106,7 +147,7 @@ impl ScopeAllowedArg {
 }
 
 /// Scope for filesystem access.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct Scope(ScopeConfig);
 
 /// All errors that can happen while validating a scoped command.

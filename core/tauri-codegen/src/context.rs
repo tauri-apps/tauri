@@ -431,28 +431,26 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
     let shell_scopes = get_allowed_clis(&root, &config.tauri.allowlist.shell.scope);
 
-    let shell_scope_open = match &config.tauri.allowlist.shell.open {
-      ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
-      ShellAllowlistOpen::Flag(true) => {
-        quote!(::std::option::Option::Some(#root::regex::Regex::new(r#"^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+"#).unwrap()))
-      }
+    let shell_scope_constructor = match &config.tauri.allowlist.shell.open {
+      ShellAllowlistOpen::Flag(false) => quote!(#root::ShellScopeConfig::new().skip_validation()),
+      ShellAllowlistOpen::Flag(true) => quote!(#root::ShellScopeConfig::new()),
       ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
-        Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),
+        Ok(_) => {
+          quote!(#root::ShellScopeConfig::with_validator(#root::regex::Regex::new(#regex).unwrap()))
+        }
         Err(error) => {
           let error = error.to_string();
           quote!({
             compile_error!(#error);
-            ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
+            #root::ShellScopeConfig::with_validator(#root::regex::Regex::new(#regex).unwrap())
           })
         }
       },
       _ => panic!("unknown shell open format, unable to prepare"),
     };
+    let shell_scope = quote!(#shell_scope_constructor.set_allowed_commands(#shell_scopes));
 
-    quote!(context.set_shell_scope(#root::ShellScopeConfig {
-      open: #shell_scope_open,
-      scopes: #shell_scopes
-    });)
+    quote!(context.set_shell_scope(#shell_scope);)
   };
 
   #[cfg(not(feature = "shell-scope"))]

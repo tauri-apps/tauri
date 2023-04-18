@@ -16,7 +16,6 @@
 import * as app from './app'
 import * as dialog from './dialog'
 import * as event from './event'
-import * as globalShortcut from './globalShortcut'
 import * as http from './http'
 import * as notification from './notification'
 import * as path from './path'
@@ -35,7 +34,6 @@ export {
   app,
   dialog,
   event,
-  globalShortcut,
   http,
   notification,
   path,

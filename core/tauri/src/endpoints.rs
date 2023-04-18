@@ -16,8 +16,6 @@ mod app;
 #[cfg(dialog_any)]
 mod dialog;
 mod event;
-#[cfg(global_shortcut_any)]
-mod global_shortcut;
 #[cfg(http_any)]
 mod http;
 mod notification;
@@ -77,8 +75,6 @@ enum Module {
   Notification(notification::Cmd),
   #[cfg(http_any)]
   Http(http::Cmd),
-  #[cfg(global_shortcut_any)]
-  GlobalShortcut(global_shortcut::Cmd),
 }
 
 impl Module {
@@ -153,13 +149,6 @@ impl Module {
         cmd
           .run(context)
           .await
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(global_shortcut_any)]
-      Self::GlobalShortcut(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from_anyhow)
       }),

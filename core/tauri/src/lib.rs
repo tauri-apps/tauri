@@ -685,14 +685,14 @@ impl<A: Assets> Context<A> {
   /// Sets the app tray icon.
   #[cfg(desktop)]
   #[inline(always)]
-  pub fn with_system_tray_icon(&mut self, icon: Icon) {
+  pub fn set_system_tray_icon(&mut self, icon: Icon) {
     self.system_tray_icon.replace(icon);
   }
 
   /// Sets the app shell scope.
   #[cfg(shell_scope)]
   #[inline(always)]
-  pub fn with_shell_scope(&mut self, scope: scope::ShellScopeConfig) {
+  pub fn set_shell_scope(&mut self, scope: scope::ShellScopeConfig) {
     self.shell_scope = scope;
   }
 }

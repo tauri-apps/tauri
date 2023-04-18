@@ -328,10 +328,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       let ext = system_tray_icon_path.extension();
       if ext.map_or(false, |e| e == "ico") {
         ico_icon(&root, &out_dir, system_tray_icon_path)
-          .map(|i| quote!(context.with_system_tray_icon(#i);))?
+          .map(|i| quote!(context.set_system_tray_icon(#i);))?
       } else if ext.map_or(false, |e| e == "png") {
         png_icon(&root, &out_dir, system_tray_icon_path)
-          .map(|i| quote!(context.with_system_tray_icon(#i);))?
+          .map(|i| quote!(context.set_system_tray_icon(#i);))?
       } else {
         quote!(compile_error!(
           "The tray icon extension must be either `.ico` or `.png`."
@@ -449,7 +449,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       _ => panic!("unknown shell open format, unable to prepare"),
     };
 
-    quote!(context.with_shell_scope(#root::ShellScopeConfig {
+    quote!(context.set_shell_scope(#root::ShellScopeConfig {
       open: #shell_scope_open,
       scopes: #shell_scopes
     });)

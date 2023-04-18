@@ -14,9 +14,7 @@
  */
 
 import * as app from './app'
-import * as clipboard from './clipboard'
 import * as event from './event'
-import * as globalShortcut from './globalShortcut'
 import * as http from './http'
 import * as notification from './notification'
 import * as path from './path'
@@ -33,9 +31,7 @@ const invoke = tauri.invoke
 export {
   invoke,
   app,
-  clipboard,
   event,
-  globalShortcut,
   http,
   notification,
   path,

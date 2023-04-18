@@ -35,7 +35,6 @@ tauri-build = { path = "../../../core/tauri-build" }
 path = "../../../core/tauri"
 features = [
   "api-all",
-  "global-shortcut",
   "http-multipart",
   "icon-ico",
   "icon-png",

@@ -13,7 +13,6 @@
   import Shortcuts from './views/Shortcuts.svelte'
   import Shell from './views/Shell.svelte'
   import Updater from './views/Updater.svelte'
-  import Clipboard from './views/Clipboard.svelte'
   import WebRTC from './views/WebRTC.svelte'
   import App from './views/App.svelte'
 
@@ -77,11 +76,6 @@
       label: 'Updater',
       component: Updater,
       icon: 'i-codicon-cloud-download'
-    },
-    !isMobile && {
-      label: 'Clipboard',
-      component: Clipboard,
-      icon: 'i-codicon-clippy'
     },
     {
       label: 'WebRTC',

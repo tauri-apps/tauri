@@ -262,10 +262,6 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: WindowManager<R>,
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  global_shortcut_manager: R::GlobalShortcutManager,
-  #[cfg(feature = "clipboard")]
-  clipboard_manager: R::ClipboardManager,
   /// The updater configuration.
   #[cfg(updater)]
   pub(crate) updater_settings: UpdaterSettings,
@@ -313,10 +309,6 @@ impl<R: Runtime> Clone for AppHandle<R> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
-      #[cfg(all(desktop, feature = "global-shortcut"))]
-      global_shortcut_manager: self.global_shortcut_manager.clone(),
-      #[cfg(feature = "clipboard")]
-      clipboard_manager: self.clipboard_manager.clone(),
       #[cfg(updater)]
       updater_settings: self.updater_settings.clone(),
     }
@@ -473,26 +465,16 @@ pub struct App<R: Runtime> {
   pending_windows: Option<Vec<PendingWindow<EventLoopMessage, R>>>,
   setup: Option<SetupHook<R>>,
   manager: WindowManager<R>,
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  global_shortcut_manager: R::GlobalShortcutManager,
-  #[cfg(feature = "clipboard")]
-  clipboard_manager: R::ClipboardManager,
   handle: AppHandle<R>,
 }
 
 impl<R: Runtime> fmt::Debug for App<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let mut d = f.debug_struct("App");
-    d.field("runtime", &self.runtime)
+    f.debug_struct("App")
+      .field("runtime", &self.runtime)
       .field("manager", &self.manager)
-      .field("handle", &self.handle);
-
-    #[cfg(all(desktop, feature = "global-shortcut"))]
-    d.field("global_shortcut_manager", &self.global_shortcut_manager);
-    #[cfg(feature = "clipboard")]
-    d.field("clipboard_manager", &self.clipboard_manager);
-
-    d.finish()
+      .field("handle", &self.handle)
+      .finish()
   }
 }
 
@@ -625,20 +607,6 @@ macro_rules! shared_app_impl {
         self
           .manager()
           .get_tray(id)
-      }
-
-      /// Gets a copy of the global shortcut manager instance.
-      #[cfg(all(desktop, feature = "global-shortcut"))]
-      #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
-      pub fn global_shortcut_manager(&self) -> R::GlobalShortcutManager {
-        self.global_shortcut_manager.clone()
-      }
-
-      /// Gets a copy of the clipboard manager instance.
-      #[cfg(feature = "clipboard")]
-      #[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
-      pub fn clipboard_manager(&self) -> R::ClipboardManager {
-        self.clipboard_manager.clone()
       }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.
@@ -1468,29 +1436,15 @@ impl<R: Runtime> Builder<R> {
 
     let runtime_handle = runtime.handle();
 
-    #[cfg(all(desktop, feature = "global-shortcut"))]
-    let global_shortcut_manager = runtime.global_shortcut_manager();
-
-    #[cfg(feature = "clipboard")]
-    let clipboard_manager = runtime.clipboard_manager();
-
     #[allow(unused_mut)]
     let mut app = App {
       runtime: Some(runtime),
       pending_windows: Some(self.pending_windows),
       setup: Some(self.setup),
       manager: manager.clone(),
-      #[cfg(all(desktop, feature = "global-shortcut"))]
-      global_shortcut_manager: global_shortcut_manager.clone(),
-      #[cfg(feature = "clipboard")]
-      clipboard_manager: clipboard_manager.clone(),
       handle: AppHandle {
         runtime_handle,
         manager,
-        #[cfg(all(desktop, feature = "global-shortcut"))]
-        global_shortcut_manager,
-        #[cfg(feature = "clipboard")]
-        clipboard_manager,
         #[cfg(updater)]
         updater_settings: self.updater_settings,
       },

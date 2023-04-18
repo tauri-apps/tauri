@@ -49,5 +49,4 @@ macos-private-api = [
 ]
 objc-exception = [ "wry/objc-exception" ]
 global-shortcut = [ "tauri-runtime/global-shortcut" ]
-clipboard = [ "tauri-runtime/clipboard" ]
 linux-headers = [ "wry/linux-headers", "webkit2gtk/v2_36" ]

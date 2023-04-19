@@ -100,6 +100,9 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   let data = download(NSIS_APPLICATIONID_URL)?;
   info!("extracting NSIS ApplicationID plugin");
   extract_zip(&data, &nsis_plugins)?;
+
+  create_dir_all(nsis_plugins.join("x86-unicode"))?;
+
   copy(
     nsis_plugins
       .join("ReleaseUnicode")

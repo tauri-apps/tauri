@@ -14,8 +14,6 @@ use std::sync::Arc;
 
 mod app;
 mod event;
-#[cfg(http_any)]
-mod http;
 mod notification;
 #[cfg(os_any)]
 mod operating_system;
@@ -69,8 +67,6 @@ enum Module {
   Shell(shell::Cmd),
   Event(event::Cmd),
   Notification(notification::Cmd),
-  #[cfg(http_any)]
-  Http(http::Cmd),
 }
 
 impl Module {
@@ -130,14 +126,6 @@ impl Module {
       Self::Notification(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(http_any)]
-      Self::Http(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .await
           .and_then(|r| r.json)
           .map_err(InvokeError::from_anyhow)
       }),

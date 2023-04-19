@@ -20,7 +20,6 @@
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
 //! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
 //! - **shell-open-api**: Enables the [`api::shell`] module.
-//! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
 //! - **native-tls**: Provides TLS support to connect over HTTPS.
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
@@ -976,7 +975,6 @@ mod tests {
     // features that look like an allowlist feature, but are not
     let allowed = [
       "fs-extract-api",
-      "http-api",
       "http-multipart",
       "process-command-api",
       "process-relaunch-dangerous-allow-symlink-macos",

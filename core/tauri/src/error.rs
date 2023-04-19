@@ -68,9 +68,6 @@ pub enum Error {
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
   InvalidIcon(std::io::Error),
-  /// Client with specified ID not found.
-  #[error("http client dropped or not initialized")]
-  HttpClientNotInitialized,
   /// API not whitelisted on tauri.conf.json
   #[error("'{0}' not in the allowlist (https://tauri.app/docs/api/config#tauri.allowlist)")]
   ApiNotAllowlisted(String),
@@ -95,15 +92,9 @@ pub enum Error {
   /// Task join error.
   #[error(transparent)]
   JoinError(#[from] tokio::task::JoinError),
-  /// Path not allowed by the scope.
-  #[error("path not allowed on the configured scope: {0}")]
-  PathNotAllowed(PathBuf),
   /// The user did not allow sending notifications.
   #[error("sending notification was not allowed by the user")]
   NotificationNotAllowed,
-  /// URL not allowed by the scope.
-  #[error("url not allowed on the configured scope: {0}")]
-  UrlNotAllowed(url::Url),
   /// Sidecar not allowed by the configuration.
   #[error("sidecar not configured under `tauri.conf.json > tauri > bundle > externalBin`: {0}")]
   SidecarNotAllowed(PathBuf),

@@ -24,16 +24,13 @@ pub enum Error {
   /// The network error.
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),
-  /// HTTP method error.
-  #[error(transparent)]
-  HttpMethod(#[from] http::method::InvalidMethod),
   /// Invalid HTTP header value.
   #[error(transparent)]
   HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
   /// Invalid HTTP header value.
   #[error(transparent)]
   HttpHeader(#[from] http::header::InvalidHeaderName),
-  /// Failed to serialize header value as string.
+  /// Failed to convert bytes to string.
   #[error(transparent)]
   Utf8(#[from] std::string::FromUtf8Error),
   /// HTTP form to must be an object.

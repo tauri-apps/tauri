@@ -7,10 +7,8 @@
   import Welcome from './views/Welcome.svelte'
   import Cli from './views/Cli.svelte'
   import Communication from './views/Communication.svelte'
-  import Http from './views/Http.svelte'
   import Notifications from './views/Notifications.svelte'
   import Window from './views/Window.svelte'
-  import Shortcuts from './views/Shortcuts.svelte'
   import Shell from './views/Shell.svelte'
   import Updater from './views/Updater.svelte'
   import WebRTC from './views/WebRTC.svelte'
@@ -42,11 +40,6 @@
       component: Cli,
       icon: 'i-codicon-terminal'
     },
-    {
-      label: 'HTTP',
-      component: Http,
-      icon: 'i-ph-globe-hemisphere-west'
-    },
     !isMobile && {
       label: 'Notifications',
       component: Notifications,
@@ -61,11 +54,6 @@
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
-    },
-    !isMobile && {
-      label: 'Shortcuts',
-      component: Shortcuts,
-      icon: 'i-codicon-record-keys'
     },
     {
       label: 'Shell',

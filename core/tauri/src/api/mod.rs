@@ -6,9 +6,6 @@
 
 pub mod dir;
 pub mod file;
-#[cfg(feature = "http-api")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "http-api")))]
-pub mod http;
 pub mod ipc;
 pub mod process;
 #[cfg(feature = "shell-open-api")]

@@ -5,17 +5,15 @@
 use super::error::{Error, Result};
 #[cfg(desktop)]
 use crate::api::file::{ArchiveFormat, Extract, Move};
-use crate::{
-  api::http::{ClientBuilder, HttpRequestBuilder},
-  AppHandle, Manager, Runtime,
-};
+use crate::{AppHandle, Manager, Runtime};
 use base64::Engine;
 use futures_util::StreamExt;
 use http::{
   header::{HeaderName, HeaderValue},
-  HeaderMap, StatusCode,
+  HeaderMap, Method, StatusCode,
 };
 use minisign_verify::{PublicKey, Signature};
+use reqwest::ClientBuilder;
 use semver::Version;
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use tauri_utils::{platform::current_exe, Env};
@@ -375,15 +373,17 @@ impl<R: Runtime> UpdateBuilder<R> {
         .replace("{{target}}", &target)
         .replace("{{arch}}", arch);
 
-      let mut request = HttpRequestBuilder::new("GET", &fixed_link)?.headers(headers.clone());
+      let client = ClientBuilder::new().build()?;
+      let mut request = client
+        .request(Method::GET, &fixed_link)
+        .headers(headers.clone());
       if let Some(timeout) = self.timeout {
         request = request.timeout(timeout);
       }
-      let resp = ClientBuilder::new().build()?.send(request).await;
 
       // If we got a success, we stop the loop
       // and we set our remote_release variable
-      if let Ok(res) = resp {
+      if let Ok(res) = request.send().await {
         let status = res.status();
         // got status code 2XX
         if status.is_success() {
@@ -393,9 +393,9 @@ impl<R: Runtime> UpdateBuilder<R> {
             // we should catch on the client
             return Err(Error::UpToDate);
           };
-          let res = res.read().await?;
+          let data = res.bytes().await?;
           // Convert the remote result to our local struct
-          let built_release = serde_json::from_value(res.data).map_err(Into::into);
+          let built_release = serde_json::from_slice(&data).map_err(Into::into);
           // make sure all went well and the remote data is compatible
           // with what we need locally
           match built_release {
@@ -538,19 +538,18 @@ impl<R: Runtime> Update<R> {
 
     let client = ClientBuilder::new().build()?;
     // Create our request
-    let mut req = HttpRequestBuilder::new("GET", self.download_url.as_str())?.headers(headers);
+    let mut req = client
+      .request(Method::GET, self.download_url.clone())
+      .headers(headers);
     if let Some(timeout) = self.timeout {
       req = req.timeout(timeout);
     }
 
-    let response = client.send(req).await?;
+    let response = req.send().await?;
 
     // make sure it's success
     if !response.status().is_success() {
-      return Err(Error::Network(format!(
-        "Download request failed with status: {}",
-        response.status()
-      )));
+      return Err(Error::DownloadFailed(response.status()));
     }
 
     let content_length: Option<u64> = response

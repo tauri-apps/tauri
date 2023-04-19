@@ -18,8 +18,6 @@ mod event;
 mod operating_system;
 #[cfg(process_any)]
 mod process;
-#[cfg(shell_any)]
-mod shell;
 mod window;
 
 /// The context passed to the invoke handler.
@@ -62,8 +60,6 @@ enum Module {
   #[cfg(os_any)]
   Os(operating_system::Cmd),
   Window(Box<window::Cmd>),
-  #[cfg(shell_any)]
-  Shell(shell::Cmd),
   Event(event::Cmd),
 }
 
@@ -105,13 +101,6 @@ impl Module {
         cmd
           .run(context)
           .await
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(shell_any)]
-      Self::Shell(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from_anyhow)
       }),

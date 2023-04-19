@@ -7,7 +7,6 @@
     PhysicalSize,
     PhysicalPosition
   } from '@tauri-apps/api/window'
-  import { open } from '@tauri-apps/api/shell'
 
   let selectedWindow = appWindow.label
   const windowMap = {
@@ -89,10 +88,6 @@
   let cursorIcon = 'default'
   let cursorIgnoreEvents = false
   let windowTitle = 'Awesome Tauri Example!'
-
-  function openUrl() {
-    open(urlValue)
-  }
 
   function setTitle_() {
     windowMap[selectedWindow].setTitle(windowTitle)
@@ -437,10 +432,6 @@
       <form class="flex gap-1" on:submit|preventDefault={setTitle_}>
         <input class="input grow" id="title" bind:value={windowTitle} />
         <button class="btn" type="submit">Set title</button>
-      </form>
-      <form class="flex gap-1" on:submit|preventDefault={openUrl}>
-        <input class="input grow" id="url" bind:value={urlValue} />
-        <button class="btn" id="open-url"> Open URL </button>
       </form>
     </div>
   {/if}

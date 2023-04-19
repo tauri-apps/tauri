@@ -19,12 +19,10 @@
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
 //! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
-//! - **shell-open-api**: Enables the [`api::shell`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
 //! - **native-tls**: Provides TLS support to connect over HTTPS.
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
-//! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`api::process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **dialog**: Enables the [`api::dialog`] module.
 //! - **fs-extract-api**: Enabled the `tauri::api::file::Extract` API.
@@ -171,9 +169,6 @@ pub use cocoa;
 pub use embed_plist;
 /// The Tauri error enum.
 pub use error::Error;
-#[cfg(shell_scope)]
-#[doc(hidden)]
-pub use regex;
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
@@ -201,6 +196,7 @@ mod ios;
 mod jni_helpers;
 /// Path APIs.
 pub mod path;
+pub mod process;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
@@ -543,22 +539,18 @@ pub struct Context<A: Assets> {
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
-  #[cfg(shell_scope)]
-  pub(crate) shell_scope: scope::ShellScopeConfig,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let mut d = f.debug_struct("Context");
-    d.field("config", &self.config)
+    f.debug_struct("Context")
+      .field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
       .field("system_tray_icon", &self.system_tray_icon)
       .field("package_info", &self.package_info)
-      .field("pattern", &self.pattern);
-    #[cfg(shell_scope)]
-    d.field("shell_scope", &self.shell_scope);
-    d.finish()
+      .field("pattern", &self.pattern)
+      .finish()
   }
 }
 
@@ -629,13 +621,6 @@ impl<A: Assets> Context<A> {
     &self.pattern
   }
 
-  /// The scoped shell commands, where the `HashMap` key is the name each configuration.
-  #[cfg(shell_scope)]
-  #[inline(always)]
-  pub fn allowed_commands(&self) -> &scope::ShellScopeConfig {
-    &self.shell_scope
-  }
-
   /// Create a new [`Context`] from the minimal required items.
   #[inline(always)]
   #[allow(clippy::too_many_arguments)]
@@ -648,7 +633,6 @@ impl<A: Assets> Context<A> {
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
-    #[cfg(shell_scope)] shell_scope: scope::ShellScopeConfig,
   ) -> Self {
     Self {
       config,
@@ -659,8 +643,6 @@ impl<A: Assets> Context<A> {
       package_info,
       _info_plist: info_plist,
       pattern,
-      #[cfg(shell_scope)]
-      shell_scope,
     }
   }
 }
@@ -871,12 +853,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.state::<Scopes>().inner().asset_protocol.clone()
   }
 
-  /// Gets the scope for the shell execute APIs.
-  #[cfg(shell_scope)]
-  fn shell_scope(&self) -> ShellScope {
-    self.state::<Scopes>().inner().shell.clone()
-  }
-
   /// The path resolver.
   fn path(&self) -> &crate::path::PathResolver<R> {
     self.state::<crate::path::PathResolver<R>>().inner()
@@ -974,7 +950,6 @@ mod tests {
     let allowed = [
       "fs-extract-api",
       "http-multipart",
-      "process-command-api",
       "process-relaunch-dangerous-allow-symlink-macos",
       "window-data-url",
     ];

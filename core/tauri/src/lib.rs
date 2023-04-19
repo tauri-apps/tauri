@@ -535,6 +535,7 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
+  #[cfg(desktop)]
   pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
@@ -543,14 +544,17 @@ pub struct Context<A: Assets> {
 
 impl<A: Assets> fmt::Debug for Context<A> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Context")
-      .field("config", &self.config)
+    let mut d = f.debug_struct("Context");
+    d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
-      .field("system_tray_icon", &self.system_tray_icon)
       .field("package_info", &self.package_info)
-      .field("pattern", &self.pattern)
-      .finish()
+      .field("pattern", &self.pattern);
+
+    #[cfg(desktop)]
+    d.field("system_tray_icon", &self.system_tray_icon);
+
+    d.finish()
   }
 }
 
@@ -592,12 +596,14 @@ impl<A: Assets> Context<A> {
   }
 
   /// The icon to use on the system tray UI.
+  #[cfg(desktop)]
   #[inline(always)]
   pub fn system_tray_icon(&self) -> Option<&Icon> {
     self.system_tray_icon.as_ref()
   }
 
   /// A mutable reference to the icon to use on the system tray UI.
+  #[cfg(desktop)]
   #[inline(always)]
   pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
     &mut self.system_tray_icon
@@ -629,7 +635,6 @@ impl<A: Assets> Context<A> {
     assets: Arc<A>,
     default_window_icon: Option<Icon>,
     app_icon: Option<Vec<u8>>,
-    system_tray_icon: Option<Icon>,
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
@@ -639,11 +644,26 @@ impl<A: Assets> Context<A> {
       assets,
       default_window_icon,
       app_icon,
-      system_tray_icon,
+      #[cfg(desktop)]
+      system_tray_icon: None,
       package_info,
       _info_plist: info_plist,
       pattern,
     }
+  }
+
+  /// Sets the app tray icon.
+  #[cfg(desktop)]
+  #[inline(always)]
+  pub fn set_system_tray_icon(&mut self, icon: Icon) {
+    self.system_tray_icon.replace(icon);
+  }
+
+  /// Sets the app shell scope.
+  #[cfg(shell_scope)]
+  #[inline(always)]
+  pub fn set_shell_scope(&mut self, scope: scope::ShellScopeConfig) {
+    self.shell_scope = scope;
   }
 }
 

@@ -13,8 +13,6 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 
 mod app;
-#[cfg(dialog_any)]
-mod dialog;
 mod event;
 #[cfg(http_any)]
 mod http;
@@ -70,8 +68,6 @@ enum Module {
   #[cfg(shell_any)]
   Shell(shell::Cmd),
   Event(event::Cmd),
-  #[cfg(dialog_any)]
-  Dialog(dialog::Cmd),
   Notification(notification::Cmd),
   #[cfg(http_any)]
   Http(http::Cmd),
@@ -126,13 +122,6 @@ impl Module {
           .map_err(InvokeError::from_anyhow)
       }),
       Self::Event(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(dialog_any)]
-      Self::Dialog(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
           .and_then(|r| r.json)

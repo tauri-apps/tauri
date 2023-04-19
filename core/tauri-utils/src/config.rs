@@ -2335,9 +2335,6 @@ pub struct UpdaterConfig {
   /// Whether the updater is active or not.
   #[serde(default)]
   pub active: bool,
-  /// Display built-in dialog or use event system if disabled.
-  #[serde(default = "default_true")]
-  pub dialog: bool,
   /// The updater endpoints. TLS is enforced on production.
   ///
   /// The updater URL can contain the following variables:
@@ -2367,8 +2364,6 @@ impl<'de> Deserialize<'de> for UpdaterConfig {
     struct InnerUpdaterConfig {
       #[serde(default)]
       active: bool,
-      #[serde(default = "default_true")]
-      dialog: bool,
       endpoints: Option<Vec<UpdaterEndpoint>>,
       pubkey: Option<String>,
       #[serde(default)]
@@ -2385,7 +2380,6 @@ impl<'de> Deserialize<'de> for UpdaterConfig {
 
     Ok(UpdaterConfig {
       active: config.active,
-      dialog: config.dialog,
       endpoints: config.endpoints,
       pubkey: config.pubkey.unwrap_or_default(),
       windows: config.windows,
@@ -2397,7 +2391,6 @@ impl Default for UpdaterConfig {
   fn default() -> Self {
     Self {
       active: false,
-      dialog: default_true(),
       endpoints: None,
       pubkey: "".into(),
       windows: Default::default(),
@@ -3246,7 +3239,6 @@ mod build {
   impl ToTokens for UpdaterConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let active = self.active;
-      let dialog = self.dialog;
       let pubkey = str_lit(&self.pubkey);
       let endpoints = opt_lit(
         self
@@ -3262,15 +3254,7 @@ mod build {
       );
       let windows = &self.windows;
 
-      literal_struct!(
-        tokens,
-        UpdaterConfig,
-        active,
-        dialog,
-        pubkey,
-        endpoints,
-        windows
-      );
+      literal_struct!(tokens, UpdaterConfig, active, pubkey, endpoints, windows);
     }
   }
 
@@ -3596,7 +3580,6 @@ mod test {
       },
       updater: UpdaterConfig {
         active: false,
-        dialog: true,
         pubkey: "".into(),
         endpoints: None,
         windows: Default::default(),

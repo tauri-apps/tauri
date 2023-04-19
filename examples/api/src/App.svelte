@@ -7,7 +7,6 @@
   import Welcome from './views/Welcome.svelte'
   import Cli from './views/Cli.svelte'
   import Communication from './views/Communication.svelte'
-  import Dialog from './views/Dialog.svelte'
   import Http from './views/Http.svelte'
   import Notifications from './views/Notifications.svelte'
   import Window from './views/Window.svelte'
@@ -19,17 +18,6 @@
 
   import { onMount } from 'svelte'
   import { listen } from '@tauri-apps/api/event'
-  import { ask } from '@tauri-apps/api/dialog'
-
-  if (appWindow.label !== 'main') {
-    appWindow.onCloseRequested(async (event) => {
-      const confirmed = await confirm('Are you sure?')
-      if (!confirmed) {
-        // user did not confirm closing the window; let's prevent it
-        event.preventDefault()
-      }
-    })
-  }
 
   appWindow.onFileDropEvent((event) => {
     onMessage(`File drop: ${JSON.stringify(event.payload)}`)
@@ -53,11 +41,6 @@
       label: 'CLI',
       component: Cli,
       icon: 'i-codicon-terminal'
-    },
-    !isMobile && {
-      label: 'Dialog',
-      component: Dialog,
-      icon: 'i-codicon-multiple-windows'
     },
     {
       label: 'HTTP',
@@ -123,21 +106,6 @@
   async function toggleMaximize() {
     const window = getCurrent()
     ;(await window.isMaximized()) ? window.unmaximize() : window.maximize()
-  }
-
-  let confirmed_close = false
-  async function close() {
-    if (!confirmed_close) {
-      confirmed_close = await ask(
-        'Are you sure that you want to close this window?',
-        {
-          title: 'Tauri API'
-        }
-      )
-      if (confirmed_close) {
-        getCurrent().close()
-      }
-    }
   }
 
   // dark/light
@@ -325,13 +293,6 @@
         {:else}
           <div class="i-codicon-chrome-maximize" />
         {/if}
-      </span>
-      <span
-        title="Close"
-        class="hover:bg-red-700 dark:hover:bg-red-700 hover:text-darkPrimaryText active:bg-red-700/90 dark:active:bg-red-700/90 active:text-darkPrimaryText"
-        on:click={close}
-      >
-        <div class="i-codicon-chrome-close" />
       </span>
     </span>
   </div>

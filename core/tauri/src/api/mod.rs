@@ -4,9 +4,6 @@
 
 //! The Tauri API interface.
 
-#[cfg(all(desktop, feature = "dialog"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "dialog"))))]
-pub mod dialog;
 pub mod dir;
 pub mod file;
 #[cfg(feature = "http-api")]

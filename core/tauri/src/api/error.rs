@@ -21,9 +21,6 @@ pub enum Error {
   /// The dialog operation was cancelled by the user.
   #[error("user cancelled the dialog")]
   DialogCancelled,
-  /// The network error.
-  #[error("Network Error: {0}")]
-  Network(#[from] reqwest::Error),
   /// Invalid HTTP header value.
   #[error(transparent)]
   HttpHeaderValue(#[from] http::header::InvalidHeaderValue),

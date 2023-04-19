@@ -23,7 +23,6 @@ features = [
   "fs-extract-api",
   "system-tray",
   "devtools",
-  "http-multipart",
   "icon-png",
   "dox"
 ]
@@ -142,7 +141,6 @@ updater = [
   "dialog-ask",
   "fs-extract-api"
 ]
-http-multipart = [ "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
 native-tls = [ "reqwest/native-tls" ]

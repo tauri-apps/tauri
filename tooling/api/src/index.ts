@@ -15,7 +15,6 @@
 
 import * as app from './app'
 import * as event from './event'
-import * as http from './http'
 import * as notification from './notification'
 import * as path from './path'
 import * as process from './process'
@@ -32,7 +31,6 @@ export {
   invoke,
   app,
   event,
-  http,
   notification,
   path,
   process,

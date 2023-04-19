@@ -144,11 +144,9 @@ updater = [
   "minisign-verify",
   "time",
   "base64",
-  "http-api",
   "dialog-ask",
   "fs-extract-api"
 ]
-http-api = [ ]
 http-multipart = [ "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
@@ -212,7 +210,7 @@ fs-rename-file = [ ]
 fs-write-file = [ ]
 global-shortcut-all = [ ]
 http-all = [ "http-request" ]
-http-request = [ "http-api" ]
+http-request = [ ]
 notification-all = [ "notification", "dialog-ask" ]
 os-all = [ "os_info" ]
 path-all = [ ]

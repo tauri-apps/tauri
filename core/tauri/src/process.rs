@@ -34,7 +34,7 @@ use std::path::PathBuf;
 /// # Examples
 ///
 /// ```rust,no_run
-/// use tauri::{api::process::current_binary, Env, Manager};
+/// use tauri::{process::current_binary, Env, Manager};
 /// let current_binary_path = current_binary(&Env::default()).unwrap();
 ///
 /// tauri::Builder::default()
@@ -63,7 +63,7 @@ pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use tauri::{api::process::restart, Env, Manager};
+/// use tauri::{process::restart, Env, Manager};
 ///
 /// tauri::Builder::default()
 ///   .setup(|app| {

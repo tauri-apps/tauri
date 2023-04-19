@@ -23,7 +23,7 @@
 //! - **native-tls**: Provides TLS support to connect over HTTPS.
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
-//! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`api::process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
+//! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **dialog**: Enables the [`api::dialog`] module.
 //! - **fs-extract-api**: Enabled the `tauri::api::file::Extract` API.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.

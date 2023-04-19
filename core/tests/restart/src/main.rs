@@ -14,7 +14,7 @@ fn main() {
   println!(
     "{}",
     tauri::process::current_binary(&Default::default())
-      .expect("tauri::api::process::current_binary could not resolve")
+      .expect("tauri::process::current_binary could not resolve")
       .display()
   );
 

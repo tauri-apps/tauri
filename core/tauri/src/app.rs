@@ -417,7 +417,7 @@ impl<R: Runtime> AppHandle<R> {
     std::process::exit(exit_code);
   }
 
-  /// Restarts the app. This is the same as [`crate::api::process::restart`], but it performs cleanup on this application.
+  /// Restarts the app. This is the same as [`crate::process::restart`], but it performs cleanup on this application.
   pub fn restart(&self) {
     self.cleanup_before_exit();
     crate::process::restart(&self.env());
@@ -757,7 +757,7 @@ impl<R: Runtime> App<R> {
   /// Runs a iteration of the runtime event loop and immediately return.
   ///
   /// Note that when using this API, app cleanup is not automatically done.
-  /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
+  /// The cleanup calls [`crate::process::kill_children`] so you may want to call that function before exiting the application.
   /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
   /// # Examples

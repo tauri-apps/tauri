@@ -26,15 +26,4 @@ import * as os from './os'
 /** @ignore */
 const invoke = tauri.invoke
 
-export {
-  invoke,
-  app,
-  event,
-  path,
-  process,
-  shell,
-  tauri,
-  updater,
-  window,
-  os
-}
+export { invoke, app, event, path, process, shell, tauri, updater, window, os }

@@ -90,6 +90,7 @@ pub fn mock_app() -> crate::App<MockRuntime> {
   app
 }
 
+#[allow(dead_code)]
 pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRuntime> {
   let app = mock_app();
   crate::endpoints::InvokeContext {

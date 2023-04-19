@@ -13,10 +13,6 @@ pub mod process;
 pub mod shell;
 pub mod version;
 
-#[cfg(all(desktop, feature = "notification"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "notification"))))]
-pub mod notification;
-
 mod error;
 
 /// The error type of Tauri API module.

@@ -7,7 +7,6 @@
     PhysicalSize,
     PhysicalPosition
   } from '@tauri-apps/api/window'
-  import { open as openDialog } from '@tauri-apps/api/dialog'
   import { open } from '@tauri-apps/api/shell'
 
   let selectedWindow = appWindow.label
@@ -107,16 +106,6 @@
   function minimize_() {
     windowMap[selectedWindow].minimize()
     setTimeout(windowMap[selectedWindow].unminimize, 2000)
-  }
-
-  function getIcon() {
-    openDialog({
-      multiple: false
-    }).then((path) => {
-      if (typeof path === 'string') {
-        windowMap[selectedWindow].setIcon(path)
-      }
-    })
   }
 
   function createWindow() {
@@ -262,7 +251,6 @@
       >
         Hide
       </button>
-      <button class="btn" on:click={getIcon}> Change icon </button>
       <button
         class="btn"
         on:click={requestUserAttention_}

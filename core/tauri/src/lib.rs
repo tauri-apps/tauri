@@ -27,11 +27,9 @@
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`api::process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **dialog**: Enables the [`api::dialog`] module.
-//! - **notification**: Enables the [`api::notification`] module.
 //! - **fs-extract-api**: Enabled the `tauri::api::file::Extract` API.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
-//! - **windows7-compat**: Enables compatibility with Windows 7 for the notification API.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.

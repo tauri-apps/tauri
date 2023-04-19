@@ -40,7 +40,6 @@ features = [
   "icon-png",
   "isolation",
   "macos-private-api",
-  "windows7-compat",
   "system-tray",
   "updater"
 ]

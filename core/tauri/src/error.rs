@@ -92,9 +92,6 @@ pub enum Error {
   /// Task join error.
   #[error(transparent)]
   JoinError(#[from] tokio::task::JoinError),
-  /// The user did not allow sending notifications.
-  #[error("sending notification was not allowed by the user")]
-  NotificationNotAllowed,
   /// Sidecar not allowed by the configuration.
   #[error("sidecar not configured under `tauri.conf.json > tauri > bundle > externalBin`: {0}")]
   SidecarNotAllowed(PathBuf),

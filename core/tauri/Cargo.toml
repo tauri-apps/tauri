@@ -19,7 +19,6 @@ features = [
   "wry",
   "custom-protocol",
   "api-all",
-  "windows7-compat",
   "updater",
   "fs-extract-api",
   "system-tray",
@@ -81,9 +80,6 @@ png = { version = "0.17", optional = true }
 ico = { version = "0.2.0", optional = true }
 encoding_rs = "0.8.31"
 
-[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-notify-rust = { version = "4.5", optional = true }
-
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.16", features = [ "v3_24" ] }
 glib = "0.16"
@@ -96,7 +92,6 @@ objc = "0.2"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.22"
-win7-notifications = { version = "0.3.1", optional = true }
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.44"
@@ -154,7 +149,6 @@ native-tls = [ "reqwest/native-tls" ]
 native-tls-vendored = [ "reqwest/native-tls-vendored" ]
 rustls-tls = [ "reqwest/rustls-tls" ]
 process-command-api = [ "shared_child", "os_pipe" ]
-notification = [ "notify-rust" ]
 system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
 dox = [ "tauri-runtime-wry/dox" ]
@@ -162,7 +156,6 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry/macos-private-api"
 ]
-windows7-compat = [ "win7-notifications" ]
 window-data-url = [ "data-url" ]
 api-all = [
   "clipboard-all",
@@ -211,7 +204,7 @@ fs-write-file = [ ]
 global-shortcut-all = [ ]
 http-all = [ "http-request" ]
 http-request = [ ]
-notification-all = [ "notification", "dialog-ask" ]
+notification-all = [ ]
 os-all = [ "os_info" ]
 path-all = [ ]
 process-all = [ "process-relaunch", "process-exit" ]

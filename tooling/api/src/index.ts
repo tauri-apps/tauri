@@ -15,7 +15,6 @@
 
 import * as app from './app'
 import * as event from './event'
-import * as notification from './notification'
 import * as path from './path'
 import * as process from './process'
 import * as shell from './shell'
@@ -31,7 +30,6 @@ export {
   invoke,
   app,
   event,
-  notification,
   path,
   process,
   shell,

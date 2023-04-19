@@ -70,15 +70,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 use crate::{runtime::EventLoopProxy, AppHandle, EventLoopMessage, Manager, Runtime, UpdaterEvent};
 
-#[cfg(mobile)]
-fn ask<R: Runtime>(
-  _parent_window: Option<&crate::Window<R>>,
-  _title: impl AsRef<str>,
-  _message: impl AsRef<str>,
-) -> bool {
-  true
-}
-
 /// Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
 /// New update available

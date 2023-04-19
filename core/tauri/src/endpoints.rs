@@ -14,7 +14,6 @@ use std::sync::Arc;
 
 mod app;
 mod event;
-mod notification;
 #[cfg(os_any)]
 mod operating_system;
 #[cfg(process_any)]
@@ -66,7 +65,6 @@ enum Module {
   #[cfg(shell_any)]
   Shell(shell::Cmd),
   Event(event::Cmd),
-  Notification(notification::Cmd),
 }
 
 impl Module {
@@ -118,12 +116,6 @@ impl Module {
           .map_err(InvokeError::from_anyhow)
       }),
       Self::Event(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      Self::Notification(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
           .and_then(|r| r.json)

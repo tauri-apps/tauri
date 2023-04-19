@@ -7,7 +7,6 @@
   import Welcome from './views/Welcome.svelte'
   import Cli from './views/Cli.svelte'
   import Communication from './views/Communication.svelte'
-  import Notifications from './views/Notifications.svelte'
   import Window from './views/Window.svelte'
   import Shell from './views/Shell.svelte'
   import Updater from './views/Updater.svelte'
@@ -39,11 +38,6 @@
       label: 'CLI',
       component: Cli,
       icon: 'i-codicon-terminal'
-    },
-    !isMobile && {
-      label: 'Notifications',
-      component: Notifications,
-      icon: 'i-codicon-bell-dot'
     },
     !isMobile && {
       label: 'App',

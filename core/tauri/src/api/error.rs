@@ -56,10 +56,6 @@ pub enum Error {
   #[cfg(feature = "fs-extract-api")]
   #[error("Failed to extract: {0}")]
   Extract(String),
-  /// Notification error.
-  #[cfg(notification_all)]
-  #[error(transparent)]
-  Notification(#[from] notify_rust::error::Error),
   /// Url error.
   #[error(transparent)]
   Url(#[from] url::ParseError),

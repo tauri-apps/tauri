@@ -3,24 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 mod fs;
-#[cfg(shell_scope)]
-mod shell;
 
 pub use fs::{Event as FsScopeEvent, Pattern as GlobPattern, Scope as FsScope};
-#[cfg(shell_scope)]
-pub use shell::{
-  ExecuteArgs, Scope as ShellScope, ScopeAllowedArg as ShellScopeAllowedArg,
-  ScopeAllowedCommand as ShellScopeAllowedCommand, ScopeConfig as ShellScopeConfig,
-  ScopeError as ShellScopeError,
-};
 use std::path::Path;
 
 pub(crate) struct Scopes {
   pub fs: FsScope,
   #[cfg(protocol_asset)]
   pub asset_protocol: FsScope,
-  #[cfg(shell_scope)]
-  pub shell: ShellScope,
 }
 
 impl Scopes {

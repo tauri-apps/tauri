@@ -108,10 +108,6 @@ fn main() {
   );
 
   alias_module("shell", &["execute", "sidecar", "open"], api_all);
-  // helper for the command module macro
-  let shell_script = has_feature("shell-execute") || has_feature("shell-sidecar");
-  alias("shell_script", shell_script);
-  alias("shell_scope", has_feature("shell-open-api") || shell_script);
 
   if !mobile {
     alias_module(

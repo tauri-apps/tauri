@@ -5,7 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{
-  api::process::{Command, CommandEvent},
+  process::{Command, CommandEvent},
   Manager,
 };
 

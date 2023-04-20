@@ -1,6 +1,5 @@
 <script>
   import { writable } from 'svelte/store'
-  import { open } from '@tauri-apps/api/shell'
   import { appWindow, getCurrent } from '@tauri-apps/api/window'
   import * as os from '@tauri-apps/api/os'
 
@@ -8,7 +7,6 @@
   import Cli from './views/Cli.svelte'
   import Communication from './views/Communication.svelte'
   import Window from './views/Window.svelte'
-  import Shell from './views/Shell.svelte'
   import Updater from './views/Updater.svelte'
   import WebRTC from './views/WebRTC.svelte'
   import App from './views/App.svelte'
@@ -48,11 +46,6 @@
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
-    },
-    {
-      label: 'Shell',
-      component: Shell,
-      icon: 'i-codicon-terminal-bash'
     },
     !isMobile && {
       label: 'Updater',
@@ -302,7 +295,6 @@
       bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid select-none px-2"
   >
     <img
-      on:click={() => open('https://tauri.app/')}
       class="self-center p-7 cursor-pointer"
       src="tauri_logo.png"
       alt="Tauri logo"

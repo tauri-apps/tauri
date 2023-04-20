@@ -16,9 +16,6 @@ use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
 
-#[cfg(feature = "shell-scope")]
-use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
-
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
@@ -424,38 +421,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   };
 
-  #[cfg(feature = "shell-scope")]
-  let with_shell_scope_code = {
-    use regex::Regex;
-    use tauri_utils::config::ShellAllowlistOpen;
-
-    let shell_scopes = get_allowed_clis(&root, &config.tauri.allowlist.shell.scope);
-
-    let shell_scope_constructor = match &config.tauri.allowlist.shell.open {
-      ShellAllowlistOpen::Flag(false) => quote!(#root::ShellScopeConfig::new().skip_validation()),
-      ShellAllowlistOpen::Flag(true) => quote!(#root::ShellScopeConfig::new()),
-      ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
-        Ok(_) => {
-          quote!(#root::ShellScopeConfig::with_validator(#root::regex::Regex::new(#regex).unwrap()))
-        }
-        Err(error) => {
-          let error = error.to_string();
-          quote!({
-            compile_error!(#error);
-            #root::ShellScopeConfig::with_validator(#root::regex::Regex::new(#regex).unwrap())
-          })
-        }
-      },
-      _ => panic!("unknown shell open format, unable to prepare"),
-    };
-    let shell_scope = quote!(#shell_scope_constructor.set_allowed_commands(#shell_scopes));
-
-    quote!(context.set_shell_scope(#shell_scope);)
-  };
-
-  #[cfg(not(feature = "shell-scope"))]
-  let with_shell_scope_code = quote!();
-
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
@@ -468,7 +433,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #pattern,
     );
     #with_system_tray_icon_code
-    #with_shell_scope_code
     context
   }))
 }
@@ -586,79 +550,4 @@ fn find_icon<F: Fn(&&String) -> bool>(
     .cloned()
     .unwrap_or_else(|| default.to_string());
   config_parent.join(icon_path)
-}
-
-#[cfg(feature = "shell-scope")]
-fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStream {
-  let commands = scope
-    .0
-    .iter()
-    .map(|scope| {
-      let sidecar = &scope.sidecar;
-
-      let name = &scope.name;
-      let name = quote!(#name.into());
-
-      let command = scope.command.to_string_lossy();
-      let command = quote!(::std::path::PathBuf::from(#command));
-
-      let args = match &scope.args {
-        ShellAllowedArgs::Flag(true) => quote!(::std::option::Option::None),
-        ShellAllowedArgs::Flag(false) => quote!(::std::option::Option::Some(::std::vec![])),
-        ShellAllowedArgs::List(list) => {
-          let list = list.iter().map(|arg| match arg {
-            ShellAllowedArg::Fixed(fixed) => {
-              quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
-            }
-            ShellAllowedArg::Var { validator } => {
-              let validator = match regex::Regex::new(validator) {
-                Ok(regex) => {
-                  let regex = regex.as_str();
-                  quote!(#root::regex::Regex::new(#regex).unwrap())
-                }
-                Err(error) => {
-                  let error = error.to_string();
-                  quote!({
-                    compile_error!(#error);
-                    #root::regex::Regex::new(#validator).unwrap()
-                  })
-                }
-              };
-
-              quote!(#root::scope::ShellScopeAllowedArg::Var { validator: #validator })
-            }
-            _ => panic!("unknown shell scope arg, unable to prepare"),
-          });
-
-          quote!(::std::option::Option::Some(::std::vec![#(#list),*]))
-        }
-        _ => panic!("unknown shell scope command, unable to prepare"),
-      };
-
-      (
-        quote!(#name),
-        quote!(
-          #root::scope::ShellScopeAllowedCommand {
-            command: #command,
-            args: #args,
-            sidecar: #sidecar,
-          }
-        ),
-      )
-    })
-    .collect::<Vec<_>>();
-
-  if commands.is_empty() {
-    quote!(::std::collections::HashMap::new())
-  } else {
-    let insertions = commands
-      .iter()
-      .map(|(name, value)| quote!(hashmap.insert(#name, #value);));
-
-    quote!({
-      let mut hashmap = ::std::collections::HashMap::new();
-      #(#insertions)*
-      hashmap
-    })
-  }
 }

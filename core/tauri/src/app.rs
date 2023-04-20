@@ -27,9 +27,6 @@ use crate::{
   Runtime, Scopes, StateManager, Theme, Window,
 };
 
-#[cfg(shell_scope)]
-use crate::scope::ShellScope;
-
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
 use tauri_runtime::window::{
@@ -420,18 +417,14 @@ impl<R: Runtime> AppHandle<R> {
     std::process::exit(exit_code);
   }
 
-  /// Restarts the app. This is the same as [`crate::api::process::restart`], but it performs cleanup on this application.
+  /// Restarts the app. This is the same as [`crate::process::restart`], but it performs cleanup on this application.
   pub fn restart(&self) {
     self.cleanup_before_exit();
-    crate::api::process::restart(&self.env());
+    crate::process::restart(&self.env());
   }
 
   /// Runs necessary cleanup tasks before exiting the process
   fn cleanup_before_exit(&self) {
-    #[cfg(any(shell_execute, shell_sidecar))]
-    {
-      crate::api::process::kill_children();
-    }
     #[cfg(all(windows, feature = "system-tray"))]
     {
       for tray in self.manager().trays().values() {
@@ -764,7 +757,7 @@ impl<R: Runtime> App<R> {
   /// Runs a iteration of the runtime event loop and immediately return.
   ///
   /// Note that when using this API, app cleanup is not automatically done.
-  /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
+  /// The cleanup calls [`crate::process::kill_children`] so you may want to call that function before exiting the application.
   /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
   /// # Examples
@@ -1203,19 +1196,15 @@ impl<R: Runtime> Builder<R> {
   ///     MenuEntry::Submenu(Submenu::new(
   ///       "File",
   ///       Menu::with_items([
-  ///         CustomMenuItem::new("New", "New").into(),
-  ///         CustomMenuItem::new("Learn More", "Learn More").into(),
+  ///         CustomMenuItem::new("new", "New").into(),
+  ///         CustomMenuItem::new("learn-more", "Learn More").into(),
   ///       ]),
   ///     )),
   ///   ]))
   ///   .on_menu_event(|event| {
   ///     match event.menu_item_id() {
-  ///       "Learn More" => {
-  ///         // open in browser (requires the `shell-open-api` feature)
-  #[cfg_attr(
-    feature = "shell-open-api",
-    doc = r#"         api::shell::open(&event.window().shell_scope(), "https://github.com/tauri-apps/tauri".to_string(), None).unwrap();"#
-  )]
+  ///       "learn-more" => {
+  ///         // open a link in the browser using tauri-plugin-shell
   ///       }
   ///       id => {
   ///         // do something with other events
@@ -1384,9 +1373,6 @@ impl<R: Runtime> Builder<R> {
       self.menu = Some(Menu::os_default(&context.package_info().name));
     }
 
-    #[cfg(shell_scope)]
-    let shell_scope = context.shell_scope.clone();
-
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,
@@ -1462,8 +1448,6 @@ impl<R: Runtime> Builder<R> {
         &app,
         &app.config().tauri.allowlist.protocol.asset_scope,
       )?,
-      #[cfg(shell_scope)]
-      shell: ShellScope::new(&app, shell_scope),
     });
 
     #[cfg(windows)]

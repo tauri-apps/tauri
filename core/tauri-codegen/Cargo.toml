@@ -23,7 +23,6 @@ tauri-utils = { version = "2.0.0-alpha.4", path = "../tauri-utils", features = [
 thiserror = "1"
 walkdir = "2"
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
-regex = { version = "1.7.1", optional = true }
 uuid = { version = "1", features = [ "v4" ] }
 semver = "1"
 ico = "0.3"
@@ -39,6 +38,5 @@ time = { version = "0.3", features = [ "parsing", "formatting" ] }
 default = [ "compression" ]
 compression = [ "brotli", "tauri-utils/compression" ]
 isolation = [ "tauri-utils/isolation" ]
-shell-scope = [ "regex" ]
 config-json5 = [ "tauri-utils/config-json5" ]
 config-toml = [ "tauri-utils/config-toml" ]

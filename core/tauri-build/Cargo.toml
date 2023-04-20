@@ -28,8 +28,9 @@ heck = "0.4"
 json-patch = "0.3"
 walkdir = "2"
 filetime = "0.2"
-tauri-winres = "0.1"
+winres = "0.1"
 semver = "1"
+embed-resource = "2.1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 swift-rs = { version = "1.0.4", features = [ "build" ] }

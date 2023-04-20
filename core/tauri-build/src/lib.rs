@@ -109,17 +109,6 @@ fn cfg_alias(alias: &str, has_feature: bool) {
 #[derive(Debug, Default)]
 pub struct WindowsAttributes {
   window_icon_path: Option<PathBuf>,
-  /// The path to the sdk location.
-  ///
-  /// For the GNU toolkit this has to be the path where MinGW put windres.exe and ar.exe.
-  /// This could be something like: "C:\Program Files\mingw-w64\x86_64-5.3.0-win32-seh-rt_v4-rev0\mingw64\bin"
-  ///
-  /// For MSVC the Windows SDK has to be installed. It comes with the resource compiler rc.exe.
-  /// This should be set to the root directory of the Windows SDK, e.g., "C:\Program Files (x86)\Windows Kits\10" or,
-  /// if multiple 10 versions are installed, set it directly to the correct bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
-  ///
-  /// If it is left unset, it will look up a path in the registry, i.e. HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots
-  sdk_dir: Option<PathBuf>,
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
@@ -149,9 +138,11 @@ impl WindowsAttributes {
 
   /// Sets the sdk dir for windows. Currently only used on Windows. This must be a valid UTF-8
   /// path. Defaults to whatever the `winres` crate determines is best.
+  ///
+  /// Deprecated: not used anymore
   #[must_use]
-  pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {
-    self.sdk_dir = Some(sdk_dir.as_ref().into());
+  #[deprecated(note = "Not used anymore")]
+  pub fn sdk_dir<P: AsRef<Path>>(self, _sdk_dir: P) -> Self {
     self
   }
 
@@ -404,7 +395,7 @@ dependencies {"
 
   if target_triple.contains("windows") {
     use semver::Version;
-    use tauri_winres::{VersionInfo, WindowsResource};
+    use winres::{VersionInfo, WindowsResource};
 
     fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
       let icon_path = config
@@ -433,15 +424,6 @@ dependencies {"
           res.set_manifest(include_str!("window-app-manifest.xml"));
         }
 
-        if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
-          if let Some(sdk_dir_str) = sdk_dir.to_str() {
-            res.set_toolkit_path(sdk_dir_str);
-          } else {
-            return Err(anyhow!(
-              "sdk_dir path is not valid; only UTF-8 characters are allowed"
-            ));
-          }
-        }
         if let Some(version) = &config.package.version {
           if let Ok(v) = Version::parse(version) {
             let version = v.major << 48 | v.minor << 32 | v.patch << 16;
@@ -455,13 +437,22 @@ dependencies {"
           res.set("ProductName", product_name);
           res.set("FileDescription", product_name);
         }
-        res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
-        res.compile().with_context(|| {
-          format!(
-            "failed to compile `{}` into a Windows Resource file during tauri-build",
-            window_icon_path.display()
-          )
-        })?;
+        res.set_icon_with_id(
+          &window_icon_path
+            .canonicalize()
+            .unwrap_or_else(|_| window_icon_path.clone())
+            .display()
+            .to_string(),
+          "32512",
+        );
+        let out_dir = std::env::var("OUT_DIR").unwrap_or_else(|_| ".".to_string());
+        let output = PathBuf::from(out_dir);
+        let rc_file = output.join("resource.rc");
+        res
+          .write_resource_file(&rc_file)
+          .with_context(|| "Failed to create Windows Resource file during tauri-build")?;
+        // embed_resource::compile() as a better cross-compilation support than res.compile()
+        embed_resource::compile(rc_file, embed_resource::NONE);
       } else {
         return Err(anyhow!(format!(
           "`{}` not found; required for generating a Windows Resource file during tauri-build",

@@ -7,6 +7,11 @@ import os.log
 
 open class Plugin: NSObject {
     public let manager: PluginManager = PluginManager.shared
+    public var config: JSObject = [:]
+
+    internal func setConfig(_ config: JSObject) {
+      self.config = config
+    }
 
     @objc open func load(webview: WKWebView) {}
 

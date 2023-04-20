@@ -155,6 +155,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       runtime_handle: &R::Handle,
       plugin_name: &'static str,
       plugin_class: String,
+      plugin_config: &serde_json::Value,
     ) -> Result<(), JniError> {
       let plugin_manager = env
         .call_method(
@@ -177,11 +178,12 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       env.call_method(
         plugin_manager,
         "load",
-        "(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;)V",
+        "(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;Lapp/tauri/plugin/JSObject;)V",
         &[
           webview.into(),
           env.new_string(plugin_name)?.into(),
           plugin.into(),
+          crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, plugin_config)?
         ],
       )?;
 
@@ -190,6 +192,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
 
     let plugin_class = format!("{}/{}", plugin_identifier.replace('.', "/"), class_name);
     let plugin_name = self.name;
+    let plugin_config = self.raw_config.clone();
     let runtime_handle = self.handle.runtime_handle.clone();
     let (tx, rx) = channel();
     self
@@ -203,6 +206,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
           &runtime_handle,
           plugin_name,
           plugin_class,
+          &plugin_config,
         );
         tx.send(result).unwrap();
       });
@@ -317,7 +321,7 @@ impl<R: Runtime> PluginHandle<R> {
       id: i32,
       plugin: &'static str,
       method: String,
-      payload: serde_json::Value,
+      payload: &serde_json::Value,
       runtime_handle: &R::Handle,
       env: JNIEnv<'_>,
       activity: JObject<'_>,
@@ -373,7 +377,7 @@ impl<R: Runtime> PluginHandle<R> {
       );
 
     handle.run_on_android_context(move |env, activity, _webview| {
-      if let Err(e) = run::<R>(id, plugin_name, method, payload, &handle_, env, activity) {
+      if let Err(e) = run::<R>(id, plugin_name, method, &payload, &handle_, env, activity) {
         tx_.send(Err(e)).unwrap();
       }
     });

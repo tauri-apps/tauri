@@ -15,11 +15,11 @@ fn json_to_java<'a, R: Runtime>(
   env: JNIEnv<'a>,
   activity: JObject<'a>,
   runtime_handle: &R::Handle,
-  json: JsonValue,
+  json: &JsonValue,
 ) -> Result<(&'static str, JValue<'a>), JniError> {
   let (class, v) = match json {
     JsonValue::Null => ("Ljava/lang/Object;", JObject::null().into()),
-    JsonValue::Bool(val) => ("Z", val.into()),
+    JsonValue::Bool(val) => ("Z", (*val).into()),
     JsonValue::Number(val) => {
       if let Some(v) = val.as_i64() {
         ("J", v.into())
@@ -74,9 +74,9 @@ pub fn to_jsobject<'a, R: Runtime>(
   env: JNIEnv<'a>,
   activity: JObject<'a>,
   runtime_handle: &R::Handle,
-  json: JsonValue,
+  json: &JsonValue,
 ) -> Result<JValue<'a>, JniError> {
-  if let JsonValue::Object(_) = &json {
+  if let JsonValue::Object(_) = json {
     json_to_java::<R>(env, activity, runtime_handle, json).map(|(_class, data)| data)
   } else {
     // currently the Kotlin lib cannot handle nulls or raw values, it must be an object

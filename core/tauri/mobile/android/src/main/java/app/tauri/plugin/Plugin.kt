@@ -26,6 +26,10 @@ abstract class Plugin(private val activity: Activity) {
 
   open fun load(webView: WebView) {}
 
+  fun getConfig(): JSObject {
+    return handle!!.config
+  }
+
   /**
    * Start activity for result with the provided Intent and resolve calling the provided callback method name.
    *
@@ -74,7 +78,7 @@ abstract class Plugin(private val activity: Activity) {
    */
   @Command
   @PermissionCallback
-  fun checkPermissions(invoke: Invoke) {
+  open fun checkPermissions(invoke: Invoke) {
     val permissionsResult: Map<String, PermissionState?> = getPermissionStates()
     if (permissionsResult.isEmpty()) {
       // if no permissions are defined on the plugin, resolve undefined

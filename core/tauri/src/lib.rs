@@ -19,7 +19,6 @@
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
 //! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
-//! - **http-multipart**: Adds support to `multipart/form-data` requests.
 //! - **native-tls**: Provides TLS support to connect over HTTPS.
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
@@ -969,7 +968,6 @@ mod tests {
     // features that look like an allowlist feature, but are not
     let allowed = [
       "fs-extract-api",
-      "http-multipart",
       "process-relaunch-dangerous-allow-symlink-macos",
       "window-data-url",
     ];

@@ -76,7 +76,7 @@ jobs:
               key: api-all
             }
           - {
-              args: --features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,updater,system-tray,http-multipart,
+              args: --features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,updater,system-tray,
               key: all
             }
 

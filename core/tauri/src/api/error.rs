@@ -21,19 +21,13 @@ pub enum Error {
   /// The dialog operation was cancelled by the user.
   #[error("user cancelled the dialog")]
   DialogCancelled,
-  /// The network error.
-  #[error("Network Error: {0}")]
-  Network(#[from] reqwest::Error),
-  /// HTTP method error.
-  #[error(transparent)]
-  HttpMethod(#[from] http::method::InvalidMethod),
   /// Invalid HTTP header value.
   #[error(transparent)]
   HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
   /// Invalid HTTP header value.
   #[error(transparent)]
   HttpHeader(#[from] http::header::InvalidHeaderName),
-  /// Failed to serialize header value as string.
+  /// Failed to convert bytes to string.
   #[error(transparent)]
   Utf8(#[from] std::string::FromUtf8Error),
   /// HTTP form to must be an object.
@@ -59,10 +53,6 @@ pub enum Error {
   #[cfg(feature = "fs-extract-api")]
   #[error("Failed to extract: {0}")]
   Extract(String),
-  /// Notification error.
-  #[cfg(notification_all)]
-  #[error(transparent)]
-  Notification(#[from] notify_rust::error::Error),
   /// Url error.
   #[error(transparent)]
   Url(#[from] url::ParseError),

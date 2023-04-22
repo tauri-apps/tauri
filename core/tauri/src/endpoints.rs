@@ -13,24 +13,11 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 
 mod app;
-#[cfg(clipboard_any)]
-mod clipboard;
-#[cfg(dialog_any)]
-mod dialog;
 mod event;
-#[cfg(fs_any)]
-mod file_system;
-#[cfg(global_shortcut_any)]
-mod global_shortcut;
-#[cfg(http_any)]
-mod http;
-mod notification;
 #[cfg(os_any)]
 mod operating_system;
 #[cfg(process_any)]
 mod process;
-#[cfg(shell_any)]
-mod shell;
 mod window;
 
 /// The context passed to the invoke handler.
@@ -70,23 +57,10 @@ enum Module {
   App(app::Cmd),
   #[cfg(process_any)]
   Process(process::Cmd),
-  #[cfg(fs_any)]
-  Fs(file_system::Cmd),
   #[cfg(os_any)]
   Os(operating_system::Cmd),
   Window(Box<window::Cmd>),
-  #[cfg(shell_any)]
-  Shell(shell::Cmd),
   Event(event::Cmd),
-  #[cfg(dialog_any)]
-  Dialog(dialog::Cmd),
-  Notification(notification::Cmd),
-  #[cfg(http_any)]
-  Http(http::Cmd),
-  #[cfg(global_shortcut_any)]
-  GlobalShortcut(global_shortcut::Cmd),
-  #[cfg(clipboard_any)]
-  Clipboard(clipboard::Cmd),
 }
 
 impl Module {
@@ -116,13 +90,6 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from_anyhow)
       }),
-      #[cfg(fs_any)]
-      Self::Fs(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
       #[cfg(os_any)]
       Self::Os(cmd) => resolver.respond_async(async move {
         cmd
@@ -137,49 +104,7 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from_anyhow)
       }),
-      #[cfg(shell_any)]
-      Self::Shell(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
       Self::Event(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(dialog_any)]
-      Self::Dialog(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      Self::Notification(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(http_any)]
-      Self::Http(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .await
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(global_shortcut_any)]
-      Self::GlobalShortcut(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(clipboard_any)]
-      Self::Clipboard(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
           .and_then(|r| r.json)

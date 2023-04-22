@@ -19,22 +19,14 @@
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
 //! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
-//! - **shell-open-api**: Enables the [`api::shell`] module.
-//! - **http-api**: Enables the [`api::http`] module.
-//! - **http-multipart**: Adds support to `multipart/form-data` requests.
 //! - **native-tls**: Provides TLS support to connect over HTTPS.
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
-//! - **process-command-api**: Enables the [`api::process::Command`] APIs.
-//! - **global-shortcut**: Enables the global shortcut APIs.
-//! - **clipboard**: Enables the clipboard APIs.
-//! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`api::process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
+//! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **dialog**: Enables the [`api::dialog`] module.
-//! - **notification**: Enables the [`api::notification`] module.
 //! - **fs-extract-api**: Enabled the `tauri::api::file::Extract` API.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
-//! - **windows7-compat**: Enables compatibility with Windows 7 for the notification API.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
@@ -176,9 +168,6 @@ pub use cocoa;
 pub use embed_plist;
 /// The Tauri error enum.
 pub use error::Error;
-#[cfg(shell_scope)]
-#[doc(hidden)]
-pub use regex;
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
@@ -206,6 +195,7 @@ mod ios;
 mod jni_helpers;
 /// Path APIs.
 pub mod path;
+pub mod process;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
@@ -312,14 +302,6 @@ pub use {
   self::window::{Monitor, Window, WindowBuilder},
   scope::*,
 };
-
-#[cfg(feature = "clipboard")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
-pub use self::runtime::ClipboardManager;
-
-#[cfg(all(desktop, feature = "global-shortcut"))]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
-pub use self::runtime::GlobalShortcutManager;
 
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -552,12 +534,11 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
+  #[cfg(desktop)]
   pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
-  #[cfg(shell_scope)]
-  pub(crate) shell_scope: scope::ShellScopeConfig,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
@@ -566,11 +547,12 @@ impl<A: Assets> fmt::Debug for Context<A> {
     d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
-      .field("system_tray_icon", &self.system_tray_icon)
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
-    #[cfg(shell_scope)]
-    d.field("shell_scope", &self.shell_scope);
+
+    #[cfg(desktop)]
+    d.field("system_tray_icon", &self.system_tray_icon);
+
     d.finish()
   }
 }
@@ -613,12 +595,14 @@ impl<A: Assets> Context<A> {
   }
 
   /// The icon to use on the system tray UI.
+  #[cfg(desktop)]
   #[inline(always)]
   pub fn system_tray_icon(&self) -> Option<&Icon> {
     self.system_tray_icon.as_ref()
   }
 
   /// A mutable reference to the icon to use on the system tray UI.
+  #[cfg(desktop)]
   #[inline(always)]
   pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
     &mut self.system_tray_icon
@@ -642,13 +626,6 @@ impl<A: Assets> Context<A> {
     &self.pattern
   }
 
-  /// The scoped shell commands, where the `HashMap` key is the name each configuration.
-  #[cfg(shell_scope)]
-  #[inline(always)]
-  pub fn allowed_commands(&self) -> &scope::ShellScopeConfig {
-    &self.shell_scope
-  }
-
   /// Create a new [`Context`] from the minimal required items.
   #[inline(always)]
   #[allow(clippy::too_many_arguments)]
@@ -657,24 +634,35 @@ impl<A: Assets> Context<A> {
     assets: Arc<A>,
     default_window_icon: Option<Icon>,
     app_icon: Option<Vec<u8>>,
-    system_tray_icon: Option<Icon>,
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
-    #[cfg(shell_scope)] shell_scope: scope::ShellScopeConfig,
   ) -> Self {
     Self {
       config,
       assets,
       default_window_icon,
       app_icon,
-      system_tray_icon,
+      #[cfg(desktop)]
+      system_tray_icon: None,
       package_info,
       _info_plist: info_plist,
       pattern,
-      #[cfg(shell_scope)]
-      shell_scope,
     }
+  }
+
+  /// Sets the app tray icon.
+  #[cfg(desktop)]
+  #[inline(always)]
+  pub fn set_system_tray_icon(&mut self, icon: Icon) {
+    self.system_tray_icon.replace(icon);
+  }
+
+  /// Sets the app shell scope.
+  #[cfg(shell_scope)]
+  #[inline(always)]
+  pub fn set_shell_scope(&mut self, scope: scope::ShellScopeConfig) {
+    self.shell_scope = scope;
   }
 }
 
@@ -884,12 +872,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.state::<Scopes>().inner().asset_protocol.clone()
   }
 
-  /// Gets the scope for the shell execute APIs.
-  #[cfg(shell_scope)]
-  fn shell_scope(&self) -> ShellScope {
-    self.state::<Scopes>().inner().shell.clone()
-  }
-
   /// The path resolver.
   fn path(&self) -> &crate::path::PathResolver<R> {
     self.state::<crate::path::PathResolver<R>>().inner()
@@ -986,9 +968,6 @@ mod tests {
     // features that look like an allowlist feature, but are not
     let allowed = [
       "fs-extract-api",
-      "http-api",
-      "http-multipart",
-      "process-command-api",
       "process-relaunch-dangerous-allow-symlink-macos",
       "window-data-url",
     ];

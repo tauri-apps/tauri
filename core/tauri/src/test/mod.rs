@@ -7,12 +7,8 @@
 mod mock_runtime;
 pub use mock_runtime::*;
 
-#[cfg(shell_scope)]
-use std::collections::HashMap;
 use std::{borrow::Cow, sync::Arc};
 
-#[cfg(shell_scope)]
-use crate::ShellScopeConfig;
 use crate::{Manager, Pattern, WindowBuilder};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
@@ -60,6 +56,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     assets: Arc::new(assets),
     default_window_icon: None,
     app_icon: None,
+    #[cfg(desktop)]
     system_tray_icon: None,
     package_info: crate::PackageInfo {
       name: "test".into(),
@@ -70,11 +67,6 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
-    #[cfg(shell_scope)]
-    shell_scope: ShellScopeConfig {
-      open: None,
-      scopes: HashMap::new(),
-    },
   }
 }
 
@@ -90,6 +82,7 @@ pub fn mock_app() -> crate::App<MockRuntime> {
   app
 }
 
+#[allow(dead_code)]
 pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRuntime> {
   let app = mock_app();
   crate::endpoints::InvokeContext {

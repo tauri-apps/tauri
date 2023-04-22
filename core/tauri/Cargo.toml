@@ -19,12 +19,10 @@ features = [
   "wry",
   "custom-protocol",
   "api-all",
-  "windows7-compat",
   "updater",
   "fs-extract-api",
   "system-tray",
   "devtools",
-  "http-multipart",
   "icon-png",
   "dox"
 ]
@@ -65,14 +63,10 @@ percent-encoding = "2.2"
 base64 = { version = "0.21", optional = true }
 reqwest = { version = "0.11", default-features = false, features = [ "json", "stream" ] }
 bytes = { version = "1", features = [ "serde" ] }
-open = { version = "3.0", optional = true }
-shared_child = { version = "1.0", optional = true }
-os_pipe = { version = "1.0", optional = true }
 raw-window-handle = "0.5"
 minisign-verify = { version = "0.2", optional = true }
 time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }
 os_info = { version = "3", optional = true }
-regex = { version = "1.6.0", optional = true }
 glob = "0.3"
 data-url = { version = "0.2", optional = true }
 serialize-to-javascript = "=0.1.1"
@@ -80,10 +74,6 @@ infer = { version = "0.9", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.2.0", optional = true }
 encoding_rs = "0.8.31"
-
-[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-rfd = { version = "0.11", optional = true, features = [ "gtk3", "common-controls-v6" ] }
-notify-rust = { version = "4.5", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.16", features = [ "v3_24" ] }
@@ -97,7 +87,6 @@ objc = "0.2"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.22"
-win7-notifications = { version = "0.3.1", optional = true }
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.44"
@@ -145,25 +134,13 @@ updater = [
   "minisign-verify",
   "time",
   "base64",
-  "http-api",
   "dialog-ask",
   "fs-extract-api"
 ]
-http-api = [ ]
-http-multipart = [ "reqwest/multipart" ]
-shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
 native-tls = [ "reqwest/native-tls" ]
 native-tls-vendored = [ "reqwest/native-tls-vendored" ]
 rustls-tls = [ "reqwest/rustls-tls" ]
-process-command-api = [ "shared_child", "os_pipe" ]
-global-shortcut = [
-  "tauri-runtime/global-shortcut",
-  "tauri-runtime-wry/global-shortcut"
-]
-clipboard = [ "tauri-runtime/clipboard", "tauri-runtime-wry/clipboard" ]
-dialog = [ "rfd" ]
-notification = [ "notify-rust" ]
 system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
 dox = [ "tauri-runtime-wry/dox" ]
@@ -171,7 +148,6 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry/macos-private-api"
 ]
-windows7-compat = [ "win7-notifications" ]
 window-data-url = [ "data-url" ]
 api-all = [
   "clipboard-all",
@@ -189,14 +165,14 @@ api-all = [
   "app-all"
 ]
 clipboard-all = [ "clipboard-write-text", "clipboard-read-text" ]
-clipboard-read-text = [ "clipboard" ]
-clipboard-write-text = [ "clipboard" ]
+clipboard-read-text = [ ]
+clipboard-write-text = [ ]
 dialog-all = [ "dialog-open", "dialog-save", "dialog-message", "dialog-ask" ]
-dialog-ask = [ "dialog" ]
-dialog-confirm = [ "dialog" ]
-dialog-message = [ "dialog" ]
-dialog-open = [ "dialog" ]
-dialog-save = [ "dialog" ]
+dialog-ask = [ ]
+dialog-confirm = [ ]
+dialog-message = [ ]
+dialog-open = [ ]
+dialog-save = [ ]
 fs-all = [
   "fs-copy-file",
   "fs-create-dir",
@@ -217,10 +193,10 @@ fs-remove-dir = [ ]
 fs-remove-file = [ ]
 fs-rename-file = [ ]
 fs-write-file = [ ]
-global-shortcut-all = [ "global-shortcut" ]
+global-shortcut-all = [ ]
 http-all = [ "http-request" ]
-http-request = [ "http-api" ]
-notification-all = [ "notification", "dialog-ask" ]
+http-request = [ ]
+notification-all = [ ]
 os-all = [ "os_info" ]
 path-all = [ ]
 process-all = [ "process-relaunch", "process-exit" ]
@@ -230,9 +206,9 @@ process-relaunch-dangerous-allow-symlink-macos = [ "tauri-utils/process-relaunch
 protocol-all = [ "protocol-asset" ]
 protocol-asset = [ ]
 shell-all = [ "shell-execute", "shell-sidecar", "shell-open" ]
-shell-execute = [ "process-command-api", "regex", "tauri-macros/shell-scope" ]
-shell-sidecar = [ "process-command-api", "regex", "tauri-macros/shell-scope" ]
-shell-open = [ "shell-open-api" ]
+shell-execute = [ ]
+shell-sidecar = [ ]
+shell-open = [ ]
 window-all = [
   "window-create",
   "window-center",

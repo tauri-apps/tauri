@@ -16,9 +16,6 @@ use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
 
-#[cfg(feature = "shell-scope")]
-use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
-
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
@@ -123,6 +120,16 @@ enum Target {
   Android,
   // iOS.
   Ios,
+}
+
+impl Target {
+  fn is_mobile(&self) -> bool {
+    matches!(self, Target::Android | Target::Ios)
+  }
+
+  fn is_desktop(&self) -> bool {
+    !self.is_mobile()
+  }
 }
 
 /// Build a `tauri::Context` for including in application code.
@@ -247,7 +254,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         "icons/icon.ico",
       );
       if icon_path.exists() {
-        ico_icon(&root, &out_dir, icon_path)?
+        ico_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
       } else {
         let icon_path = find_icon(
           &config,
@@ -255,7 +262,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
           |i| i.ends_with(".png"),
           "icons/icon.png",
         );
-        png_icon(&root, &out_dir, icon_path)?
+        png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
       }
     } else if target == Target::Linux {
       // handle default window icons for Linux targets
@@ -265,9 +272,9 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      png_icon(&root, &out_dir, icon_path)?
+      png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
     } else {
-      quote!(None)
+      quote!(::std::option::Option::None)
     }
   };
 
@@ -288,7 +295,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
     raw_icon(&out_dir, icon_path)?
   } else {
-    quote!(None)
+    quote!(::std::option::Option::None)
   };
 
   let package_name = if let Some(product_name) = &config.package.product_name {
@@ -312,20 +319,26 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   );
 
-  let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
-    let system_tray_icon_path = config_parent.join(&tray.icon_path);
-    let ext = system_tray_icon_path.extension();
-    if ext.map_or(false, |e| e == "ico") {
-      ico_icon(&root, &out_dir, system_tray_icon_path)?
-    } else if ext.map_or(false, |e| e == "png") {
-      png_icon(&root, &out_dir, system_tray_icon_path)?
+  let with_system_tray_icon_code = if target.is_desktop() {
+    if let Some(tray) = &config.tauri.system_tray {
+      let system_tray_icon_path = config_parent.join(&tray.icon_path);
+      let ext = system_tray_icon_path.extension();
+      if ext.map_or(false, |e| e == "ico") {
+        ico_icon(&root, &out_dir, system_tray_icon_path)
+          .map(|i| quote!(context.set_system_tray_icon(#i);))?
+      } else if ext.map_or(false, |e| e == "png") {
+        png_icon(&root, &out_dir, system_tray_icon_path)
+          .map(|i| quote!(context.set_system_tray_icon(#i);))?
+      } else {
+        quote!(compile_error!(
+          "The tray icon extension must be either `.ico` or `.png`."
+        ))
+      }
     } else {
-      quote!(compile_error!(
-        "The tray icon extension must be either `.ico` or `.png`."
-      ))
+      quote!()
     }
   } else {
-    quote!(None)
+    quote!()
   };
 
   #[cfg(target_os = "macos")]
@@ -408,51 +421,20 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   };
 
-  #[cfg(feature = "shell-scope")]
-  let shell_scope_config = {
-    use regex::Regex;
-    use tauri_utils::config::ShellAllowlistOpen;
-
-    let shell_scopes = get_allowed_clis(&root, &config.tauri.allowlist.shell.scope);
-
-    let shell_scope_open = match &config.tauri.allowlist.shell.open {
-      ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
-      ShellAllowlistOpen::Flag(true) => {
-        quote!(::std::option::Option::Some(#root::regex::Regex::new(r#"^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+"#).unwrap()))
-      }
-      ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
-        Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),
-        Err(error) => {
-          let error = error.to_string();
-          quote!({
-            compile_error!(#error);
-            ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
-          })
-        }
-      },
-      _ => panic!("unknown shell open format, unable to prepare"),
-    };
-
-    quote!(#root::ShellScopeConfig {
-      open: #shell_scope_open,
-      scopes: #shell_scopes
-    })
-  };
-
-  #[cfg(not(feature = "shell-scope"))]
-  let shell_scope_config = quote!();
-
-  Ok(quote!(#root::Context::new(
-    #config,
-    ::std::sync::Arc::new(#assets),
-    #default_window_icon,
-    #app_icon,
-    #system_tray_icon,
-    #package_info,
-    #info_plist,
-    #pattern,
-    #shell_scope_config
-  )))
+  Ok(quote!({
+    #[allow(unused_mut, clippy::let_and_return)]
+    let mut context = #root::Context::new(
+      #config,
+      ::std::sync::Arc::new(#assets),
+      #default_window_icon,
+      #app_icon,
+      #package_info,
+      #info_plist,
+      #pattern,
+    );
+    #with_system_tray_icon_code
+    context
+  }))
 }
 
 fn ico_icon<P: AsRef<Path>>(
@@ -483,7 +465,7 @@ fn ico_icon<P: AsRef<Path>>(
 
   let out_path = out_path.display().to_string();
 
-  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  let icon = quote!(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height });
   Ok(icon)
 }
 
@@ -501,7 +483,9 @@ fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, Embe
 
   let out_path = out_path.display().to_string();
 
-  let icon = quote!(Some(include_bytes!(#out_path).to_vec()));
+  let icon = quote!(::std::option::Option::Some(
+    include_bytes!(#out_path).to_vec()
+  ));
   Ok(icon)
 }
 
@@ -533,7 +517,7 @@ fn png_icon<P: AsRef<Path>>(
 
   let out_path = out_path.display().to_string();
 
-  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  let icon = quote!(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height });
   Ok(icon)
 }
 
@@ -566,79 +550,4 @@ fn find_icon<F: Fn(&&String) -> bool>(
     .cloned()
     .unwrap_or_else(|| default.to_string());
   config_parent.join(icon_path)
-}
-
-#[cfg(feature = "shell-scope")]
-fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStream {
-  let commands = scope
-    .0
-    .iter()
-    .map(|scope| {
-      let sidecar = &scope.sidecar;
-
-      let name = &scope.name;
-      let name = quote!(#name.into());
-
-      let command = scope.command.to_string_lossy();
-      let command = quote!(::std::path::PathBuf::from(#command));
-
-      let args = match &scope.args {
-        ShellAllowedArgs::Flag(true) => quote!(::std::option::Option::None),
-        ShellAllowedArgs::Flag(false) => quote!(::std::option::Option::Some(::std::vec![])),
-        ShellAllowedArgs::List(list) => {
-          let list = list.iter().map(|arg| match arg {
-            ShellAllowedArg::Fixed(fixed) => {
-              quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
-            }
-            ShellAllowedArg::Var { validator } => {
-              let validator = match regex::Regex::new(validator) {
-                Ok(regex) => {
-                  let regex = regex.as_str();
-                  quote!(#root::regex::Regex::new(#regex).unwrap())
-                }
-                Err(error) => {
-                  let error = error.to_string();
-                  quote!({
-                    compile_error!(#error);
-                    #root::regex::Regex::new(#validator).unwrap()
-                  })
-                }
-              };
-
-              quote!(#root::scope::ShellScopeAllowedArg::Var { validator: #validator })
-            }
-            _ => panic!("unknown shell scope arg, unable to prepare"),
-          });
-
-          quote!(::std::option::Option::Some(::std::vec![#(#list),*]))
-        }
-        _ => panic!("unknown shell scope command, unable to prepare"),
-      };
-
-      (
-        quote!(#name),
-        quote!(
-          #root::scope::ShellScopeAllowedCommand {
-            command: #command,
-            args: #args,
-            sidecar: #sidecar,
-          }
-        ),
-      )
-    })
-    .collect::<Vec<_>>();
-
-  if commands.is_empty() {
-    quote!(::std::collections::HashMap::new())
-  } else {
-    let insertions = commands
-      .iter()
-      .map(|(name, value)| quote!(hashmap.insert(#name, #value);));
-
-    quote!({
-      let mut hashmap = ::std::collections::HashMap::new();
-      #(#insertions)*
-      hashmap
-    })
-  }
 }

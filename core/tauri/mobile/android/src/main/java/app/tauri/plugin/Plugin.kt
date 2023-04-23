@@ -31,6 +31,11 @@ abstract class Plugin(private val activity: Activity) {
   }
 
   /**
+   * Handle a new intent being received by the application
+   */
+  open fun onNewIntent(intent: Intent) {}
+
+  /**
    * Start activity for result with the provided Intent and resolve calling the provided callback method name.
    *
    * If there is no registered activity callback for the method name passed in, the call will

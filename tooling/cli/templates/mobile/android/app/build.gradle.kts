@@ -37,7 +37,7 @@ android {
         getByName("release") {
             isMinifyEnabled = true
             val proguards = fileTree(".") {
-              include("*.pro")
+              include("**/*.pro")
             }
             proguardFiles(*proguards.toList().toTypedArray())
         }

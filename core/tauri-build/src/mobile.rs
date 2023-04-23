@@ -5,7 +5,7 @@
 use std::{
   collections::HashMap,
   env::{var, var_os},
-  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, rename, write},
+  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, write},
   path::{Path, PathBuf},
 };
 
@@ -125,45 +125,6 @@ pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
   if let Some(root) = sdk_root {
     std::env::set_var("SDKROOT", root);
   }
-}
-
-#[doc(hidden)]
-pub fn inject_android_project(
-  source: impl AsRef<Path>,
-  target: impl AsRef<Path>,
-  ignore_paths: &[&str],
-) -> Result<()> {
-  let source = source.as_ref();
-  let target = target.as_ref();
-
-  // keep build folder if it exists
-  let build_path = target.join("build");
-  let out_dir = if build_path.exists() {
-    let out_dir = target.parent().unwrap().join(".tauri-tmp-build");
-    let _ = remove_dir_all(&out_dir);
-    rename(&build_path, &out_dir).context("failed to rename build directory")?;
-    Some(out_dir)
-  } else {
-    None
-  };
-
-  copy_folder(source, target, ignore_paths).context("failed to copy Android project")?;
-
-  if let Some(out_dir) = out_dir {
-    rename(out_dir, &build_path).context("failed to restore build directory")?;
-  }
-
-  let rerun_path = target.join("build.gradle.kts");
-  let metadata = source.join("build.gradle.kts").metadata()?;
-  filetime::set_file_mtime(
-    &rerun_path,
-    filetime::FileTime::from_last_modification_time(&metadata),
-  )
-  .context("failed to update build.gradle.kts mtime")?;
-
-  println!("cargo:rerun-if-changed={}", rerun_path.display());
-
-  Ok(())
 }
 
 fn copy_folder(source: &Path, target: &Path, ignore_paths: &[&str]) -> Result<()> {

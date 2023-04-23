@@ -13,7 +13,7 @@ exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.28", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { version = "0.28.1", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.13.0-alpha.4", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-alpha.4", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }

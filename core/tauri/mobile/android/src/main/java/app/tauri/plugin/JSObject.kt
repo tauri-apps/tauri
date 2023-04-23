@@ -28,10 +28,14 @@ class JSObject : JSONObject {
   }
 
   fun getInteger(key: String): Int? {
-    return getInteger(key, null)
+    return getIntegerInternal(key, null)
   }
 
-  fun getInteger(key: String, defaultValue: Int?): Int? {
+  fun getInteger(key: String, defaultValue: Int): Int {
+    return getIntegerInternal(key, defaultValue)!!
+  }
+
+  private fun getIntegerInternal(key: String, defaultValue: Int?): Int? {
     try {
       return super.getInt(key)
     } catch (_: JSONException) {
@@ -39,7 +43,15 @@ class JSObject : JSONObject {
     return defaultValue
   }
 
-  fun getBoolean(key: String, defaultValue: Boolean?): Boolean? {
+  override fun getBoolean(key: String): Boolean {
+    return getBooleanInternal(key, false)!!
+  }
+
+  fun getBoolean(key: String, defaultValue: Boolean?): Boolean {
+    return getBooleanInternal(key, defaultValue)!!
+  }
+
+  private fun getBooleanInternal(key: String, defaultValue: Boolean?): Boolean? {
     try {
       return super.getBoolean(key)
     } catch (_: JSONException) {
@@ -47,23 +59,19 @@ class JSObject : JSONObject {
     return defaultValue
   }
 
-  /**
-   * Fetch boolean from jsonObject
-   */
-  fun getBool(key: String): Boolean? {
-    return getBoolean(key, null)
-  }
-
   fun getJSObject(name: String): JSObject? {
     try {
-      return getJSObject(name, null)
-    } catch (e: JSONException) {
+      return getJSObjectInternal(name, null)
+    } catch (_: JSONException) {
     }
     return null
   }
 
-  @Throws(JSONException::class)
-  fun getJSObject(name: String, defaultValue: JSObject?): JSObject? {
+  fun getJSObject(name: String, defaultValue: JSObject): JSObject {
+    return getJSObjectInternal(name, defaultValue)!!
+  }
+
+  private fun getJSObjectInternal(name: String, defaultValue: JSObject?): JSObject? {
     try {
       val obj = get(name)
       if (obj is JSONObject) {
@@ -125,11 +133,6 @@ class JSObject : JSONObject {
     } catch (_: JSONException) {
     }
     return this
-  }
-
-  @Throws(JSONException::class)
-  fun putSafe(key: String, value: Any?): JSObject {
-    return super.put(key, value) as JSObject
   }
 
   companion object {

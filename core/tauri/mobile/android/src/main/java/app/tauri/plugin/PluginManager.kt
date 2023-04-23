@@ -46,6 +46,12 @@ class PluginManager(val activity: AppCompatActivity) {
       }
   }
 
+  fun onNewIntent(intent: Intent) {
+    for (plugin in plugins.values) {
+      plugin.instance.onNewIntent(intent)
+    }
+  }
+
   fun startActivityForResult(intent: Intent, callback: ActivityResultCallback) {
     startActivityForResultCallback = callback
     startActivityForResultLauncher.launch(intent)

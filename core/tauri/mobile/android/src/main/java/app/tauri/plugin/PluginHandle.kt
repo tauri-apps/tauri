@@ -17,7 +17,7 @@ import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
 import java.lang.reflect.Method
 
-class PluginHandle(private val manager: PluginManager, val name: String, private val instance: Plugin, val config: JSObject) {
+class PluginHandle(private val manager: PluginManager, val name: String, val instance: Plugin, val config: JSObject) {
   private val commands: HashMap<String, CommandData> = HashMap()
   private val permissionCallbackMethods: HashMap<String, Method> = HashMap()
   private val startActivityCallbackMethods: HashMap<String, Method> = HashMap()

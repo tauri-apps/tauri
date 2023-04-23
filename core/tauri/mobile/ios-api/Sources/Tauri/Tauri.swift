@@ -46,7 +46,8 @@ public class PluginManager {
 		}
 	}
 
-	func load<P: Plugin>(webview: WKWebView?, name: String, plugin: P) {
+	func load<P: Plugin>(name: String, plugin: P, config: JSObject, webview: WKWebView?) {
+    plugin.setConfig(config)
 		let handle = PluginHandle(plugin: plugin)
 		if let webview = webview {
 			handle.instance.load(webview: webview)
@@ -91,11 +92,13 @@ extension PluginManager: NSCopying {
 	}
 }
 
-public func registerPlugin<P: Plugin>(webview: WKWebView?, name: String, plugin: P) {
+@_cdecl("register_plugin")
+func registerPlugin(name: SRString, plugin: NSObject, config: NSDictionary, webview: WKWebView?) {
 	PluginManager.shared.load(
-		webview: webview,
-		name: name,
-		plugin: plugin
+		name: name.toString(),
+		plugin: plugin as! Plugin,
+    config: JSTypes.coerceDictionaryToJSObject(config, formattingDatesAsStrings: true)!,
+    webview: webview
 	)
 }
 

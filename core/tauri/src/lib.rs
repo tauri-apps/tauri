@@ -157,7 +157,7 @@
 #[macro_export]
 macro_rules! ios_plugin_binding {
   ($fn_name: ident) => {
-    tauri::swift_rs::swift!(fn $fn_name(name: &::tauri::swift_rs::SRString, webview: *const ::std::ffi::c_void));
+    tauri::swift_rs::swift!(fn $fn_name() -> *const ::std::ffi::c_void);
   }
 }
 #[cfg(target_os = "ios")]

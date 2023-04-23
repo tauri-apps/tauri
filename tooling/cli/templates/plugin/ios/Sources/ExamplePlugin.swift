@@ -11,6 +11,6 @@ class ExamplePlugin: Plugin {
 }
 
 @_cdecl("init_plugin_{{ plugin_name_snake_case }}")
-func initPlugin(name: SRString, webview: WKWebView?) {
-	Tauri.registerPlugin(webview: webview, name: name.toString(), plugin: ExamplePlugin())
+func initPlugin() -> Plugin {
+	return ExamplePlugin()
 }

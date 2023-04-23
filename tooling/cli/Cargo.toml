@@ -42,7 +42,7 @@ path = "src/main.rs"
 openssl-vendored = [ "tauri-mobile/openssl-vendored" ]
 
 [dependencies]
-tauri-mobile = { version = "0.3", default-features = false }
+tauri-mobile = { version = "0.4", default-features = false }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.16", features = [ "server" ] }
 jsonrpsee-core = "0.16"
@@ -60,6 +60,7 @@ serde_json = "1.0"
 notify = "5.0"
 notify-debouncer-mini = "0.2"
 shared_child = "1.0"
+duct = "0.13"
 toml_edit = "0.14"
 json-patch = "0.2"
 tauri-utils = { version = "2.0.0-alpha.4", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }

@@ -3700,6 +3700,7 @@ dependencies = [
  "css-color",
  "ctrlc",
  "dialoguer",
+ "duct",
  "env_logger",
  "handlebars 4.3.6",
  "heck",
@@ -3770,9 +3771,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-mobile"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fad13092a3a94d64f783bb2818a839897431d7224c26a98890d189af041c404"
+checksum = "9734a0128db0a9729b5264dd0be546527c21555e7f05844226786d027b1b6aaa"
 dependencies = [
  "cocoa",
  "colored 1.9.3",
@@ -3805,7 +3806,6 @@ dependencies = [
  "toml",
  "ureq",
  "which",
- "winapi",
  "windows 0.39.0",
 ]
 

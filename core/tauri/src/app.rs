@@ -27,9 +27,6 @@ use crate::{
   Runtime, Scopes, StateManager, Theme, Window,
 };
 
-#[cfg(shell_scope)]
-use crate::scope::ShellScope;
-
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
 use tauri_runtime::window::{
@@ -262,8 +259,6 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: WindowManager<R>,
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  global_shortcut_manager: R::GlobalShortcutManager,
   /// The updater configuration.
   #[cfg(updater)]
   pub(crate) updater_settings: UpdaterSettings,
@@ -311,8 +306,6 @@ impl<R: Runtime> Clone for AppHandle<R> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
-      #[cfg(all(desktop, feature = "global-shortcut"))]
-      global_shortcut_manager: self.global_shortcut_manager.clone(),
       #[cfg(updater)]
       updater_settings: self.updater_settings.clone(),
     }
@@ -424,18 +417,14 @@ impl<R: Runtime> AppHandle<R> {
     std::process::exit(exit_code);
   }
 
-  /// Restarts the app. This is the same as [`crate::api::process::restart`], but it performs cleanup on this application.
+  /// Restarts the app. This is the same as [`crate::process::restart`], but it performs cleanup on this application.
   pub fn restart(&self) {
     self.cleanup_before_exit();
-    crate::api::process::restart(&self.env());
+    crate::process::restart(&self.env());
   }
 
   /// Runs necessary cleanup tasks before exiting the process
   fn cleanup_before_exit(&self) {
-    #[cfg(any(shell_execute, shell_sidecar))]
-    {
-      crate::api::process::kill_children();
-    }
     #[cfg(all(windows, feature = "system-tray"))]
     {
       for tray in self.manager().trays().values() {
@@ -469,22 +458,16 @@ pub struct App<R: Runtime> {
   pending_windows: Option<Vec<PendingWindow<EventLoopMessage, R>>>,
   setup: Option<SetupHook<R>>,
   manager: WindowManager<R>,
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  global_shortcut_manager: R::GlobalShortcutManager,
   handle: AppHandle<R>,
 }
 
 impl<R: Runtime> fmt::Debug for App<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let mut d = f.debug_struct("App");
-    d.field("runtime", &self.runtime)
+    f.debug_struct("App")
+      .field("runtime", &self.runtime)
       .field("manager", &self.manager)
-      .field("handle", &self.handle);
-
-    #[cfg(all(desktop, feature = "global-shortcut"))]
-    d.field("global_shortcut_manager", &self.global_shortcut_manager);
-
-    d.finish()
+      .field("handle", &self.handle)
+      .finish()
   }
 }
 
@@ -617,13 +600,6 @@ macro_rules! shared_app_impl {
         self
           .manager()
           .get_tray(id)
-      }
-
-      /// Gets a copy of the global shortcut manager instance.
-      #[cfg(all(desktop, feature = "global-shortcut"))]
-      #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
-      pub fn global_shortcut_manager(&self) -> R::GlobalShortcutManager {
-        self.global_shortcut_manager.clone()
       }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.
@@ -781,7 +757,7 @@ impl<R: Runtime> App<R> {
   /// Runs a iteration of the runtime event loop and immediately return.
   ///
   /// Note that when using this API, app cleanup is not automatically done.
-  /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
+  /// The cleanup calls [`crate::process::kill_children`] so you may want to call that function before exiting the application.
   /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
   /// # Examples
@@ -814,49 +790,15 @@ impl<R: Runtime> App<R> {
 
 #[cfg(updater)]
 impl<R: Runtime> App<R> {
-  /// Runs the updater hook with built-in dialog.
-  fn run_updater_dialog(&self) {
-    let handle = self.handle();
-
-    crate::async_runtime::spawn(async move { updater::check_update_with_dialog(handle).await });
-  }
-
   fn run_updater(&self) {
-    let handle = self.handle();
-    let handle_ = handle.clone();
-    let updater_config = self.manager.config().tauri.updater.clone();
     // check if updater is active or not
-    if updater_config.active {
-      if updater_config.dialog {
-        #[cfg(not(target_os = "linux"))]
-        let updater_enabled = true;
-        #[cfg(target_os = "linux")]
-        let updater_enabled = cfg!(dev) || self.state::<Env>().appimage.is_some();
-        if updater_enabled {
-          // if updater dialog is enabled spawn a new task
-          self.run_updater_dialog();
-          // When dialog is enabled, if user want to recheck
-          // if an update is available after first start
-          // invoke the Event `tauri://update` from JS or rust side.
-          handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
-            let handle = handle_.clone();
-            // re-spawn task inside tokyo to launch the download
-            // we don't need to emit anything as everything is handled
-            // by the process (user is asked to restart at the end)
-            // and it's handled by the updater
-            crate::async_runtime::spawn(
-              async move { updater::check_update_with_dialog(handle).await },
-            );
-          });
-        }
-      } else {
-        // we only listen for `tauri://update`
-        // once we receive the call, we check if an update is available or not
-        // if there is a new update we emit `tauri://update-available` with details
-        // this is the user responsibilities to display dialog and ask if user want to install
-        // to install the update you need to invoke the Event `tauri://update-install`
-        updater::listener(handle);
-      }
+    if self.manager.config().tauri.updater.active {
+      // we only listen for `tauri://update`
+      // once we receive the call, we check if an update is available or not
+      // if there is a new update we emit `tauri://update-available` with details
+      // this is the user responsibilities to display dialog and ask if user want to install
+      // to install the update you need to invoke the Event `tauri://update-install`
+      updater::listener(self.handle());
     }
   }
 }
@@ -1022,10 +964,7 @@ impl<R: Runtime> Builder<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let main_window = app.get_window("main").unwrap();
-  #[cfg_attr(
-    feature = "dialog",
-    doc = r#"     tauri::api::dialog::blocking::message(Some(&main_window), "Hello", "Welcome back!");"#
-  )]
+  ///     main_window.set_title("Tauri!");
   ///     Ok(())
   ///   });
   /// ```
@@ -1257,19 +1196,15 @@ impl<R: Runtime> Builder<R> {
   ///     MenuEntry::Submenu(Submenu::new(
   ///       "File",
   ///       Menu::with_items([
-  ///         CustomMenuItem::new("New", "New").into(),
-  ///         CustomMenuItem::new("Learn More", "Learn More").into(),
+  ///         CustomMenuItem::new("new", "New").into(),
+  ///         CustomMenuItem::new("learn-more", "Learn More").into(),
   ///       ]),
   ///     )),
   ///   ]))
   ///   .on_menu_event(|event| {
   ///     match event.menu_item_id() {
-  ///       "Learn More" => {
-  ///         // open in browser (requires the `shell-open-api` feature)
-  #[cfg_attr(
-    feature = "shell-open-api",
-    doc = r#"         api::shell::open(&event.window().shell_scope(), "https://github.com/tauri-apps/tauri".to_string(), None).unwrap();"#
-  )]
+  ///       "learn-more" => {
+  ///         // open a link in the browser using tauri-plugin-shell
   ///       }
   ///       id => {
   ///         // do something with other events
@@ -1438,9 +1373,6 @@ impl<R: Runtime> Builder<R> {
       self.menu = Some(Menu::os_default(&context.package_info().name));
     }
 
-    #[cfg(shell_scope)]
-    let shell_scope = context.shell_scope.clone();
-
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,
@@ -1490,22 +1422,15 @@ impl<R: Runtime> Builder<R> {
 
     let runtime_handle = runtime.handle();
 
-    #[cfg(all(desktop, feature = "global-shortcut"))]
-    let global_shortcut_manager = runtime.global_shortcut_manager();
-
     #[allow(unused_mut)]
     let mut app = App {
       runtime: Some(runtime),
       pending_windows: Some(self.pending_windows),
       setup: Some(self.setup),
       manager: manager.clone(),
-      #[cfg(all(desktop, feature = "global-shortcut"))]
-      global_shortcut_manager: global_shortcut_manager.clone(),
       handle: AppHandle {
         runtime_handle,
         manager,
-        #[cfg(all(desktop, feature = "global-shortcut"))]
-        global_shortcut_manager,
         #[cfg(updater)]
         updater_settings: self.updater_settings,
       },
@@ -1523,10 +1448,6 @@ impl<R: Runtime> Builder<R> {
         &app,
         &app.config().tauri.allowlist.protocol.asset_scope,
       )?,
-      #[cfg(http_request)]
-      http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
-      #[cfg(shell_scope)]
-      shell: ShellScope::new(&app, shell_scope),
     });
 
     #[cfg(windows)]

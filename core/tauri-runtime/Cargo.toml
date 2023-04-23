@@ -51,4 +51,3 @@ jni = "0.20"
 devtools = [ ]
 system-tray = [ ]
 macos-private-api = [ ]
-global-shortcut = [ ]

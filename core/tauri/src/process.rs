@@ -8,13 +8,6 @@ use crate::Env;
 
 use std::path::PathBuf;
 
-#[cfg(feature = "process-command-api")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "process-command-api")))]
-mod command;
-#[cfg(feature = "process-command-api")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "process-command-api")))]
-pub use command::*;
-
 /// Finds the current running binary's path.
 ///
 /// With exception to any following platform-specific behavior, the path is cached as soon as
@@ -41,7 +34,7 @@ pub use command::*;
 /// # Examples
 ///
 /// ```rust,no_run
-/// use tauri::{api::process::current_binary, Env, Manager};
+/// use tauri::{process::current_binary, Env, Manager};
 /// let current_binary_path = current_binary(&Env::default()).unwrap();
 ///
 /// tauri::Builder::default()
@@ -70,7 +63,7 @@ pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use tauri::{api::process::restart, Env, Manager};
+/// use tauri::{process::restart, Env, Manager};
 ///
 /// tauri::Builder::default()
 ///   .setup(|app| {

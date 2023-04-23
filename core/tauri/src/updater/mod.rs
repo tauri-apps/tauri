@@ -70,18 +70,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 use crate::{runtime::EventLoopProxy, AppHandle, EventLoopMessage, Manager, Runtime, UpdaterEvent};
 
-#[cfg(desktop)]
-use crate::api::dialog::blocking::ask;
-
-#[cfg(mobile)]
-fn ask<R: Runtime>(
-  _parent_window: Option<&crate::Window<R>>,
-  _title: impl AsRef<str>,
-  _message: impl AsRef<str>,
-) -> bool {
-  true
-}
-
 /// Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
 /// New update available
@@ -394,46 +382,6 @@ impl<R: Runtime> UpdateResponse<R> {
   }
 }
 
-/// Check if there is any new update with builtin dialog.
-pub(crate) async fn check_update_with_dialog<R: Runtime>(handle: AppHandle<R>) {
-  let updater_config = handle.config().tauri.updater.clone();
-  let package_info = handle.package_info().clone();
-  if let Some(endpoints) = updater_config.endpoints.clone() {
-    let endpoints = endpoints
-      .iter()
-      .map(|e| e.to_string())
-      .collect::<Vec<String>>();
-
-    let mut builder = self::core::builder(handle.clone())
-      .urls(&endpoints[..])
-      .current_version(package_info.version);
-    if let Some(target) = &handle.updater_settings.target {
-      builder = builder.target(target);
-    }
-
-    // check updates
-    match builder.build().await {
-      Ok(updater) => {
-        let pubkey = updater_config.pubkey.clone();
-
-        // if dialog enabled only
-        if updater.should_update && updater_config.dialog {
-          let body = updater.body.clone().unwrap_or_else(|| String::from(""));
-          let dialog =
-            prompt_for_install(&updater.clone(), &package_info.name, &body.clone(), pubkey).await;
-
-          if let Err(e) = dialog {
-            send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
-          }
-        }
-      }
-      Err(e) => {
-        send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
-      }
-    }
-  }
-}
-
 /// Updater listener
 /// This function should be run on the main thread once.
 pub(crate) fn listener<R: Runtime>(handle: AppHandle<R>) {
@@ -548,54 +496,4 @@ fn send_status_update<R: Runtime>(handle: &AppHandle<R>, message: UpdaterEvent) 
   let _ = handle
     .create_proxy()
     .send_event(EventLoopMessage::Updater(message));
-}
-
-// Prompt a dialog asking if the user want to install the new version
-// Maybe we should add an option to customize it in future versions.
-async fn prompt_for_install<R: Runtime>(
-  update: &self::core::Update<R>,
-  app_name: &str,
-  body: &str,
-  pubkey: String,
-) -> Result<()> {
-  let windows = update.app.windows();
-  let parent_window = windows.values().next();
-
-  // todo(lemarier): We should review this and make sure we have
-  // something more conventional.
-  let should_install = ask(
-    parent_window,
-    format!(r#"A new version of {app_name} is available! "#),
-    format!(
-      r#"{app_name} {} is now available -- you have {}.
-
-Would you like to install it now?
-
-Release Notes:
-{body}"#,
-      update.version, update.current_version
-    ),
-  );
-
-  if should_install {
-    // Launch updater download process
-    // macOS we display the `Ready to restart dialog` asking to restart
-    // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
-    // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
-    update
-      .download_and_install(pubkey.clone(), |_, _| (), || ())
-      .await?;
-
-    // Ask user if we need to restart the application
-    let should_exit = ask(
-      parent_window,
-      "Ready to Restart",
-      "The installation was successful, do you want to restart the application now?",
-    );
-    if should_exit {
-      update.app.restart();
-    }
-  }
-
-  Ok(())
 }

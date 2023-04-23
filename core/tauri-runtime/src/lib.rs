@@ -248,10 +248,6 @@ pub enum Error {
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
-  /// Global shortcut error.
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  #[error(transparent)]
-  GlobalShortcut(Box<dyn std::error::Error + Send + Sync>),
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
@@ -415,22 +411,6 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
       + 'static;
 }
 
-/// A global shortcut manager.
-#[cfg(all(desktop, feature = "global-shortcut"))]
-pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
-  /// Whether the application has registered the given `accelerator`.
-  fn is_registered(&self, accelerator: &str) -> Result<bool>;
-
-  /// Register a global shortcut of `accelerator`.
-  fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()>;
-
-  /// Unregister all accelerators registered by the manager instance.
-  fn unregister_all(&mut self) -> Result<()>;
-
-  /// Unregister the provided `accelerator`.
-  fn unregister(&mut self, accelerator: &str) -> Result<()>;
-}
-
 pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
   fn send_event(&self, event: T) -> Result<()>;
 }
@@ -441,9 +421,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   type Dispatcher: Dispatch<T, Runtime = Self>;
   /// The runtime handle type.
   type Handle: RuntimeHandle<T, Runtime = Self>;
-  /// The global shortcut manager type.
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  type GlobalShortcutManager: GlobalShortcutManager;
   /// The tray handler type.
   #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler: menu::TrayHandle;
@@ -463,10 +440,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
-
-  /// Gets the global shortcut manager.
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
 
   /// Create a new webview window.
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>>;

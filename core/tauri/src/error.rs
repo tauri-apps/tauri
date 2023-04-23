@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fmt, path::PathBuf};
+use std::fmt;
 
 /// A generic boxed error.
 #[derive(Debug)]
@@ -68,9 +68,6 @@ pub enum Error {
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
   InvalidIcon(std::io::Error),
-  /// Client with specified ID not found.
-  #[error("http client dropped or not initialized")]
-  HttpClientNotInitialized,
   /// API not whitelisted on tauri.conf.json
   #[error("'{0}' not in the allowlist (https://tauri.app/docs/api/config#tauri.allowlist)")]
   ApiNotAllowlisted(String),
@@ -88,32 +85,9 @@ pub enum Error {
   /// Error initializing plugin.
   #[error("failed to initialize plugin `{0}`: {1}")]
   PluginInitialization(String, String),
-  /// A part of the URL is malformed or invalid. This may occur when parsing and combining
-  /// user-provided URLs and paths.
-  #[error("invalid url: {0}")]
-  InvalidUrl(url::ParseError),
   /// Task join error.
   #[error(transparent)]
   JoinError(#[from] tokio::task::JoinError),
-  /// Path not allowed by the scope.
-  #[error("path not allowed on the configured scope: {0}")]
-  PathNotAllowed(PathBuf),
-  /// The user did not allow sending notifications.
-  #[error("sending notification was not allowed by the user")]
-  NotificationNotAllowed,
-  /// URL not allowed by the scope.
-  #[error("url not allowed on the configured scope: {0}")]
-  UrlNotAllowed(url::Url),
-  /// Sidecar not allowed by the configuration.
-  #[error("sidecar not configured under `tauri.conf.json > tauri > bundle > externalBin`: {0}")]
-  SidecarNotAllowed(PathBuf),
-  /// Sidecar was not found by the configuration.
-  #[cfg(shell_scope)]
-  #[error("sidecar configuration found, but unable to create a path to it: {0}")]
-  SidecarNotFound(#[from] Box<crate::ShellScopeError>),
-  /// Program not allowed by the scope.
-  #[error("program not allowed on the configured shell scope: {0}")]
-  ProgramNotAllowed(PathBuf),
   /// An error happened inside the isolation pattern.
   #[cfg(feature = "isolation")]
   #[error("isolation pattern error: {0}")]

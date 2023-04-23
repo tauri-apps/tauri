@@ -130,46 +130,6 @@ pub struct MockDispatcher {
   context: RuntimeContext,
 }
 
-#[cfg(all(desktop, feature = "global-shortcut"))]
-#[derive(Debug, Clone)]
-pub struct MockGlobalShortcutManager {
-  context: RuntimeContext,
-}
-
-#[cfg(all(desktop, feature = "global-shortcut"))]
-impl tauri_runtime::GlobalShortcutManager for MockGlobalShortcutManager {
-  fn is_registered(&self, accelerator: &str) -> Result<bool> {
-    Ok(
-      self
-        .context
-        .shortcuts
-        .lock()
-        .unwrap()
-        .contains_key(accelerator),
-    )
-  }
-
-  fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()> {
-    self
-      .context
-      .shortcuts
-      .lock()
-      .unwrap()
-      .insert(accelerator.into(), Box::new(handler));
-    Ok(())
-  }
-
-  fn unregister_all(&mut self) -> Result<()> {
-    *self.context.shortcuts.lock().unwrap() = Default::default();
-    Ok(())
-  }
-
-  fn unregister(&mut self, accelerator: &str) -> Result<()> {
-    self.context.shortcuts.lock().unwrap().remove(accelerator);
-    Ok(())
-  }
-}
-
 #[derive(Debug, Clone)]
 pub struct MockWindowBuilder {}
 
@@ -625,8 +585,6 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy {
 #[derive(Debug)]
 pub struct MockRuntime {
   pub context: RuntimeContext,
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  global_shortcut_manager: MockGlobalShortcutManager,
   #[cfg(all(desktop, feature = "system-tray"))]
   tray_handler: MockTrayHandler,
 }
@@ -637,10 +595,6 @@ impl MockRuntime {
       shortcuts: Default::default(),
     };
     Self {
-      #[cfg(all(desktop, feature = "global-shortcut"))]
-      global_shortcut_manager: MockGlobalShortcutManager {
-        context: context.clone(),
-      },
       #[cfg(all(desktop, feature = "system-tray"))]
       tray_handler: MockTrayHandler {
         context: context.clone(),
@@ -653,8 +607,6 @@ impl MockRuntime {
 impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Dispatcher = MockDispatcher;
   type Handle = MockRuntimeHandle;
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  type GlobalShortcutManager = MockGlobalShortcutManager;
   #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler = MockTrayHandler;
   type EventLoopProxy = EventProxy;
@@ -676,11 +628,6 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     MockRuntimeHandle {
       context: self.context.clone(),
     }
-  }
-
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
-    self.global_shortcut_manager.clone()
   }
 
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {

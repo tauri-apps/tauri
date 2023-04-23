@@ -69,8 +69,8 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun load(webView: WebView?, name: String, plugin: Plugin) {
-    val handle = PluginHandle(this, name, plugin)
+  fun load(webView: WebView?, name: String, plugin: Plugin, config: JSObject) {
+    val handle = PluginHandle(this, name, plugin, config)
     plugins[name] = handle
     if (webView != null) {
       plugin.load(webView)

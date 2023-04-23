@@ -3,12 +3,19 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+  collections::HashMap,
   env::{var, var_os},
-  fs::{copy, create_dir, create_dir_all, remove_dir_all, rename},
+  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, write},
   path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize, Serialize)]
+pub(crate) struct PluginMetadata {
+  pub path: PathBuf,
+}
 
 #[derive(Default)]
 pub struct PluginBuilder {
@@ -49,6 +56,7 @@ impl PluginBuilder {
 
           let tauri_library_path = std::env::var("DEP_TAURI_ANDROID_LIBRARY_PATH")
             .expect("missing `DEP_TAURI_ANDROID_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
+          println!("cargo:rerun-if-env-changed=DEP_TAURI_ANDROID_LIBRARY_PATH");
 
           create_dir_all(source.join(".tauri")).context("failed to create .tauri directory")?;
           copy_folder(
@@ -62,12 +70,15 @@ impl PluginBuilder {
             let pkg_name = var("CARGO_PKG_NAME").unwrap();
             println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
 
-            inject_android_project(
-              &source,
-              project_dir.join(".tauri").join("plugins").join(pkg_name),
-              &["tauri-api"],
-            )
-            .context("failed to inject plugin Android project")?;
+            let plugins_json_path = project_dir.join(".tauri").join("plugins.json");
+            let mut plugins: HashMap<String, PluginMetadata> = if plugins_json_path.exists() {
+              let s = read_to_string(&plugins_json_path)?;
+              serde_json::from_str(&s)?
+            } else {
+              Default::default()
+            };
+            plugins.insert(pkg_name, PluginMetadata { path: source });
+            write(&plugins_json_path, serde_json::to_string(&plugins)?)?;
           }
         }
       }
@@ -101,54 +112,19 @@ impl PluginBuilder {
 pub fn link_swift_library(name: &str, source: impl AsRef<Path>) {
   let source = source.as_ref();
 
-  let curr_dir = std::env::current_dir().unwrap();
-  std::env::set_current_dir(source).unwrap();
+  let sdk_root = std::env::var_os("SDKROOT");
+  std::env::remove_var("SDKROOT");
+
   swift_rs::SwiftLinker::new(
     &std::env::var("MACOSX_DEPLOYMENT_TARGET").unwrap_or_else(|_| "10.13".into()),
   )
   .with_ios(&std::env::var("IPHONEOS_DEPLOYMENT_TARGET").unwrap_or_else(|_| "13.0".into()))
   .with_package(name, source)
   .link();
-  std::env::set_current_dir(curr_dir).unwrap();
-}
 
-#[doc(hidden)]
-pub fn inject_android_project(
-  source: impl AsRef<Path>,
-  target: impl AsRef<Path>,
-  ignore_paths: &[&str],
-) -> Result<()> {
-  let source = source.as_ref();
-  let target = target.as_ref();
-
-  // keep build folder if it exists
-  let build_path = target.join("build");
-  let out_dir = if build_path.exists() {
-    let out_dir = target.parent().unwrap().join(".tauri-tmp-build");
-    let _ = remove_dir_all(&out_dir);
-    rename(&build_path, &out_dir).context("failed to rename build directory")?;
-    Some(out_dir)
-  } else {
-    None
-  };
-
-  copy_folder(source, target, ignore_paths).context("failed to copy Android project")?;
-
-  if let Some(out_dir) = out_dir {
-    rename(out_dir, &build_path).context("failed to restore build directory")?;
+  if let Some(root) = sdk_root {
+    std::env::set_var("SDKROOT", root);
   }
-
-  let rerun_path = target.join("build.gradle.kts");
-  let metadata = source.join("build.gradle.kts").metadata()?;
-  filetime::set_file_mtime(
-    &rerun_path,
-    filetime::FileTime::from_last_modification_time(&metadata),
-  )
-  .context("failed to update build.gradle.kts mtime")?;
-
-  println!("cargo:rerun-if-changed={}", rerun_path.display());
-
-  Ok(())
 }
 
 fn copy_folder(source: &Path, target: &Path, ignore_paths: &[&str]) -> Result<()> {

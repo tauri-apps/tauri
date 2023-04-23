@@ -13,20 +13,11 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 
 mod app;
-#[cfg(dialog_any)]
-mod dialog;
 mod event;
-#[cfg(global_shortcut_any)]
-mod global_shortcut;
-#[cfg(http_any)]
-mod http;
-mod notification;
 #[cfg(os_any)]
 mod operating_system;
 #[cfg(process_any)]
 mod process;
-#[cfg(shell_any)]
-mod shell;
 mod window;
 
 /// The context passed to the invoke handler.
@@ -69,16 +60,7 @@ enum Module {
   #[cfg(os_any)]
   Os(operating_system::Cmd),
   Window(Box<window::Cmd>),
-  #[cfg(shell_any)]
-  Shell(shell::Cmd),
   Event(event::Cmd),
-  #[cfg(dialog_any)]
-  Dialog(dialog::Cmd),
-  Notification(notification::Cmd),
-  #[cfg(http_any)]
-  Http(http::Cmd),
-  #[cfg(global_shortcut_any)]
-  GlobalShortcut(global_shortcut::Cmd),
 }
 
 impl Module {
@@ -122,42 +104,7 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from_anyhow)
       }),
-      #[cfg(shell_any)]
-      Self::Shell(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
       Self::Event(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(dialog_any)]
-      Self::Dialog(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      Self::Notification(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(http_any)]
-      Self::Http(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .await
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(global_shortcut_any)]
-      Self::GlobalShortcut(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
           .and_then(|r| r.json)

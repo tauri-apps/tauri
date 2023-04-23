@@ -4,24 +4,10 @@
 
 //! The Tauri API interface.
 
-#[cfg(all(desktop, feature = "dialog"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "dialog"))))]
-pub mod dialog;
 pub mod dir;
 pub mod file;
-#[cfg(feature = "http-api")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "http-api")))]
-pub mod http;
 pub mod ipc;
-pub mod process;
-#[cfg(feature = "shell-open-api")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "shell-open-api")))]
-pub mod shell;
 pub mod version;
-
-#[cfg(all(desktop, feature = "notification"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "notification"))))]
-pub mod notification;
 
 mod error;
 

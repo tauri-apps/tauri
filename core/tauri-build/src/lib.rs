@@ -15,8 +15,9 @@ use tauri_utils::{
 };
 
 use std::{
+  collections::HashMap,
   env::var_os,
-  fs::{read_dir, write},
+  fs::{read_to_string, write},
   path::{Path, PathBuf},
 };
 
@@ -298,22 +299,32 @@ val implementation by configurations
 dependencies {"
       .to_string();
 
-    for entry in read_dir(project_dir.join(".tauri").join("plugins"))? {
-      let pkg_name = entry?
-        .path()
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .into_owned();
-      gradle_settings.push_str(&format!("include ':{pkg_name}'"));
+    let plugins_json_path = project_dir.join(".tauri").join("plugins.json");
+    let mut plugins: HashMap<String, mobile::PluginMetadata> = if plugins_json_path.exists() {
+      let s = read_to_string(&plugins_json_path)?;
+      serde_json::from_str(&s)?
+    } else {
+      Default::default()
+    };
+
+    plugins.insert(
+      "tauri-android".into(),
+      mobile::PluginMetadata {
+        path: var_os("DEP_TAURI_ANDROID_LIBRARY_PATH").map(PathBuf::from).expect("missing `DEP_TAURI_ANDROID_LIBRARY_PATH` environment variable; did you add `tauri` as a dependency to this crate?"),
+      },
+    );
+
+    for (plugin_name, plugin) in plugins {
+      gradle_settings.push_str(&format!("include ':{plugin_name}'"));
       gradle_settings.push('\n');
       gradle_settings.push_str(&format!(
-        "project(':{pkg_name}').projectDir = new File('./.tauri/plugins/{pkg_name}')"
+        "project(':{plugin_name}').projectDir = new File('{}')",
+        plugin.path.display()
       ));
       gradle_settings.push('\n');
 
       app_build_gradle.push('\n');
-      app_build_gradle.push_str(&format!(r#"  implementation(project(":{pkg_name}"))"#));
+      app_build_gradle.push_str(&format!(r#"  implementation(project(":{plugin_name}"))"#));
     }
     app_build_gradle.push_str("\n}");
 

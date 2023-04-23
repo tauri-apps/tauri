@@ -12,7 +12,7 @@ use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 
-use std::{collections::HashMap, fmt, result::Result as StdResult};
+use std::{collections::HashMap, fmt, result::Result as StdResult, sync::Arc};
 
 /// Mobile APIs.
 #[cfg(mobile)]
@@ -99,6 +99,7 @@ impl<R: Runtime> PluginHandle<R> {
 pub struct PluginApi<R: Runtime, C: DeserializeOwned> {
   handle: AppHandle<R>,
   name: &'static str,
+  raw_config: Arc<JsonValue>,
   config: C,
 }
 
@@ -467,6 +468,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
         PluginApi {
           name: self.name,
           handle: app.clone(),
+          raw_config: Arc::new(config.clone()),
           config: serde_json::from_value(config)?,
         },
       )?;

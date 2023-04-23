@@ -1509,7 +1509,7 @@ impl<R: Runtime> Window<R> {
                     &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
                       .as_str()
                       .into(),
-                    crate::ios::json_to_dictionary(message.payload) as _,
+                    crate::ios::json_to_dictionary(&message.payload) as _,
                     callback.0,
                     error.0,
                   )
@@ -1543,7 +1543,7 @@ impl<R: Runtime> Window<R> {
                     activity: JObject<'_>,
                     webview: JObject<'_>,
                   ) -> Result<(), JniError> {
-                    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, message.payload)?;
+                    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, &message.payload)?;
                     let plugin_manager = env
                       .call_method(
                         activity,

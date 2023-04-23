@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use http::StatusCode;
 use thiserror::Error;
 
 /// All errors that can occur while running the updater.
@@ -30,8 +31,14 @@ pub enum Error {
   #[error("Tauri API error: {0}")]
   TauriApi(#[from] crate::api::Error),
   /// Network error.
+  #[error("Download request failed with status: {0}")]
+  DownloadFailed(StatusCode),
+  /// Network error.
   #[error("Network error: {0}")]
-  Network(String),
+  Network(#[from] reqwest::Error),
+  /// Failed to serialize header value as string.
+  #[error(transparent)]
+  Utf8(#[from] std::string::FromUtf8Error),
   /// Could not fetch a valid response from the server.
   #[error("Could not fetch a valid release JSON from the remote")]
   ReleaseNotFound,

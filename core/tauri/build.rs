@@ -151,12 +151,6 @@ fn main() {
 
   if target_os == "android" {
     if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-      tauri_build::mobile::inject_android_project(
-        "./mobile/android",
-        project_dir.join(".tauri").join("tauri-api"),
-        &[],
-      )
-      .expect("failed to copy tauri-api Android project");
       let tauri_proguard = include_str!("./mobile/proguard-tauri.pro").replace(
         "$PACKAGE",
         &var("WRY_ANDROID_PACKAGE").expect("missing `WRY_ANDROID_PACKAGE` environment variable"),

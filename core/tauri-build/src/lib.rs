@@ -300,12 +300,20 @@ dependencies {"
       .to_string();
 
     let plugins_json_path = project_dir.join(".tauri").join("plugins.json");
-    let plugins: HashMap<String, mobile::PluginMetadata> = if plugins_json_path.exists() {
+    let mut plugins: HashMap<String, mobile::PluginMetadata> = if plugins_json_path.exists() {
       let s = read_to_string(&plugins_json_path)?;
       serde_json::from_str(&s)?
     } else {
       Default::default()
     };
+
+    plugins.insert(
+      "tauri-android".into(),
+      mobile::PluginMetadata {
+        path: var_os("DEP_TAURI_ANDROID_LIBRARY_PATH").map(PathBuf::from).expect("missing `DEP_TAURI_ANDROID_LIBRARY_PATH` environment variable; did you add `tauri` as a dependency to this crate?"),
+      },
+    );
+
     for (plugin_name, plugin) in plugins {
       gradle_settings.push_str(&format!("include ':{plugin_name}'"));
       gradle_settings.push('\n');

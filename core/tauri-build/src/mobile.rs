@@ -3,12 +3,19 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+  collections::HashMap,
   env::{var, var_os},
-  fs::{copy, create_dir, create_dir_all, remove_dir_all, rename},
+  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, rename, write},
   path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize, Serialize)]
+pub(crate) struct PluginMetadata {
+  pub path: PathBuf,
+}
 
 #[derive(Default)]
 pub struct PluginBuilder {
@@ -49,6 +56,7 @@ impl PluginBuilder {
 
           let tauri_library_path = std::env::var("DEP_TAURI_ANDROID_LIBRARY_PATH")
             .expect("missing `DEP_TAURI_ANDROID_LIBRARY_PATH` environment variable. Make sure `tauri` is a dependency of the plugin.");
+          println!("cargo:rerun-if-env-changed=DEP_TAURI_ANDROID_LIBRARY_PATH");
 
           create_dir_all(source.join(".tauri")).context("failed to create .tauri directory")?;
           copy_folder(
@@ -62,12 +70,15 @@ impl PluginBuilder {
             let pkg_name = var("CARGO_PKG_NAME").unwrap();
             println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
 
-            inject_android_project(
-              &source,
-              project_dir.join(".tauri").join("plugins").join(pkg_name),
-              &["tauri-api"],
-            )
-            .context("failed to inject plugin Android project")?;
+            let plugins_json_path = project_dir.join(".tauri").join("plugins.json");
+            let mut plugins: HashMap<String, PluginMetadata> = if plugins_json_path.exists() {
+              let s = read_to_string(&plugins_json_path)?;
+              serde_json::from_str(&s)?
+            } else {
+              Default::default()
+            };
+            plugins.insert(pkg_name, PluginMetadata { path: source });
+            write(&plugins_json_path, serde_json::to_string(&plugins)?)?;
           }
         }
       }

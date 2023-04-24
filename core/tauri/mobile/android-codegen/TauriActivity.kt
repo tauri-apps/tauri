@@ -1,4 +1,6 @@
-package {{reverse-domain app.domain}}.{{snake-case app.name}}
+/* THIS FILE IS AUTO-GENERATED. DO NOT MODIFY!! */
+
+package {{package}}
 
 import android.os.Bundle
 import app.tauri.plugin.PluginManager

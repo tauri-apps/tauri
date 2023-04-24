@@ -9,6 +9,9 @@ use heck::ToSnakeCase;
 use once_cell::sync::OnceCell;
 
 use std::env::var_os;
+use std::fs::read_dir;
+use std::fs::read_to_string;
+use std::fs::write;
 use std::{
   env::var,
   path::{Path, PathBuf},
@@ -150,7 +153,46 @@ fn main() {
   }
 
   if target_os == "android" {
-    if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+    if let Ok(kotlin_out_dir) = std::env::var("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
+      fn env_var(var: &str) -> String {
+        std::env::var(var).unwrap_or_else(|_| {
+          panic!(
+            "`{}` is not set, which is needed to generate the kotlin files for android.",
+            var
+          )
+        })
+      }
+
+      let package = env_var("WRY_ANDROID_PACKAGE");
+      let library = env_var("WRY_ANDROID_LIBRARY");
+
+      let kotlin_out_dir = PathBuf::from(&kotlin_out_dir)
+        .canonicalize()
+        .unwrap_or_else(move |_| {
+          panic!("Failed to canonicalize `WRY_ANDROID_KOTLIN_FILES_OUT_DIR` path {kotlin_out_dir}")
+        });
+
+      let kotlin_files_path =
+        PathBuf::from(env_var("CARGO_MANIFEST_DIR")).join("mobile/android-codegen");
+      println!("cargo:rerun-if-changed={}", kotlin_files_path.display());
+      let kotlin_files =
+        read_dir(kotlin_files_path).expect("failed to read Android codegen directory");
+
+      for file in kotlin_files {
+        let file = file.unwrap();
+
+        let content = read_to_string(file.path())
+          .expect("failed to read kotlin file as string")
+          .replace("{{package}}", &package)
+          .replace("{{library}}", &library);
+
+        let out_path = kotlin_out_dir.join(file.file_name());
+        write(&out_path, content).expect("Failed to write kotlin file");
+        println!("cargo:rerun-if-changed={}", out_path.display());
+      }
+    }
+
+    if let Some(project_dir) = var_os("WRY_ANDROID_PROJECT_PATH").map(PathBuf::from) {
       let tauri_proguard = include_str!("./mobile/proguard-tauri.pro").replace(
         "$PACKAGE",
         &var("WRY_ANDROID_PACKAGE").expect("missing `WRY_ANDROID_PACKAGE` environment variable"),

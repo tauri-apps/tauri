@@ -318,8 +318,8 @@ dependencies {"
       gradle_settings.push_str(&format!("include ':{plugin_name}'"));
       gradle_settings.push('\n');
       gradle_settings.push_str(&format!(
-        "project(':{plugin_name}').projectDir = new File('{}')",
-        plugin.path.display()
+        "project(':{plugin_name}').projectDir = new File({:?})",
+        tauri_utils::display_path(plugin.path)
       ));
       gradle_settings.push('\n');
 

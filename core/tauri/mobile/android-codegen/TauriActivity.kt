@@ -1,4 +1,10 @@
-package {{reverse-domain app.domain}}.{{snake-case app.name}}
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+/* THIS FILE IS AUTO-GENERATED. DO NOT MODIFY!! */
+
+package {{package}}
 
 import android.os.Bundle
 import app.tauri.plugin.PluginManager

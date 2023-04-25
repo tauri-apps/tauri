@@ -1,5 +1,5 @@
 ---
-'cli.rs': 'minor'
+'tauri-apps': 'minor'
 'tauri-build': 'minor'
 ---
 

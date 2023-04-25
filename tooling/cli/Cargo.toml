@@ -24,7 +24,7 @@ include = [
 ]
 
 [package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/cli.rs-v{ version }/cargo-tauri-{ target }.{ archive-format }"
+pkg-url = "{ repo }/releases/download/tauri-cli-v{ version }/cargo-tauri-{ target }.{ archive-format }"
 bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "tgz"
 

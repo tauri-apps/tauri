@@ -48,7 +48,7 @@ jobs:
             core -> ../target
             tooling/cli
 
-      - name: build and install cli.rs
+      - name: build and install `tauri-cli`
         run: cargo install --path tooling/cli --force
       - name: Check whether code signing should be enabled
         id: enablecodesigning

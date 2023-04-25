@@ -280,6 +280,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     }
   }
 
+  // TODO: rename to `from_config` in v2 for consistency
   /// Create a new [`PendingWindow`] from a [`WindowConfig`] with a label and starting url.
   pub fn with_config(
     window_config: WindowConfig,

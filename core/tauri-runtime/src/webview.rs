@@ -46,6 +46,22 @@ impl WebviewAttributes {
     }
   }
 
+  /// Initializes the attributes for a webview from [`WindowConfig`].
+  pub fn from_config(config: &WindowConfig) -> Self {
+    let mut builder = Self::new(config.url.clone());
+    builder = builder.accept_first_mouse(config.accept_first_mouse);
+    if !config.file_drop_enabled {
+      builder = builder.disable_file_drop_handler();
+    }
+    if let Some(user_agent) = &config.user_agent {
+      builder = builder.user_agent(user_agent);
+    }
+    if let Some(additional_browser_args) = &config.additional_browser_args {
+      builder = builder.additional_browser_args(additional_browser_args);
+    }
+    builder
+  }
+
   /// Sets the user agent
   #[must_use]
   pub fn user_agent(mut self, user_agent: &str) -> Self {
@@ -112,6 +128,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Initializes a new window attributes builder.
   fn new() -> Self;
 
+  // TODO: rename to `from_config` in v2 for consistency
   /// Initializes a new webview builder from a [`WindowConfig`]
   fn with_config(config: WindowConfig) -> Self;
 

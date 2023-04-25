@@ -212,26 +212,18 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
-    let runtime = manager.runtime();
-    let app_handle = manager.app_handle();
-    let url = config.url.clone();
-    let file_drop_enabled = config.file_drop_enabled;
-    let mut builder = Self {
+    let builder = Self {
       manager: manager.manager().clone(),
-      runtime,
-      app_handle,
+      runtime: manager.runtime(),
+      app_handle: manager.app_handle(),
       label: config.label.clone(),
+      webview_attributes: WebviewAttributes::from_config(&config),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
         config,
       ),
-      webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
     };
-
-    if !file_drop_enabled {
-      builder = builder.disable_file_drop_handler();
-    }
 
     builder
   }

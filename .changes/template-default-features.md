@@ -1,5 +1,5 @@
 ---
-'tauri-apps': minor
+'tauri-cli': minor
 '@tauri-apps/cli': minor
 ---
 

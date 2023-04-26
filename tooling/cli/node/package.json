@@ -43,7 +43,7 @@
     "fs-extra": "11.1.1",
     "jest": "29.5.0",
     "jest-transform-toml": "1.0.0",
-    "prettier": "2.8.7"
+    "prettier": "2.8.8"
   },
   "resolutions": {
     "json5": "2.2.3"

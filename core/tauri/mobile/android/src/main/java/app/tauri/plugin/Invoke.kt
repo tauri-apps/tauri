@@ -6,19 +6,23 @@ package app.tauri.plugin
 
 import app.tauri.Logger
 
+const val CHANNEL_PREFIX = "__CHANNEL__:"
+
 class Invoke(
   val id: Long,
   val command: String,
-  private val sendResponse: (success: PluginResult?, error: PluginResult?) -> Unit,
+  val callback: Long,
+  val error: Long,
+  private val sendResponse: (callback: Long, data: PluginResult?) -> Unit,
   val data: JSObject) {
 
   fun resolve(data: JSObject?) {
     val result = PluginResult(data)
-    sendResponse(result, null)
+    sendResponse(callback, result)
   }
 
   fun resolve() {
-    sendResponse(null, null)
+    sendResponse(callback, null)
   }
 
   fun reject(msg: String?, code: String?, ex: Exception?, data: JSObject?) {
@@ -35,7 +39,7 @@ class Invoke(
     } catch (jsonEx: Exception) {
       Logger.error(Logger.tags("Plugin"), jsonEx.message!!, jsonEx)
     }
-    sendResponse(null, errorResult)
+    sendResponse(error, errorResult)
   }
 
   fun reject(msg: String?, ex: Exception?, data: JSObject?) {
@@ -196,5 +200,14 @@ class Invoke(
 
   fun hasOption(name: String): Boolean {
     return data.has(name)
+  }
+
+  fun getChannel(name: String): Channel? {
+    val channelDef = getString(name, "")
+    if (channelDef.startsWith(CHANNEL_PREFIX)) {
+      val callback = channelDef.split(CHANNEL_PREFIX)[1].toLongOrNull() ?: return null
+      return Channel(callback) { res -> sendResponse(callback, PluginResult(res)) }
+    }
+    return null
   }
 }

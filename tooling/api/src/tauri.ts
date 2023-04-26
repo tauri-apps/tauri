@@ -56,6 +56,17 @@ function transformCallback(
 }
 
 /**
+ * Creates a channel using the given handler function.
+ *
+ * @returns the channel identifier to send to the IPC.
+ *
+ * @since 2.0.0
+ */
+function channel(fn: (response: any) => void): string {
+  return `__CHANNEL__:${transformCallback(fn)}`
+}
+
+/**
  * Command arguments.
  *
  * @since 1.0.0
@@ -80,11 +91,9 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
   return new Promise((resolve, reject) => {
     const callback = transformCallback((e: T) => {
       resolve(e)
-      Reflect.deleteProperty(window, `_${error}`)
     }, true)
     const error = transformCallback((e) => {
       reject(e)
-      Reflect.deleteProperty(window, `_${callback}`)
     }, true)
 
     window.__TAURI_IPC__({
@@ -135,4 +144,4 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
 
 export type { InvokeArgs }
 
-export { transformCallback, invoke, convertFileSrc }
+export { transformCallback, channel, invoke, convertFileSrc }

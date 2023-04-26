@@ -52,11 +52,9 @@
     return new Promise(function (resolve, reject) {
       var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r)
-        delete window[`_${error}`]
       }, true)
       var error = window.__TAURI__.transformCallback(function (e) {
         reject(e)
-        delete window[`_${callback}`]
       }, true)
 
       if (typeof cmd === 'string') {

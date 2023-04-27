@@ -26,6 +26,15 @@ pub struct Channel<R: Runtime> {
   window: Window<R>,
 }
 
+impl Serialize for Channel {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_str(&format!("{CHANNEL_PREFIX}{}", self.id.0))
+  }
+}
+
 impl<R: Runtime> Channel<R> {
   /// Sends the given data through the channel.
   pub fn send<S: Serialize>(&self, data: &S) -> crate::Result<()> {

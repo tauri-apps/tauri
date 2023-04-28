@@ -12,6 +12,7 @@ use crate::{
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
 use anyhow::{bail, Result};
+use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
 use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
@@ -281,7 +282,7 @@ fn get_app(config: &TauriConfig) -> App {
   let lib_name = interface
     .app_settings()
     .lib_name()
-    .unwrap_or(app_name.clone());
+    .unwrap_or_else(|| app_name.to_snek_case());
 
   let raw = RawAppConfig {
     name: app_name,

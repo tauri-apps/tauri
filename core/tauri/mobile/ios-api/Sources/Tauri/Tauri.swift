@@ -93,11 +93,11 @@ extension PluginManager: NSCopying {
 }
 
 @_cdecl("register_plugin")
-func registerPlugin(name: SRString, plugin: NSObject, config: NSDictionary, webview: WKWebView?) {
+func registerPlugin(name: SRString, plugin: NSObject, config: NSDictionary?, webview: WKWebView?) {
 	PluginManager.shared.load(
 		name: name.toString(),
 		plugin: plugin as! Plugin,
-    config: JSTypes.coerceDictionaryToJSObject(config, formattingDatesAsStrings: true)!,
+    config: JSTypes.coerceDictionaryToJSObject(config ?? [:], formattingDatesAsStrings: true)!,
     webview: webview
 	)
 }

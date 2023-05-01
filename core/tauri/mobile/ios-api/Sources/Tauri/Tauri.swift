@@ -64,7 +64,7 @@ public class PluginManager {
 					var error: NSError? = nil
 					withUnsafeMutablePointer(to: &error) {
 						let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
-						unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin, selectorWithThrows, invoke, OpaquePointer($0))
+						unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin.instance, selectorWithThrows, invoke, OpaquePointer($0))
 					}
 					if let error = error {
 						invoke.reject("\(error)")

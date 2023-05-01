@@ -55,15 +55,27 @@ function transformCallback(
   return identifier
 }
 
+class Channel {
+  id: number
+
+  constructor(id: number) {
+    this.id = id
+  }
+
+  toJSON(): string {
+    return `__CHANNEL__:${this.id}`
+  }
+}
+
 /**
  * Creates a channel using the given handler function.
  *
- * @returns the channel identifier to send to the IPC.
+ * @returns the channel to send to the IPC.
  *
  * @since 2.0.0
  */
-function channel(fn: (response: any) => void): string {
-  return `__CHANNEL__:${transformCallback(fn)}`
+function channel(fn: (response: any) => void): Channel {
+  return new Channel(transformCallback(fn))
 }
 
 /**
@@ -144,6 +156,6 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
     : `${protocol}://localhost/${path}`
 }
 
-export type { InvokeArgs }
+export type { InvokeArgs, Channel }
 
 export { transformCallback, channel, invoke, convertFileSrc }

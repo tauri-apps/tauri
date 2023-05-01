@@ -553,9 +553,9 @@ pub fn app_cache_dir(config: &Config) -> Option<PathBuf> {
 ///
 /// ## Platform-specific
 ///
-/// - **Linux:** Resolves to [`config_dir`]`/${bundle_identifier}/logs`.
+/// - **Linux:** Resolves to [`data_local_dir`]`/${bundle_identifier}/logs`
 /// - **macOS:** Resolves to [`home_dir`]`/Library/Logs/${bundle_identifier}`
-/// - **Windows:** Resolves to [`config_dir`]`/${bundle_identifier}/logs`.
+/// - **Windows:** Resolves to [`data_local_dir`]`/${bundle_identifier}/logs`
 ///
 /// See [`PathResolver::app_log_dir`](crate::PathResolver#method.app_log_dir) for a more convenient helper function.
 pub fn app_log_dir(config: &Config) -> Option<PathBuf> {
@@ -566,9 +566,13 @@ pub fn app_log_dir(config: &Config) -> Option<PathBuf> {
       .join(&config.tauri.bundle.identifier)
   });
 
-  #[cfg(not(target_os = "macos"))]
+  #[cfg(target_os = "linux")]
   let path =
-    dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier).join("logs"));
+    dirs::data_local_dir().map(|dir| dir.join(&config.tauri.bundle.identifier).join("logs"));
+
+  #[cfg(target_os = "windows")]
+  let path =
+    dirs::data_local_dir().map(|dir| dir.join(&config.tauri.bundle.identifier).join("logs"));
 
   path
 }
@@ -590,9 +594,9 @@ pub fn app_dir(config: &Config) -> Option<PathBuf> {
 ///
 /// ## Platform-specific
 ///
-/// - **Linux:** Resolves to [`config_dir`]`/${bundle_identifier}`.
+/// - **Linux:** Resolves to [`data_local_dir`]`/${bundle_identifier}/logs`
 /// - **macOS:** Resolves to [`home_dir`]`/Library/Logs/${bundle_identifier}`
-/// - **Windows:** Resolves to [`config_dir`]`/${bundle_identifier}`.
+/// - **Windows:** Resolves to [`data_local_dir`]`/${bundle_identifier}/logs`
 ///
 /// See [`PathResolver::app_log_dir`](crate::PathResolver#method.app_log_dir) for a more convenient helper function.
 #[deprecated(

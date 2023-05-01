@@ -13,14 +13,13 @@ class JSObject : JSONObject {
   constructor(obj: JSONObject, names: Array<String>) : super(obj, names)
 
   override fun getString(key: String): String {
-    return getString(key, "")
+    return getString(key, "")!!
   }
 
-  fun getString(key: String, defaultValue: String): String {
+  fun getString(key: String, defaultValue: String?): String? {
     try {
-      val value = super.getString(key)
       if (!super.isNull(key)) {
-        return value
+        return super.getString(key)
       }
     } catch (_: JSONException) {
     }

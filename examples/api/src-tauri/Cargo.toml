@@ -19,7 +19,6 @@ tiny_http = "0.11"
 log = "0.4"
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
-tauri-plugin-notification = { path = "../../../../plugins-workspace/plugins/notification/" }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }

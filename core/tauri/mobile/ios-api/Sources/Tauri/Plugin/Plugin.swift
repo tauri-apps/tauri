@@ -24,7 +24,7 @@ open class Plugin: NSObject {
     invoke.resolve()
   }
 
-  func trigger(event: String, data: JSObject) {
+  public func trigger(_ event: String, data: JSObject) {
     if let eventListeners = listeners[event] {
       for channel in eventListeners {
         channel.send(data)

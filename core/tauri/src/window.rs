@@ -1293,8 +1293,6 @@ impl<R: Runtime> Window<R> {
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
         let invoke = Invoke { message, resolver };
 
-        println!("{} {}", config_url, current_url);
-
         if !is_local {
           invoke
             .resolver

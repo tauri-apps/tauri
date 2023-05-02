@@ -25,4 +25,4 @@ if ($ChangeDir -ne "") {
     # Change directories to the install path
     Set-Location -Path $ChangeDir
 }
-SCHTASKS.EXE /CREATE /XML update.xml /TN "Update {{{product_name}}} - Skip UAC" /F
+SCHTASKS.EXE /CREATE /XML update.xml /TN "Update {{product_name}} - Skip UAC" /F

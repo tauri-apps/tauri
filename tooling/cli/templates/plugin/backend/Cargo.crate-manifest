@@ -8,4 +8,4 @@ rust-version = "1.60"
 exclude = ["/examples"]
 
 [dependencies]
-tauri = {{{  tauri_dep  }}}
+tauri = {{  tauri_dep  }}

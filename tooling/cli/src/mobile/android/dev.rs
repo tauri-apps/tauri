@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, open_and_wait,
-  setup_dev_config, with_config, MobileTarget,
+  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, inject_assets,
+  open_and_wait, setup_dev_config, with_config, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -186,8 +186,10 @@ fn run_dev(
         noise_level,
         vars: Default::default(),
       };
+
+      let tauri_config = get_config(options.config.as_deref())?;
       let _handle = write_options(
-        &get_config(options.config.as_deref())?
+        &tauri_config
           .lock()
           .unwrap()
           .as_ref()
@@ -197,6 +199,8 @@ fn run_dev(
           .identifier,
         cli_options,
       )?;
+
+      inject_assets(config, &tauri_config.lock().unwrap().as_ref().unwrap())?;
 
       if open {
         open_and_wait(config, &env)

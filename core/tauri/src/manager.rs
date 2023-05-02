@@ -1218,9 +1218,20 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
+    #[cfg(feature = "isolation")]
+    let pattern = self.pattern().clone();
     let current_url_ = pending.current_url.clone();
     let navigation_handler = pending.navigation_handler.take();
     pending.navigation_handler = Some(Box::new(move |url| {
+      // always allow navigation events for the isolation iframe and do not emit them for consumers
+      #[cfg(feature = "isolation")]
+      if let Pattern::Isolation { schema, .. } = &pattern {
+        if url.scheme() == schema
+          && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
+        {
+          return true;
+        }
+      }
       *current_url_.lock().unwrap() = url.clone();
       if let Some(handler) = &navigation_handler {
         handler(url)

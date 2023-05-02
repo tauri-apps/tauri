@@ -11,7 +11,7 @@ pub fn command() -> Result<()> {
     Some(Default::default()),
     |_root_conf, config, _metadata, _cli_options| {
       ensure_init(config.project_dir(), MobileTarget::Android)?;
-      inject_assets(config, &get_config(None)?.lock().unwrap().as_ref().unwrap())?;
+      inject_assets(config, get_config(None)?.lock().unwrap().as_ref().unwrap())?;
       let env = env()?;
       os::open_file_with("Android Studio", config.project_dir(), &env.base).map_err(Into::into)
     },

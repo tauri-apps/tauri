@@ -200,7 +200,7 @@ fn run_dev(
         cli_options,
       )?;
 
-      inject_assets(config, &tauri_config.lock().unwrap().as_ref().unwrap())?;
+      inject_assets(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
       if open {
         open_and_wait(config, &env)

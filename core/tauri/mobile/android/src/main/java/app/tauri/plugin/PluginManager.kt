@@ -4,12 +4,14 @@
 
 package app.tauri.plugin
 
+import android.content.Context
 import android.content.Intent
 import android.webkit.WebView
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import app.tauri.FsUtils
 import app.tauri.JniMethod
 import app.tauri.Logger
 
@@ -120,6 +122,15 @@ class PluginManager(val activity: AppCompatActivity) {
       }
     } catch (e: Exception) {
       invoke.reject(e.message)
+    }
+  }
+
+  companion object {
+    fun loadConfig(context: Context, plugin: String): JSObject {
+      val tauriConfigJson = FsUtils.readAsset(context.assets, "tauri.conf.json")
+      val tauriConfig = JSObject(tauriConfigJson)
+      val plugins = tauriConfig.getJSObject("plugins", JSObject())
+      return plugins.getJSObject(plugin, JSObject())
     }
   }
 

@@ -25,6 +25,16 @@ exclude = [
   "examples/workspace"
 ]
 
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+glob = "0.3"
+tempfile = "3.3"
+thiserror = "1.0"
+brotli = { version = "3", default-features = false, features = [ "std" ] }
+url = { version = "2.3", features = [ "serde" ] }
+
 # default to small, optimized workspace release binaries
 [profile.release]
 panic = "abort"

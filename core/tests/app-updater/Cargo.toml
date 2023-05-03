@@ -8,7 +8,7 @@ tauri-build = { path = "../../tauri-build", features = [] }
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json.workspace = true
 tiny_http = "0.11"
 tauri = { path = "../../tauri", features = ["updater"] }
 time = { version = "0.3", features = ["formatting"] }

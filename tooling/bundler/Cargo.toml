@@ -62,3 +62,6 @@ md5 = "0.7.0"
 [lib]
 name = "tauri_bundler"
 path = "src/lib.rs"
+
+[features]
+native-tls = ["attohttpc/native-tls"]

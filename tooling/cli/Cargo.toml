@@ -90,3 +90,6 @@ libc = "0.2"
 
 [profile.release]
 lto = true
+
+[features]
+native-tls = ["tauri-bundler/native-tls"]

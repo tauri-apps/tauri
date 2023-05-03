@@ -18,3 +18,4 @@ napi-build = "2.0"
 
 [features]
 native-tls-vendored = ["tauri-cli/native-tls-vendored"]
+rustls = ["tauri-cli/rustls"]

@@ -93,3 +93,4 @@ lto = true
 
 [features]
 native-tls-vendored = ["tauri-bundler/native-tls-vendored"]
+rustls = ["tauri-bundler/rustls"]

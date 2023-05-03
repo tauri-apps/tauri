@@ -65,3 +65,4 @@ path = "src/lib.rs"
 
 [features]
 native-tls-vendored = ["attohttpc/tls-native-vendored"]
+rustls = ["attohttpc/rustls"]

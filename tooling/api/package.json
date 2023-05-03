@@ -53,7 +53,7 @@
     "eslint-plugin-security": "1.7.1",
     "prettier": "2.8.7",
     "tsup": "6.7.0",
-    "typedoc": "0.24.4",
+    "typedoc": "0.23.8",
     "typedoc-plugin-markdown": "3.15.1",
     "typedoc-plugin-mdn-links": "3.0.3",
     "typescript": "5.0.4"

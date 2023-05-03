@@ -56,6 +56,11 @@
   - [ff4ea1ea](https://www.github.com/tauri-apps/tauri/commit/ff4ea1eabbf2874b113c6b4698002929bbac737a) fix: dispatch focus event to app.run on Windows, closes [#6460](https://www.github.com/tauri-apps/tauri/pull/6460) ([#6504](https://www.github.com/tauri-apps/tauri/pull/6504)) on 2023-03-31
 - Pin `winnow` crate to 0.4.1 to keep the 1.60 MSRV.
 
+## \[1.2.5]
+
+- Block remote URLs from accessing the IPC.
+  - [9c0593c33](https://www.github.com/tauri-apps/tauri/commit/9c0593c33af52cd9e00ec784d15f63efebdf039c) feat(core): block remote URLs from accessing the IPC on 2023-04-12
+
 ## \[1.2.4]
 
 - Pin `ignore` to `=0.4.18`.
@@ -133,6 +138,11 @@
 - Added the `user_agent` option when creating a window.
   - [a6c94119](https://www.github.com/tauri-apps/tauri/commit/a6c94119d8545d509723b147c273ca5edfe3729f) feat(core): expose user_agent to window config ([#5317](https://www.github.com/tauri-apps/tauri/pull/5317)) on 2022-10-02
 
+## \[1.1.4]
+
+- Block remote URLs from accessing the IPC.
+  - [58ea0b452](https://www.github.com/tauri-apps/tauri/commit/58ea0b45268dbd46cbac0ebb0887353d057ca767) feat(core): block remote URLs from accessing the IPC on 2023-04-12
+
 ## \[1.1.3]
 
 - Fix the filesystem scope allowing sub-directories of the directory picked by the dialog when `recursive` option was `false`.
@@ -187,6 +197,11 @@
   - [e6d9b670](https://www.github.com/tauri-apps/tauri/commit/e6d9b670b0b314ed667b0e164f2c8d27048e678f) refactor: remove unneeded focus code ([#5065](https://www.github.com/tauri-apps/tauri/pull/5065)) on 2022-09-03
 - Add `exists` function to the fs module.
   - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
+
+## \[1.0.9]
+
+- Block remote URLs from accessing the IPC.
+  - [fa90214b0](https://www.github.com/tauri-apps/tauri/commit/fa90214b052b1a5d38d54fbf1ca422b4c37cfd1f) feat(core): block remote URLs from accessing the IPC on 2023-04-12
 
 ## \[1.0.8]
 

@@ -63,6 +63,10 @@ interface ClientOptions {
    */
   maxRedirections?: number
   connectTimeout?: number | Duration
+  proxyUrl?: string;
+  noProxy?: string;
+  proxyUser?: string;
+  proxyPassword?: string;
 }
 
 /**

@@ -50,6 +50,14 @@ pub struct ClientBuilder {
   /// Connect timeout for the request.
   #[serde(deserialize_with = "deserialize_duration", default)]
   pub connect_timeout: Option<Duration>,
+  /// HTTP(s) proxy
+  pub proxy_url: Option<String>,
+  /// NO PROXY hosts, separated by comma
+  pub no_proxy: Option<String>,
+  /// Proxy username
+  pub proxy_user: Option<String>,
+  /// Proxy user password
+  pub proxy_password: Option<String>,
 }
 
 impl ClientBuilder {
@@ -82,6 +90,18 @@ impl ClientBuilder {
   #[cfg(feature = "reqwest-client")]
   pub fn build(self) -> crate::api::Result<Client> {
     let mut client_builder = reqwest::Client::builder();
+
+    if let Some(proxy_url) = self.proxy_url {
+      let mut proxy = reqwest::Proxy::all(proxy_url)?;
+      match (self.proxy_user, self.proxy_password) {
+        (Some(user), Some(password)) => proxy = proxy.basic_auth(&user, &password),
+        _ => {},
+      }
+      if let Some(no_proxy) = self.no_proxy {
+        proxy = proxy.no_proxy(reqwest::NoProxy::from_string(&no_proxy));
+      }
+      client_builder = client_builder.proxy(proxy);
+    }
 
     if let Some(max_redirections) = self.max_redirections {
       client_builder = client_builder.redirect(if max_redirections == 0 {
@@ -134,6 +154,25 @@ impl Client {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
     let mut request_builder = attohttpc::RequestBuilder::try_new(method, &request.url)?;
+    
+    if let Some(ref url) = self.0.proxy_url {
+      let mut proxy_settings_builder = attohttpc::ProxySettingsBuilder::new();
+      let mut proxy_url = Url::parse(&url).unwrap();
+      if let Some(ref user) = self.0.proxy_user {
+        proxy_url.set_username(&user).expect("username invalid");
+      }
+      if let Some(ref password) = self.0.proxy_password {
+        proxy_url.set_password(Some(&password)).expect("password invalid");
+      }
+      proxy_settings_builder = proxy_settings_builder.http_proxy(proxy_url.clone());
+      proxy_settings_builder = proxy_settings_builder.https_proxy(proxy_url);
+      if let Some(ref no_proxy) = self.0.no_proxy {
+        for host in no_proxy.split(",") {
+          proxy_settings_builder = proxy_settings_builder.add_no_proxy_host(host);
+        }
+      }
+      request_builder = request_builder.proxy_settings(proxy_settings_builder.build());
+    }
 
     if let Some(query) = request.query {
       request_builder = request_builder.params(&query);
@@ -486,6 +525,8 @@ pub struct HttpRequestBuilder {
   pub timeout: Option<Duration>,
   /// The response type (defaults to Json)
   pub response_type: Option<ResponseType>,
+  /// HTTP Prox 
+  pub proxy: Option<String>,
 }
 
 impl HttpRequestBuilder {
@@ -499,6 +540,7 @@ impl HttpRequestBuilder {
       body: None,
       timeout: None,
       response_type: None,
+      proxy: None,
     })
   }
 
@@ -711,6 +753,10 @@ mod test {
       Self {
         max_redirections: Option::arbitrary(g),
         connect_timeout: Option::arbitrary(g),
+        proxy_url: None,
+        proxy_user: None,
+        proxy_password: None,
+        no_proxy: None,
       }
     }
   }

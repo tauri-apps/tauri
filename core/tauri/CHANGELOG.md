@@ -54,6 +54,7 @@
   - [49dff27e](https://www.github.com/tauri-apps/tauri/commit/49dff27ef1b36c48dbfd49f44b9b3ac07b372bdf) feat(core): create WindowBuilder from WindowConfig ([#6073](https://www.github.com/tauri-apps/tauri/pull/6073)) on 2023-01-17
 - On Windows, Fix missing `WindowEvent::Focused` in `App::run` callback.
   - [ff4ea1ea](https://www.github.com/tauri-apps/tauri/commit/ff4ea1eabbf2874b113c6b4698002929bbac737a) fix: dispatch focus event to app.run on Windows, closes [#6460](https://www.github.com/tauri-apps/tauri/pull/6460) ([#6504](https://www.github.com/tauri-apps/tauri/pull/6504)) on 2023-03-31
+- Pin `winnow` crate to 0.4.1 to keep the 1.60 MSRV.
 
 ## \[1.2.4]
 

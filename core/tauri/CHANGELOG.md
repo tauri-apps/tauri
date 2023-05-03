@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.2.5]
+
+- Block remote URLs from accessing the IPC.
+  - [9c0593c33](https://www.github.com/tauri-apps/tauri/commit/9c0593c33af52cd9e00ec784d15f63efebdf039c) feat(core): block remote URLs from accessing the IPC on 2023-04-12
+
 ## \[1.2.4]
 
 - Pin `ignore` to `=0.4.18`.

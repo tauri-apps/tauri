@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.12.3]
+
+- Block remote URLs from accessing the IPC.
+  - [9c0593c33](https://www.github.com/tauri-apps/tauri/commit/9c0593c33af52cd9e00ec784d15f63efebdf039c) feat(core): block remote URLs from accessing the IPC on 2023-04-12
+
 ## \[0.12.2]
 
 - Fix compatibility with older Linux distributions.

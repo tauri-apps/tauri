@@ -92,4 +92,4 @@ libc = "0.2"
 lto = true
 
 [features]
-native-tls = ["tauri-bundler/native-tls"]
+native-tls-vendored = ["tauri-bundler/native-tls-vendored"]

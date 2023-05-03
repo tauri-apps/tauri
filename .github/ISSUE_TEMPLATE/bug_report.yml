@@ -28,12 +28,14 @@ body:
 
   - type: textarea
     id: reproduction
+    validations:
+      required: true
     attributes:
       label: Reproduction
       description: A link to a reproduction repo.
       placeholder: |
-        Please provide a [minimal reproduction](https://stackoverflow.com/help/minimal-reproducible-example)
-        > [Why reproduction is required](https://antfu.me/posts/why-reproductions-are-required)
+        Please provide a minimal reproduction, see this guide https://stackoverflow.com/help/minimal-reproducible-example
+        Why reproduction is required? see this article https://antfu.me/posts/why-reproductions-are-required
 
   - type: textarea
     id: expected-behavior

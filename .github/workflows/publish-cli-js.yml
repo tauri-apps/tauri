@@ -299,7 +299,7 @@ jobs:
         shell: bash
       - name: Install system dependencies
         run: |
-          apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev gtk+3.0-dev
+          apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl gtk+3.0-dev
       - name: Setup and run tests
         run: |
           yarn tauri --help

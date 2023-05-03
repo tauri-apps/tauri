@@ -33,7 +33,7 @@ log = { version = "0.4.17", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 encoding_rs = "0.8"
 os_pipe = "1"
-attohttpc = "0.24"
+attohttpc = { version = "0.24", default-features = false }
 hex = "0.4"
 semver = "1"
 sha1 = "0.10"
@@ -62,3 +62,8 @@ md5 = "0.7.0"
 [lib]
 name = "tauri_bundler"
 path = "src/lib.rs"
+
+[features]
+default = ["attohttpc/default"]
+native-tls-vendored = ["attohttpc/tls-native-vendored"]
+rustls = ["attohttpc/rustls"]

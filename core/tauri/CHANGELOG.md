@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.9]
+
+- Block remote URLs from accessing the IPC.
+  - [fa90214b0](https://www.github.com/tauri-apps/tauri/commit/fa90214b052b1a5d38d54fbf1ca422b4c37cfd1f) feat(core): block remote URLs from accessing the IPC on 2023-04-12
+
 ## \[1.0.8]
 
 - Fix the filesystem scope allowing sub-directories of the directory picked by the dialog when `recursive` option was `false`.

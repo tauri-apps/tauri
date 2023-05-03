@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.2]
+
+- Block remote URLs from accessing the IPC.
+  - [58ea0b452](https://www.github.com/tauri-apps/tauri/commit/58ea0b45268dbd46cbac0ebb0887353d057ca767) feat(core): block remote URLs from accessing the IPC on 2023-04-12
+
 ## \[0.11.1]
 
 - Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.

@@ -257,12 +257,58 @@ fn create_tar(src_dir: &Path, dest_path: &Path) -> crate::Result<PathBuf> {
   let dest_file = common::create_file(dest_path)?;
   let gzip_encoder = libflate::gzip::Encoder::new(dest_file)?;
 
-  let mut builder = tar::Builder::new(gzip_encoder);
-  builder.follow_symlinks(false);
-  builder.append_dir_all(src_dir.file_name().expect("Path has no file_name"), src_dir)?;
-  let gzip_encoder = builder.into_inner()?;
+  let gzip_encoder = create_tar_from_src(src_dir, gzip_encoder)?;
 
   let mut dest_file = gzip_encoder.finish().into_result()?;
   dest_file.flush()?;
   Ok(dest_path.to_owned())
+}
+
+#[cfg(target_os = "macos")]
+fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
+  let src_dir = src_dir.as_ref();
+  let mut builder = tar::Builder::new(dest_file);
+  builder.follow_symlinks(false);
+  builder.append_dir_all(src_dir.file_name().expect("Path has no file_name"), src_dir)?;
+  builder.into_inner().map_err(Into::into)
+}
+
+#[cfg(target_os = "linux")]
+fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
+  let src_dir = src_dir.as_ref();
+  let mut tar_builder = tar::Builder::new(dest_file);
+
+  // validate source type
+  let file_type = fs::metadata(src_dir).expect("Can't read source directory");
+  // if it's a file don't need to walkdir
+  if file_type.is_file() {
+    let mut src_file = fs::File::open(src_dir)?;
+    let file_name = src_dir
+      .file_name()
+      .expect("Can't extract file name from path");
+
+    tar_builder.append_file(file_name, &mut src_file)?;
+  } else {
+    for entry in walkdir::WalkDir::new(src_dir) {
+      let entry = entry?;
+      let src_path = entry.path();
+      if src_path == src_dir {
+        continue;
+      }
+
+      // We add the .parent() because example if we send a path
+      // /dev/src-tauri/target/debug/bundle/osx/app.app
+      // We need a tar with app.app/<...> (source root folder should be included)
+      // safe to unwrap: the path has a parent
+      let dest_path = src_path.strip_prefix(src_dir.parent().unwrap())?;
+      if entry.file_type().is_dir() {
+        tar_builder.append_dir(dest_path, src_path)?;
+      } else {
+        let mut src_file = fs::File::open(src_path)?;
+        tar_builder.append_file(dest_path, &mut src_file)?;
+      }
+    }
+  }
+  let dest_file = tar_builder.into_inner()?;
+  Ok(dest_file)
 }

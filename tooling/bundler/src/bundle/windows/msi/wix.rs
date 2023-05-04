@@ -614,6 +614,7 @@ pub fn build_wix_app_installer(
 
   let mut fragment_paths = Vec::new();
   let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(|s| s.into());
   let mut has_custom_template = false;
   let mut enable_elevated_update_task = false;
 

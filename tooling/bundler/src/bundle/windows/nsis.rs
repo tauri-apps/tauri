@@ -527,5 +527,13 @@ fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Enco
     )),
     "french" => Some((include_str!("./templates/nsis-languages/French.nsh"), UTF_8)),
     _ => None,
+	"spanish" => Some((
+      include_str!("./templates/nsis-languages/Spanish.nsh"),
+      UTF_8,
+    )),
+	"spanishinternational" => Some((
+      include_str!("./templates/nsis-languages/SpanishInternational.nsh"),
+      UTF_8,
+    )),
   }
 }

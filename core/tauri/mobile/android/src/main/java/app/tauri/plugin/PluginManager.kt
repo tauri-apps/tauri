@@ -121,7 +121,7 @@ class PluginManager(val activity: AppCompatActivity) {
         plugins[pluginId]?.invoke(invoke)
       }
     } catch (e: Exception) {
-      invoke.reject(e.message)
+      invoke.reject(if (e.message?.isEmpty() != false) { e.toString() } else { e.message })
     }
   }
 

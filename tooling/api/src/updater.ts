@@ -1,38 +1,88 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 /**
  * Customize the auto updater flow.
  *
- * This package is also accessible with `window.__TAURI__.updater` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.updater` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 
-import { once, listen, emit, UnlistenFn } from './event'
+import { once, listen, emit, TauriEvent } from './event'
+import { type UnlistenFn } from './helpers/event'
 
+/**
+ * @since 1.0.0
+ */
 type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'
 
+/**
+ * @since 1.0.0
+ */
 interface UpdateStatusResult {
   error?: string
   status: UpdateStatus
 }
 
+/**
+ * @since 1.0.0
+ */
 interface UpdateManifest {
   version: string
   date: string
   body: string
 }
 
+/**
+ * @since 1.0.0
+ */
 interface UpdateResult {
   manifest?: UpdateManifest
   shouldUpdate: boolean
 }
 
 /**
+ * Listen to an updater event.
+ * @example
+ * ```typescript
+ * import { onUpdaterEvent } from "@tauri-apps/api/updater";
+ * const unlisten = await onUpdaterEvent(({ error, status }) => {
+ *  console.log('Updater event', error, status);
+ * });
+ *
+ * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+ * unlisten();
+ * ```
+ *
+ * @returns A promise resolving to a function to unlisten to the event.
+ * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+ *
+ * @since 1.0.2
+ */
+async function onUpdaterEvent(
+  handler: (status: UpdateStatusResult) => void
+): Promise<UnlistenFn> {
+  return listen(TauriEvent.STATUS_UPDATE, (data: { payload: any }) => {
+    handler(data?.payload as UpdateStatusResult)
+  })
+}
+
+/**
  * Install the update if there's one available.
+ * @example
+ * ```typescript
+ * import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
+ * const update = await checkUpdate();
+ * if (update.shouldUpdate) {
+ *   console.log(`Installing update ${update.manifest?.version}, ${update.manifest?.date}, ${update.manifest.body}`);
+ *   await installUpdate();
+ * }
+ * ```
  *
  * @return A promise indicating the success or failure of the operation.
+ *
+ * @since 1.0.0
  */
 async function installUpdate(): Promise<void> {
   let unlistenerFn: UnlistenFn | undefined
@@ -48,20 +98,19 @@ async function installUpdate(): Promise<void> {
     function onStatusChange(statusResult: UpdateStatusResult): void {
       if (statusResult.error) {
         cleanListener()
-        return reject(statusResult.error)
+        reject(statusResult.error)
+        return
       }
 
       // install complete
       if (statusResult.status === 'DONE') {
         cleanListener()
-        return resolve()
+        resolve()
       }
     }
 
     // listen status change
-    listen('tauri://update-status', (data: { payload: any }) => {
-      onStatusChange(data?.payload as UpdateStatusResult)
-    })
+    onUpdaterEvent(onStatusChange)
       .then((fn) => {
         unlistenerFn = fn
       })
@@ -73,7 +122,7 @@ async function installUpdate(): Promise<void> {
 
     // start the process we dont require much security as it's
     // handled by rust
-    emit('tauri://update-install').catch((e) => {
+    emit(TauriEvent.INSTALL_UPDATE).catch((e) => {
       cleanListener()
       // dispatch the error to our checkUpdate
       throw e
@@ -83,8 +132,16 @@ async function installUpdate(): Promise<void> {
 
 /**
  * Checks if an update is available.
+ * @example
+ * ```typescript
+ * import { checkUpdate } from '@tauri-apps/api/updater';
+ * const update = await checkUpdate();
+ * // now run installUpdate() if needed
+ * ```
  *
  * @return Promise resolving to the update status.
+ *
+ * @since 1.0.0
  */
 async function checkUpdate(): Promise<UpdateResult> {
   let unlistenerFn: UnlistenFn | undefined
@@ -99,7 +156,7 @@ async function checkUpdate(): Promise<UpdateResult> {
   return new Promise((resolve, reject) => {
     function onUpdateAvailable(manifest: UpdateManifest): void {
       cleanListener()
-      return resolve({
+      resolve({
         manifest,
         shouldUpdate: true
       })
@@ -108,19 +165,20 @@ async function checkUpdate(): Promise<UpdateResult> {
     function onStatusChange(statusResult: UpdateStatusResult): void {
       if (statusResult.error) {
         cleanListener()
-        return reject(statusResult.error)
+        reject(statusResult.error)
+        return
       }
 
       if (statusResult.status === 'UPTODATE') {
         cleanListener()
-        return resolve({
+        resolve({
           shouldUpdate: false
         })
       }
     }
 
     // wait to receive the latest update
-    once('tauri://update-available', (data: { payload: any }) => {
+    once(TauriEvent.UPDATE_AVAILABLE, (data: { payload: any }) => {
       onUpdateAvailable(data?.payload as UpdateManifest)
     }).catch((e) => {
       cleanListener()
@@ -129,9 +187,7 @@ async function checkUpdate(): Promise<UpdateResult> {
     })
 
     // listen status change
-    listen('tauri://update-status', (data: { payload: any }) => {
-      onStatusChange(data?.payload as UpdateStatusResult)
-    })
+    onUpdaterEvent(onStatusChange)
       .then((fn) => {
         unlistenerFn = fn
       })
@@ -142,7 +198,7 @@ async function checkUpdate(): Promise<UpdateResult> {
       })
 
     // start the process
-    emit('tauri://update').catch((e) => {
+    emit(TauriEvent.CHECK_UPDATE).catch((e) => {
       cleanListener()
       // dispatch the error to our checkUpdate
       throw e
@@ -152,4 +208,4 @@ async function checkUpdate(): Promise<UpdateResult> {
 
 export type { UpdateStatus, UpdateStatusResult, UpdateManifest, UpdateResult }
 
-export { installUpdate, checkUpdate }
+export { onUpdaterEvent, installUpdate, checkUpdate }

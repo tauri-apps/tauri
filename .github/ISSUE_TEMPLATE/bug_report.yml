@@ -1,7 +1,11 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 name: 🐞 Bug Report
 title: '[bug] '
 description: Report a bug
-labels: 'type: bug'
+labels: ['type: bug', 'status: needs triage']
 
 body:
   - type: markdown
@@ -26,11 +30,10 @@ body:
     id: reproduction
     attributes:
       label: Reproduction
-      description: Steps to reproduce the behavior.
+      description: A link to a reproduction repo or steps to reproduce the behaviour.
       placeholder: |
-        1. Go to ...
-        2. Click on ...
-        3. See error
+        Please provide a minimal reproduction or steps to reproduce, see this guide https://stackoverflow.com/help/minimal-reproducible-example
+        Why reproduction is required? see this article https://antfu.me/posts/why-reproductions-are-required
 
   - type: textarea
     id: expected-behavior
@@ -43,7 +46,7 @@ body:
     attributes:
       label: Platform and versions
       description: "Output of `npm run tauri info` or `cargo tauri info`"
-      render: shell
+      render: text
     validations:
       required: true
 
@@ -51,8 +54,8 @@ body:
     id: logs
     attributes:
       label: Stack trace
-      render: shell
-  
+      render: text
+
   - type: textarea
     id: context
     attributes:

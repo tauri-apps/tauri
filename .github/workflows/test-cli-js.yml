@@ -1,0 +1,68 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test cli.js
+
+on:
+  push:
+    branches:
+      - dev
+      - next
+  pull_request:
+    paths:
+      - '.github/workflows/test-cli-js.yml'
+      # currently cli.js only tests the template
+      - 'tooling/cli/templates/app/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-tauri-js-cli:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+          cache: yarn
+          cache-dependency-path: tooling/cli/node/yarn.lock
+
+      - name: install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            tooling/cli
+            tooling/cli/node/test/jest/fixtures/empty/src-tauri
+
+      - name: test
+        timeout-minutes: 30
+        run: |
+          cd ./tooling/cli/node
+          yarn
+          yarn build
+          yarn test

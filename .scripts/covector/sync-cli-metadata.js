@@ -1,5 +1,5 @@
 #!/usr/bin/env node
- // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,24 +10,39 @@ we should look to find a more "rusty way" to import / "pin" a version value in o
 rust binaries.
 */
 
-const {
-  readFileSync,
-  writeFileSync
-} = require('fs')
+const { readFileSync, writeFileSync } = require('fs')
 
 const packageNickname = process.argv[2]
-const filePath = packageNickname === 'cli.js' ? `../../../tooling/cli/metadata.json` : `../../tooling/cli/metadata.json`
+const filePath =
+  packageNickname === 'cli.js'
+    ? `../../../tooling/cli/metadata.json`
+    : `../../tooling/cli/metadata.json`
 const bump = process.argv[3]
-if (bump !== 'prerelease') {
-  throw new Error(
-    `We don't handle anything except prerelease right now. Exiting.`
-  )
+let index = null
+
+switch (bump) {
+  case 'major':
+    index = 0
+    break
+  case 'minor':
+    index = 1
+    break
+  case 'patch':
+    index = 2
+    break
+  default:
+    throw new Error('unexpected bump ' + bump)
 }
 
 const inc = (version) => {
   const v = version.split('.')
-  const n = v[v.length - 1]
-  v[v.length - 1] = String(Number(n) + 1)
+  for (let i = 0; i < v.length; i++) {
+    if (i === index) {
+      v[i] = String(Number(v[i]) + 1)
+    } else if (i > index) {
+      v[i] = 0
+    }
+  }
   return v.join('.')
 }
 

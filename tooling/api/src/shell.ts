@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,9 +6,9 @@
  * Access the system shell.
  * Allows you to spawn child processes and manage files and URLs using their default application.
  *
- * This package is also accessible with `window.__TAURI__.shell` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.shell` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
- * The APIs must be allowlisted on `tauri.conf.json`:
+ * The APIs must be added to [`tauri.allowlist.shell`](https://tauri.app/v1/api/config/#allowlistconfig.shell) in `tauri.conf.json`:
  * ```json
  * {
  *   "tauri": {
@@ -29,18 +29,18 @@
  *
  * This API has a scope configuration that forces you to restrict the programs and arguments that can be used.
  *
- * ### Restricting access to the [[open | `open`]] API
+ * ### Restricting access to the {@link open | `open`} API
  *
- * On the allowlist, `open: true` means that the [[open]] API can be used with any URL,
- * as the argument is validated with the `^https?://` regex.
+ * On the allowlist, `open: true` means that the {@link open} API can be used with any URL,
+ * as the argument is validated with the `^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+` regex.
  * You can change that regex by changing the boolean value to a string, e.g. `open: ^https://github.com/`.
  *
- * ### Restricting access to the [[Command | `Command`]] APIs
+ * ### Restricting access to the {@link Command | `Command`} APIs
  *
  * The `shell` allowlist object has a `scope` field that defines an array of CLIs that can be used.
  * Each CLI is a configuration object `{ name: string, cmd: string, sidecar?: bool, args?: boolean | Arg[] }`.
  *
- * - `name`: the unique identifier of the command, passed to the [[Command.constructor | Command constructor]].
+ * - `name`: the unique identifier of the command, passed to the {@link Command.constructor | Command constructor}.
  * If it's a sidecar, this must be the value defined on `tauri.conf.json > tauri > bundle > externalBin`.
  * - `cmd`: the program that is executed on this configuration. If it's a sidecar, this value is ignored.
  * - `sidecar`: whether the object configures a sidecar or a system program.
@@ -57,11 +57,13 @@
  * Configuration:
  * ```json
  * {
- *   "scope": {
- *     "name": "run-git-commit",
- *     "cmd": "git",
- *     "args": ["commit", "-m", { "validator": "\\S+" }]
- *   }
+ *   "scope": [
+ *     {
+ *       "name": "run-git-commit",
+ *       "cmd": "git",
+ *       "args": ["commit", "-m", { "validator": "\\S+" }]
+ *     }
+ *   ]
  * }
  * ```
  * Usage:
@@ -78,11 +80,20 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 
+/**
+ * @since 1.0.0
+ */
 interface SpawnOptions {
   /** Current working directory. */
   cwd?: string
   /** Environment variables. set to `null` to clear the process env. */
-  env?: { [name: string]: string }
+  env?: Record<string, string>
+  /**
+   * Character encoding for stdout/stderr
+   *
+   * @since 1.1.0
+   *  */
+  encoding?: string
 }
 
 /** @ignore */
@@ -90,6 +101,9 @@ interface InternalSpawnOptions extends SpawnOptions {
   sidecar?: boolean
 }
 
+/**
+ * @since 1.0.0
+ */
 interface ChildProcess {
   /** Exit code of the process. `null` if the process was terminated by a signal on Unix. */
   code: number | null
@@ -133,49 +147,177 @@ async function execute(
   })
 }
 
+/**
+ * @since 1.0.0
+ */
 class EventEmitter<E extends string> {
-  /** @ignore  */
+  /** @ignore */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  private eventListeners: {
-    [key: string]: Array<(arg: any) => void>
-  } = Object.create(null)
+  private eventListeners: Record<E, Array<(...args: any[]) => void>> =
+    Object.create(null)
 
-  /** @ignore  */
-  private addEventListener(event: string, handler: (arg: any) => void): void {
-    if (event in this.eventListeners) {
-      // eslint-disable-next-line security/detect-object-injection
-      this.eventListeners[event].push(handler)
-    } else {
-      // eslint-disable-next-line security/detect-object-injection
-      this.eventListeners[event] = [handler]
-    }
-  }
-
-  /** @ignore  */
-  _emit(event: E, payload: any): void {
-    if (event in this.eventListeners) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const listeners = this.eventListeners[event as any]
-      for (const listener of listeners) {
-        listener(payload)
-      }
-    }
+  /**
+   * Alias for `emitter.on(eventName, listener)`.
+   *
+   * @since 1.1.0
+   */
+  addListener(eventName: E, listener: (...args: any[]) => void): this {
+    return this.on(eventName, listener)
   }
 
   /**
-   * Listen to an event from the child process.
+   * Alias for `emitter.off(eventName, listener)`.
    *
-   * @param event The event name.
-   * @param handler The event handler.
-   *
-   * @return The `this` instance for chained calls.
+   * @since 1.1.0
    */
-  on(event: E, handler: (arg: any) => void): EventEmitter<E> {
-    this.addEventListener(event, handler)
+  removeListener(eventName: E, listener: (...args: any[]) => void): this {
+    return this.off(eventName, listener)
+  }
+
+  /**
+   * Adds the `listener` function to the end of the listeners array for the
+   * event named `eventName`. No checks are made to see if the `listener` has
+   * already been added. Multiple calls passing the same combination of `eventName`and `listener` will result in the `listener` being added, and called, multiple
+   * times.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   *
+   * @since 1.0.0
+   */
+  on(eventName: E, listener: (...args: any[]) => void): this {
+    if (eventName in this.eventListeners) {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName].push(listener)
+    } else {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName] = [listener]
+    }
     return this
+  }
+
+  /**
+   * Adds a **one-time**`listener` function for the event named `eventName`. The
+   * next time `eventName` is triggered, this listener is removed and then invoked.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   *
+   * @since 1.1.0
+   */
+  once(eventName: E, listener: (...args: any[]) => void): this {
+    const wrapper = (...args: any[]): void => {
+      this.removeListener(eventName, wrapper)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      listener(...args)
+    }
+    return this.addListener(eventName, wrapper)
+  }
+
+  /**
+   * Removes the all specified listener from the listener array for the event eventName
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   *
+   * @since 1.1.0
+   */
+  off(eventName: E, listener: (...args: any[]) => void): this {
+    if (eventName in this.eventListeners) {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName] = this.eventListeners[eventName].filter(
+        (l) => l !== listener
+      )
+    }
+    return this
+  }
+
+  /**
+   * Removes all listeners, or those of the specified eventName.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   *
+   * @since 1.1.0
+   */
+  removeAllListeners(event?: E): this {
+    if (event) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete,security/detect-object-injection
+      delete this.eventListeners[event]
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      this.eventListeners = Object.create(null)
+    }
+    return this
+  }
+
+  /**
+   * @ignore
+   * Synchronously calls each of the listeners registered for the event named`eventName`, in the order they were registered, passing the supplied arguments
+   * to each.
+   *
+   * @returns `true` if the event had listeners, `false` otherwise.
+   */
+  emit(eventName: E, ...args: any[]): boolean {
+    if (eventName in this.eventListeners) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,security/detect-object-injection
+      const listeners = this.eventListeners[eventName]
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      for (const listener of listeners) listener(...args)
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Returns the number of listeners listening to the event named `eventName`.
+   *
+   * @since 1.1.0
+   */
+  listenerCount(eventName: E): number {
+    if (eventName in this.eventListeners)
+      // eslint-disable-next-line security/detect-object-injection
+      return this.eventListeners[eventName].length
+    return 0
+  }
+
+  /**
+   * Adds the `listener` function to the _beginning_ of the listeners array for the
+   * event named `eventName`. No checks are made to see if the `listener` has
+   * already been added. Multiple calls passing the same combination of `eventName`and `listener` will result in the `listener` being added, and called, multiple
+   * times.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   *
+   * @since 1.1.0
+   */
+  prependListener(eventName: E, listener: (...args: any[]) => void): this {
+    if (eventName in this.eventListeners) {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName].unshift(listener)
+    } else {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName] = [listener]
+    }
+    return this
+  }
+
+  /**
+   * Adds a **one-time**`listener` function for the event named `eventName` to the_beginning_ of the listeners array. The next time `eventName` is triggered, this
+   * listener is removed, and then invoked.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   *
+   * @since 1.1.0
+   */
+  prependOnceListener(eventName: E, listener: (...args: any[]) => void): this {
+    const wrapper = (...args: any[]): void => {
+      this.removeListener(eventName, wrapper)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      listener(...args)
+    }
+    return this.prependListener(eventName, wrapper)
   }
 }
 
+/**
+ * @since 1.1.0
+ */
 class Child {
   /** The child process `pid`. */
   pid: number
@@ -190,13 +332,14 @@ class Child {
    * @param data The message to write, either a string or a byte array.
    * @example
    * ```typescript
-   * const command = new Command('node')
-   * const child = await command.spawn()
-   * await child.write('message')
-   * await child.write([0, 1, 2, 3, 4, 5])
+   * import { Command } from '@tauri-apps/api/shell';
+   * const command = new Command('node');
+   * const child = await command.spawn();
+   * await child.write('message');
+   * await child.write([0, 1, 2, 3, 4, 5]);
    * ```
    *
-   * @return A promise indicating the success or failure of the operation.
+   * @returns A promise indicating the success or failure of the operation.
    */
   async write(data: string | Uint8Array): Promise<void> {
     return invokeTauriCommand({
@@ -213,7 +356,7 @@ class Child {
   /**
    * Kills the child process.
    *
-   * @return A promise indicating the success or failure of the operation.
+   * @returns A promise indicating the success or failure of the operation.
    */
   async kill(): Promise<void> {
     return invokeTauriCommand({
@@ -231,17 +374,21 @@ class Child {
  * It emits the `close` and `error` events.
  * @example
  * ```typescript
- * const command = new Command('node')
+ * import { Command } from '@tauri-apps/api/shell';
+ * const command = new Command('node');
  * command.on('close', data => {
  *   console.log(`command finished with code ${data.code} and signal ${data.signal}`)
- * })
- * command.on('error', error => console.error(`command error: "${error}"`))
- * command.stdout.on('data', line => console.log(`command stdout: "${line}"`))
- * command.stderr.on('data', line => console.log(`command stderr: "${line}"`))
+ * });
+ * command.on('error', error => console.error(`command error: "${error}"`));
+ * command.stdout.on('data', line => console.log(`command stdout: "${line}"`));
+ * command.stderr.on('data', line => console.log(`command stderr: "${line}"`));
  *
- * const child = await command.spawn()
- * console.log('pid:', child.pid)
+ * const child = await command.spawn();
+ * console.log('pid:', child.pid);
  * ```
+ *
+ * @since 1.1.0
+ *
  */
 class Command extends EventEmitter<'close' | 'error'> {
   /** @ignore Program to execute. */
@@ -278,15 +425,13 @@ class Command extends EventEmitter<'close' | 'error'> {
    * Creates a command to execute the given sidecar program.
    * @example
    * ```typescript
-   * const command = Command.sidecar('my-sidecar')
-   * const output = await command.execute()
+   * import { Command } from '@tauri-apps/api/shell';
+   * const command = Command.sidecar('my-sidecar');
+   * const output = await command.execute();
    * ```
    *
    * @param program The program to execute.
    * It must be configured on `tauri.conf.json > tauri > allowlist > shell > scope`.
-   * @param args Program arguments.
-   * @param options Spawn options.
-   * @returns
    */
   static sidecar(
     program: string,
@@ -301,23 +446,23 @@ class Command extends EventEmitter<'close' | 'error'> {
   /**
    * Executes the command as a child process, returning a handle to it.
    *
-   * @return A promise resolving to the child process handle.
+   * @returns A promise resolving to the child process handle.
    */
   async spawn(): Promise<Child> {
     return execute(
       (event) => {
         switch (event.event) {
           case 'Error':
-            this._emit('error', event.payload)
+            this.emit('error', event.payload)
             break
           case 'Terminated':
-            this._emit('close', event.payload)
+            this.emit('close', event.payload)
             break
           case 'Stdout':
-            this.stdout._emit('data', event.payload)
+            this.stdout.emit('data', event.payload)
             break
           case 'Stderr':
-            this.stderr._emit('data', event.payload)
+            this.stderr.emit('data', event.payload)
             break
         }
       },
@@ -331,14 +476,15 @@ class Command extends EventEmitter<'close' | 'error'> {
    * Executes the command as a child process, waiting for it to finish and collecting all of its output.
    * @example
    * ```typescript
-   * const output = await new Command('echo', 'message').execute()
-   * assert(output.code === 0)
-   * assert(output.signal === null)
-   * assert(output.stdout === 'message')
-   * assert(output.stderr === '')
+   * import { Command } from '@tauri-apps/api/shell';
+   * const output = await new Command('echo', 'message').execute();
+   * assert(output.code === 0);
+   * assert(output.signal === null);
+   * assert(output.stdout === 'message');
+   * assert(output.stderr === '');
    * ```
    *
-   * @return A promise resolving to the child process output.
+   * @returns A promise resolving to the child process output.
    */
   async execute(): Promise<ChildProcess> {
     return new Promise((resolve, reject) => {
@@ -398,20 +544,22 @@ type CommandEvent =
  *
  * @example
  * ```typescript
+ * import { open } from '@tauri-apps/api/shell';
  * // opens the given URL on the default browser:
- * await open('https://github.com/tauri-apps/tauri')
+ * await open('https://github.com/tauri-apps/tauri');
  * // opens the given URL using `firefox`:
- * await open('https://github.com/tauri-apps/tauri', 'firefox')
+ * await open('https://github.com/tauri-apps/tauri', 'firefox');
  * // opens a file using the default program:
- * await open('/path/to/file')
+ * await open('/path/to/file');
  * ```
  *
  * @param path The path or URL to open.
  * This value is matched against the string regex defined on `tauri.conf.json > tauri > allowlist > shell > open`,
- * which defaults to `^https?://`.
+ * which defaults to `^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+`.
  * @param openWith The app to open the file or URL with.
  * Defaults to the system default application for the specified path type.
- * @returns
+ *
+ * @since 1.0.0
  */
 async function open(path: string, openWith?: string): Promise<void> {
   return invokeTauriCommand({

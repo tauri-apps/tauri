@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 # Adapted from https://superuser.com/a/532109
@@ -15,9 +15,9 @@ if ((Test-Admin) -eq $false) {
     }
     else {
         $ArgList = ('-File "{0}" -Elevated' -f $myinvocation.MyCommand.Definition)
-        Start-Process powershell.exe -WindowStyle hidden -Verb RunAs -ArgumentList $ArgList
+        Start-Process "$env:SYSTEMROOT\System32\WindowsPowerShell\v1.0\powershell.exe" -WindowStyle hidden -Verb RunAs -ArgumentList $ArgList
     }
     exit
 }
 
-SCHTASKS.EXE /DELETE /TN 'Update {{{product_name}}} - Skip UAC' /F
+SCHTASKS.EXE /DELETE /TN 'Update {{product_name}} - Skip UAC' /F

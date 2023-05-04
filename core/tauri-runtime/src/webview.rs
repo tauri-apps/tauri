@@ -1,11 +1,13 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 //! Items specific to the [`Runtime`](crate::Runtime)'s webview.
 
-use crate::{menu::Menu, window::DetachedWindow, WindowIcon};
+use crate::{menu::Menu, window::DetachedWindow, Icon};
 
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 use tauri_utils::{
   config::{WindowConfig, WindowUrl},
   Theme,
@@ -20,10 +22,13 @@ use std::{fmt, path::PathBuf};
 #[derive(Debug, Clone)]
 pub struct WebviewAttributes {
   pub url: WindowUrl,
+  pub user_agent: Option<String>,
   pub initialization_scripts: Vec<String>,
   pub data_directory: Option<PathBuf>,
   pub file_drop_handler_enabled: bool,
   pub clipboard: bool,
+  pub accept_first_mouse: bool,
+  pub additional_browser_args: Option<String>,
 }
 
 impl WebviewAttributes {
@@ -31,11 +36,21 @@ impl WebviewAttributes {
   pub fn new(url: WindowUrl) -> Self {
     Self {
       url,
+      user_agent: None,
       initialization_scripts: Vec::new(),
       data_directory: None,
       file_drop_handler_enabled: true,
       clipboard: false,
+      accept_first_mouse: false,
+      additional_browser_args: None,
     }
+  }
+
+  /// Sets the user agent
+  #[must_use]
+  pub fn user_agent(mut self, user_agent: &str) -> Self {
+    self.user_agent = Some(user_agent.to_string());
+    self
   }
 
   /// Sets the init script.
@@ -66,6 +81,20 @@ impl WebviewAttributes {
   #[must_use]
   pub fn enable_clipboard_access(mut self) -> Self {
     self.clipboard = true;
+    self
+  }
+
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[must_use]
+  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self.accept_first_mouse = accept;
+    self
+  }
+
+  /// Sets additional browser arguments. **Windows Only**
+  #[must_use]
+  pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
+    self.additional_browser_args = Some(additional_args.to_string());
     self
   }
 }
@@ -122,9 +151,9 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn fullscreen(self, fullscreen: bool) -> Self;
 
-  /// Whether the window will be initially hidden or focused.
+  /// Whether the window will be initially focused or not.
   #[must_use]
-  fn focus(self) -> Self;
+  fn focused(self, focused: bool) -> Self;
 
   /// Whether the window should be maximized upon creation.
   #[must_use]
@@ -134,7 +163,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn visible(self, visible: bool) -> Self;
 
-  /// Whether the the window should be transparent. If this is true, writing colors
+  /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
@@ -152,8 +181,12 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn always_on_top(self, always_on_top: bool) -> Self;
 
+  /// Prevents the window contents from being captured by other apps.
+  #[must_use]
+  fn content_protected(self, protected: bool) -> Self;
+
   /// Sets the window icon.
-  fn icon(self, icon: WindowIcon) -> crate::Result<Self>;
+  fn icon(self, icon: Icon) -> crate::Result<Self>;
 
   /// Sets whether or not the window icon should be added to the taskbar.
   #[must_use]
@@ -188,6 +221,26 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[cfg(windows)]
   #[must_use]
   fn owner_window(self, owner: HWND) -> Self;
+
+  /// Hide the titlebar. Titlebar buttons will still be visible.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn title_bar_style(self, style: TitleBarStyle) -> Self;
+
+  /// Hide the window title.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn hidden_title(self, hidden: bool) -> Self;
+
+  /// Defines the window [tabbing identifier] for macOS.
+  ///
+  /// Windows with matching tabbing identifiers will be grouped together.
+  /// If the tabbing identifier is not set, automatic tabbing will be disabled.
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn tabbing_identifier(self, identifier: &str) -> Self;
 
   /// Forces a theme or uses the system settings if None was provided.
   fn theme(self, theme: Option<Theme>) -> Self;

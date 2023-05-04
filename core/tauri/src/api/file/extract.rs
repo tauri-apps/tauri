@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -15,7 +15,7 @@ pub enum ArchiveReader<R: Read + Seek> {
   /// A plain reader.
   Plain(R),
   /// A GZ- compressed reader (decoder).
-  GzCompressed(flate2::read::GzDecoder<R>),
+  GzCompressed(Box<flate2::read::GzDecoder<R>>),
 }
 
 impl<R: Read + Seek> Read for ArchiveReader<R> {
@@ -38,7 +38,7 @@ impl<R: Read + Seek> ArchiveReader<R> {
 }
 
 /// The supported archive formats.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ArchiveFormat {
   /// Tar archive.
@@ -48,7 +48,7 @@ pub enum ArchiveFormat {
 }
 
 /// The supported compression types.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Compression {
   /// Gz compression (e.g. `.tar.gz` archives)
@@ -146,7 +146,7 @@ impl<'a, R: std::fmt::Debug + Read + Seek> std::fmt::Debug for Extract<'a, R> {
 impl<'a, R: Read + Seek> Extract<'a, R> {
   /// Create archive from reader.
   pub fn from_cursor(mut reader: R, archive_format: ArchiveFormat) -> Extract<'a, R> {
-    if reader.seek(io::SeekFrom::Start(0)).is_err() {
+    if reader.rewind().is_err() {
       #[cfg(debug_assertions)]
       eprintln!("Could not seek to start of the file");
     }
@@ -157,7 +157,9 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
     };
     Extract {
       reader: match compression {
-        Some(Compression::Gz) => ArchiveReader::GzCompressed(flate2::read::GzDecoder::new(reader)),
+        Some(Compression::Gz) => {
+          ArchiveReader::GzCompressed(Box::new(flate2::read::GzDecoder::new(reader)))
+        }
         _ => ArchiveReader::Plain(reader),
       },
       archive_format,
@@ -239,12 +241,12 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
             // such as: τê▒Σ║ñµÿô.app/, that does not work as expected.
             // Here we require the file name must be a valid UTF-8.
             let file_name = String::from_utf8(file.name_raw().to_vec())?;
-            let out_path = into_dir.join(&file_name);
+            let out_path = into_dir.join(file_name);
             if file.is_dir() {
               fs::create_dir_all(&out_path)?;
             } else {
               if let Some(out_path_parent) = out_path.parent() {
-                fs::create_dir_all(&out_path_parent)?;
+                fs::create_dir_all(out_path_parent)?;
               }
               let mut out_file = fs::File::create(&out_path)?;
               io::copy(&mut file, &mut out_file)?;

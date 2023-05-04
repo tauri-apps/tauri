@@ -1,11 +1,8 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
   use std::{
@@ -23,7 +20,7 @@ fn main() {
   if !video_file.exists() {
     // Downloading with curl this saves us from adding
     // a Rust HTTP client dependency.
-    println!("Downloading {}", video_url);
+    println!("Downloading {video_url}");
     let status = Command::new("curl")
       .arg("-L")
       .arg("-o")
@@ -39,14 +36,12 @@ fn main() {
   }
 
   tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![video_uri])
     .register_uri_scheme_protocol("stream", move |_app, request| {
       // prepare our response
       let mut response = ResponseBuilder::new();
-      // get the wanted path
-      #[cfg(target_os = "windows")]
-      let path = request.uri().replace("stream://localhost/", "");
-      #[cfg(not(target_os = "windows"))]
-      let path = request.uri().replace("stream://", "");
+      // get the file path
+      let path = request.uri().strip_prefix("stream://localhost/").unwrap();
       let path = percent_encoding::percent_decode(path.as_bytes())
         .decode_utf8_lossy()
         .to_string();
@@ -116,4 +111,19 @@ fn main() {
       "../../examples/streaming/tauri.conf.json"
     ))
     .expect("error while running tauri application");
+}
+
+// returns the scheme and the path of the video file
+// we're using this just to allow using the custom `stream` protocol or tauri built-in `asset` protocol
+#[tauri::command]
+fn video_uri() -> (&'static str, std::path::PathBuf) {
+  #[cfg(feature = "protocol-asset")]
+  {
+    let mut path = std::env::current_dir().unwrap();
+    path.push("test_video.mp4");
+    ("asset", path)
+  }
+
+  #[cfg(not(feature = "protocol-asset"))]
+  ("stream", "example/test_video.mp4".into())
 }

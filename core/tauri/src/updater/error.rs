@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -59,15 +59,16 @@ pub enum Error {
   /// On client side, it's important to catch this error.
   #[error("No updates available")]
   UpToDate,
-  /// The server did not include the signature field.
-  #[error("the `{0}` field was not set on the updater response")]
-  MissingResponseField(&'static str),
   /// The updater responded with an invalid signature type.
   #[error("the updater response field `{0}` type is invalid, expected {1} but found {2}")]
   InvalidResponseType(&'static str, &'static str, serde_json::Value),
   /// HTTP error.
   #[error(transparent)]
   Http(#[from] http::Error),
+  /// Temp dir is not on same mount mount. This prevents our updater to rename the AppImage to a temp file.
+  #[cfg(target_os = "linux")]
+  #[error("temp directory is not on the same mount point as the AppImage")]
+  TempDirNotOnSameMountPoint,
 }
 
 pub type Result<T = ()> = std::result::Result<T, Error>;

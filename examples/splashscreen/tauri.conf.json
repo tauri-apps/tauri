@@ -1,9 +1,13 @@
 {
-  "$schema": "../../tooling/cli/schema.json",
+  "$schema": "../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": "dist",
     "devPath": "dist",
     "withGlobalTauri": true
+  },
+  "package": {
+    "productName": "Splashscreen",
+    "version": "0.1.0"
   },
   "tauri": {
     "bundle": {

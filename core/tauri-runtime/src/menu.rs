@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -147,11 +147,15 @@ pub enum MenuUpdate {
 }
 
 pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
-  fn set_icon(&self, icon: crate::TrayIcon) -> crate::Result<()>;
+  fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
   fn set_menu(&self, menu: crate::menu::SystemTrayMenu) -> crate::Result<()>;
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> crate::Result<()>;
+  #[cfg(target_os = "macos")]
+  fn set_title(&self, title: &str) -> crate::Result<()>;
+  fn set_tooltip(&self, tooltip: &str) -> crate::Result<()>;
+  fn destroy(&self) -> crate::Result<()>;
 }
 
 /// A window menu.
@@ -184,6 +188,131 @@ impl Menu {
   /// Creates a new window menu.
   pub fn new() -> Self {
     Default::default()
+  }
+
+  /// Creates a menu filled with default menu items and submenus.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**:
+  ///   - File
+  ///     - CloseWindow
+  ///     - Quit
+  ///   - Edit
+  ///     - Cut
+  ///     - Copy
+  ///     - Paste
+  ///   - Window
+  ///     - Minimize
+  ///     - CloseWindow
+  ///
+  /// - **Linux**:
+  ///   - File
+  ///     - CloseWindow
+  ///     - Quit
+  ///   - Window
+  ///     - Minimize
+  ///     - CloseWindow
+  ///
+  /// - **macOS**:
+  ///   - App
+  ///     - About
+  ///     - Separator
+  ///     - Services
+  ///     - Separator
+  ///     - Hide
+  ///     - HideOthers
+  ///     - ShowAll
+  ///     - Separator
+  ///     - Quit
+  ///   - File
+  ///     - CloseWindow
+  ///   - Edit
+  ///     - Undo
+  ///     - Redo
+  ///     - Separator
+  ///     - Cut
+  ///     - Copy
+  ///     - Paste
+  ///     - SelectAll
+  ///   - View
+  ///     - EnterFullScreen
+  ///   - Window
+  ///     - Minimize
+  ///     - Zoom
+  ///     - Separator
+  ///     - CloseWindow
+  pub fn os_default(#[allow(unused)] app_name: &str) -> Self {
+    let mut menu = Menu::new();
+    #[cfg(target_os = "macos")]
+    {
+      menu = menu.add_submenu(Submenu::new(
+        app_name,
+        Menu::new()
+          .add_native_item(MenuItem::About(
+            app_name.to_string(),
+            AboutMetadata::default(),
+          ))
+          .add_native_item(MenuItem::Separator)
+          .add_native_item(MenuItem::Services)
+          .add_native_item(MenuItem::Separator)
+          .add_native_item(MenuItem::Hide)
+          .add_native_item(MenuItem::HideOthers)
+          .add_native_item(MenuItem::ShowAll)
+          .add_native_item(MenuItem::Separator)
+          .add_native_item(MenuItem::Quit),
+      ));
+    }
+
+    let mut file_menu = Menu::new();
+    file_menu = file_menu.add_native_item(MenuItem::CloseWindow);
+    #[cfg(not(target_os = "macos"))]
+    {
+      file_menu = file_menu.add_native_item(MenuItem::Quit);
+    }
+    menu = menu.add_submenu(Submenu::new("File", file_menu));
+
+    #[cfg(not(target_os = "linux"))]
+    let mut edit_menu = Menu::new();
+    #[cfg(target_os = "macos")]
+    {
+      edit_menu = edit_menu.add_native_item(MenuItem::Undo);
+      edit_menu = edit_menu.add_native_item(MenuItem::Redo);
+      edit_menu = edit_menu.add_native_item(MenuItem::Separator);
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+      edit_menu = edit_menu.add_native_item(MenuItem::Cut);
+      edit_menu = edit_menu.add_native_item(MenuItem::Copy);
+      edit_menu = edit_menu.add_native_item(MenuItem::Paste);
+    }
+    #[cfg(target_os = "macos")]
+    {
+      edit_menu = edit_menu.add_native_item(MenuItem::SelectAll);
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+      menu = menu.add_submenu(Submenu::new("Edit", edit_menu));
+    }
+    #[cfg(target_os = "macos")]
+    {
+      menu = menu.add_submenu(Submenu::new(
+        "View",
+        Menu::new().add_native_item(MenuItem::EnterFullScreen),
+      ));
+    }
+
+    let mut window_menu = Menu::new();
+    window_menu = window_menu.add_native_item(MenuItem::Minimize);
+    #[cfg(target_os = "macos")]
+    {
+      window_menu = window_menu.add_native_item(MenuItem::Zoom);
+      window_menu = window_menu.add_native_item(MenuItem::Separator);
+    }
+    window_menu = window_menu.add_native_item(MenuItem::CloseWindow);
+    menu = menu.add_submenu(Submenu::new("Window", window_menu));
+
+    menu
   }
 
   /// Creates a new window menu with the given items.
@@ -456,13 +585,13 @@ impl AboutMetadata {
     self
   }
 
-  /// Defines the application version.
+  /// Defines the application's website link.
   pub fn website(mut self, website: impl Into<String>) -> Self {
     self.website.replace(website.into());
     self
   }
 
-  /// Defines the application version.
+  /// Defines the application's website link name.
   pub fn website_label(mut self, website_label: impl Into<String>) -> Self {
     self.website_label.replace(website_label.into());
     self
@@ -490,7 +619,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Hide,
 
@@ -522,7 +651,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   CloseWindow,
 
@@ -530,7 +659,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Quit,
 
@@ -538,7 +667,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS / Linux:** Unsupported
   ///
   Copy,
 
@@ -546,7 +675,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS / Linux:** Unsupported
   ///
   Cut,
 
@@ -572,7 +701,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Windows / Android / iOS / Linux:** Unsupported
   ///
   SelectAll,
 
@@ -580,7 +709,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS / Linux:** Unsupported
   ///
   Paste,
 
@@ -596,7 +725,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Minimize,
 
@@ -612,7 +741,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Separator,
 }

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -53,9 +53,6 @@ pub enum Error {
   /// JSON error.
   #[error(transparent)]
   Json(#[from] serde_json::Error),
-  /// Bincode error.
-  #[error(transparent)]
-  Bincode(#[from] Box<bincode::ErrorKind>),
   /// IO error.
   #[error(transparent)]
   Io(#[from] std::io::Error),
@@ -67,7 +64,7 @@ pub enum Error {
   #[error(transparent)]
   Zip(#[from] zip::result::ZipError),
   /// Extract error.
-  #[cfg(any(feature = "fs-extract-api", feature = "__fs-extract-api-docs"))]
+  #[cfg(feature = "fs-extract-api")]
   #[error("Failed to extract: {0}")]
   Extract(String),
   /// Notification error.

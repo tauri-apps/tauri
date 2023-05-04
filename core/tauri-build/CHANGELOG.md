@@ -1,5 +1,129 @@
 # Changelog
 
+## \[1.3.0]
+
+- Bump minimum supported Rust version to 1.60.
+  - [5fdc616d](https://www.github.com/tauri-apps/tauri/commit/5fdc616df9bea633810dcb814ac615911d77222c) feat: Use the zbus-backed of notify-rust ([#6332](https://www.github.com/tauri-apps/tauri/pull/6332)) on 2023-03-31
+- Add initial support for building `nsis` bundles on non-Windows platforms.
+  - [60e6f6c3](https://www.github.com/tauri-apps/tauri/commit/60e6f6c3f1605f3064b5bb177992530ff788ccf0) feat(bundler): Add support for creating NSIS bundles on unix hosts ([#5788](https://www.github.com/tauri-apps/tauri/pull/5788)) on 2023-01-19
+- Add `WindowsAttributes::app_manifest` to specify the application manifest on Windows.
+  - [bca09f7f](https://www.github.com/tauri-apps/tauri/commit/bca09f7f5ff1c9c5a4b51da043bdd5da668a179b) feat(tauri-build): add option to specify Windows manifest, closes [#5584](https://www.github.com/tauri-apps/tauri/pull/5584) ([#5730](https://www.github.com/tauri-apps/tauri/pull/5730)) on 2022-12-14
+- Added support for Cargo's workspace inheritance for package information. The cli now also detects inherited `tauri` and `tauri-build` dependencies and disables manifest rewrites accordingly.
+  - [cd8c074a](https://www.github.com/tauri-apps/tauri/commit/cd8c074ae6592303d3f6844a4fb6d262eae913b2) feat(cli): add support for Cargo's workspace inheritance for the package version, closes [#5070](https://www.github.com/tauri-apps/tauri/pull/5070) ([#5775](https://www.github.com/tauri-apps/tauri/pull/5775)) on 2022-12-14
+  - [d20a7288](https://www.github.com/tauri-apps/tauri/commit/d20a728892eee1858ab525ab6216cd721f473ab5) feat: Further improve workspace inheritance, closes [#6122](https://www.github.com/tauri-apps/tauri/pull/6122), [#5070](https://www.github.com/tauri-apps/tauri/pull/5070) ([#6144](https://www.github.com/tauri-apps/tauri/pull/6144)) on 2023-01-26
+- Pin `winnow` crate to 0.4.1 to keep the 1.60 MSRV.
+
+## \[1.2.1]
+
+- Fix `allowlist > app > show/hide` always disabled when `allowlist > app > all: false`.
+  - Bumped due to a bump in tauri-utils.
+  - [bb251087](https://www.github.com/tauri-apps/tauri/commit/bb2510876d0bdff736d36bf3a465cdbe4ad2b90c) fix(core): extend allowlist with `app`'s allowlist, closes [#5650](https://www.github.com/tauri-apps/tauri/pull/5650) ([#5652](https://www.github.com/tauri-apps/tauri/pull/5652)) on 2022-11-18
+
+## \[1.2.0]
+
+- - [7d9aa398](https://www.github.com/tauri-apps/tauri/commit/7d9aa3987efce2d697179ffc33646d086c68030c) feat: bump MSRV to 1.59 ([#5296](https://www.github.com/tauri-apps/tauri/pull/5296)) on 2022-09-28
+
+## \[1.1.1]
+
+- Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.
+  - Bumped due to a bump in tauri-utils.
+  - [c764408d](https://www.github.com/tauri-apps/tauri/commit/c764408da7fae123edd41115bda42fa75a4731d2) fix: Add missing allowlist config for cursor apis, closes [#5207](https://www.github.com/tauri-apps/tauri/pull/5207) ([#5211](https://www.github.com/tauri-apps/tauri/pull/5211)) on 2022-09-16
+
+## \[1.1.0]
+
+- Rerun codegen if assets or icons change.
+  - [ff8fd761](https://www.github.com/tauri-apps/tauri/commit/ff8fd7619ae894b70f149b192d8635d842827141) fix(tauri-build): rerun if assets or icons change ([#4910](https://www.github.com/tauri-apps/tauri/pull/4910)) on 2022-08-10
+- Create the `desktop` and `mobile` cfg aliases.
+  - [c04d0340](https://www.github.com/tauri-apps/tauri/commit/c04d0340e2f163483f3556c7aabe35322ee71e6a) feat(core): prepare build for mobile targets ([#4830](https://www.github.com/tauri-apps/tauri/pull/4830)) on 2022-08-02
+- Added support to configuration files in TOML format (Tauri.toml file).
+  - [ae83d008](https://www.github.com/tauri-apps/tauri/commit/ae83d008f9e1b89bfc8dddaca42aa5c1fbc36f6d) feat: add support to TOML config file `Tauri.toml`, closes [#4806](https://www.github.com/tauri-apps/tauri/pull/4806) ([#4813](https://www.github.com/tauri-apps/tauri/pull/4813)) on 2022-08-02
+- Enhance the dialog style on Windows via the manifest dependency `Microsoft.Windows.Common-Controls v6.0.0.0`.
+  - [5c5c42ed](https://www.github.com/tauri-apps/tauri/commit/5c5c42edb64adf4250af6891d7d226fda7d4d783) feat(build): use modern dialog styles on Windows, closes [#4709](https://www.github.com/tauri-apps/tauri/pull/4709) ([#4840](https://www.github.com/tauri-apps/tauri/pull/4840)) on 2022-08-02
+- Fix root of codegen output when using the `CodegenContext` API.
+  - [ed581950](https://www.github.com/tauri-apps/tauri/commit/ed581950ea6fd0afee47aa73fb63083d2483429f) fix(tauri-build): use `::tauri` as root for the CodegenContext ([#4894](https://www.github.com/tauri-apps/tauri/pull/4894)) on 2022-08-08
+- Return an error if a sidecar is configured with the same file name as the application.
+  - [5cc1fd0f](https://www.github.com/tauri-apps/tauri/commit/5cc1fd0f7b01b257a461d4e867ddc8cd5072ff15) feat(tauri-build): validate sidecar name, closes [#4780](https://www.github.com/tauri-apps/tauri/pull/4780) closes [#4823](https://www.github.com/tauri-apps/tauri/pull/4823) ([#4814](https://www.github.com/tauri-apps/tauri/pull/4814)) on 2022-08-02
+- Only rewrite temporary icon files when the content change, avoid needless rebuilds.
+  - [f957cbb5](https://www.github.com/tauri-apps/tauri/commit/f957cbb56ccbd8d1c047a978b4579946252a6fd2) fix(codegen): write output file when contents change ([#4889](https://www.github.com/tauri-apps/tauri/pull/4889)) on 2022-08-09
+
+## \[1.0.4]
+
+- Reduce the amount of allocations when converting cases.
+  - [bc370e32](https://www.github.com/tauri-apps/tauri/commit/bc370e326810446e15b1f50fb962b980114ba16b) feat: reduce the amount of `heck`-related allocations ([#4634](https://www.github.com/tauri-apps/tauri/pull/4634)) on 2022-07-11
+
+## \[1.0.3]
+
+- Improve configuration deserialization error messages.
+  - [9170c920](https://www.github.com/tauri-apps/tauri/commit/9170c9207044fa561535f624916dfdbaa41ff79d) feat(core): improve config deserialization error messages ([#4607](https://www.github.com/tauri-apps/tauri/pull/4607)) on 2022-07-06
+- The `TAURI_CONFIG` environment variable now represents the configuration to be merged instead of the entire JSON.
+  - [fa028ebf](https://www.github.com/tauri-apps/tauri/commit/fa028ebf3c8ca7b43a70d283a01dbea86217594f) refactor: do not pass entire config from CLI to core, send patch instead ([#4598](https://www.github.com/tauri-apps/tauri/pull/4598)) on 2022-07-06
+
+## \[1.0.2]
+
+- Expose `platform::windows_version` function.
+  - Bumped due to a bump in tauri-utils.
+  - [bf764e83](https://www.github.com/tauri-apps/tauri/commit/bf764e83e01e7443e6cc54572001e1c98c357465) feat(utils): expose `windows_version` function ([#4534](https://www.github.com/tauri-apps/tauri/pull/4534)) on 2022-06-30
+
+## \[1.0.1]
+
+- Changed the `BundleConfig::targets` to a `BundleTarget` enum to enhance generated documentation.
+  - Bumped due to a bump in tauri-utils.
+  - [31c15cd2](https://www.github.com/tauri-apps/tauri/commit/31c15cd2bd94dbe39fb94982a15cbe02ac5d8925) docs(config): enhance documentation for bundle targets, closes [#3251](https://www.github.com/tauri-apps/tauri/pull/3251) ([#4418](https://www.github.com/tauri-apps/tauri/pull/4418)) on 2022-06-21
+- Added `platform::is_windows_7`.
+  - Bumped due to a bump in tauri-utils.
+  - [57039fb2](https://www.github.com/tauri-apps/tauri/commit/57039fb2166571de85271b014a8711a29f06be1a) fix(core): add windows 7 notification support ([#4491](https://www.github.com/tauri-apps/tauri/pull/4491)) on 2022-06-28
+- Suppress unused variable warning in release builds.
+  - Bumped due to a bump in tauri-utils.
+  - [45981851](https://www.github.com/tauri-apps/tauri/commit/45981851e35119266c1a079e1ff27a39f1fdfaed) chore(lint): unused variable warnings for release builds ([#4411](https://www.github.com/tauri-apps/tauri/pull/4411)) on 2022-06-22
+- Added webview install mode options.
+  - Bumped due to a bump in tauri-utils.
+  - [2ca762d2](https://www.github.com/tauri-apps/tauri/commit/2ca762d207030a892a6d128b519e150e2d733468) feat(bundler): extend webview2 installation options, closes [#2882](https://www.github.com/tauri-apps/tauri/pull/2882) [#2452](https://www.github.com/tauri-apps/tauri/pull/2452) ([#4466](https://www.github.com/tauri-apps/tauri/pull/4466)) on 2022-06-26
+
+## \[1.0.0]
+
+- Upgrade to `stable`!
+  - [f4bb30cc](https://www.github.com/tauri-apps/tauri/commit/f4bb30cc73d6ba9b9ef19ef004dc5e8e6bb901d3) feat(covector): prepare for v1 ([#4351](https://www.github.com/tauri-apps/tauri/pull/4351)) on 2022-06-15
+
+## \[1.0.0-rc.15]
+
+- Read the tray icon path relatively to the config directory.
+  - Bumped due to a bump in tauri-codegen.
+  - [562e8ca2](https://www.github.com/tauri-apps/tauri/commit/562e8ca23facf1a8e5fa6c8cdf872357d3523a78) fix(codegen): tray icon path is relative to the config directory on 2022-06-15
+
+## \[1.0.0-rc.14]
+
+- Do not copy the tray icon to the output directory on Linux since it is embedded in the binary.
+  - [4ce8e228](https://www.github.com/tauri-apps/tauri/commit/4ce8e228134cd3f22973b74ef26ca0d165fbbbd9) refactor(core): use `Icon` for tray icons ([#4342](https://www.github.com/tauri-apps/tauri/pull/4342)) on 2022-06-14
+
+## \[1.0.0-rc.13]
+
+- Copy `tauri.conf.json > tauri.bundle.windows.webview_fixed_runtime_path` as a resource to the target directory to fix development usage of a fixed Webview2 runtime path.
+  - [8a634895](https://www.github.com/tauri-apps/tauri/commit/8a63489567b9fa86e404ad42b5b30c64361efe85) fix(build): fixed Webview2 runtime path in development, closes [#4308](https://www.github.com/tauri-apps/tauri/pull/4308) on 2022-06-10
+- Improve usage of the GNU toolchain on Windows by copying the Webview2Loader.dll file to the target directory.
+  - [58a6879b](https://www.github.com/tauri-apps/tauri/commit/58a6879b82e3a82027604cdd0913caacaaab5c76) feat(tauri-build): improve Windows GNU toolchain usage, closes [#4319](https://www.github.com/tauri-apps/tauri/pull/4319) ([#4323](https://www.github.com/tauri-apps/tauri/pull/4323)) on 2022-06-12
+- Only statically link the VC runtime when the `STATIC_VCRUNTIME` environment variable is set to `true` (automatically done by the Tauri CLI).
+  - [d703d27a](https://www.github.com/tauri-apps/tauri/commit/d703d27a707edc028f13b35603205da1133fcc2b) fix(build): statically link VC runtime only on `tauri build` ([#4292](https://www.github.com/tauri-apps/tauri/pull/4292)) on 2022-06-07
+
+## \[1.0.0-rc.12]
+
+- Statically link the Visual C++ runtime instead of using a merge module on the installer.
+  - [bb061509](https://www.github.com/tauri-apps/tauri/commit/bb061509fb674bef86ecbc1de3aa8f3e367a9907) refactor(core): statically link vcruntime, closes [#4122](https://www.github.com/tauri-apps/tauri/pull/4122) ([#4227](https://www.github.com/tauri-apps/tauri/pull/4227)) on 2022-05-27
+
+## \[1.0.0-rc.11]
+
+- Create `dev` cfg alias.
+  - [9cdcf9b3](https://www.github.com/tauri-apps/tauri/commit/9cdcf9b3a8fa27612b3156c1702a4e776627e869) feat(build): create `dev` alias ([#4212](https://www.github.com/tauri-apps/tauri/pull/4212)) on 2022-05-25
+
+## \[1.0.0-rc.10]
+
+- Delete existing sidecar before copying new one.
+  - [a737f25c](https://www.github.com/tauri-apps/tauri/commit/a737f25c1078083e0b0f7f338f5c958b86914323) fix(tauri-build): delete existing sidecar file, closes [#4134](https://www.github.com/tauri-apps/tauri/pull/4134) ([#4167](https://www.github.com/tauri-apps/tauri/pull/4167)) on 2022-05-18
+
+## \[1.0.0-rc.9]
+
+- Search `tauri.conf.json > tauri > bundle > icons` for a `.ico` file for the window icon instead of simple default `icons/icon.ico` when `WindowsAttributes::window_icon_path` is not set.
+  - [bad85a1f](https://www.github.com/tauri-apps/tauri/commit/bad85a1f11da03421401080531275ba201480cd1) feat(build): find .ico in config instead of default `icons/icon.ico` ([#4115](https://www.github.com/tauri-apps/tauri/pull/4115)) on 2022-05-13
+
 ## \[1.0.0-rc.8]
 
 - Properly set file version information for the Windows executable.

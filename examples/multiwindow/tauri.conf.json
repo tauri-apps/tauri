@@ -1,9 +1,13 @@
 {
-  "$schema": "../../tooling/cli/schema.json",
+  "$schema": "../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": ["index.html"],
     "devPath": ["index.html"],
     "withGlobalTauri": true
+  },
+  "package": {
+    "productName": "Multi Window",
+    "version": "0.1.0"
   },
   "tauri": {
     "bundle": {
@@ -31,12 +35,14 @@
       {
         "label": "Main",
         "title": "Tauri - Main",
+        "tabbingIdentifier": "Main",
         "width": 800,
         "height": 600
       },
       {
         "label": "Secondary",
         "title": "Tauri - Secondary",
+        "tabbingIdentifier": "Secondary",
         "width": 600,
         "height": 400
       }

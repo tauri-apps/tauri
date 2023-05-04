@@ -1,11 +1,15 @@
 {
-  "$schema": "../../../tooling/cli/schema.json",
+  "$schema": "../../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": ["../index.html"],
     "devPath": ["../index.html"],
     "beforeDevCommand": "yarn package",
     "beforeBuildCommand": "yarn package",
     "withGlobalTauri": true
+  },
+  "package": {
+    "productName": "Sidecar",
+    "version": "0.1.0"
   },
   "tauri": {
     "bundle": {

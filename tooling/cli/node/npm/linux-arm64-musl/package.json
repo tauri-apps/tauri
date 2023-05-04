@@ -10,6 +10,9 @@
   "cpu": [
     "arm64"
   ],
+  "libc": [
+    "musl"
+  ],
   "main": "cli.linux-arm64-musl.node",
   "files": [
     "cli.linux-arm64-musl.node"

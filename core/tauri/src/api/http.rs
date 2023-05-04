@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -84,7 +84,11 @@ impl ClientBuilder {
     let mut client_builder = reqwest::Client::builder();
 
     if let Some(max_redirections) = self.max_redirections {
-      client_builder = client_builder.redirect(reqwest::redirect::Policy::limited(max_redirections))
+      client_builder = client_builder.redirect(if max_redirections == 0 {
+        reqwest::redirect::Policy::none()
+      } else {
+        reqwest::redirect::Policy::limited(max_redirections)
+      });
     }
 
     if let Some(connect_timeout) = self.connect_timeout {
@@ -138,6 +142,14 @@ impl Client {
     if let Some(headers) = &request.headers {
       for (name, value) in headers.0.iter() {
         request_builder = request_builder.header(name, value);
+      }
+    }
+
+    if let Some(max_redirections) = self.0.max_redirections {
+      if max_redirections == 0 {
+        request_builder = request_builder.follow_redirects(false);
+      } else {
+        request_builder = request_builder.max_redirections(max_redirections as u32);
       }
     }
 
@@ -233,7 +245,7 @@ impl Client {
   /// Executes an HTTP request
   ///
   /// # Examples
-  pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
+  pub async fn send(&self, mut request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
     let mut request_builder = self.0.request(method, request.url.as_str());
@@ -255,7 +267,7 @@ impl Client {
           #[allow(unused_variables)]
           fn send_form(
             request_builder: reqwest::RequestBuilder,
-            headers: &Option<HeaderMap>,
+            headers: &mut Option<HeaderMap>,
             form_body: FormBody,
           ) -> crate::api::Result<reqwest::RequestBuilder> {
             #[cfg(feature = "http-multipart")]
@@ -266,6 +278,8 @@ impl Client {
                 .map(|v| v.as_bytes()),
               Some(b"multipart/form-data")
             ) {
+              // the Content-Type header will be set by reqwest in the `.multipart` call
+              headers.as_mut().map(|h| h.0.remove("content-type"));
               let mut multipart = reqwest::multipart::Form::new();
 
               for (name, part) in form_body.0 {
@@ -306,7 +320,7 @@ impl Client {
             }
             Ok(request_builder.form(&form))
           }
-          send_form(request_builder, &request.headers, form_body)?
+          send_form(request_builder, &mut request.headers, form_body)?
         }
       };
     }
@@ -354,7 +368,7 @@ impl TryFrom<FilePart> for Vec<u8> {
   type Error = crate::api::Error;
   fn try_from(file: FilePart) -> crate::api::Result<Self> {
     let bytes = match file {
-      FilePart::Path(path) => std::fs::read(&path)?,
+      FilePart::Path(path) => std::fs::read(path)?,
       FilePart::Contents(bytes) => bytes,
     };
     Ok(bytes)
@@ -427,8 +441,7 @@ impl<'de> Deserialize<'de> for HeaderMap {
         headers.insert(key, value);
       } else {
         return Err(serde::de::Error::custom(format!(
-          "invalid header `{}` `{}`",
-          key, value
+          "invalid header `{key}` `{value}`"
         )));
       }
     }
@@ -580,31 +593,31 @@ impl Response {
     reader
   }
 
-  /// Convert the response into a Stream of [`bytes::Bytes`] from the body.
-  ///
-  /// # Examples
-  ///
-  /// ```no_run
-  /// use futures::StreamExt;
-  ///
-  /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-  /// let client = tauri::api::http::ClientBuilder::new().build()?;
-  /// let mut stream = client.send(tauri::api::http::HttpRequestBuilder::new("GET", "http://httpbin.org/ip")?)
-  ///   .await?
-  ///   .bytes_stream();
-  ///
-  /// while let Some(item) = stream.next().await {
-  ///     println!("Chunk: {:?}", item?);
-  /// }
-  /// # Ok(())
-  /// # }
-  /// ```
+  // Convert the response into a Stream of [`bytes::Bytes`] from the body.
+  //
+  // # Examples
+  //
+  // ```no_run
+  // use futures_util::StreamExt;
+  //
+  // # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+  // let client = tauri::api::http::ClientBuilder::new().build()?;
+  // let mut stream = client.send(tauri::api::http::HttpRequestBuilder::new("GET", "http://httpbin.org/ip")?)
+  //   .await?
+  //   .bytes_stream();
+  //
+  // while let Some(item) = stream.next().await {
+  //     println!("Chunk: {:?}", item?);
+  // }
+  // # Ok(())
+  // # }
+  // ```
   #[cfg(feature = "reqwest-client")]
   #[allow(dead_code)]
   pub(crate) fn bytes_stream(
     self,
-  ) -> impl futures::Stream<Item = crate::api::Result<bytes::Bytes>> {
-    use futures::StreamExt;
+  ) -> impl futures_util::Stream<Item = crate::api::Result<bytes::Bytes>> {
+    use futures_util::StreamExt;
     self.1.bytes_stream().map(|res| res.map_err(Into::into))
   }
 
@@ -648,7 +661,7 @@ impl Response {
     let data = match self.0 {
       ResponseType::Json => self.1.json()?,
       ResponseType::Text => Value::String(self.1.text()?),
-      ResponseType::Binary => serde_json::to_value(&self.1.bytes()?)?,
+      ResponseType::Binary => serde_json::to_value(self.1.bytes()?)?,
     };
 
     Ok(ResponseData {

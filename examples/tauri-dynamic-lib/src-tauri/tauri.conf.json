@@ -1,10 +1,14 @@
 {
-  "$schema": "../../../tooling/cli/schema.json",
+  "$schema": "../../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": ["src/index.html"],
     "devPath": ["src/index.html"],
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
+  },
+  "package": {
+    "productName": "Dynamic Lib",
+    "version": "0.1.0"
   },
   "tauri": {
     "bundle": {

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,13 +6,12 @@
 
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+use raw_window_handle::RawDisplayHandle;
 use serde::Deserialize;
-use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
+use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
+use url::Url;
 use uuid::Uuid;
-
-#[cfg(windows)]
-use windows::Win32::Foundation::HWND;
 
 pub mod http;
 /// Create window and system tray menus.
@@ -36,17 +35,84 @@ use crate::http::{
   InvalidUri,
 };
 
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
+use std::fmt;
+
+pub type TrayId = u16;
+pub type TrayEventHandler = dyn Fn(&SystemTrayEvent) + Send + 'static;
+
+#[cfg(all(desktop, feature = "system-tray"))]
 #[non_exhaustive]
-#[derive(Debug, Default)]
 pub struct SystemTray {
-  pub icon: Option<TrayIcon>,
+  pub id: TrayId,
+  pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
+  #[cfg(target_os = "macos")]
+  pub menu_on_left_click: bool,
+  #[cfg(target_os = "macos")]
+  pub title: Option<String>,
+  pub on_event: Option<Box<TrayEventHandler>>,
+  pub tooltip: Option<String>,
 }
 
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
+impl fmt::Debug for SystemTray {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut d = f.debug_struct("SystemTray");
+    d.field("id", &self.id)
+      .field("icon", &self.icon)
+      .field("menu", &self.menu);
+    #[cfg(target_os = "macos")]
+    {
+      d.field("icon_as_template", &self.icon_as_template)
+        .field("menu_on_left_click", &self.menu_on_left_click)
+        .field("title", &self.title);
+    }
+    d.finish()
+  }
+}
+
+#[cfg(all(desktop, feature = "system-tray"))]
+impl Clone for SystemTray {
+  fn clone(&self) -> Self {
+    Self {
+      id: self.id,
+      icon: self.icon.clone(),
+      menu: self.menu.clone(),
+      on_event: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: self.icon_as_template,
+      #[cfg(target_os = "macos")]
+      menu_on_left_click: self.menu_on_left_click,
+      #[cfg(target_os = "macos")]
+      title: self.title.clone(),
+      tooltip: self.tooltip.clone(),
+    }
+  }
+}
+
+#[cfg(all(desktop, feature = "system-tray"))]
+impl Default for SystemTray {
+  fn default() -> Self {
+    Self {
+      id: rand::random(),
+      icon: None,
+      menu: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: false,
+      #[cfg(target_os = "macos")]
+      menu_on_left_click: false,
+      #[cfg(target_os = "macos")]
+      title: None,
+      on_event: None,
+      tooltip: None,
+    }
+  }
+}
+
+#[cfg(all(desktop, feature = "system-tray"))]
 impl SystemTray {
   /// Creates a new system tray that only renders an icon.
   pub fn new() -> Self {
@@ -57,9 +123,16 @@ impl SystemTray {
     self.menu.as_ref()
   }
 
-  /// Sets the tray icon. Must be a [`TrayIcon::File`] on Linux and a [`TrayIcon::Raw`] on Windows and macOS.
+  /// Sets the tray id.
   #[must_use]
-  pub fn with_icon(mut self, icon: TrayIcon) -> Self {
+  pub fn with_id(mut self, id: TrayId) -> Self {
+    self.id = id;
+    self
+  }
+
+  /// Sets the tray icon.
+  #[must_use]
+  pub fn with_icon(mut self, icon: Icon) -> Self {
     self.icon.replace(icon);
     self
   }
@@ -72,16 +145,48 @@ impl SystemTray {
     self
   }
 
+  /// Sets whether the menu should appear when the tray receives a left click. Defaults to `true`.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn with_menu_on_left_click(mut self, menu_on_left_click: bool) -> Self {
+    self.menu_on_left_click = menu_on_left_click;
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn with_title(mut self, title: &str) -> Self {
+    self.title = Some(title.to_owned());
+    self
+  }
+
+  /// Sets the tray icon tooltip.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported
+  #[must_use]
+  pub fn with_tooltip(mut self, tooltip: &str) -> Self {
+    self.tooltip = Some(tooltip.to_owned());
+    self
+  }
+
   /// Sets the menu to show when the system tray is right clicked.
   #[must_use]
   pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
     self.menu.replace(menu);
     self
   }
+
+  #[must_use]
+  pub fn on_event<F: Fn(&SystemTrayEvent) + Send + 'static>(mut self, f: F) -> Self {
+    self.on_event.replace(Box::new(f));
+    self
+  }
 }
 
 /// Type of user attention requested on a window.
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "type")]
 pub enum UserAttentionType {
   /// ## Platform-specific
@@ -92,6 +197,23 @@ pub enum UserAttentionType {
   /// - **macOS:** Bounces the dock icon once.
   /// - **Windows:** Flashes the taskbar button until the application is in focus.
   Informational,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(tag = "type")]
+pub enum DeviceEventFilter {
+  /// Always filter out device events.
+  Always,
+  /// Filter out device events while the window is not focused.
+  Unfocused,
+  /// Report all device events regardless of window focus.
+  Never,
+}
+
+impl Default for DeviceEventFilter {
+  fn default() -> Self {
+    Self::Unfocused
+  }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -116,7 +238,7 @@ pub enum Error {
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
   /// Encountered an error creating the app system tray.
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[error("error encountered during tray setup: {0}")]
   SystemTray(Box<dyn std::error::Error + Send + Sync>),
@@ -127,7 +249,7 @@ pub enum Error {
   #[error("failed to get monitor")]
   FailedToGetMonitor,
   /// Global shortcut error.
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   #[error(transparent)]
   GlobalShortcut(Box<dyn std::error::Error + Send + Sync>),
   #[error("Invalid header name: {0}")]
@@ -151,49 +273,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Window icon.
 #[derive(Debug, Clone)]
-pub struct WindowIcon {
+pub struct Icon {
   /// RGBA bytes of the icon.
   pub rgba: Vec<u8>,
   /// Icon width.
   pub width: u32,
   /// Icon height.
   pub height: u32,
-}
-
-/// A icon definition.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum TrayIcon {
-  /// Icon from file path.
-  File(PathBuf),
-  /// Icon from raw file bytes.
-  Raw(Vec<u8>),
-}
-
-impl TrayIcon {
-  /// Converts the icon to a the expected system tray format.
-  /// We expect the code that passes the Icon enum to have already checked the platform.
-  #[cfg(target_os = "linux")]
-  pub fn into_platform_icon(self) -> PathBuf {
-    match self {
-      Self::File(path) => path,
-      Self::Raw(_) => {
-        panic!("linux requires the system menu icon to be a file path, not raw bytes.")
-      }
-    }
-  }
-
-  /// Converts the icon to a the expected system tray format.
-  /// We expect the code that passes the Icon enum to have already checked the platform.
-  #[cfg(not(target_os = "linux"))]
-  pub fn into_platform_icon(self) -> Vec<u8> {
-    match self {
-      Self::Raw(r) => r,
-      Self::File(_) => {
-        panic!("non-linux system menu icons must be raw bytes, not a file path.")
-      }
-    }
-  }
 }
 
 /// A type that can be used as an user event.
@@ -289,13 +375,29 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
-  #[cfg(all(windows, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
-  fn remove_system_tray(&self) -> Result<()>;
+  /// Adds an icon to the system tray with the specified menu items.
+  #[cfg(all(desktop, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "system-tray"))))]
+  fn system_tray(
+    &self,
+    system_tray: SystemTray,
+  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler>;
+
+  fn raw_display_handle(&self) -> RawDisplayHandle;
+
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn show(&self) -> Result<()>;
+
+  /// Hides the application.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn hide(&self) -> Result<()>;
 }
 
 /// A global shortcut manager.
-#[cfg(feature = "global-shortcut")]
+#[cfg(all(desktop, feature = "global-shortcut"))]
 pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
   /// Whether the application has registered the given `accelerator`.
   fn is_registered(&self, accelerator: &str) -> Result<bool>;
@@ -330,13 +432,13 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The runtime handle type.
   type Handle: RuntimeHandle<T, Runtime = Self>;
   /// The global shortcut manager type.
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   type GlobalShortcutManager: GlobalShortcutManager;
   /// The clipboard manager type.
   #[cfg(feature = "clipboard")]
   type ClipboardManager: ClipboardManager;
   /// The tray handler type.
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler: menu::TrayHandle;
   /// The proxy type.
   type EventLoopProxy: EventLoopProxy<T>;
@@ -356,7 +458,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn handle(&self) -> Self::Handle;
 
   /// Gets the global shortcut manager.
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
 
   /// Gets the clipboard manager.
@@ -367,21 +469,45 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>>;
 
   /// Adds the icon to the system tray with the specified menu items.
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler>;
 
   /// Registers a system tray event handler.
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid;
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F);
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn show(&self);
+
+  /// Hides the application.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn hide(&self);
+
+  /// Change the device event filter mode.
+  ///
+  /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
+  /// will ignore them by default for unfocused windows on Windows. This method allows changing
+  /// the filter to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
+
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
+  #[cfg(desktop)]
   fn run_iteration<F: Fn(RunEvent<T>) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
@@ -393,7 +519,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime<T>;
 
-  /// The winoow builder type.
+  /// The window builder type.
   type WindowBuilder: WindowBuilder;
 
   /// Run a task on the main thread.
@@ -419,6 +545,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   // GETTERS
 
+  /// Returns the webview's current URL.
+  fn url(&self) -> Result<Url>;
+
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   fn scale_factor(&self) -> Result<f64>;
 
@@ -441,6 +570,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Gets the window's current fullscreen state.
   fn is_fullscreen(&self) -> Result<bool>;
 
+  /// Gets the window's current minimized state.
+  fn is_minimized(&self) -> Result<bool>;
+
   /// Gets the window's current maximized state.
   fn is_maximized(&self) -> Result<bool>;
 
@@ -450,8 +582,10 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Gets the window’s current resizable state.
   fn is_resizable(&self) -> Result<bool>;
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current visibility state.
   fn is_visible(&self) -> Result<bool>;
+  /// Gets the window's current title.
+  fn title(&self) -> Result<String>;
 
   /// Gets the window menu current visibility state.
   fn is_menu_visible(&self) -> Result<bool>;
@@ -469,15 +603,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
-  /// Returns the native handle that is used by this window.
-  #[cfg(windows)]
-  fn hwnd(&self) -> Result<HWND>;
-
-  /// Returns the native handle that is used by this window.
-  #[cfg(target_os = "macos")]
-  fn ns_window(&self) -> Result<*mut std::ffi::c_void>;
-
-  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -486,6 +612,8 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
+
+  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle>;
 
   /// Returns the current window theme.
   fn theme(&self) -> Result<Theme>;
@@ -548,6 +676,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the window alwaysOnTop flag.
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()>;
 
+  /// Prevents the window contents from being captured by other apps.
+  fn set_content_protected(&self, protected: bool) -> Result<()>;
+
   /// Resizes the window.
   fn set_size(&self, size: Size) -> Result<()>;
 
@@ -567,9 +698,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn set_focus(&self) -> Result<()>;
 
   /// Updates the window icon.
-  fn set_icon(&self, icon: WindowIcon) -> Result<()>;
+  fn set_icon(&self, icon: Icon) -> Result<()>;
 
-  /// Whether to show the window icon in the task bar or not.
+  /// Whether to hide the window icon from the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool) -> Result<()>;
 
   /// Grabs the cursor, preventing it from leaving the window.
@@ -588,6 +719,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Changes the position of the cursor in window coordinates.
   fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()>;
+
+  /// Ignores the window cursor events.
+  fn set_ignore_cursor_events(&self, ignore: bool) -> Result<()>;
 
   /// Starts dragging the window.
   fn start_dragging(&self) -> Result<()>;

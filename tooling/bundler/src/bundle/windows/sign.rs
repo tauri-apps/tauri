@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -15,10 +16,11 @@ use winreg::{
 };
 
 pub struct SignParams {
+  pub product_name: String,
   pub digest_algorithm: String,
   pub certificate_thumbprint: String,
   pub timestamp_url: Option<String>,
-  pub tsp: Option<bool>,
+  pub tsp: bool,
 }
 
 // sign code forked from https://github.com/forbjok/rust-codesign
@@ -89,7 +91,7 @@ fn locate_signtool() -> crate::Result<PathBuf> {
 }
 
 pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
-  // Convert path to string reference, as we need to pass it as a commandline parameter to signtool
+  // Convert path to string reference, as we need to pass it as a command-line parameter to signtool
   let path_str = path.as_ref().to_str().unwrap();
 
   info!(action = "Signing"; "{} with identity \"{}\"", path_str, params.certificate_thumbprint);
@@ -101,15 +103,16 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
 
   let mut cmd = Command::new(signtool);
   cmd.arg("sign");
-  cmd.args(&["/fd", &params.digest_algorithm]);
-  cmd.args(&["/sha1", &params.certificate_thumbprint]);
+  cmd.args(["/fd", &params.digest_algorithm]);
+  cmd.args(["/sha1", &params.certificate_thumbprint]);
+  cmd.args(["/d", &params.product_name]);
 
   if let Some(ref timestamp_url) = params.timestamp_url {
-    if params.tsp == Some(true) {
-      cmd.args(&["/tr", timestamp_url]);
-      cmd.args(&["/td", &params.digest_algorithm]);
+    if params.tsp {
+      cmd.args(["/tr", timestamp_url]);
+      cmd.args(["/td", &params.digest_algorithm]);
     } else {
-      cmd.args(&["/t", timestamp_url]);
+      cmd.args(["/t", timestamp_url]);
     }
   }
 

@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,13 +8,14 @@ use log::debug;
 use std::{
   ffi::OsStr,
   fs::{self, File},
-  io::{self, BufWriter},
+  io::{self, BufReader, BufWriter},
   path::Path,
-  process::{Command, Output},
+  process::{Command, ExitStatus, Output, Stdio},
+  sync::{Arc, Mutex},
 };
 
-/// Returns true if the path has a filename indicating that it is a high-desity
-/// "retina" icon.  Specifically, returns true the the file stem ends with
+/// Returns true if the path has a filename indicating that it is a high-density
+/// "retina" icon.  Specifically, returns true the file stem ends with
 /// "@2x" (a convention specified by the [Apple developer docs](
 /// https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html)).
 #[allow(dead_code)]
@@ -30,7 +32,7 @@ pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
 /// needed.
 pub fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(&parent)?;
+    fs::create_dir_all(parent)?;
   }
   let file = File::create(path)?;
   Ok(BufWriter::new(file))
@@ -134,30 +136,81 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
 }
 
 pub trait CommandExt {
+  // The `pipe` function sets the stdout and stderr to properly
+  // show the command output in the Node.js wrapper.
+  fn piped(&mut self) -> std::io::Result<ExitStatus>;
   fn output_ok(&mut self) -> crate::Result<Output>;
 }
 
 impl CommandExt for Command {
+  fn piped(&mut self) -> std::io::Result<ExitStatus> {
+    self.stdout(os_pipe::dup_stdout()?);
+    self.stderr(os_pipe::dup_stderr()?);
+    let program = self.get_program().to_string_lossy().into_owned();
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+
+    self.status().map_err(Into::into)
+  }
+
   fn output_ok(&mut self) -> crate::Result<Output> {
-    debug!(action = "Running"; "Command `{} {}`", self.get_program().to_string_lossy(), self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+    let program = self.get_program().to_string_lossy().into_owned();
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
 
-    let output = self.output()?;
+    self.stdout(Stdio::piped());
+    self.stderr(Stdio::piped());
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    if !stdout.is_empty() {
-      debug!("Stdout: {}", stdout);
-    }
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !stderr.is_empty() {
-      debug!("Stderr: {}", stderr);
-    }
+    let mut child = self.spawn()?;
+
+    let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
+    let stdout_lines = Arc::new(Mutex::new(Vec::new()));
+    let stdout_lines_ = stdout_lines.clone();
+    std::thread::spawn(move || {
+      let mut buf = Vec::new();
+      let mut lines = stdout_lines_.lock().unwrap();
+      loop {
+        buf.clear();
+        match tauri_utils::io::read_line(&mut stdout, &mut buf) {
+          Ok(s) if s == 0 => break,
+          _ => (),
+        }
+        debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
+        lines.extend(buf.clone());
+        lines.push(b'\n');
+      }
+    });
+
+    let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
+    let stderr_lines = Arc::new(Mutex::new(Vec::new()));
+    let stderr_lines_ = stderr_lines.clone();
+    std::thread::spawn(move || {
+      let mut buf = Vec::new();
+      let mut lines = stderr_lines_.lock().unwrap();
+      loop {
+        buf.clear();
+        match tauri_utils::io::read_line(&mut stderr, &mut buf) {
+          Ok(s) if s == 0 => break,
+          _ => (),
+        }
+        debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
+        lines.extend(buf.clone());
+        lines.push(b'\n');
+      }
+    });
+
+    let status = child.wait()?;
+    let output = Output {
+      status,
+      stdout: std::mem::take(&mut *stdout_lines.lock().unwrap()),
+      stderr: std::mem::take(&mut *stderr_lines.lock().unwrap()),
+    };
 
     if output.status.success() {
       Ok(output)
     } else {
-      Err(crate::Error::GenericError(
-        String::from_utf8_lossy(&output.stderr).to_string(),
-      ))
+      Err(crate::Error::GenericError(format!(
+        "failed to run {}",
+        program
+      )))
     }
   }
 }

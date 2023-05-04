@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -20,6 +20,7 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
+pub use encoding_rs::Encoding;
 use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -36,7 +37,9 @@ fn commands() -> &'static ChildStore {
 /// Kills all child processes created with [`Command`].
 /// By default it's called before the [`crate::App`] exits.
 pub fn kill_children() {
-  for child in commands().lock().unwrap().values() {
+  let commands = commands().lock().unwrap();
+  let children = commands.values();
+  for child in children {
     let _ = child.kill();
   }
 }
@@ -65,26 +68,6 @@ pub enum CommandEvent {
   Terminated(TerminatedPayload),
 }
 
-macro_rules! get_std_command {
-  ($self: ident) => {{
-    let mut command = StdCommand::new($self.program);
-    command.args(&$self.args);
-    command.stdout(Stdio::piped());
-    command.stdin(Stdio::piped());
-    command.stderr(Stdio::piped());
-    if $self.env_clear {
-      command.env_clear();
-    }
-    command.envs($self.env);
-    if let Some(current_dir) = $self.current_dir {
-      command.current_dir(current_dir);
-    }
-    #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW);
-    command
-  }};
-}
-
 /// The type to spawn commands.
 #[derive(Debug)]
 pub struct Command {
@@ -93,6 +76,7 @@ pub struct Command {
   env_clear: bool,
   env: HashMap<String, String>,
   current_dir: Option<PathBuf>,
+  encoding: Option<&'static Encoding>,
 }
 
 /// Spawned child process.
@@ -153,10 +137,30 @@ pub struct Output {
 fn relative_command_path(command: String) -> crate::Result<String> {
   match platform::current_exe()?.parent() {
     #[cfg(windows)]
-    Some(exe_dir) => Ok(format!("{}\\{}.exe", exe_dir.display(), command)),
+    Some(exe_dir) => Ok(format!("{}\\{command}.exe", exe_dir.display())),
     #[cfg(not(windows))]
-    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.display(), command)),
+    Some(exe_dir) => Ok(format!("{}/{command}", exe_dir.display())),
     None => Err(crate::api::Error::Command("Could not evaluate executable dir".to_string()).into()),
+  }
+}
+
+impl From<Command> for StdCommand {
+  fn from(cmd: Command) -> StdCommand {
+    let mut command = StdCommand::new(cmd.program);
+    command.args(cmd.args);
+    command.stdout(Stdio::piped());
+    command.stdin(Stdio::piped());
+    command.stderr(Stdio::piped());
+    if cmd.env_clear {
+      command.env_clear();
+    }
+    command.envs(cmd.env);
+    if let Some(current_dir) = cmd.current_dir {
+      command.current_dir(current_dir);
+    }
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
   }
 }
 
@@ -169,6 +173,7 @@ impl Command {
       env_clear: false,
       env: Default::default(),
       current_dir: None,
+      encoding: None,
     }
   }
 
@@ -214,6 +219,13 @@ impl Command {
     self
   }
 
+  /// Sets the character encoding for stdout/stderr.
+  #[must_use]
+  pub fn encoding(mut self, encoding: &'static Encoding) -> Self {
+    self.encoding.replace(encoding);
+    self
+  }
+
   /// Spawns the command.
   ///
   /// # Examples
@@ -240,7 +252,8 @@ impl Command {
   /// });
   /// ```
   pub fn spawn(self) -> crate::api::Result<(Receiver<CommandEvent>, CommandChild)> {
-    let mut command = get_std_command!(self);
+    let encoding = self.encoding;
+    let mut command: StdCommand = self.into();
     let (stdout_reader, stdout_writer) = pipe()?;
     let (stderr_reader, stderr_writer) = pipe()?;
     let (stdin_reader, stdin_writer) = pipe()?;
@@ -262,12 +275,14 @@ impl Command {
       guard.clone(),
       stdout_reader,
       CommandEvent::Stdout,
+      encoding,
     );
     spawn_pipe_reader(
       tx.clone(),
       guard.clone(),
       stderr_reader,
       CommandEvent::Stderr,
+      encoding,
     );
 
     spawn(move || {
@@ -275,7 +290,7 @@ impl Command {
         Ok(status) => {
           let _l = guard.write().unwrap();
           commands().lock().unwrap().remove(&child_.id());
-          let _ = block_on_task(async move {
+          block_on_task(async move {
             tx.send(CommandEvent::Terminated(TerminatedPayload {
               code: status.code(),
               #[cfg(windows)]
@@ -284,11 +299,11 @@ impl Command {
               signal: status.signal(),
             }))
             .await
-          });
+          })
         }
         Err(e) => {
           let _l = guard.write().unwrap();
-          let _ = block_on_task(async move { tx.send(CommandEvent::Error(e.to_string())).await });
+          block_on_task(async move { tx.send(CommandEvent::Error(e.to_string())).await })
         }
       };
     });
@@ -376,6 +391,7 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
   guard: Arc<RwLock<()>>,
   pipe_reader: PipeReader,
   wrapper: F,
+  character_encoding: Option<&'static Encoding>,
 ) {
   spawn(move || {
     let _lock = guard.read().unwrap();
@@ -390,7 +406,10 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
             break;
           }
           let tx_ = tx.clone();
-          let line = String::from_utf8(buf.clone());
+          let line = match character_encoding {
+            Some(encoding) => Ok(encoding.decode_with_bom_removal(&buf).0.into()),
+            None => String::from_utf8(buf.clone()),
+          };
           block_on_task(async move {
             let _ = match line {
               Ok(line) => tx_.send(wrapper(line)).await,
@@ -417,7 +436,7 @@ mod test {
   #[test]
   fn test_cmd_output() {
     // create a command to run cat.
-    let cmd = Command::new("cat").args(&["test/api/test.txt"]);
+    let cmd = Command::new("cat").args(["test/api/test.txt"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
     crate::async_runtime::block_on(async move {
@@ -439,7 +458,7 @@ mod test {
   #[test]
   // test the failure case
   fn test_cmd_fail() {
-    let cmd = Command::new("cat").args(&["test/api/"]);
+    let cmd = Command::new("cat").args(["test/api/"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
     crate::async_runtime::block_on(async move {

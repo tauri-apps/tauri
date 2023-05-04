@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -63,10 +63,12 @@ pub enum WindowManagerCmd {
   InnerSize,
   OuterSize,
   IsFullscreen,
+  IsMinimized,
   IsMaximized,
   IsDecorated,
   IsResizable,
   IsVisible,
+  Title,
   CurrentMonitor,
   PrimaryMonitor,
   AvailableMonitors,
@@ -101,6 +103,8 @@ pub enum WindowManagerCmd {
   #[cfg(window_set_always_on_top)]
   #[serde(rename_all = "camelCase")]
   SetAlwaysOnTop(bool),
+  #[cfg(window_set_content_protected)]
+  SetContentProtected(bool),
   #[cfg(window_set_size)]
   SetSize(Size),
   #[cfg(window_set_min_size)]
@@ -127,6 +131,8 @@ pub enum WindowManagerCmd {
   SetCursorIcon(CursorIcon),
   #[cfg(window_set_cursor_position)]
   SetCursorPosition(Position),
+  #[cfg(window_set_ignore_cursor_events)]
+  SetIgnoreCursorEvents(bool),
   #[cfg(window_start_dragging)]
   StartDragging,
   #[cfg(window_print)]
@@ -154,12 +160,15 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
       crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
     }
     "minimize" => crate::Error::ApiNotAllowlisted("window > minimize".to_string()),
-    "nnminimize" => crate::Error::ApiNotAllowlisted("window > unminimize".to_string()),
+    "unminimize" => crate::Error::ApiNotAllowlisted("window > unminimize".to_string()),
     "show" => crate::Error::ApiNotAllowlisted("window > show".to_string()),
     "hide" => crate::Error::ApiNotAllowlisted("window > hide".to_string()),
     "close" => crate::Error::ApiNotAllowlisted("window > close".to_string()),
     "setDecorations" => crate::Error::ApiNotAllowlisted("window > setDecorations".to_string()),
     "setAlwaysOnTop" => crate::Error::ApiNotAllowlisted("window > setAlwaysOnTop".to_string()),
+    "setContentProtected" => {
+      crate::Error::ApiNotAllowlisted("window > setContentProtected".to_string())
+    }
     "setSize" => crate::Error::ApiNotAllowlisted("window > setSize".to_string()),
     "setMinSize" => crate::Error::ApiNotAllowlisted("window > setMinSize".to_string()),
     "setMaxSize" => crate::Error::ApiNotAllowlisted("window > setMaxSize".to_string()),
@@ -173,11 +182,15 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     "setCursorPosition" => {
       crate::Error::ApiNotAllowlisted("window > setCursorPosition".to_string())
     }
+    "setIgnoreCursorEvents" => {
+      crate::Error::ApiNotAllowlisted("window > setIgnoreCursorEvents".to_string())
+    }
     "startDragging" => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
     "print" => crate::Error::ApiNotAllowlisted("window > print".to_string()),
-    "internalToggleMaximize" => {
+    "__toggleMaximize" => {
       crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
     }
+    "__toggleDevtools" => crate::Error::ApiNotAllowlisted("devtools".to_string()),
     _ => crate::Error::ApiNotAllowlisted("window".to_string()),
   }
 }
@@ -200,16 +213,12 @@ impl Cmd {
   #[module_command_handler(window_create)]
   async fn create_webview<R: Runtime>(
     context: InvokeContext<R>,
-    options: Box<WindowConfig>,
+    mut options: Box<WindowConfig>,
   ) -> super::Result<()> {
-    let label = options.label.clone();
-    let url = options.url.clone();
-
-    let mut builder = crate::window::Window::builder(&context.window, label, url);
-    builder.window_builder =
-      <<R::Dispatcher as Dispatch<crate::EventLoopMessage>>::WindowBuilder>::with_config(*options);
-    builder.build().map_err(crate::error::into_anyhow)?;
-
+    options.additional_browser_args = None;
+    crate::window::WindowBuilder::from_config(&context.window, *options)
+      .build()
+      .map_err(crate::error::into_anyhow)?;
     Ok(())
   }
 
@@ -243,10 +252,12 @@ impl Cmd {
       WindowManagerCmd::InnerSize => return Ok(window.inner_size()?.into()),
       WindowManagerCmd::OuterSize => return Ok(window.outer_size()?.into()),
       WindowManagerCmd::IsFullscreen => return Ok(window.is_fullscreen()?.into()),
+      WindowManagerCmd::IsMinimized => return Ok(window.is_minimized()?.into()),
       WindowManagerCmd::IsMaximized => return Ok(window.is_maximized()?.into()),
       WindowManagerCmd::IsDecorated => return Ok(window.is_decorated()?.into()),
       WindowManagerCmd::IsResizable => return Ok(window.is_resizable()?.into()),
       WindowManagerCmd::IsVisible => return Ok(window.is_visible()?.into()),
+      WindowManagerCmd::Title => return Ok(window.title()?.into()),
       WindowManagerCmd::CurrentMonitor => return Ok(window.current_monitor()?.into()),
       WindowManagerCmd::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
       WindowManagerCmd::AvailableMonitors => return Ok(window.available_monitors()?.into()),
@@ -285,6 +296,10 @@ impl Cmd {
       WindowManagerCmd::SetDecorations(decorations) => window.set_decorations(decorations)?,
       #[cfg(window_set_always_on_top)]
       WindowManagerCmd::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
+      #[cfg(window_set_content_protected)]
+      WindowManagerCmd::SetContentProtected(protected) => {
+        window.set_content_protected(protected)?
+      }
       #[cfg(window_set_size)]
       WindowManagerCmd::SetSize(size) => window.set_size(size)?,
       #[cfg(window_set_min_size)]
@@ -309,6 +324,10 @@ impl Cmd {
       WindowManagerCmd::SetCursorIcon(icon) => window.set_cursor_icon(icon)?,
       #[cfg(window_set_cursor_position)]
       WindowManagerCmd::SetCursorPosition(position) => window.set_cursor_position(position)?,
+      #[cfg(window_set_ignore_cursor_events)]
+      WindowManagerCmd::SetIgnoreCursorEvents(ignore_cursor) => {
+        window.set_ignore_cursor_events(ignore_cursor)?
+      }
       #[cfg(window_start_dragging)]
       WindowManagerCmd::StartDragging => window.start_dragging()?,
       #[cfg(window_print)]

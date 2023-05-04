@@ -101,6 +101,3 @@ winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
-
-[profile.release]
-lto = true

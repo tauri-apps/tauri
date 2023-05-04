@@ -18,3 +18,9 @@ log = "0.4.17"
 
 [build-dependencies]
 napi-build = "2.0"
+
+[profile.release]
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "s"

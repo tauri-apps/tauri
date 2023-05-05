@@ -105,6 +105,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     installer_icon: config.installer_icon,
     install_mode: config.install_mode,
     languages: config.languages,
+    custom_language_files: config.custom_language_files,
     display_language_selector: config.display_language_selector,
   }
 }

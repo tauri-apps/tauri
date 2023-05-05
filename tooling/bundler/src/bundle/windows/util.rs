@@ -134,7 +134,3 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
 
   Ok(())
 }
-
-pub fn remove_unc_lossy<P: AsRef<Path>>(p: P) -> PathBuf {
-  PathBuf::from(p.as_ref().to_string_lossy().replacen(r"\\?\", "", 1))
-}

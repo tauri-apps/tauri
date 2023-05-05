@@ -272,8 +272,8 @@ FunctionEnd
 !insertmacro MUI_LANGUAGE "{{this}}"
 {{/each}}
 !insertmacro MUI_RESERVEFILE_LANGDLL
-{{#each languages}}
-  !include "{{this}}.nsh"
+{{#each language_files}}
+  !include "{{this}}"
 {{/each}}
 
 Function .onInit

@@ -1,11 +1,8 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::time::Instant;
 
@@ -21,14 +18,10 @@ fn main() {
 
 #[cfg(feature = "isolation")]
 fn main() {
-  let context = tauri::generate_context!("../../examples/isolation/tauri.conf.json");
   tauri::Builder::default()
-    .menu(if cfg!(target_os = "macos") {
-      tauri::Menu::os_default(&context.package_info().name)
-    } else {
-      tauri::Menu::default()
-    })
     .invoke_handler(tauri::generate_handler![ping])
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/isolation/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

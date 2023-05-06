@@ -1,14 +1,15 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use super::error::{Error, Result};
+#[cfg(desktop)]
 use crate::api::file::{ArchiveFormat, Extract, Move};
 use crate::{
   api::http::{ClientBuilder, HttpRequestBuilder},
   AppHandle, Manager, Runtime,
 };
-use base64::decode;
+use base64::Engine;
 use http::{
   header::{HeaderName, HeaderValue},
   HeaderMap, StatusCode,
@@ -20,6 +21,7 @@ use tauri_utils::{platform::current_exe, Env};
 use time::OffsetDateTime;
 use url::Url;
 
+#[cfg(desktop)]
 use std::io::Seek;
 use std::{
   collections::HashMap,
@@ -31,10 +33,10 @@ use std::{
   time::Duration,
 };
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", windows))]
 use std::ffi::OsStr;
 
-#[cfg(all(feature = "updater", not(target_os = "windows")))]
+#[cfg(all(desktop, not(target_os = "windows")))]
 use crate::api::file::Compression;
 
 #[cfg(target_os = "windows")]
@@ -94,7 +96,7 @@ impl<'de> Deserialize<'de> for RemoteRelease {
     let pub_date = if let Some(date) = release.pub_date {
       Some(
         OffsetDateTime::parse(&date, &time::format_description::well_known::Rfc3339)
-          .map_err(|e| DeError::custom(format!("invalid value for `pub_date`: {}", e)))?,
+          .map_err(|e| DeError::custom(format!("invalid value for `pub_date`: {e}")))?,
       )
     } else {
       None
@@ -334,7 +336,7 @@ impl<R: Runtime> UpdateBuilder<R> {
       (target.clone(), target)
     } else {
       let target = get_updater_target().ok_or(Error::UnsupportedOs)?;
-      (target.to_string(), format!("{}-{}", target, arch))
+      (target.to_string(), format!("{target}-{arch}"))
     };
 
     // Get the extract_path from the provided executable_path
@@ -361,7 +363,7 @@ impl<R: Runtime> UpdateBuilder<R> {
     let mut last_error: Option<Error> = None;
     for url in &self.urls {
       // replace {{current_version}}, {{target}} and {{arch}} in the provided URL
-      // this is usefull if we need to query example
+      // this is useful if we need to query example
       // https://releases.myapp.com/update/{{target}}/{{arch}}/{{current_version}}
       // will be translated into ->
       // https://releases.myapp.com/update/darwin/aarch64/1.0.0
@@ -381,18 +383,16 @@ impl<R: Runtime> UpdateBuilder<R> {
       // If we got a success, we stop the loop
       // and we set our remote_release variable
       if let Ok(res) = resp {
-        let res = res.read().await?;
+        let status = res.status();
         // got status code 2XX
-        if StatusCode::from_u16(res.status)
-          .map_err(|e| Error::Builder(e.to_string()))?
-          .is_success()
-        {
+        if status.is_success() {
           // if we got 204
-          if StatusCode::NO_CONTENT.as_u16() == res.status {
+          if status == StatusCode::NO_CONTENT {
             // return with `UpToDate` error
             // we should catch on the client
             return Err(Error::UpToDate);
           };
+          let res = res.read().await?;
           // Convert the remote result to our local struct
           let built_release = serde_json::from_value(res.data).map_err(Into::into);
           // make sure all went well and the remote data is compatible
@@ -418,7 +418,7 @@ impl<R: Runtime> UpdateBuilder<R> {
     // Extracted remote metadata
     let final_release = remote_release.ok_or(Error::ReleaseNotFound)?;
 
-    // did the announced version is greated than our current one?
+    // is the announced version greater than our current one?
     let should_update = if let Some(comparator) = self.should_install.take() {
       comparator(&self.current_version, &final_release)
     } else {
@@ -518,7 +518,7 @@ impl<R: Runtime> Update<R> {
     // We fail here because later we can add more linux support
     // actually if we use APPIMAGE, our extract path should already
     // be set with our APPIMAGE env variable, we don't need to do
-    // anythin with it yet
+    // anything with it yet
     #[cfg(target_os = "linux")]
     if self.app.state::<Env>().appimage.is_none() {
       return Err(Error::UnsupportedLinuxPackage);
@@ -561,7 +561,7 @@ impl<R: Runtime> Update<R> {
     let mut buffer = Vec::new();
     #[cfg(feature = "reqwest-client")]
     {
-      use futures::StreamExt;
+      use futures_util::StreamExt;
       let mut stream = response.bytes_stream();
       while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
@@ -599,26 +599,22 @@ impl<R: Runtime> Update<R> {
     // if there is no signature, bail out.
     verify_signature(&mut archive_buffer, &self.signature, &pub_key)?;
 
-    // we copy the files depending of the operating system
-    // we run the setup, appimage re-install or overwrite the
-    // macos .app
-    #[cfg(target_os = "windows")]
-    copy_files_and_run(
-      archive_buffer,
-      &self.extract_path,
-      self.with_elevated_task,
-      self
-        .app
-        .config()
-        .tauri
-        .updater
-        .windows
-        .install_mode
-        .clone()
-        .msiexec_args(),
-    )?;
-    #[cfg(not(target_os = "windows"))]
-    copy_files_and_run(archive_buffer, &self.extract_path)?;
+    // TODO: implement updater in mobile
+    #[cfg(desktop)]
+    {
+      // we copy the files depending of the operating system
+      // we run the setup, appimage re-install or overwrite the
+      // macos .app
+      #[cfg(target_os = "windows")]
+      copy_files_and_run(
+        archive_buffer,
+        &self.extract_path,
+        self.with_elevated_task,
+        &self.app.config(),
+      )?;
+      #[cfg(not(target_os = "windows"))]
+      copy_files_and_run(archive_buffer, &self.extract_path)?;
+    }
 
     // We are done!
     Ok(())
@@ -692,17 +688,19 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
 }
 
 // Windows
-
+//
 // ### Expected structure:
 // ├── [AppName]_[version]_x64.msi.zip          # ZIP generated by tauri-bundler
 // │   └──[AppName]_[version]_x64.msi           # Application MSI
+// ├── [AppName]_[version]_x64-setup.exe.zip          # ZIP generated by tauri-bundler
+// │   └──[AppName]_[version]_x64-setup.exe           # NSIS installer
 // └── ...
-
+//
 // ## MSI
 // Update server can provide a MSI for Windows. (Generated with tauri-bundler from *Wix*)
 // To replace current version of the application. In later version we'll offer
 // incremental update to push specific binaries.
-
+//
 // ## EXE
 // Update server can provide a custom EXE (installer) who can run any task.
 #[cfg(target_os = "windows")]
@@ -711,7 +709,7 @@ fn copy_files_and_run<R: Read + Seek>(
   archive_buffer: R,
   _extract_path: &Path,
   with_elevated_task: bool,
-  msiexec_args: &[&str],
+  config: &crate::Config,
 ) -> Result {
   // FIXME: We need to create a memory buffer with the MSI and then run it.
   //        (instead of extracting the MSI to a temp path)
@@ -730,8 +728,6 @@ fn copy_files_and_run<R: Read + Seek>(
   extractor.extract_into(&tmp_dir)?;
 
   let paths = read_dir(&tmp_dir)?;
-  // This consumes the TempDir without deleting directory on the filesystem,
-  // meaning that the directory will no longer be automatically deleted.
 
   for path in paths {
     let found_path = path?.path();
@@ -739,9 +735,15 @@ fn copy_files_and_run<R: Read + Seek>(
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
-      Command::new(found_path)
-        .spawn()
-        .expect("installer failed to start");
+      let mut installer = Command::new(found_path);
+      if crate::utils::config::WindowsUpdateInstallMode::Quiet
+        == config.tauri.updater.windows.install_mode
+      {
+        installer.arg("/S");
+      }
+      installer.args(&config.tauri.updater.windows.installer_args);
+
+      installer.spawn().expect("installer failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -754,7 +756,7 @@ fn copy_files_and_run<R: Read + Seek>(
           let product_name = bin_name.replace(".exe", "");
 
           // Check if there is a task that enables the updater to skip the UAC prompt
-          let update_task_name = format!("Update {} - Skip UAC", product_name);
+          let update_task_name = format!("Update {product_name} - Skip UAC");
           if let Ok(output) = Command::new("schtasks")
             .arg("/QUERY")
             .arg("/TN")
@@ -784,14 +786,64 @@ fn copy_files_and_run<R: Read + Seek>(
         }
       }
 
-      // restart should be handled by WIX as we exit the process
-      Command::new("msiexec.exe")
-        .arg("/i")
-        .arg(found_path)
-        .args(msiexec_args)
-        .arg("/promptrestart")
-        .spawn()
-        .expect("installer failed to start");
+      // we need to wrap the current exe path in quotes for Start-Process
+      let mut current_exe_arg = std::ffi::OsString::new();
+      current_exe_arg.push("\"");
+      current_exe_arg.push(current_exe()?);
+      current_exe_arg.push("\"");
+
+      let mut msi_path_arg = std::ffi::OsString::new();
+      msi_path_arg.push("\"\"\"");
+      msi_path_arg.push(&found_path);
+      msi_path_arg.push("\"\"\"");
+
+      let mut msiexec_args = config
+        .tauri
+        .updater
+        .windows
+        .install_mode
+        .clone()
+        .msiexec_args()
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<String>>();
+      msiexec_args.extend(config.tauri.updater.windows.installer_args.clone());
+
+      // run the installer and relaunch the application
+      let system_root = std::env::var("SYSTEMROOT");
+      let powershell_path = system_root.as_ref().map_or_else(
+        |_| "powershell.exe".to_string(),
+        |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+      );
+      let powershell_install_res = Command::new(powershell_path)
+        .args(["-NoProfile", "-windowstyle", "hidden"])
+        .args([
+          "Start-Process",
+          "-Wait",
+          "-FilePath",
+          "$env:SYSTEMROOT\\System32\\msiexec.exe",
+          "-ArgumentList",
+        ])
+        .arg("/i,")
+        .arg(msi_path_arg)
+        .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
+        .arg("Start-Process")
+        .arg(current_exe_arg)
+        .spawn();
+      if powershell_install_res.is_err() {
+        // fallback to running msiexec directly - relaunch won't be available
+        // we use this here in case powershell fails in an older machine somehow
+        let msiexec_path = system_root.as_ref().map_or_else(
+          |_| "msiexec.exe".to_string(),
+          |p| format!("{p}\\System32\\msiexec.exe"),
+        );
+        let _ = Command::new(msiexec_path)
+          .arg("/i")
+          .arg(found_path)
+          .args(msiexec_args)
+          .arg("/promptrestart")
+          .spawn();
+      }
 
       exit(0);
     }
@@ -849,6 +901,10 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
 
     Ok(false)
   })?;
+
+  let _ = std::process::Command::new("touch")
+    .arg(extract_path)
+    .status();
 
   Ok(())
 }
@@ -920,7 +976,7 @@ pub fn extract_path_from_executable(env: &Env, executable_path: &Path) -> PathBu
 
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> Result<String> {
-  let decoded_string = &decode(base64_string)?;
+  let decoded_string = &base64::engine::general_purpose::STANDARD.decode(base64_string)?;
   let result = from_utf8(decoded_string)
     .map_err(|_| Error::SignatureUtf8(base64_string.into()))?
     .to_string();
@@ -1001,14 +1057,13 @@ mod test {
     format!(
       r#"
         {{
-          "name": "v{}",
+          "name": "v{version}",
           "notes": "This is the latest version! Once updated you shouldn't see this prompt.",
           "pub_date": "2020-06-25T14:14:19Z",
-          "signature": "{}",
-          "url": "{}"
+          "signature": "{public_signature}",
+          "url": "{download_url}"
         }}
-      "#,
-      version, public_signature, download_url
+      "#
     )
   }
 
@@ -1021,15 +1076,14 @@ mod test {
     format!(
       r#"
         {{
-          "name": "v{}",
+          "name": "v{version}",
           "notes": "This is the latest version! Once updated you shouldn't see this prompt.",
           "pub_date": "2020-06-25T14:14:19Z",
-          "signature": "{}",
-          "url": "{}",
-          "with_elevated_task": {}
+          "signature": "{public_signature}",
+          "url": "{download_url}",
+          "with_elevated_task": {with_elevated_task}
         }}
-      "#,
-      version, public_signature, download_url, with_elevated_task
+      "#
     )
   }
 
@@ -1261,7 +1315,7 @@ mod test {
   }
 
   #[test]
-  fn http_updater_fallback_urls_withs_array() {
+  fn http_updater_fallback_urls_with_array() {
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
@@ -1467,7 +1521,7 @@ mod test {
     }"#;
 
     fn missing_field_error(field: &str) -> String {
-      format!("the `{}` field was not set on the updater response", field)
+      format!("the `{field}` field was not set on the updater response")
     }
 
     let test_cases = [
@@ -1499,7 +1553,7 @@ mod test {
         .target("test-target")
         .build());
       if let Err(e) = check_update {
-        println!("ERROR: {}, expected: {}", e, error);
+        println!("ERROR: {e}, expected: {error}");
         assert!(e.to_string().contains(&error));
       } else {
         panic!("unexpected Ok response");
@@ -1519,11 +1573,10 @@ mod test {
     #[cfg(target_os = "windows")]
     let archive_file = "archive.windows.zip";
 
-    let good_archive_url = format!("{}/{}", mockito::server_url(), archive_file);
+    let good_archive_url = format!("{}/{archive_file}", mockito::server_url());
 
     let mut signature_file = File::open(format!(
-      "./test/updater/fixture/archives/{}.sig",
-      archive_file
+      "./test/updater/fixture/archives/{archive_file}.sig"
     ))
     .expect("Unable to open signature");
     let mut signature = String::new();
@@ -1539,10 +1592,10 @@ mod test {
       .expect("Unable to read signature as string");
 
     // add sample file
-    let _m = mockito::mock("GET", format!("/{}", archive_file).as_str())
+    let _m = mockito::mock("GET", format!("/{archive_file}").as_str())
       .with_status(200)
       .with_header("content-type", "application/octet-stream")
-      .with_body_from_file(format!("./test/updater/fixture/archives/{}", archive_file))
+      .with_body_from_file(format!("./test/updater/fixture/archives/{archive_file}"))
       .create();
 
     // sample mock for update file

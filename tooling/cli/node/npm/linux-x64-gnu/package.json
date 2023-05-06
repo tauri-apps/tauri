@@ -10,6 +10,9 @@
   "cpu": [
     "x64"
   ],
+  "libc": [
+    "glibc"
+  ],
   "main": "cli.linux-x64-gnu.node",
   "files": [
     "cli.linux-x64-gnu.node"

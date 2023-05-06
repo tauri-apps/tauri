@@ -1,38 +1,35 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::WindowBuilder;
 
 fn main() {
-  let context = tauri::generate_context!("../../examples/multiwindow/tauri.conf.json");
   tauri::Builder::default()
-    .menu(if cfg!(target_os = "macos") {
-      tauri::Menu::os_default(&context.package_info().name)
-    } else {
-      tauri::Menu::default()
-    })
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
       window.listen("clicked".to_string(), move |_payload| {
-        println!("got 'clicked' event on window '{}'", label);
+        println!("got 'clicked' event on window '{label}'");
       });
     })
     .setup(|app| {
-      WindowBuilder::new(
+      #[allow(unused_mut)]
+      let mut builder = WindowBuilder::new(
         app,
         "Rust".to_string(),
         tauri::WindowUrl::App("index.html".into()),
-      )
-      .title("Tauri - Rust")
-      .build()?;
+      );
+      #[cfg(target_os = "macos")]
+      {
+        builder = builder.tabbing_identifier("Rust");
+      }
+      let _window = builder.title("Tauri - Rust").build()?;
       Ok(())
     })
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/multiwindow/tauri.conf.json"
+    ))
     .expect("failed to run tauri application");
 }

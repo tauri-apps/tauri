@@ -1,7 +1,8 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use base64::Engine;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha256};
@@ -181,9 +182,10 @@ impl CspHashes {
           })?,
         );
         let hash = hasher.finalize();
-        self
-          .scripts
-          .push(format!("'sha256-{}'", base64::encode(hash)));
+        self.scripts.push(format!(
+          "'sha256-{}'",
+          base64::engine::general_purpose::STANDARD.encode(hash)
+        ));
       }
     }
 
@@ -246,7 +248,12 @@ impl EmbeddedAssets {
   pub fn new(
     input: impl Into<EmbeddedAssetsInput>,
     options: &AssetOptions,
-    map: impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError>,
+    mut map: impl FnMut(
+      &AssetKey,
+      &Path,
+      &mut Vec<u8>,
+      &mut CspHashes,
+    ) -> Result<(), EmbeddedAssetsError>,
   ) -> Result<Self, EmbeddedAssetsError> {
     // we need to pre-compute all files now, so that we can inject data from all files into a few
     let RawEmbeddedAssets { paths, csp_hashes } = RawEmbeddedAssets::new(input.into(), options)?;
@@ -262,7 +269,8 @@ impl EmbeddedAssets {
         assets: HashMap::new(),
       },
       move |mut state, (prefix, entry)| {
-        let (key, asset) = Self::compress_file(&prefix, entry.path(), &map, &mut state.csp_hashes)?;
+        let (key, asset) =
+          Self::compress_file(&prefix, entry.path(), &mut map, &mut state.csp_hashes)?;
         state.assets.insert(key, asset);
         Result::<_, EmbeddedAssetsError>::Ok(state)
       },
@@ -292,7 +300,12 @@ impl EmbeddedAssets {
   fn compress_file(
     prefix: &Path,
     path: &Path,
-    map: &impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError>,
+    map: &mut impl FnMut(
+      &AssetKey,
+      &Path,
+      &mut Vec<u8>,
+      &mut CspHashes,
+    ) -> Result<(), EmbeddedAssetsError>,
     csp_hashes: &mut CspHashes,
   ) -> Result<Asset, EmbeddedAssetsError> {
     let mut input = std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
@@ -332,14 +345,14 @@ impl EmbeddedAssets {
 
       let mut hex = String::with_capacity(2 * bytes.len());
       for b in bytes {
-        write!(hex, "{:02x}", b).map_err(EmbeddedAssetsError::Hex)?;
+        write!(hex, "{b:02x}").map_err(EmbeddedAssetsError::Hex)?;
       }
       hex
     };
 
     // use the content hash to determine filename, keep extensions that exist
     let out_path = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-      out_dir.join(format!("{}.{}", hash, ext))
+      out_dir.join(format!("{hash}.{ext}"))
     } else {
       out_dir.join(hash)
     };
@@ -420,6 +433,7 @@ impl ToTokens for EmbeddedAssets {
 
     // we expect phf related items to be in path when generating the path code
     tokens.append_all(quote! {{
+        #[allow(unused)]
         use ::tauri::utils::assets::{CspHash, EmbeddedAssets, phf, phf::phf_map};
         EmbeddedAssets::new(phf_map! { #assets }, &[#global_hashes], phf_map! { #html_hashes })
     }});

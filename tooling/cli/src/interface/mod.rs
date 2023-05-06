@@ -1,15 +1,16 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 pub mod rust;
 
 use std::{
+  collections::HashMap,
   path::{Path, PathBuf},
   process::ExitStatus,
 };
 
-use crate::helpers::{config::Config, manifest::Manifest};
+use crate::helpers::config::Config;
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{Options, Rust as AppInterface};
@@ -19,7 +20,6 @@ pub trait AppSettings {
   fn get_bundle_settings(
     &self,
     config: &Config,
-    manifest: &Manifest,
     features: &[String],
   ) -> crate::Result<tauri_bundler::BundleSettings>;
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf>;
@@ -32,7 +32,6 @@ pub trait AppSettings {
   fn get_bundler_settings(
     &self,
     options: &Options,
-    manifest: &Manifest,
     config: &Config,
     out_dir: &Path,
     package_types: Option<Vec<PackageType>>,
@@ -51,7 +50,7 @@ pub trait AppSettings {
 
     let mut settings_builder = SettingsBuilder::new()
       .package_settings(self.get_package_settings())
-      .bundle_settings(self.get_bundle_settings(config, manifest, &enabled_features)?)
+      .bundle_settings(self.get_bundle_settings(config, &enabled_features)?)
       .binaries(self.get_binaries(config, &target)?)
       .project_out_directory(out_dir)
       .target(target);
@@ -62,11 +61,6 @@ pub trait AppSettings {
 
     settings_builder.build().map_err(Into::into)
   }
-}
-
-pub trait DevProcess {
-  fn kill(&self) -> std::io::Result<()>;
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
 }
 
 #[derive(Debug)]
@@ -81,15 +75,14 @@ pub enum ExitReason {
 
 pub trait Interface: Sized {
   type AppSettings: AppSettings;
-  type Dev: DevProcess;
 
-  fn new(config: &Config) -> crate::Result<Self>;
+  fn new(config: &Config, target: Option<String>) -> crate::Result<Self>;
   fn app_settings(&self) -> &Self::AppSettings;
+  fn env(&self) -> HashMap<&str, String>;
   fn build(&mut self, options: Options) -> crate::Result<()>;
-  fn dev<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
+  fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
-    manifest: &Manifest,
     on_exit: F,
-  ) -> crate::Result<Self::Dev>;
+  ) -> crate::Result<()>;
 }

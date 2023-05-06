@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,7 +7,10 @@
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
+use url::Url;
 
+#[cfg(target_os = "macos")]
+use crate::TitleBarStyle;
 use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
@@ -27,7 +30,7 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::WindowUrl,
+  utils::config::{WindowConfig, WindowUrl},
   CursorIcon, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
   PageLoadPayload, Runtime, Theme, WindowEvent,
 };
@@ -46,6 +49,7 @@ use std::{
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -106,6 +110,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+  navigation_handler: Option<Box<NavigationHandler>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
@@ -122,6 +127,11 @@ impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
 
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
   ///
   /// # Examples
   ///
@@ -162,11 +172,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// }
   /// ```
   ///
-  /// # Known issues
-  ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
-  ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
     let runtime = manager.runtime();
@@ -179,7 +184,56 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
+      navigation_handler: None,
     }
+  }
+
+  /// Initializes a webview window builder from a window config from tauri.conf.json.
+  /// Keep in mind that you can't create 2 windows with the same `label` so make sure
+  /// that the initial window was closed or change the label of the new `WindowBuilder`.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
+  ///
+  /// # Examples
+  ///
+  /// - Create a window in a command:
+  ///
+  /// ```
+  /// #[tauri::command]
+  /// async fn reopen_window(app: tauri::AppHandle) {
+  ///   let window = tauri::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
+    let runtime = manager.runtime();
+    let app_handle = manager.app_handle();
+    let url = config.url.clone();
+    let file_drop_enabled = config.file_drop_enabled;
+    let mut builder = Self {
+      manager: manager.manager().clone(),
+      runtime,
+      app_handle,
+      label: config.label.clone(),
+      window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
+        config,
+      ),
+      webview_attributes: WebviewAttributes::new(url),
+      web_resource_request_handler: None,
+      navigation_handler: None,
+    };
+
+    if !file_drop_enabled {
+      builder = builder.disable_file_drop_handler();
+    }
+
+    builder
   }
 
   /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.
@@ -227,6 +281,33 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Defines a closure to be executed when the webview navigates to a URL. Returning `false` cancels the navigation.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   http::header::HeaderValue,
+  ///   window::WindowBuilder,
+  /// };
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
+  ///       .on_navigation(|url| {
+  ///         // allow the production URL or localhost on dev
+  ///         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_navigation<F: Fn(Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.navigation_handler.replace(Box::new(f));
+    self
+  }
+
   /// Creates a new webview window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
     let web_resource_request_handler = self.web_resource_request_handler.take();
@@ -242,12 +323,18 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       &labels,
       web_resource_request_handler,
     )?;
+
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending),
     }
     .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
+
+    self.manager.eval_script_all(format!(
+      "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+      window_labels_array = serde_json::to_string(&self.manager.labels())?,
+    ))?;
 
     self.manager.emit_filter(
       "tauri://window-created",
@@ -326,10 +413,21 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Whether the window will be initially hidden or focused.
+  /// Sets the window to be initially focused.
   #[must_use]
+  #[deprecated(
+    since = "1.2.0",
+    note = "The window is automatically focused by default. This function Will be removed in 2.0.0. Use `focused` instead."
+  )]
   pub fn focus(mut self) -> Self {
-    self.window_builder = self.window_builder.focus();
+    self.window_builder = self.window_builder.focused(true);
+    self
+  }
+
+  /// Whether the window will be initially focused or not.
+  #[must_use]
+  pub fn focused(mut self, focused: bool) -> Self {
+    self.window_builder = self.window_builder.focused(focused);
     self
   }
 
@@ -352,14 +450,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ## Platform-specific
   ///
   /// - **macOS**: Only supported on macOS 10.14+.
-  /// - **Linux**: Not implemented, the value is ignored.
   #[must_use]
   pub fn theme(mut self, theme: Option<Theme>) -> Self {
     self.window_builder = self.window_builder.theme(theme);
     self
   }
 
-  /// Whether the the window should be transparent. If this is true, writing colors
+  /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
@@ -386,13 +483,24 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Whether the window should always be on top of other windows.
+  #[must_use]
+  pub fn content_protected(mut self, protected: bool) -> Self {
+    self.window_builder = self.window_builder.content_protected(protected);
+    self
+  }
+
   /// Sets the window icon.
   pub fn icon(mut self, icon: Icon) -> crate::Result<Self> {
     self.window_builder = self.window_builder.icon(icon.try_into()?)?;
     Ok(self)
   }
 
-  /// Sets whether or not the window icon should be added to the taskbar.
+  /// Sets whether or not the window icon should be hidden from the taskbar.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Unsupported.
   #[must_use]
   pub fn skip_taskbar(mut self, skip: bool) -> Self {
     self.window_builder = self.window_builder.skip_taskbar(skip);
@@ -434,15 +542,95 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Sets the [`TitleBarStyle`].
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    self.window_builder = self.window_builder.title_bar_style(style);
+    self
+  }
+
+  /// Hide the window title.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn hidden_title(mut self, hidden: bool) -> Self {
+    self.window_builder = self.window_builder.hidden_title(hidden);
+    self
+  }
+
+  /// Defines the window [tabbing identifier] for macOS.
+  ///
+  /// Windows with matching tabbing identifiers will be grouped together.
+  /// If the tabbing identifier is not set, automatic tabbing will be disabled.
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn tabbing_identifier(mut self, identifier: &str) -> Self {
+    self.window_builder = self.window_builder.tabbing_identifier(identifier);
+    self
+  }
+
   // ------------------------------------------- Webview attributes -------------------------------------------
 
-  /// Sets the init script.
+  /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
+  /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
+  ///
+  /// Since it runs on all top-level document and child frame page navigations,
+  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::{WindowBuilder, Runtime};
+  ///
+  /// const INIT_SCRIPT: &str = r#"
+  ///   if (window.location.origin === 'https://tauri.app') {
+  ///     console.log("hello world from js init script");
+  ///
+  ///     window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
+  ///   }
+  /// "#;
+  ///
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let window = tauri::WindowBuilder::new(app, "label", tauri::WindowUrl::App("index.html".into()))
+  ///         .initialization_script(INIT_SCRIPT)
+  ///         .build()?;
+  ///       Ok(())
+  ///     });
+  /// }
+  /// ```
   #[must_use]
   pub fn initialization_script(mut self, script: &str) -> Self {
     self
       .webview_attributes
       .initialization_scripts
       .push(script.to_string());
+    self
+  }
+
+  /// Set the user agent for the webview
+  #[must_use]
+  pub fn user_agent(mut self, user_agent: &str) -> Self {
+    self.webview_attributes.user_agent = Some(user_agent.to_string());
+    self
+  }
+
+  /// Set additional arguments for the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux / Android / iOS**: Unsupported.
+  ///
+  /// ## Warning
+  ///
+  /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you use this method, you also need to disable these components by yourself if you want.
+  #[must_use]
+  pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
+    self.webview_attributes.additional_browser_args = Some(additional_args.to_string());
     self
   }
 
@@ -472,6 +660,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self.webview_attributes.clipboard = true;
     self
   }
+
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[must_use]
+  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self.webview_attributes.accept_first_mouse = accept;
+    self
+  }
 }
 
 // TODO: expand these docs since this is a pretty important type
@@ -483,7 +678,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 #[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
-  window: DetachedWindow<EventLoopMessage, R>,
+  pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
@@ -560,11 +755,11 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 }
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
-#[cfg(feature = "wry")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+#[cfg(all(desktop, feature = "wry"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "wry"))))]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
-#[cfg(feature = "wry")]
+#[cfg(all(desktop, feature = "wry"))]
 impl PlatformWebview {
   /// Returns [`webkit2gtk::WebView`] handle.
   #[cfg(any(
@@ -628,9 +823,9 @@ impl PlatformWebview {
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl Window<crate::Wry> {
-  /// Executes the closure accessing the platform's webview handle.
+  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
-  /// The closure is executed in the main thread.
+  /// The closure is executed on the main thread.
   ///
   /// # Examples
   ///
@@ -647,15 +842,15 @@ impl Window<crate::Wry> {
   ///       main_window.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see https://docs.rs/webkit2gtk/latest/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/latest/webkit2gtk/trait.WebViewExt.html
+  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
   ///           use webkit2gtk::traits::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///
   ///         #[cfg(windows)]
   ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/latest/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///
@@ -671,7 +866,8 @@ impl Window<crate::Wry> {
   ///   });
   /// }
   /// ```
-  #[cfg_attr(doc_cfg, doc(cfg(eature = "wry")))]
+  #[cfg(desktop)]
+  #[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", desktop))))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,
@@ -745,14 +941,13 @@ impl<R: Runtime> Window<R> {
   pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
     let menu_ids = self.window.menu_ids.clone();
     self.window.dispatcher.on_menu_event(move |event| {
-      f(MenuEvent {
-        menu_item_id: menu_ids
-          .lock()
-          .unwrap()
-          .get(&event.menu_item_id)
-          .unwrap()
-          .clone(),
-      })
+      let id = menu_ids
+        .lock()
+        .unwrap()
+        .get(&event.menu_item_id)
+        .unwrap()
+        .clone();
+      f(MenuEvent { menu_item_id: id })
     })
   }
 }
@@ -801,6 +996,11 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_fullscreen().map_err(Into::into)
   }
 
+  /// Gets the window's current minimized state.
+  pub fn is_minimized(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_minimized().map_err(Into::into)
+  }
+
   /// Gets the window's current maximized state.
   pub fn is_maximized(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
@@ -816,9 +1016,14 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current visibility state.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
+  }
+
+  /// Gets the window's current title.
+  pub fn title(&self) -> crate::Result<String> {
+    self.window.dispatcher.title().map_err(Into::into)
   }
 
   /// Returns the monitor on which the window currently resides.
@@ -889,7 +1094,7 @@ impl<R: Runtime> Window<R> {
       })
   }
 
-  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   ///
   /// Note that this can only be used on the main thread.
   #[cfg(any(
@@ -908,7 +1113,6 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS**: Only supported on macOS 10.14+.
-  /// - **Linux**: Not implemented, always return [`Theme::Light`].
   pub fn theme(&self) -> crate::Result<Theme> {
     self.window.dispatcher.theme().map_err(Into::into)
   }
@@ -1029,6 +1233,15 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
+  /// Prevents the window contents from being captured by other apps.
+  pub fn set_content_protected(&self, protected: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_content_protected(protected)
+      .map_err(Into::into)
+  }
+
   /// Resizes this window.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
     self
@@ -1088,7 +1301,11 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Whether to show the window icon in the task bar or not.
+  /// Whether to hide the window icon from the taskbar or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Unsupported.
   pub fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()> {
     self
       .window
@@ -1149,6 +1366,15 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
+  /// Ignores the window cursor events.
+  pub fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_ignore_cursor_events(ignore)
+      .map_err(Into::into)
+  }
+
   /// Starts dragging the window.
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
@@ -1157,9 +1383,40 @@ impl<R: Runtime> Window<R> {
 
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
+  /// Returns the current url of the webview.
+  pub fn url(&self) -> Url {
+    self.window.current_url.lock().unwrap().clone()
+  }
+
+  #[cfg(test)]
+  pub(crate) fn navigate(&self, url: Url) {
+    *self.window.current_url.lock().unwrap() = url;
+  }
+
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
+    let current_url = self.url();
+    let config_url = manager.get_url();
+    let is_local = config_url.make_relative(&current_url).is_some();
+
+    let mut scope_not_found_error_message =
+      ipc_scope_not_found_error_message(&self.window.label, current_url.as_str());
+    let scope = if is_local {
+      None
+    } else {
+      match self.ipc_scope().remote_access_for(&self, &current_url) {
+        Ok(scope) => Some(scope),
+        Err(e) => {
+          if e.matches_window {
+            scope_not_found_error_message = ipc_scope_domain_error_message(current_url.as_str());
+          } else if e.matches_domain {
+            scope_not_found_error_message = ipc_scope_window_error_message(&self.window.label);
+          }
+          None
+        }
+      }
+    };
     match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
@@ -1173,9 +1430,18 @@ impl<R: Runtime> Window<R> {
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
-
         let invoke = Invoke { message, resolver };
+
+        if !is_local && scope.is_none() {
+          invoke.resolver.reject(scope_not_found_error_message);
+          return Ok(());
+        }
+
         if let Some(module) = &payload.tauri_module {
+          if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
+            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+            return Ok(());
+          }
           crate::endpoints::handle(
             module.to_string(),
             invoke,
@@ -1183,6 +1449,17 @@ impl<R: Runtime> Window<R> {
             manager.package_info(),
           );
         } else if payload.cmd.starts_with("plugin:") {
+          if !is_local {
+            let command = invoke.message.command.replace("plugin:", "");
+            let plugin_name = command.split('|').next().unwrap().to_string();
+            if !scope
+              .map(|s| s.plugins().contains(&plugin_name))
+              .unwrap_or(true)
+            {
+              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+              return Ok(());
+            }
+          }
           manager.extend_api(invoke);
         } else {
           manager.run_invoke_handler(invoke);
@@ -1249,8 +1526,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS:** This is a private API on macOS,
-  /// so you cannot use this if your application will be published on the App Store.
+  /// - **macOS:** Only supported on macOS 10.15+.
+  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   ///
   /// # Examples
   ///
@@ -1274,8 +1551,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS:** This is a private API on macOS,
-  /// so you cannot use this if your application will be published on the App Store.
+  /// - **macOS:** Only supported on macOS 10.15+.
+  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
@@ -1307,8 +1584,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS:** This is a private API on macOS,
-  /// so you cannot use this if your application will be published on the App Store.
+  /// - **macOS:** Only supported on macOS 10.15+.
+  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
@@ -1357,7 +1634,7 @@ impl<R: Runtime> Window<R> {
     payload: S,
   ) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
+      "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
       serde_json::to_string(&source_window_label)?,
@@ -1412,6 +1689,20 @@ impl<R: Runtime> Window<R> {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
   }
+}
+
+pub(crate) const IPC_SCOPE_DOES_NOT_ALLOW: &str = "Not allowed by the scope";
+
+pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> String {
+  format!("Scope not defined for window `{label}` and URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
+}
+
+pub(crate) fn ipc_scope_window_error_message(label: &str) -> String {
+  format!("Scope not defined for window `{}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access", label)
+}
+
+pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
+  format!("Scope not defined for URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
 }
 
 #[cfg(test)]

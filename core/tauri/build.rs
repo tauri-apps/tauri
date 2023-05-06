@@ -1,8 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use heck::AsShoutySnakeCase;
+use heck::AsSnakeCase;
 use heck::ToSnakeCase;
+
 use once_cell::sync::OnceCell;
 
 use std::{path::Path, sync::Mutex};
@@ -17,21 +20,18 @@ fn has_feature(feature: &str) -> bool {
     .unwrap()
     .push(feature.to_string());
 
-  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
+  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name>` env var to 1
   // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
-  std::env::var(format!(
-    "CARGO_FEATURE_{}",
-    feature.to_snake_case().to_uppercase()
-  ))
-  .map(|x| x == "1")
-  .unwrap_or(false)
+  std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
+    .map(|x| x == "1")
+    .unwrap_or(false)
 }
 
 // creates a cfg alias if `has_feature` is true.
 // `alias` must be a snake case string.
 fn alias(alias: &str, has_feature: bool) {
   if has_feature {
-    println!("cargo:rustc-cfg={}", alias);
+    println!("cargo:rustc-cfg={alias}");
   }
 }
 
@@ -39,6 +39,11 @@ fn main() {
   alias("custom_protocol", has_feature("custom-protocol"));
   alias("dev", !has_feature("custom-protocol"));
   alias("updater", has_feature("updater"));
+
+  let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let mobile = target_os == "ios" || target_os == "android";
+  alias("desktop", !mobile);
+  alias("mobile", mobile);
 
   let api_all = has_feature("api-all");
   alias("api_all", api_all);
@@ -54,6 +59,7 @@ fn main() {
       "remove-dir",
       "remove-file",
       "rename-file",
+      "exists",
     ],
     api_all,
   );
@@ -75,6 +81,7 @@ fn main() {
       "close",
       "set-decorations",
       "set-always-on-top",
+      "set-content-protected",
       "set-size",
       "set-min-size",
       "set-max-size",
@@ -87,6 +94,7 @@ fn main() {
       "set-cursor-visible",
       "set-cursor-icon",
       "set-cursor-position",
+      "set-ignore-cursor-events",
       "start-dragging",
       "print",
     ],
@@ -99,18 +107,22 @@ fn main() {
   alias("shell_script", shell_script);
   alias("shell_scope", has_feature("shell-open-api") || shell_script);
 
-  alias_module(
-    "dialog",
-    &["open", "save", "message", "ask", "confirm"],
-    api_all,
-  );
+  if !mobile {
+    alias_module(
+      "dialog",
+      &["open", "save", "message", "ask", "confirm"],
+      api_all,
+    );
+  }
 
   alias_module("http", &["request"], api_all);
 
   alias("cli", has_feature("cli"));
 
-  alias_module("notification", &[], api_all);
-  alias_module("global-shortcut", &[], api_all);
+  if !mobile {
+    alias_module("notification", &[], api_all);
+    alias_module("global-shortcut", &[], api_all);
+  }
   alias_module("os", &[], api_all);
   alias_module("path", &[], api_all);
 
@@ -120,13 +132,27 @@ fn main() {
 
   alias_module("clipboard", &["write-text", "read-text"], api_all);
 
+  alias_module("app", &["show", "hide"], api_all);
+
   let checked_features_out_path =
     Path::new(&std::env::var("OUT_DIR").unwrap()).join("checked_features");
   std::fs::write(
-    &checked_features_out_path,
-    &CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
+    checked_features_out_path,
+    CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
   )
   .expect("failed to write checked_features file");
+
+  // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error
+  // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
+  let target_os = std::env::var("CARGO_CFG_TARGET_OS");
+  let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
+  let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").map_or(false, |v| v == "true");
+  if is_tauri_workspace
+    && Ok("windows") == target_os.as_deref()
+    && Ok("msvc") == target_env.as_deref()
+  {
+    add_manifest();
+  }
 }
 
 // create aliases for the given module with its apis.
@@ -139,20 +165,39 @@ fn main() {
 //
 // Note that both `module` and `apis` strings must be written in kebab case.
 fn alias_module(module: &str, apis: &[&str], api_all: bool) {
-  let all_feature_name = format!("{}-all", module);
+  let all_feature_name = format!("{module}-all");
   let all = has_feature(&all_feature_name) || api_all;
   alias(&all_feature_name.to_snake_case(), all);
 
   let mut any = all;
 
   for api in apis {
-    let has = has_feature(&format!("{}-{}", module, api)) || all;
+    let has = has_feature(&format!("{module}-{api}")) || all;
     alias(
-      &format!("{}_{}", module.to_snake_case(), api.to_snake_case()),
+      &format!("{}_{}", AsSnakeCase(module), AsSnakeCase(api)),
       has,
     );
     any = any || has;
   }
 
-  alias(&format!("{}_any", module.to_snake_case()), any);
+  alias(&format!("{}_any", AsSnakeCase(module)), any);
+}
+
+fn add_manifest() {
+  static WINDOWS_MANIFEST_FILE: &str = "window-app-manifest.xml";
+
+  let manifest = std::env::current_dir()
+    .unwrap()
+    .join("../tauri-build/src")
+    .join(WINDOWS_MANIFEST_FILE);
+
+  println!("cargo:rerun-if-changed={}", manifest.display());
+  // Embed the Windows application manifest file.
+  println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+  println!(
+    "cargo:rustc-link-arg=/MANIFESTINPUT:{}",
+    manifest.to_str().unwrap()
+  );
+  // Turn linker warnings into errors.
+  println!("cargo:rustc-link-arg=/WX");
 }

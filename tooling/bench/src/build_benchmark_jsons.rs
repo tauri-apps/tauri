@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -22,29 +22,28 @@ fn main() {
 
   // all data's
   let all_data_buffer =
-    BufReader::new(File::open(&tauri_data).expect("Unable to read all data file"));
+    BufReader::new(File::open(tauri_data).expect("Unable to read all data file"));
   let mut all_data: Vec<utils::BenchResult> =
     serde_json::from_reader(all_data_buffer).expect("Unable to read all data buffer");
 
-  // add current data to alls data
+  // add current data to all data
   all_data.push(current_data);
 
-  // use only latest 20 elements from alls data
-  let recent: Vec<utils::BenchResult>;
-  if all_data.len() > 20 {
-    recent = all_data[all_data.len() - 20..].to_vec();
+  // use only latest 20 elements from all data
+  let recent: Vec<utils::BenchResult> = if all_data.len() > 20 {
+    all_data[all_data.len() - 20..].to_vec()
   } else {
-    recent = all_data.clone();
-  }
+    all_data.clone()
+  };
 
   // write json's
   utils::write_json(
     tauri_data
       .to_str()
       .expect("Something wrong with tauri_data"),
-    &serde_json::to_value(&all_data).expect("Unable to build final json (alls)"),
+    &serde_json::to_value(&all_data).expect("Unable to build final json (all)"),
   )
-  .expect(format!("Unable to write {:?}", tauri_data).as_str());
+  .unwrap_or_else(|_| panic!("Unable to write {:?}", tauri_data));
 
   utils::write_json(
     tauri_recent
@@ -52,5 +51,5 @@ fn main() {
       .expect("Something wrong with tauri_recent"),
     &serde_json::to_value(&recent).expect("Unable to build final json (recent)"),
   )
-  .expect(format!("Unable to write {:?}", tauri_recent).as_str());
+  .unwrap_or_else(|_| panic!("Unable to write {:?}", tauri_recent));
 }

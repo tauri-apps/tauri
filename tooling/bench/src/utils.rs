@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -45,12 +45,11 @@ pub fn get_target() -> &'static str {
 }
 
 pub fn target_dir() -> PathBuf {
-  let target_dir = bench_root_path()
+  bench_root_path()
     .join("tests")
     .join("target")
     .join(get_target())
-    .join("release");
-  target_dir.into()
+    .join("release")
 }
 
 pub fn bench_root_path() -> PathBuf {
@@ -105,16 +104,14 @@ pub fn parse_max_mem(file_path: &str) -> Option<u64> {
   let output = BufReader::new(file);
   let mut highest: u64 = 0;
   // MEM 203.437500 1621617192.4123
-  for line in output.lines() {
-    if let Ok(line) = line {
-      // split line by space
-      let split = line.split(" ").collect::<Vec<_>>();
-      if split.len() == 3 {
-        // mprof generate result in MB
-        let current_bytes = str::parse::<f64>(split[1]).unwrap() as u64 * 1024 * 1024;
-        if current_bytes > highest {
-          highest = current_bytes;
-        }
+  for line in output.lines().flatten() {
+    // split line by space
+    let split = line.split(' ').collect::<Vec<_>>();
+    if split.len() == 3 {
+      // mprof generate result in MB
+      let current_bytes = str::parse::<f64>(split[1]).unwrap() as u64 * 1024 * 1024;
+      if current_bytes > highest {
+        highest = current_bytes;
       }
     }
   }
@@ -169,14 +166,26 @@ pub fn parse_strace_output(output: &str) -> HashMap<String, StraceOutput> {
   }
 
   let total_fields = total_line.split_whitespace().collect::<Vec<_>>();
+
   summary.insert(
     "total".to_string(),
-    StraceOutput {
-      percent_time: str::parse::<f64>(total_fields[0]).unwrap(),
-      seconds: str::parse::<f64>(total_fields[1]).unwrap(),
-      usecs_per_call: None,
-      calls: str::parse::<u64>(total_fields[2]).unwrap(),
-      errors: str::parse::<u64>(total_fields[3]).unwrap(),
+    match total_fields.len() {
+      // Old format, has no usecs/call
+      5 => StraceOutput {
+        percent_time: str::parse::<f64>(total_fields[0]).unwrap(),
+        seconds: str::parse::<f64>(total_fields[1]).unwrap(),
+        usecs_per_call: None,
+        calls: str::parse::<u64>(total_fields[2]).unwrap(),
+        errors: str::parse::<u64>(total_fields[3]).unwrap(),
+      },
+      6 => StraceOutput {
+        percent_time: str::parse::<f64>(total_fields[0]).unwrap(),
+        seconds: str::parse::<f64>(total_fields[1]).unwrap(),
+        usecs_per_call: Some(str::parse::<u64>(total_fields[2]).unwrap()),
+        calls: str::parse::<u64>(total_fields[3]).unwrap(),
+        errors: str::parse::<u64>(total_fields[4]).unwrap(),
+      },
+      _ => panic!("Unexpected total field count: {}", total_fields.len()),
     },
   );
 
@@ -222,7 +231,7 @@ pub fn download_file(url: &str, filename: PathBuf) {
     .arg("-s")
     .arg("-o")
     .arg(&filename)
-    .arg(&url)
+    .arg(url)
     .status()
     .unwrap();
 

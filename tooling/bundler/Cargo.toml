@@ -20,15 +20,15 @@ exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 tauri-utils = { version = "2.0.0-alpha.4", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.5"
 libflate = "1.2"
-anyhow = "1.0"
-thiserror = "1.0"
-serde_json = "1.0"
-serde = { version = "1.0", features = [ "derive" ] }
+anyhow.workspace = true
+thiserror.workspace = true = "1.0"
+serde_json.workspace = true
+serde.workspace = true
 strsim = "0.10.0"
 tar = "0.4.38"
 walkdir = "2"
 handlebars = "4.3"
-tempfile = "3.3.0"
+tempfile.workspace = true
 log = { version = "0.4.17", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 encoding_rs = "0.8"
@@ -44,7 +44,7 @@ zip = "0.6"
 uuid = { version = "1", features = [ "v4", "v5" ] }
 bitness = "0.4"
 winreg = "0.10"
-glob = "0.3"
+glob.workspace = true
 
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = { package = "tauri-icns", version = "0.1" }

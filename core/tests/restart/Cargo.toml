@@ -9,4 +9,4 @@ edition = "2021"
 path = "../../tauri"
 
 [dev-dependencies]
-tempfile = "3"
+tempfile.workspace = true

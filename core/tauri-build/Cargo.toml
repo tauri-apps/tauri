@@ -17,13 +17,13 @@ all-features = true
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 
 [dependencies]
-anyhow = "1"
+anyhow.workspace = true
 quote = { version = "1", optional = true }
 tauri-codegen = { version = "2.0.0-alpha.4", path = "../tauri-codegen", optional = true }
 tauri-utils = { version = "2.0.0-alpha.4", path = "../tauri-utils", features = [ "build", "resources" ] }
 cargo_toml = "0.14"
-serde = "1"
-serde_json = "1"
+serde.workspace = true
+serde_json.workspace = true
 heck = "0.4"
 json-patch = "0.3"
 walkdir = "2"

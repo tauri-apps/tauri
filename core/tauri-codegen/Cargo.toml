@@ -18,17 +18,17 @@ base64 = "0.21"
 proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = [ "derive" ] }
-serde_json = "1"
+serde_json.workspace = true
 tauri-utils = { version = "2.0.0-alpha.4", path = "../tauri-utils", features = [ "build" ] }
-thiserror = "1"
+thiserror.workspace = true
 walkdir = "2"
-brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
+brotli = { workspace = true, optional = true }
 uuid = { version = "1", features = [ "v4" ] }
 semver = "1"
 ico = "0.3"
 png = "0.17"
 json-patch = "0.3"
-url = "2"
+url.workspace = true
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"

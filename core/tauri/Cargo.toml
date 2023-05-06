@@ -35,14 +35,14 @@ targets = [
 ]
 
 [dependencies]
-serde_json = { version = "1.0", features = [ "raw_value" ] }
-serde = { version = "1.0", features = [ "derive" ] }
+serde_json = { workspace = true, features = [ "raw_value" ] }
+serde.workspace = true
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures-util = "0.3"
 uuid = { version = "1", features = [ "v4" ] }
-url = { version = "2.3" }
-anyhow = "1.0"
-thiserror = "1.0"
+url.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
 once_cell = "1"
 tauri-runtime = { version = "0.13.0-alpha.4", path = "../tauri-runtime" }
 tauri-macros = { version = "2.0.0-alpha.4", path = "../tauri-macros" }
@@ -53,7 +53,7 @@ semver = { version = "1.0", features = [ "serde" ] }
 serde_repr = "0.1"
 state = "0.5"
 tar = "0.4.38"
-tempfile = "3"
+tempfile.workspace = true
 zip = { version = "0.6", default-features = false, optional = true }
 ignore = "0.4"
 flate2 = "1.0"
@@ -67,7 +67,7 @@ raw-window-handle = "0.5"
 minisign-verify = { version = "0.2", optional = true }
 time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }
 os_info = { version = "3", optional = true }
-glob = "0.3"
+glob.workspace = true
 data-url = { version = "0.2", optional = true }
 serialize-to-javascript = "=0.1.1"
 infer = { version = "0.9", optional = true }
@@ -115,8 +115,8 @@ mockito = "0.31"
 proptest = "1.0.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-serde = { version = "1.0", features = [ "derive" ] }
-serde_json = "1.0"
+serde.workspace = true
+serde_json.workspace = true
 tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio-test = "0.4.2"
 tokio = { version = "1", features = [ "full" ] }

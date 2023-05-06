@@ -49,6 +49,20 @@ fn print_completions(shell: Shell, cmd: &mut Command) {
   };
 
   print!("{}", shell_completions);
+
+  let pkg_managers = ["cargo", "pnpm", "npm", "yarn"];
+  for manager in pkg_managers {
+    match shell {
+      Shell::Bash => println!(
+        "complete -F _{} -o bashdefault -o default {} tauri",
+        cmd_name, manager
+      ),
+      Shell::Fish => {}
+      Shell::Zsh => {}
+      Shell::PowerShell => {}
+      _ => {}
+    };
+  }
 }
 
 pub fn command(options: Options, cmd: &mut Command) -> Result<()> {

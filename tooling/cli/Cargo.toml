@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "1.3.0"
+version = "1.3.1"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.60"
@@ -41,7 +41,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4.0", features = [ "derive" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "1.2.0", path = "../bundler", default-features = false }
+tauri-bundler = { version = "1.2.1", path = "../bundler", default-features = false }
 colored = "2.0"
 once_cell = "1"
 serde = { version = "1.0", features = [ "derive" ] }
@@ -92,6 +92,6 @@ libc = "0.2"
 lto = true
 
 [features]
-default = ["tauri-bundler/default"]
-native-tls-vendored = ["tauri-bundler/native-tls-vendored"]
-rustls = ["tauri-bundler/rustls"]
+default = [ "tauri-bundler/default" ]
+native-tls-vendored = [ "tauri-bundler/native-tls-vendored" ]
+rustls = [ "tauri-bundler/rustls" ]

@@ -24,7 +24,7 @@ use std::{
   env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, read_to_string, write},
+  fs::{create_dir_all, read_to_string, remove_file, write},
   net::SocketAddr,
   path::PathBuf,
   process::{exit, ExitStatus},
@@ -318,6 +318,7 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
   } else {
     if target == Target::Android {
       create_dir_all(project_dir.join(".tauri"))?;
+      let _ = remove_file(project_dir.join(".tauri").join("plugins.json"));
     }
     Ok(())
   }

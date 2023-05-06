@@ -55,7 +55,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
       let callback_id: Option<usize> = value
         .chars()
         .skip(CHANNEL_PREFIX.len())
-        .collect()
+        .collect::<String>()
         .parse()
         .ok();
       if let Some(id) = callback_id {

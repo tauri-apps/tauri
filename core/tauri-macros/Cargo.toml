@@ -1,16 +1,18 @@
 [package]
 name = "tauri-macros"
 version = "2.0.0-alpha.4"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
-categories = [ "gui", "os", "filesystem", "web-programming" ]
-license = "Apache-2.0 OR MIT"
-homepage = "https://tauri.app"
-repository = "https://github.com/tauri-apps/tauri"
 description = "Macros for the tauri crate."
-edition = "2021"
-rust-version = "1.65"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
+
+# workspace defined package items
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true

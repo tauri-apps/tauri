@@ -110,17 +110,6 @@ fn cfg_alias(alias: &str, has_feature: bool) {
 #[derive(Debug, Default)]
 pub struct WindowsAttributes {
   window_icon_path: Option<PathBuf>,
-  /// The path to the sdk location.
-  ///
-  /// For the GNU toolkit this has to be the path where MinGW put windres.exe and ar.exe.
-  /// This could be something like: "C:\Program Files\mingw-w64\x86_64-5.3.0-win32-seh-rt_v4-rev0\mingw64\bin"
-  ///
-  /// For MSVC the Windows SDK has to be installed. It comes with the resource compiler rc.exe.
-  /// This should be set to the root directory of the Windows SDK, e.g., "C:\Program Files (x86)\Windows Kits\10" or,
-  /// if multiple 10 versions are installed, set it directly to the correct bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
-  ///
-  /// If it is left unset, it will look up a path in the registry, i.e. HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots
-  sdk_dir: Option<PathBuf>,
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
@@ -145,14 +134,6 @@ impl WindowsAttributes {
     self
       .window_icon_path
       .replace(window_icon_path.as_ref().into());
-    self
-  }
-
-  /// Sets the sdk dir for windows. Currently only used on Windows. This must be a valid UTF-8
-  /// path. Defaults to whatever the `winres` crate determines is best.
-  #[must_use]
-  pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {
-    self.sdk_dir = Some(sdk_dir.as_ref().into());
     self
   }
 
@@ -444,15 +425,6 @@ dependencies {"
           res.set_manifest(include_str!("window-app-manifest.xml"));
         }
 
-        if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
-          if let Some(sdk_dir_str) = sdk_dir.to_str() {
-            res.set_toolkit_path(sdk_dir_str);
-          } else {
-            return Err(anyhow!(
-              "sdk_dir path is not valid; only UTF-8 characters are allowed"
-            ));
-          }
-        }
         if let Some(version) = &config.package.version {
           if let Ok(v) = Version::parse(version) {
             let version = v.major << 48 | v.minor << 32 | v.patch << 16;

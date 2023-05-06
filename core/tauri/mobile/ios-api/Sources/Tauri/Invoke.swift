@@ -73,11 +73,16 @@ let CHANNEL_PREFIX = "__CHANNEL__:"
 
   public func getChannel(_ key: String) -> Channel? {
     let channelDef = getString(key, "")
-    guard let callback = UInt64(channelDef.components(separatedBy: CHANNEL_PREFIX)[1]) else {
+    if channel.starts(with: CHANNEL_PREFIX) {
+      let index = channelDef.index(channelDef.startIndex, offsetBy: CHANNEL_PREFIX.count)
+      guard let callback = UInt64(channelDef[index...]) else {
+        return nil
+      }
+      return Channel(callback: callback, handler: { (res: JsonValue) -> Void in
+        self.sendResponse(callback, res)
+      })
+    } else {
       return nil
     }
-    return Channel(callback: callback, handler: { (res: JsonValue) -> Void in
-      self.sendResponse(callback, res)
-    })
   }
 }

@@ -53,9 +53,11 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
       Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
     if value.starts_with(CHANNEL_PREFIX) {
       let callback_id: Option<usize> = value
-        .split(CHANNEL_PREFIX)
-        .nth(1)
-        .and_then(|id| id.parse().ok());
+        .chars()
+        .skip(CHANNEL_PREFIX.len())
+        .collect()
+        .parse()
+        .ok();
       if let Some(id) = callback_id {
         return Ok(Channel {
           id: CallbackFn(id),

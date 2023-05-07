@@ -209,7 +209,7 @@
       "dependencies": ["tauri-codegen", "tauri-utils"],
       "postversion": [
         "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --manifest-path ../config-schema/Cargo.toml"
+        "cargo build --manifest-path ../tauri-config-schema/Cargo.toml"
       ],
       "assets": [
         {
@@ -237,7 +237,7 @@
       "dependencies": ["cli.rs"],
       "postversion": [
         "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --manifest-path ../../../core/config-schema/Cargo.toml"
+        "cargo build --manifest-path ../../../core/tauri-config-schema/Cargo.toml"
       ],
       "prepublish": [],
       "publish": [],
@@ -249,7 +249,7 @@
       "dependencies": ["tauri-bundler", "tauri-utils"],
       "postversion": [
         "cargo check",
-        "cargo build --manifest-path ../../core/config-schema/Cargo.toml"
+        "cargo build --manifest-path ../../core/tauri-config-schema/Cargo.toml"
       ],
       "assets": [
         {

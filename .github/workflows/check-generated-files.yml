@@ -12,7 +12,7 @@ on:
       - 'core/tauri/scripts/bundle.global.js'
       - 'core/tauri-utils/src/config.rs'
       - 'tooling/cli/schema.json'
-      - 'core/config-schema/schema.json'
+      - 'core/tauri-config-schema/schema.json'
   push:
     branches:
       - dev
@@ -22,7 +22,7 @@ on:
       - 'core/tauri/scripts/bundle.global.js'
       - 'core/tauri-utils/src/config.rs'
       - 'tooling/cli/schema.json'
-      - 'core/config-schema/schema.json'
+      - 'core/tauri-config-schema/schema.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -47,7 +47,7 @@ jobs:
             schema:
               - 'core/tauri-utils/src/config.rs'
               - 'tooling/cli/schema.json'
-              - 'core/config-schema/schema.json'
+              - 'core/tauri-config-schema/schema.json'
 
   check-api:
     runs-on: ubuntu-latest
@@ -90,7 +90,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ./core/config-schema/Cargo.toml
+          args: --manifest-path ./core/tauri-config-schema/Cargo.toml
 
       - name: check schema
         run: ./.scripts/ci/has-diff.sh

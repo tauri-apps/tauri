@@ -5,7 +5,7 @@
 use std::{
   collections::HashMap,
   env::{var, var_os},
-  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, write, File},
+  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, File},
   io::Write,
   path::{Path, PathBuf},
   thread::sleep,

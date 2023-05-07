@@ -3772,8 +3772,7 @@ dependencies = [
 [[package]]
 name = "tauri-mobile"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9734a0128db0a9729b5264dd0be546527c21555e7f05844226786d027b1b6aaa"
+source = "git+https://github.com/tauri-apps/tauri-mobile#12455407f447ea7becfce19e16fcdca6b4f843f8"
 dependencies = [
  "cocoa",
  "colored 1.9.3",

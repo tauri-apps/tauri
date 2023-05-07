@@ -52,10 +52,16 @@ pub fn gen(
     )),
   );
   map.insert("root-dir", config.app().root_dir());
-  map.insert("targets", Target::all().values().collect::<Vec<_>>());
-  map.insert("target-names", Target::all().keys().collect::<Vec<_>>());
   map.insert(
-    "arches",
+    "abi-list",
+    Target::all()
+      .values()
+      .map(|target| target.abi)
+      .collect::<Vec<_>>(),
+  );
+  map.insert("target-list", Target::all().keys().collect::<Vec<_>>());
+  map.insert(
+    "arch-list",
     Target::all()
       .values()
       .map(|target| target.arch)
@@ -77,6 +83,7 @@ pub fn gen(
       || metadata.app_dependencies().is_some()
       || metadata.app_dependencies_platform().is_some(),
   );
+  map.insert("has-asset-packs", !asset_packs.is_empty());
   map.insert(
     "asset-packs",
     asset_packs

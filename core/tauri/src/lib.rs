@@ -303,6 +303,9 @@ pub use {
   scope::*,
 };
 
+/// The Tauri version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub fn log_stdout() {

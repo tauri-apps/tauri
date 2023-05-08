@@ -1,5 +1,4 @@
 <script>
-  import { getName, getVersion, getTauriVersion } from '@tauri-apps/api/app'
   import { relaunch, exit } from '@tauri-apps/api/process'
 
   let version = '0.0.0'
@@ -35,11 +34,6 @@
 
 <br />
 <br />
-<pre>
-App name: <code>{appName}</code>
-App version: <code>{version}</code>
-Tauri version: <code>{tauriVersion}</code>
-</pre>
 <br />
 <div class="flex flex-wrap gap-1 shadow-">
   <button class="btn" on:click={closeApp}>Close application</button>

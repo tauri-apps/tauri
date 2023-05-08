@@ -484,6 +484,14 @@ dependencies {"
     }
   }
 
+  let mut codegen = CodegenContext::new();
+
+  if !has_feature("custom-protocol") {
+    codegen = codegen.dev();
+  }
+
+  codegen.build();
+
   Ok(())
 }
 

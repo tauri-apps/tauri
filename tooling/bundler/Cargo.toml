@@ -64,6 +64,7 @@ name = "tauri_bundler"
 path = "src/lib.rs"
 
 [features]
-default = [ "attohttpc/default" ]
+default = [ "native-tls" ]
+native-tls = [ "attohttpc/tls-native" ]
 native-tls-vendored = [ "attohttpc/tls-native-vendored" ]
 rustls = [ "attohttpc/rustls" ]

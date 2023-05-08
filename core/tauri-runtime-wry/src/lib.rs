@@ -204,6 +204,7 @@ impl<T: UserEvent> Context<T> {
 impl<T: UserEvent> Context<T> {
   fn create_webview(&self, pending: PendingWindow<T, Wry<T>>) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
+    let current_url = pending.current_url.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let context = self.clone();
@@ -225,6 +226,7 @@ impl<T: UserEvent> Context<T> {
     };
     Ok(DetachedWindow {
       label,
+      current_url,
       dispatcher,
       menu_ids,
       js_event_listeners,
@@ -1940,6 +1942,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
+    let current_url = pending.current_url.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let window_id = rand::random();
@@ -1966,6 +1969,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     Ok(DetachedWindow {
       label,
+      current_url,
       dispatcher,
       menu_ids,
       js_event_listeners,
@@ -2936,7 +2940,7 @@ fn create_webview<T: UserEvent>(
     mut window_builder,
     ipc_handler,
     label,
-    url,
+    current_url,
     menu_ids,
     js_event_listeners,
     #[cfg(target_os = "android")]
@@ -2987,7 +2991,7 @@ fn create_webview<T: UserEvent>(
   }
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
-    .with_url(&url)
+    .with_url(current_url.lock().unwrap().as_str())
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
@@ -3022,6 +3026,7 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,
       label.clone(),
+      current_url,
       menu_ids,
       js_event_listeners,
       handler,
@@ -3145,6 +3150,7 @@ fn create_webview<T: UserEvent>(
 fn create_ipc_handler<T: UserEvent>(
   context: Context<T>,
   label: String,
+  current_url: Arc<Mutex<Url>>,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
   handler: WebviewIpcHandler<T, Wry<T>>,
@@ -3153,6 +3159,7 @@ fn create_ipc_handler<T: UserEvent>(
     let window_id = context.webview_id_map.get(&window.id()).unwrap();
     handler(
       DetachedWindow {
+        current_url: current_url.clone(),
         dispatcher: WryDispatcher {
           window_id,
           context: context.clone(),

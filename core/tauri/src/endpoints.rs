@@ -13,8 +13,6 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 
 mod event;
-#[cfg(os_any)]
-mod operating_system;
 #[cfg(process_any)]
 mod process;
 mod window;
@@ -55,8 +53,6 @@ impl<T: Serialize> From<T> for InvokeResponse {
 enum Module {
   #[cfg(process_any)]
   Process(process::Cmd),
-  #[cfg(os_any)]
-  Os(operating_system::Cmd),
   Window(Box<window::Cmd>),
   Event(event::Cmd),
 }
@@ -77,13 +73,6 @@ impl Module {
     match self {
       #[cfg(process_any)]
       Self::Process(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
-      #[cfg(os_any)]
-      Self::Os(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)
           .and_then(|r| r.json)

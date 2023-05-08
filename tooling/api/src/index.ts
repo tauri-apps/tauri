@@ -15,7 +15,6 @@
 
 import * as event from './event'
 import * as path from './path'
-import * as process from './process'
 import * as tauri from './tauri'
 import * as updater from './updater'
 import * as window from './window'
@@ -23,4 +22,4 @@ import * as window from './window'
 /** @ignore */
 const invoke = tauri.invoke
 
-export { invoke, event, path, process, tauri, updater, window }
+export { invoke, event, path, tauri, updater, window }

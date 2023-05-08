@@ -13,7 +13,6 @@
  * @module
  */
 
-import * as app from './app'
 import * as event from './event'
 import * as path from './path'
 import * as process from './process'
@@ -24,4 +23,4 @@ import * as window from './window'
 /** @ignore */
 const invoke = tauri.invoke
 
-export { invoke, app, event, path, process, tauri, updater, window }
+export { invoke, event, path, process, tauri, updater, window }

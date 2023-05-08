@@ -371,11 +371,9 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .expect("failed to write Info.plist");
 
     let info_plist_path = out_path.display().to_string();
-    quote!({
-      tauri::embed_plist::embed_info_plist!(#info_plist_path);
-    })
+    quote!(::tauri::embed_plist::embed_info_plist!(#info_plist_path))
   } else {
-    quote!(())
+    quote!()
   };
   #[cfg(not(target_os = "macos"))]
   let info_plist = quote!(());
@@ -422,6 +420,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   Ok(quote!({
+    #info_plist;
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
       #config,
@@ -429,7 +428,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #default_window_icon,
       #app_icon,
       #package_info,
-      #info_plist,
       #pattern,
     );
     #with_system_tray_icon_code

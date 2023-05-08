@@ -540,7 +540,6 @@ pub struct Context<A: Assets> {
   #[cfg(desktop)]
   pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
-  pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
 }
 
@@ -638,7 +637,6 @@ impl<A: Assets> Context<A> {
     default_window_icon: Option<Icon>,
     app_icon: Option<Vec<u8>>,
     package_info: PackageInfo,
-    info_plist: (),
     pattern: Pattern,
   ) -> Self {
     Self {
@@ -649,7 +647,6 @@ impl<A: Assets> Context<A> {
       #[cfg(desktop)]
       system_tray_icon: None,
       package_info,
-      _info_plist: info_plist,
       pattern,
     }
   }

@@ -233,7 +233,7 @@ mod tests {
     let mut payload = serde_json::Map::new();
     payload.insert(
       "path".into(),
-      serde_json::Value::String("/path/to/something".into()),
+      serde_json::Value::String(std::env::current_dir().unwrap().display().to_string()),
     );
 
     InvokePayload {

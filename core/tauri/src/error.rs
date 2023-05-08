@@ -85,6 +85,10 @@ pub enum Error {
   /// Error initializing plugin.
   #[error("failed to initialize plugin `{0}`: {1}")]
   PluginInitialization(String, String),
+  /// A part of the URL is malformed or invalid. This may occur when parsing and combining
+  /// user-provided URLs and paths.
+  #[error("invalid url: {0}")]
+  InvalidUrl(url::ParseError),
   /// Task join error.
   #[error(transparent)]
   JoinError(#[from] tokio::task::JoinError),

@@ -1710,7 +1710,10 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.0.2
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
-    return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, handler)
+    return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, (e) => {
+      e.payload = mapPhysicalSize(e.payload)
+      handler(e)
+    })
   }
 
   /**
@@ -1733,7 +1736,10 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.0.2
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
-    return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, handler)
+    return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, (e) => {
+      e.payload = mapPhysicalPosition(e.payload)
+      handler(e)
+    })
   }
 
   /**
@@ -1760,6 +1766,7 @@ class WindowManager extends WebviewWindowHandle {
    *
    * @since 1.0.2
    */
+  /* eslint-disable @typescript-eslint/promise-function-async */
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
@@ -1772,6 +1779,7 @@ class WindowManager extends WebviewWindowHandle {
       })
     })
   }
+  /* eslint-enable */
 
   /**
    * Listen to window focus change.
@@ -2204,9 +2212,17 @@ function mapMonitor(m: Monitor | null): Monitor | null {
     : {
         name: m.name,
         scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position.x, m.position.y),
-        size: new PhysicalSize(m.size.width, m.size.height)
+        position: mapPhysicalPosition(m.position),
+        size: mapPhysicalSize(m.size)
       }
+}
+
+function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
+  return new PhysicalPosition(m.x, m.y)
+}
+
+function mapPhysicalSize(m: PhysicalSize): PhysicalSize {
+  return new PhysicalSize(m.width, m.height)
 }
 
 /**

@@ -303,6 +303,9 @@ pub use {
   scope::*,
 };
 
+/// The Tauri version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub fn log_stdout() {
@@ -864,6 +867,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Gets the scope for the filesystem APIs.
   fn fs_scope(&self) -> FsScope {
     self.state::<Scopes>().inner().fs.clone()
+  }
+
+  /// Gets the scope for the IPC.
+  fn ipc_scope(&self) -> IpcScope {
+    self.state::<Scopes>().inner().ipc.clone()
   }
 
   /// Gets the scope for the asset protocol.

@@ -614,7 +614,7 @@ pub fn build_wix_app_installer(
 
   let mut fragment_paths = Vec::new();
   let mut handlebars = Handlebars::new();
-  handlebars.register_escape_fn(|s| s.into());
+  handlebars.register_escape_fn(handlebars::no_escape);
   let mut has_custom_template = false;
   let mut enable_elevated_update_task = false;
 
@@ -693,7 +693,7 @@ pub fn build_wix_app_installer(
 
     // Create the Powershell script to install the task
     let mut skip_uac_task_installer = Handlebars::new();
-    skip_uac_task_installer.register_escape_fn(|s| s.into());
+    skip_uac_task_installer.register_escape_fn(handlebars::no_escape);
     let xml = include_str!("../templates/install-task.ps1");
     skip_uac_task_installer
       .register_template_string("install-task.ps1", xml)
@@ -705,7 +705,7 @@ pub fn build_wix_app_installer(
 
     // Create the Powershell script to uninstall the task
     let mut skip_uac_task_uninstaller = Handlebars::new();
-    skip_uac_task_uninstaller.register_escape_fn(|s| s.into());
+    skip_uac_task_uninstaller.register_escape_fn(handlebars::no_escape);
     let xml = include_str!("../templates/uninstall-task.ps1");
     skip_uac_task_uninstaller
       .register_template_string("uninstall-task.ps1", xml)

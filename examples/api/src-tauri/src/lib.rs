@@ -13,7 +13,7 @@ mod tray;
 
 use serde::Serialize;
 use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, WindowUrl};
-//use tauri_plugin_sample::{PingRequest, SampleExt};
+use tauri_plugin_sample::{PingRequest, SampleExt};
 
 #[derive(Clone, Serialize)]
 struct Reply {
@@ -32,7 +32,7 @@ pub fn run() {
         .level(log::LevelFilter::Info)
         .build(),
     )
-    //.plugin(tauri_plugin_sample::init())
+    .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
       #[cfg(desktop)]
       {
@@ -64,6 +64,15 @@ pub fn run() {
 
       #[cfg(debug_assertions)]
       window.open_devtools();
+
+      let value = Some("test".to_string());
+      let response = app.sample().ping(PingRequest {
+        value: value.clone(),
+      });
+      log::info!("got response: {:?}", response);
+      if let Ok(res) = response {
+        assert_eq!(res.value, value);
+      }
 
       #[cfg(desktop)]
       std::thread::spawn(|| {

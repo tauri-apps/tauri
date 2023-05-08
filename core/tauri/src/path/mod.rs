@@ -15,7 +15,7 @@ use crate::{
 use serde::{de::Error as DeError, Deserialize, Deserializer};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-#[cfg(path_all)]
+#[cfg(any(path_all, test))]
 mod commands;
 mod error;
 pub use error::*;
@@ -340,7 +340,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   #[allow(unused_mut)]
   let mut builder = Builder::new("path");
 
-  #[cfg(path_all)]
+  #[cfg(any(path_all, test))]
   {
     builder = builder.invoke_handler(crate::generate_handler![
       commands::resolve_directory,

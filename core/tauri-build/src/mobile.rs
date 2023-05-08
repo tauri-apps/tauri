@@ -104,7 +104,7 @@ impl PluginBuilder {
               {
                 attempts += 1;
                 if attempts == 10 {
-                  break;
+                  anyhow::bail!("Could not determine whether the plugins.json file has been modified or not, please rerun the build.");
                 }
                 sleep(Duration::from_millis(100));
               }

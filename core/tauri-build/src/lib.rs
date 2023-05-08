@@ -21,14 +21,11 @@ use std::{
   path::{Path, PathBuf},
 };
 
-#[cfg(feature = "codegen")]
 mod codegen;
 /// Mobile build functions.
 pub mod mobile;
 mod static_vcruntime;
 
-#[cfg(feature = "codegen")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
 
 fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {

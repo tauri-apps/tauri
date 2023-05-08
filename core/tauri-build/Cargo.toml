@@ -18,8 +18,8 @@ rustdoc-args = [ "--cfg", "doc_cfg" ]
 
 [dependencies]
 anyhow = "1"
-quote = { version = "1", optional = true }
-tauri-codegen = { version = "2.0.0-alpha.4", path = "../tauri-codegen", optional = true }
+quote = "1"
+tauri-codegen = { version = "2.0.0-alpha.4", path = "../tauri-codegen" }
 tauri-utils = { version = "2.0.0-alpha.4", path = "../tauri-utils", features = [ "build", "resources" ] }
 cargo_toml = "0.15"
 serde = "1"
@@ -35,7 +35,6 @@ semver = "1"
 swift-rs = { version = "1.0.4", features = [ "build" ] }
 
 [features]
-codegen = [ "tauri-codegen", "quote" ]
 isolation = [ "tauri-codegen/isolation", "tauri-utils/isolation" ]
 config-json5 = [ "tauri-utils/config-json5" ]
 config-toml = [ "tauri-utils/config-toml" ]

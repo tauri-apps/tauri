@@ -10,7 +10,7 @@ license = "Apache-2.0 OR MIT"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = ["codegen", "isolation"] }
+tauri-build = { path = "../../../core/tauri-build", features = ["isolation"] }
 
 [dependencies]
 serde_json = "1.0"

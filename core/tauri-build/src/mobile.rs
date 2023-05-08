@@ -5,14 +5,17 @@
 use std::{
   collections::HashMap,
   env::{var, var_os},
-  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, write},
+  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, File},
+  io::Write,
   path::{Path, PathBuf},
+  thread::sleep,
+  time::{Duration, SystemTime},
 };
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub(crate) struct PluginMetadata {
   pub path: PathBuf,
 }
@@ -77,8 +80,36 @@ impl PluginBuilder {
             } else {
               Default::default()
             };
-            plugins.insert(pkg_name, PluginMetadata { path: source });
-            write(&plugins_json_path, serde_json::to_string(&plugins)?)?;
+
+            let metadata = PluginMetadata { path: source };
+            let already_set = plugins
+              .get(&pkg_name)
+              .map(|m| m == &metadata)
+              .unwrap_or(false);
+            if !already_set {
+              plugins.insert(pkg_name, metadata);
+              let mut file = File::create(&plugins_json_path)?;
+              file.write_all(serde_json::to_string(&plugins)?.as_bytes())?;
+              file.flush()?;
+
+              // wait for the file to be written before moving to the app build script
+              let now = SystemTime::now()
+                .checked_sub(Duration::from_millis(10))
+                .unwrap();
+              let mut attempts = 0;
+              while !plugins_json_path
+                .metadata()
+                .map(|m| m.modified().unwrap() >= now)
+                .unwrap_or(false)
+              {
+                attempts += 1;
+                if attempts == 10 {
+                  anyhow::bail!("Could not determine whether the plugins.json file has been modified or not, please rerun the build.");
+                }
+                sleep(Duration::from_millis(100));
+              }
+            }
+            println!("cargo:rerun-if-changed={}", plugins_json_path.display());
           }
         }
       }

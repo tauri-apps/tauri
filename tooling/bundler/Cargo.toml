@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "1.2.0"
+version = "1.2.1"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -64,6 +64,6 @@ name = "tauri_bundler"
 path = "src/lib.rs"
 
 [features]
-default = ["attohttpc/default"]
-native-tls-vendored = ["attohttpc/tls-native-vendored"]
-rustls = ["attohttpc/rustls"]
+default = [ "attohttpc/default" ]
+native-tls-vendored = [ "attohttpc/tls-native-vendored" ]
+rustls = [ "attohttpc/rustls" ]

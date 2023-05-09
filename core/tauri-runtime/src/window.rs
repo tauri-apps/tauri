@@ -24,6 +24,8 @@ use std::{
 type UriSchemeProtocol =
   dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
 
+type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+
 /// UI scaling utilities.
 pub mod dpi;
 
@@ -234,8 +236,7 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
 
-  pub web_resource_request_handler:
-    Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
+  pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 
   /// The current webview URL.
   pub current_url: Arc<Mutex<Url>>,

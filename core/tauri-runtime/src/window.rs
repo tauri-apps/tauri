@@ -234,6 +234,9 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
 
+  pub web_resource_request_handler:
+    Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
+
   /// The current webview URL.
   pub current_url: Arc<Mutex<Url>>,
 }
@@ -275,6 +278,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
+        web_resource_request_handler: Default::default(),
         current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       })
     }
@@ -305,6 +309,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
+        web_resource_request_handler: Default::default(),
         current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       })
     }

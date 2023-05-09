@@ -61,10 +61,6 @@ pub enum Error {
   /// IO error.
   #[error("{0}")]
   Io(#[from] std::io::Error),
-  /// Failed to decode base64.
-  #[cfg(feature = "updater")]
-  #[error("Failed to decode base64 string: {0}")]
-  Base64Decode(#[from] base64::DecodeError),
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
   InvalidIcon(std::io::Error),
@@ -77,11 +73,6 @@ pub enum Error {
   /// Encountered an error in the setup hook,
   #[error("error encountered during setup hook: {0}")]
   Setup(SetupError),
-  /// Tauri updater error.
-  #[cfg(updater)]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-  #[error("Updater: {0}")]
-  TauriUpdater(#[from] crate::updater::Error),
   /// Error initializing plugin.
   #[error("failed to initialize plugin `{0}`: {1}")]
   PluginInitialization(String, String),

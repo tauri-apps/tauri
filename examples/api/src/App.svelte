@@ -8,7 +8,6 @@
   import Window from './views/Window.svelte'
   import Updater from './views/Updater.svelte'
   import WebRTC from './views/WebRTC.svelte'
-  import App from './views/App.svelte'
 
   import { onMount } from 'svelte'
   import { listen } from '@tauri-apps/api/event'
@@ -35,11 +34,6 @@
       label: 'CLI',
       component: Cli,
       icon: 'i-codicon-terminal'
-    },
-    !isMobile && {
-      label: 'App',
-      component: App,
-      icon: 'i-codicon-hubot'
     },
     !isMobile && {
       label: 'Window',

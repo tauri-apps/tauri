@@ -57,10 +57,12 @@ function transformCallback(
 
 class Channel<T = any> {
   id: number
-  onmessage: (response: T) => void = () => { }
+  onmessage: (response: T) => void = () => {}
 
   constructor() {
-    this.id = transformCallback((response: T) => { this.onmessage(response); })
+    this.id = transformCallback((response: T) => {
+      this.onmessage(response)
+    })
   }
 
   toJSON(): string {

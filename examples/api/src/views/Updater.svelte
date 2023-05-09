@@ -7,7 +7,6 @@
 
   import { checkUpdate, installUpdate } from '@tauri-apps/api/updater'
   import { listen } from '@tauri-apps/api/event'
-  import { relaunch } from '@tauri-apps/api/process'
 
   export let onMessage
   let unlisten
@@ -43,7 +42,6 @@
     try {
       await installUpdate()
       onMessage('Installation complete, restart required.')
-      await relaunch()
     } catch (e) {
       onMessage(e)
     } finally {

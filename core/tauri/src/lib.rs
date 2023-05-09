@@ -433,7 +433,7 @@ pub use tauri_macros::generate_context;
 ///
 /// [`tauri-build`]: https://docs.rs/tauri-build
 #[macro_export]
-macro_rules! tauri_build_context {
+macro_rules! build_script_context {
   () => {
     include!(concat!(env!("OUT_DIR"), "/tauri-build-context.rs"))
   };

@@ -19,7 +19,7 @@ use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
-  collections::{BTreeMap, HashMap},
+  collections::{BTreeMap, HashMap, HashSet},
   fs::{create_dir_all, read_to_string, remove_dir_all, rename, write, File},
   io::Write,
   path::{Path, PathBuf},
@@ -357,10 +357,6 @@ fn run_light(
   let light_exe = wix_toolset_path.join("light.exe");
 
   let mut args: Vec<String> = vec![
-    "-ext".to_string(),
-    "WixUIExtension".to_string(),
-    "-ext".to_string(),
-    "WixUtilExtension".to_string(),
     "-o".to_string(),
     display_path(output_path),
   ];
@@ -735,9 +731,15 @@ pub fn build_wix_app_installer(
     candle_inputs.push((fragment_path, extensions));
   }
 
-  let mut fragment_extensions = Vec::new();
+  let mut fragment_extensions = HashSet::new();
+  //Default extensions
+  fragment_extensions.insert(wix_toolset_path.join("WixUIExtension.dll"));
+  fragment_extensions.insert(wix_toolset_path.join("WixUtilExtension.dll"));
+
   for (path, extensions) in candle_inputs {
-    fragment_extensions.extend(extensions.clone());
+    for ext in &extensions {
+      fragment_extensions.insert(ext.clone());
+    }
     run_candle(settings, wix_toolset_path, &output_path, path, extensions)?;
   }
 
@@ -816,7 +818,7 @@ pub fn build_wix_app_installer(
       wix_toolset_path,
       &output_path,
       arguments,
-      &fragment_extensions,
+      &(fragment_extensions.clone().into_iter().collect()),
       &msi_output_path,
     )?;
     rename(&msi_output_path, &msi_path)?;

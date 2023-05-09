@@ -1,6 +1,15 @@
 {
   "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
   "timeout": 3600000,
+  "changeTags": {
+    "feat": "New Features",
+    "enhance": "Enhancements",
+    "bug": "Bug Fixes",
+    "pref": "Performance Improvements",
+    "changes": "What's Changed",
+    "deps": "Dependencies"
+  },
+  "defaultChangeTag": "changes",
   "pkgManagers": {
     "rust": {
       "errorOnVersionRange": "^2.0.0-0",

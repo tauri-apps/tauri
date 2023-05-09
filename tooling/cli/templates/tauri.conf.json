@@ -43,9 +43,6 @@
         "timestampUrl": ""
       }
     },
-    "updater": {
-      "active": false
-    },
     "allowlist": {
       "all": false
     },

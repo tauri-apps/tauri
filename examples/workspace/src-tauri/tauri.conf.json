@@ -1,7 +1,11 @@
 {
   "build": {
-    "distDir": ["../index.html"],
-    "devPath": ["../index.html"]
+    "distDir": [
+      "../index.html"
+    ],
+    "devPath": [
+      "../index.html"
+    ]
   },
   "package": {
     "productName": "workspace"
@@ -45,9 +49,6 @@
     },
     "security": {
       "csp": null
-    },
-    "updater": {
-      "active": false
     },
     "windows": [
       {

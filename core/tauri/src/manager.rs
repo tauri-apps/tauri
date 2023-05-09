@@ -1327,7 +1327,7 @@ impl<R: Runtime> WindowManager<R> {
       app_handle.clone(),
       web_resource_request_handler,
     )?;
-    pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
+    pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification

@@ -1,7 +1,6 @@
 <script>
   import { writable } from 'svelte/store'
   import { appWindow, getCurrent } from '@tauri-apps/api/window'
-  import * as os from '@tauri-apps/api/os'
 
   import Welcome from './views/Welcome.svelte'
   import Cli from './views/Cli.svelte'
@@ -154,10 +153,7 @@
     document.addEventListener('mousemove', moveHandler)
   }
 
-  let isWindows
-  onMount(async () => {
-    isWindows = (await os.platform()) === 'win32'
-  })
+  const isWindows = navigator.appVersion.includes('Win')
 
   // mobile
   let isSideBarOpen = false

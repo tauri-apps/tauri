@@ -283,6 +283,7 @@ dependencies {"
     let plugins_json_path = project_dir.join(".tauri").join("plugins.json");
     let mut plugins: HashMap<String, mobile::PluginMetadata> = if plugins_json_path.exists() {
       let s = read_to_string(&plugins_json_path)?;
+      println!("cargo:rerun-if-changed={}", plugins_json_path.display());
       serde_json::from_str(&s)?
     } else {
       Default::default()

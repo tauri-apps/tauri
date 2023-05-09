@@ -13,8 +13,6 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 
 mod event;
-#[cfg(process_any)]
-mod process;
 mod window;
 
 /// The context passed to the invoke handler.
@@ -51,8 +49,6 @@ impl<T: Serialize> From<T> for InvokeResponse {
 #[derive(Deserialize)]
 #[serde(tag = "module", content = "message")]
 enum Module {
-  #[cfg(process_any)]
-  Process(process::Cmd),
   Window(Box<window::Cmd>),
   Event(event::Cmd),
 }
@@ -71,13 +67,6 @@ impl Module {
       package_info,
     };
     match self {
-      #[cfg(process_any)]
-      Self::Process(cmd) => resolver.respond_async(async move {
-        cmd
-          .run(context)
-          .and_then(|r| r.json)
-          .map_err(InvokeError::from_anyhow)
-      }),
       Self::Window(cmd) => resolver.respond_async(async move {
         cmd
           .run(context)

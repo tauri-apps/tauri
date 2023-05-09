@@ -800,7 +800,7 @@ pub struct WindowConfig {
   ///   - `true` will make ndecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
-  #[serde(default)]
+  #[serde(default = "default_true")]
   pub shadow: bool,
 }
 
@@ -837,7 +837,7 @@ impl Default for WindowConfig {
       accept_first_mouse: false,
       tabbing_identifier: None,
       additional_browser_args: None,
-      shadow: false,
+      shadow: true,
     }
   }
 }

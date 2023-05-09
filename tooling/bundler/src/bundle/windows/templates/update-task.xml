@@ -6,7 +6,7 @@
 -->
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <URI>\Update {{{product_name}}} - Skip UAC</URI>
+    <URI>\Update {{product_name}} - Skip UAC</URI>
   </RegistrationInfo>
   <Triggers />
   <Principals>
@@ -37,7 +37,7 @@
   <Actions Context="Author">
     <Exec>
       <Command>cmd.exe</Command>
-      <Arguments>/c "%SYSTEMROOT%\System32\msiexec.exe /i %TEMP%\\{{{product_name}}}.msi {{{msiexec_args}}} /promptrestart"</Arguments>
+      <Arguments>/c "%SYSTEMROOT%\System32\msiexec.exe /i %TEMP%\\{{product_name}}.msi {{msiexec_args}} /promptrestart"</Arguments>
     </Exec>
   </Actions>
 </Task>

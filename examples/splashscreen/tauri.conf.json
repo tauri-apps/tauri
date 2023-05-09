@@ -1,5 +1,5 @@
 {
-  "$schema": "../../core/config-schema/schema.json",
+  "$schema": "../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": "dist",
     "devPath": "dist",
@@ -42,7 +42,6 @@
         "width": 400,
         "height": 200,
         "decorations": false,
-        "shadow": true,
         "resizable": false,
         "url": "splashscreen.html"
       }

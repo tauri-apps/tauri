@@ -66,7 +66,6 @@ bytes = { version = "1", features = [ "serde" ] }
 raw-window-handle = "0.5"
 minisign-verify = { version = "0.2", optional = true }
 time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }
-os_info = { version = "3", optional = true }
 glob = "0.3"
 data-url = { version = "0.2", optional = true }
 serialize-to-javascript = "=0.1.1"
@@ -121,6 +120,7 @@ tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio-test = "0.4.2"
 tokio = { version = "1", features = [ "full" ] }
 cargo_toml = "0.11"
+winnow = "=0.4.1"
 
 [features]
 default = [ "wry", "compression", "objc-exception" ]
@@ -197,7 +197,7 @@ global-shortcut-all = [ ]
 http-all = [ "http-request" ]
 http-request = [ ]
 notification-all = [ ]
-os-all = [ "os_info" ]
+os-all = [ ]
 path-all = [ ]
 process-all = [ "process-relaunch", "process-exit" ]
 process-exit = [ ]

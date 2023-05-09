@@ -53,14 +53,12 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
       Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
     if let Some(callback_id) = value
       .split_once(CHANNEL_PREFIX)
-      .map(|(_prefix, id)| id.parse().ok())
+      .and_then(|(_prefix, id)| id.parse().ok())
     {
-      if let Some(id) = callback_id {
-        return Ok(Channel {
-          id: CallbackFn(id),
-          window,
-        });
-      }
+      return Ok(Channel {
+        id: CallbackFn(callback_id),
+        window,
+      });
     }
     Err(InvokeError::from_anyhow(anyhow::anyhow!(
       "invalid channel value `{value}`, expected a string in the `{CHANNEL_PREFIX}ID` format"

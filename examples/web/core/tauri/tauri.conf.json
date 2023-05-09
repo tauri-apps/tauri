@@ -49,9 +49,6 @@
     "security": {
       "csp": null
     },
-    "updater": {
-      "active": false
-    },
     "windows": [
       {
         "fullscreen": false,

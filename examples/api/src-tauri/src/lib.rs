@@ -54,10 +54,7 @@ pub fn run() {
 
       #[cfg(target_os = "windows")]
       {
-        window_builder = window_builder
-          .transparent(true)
-          .shadow(true)
-          .decorations(false);
+        window_builder = window_builder.transparent(true).decorations(false);
       }
 
       let window = window_builder.build().unwrap();

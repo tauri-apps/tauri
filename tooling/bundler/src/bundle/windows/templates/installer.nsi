@@ -60,11 +60,6 @@ SetCompressor /SOLID lzma
   !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME "CurrentUser"
   !define MULTIUSER_INSTALLMODEPAGE_SHOWUSERNAME
   !define MULTIUSER_INSTALLMODE_FUNCTION RestorePreviousInstallLocation
-  Function RestorePreviousInstallLocation
-    ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
-    StrCmp $4 "" +2 0
-      StrCpy $INSTDIR $4
-  FunctionEnd
   !define MULTIUSER_EXECUTIONLEVEL Highest
   !include MultiUser.nsh
 !endif
@@ -307,6 +302,8 @@ Function .onInit
     !else if "${INSTALLMODE}" == "currentUser"
       StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
     !endif
+
+    Call RestorePreviousInstallLocation
   ${EndIf}
 
 
@@ -531,3 +528,9 @@ Section Uninstall
 
   DeleteRegValue HKCU "${MANUPRODUCTKEY}" "Installer Language"
 SectionEnd
+
+Function RestorePreviousInstallLocation
+  ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
+  StrCmp $4 "" +2 0
+    StrCpy $INSTDIR $4
+FunctionEnd

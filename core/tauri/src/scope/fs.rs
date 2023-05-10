@@ -81,6 +81,7 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 
 impl Scope {
   /// Creates a new scope from a `FsAllowlistScope` configuration.
+  [#allow(unused)]
   pub(crate) fn for_fs_api<R: Runtime, M: Manager<R>>(
     manager: &M,
     scope: &FsAllowlistScope,

@@ -1,17 +1,14 @@
 <script>
+  import { onMount } from 'svelte'
   import { writable } from 'svelte/store'
   import { appWindow, getCurrent } from '@tauri-apps/api/window'
+  import { listen } from '@tauri-apps/api/event'
 
   import Welcome from './views/Welcome.svelte'
   import Cli from './views/Cli.svelte'
   import Communication from './views/Communication.svelte'
   import Window from './views/Window.svelte'
-  import Updater from './views/Updater.svelte'
   import WebRTC from './views/WebRTC.svelte'
-  import App from './views/App.svelte'
-
-  import { onMount } from 'svelte'
-  import { listen } from '@tauri-apps/api/event'
 
   appWindow.onFileDropEvent((event) => {
     onMessage(`File drop: ${JSON.stringify(event.payload)}`)
@@ -37,19 +34,9 @@
       icon: 'i-codicon-terminal'
     },
     !isMobile && {
-      label: 'App',
-      component: App,
-      icon: 'i-codicon-hubot'
-    },
-    !isMobile && {
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
-    },
-    !isMobile && {
-      label: 'Updater',
-      component: Updater,
-      icon: 'i-codicon-cloud-download'
     },
     {
       label: 'WebRTC',
@@ -80,6 +67,10 @@
   async function toggleMaximize() {
     const window = getCurrent()
     ;(await window.isMaximized()) ? window.unmaximize() : window.maximize()
+  }
+
+  function close() {
+    getCurrent().close()
   }
 
   // dark/light
@@ -265,6 +256,13 @@
           <div class="i-codicon-chrome-maximize" />
         {/if}
       </span>
+       <span
+        title="Close"
+        class="hover:bg-red-500 active:bg-red-500 hover:text-white active:text-white dark:hover:bg-red-500 dark:active:bg-red-500"
+        on:click={close}
+      >
+        <div class="i-codicon-chrome-close" />
+      </span>
     </span>
   </div>
 {/if}
@@ -288,55 +286,57 @@
   <aside
     id="sidebar"
     class="lt-sm:h-screen lt-sm:shadow-lg lt-sm:shadow lt-sm:transition-transform lt-sm:absolute lt-sm:z-1999
-      bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid select-none px-2"
+      bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid grid-rows-[min-content_auto] select-none px-2"
   >
-    <img
-      class="self-center p-7 cursor-pointer"
-      src="tauri_logo.png"
-      alt="Tauri logo"
-    />
-    {#if !isWindows}
-      <a href="##" class="nv justify-between h-8" on:click={toggleDark}>
-        {#if isDark}
-          Switch to Light mode
-          <div class="i-ph-sun" />
-        {:else}
-          Switch to Dark mode
-          <div class="i-ph-moon" />
-        {/if}
+    <div>
+      <img
+        class="self-center p-7 cursor-pointer"
+        src="tauri_logo.png"
+        alt="Tauri logo"
+      />
+      {#if !isWindows}
+        <a href="##" class="nv h-10 justify-between h-8" on:click={toggleDark}>
+          {#if isDark}
+            Switch to Light mode
+            <div class="i-ph-sun" />
+          {:else}
+            Switch to Dark mode
+            <div class="i-ph-moon" />
+          {/if}
+        </a>
+        <br />
+        <div class="bg-white/5 h-2px" />
+        <br />
+      {/if}
+
+      <a
+        class="nv h-10 justify-between h-8"
+        target="_blank"
+        href="https://tauri.app/v1/guides/"
+      >
+        Documentation
+        <span class="i-codicon-link-external" />
+      </a>
+      <a
+        class="nv h-10 justify-between h-8"
+        target="_blank"
+        href="https://github.com/tauri-apps/tauri"
+      >
+        GitHub
+        <span class="i-codicon-link-external" />
+      </a>
+      <a
+        class="nv h-10 justify-between h-8"
+        target="_blank"
+        href="https://github.com/tauri-apps/tauri/tree/dev/examples/api"
+      >
+        Source
+        <span class="i-codicon-link-external" />
       </a>
       <br />
       <div class="bg-white/5 h-2px" />
       <br />
-    {/if}
-
-    <a
-      class="nv justify-between h-8"
-      target="_blank"
-      href="https://tauri.app/v1/guides/"
-    >
-      Documentation
-      <span class="i-codicon-link-external" />
-    </a>
-    <a
-      class="nv justify-between h-8"
-      target="_blank"
-      href="https://github.com/tauri-apps/tauri"
-    >
-      GitHub
-      <span class="i-codicon-link-external" />
-    </a>
-    <a
-      class="nv justify-between h-8"
-      target="_blank"
-      href="https://github.com/tauri-apps/tauri/tree/dev/examples/api"
-    >
-      Source
-      <span class="i-codicon-link-external" />
-    </a>
-    <br />
-    <div class="bg-white/5 h-2px" />
-    <br />
+    </div>
     <div
       class="flex flex-col overflow-y-auto children-h-10 children-flex-none gap-1"
     >

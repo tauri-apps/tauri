@@ -19,9 +19,6 @@
     ],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
-    },
-    "updater": {
-      "active": false
     }
   }
 }

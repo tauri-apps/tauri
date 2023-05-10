@@ -45,14 +45,6 @@ pub enum Error {
   /// Ignore error.
   #[error("failed to walkdir: {0}")]
   Ignore(#[from] ignore::Error),
-  /// ZIP error.
-  #[cfg(feature = "fs-extract-api")]
-  #[error(transparent)]
-  Zip(#[from] zip::result::ZipError),
-  /// Extract error.
-  #[cfg(feature = "fs-extract-api")]
-  #[error("Failed to extract: {0}")]
-  Extract(String),
   /// Url error.
   #[error(transparent)]
   Url(#[from] url::ParseError),

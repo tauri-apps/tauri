@@ -57,22 +57,6 @@ fn main() {
   alias("api_all", api_all);
 
   alias_module(
-    "fs",
-    &[
-      "read-file",
-      "write-file",
-      "read-dir",
-      "copy-file",
-      "create-dir",
-      "remove-dir",
-      "remove-file",
-      "rename-file",
-      "exists",
-    ],
-    api_all,
-  );
-
-  alias_module(
     "window",
     &[
       "create",
@@ -110,32 +94,7 @@ fn main() {
     api_all,
   );
 
-  alias_module("shell", &["execute", "sidecar", "open"], api_all);
-
-  if !mobile {
-    alias_module(
-      "dialog",
-      &["open", "save", "message", "ask", "confirm"],
-      api_all,
-    );
-  }
-
-  alias_module("http", &["request"], api_all);
-
-  if !mobile {
-    alias_module("notification", &[], api_all);
-    alias_module("global-shortcut", &[], api_all);
-  }
-  alias_module("os", &[], api_all);
-  alias_module("path", &[], api_all);
-
   alias_module("protocol", &["asset"], api_all);
-
-  alias_module("process", &["relaunch", "exit"], api_all);
-
-  alias_module("clipboard", &["write-text", "read-text"], api_all);
-
-  alias_module("app", &["show", "hide"], api_all);
 
   let checked_features_out_path = Path::new(&var("OUT_DIR").unwrap()).join("checked_features");
   std::fs::write(

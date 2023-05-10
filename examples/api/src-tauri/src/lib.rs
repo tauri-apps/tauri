@@ -45,7 +45,6 @@ pub fn run() {
       #[cfg(desktop)]
       {
         window_builder = window_builder
-          .user_agent("Tauri API")
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
@@ -54,7 +53,10 @@ pub fn run() {
 
       #[cfg(target_os = "windows")]
       {
-        window_builder = window_builder.transparent(true).decorations(false);
+        window_builder = window_builder
+          .transparent(true)
+          .decorations(false)
+          .shadow(true);
       }
 
       let window = window_builder.build().unwrap();

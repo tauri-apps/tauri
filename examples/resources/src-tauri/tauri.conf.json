@@ -54,9 +54,6 @@
     ],
     "security": {
       "csp": "default-src 'self'"
-    },
-    "updater": {
-      "active": false
     }
   }
 }

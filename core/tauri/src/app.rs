@@ -1346,7 +1346,6 @@ impl<R: Runtime> Builder<R> {
 
     app.manage(Scopes {
       ipc: IpcScope::new(&app.config()),
-      fs: FsScope::for_fs_api(&app, &app.config().tauri.allowlist.fs.scope)?,
       #[cfg(protocol_asset)]
       asset_protocol: FsScope::for_fs_api(
         &app,

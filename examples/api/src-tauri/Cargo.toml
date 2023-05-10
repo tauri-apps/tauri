@@ -7,6 +7,7 @@ rust-version = "1.65"
 license = "Apache-2.0 OR MIT"
 
 [lib]
+name = "api_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -6,22 +6,7 @@
 
 import { invoke } from '../tauri'
 
-type TauriModule =
-  | 'App'
-  | 'Fs'
-  | 'Path'
-  | 'Os'
-  | 'Window'
-  | 'Shell'
-  | 'Event'
-  | 'Internal'
-  | 'Dialog'
-  | 'Cli'
-  | 'Notification'
-  | 'Http'
-  | 'GlobalShortcut'
-  | 'Process'
-  | 'Clipboard'
+type TauriModule = 'Window' | 'Event' | 'Internal'
 
 interface TauriCommand {
   __tauriModule: TauriModule

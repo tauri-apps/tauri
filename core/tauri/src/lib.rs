@@ -16,15 +16,12 @@
 //! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
-//! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
 //! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
 //! - **native-tls**: Provides TLS support to connect over HTTPS.
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
-//! - **dialog**: Enables the [`api::dialog`] module.
-//! - **fs-extract-api**: Enabled the `tauri::api::file::Extract` API.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
@@ -41,72 +38,10 @@
 //!
 //! - **api-all**: Enables all API endpoints.
 //!
-//! ### Clipboard allowlist
-//!
-//! - **clipboard-all**: Enables all [Clipboard APIs](https://tauri.app/en/docs/api/js/modules/clipboard/).
-//! - **clipboard-read-text**: Enables the [`readText` API](https://tauri.app/en/docs/api/js/modules/clipboard/#readtext).
-//! - **clipboard-write-text**: Enables the [`writeText` API](https://tauri.app/en/docs/api/js/modules/clipboard/#writetext).
-//!
-//! ### Dialog allowlist
-//!
-//! - **dialog-all**: Enables all [Dialog APIs](https://tauri.app/en/docs/api/js/modules/dialog).
-//! - **dialog-ask**: Enables the [`ask` API](https://tauri.app/en/docs/api/js/modules/dialog#ask).
-//! - **dialog-confirm**: Enables the [`confirm` API](https://tauri.app/en/docs/api/js/modules/dialog#confirm).
-//! - **dialog-message**: Enables the [`message` API](https://tauri.app/en/docs/api/js/modules/dialog#message).
-//! - **dialog-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/dialog#open).
-//! - **dialog-save**: Enables the [`save` API](https://tauri.app/en/docs/api/js/modules/dialog#save).
-//!
-//! ### Filesystem allowlist
-//!
-//! - **fs-all**: Enables all [Filesystem APIs](https://tauri.app/en/docs/api/js/modules/fs).
-//! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.app/en/docs/api/js/modules/fs#copyfile).
-//! - **fs-create-dir**: Enables the [`createDir` API](https://tauri.app/en/docs/api/js/modules/fs#createdir).
-//! - **fs-exists**: Enables the [`exists` API](https://tauri.app/en/docs/api/js/modules/fs#exists).
-//! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
-//! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#readbinaryfile).
-//! - **fs-remove-dir**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#removedir).
-//! - **fs-remove-file**: Enables the [`removeFile` API](https://tauri.app/en/docs/api/js/modules/fs#removefile).
-//! - **fs-rename-file**: Enables the [`renameFile` API](https://tauri.app/en/docs/api/js/modules/fs#renamefile).
-//! - **fs-write-file**: Enables the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile) and the [`writeBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#writebinaryfile).
-//!
-//! ### Global shortcut allowlist
-//!
-//! - **global-shortcut-all**: Enables all [GlobalShortcut APIs](https://tauri.app/en/docs/api/js/modules/globalShortcut).
-//!
-//! ### HTTP allowlist
-//!
-//! - **http-all**: Enables all [HTTP APIs](https://tauri.app/en/docs/api/js/modules/http).
-//! - **http-request**: Enables the [`request` APIs](https://tauri.app/en/docs/api/js/classes/http.client/).
-//!
-//! ### Notification allowlist
-//!
-//! - **notification-all**: Enables all [Notification APIs](https://tauri.app/en/docs/api/js/modules/notification).
-//!
-//! ### OS allowlist
-//!
-//! - **os-all**: Enables all [OS APIs](https://tauri.app/en/docs/api/js/modules/os).
-//!
-//! ### Path allowlist
-//!
-//! - **path-all**: Enables all [Path APIs](https://tauri.app/en/docs/api/js/modules/path).
-//!
-//! ### Process allowlist
-//!
-//! - **process-all**: Enables all [Process APIs](https://tauri.app/en/docs/api/js/modules/process).
-//! - **process-exit**: Enables the [`exit` API](https://tauri.app/en/docs/api/js/modules/process#exit).
-//! - **process-relaunch**: Enables the [`relaunch` API](https://tauri.app/en/docs/api/js/modules/process#relaunch).
-//!
 //! ### Protocol allowlist
 //!
 //! - **protocol-all**: Enables all Protocol APIs.
 //! - **protocol-asset**: Enables the `asset` custom protocol.
-//!
-//! ### Shell allowlist
-//!
-//! - **shell-all**: Enables all [Clipboard APIs](https://tauri.app/en/docs/api/js/modules/shell).
-//! - **shell-execute**: Enables [executing arbitrary programs](https://tauri.app/en/docs/api/js/classes/shell.Command#constructor).
-//! - **shell-sidecar**: Enables [executing a `sidecar` program](https://tauri.app/en/docs/api/js/classes/shell.Command#sidecar).
-//! - **shell-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/shell#open).
 //!
 //! ### Window allowlist
 //!
@@ -142,12 +77,6 @@
 //! - **window-set-ignore-cursor-events**: Enables the [`setIgnoreCursorEvents` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setignorecursorevents).
 //! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
 //! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
-//!
-//! ### App allowlist
-//!
-//! - **app-all**: Enables all [App APIs](https://tauri.app/en/docs/api/js/modules/app).
-//! - **app-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/modules/app#show).
-//! - **app-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/modules/app#hide).
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
@@ -847,11 +776,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.state::<Env>().inner().clone()
   }
 
-  /// Gets the scope for the filesystem APIs.
-  fn fs_scope(&self) -> FsScope {
-    self.state::<Scopes>().inner().fs.clone()
-  }
-
   /// Gets the scope for the IPC.
   fn ipc_scope(&self) -> IpcScope {
     self.state::<Scopes>().inner().ipc.clone()
@@ -958,7 +882,6 @@ mod tests {
 
     // features that look like an allowlist feature, but are not
     let allowed = [
-      "fs-extract-api",
       "process-relaunch-dangerous-allow-symlink-macos",
       "window-data-url",
     ];

@@ -46,7 +46,6 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
         bundle: Default::default(),
         allowlist: Default::default(),
         security: Default::default(),
-        updater: Default::default(),
         system_tray: None,
         macos_private_api: false,
       },

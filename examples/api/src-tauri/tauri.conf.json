@@ -75,6 +75,13 @@
             }
           }
         }
+      },
+      "updater": {
+        "active": true,
+        "pubkey": "asdasd",
+        "windows": {
+          "installMode": "passive"
+        }
       }
     },
     "allowlist": {

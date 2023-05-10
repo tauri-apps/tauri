@@ -112,7 +112,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     };
 
     if let Some(types) = &package_types {
-      if config_.tauri.updater.active && !types.contains(&PackageType::Updater) {
+      if config_.tauri.bundle.updater.active && !types.contains(&PackageType::Updater) {
         warn!("The updater is enabled but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
       }
     }
@@ -188,7 +188,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       .filter(|bundle| bundle.package_type == PackageType::Updater)
       .collect();
     // If updater is active and we bundled it
-    if config_.tauri.updater.active && !updater_bundles.is_empty() {
+    if config_.tauri.bundle.updater.active && !updater_bundles.is_empty() {
       // if no password provided we use an empty string
       let password = var_os("TAURI_KEY_PASSWORD")
         .map(|v| v.to_str().unwrap().to_string())
@@ -211,7 +211,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       }?;
 
       let pubkey =
-        base64::engine::general_purpose::STANDARD.decode(&config_.tauri.updater.pubkey)?;
+        base64::engine::general_purpose::STANDARD.decode(&config_.tauri.bundle.updater.pubkey)?;
       let pub_key_decoded = String::from_utf8_lossy(&pubkey);
       let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 

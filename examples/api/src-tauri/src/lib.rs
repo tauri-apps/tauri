@@ -59,10 +59,10 @@ pub fn run() {
           .shadow(true);
       }
 
-      let window = window_builder.build().unwrap();
+      let _window = window_builder.build().unwrap();
 
       #[cfg(debug_assertions)]
-      window.open_devtools();
+      _window.open_devtools();
 
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {

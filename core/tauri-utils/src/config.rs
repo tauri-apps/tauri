@@ -609,6 +609,65 @@ impl Default for WindowsConfig {
   }
 }
 
+/// The Updater configuration object.
+///
+/// See more: https://tauri.app/v1/api/config#updaterconfig
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdaterConfig {
+  /// Whether the updater is active or not.
+  #[serde(default)]
+  pub active: bool,
+  /// Signature public key.
+  #[serde(default)] // use default just so the schema doesn't flag it as required
+  pub pubkey: String,
+  /// The Windows configuration for the updater.
+  #[serde(default)]
+  pub windows: UpdaterWindowsConfig,
+}
+
+impl<'de> Deserialize<'de> for UpdaterConfig {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    struct InnerUpdaterConfig {
+      #[serde(default)]
+      active: bool,
+      pubkey: Option<String>,
+      #[serde(default)]
+      windows: UpdaterWindowsConfig,
+    }
+
+    let config = InnerUpdaterConfig::deserialize(deserializer)?;
+
+    if config.active && config.pubkey.is_none() {
+      return Err(DeError::custom(
+        "The updater `pubkey` configuration is required.",
+      ));
+    }
+
+    Ok(UpdaterConfig {
+      active: config.active,
+      pubkey: config.pubkey.unwrap_or_default(),
+      windows: config.windows,
+    })
+  }
+}
+
+impl Default for UpdaterConfig {
+  fn default() -> Self {
+    Self {
+      active: false,
+      pubkey: "".into(),
+      windows: Default::default(),
+    }
+  }
+}
+
 /// Configuration for tauri-bundler.
 ///
 /// See more: https://tauri.app/v1/api/config#bundleconfig
@@ -683,6 +742,9 @@ pub struct BundleConfig {
   /// Android configuration.
   #[serde(default)]
   pub android: AndroidConfig,
+  /// The updater configuration.
+  #[serde(default)]
+  pub updater: UpdaterConfig,
 }
 
 /// The window configuration object.
@@ -1606,9 +1668,6 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpdaterWindowsConfig {
-  /// Additional arguments given to the NSIS or WiX installer.
-  #[serde(default, alias = "installer-args")]
-  pub installer_args: Vec<String>,
   /// The installation mode for the update on Windows. Defaults to `passive`.
   #[serde(default, alias = "install-mode")]
   pub install_mode: WindowsUpdateInstallMode,
@@ -2343,6 +2402,16 @@ mod build {
     }
   }
 
+  impl ToTokens for UpdaterConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let active = self.active;
+      let pubkey = str_lit(&self.pubkey);
+      let windows = &self.windows;
+
+      literal_struct!(tokens, UpdaterConfig, active, pubkey, windows);
+    }
+  }
+
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
@@ -2362,6 +2431,7 @@ mod build {
       let windows = &self.windows;
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
+      let updater = quote!(Default::default());
 
       literal_struct!(
         tokens,
@@ -2382,7 +2452,8 @@ mod build {
         external_bin,
         windows,
         ios,
-        android
+        android,
+        updater
       );
     }
   }
@@ -2444,8 +2515,7 @@ mod build {
   impl ToTokens for UpdaterWindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let install_mode = &self.install_mode;
-      let installer_args = vec_lit(&self.installer_args, str_lit);
-      literal_struct!(tokens, UpdaterWindowsConfig, install_mode, installer_args);
+      literal_struct!(tokens, UpdaterWindowsConfig, install_mode);
     }
   }
 
@@ -2696,6 +2766,7 @@ mod test {
         windows: Default::default(),
         ios: Default::default(),
         android: Default::default(),
+        updater: Default::default(),
       },
       security: SecurityConfig {
         csp: None,

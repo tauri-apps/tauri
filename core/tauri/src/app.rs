@@ -178,10 +178,7 @@ pub enum RunEvent {
 
 impl From<EventLoopMessage> for RunEvent {
   fn from(event: EventLoopMessage) -> Self {
-    match event {
-      #[cfg(updater)]
-      EventLoopMessage::Updater(event) => RunEvent::Updater(event),
-    }
+    match event {}
   }
 }
 

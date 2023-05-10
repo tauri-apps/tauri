@@ -142,13 +142,6 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     // set env vars used by the bundler
     #[cfg(target_os = "linux")]
     {
-      use crate::helpers::config::ShellAllowlistOpen;
-      if matches!(
-        config_.tauri.allowlist.shell.open,
-        ShellAllowlistOpen::Flag(true) | ShellAllowlistOpen::Validate(_)
-      ) {
-        std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");
-      }
       if config_.tauri.system_tray.is_some() {
         if let Ok(tray) = std::env::var("TAURI_TRAY") {
           std::env::set_var(

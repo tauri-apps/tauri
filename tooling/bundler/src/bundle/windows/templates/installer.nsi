@@ -506,7 +506,7 @@ Section Install
     FileOpen $4 "$INSTDIR\installmode" w
     FileWrite $4 $MultiUser.InstallMode
     FileClose $4
-    SetFileAttributes "$INSTDIR\installmode" HIDDEN|READONLY ; Hide this file as it is only meant to be read by the uninstaller
+    SetFileAttributes "$INSTDIR\installmode" HIDDEN|READONLY ; Hide this file as it is meant to be read only by the uninstaller
   !endif
 
   ; Registry information for add/remove programs

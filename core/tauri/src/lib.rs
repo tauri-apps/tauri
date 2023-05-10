@@ -269,48 +269,9 @@ pub fn log_stdout() {
   });
 }
 
-/// Updater events.
-#[cfg(updater)]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-#[derive(Debug, Clone)]
-pub enum UpdaterEvent {
-  /// An update is available.
-  UpdateAvailable {
-    /// The update body.
-    body: String,
-    /// The update release date.
-    date: Option<time::OffsetDateTime>,
-    /// The update version.
-    version: String,
-  },
-  /// The update is pending and about to be downloaded.
-  Pending,
-  /// The update download received a progress event.
-  DownloadProgress {
-    /// The amount that was downloaded on this iteration.
-    /// Does not accumulate with previous chunks.
-    chunk_length: usize,
-    /// The total
-    content_length: Option<u64>,
-  },
-  /// The update has been downloaded and is now about to be installed.
-  Downloaded,
-  /// The update has been applied and the app is now up to date.
-  Updated,
-  /// The app is already up to date.
-  AlreadyUpToDate,
-  /// An error occurred while updating.
-  Error(String),
-}
-
 /// The user event type.
 #[derive(Debug, Clone)]
-pub enum EventLoopMessage {
-  /// Updater event.
-  #[cfg(updater)]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-  Updater(UpdaterEvent),
-}
+pub enum EventLoopMessage {}
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}

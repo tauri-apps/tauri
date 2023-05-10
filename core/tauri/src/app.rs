@@ -174,10 +174,6 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
-  /// Updater event.
-  #[cfg(updater)]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-  Updater(crate::UpdaterEvent),
 }
 
 impl From<EventLoopMessage> for RunEvent {

@@ -19,13 +19,16 @@ use crate::{
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
-  scope::{FsScope, IpcScope},
+  scope::IpcScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
   Context, DeviceEventFilter, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager,
   Runtime, Scopes, StateManager, Theme, Window,
 };
+
+#[cfg(protocol_asset)]
+use crate::scope::FsScope;
 
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;

@@ -17,14 +17,14 @@ pub(crate) struct Scopes {
 }
 
 impl Scopes {
-  #[allow(dead_code)]
+  #[allow(dead_code, unused)]
   pub(crate) fn allow_directory(&self, path: &Path, recursive: bool) -> crate::Result<()> {
     #[cfg(protocol_asset)]
     self.asset_protocol.allow_directory(path, recursive)?;
     Ok(())
   }
 
-  #[allow(dead_code)]
+  #[allow(dead_code, unused)]
   pub(crate) fn allow_file(&self, path: &Path) -> crate::Result<()> {
     #[cfg(protocol_asset)]
     self.asset_protocol.allow_file(path)?;

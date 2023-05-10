@@ -10,10 +10,7 @@ use std::{
 };
 
 pub use glob::Pattern;
-use tauri_utils::config::FsAllowlistScope;
 use uuid::Uuid;
-
-use crate::{Manager, Runtime};
 
 /// Scope change event.
 #[derive(Debug, Clone)]
@@ -81,10 +78,10 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 
 impl Scope {
   /// Creates a new scope from a `FsAllowlistScope` configuration.
-  [#allow(unused)]
-  pub(crate) fn for_fs_api<R: Runtime, M: Manager<R>>(
+  #[allow(unused)]
+  pub(crate) fn for_fs_api<R: crate::Runtime, M: crate::Manager<R>>(
     manager: &M,
-    scope: &FsAllowlistScope,
+    scope: &tauri_utils::config::FsAllowlistScope,
   ) -> crate::Result<Self> {
     let mut allowed_patterns = HashSet::new();
     for path in scope.allowed_paths() {

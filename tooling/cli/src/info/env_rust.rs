@@ -31,7 +31,7 @@ pub fn items() -> Vec<SectionItem> {
             .unwrap_or_else(|| {
               (
                 format!(
-                  "rustc: {}\nMaybe you don't have rust installed! Visist {}",
+                  "rustc: {}\nMaybe you don't have rust installed! Visit {}",
                   "not installed!".red(),
                   "https://rustup.rs/".cyan()
                 ),

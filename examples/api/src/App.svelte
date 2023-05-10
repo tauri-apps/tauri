@@ -6,7 +6,6 @@
   import Cli from './views/Cli.svelte'
   import Communication from './views/Communication.svelte'
   import Window from './views/Window.svelte'
-  import Updater from './views/Updater.svelte'
   import WebRTC from './views/WebRTC.svelte'
 
   import { onMount } from 'svelte'
@@ -39,11 +38,6 @@
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
-    },
-    !isMobile && {
-      label: 'Updater',
-      component: Updater,
-      icon: 'i-codicon-cloud-download'
     },
     {
       label: 'WebRTC',

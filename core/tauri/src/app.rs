@@ -245,13 +245,6 @@ pub struct AppHandle<R: Runtime> {
   pub(crate) manager: WindowManager<R>,
 }
 
-impl<R: Runtime> AppHandle<R> {
-  /// Creates a proxy to send events through the event loop.
-  pub fn create_proxy(&self) -> R::EventLoopProxy {
-    self.runtime_handle.create_proxy()
-  }
-}
-
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl AppHandle<crate::Wry> {

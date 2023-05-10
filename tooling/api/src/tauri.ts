@@ -70,7 +70,7 @@ class Channel<T = unknown> {
   }
 
   set onmessage(handler: (response: T) => void) {
-    this.#onmessage = handler;
+    this.#onmessage = handler
   }
 
   get onmessage(): (response: T) => void {

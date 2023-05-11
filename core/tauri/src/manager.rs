@@ -1327,13 +1327,17 @@ impl<R: Runtime> WindowManager<R> {
       app_handle.clone(),
       web_resource_request_handler,
     )?;
-    pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
+
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    let app_handle_data_dir = app_handle.clone();
+
+    pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      let local_app_data = app_handle.path().resolve(
+      let local_app_data = app_handle_data_dir.path().resolve(
         &self.inner.config.tauri.bundle.identifier,
         BaseDirectory::LocalData,
       );

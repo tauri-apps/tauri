@@ -1670,8 +1670,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Register a JS event listener and return its identifier.
-  #[doc(hidden)]
-  pub fn listen_js(
+  pub(crate) fn listen_js(
     &self,
     window_label: Option<String>,
     event: String,
@@ -1702,8 +1701,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Unregister a JS event listener.
-  #[doc(hidden)]
-  pub fn unlisten_js(&self, event: String, id: usize) -> crate::Result<()> {
+  pub(crate) fn unlisten_js(&self, event: String, id: usize) -> crate::Result<()> {
     self.eval(&crate::event::unlisten_js(
       self.manager().event_listeners_object_name(),
       event,

@@ -612,6 +612,7 @@ shared_app_impl!(AppHandle<R>);
 impl<R: Runtime> App<R> {
   fn register_core_plugins(&self) -> crate::Result<()> {
     self.handle.plugin(crate::path::init())?;
+    self.handle.plugin(crate::event::init())?;
     Ok(())
   }
 

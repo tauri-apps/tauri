@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use crate::assets::{Assets, EmbeddedAssets};
-
-use self::isolation::Keys;
 
 /// Handling the Tauri "Isolation" Pattern.
 #[cfg(feature = "isolation")]
@@ -21,7 +19,7 @@ pub enum Pattern<A: Assets = EmbeddedAssets> {
   #[cfg(feature = "isolation")]
   Isolation {
     /// The HTML served on `isolation://index.html`.
-    assets: Arc<A>,
+    assets: std::sync::Arc<A>,
 
     /// The schema used for the isolation frames.
     schema: String,
@@ -32,7 +30,7 @@ pub enum Pattern<A: Assets = EmbeddedAssets> {
     key: String,
 
     /// Cryptographically secure keys
-    crypto_keys: Box<Keys>,
+    crypto_keys: Box<self::isolation::Keys>,
   },
 }
 

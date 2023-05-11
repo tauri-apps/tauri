@@ -1019,9 +1019,6 @@ pub struct RemoteDomainAccessScope {
   /// The list of plugins that are allowed in this scope.
   #[serde(default)]
   pub plugins: Vec<String>,
-  /// Enables access to the Tauri API.
-  #[serde(default, rename = "enableTauriAPI", alias = "enable-tauri-api")]
-  pub enable_tauri_api: bool,
 }
 
 /// Security configuration.
@@ -3344,7 +3341,6 @@ mod build {
       let domain = str_lit(&self.domain);
       let windows = vec_lit(&self.windows, str_lit);
       let plugins = vec_lit(&self.plugins, str_lit);
-      let enable_tauri_api = self.enable_tauri_api;
 
       literal_struct!(
         tokens,
@@ -3352,8 +3348,7 @@ mod build {
         scheme,
         domain,
         windows,
-        plugins,
-        enable_tauri_api
+        plugins
       );
     }
   }

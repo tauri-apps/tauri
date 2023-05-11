@@ -51,10 +51,7 @@ pub enum Error {
   AssetNotFound(String),
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
-  Json(serde_json::Error),
-  /// Unknown API type.
-  #[error("unknown API: {0:?}")]
-  UnknownApi(Option<serde_json::Error>),
+  Json(#[from] serde_json::Error),
   /// Failed to execute tauri API.
   #[error("failed to execute API: {0}")]
   FailedToExecuteApi(#[from] crate::api::Error),
@@ -104,25 +101,4 @@ pub enum Error {
   #[cfg(target_os = "android")]
   #[error("jni error: {0}")]
   Jni(#[from] jni::errors::Error),
-}
-
-pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {
-  anyhow::anyhow!(err.to_string())
-}
-
-impl Error {
-  #[allow(dead_code)]
-  pub(crate) fn into_anyhow(self) -> anyhow::Error {
-    anyhow::anyhow!(self.to_string())
-  }
-}
-
-impl From<serde_json::Error> for Error {
-  fn from(error: serde_json::Error) -> Self {
-    if error.to_string().contains("unknown variant") {
-      Self::UnknownApi(Some(error))
-    } else {
-      Self::Json(error)
-    }
-  }
 }

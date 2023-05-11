@@ -1516,18 +1516,7 @@ impl<R: Runtime> Window<R> {
           return Ok(());
         }
 
-        if let Some(module) = &payload.tauri_module {
-          if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
-            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-            return Ok(());
-          }
-          crate::endpoints::handle(
-            module.to_string(),
-            invoke,
-            manager.config(),
-            manager.package_info(),
-          );
-        } else if payload.cmd.starts_with("plugin:") {
+        if payload.cmd.starts_with("plugin:") {
           if !is_local {
             let command = invoke.message.command.replace("plugin:", "");
             let plugin_name = command.split('|').next().unwrap().to_string();

@@ -52,11 +52,6 @@ pub fn run() {
           .content_protected(true);
       }
 
-      #[cfg(target_os = "windows")]
-      {
-        window_builder = window_builder.transparent(true).decorations(false);
-      }
-
       let window = window_builder.build().unwrap();
 
       #[cfg(debug_assertions)]

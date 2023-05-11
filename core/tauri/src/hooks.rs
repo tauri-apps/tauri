@@ -61,9 +61,6 @@ impl PageLoadPayload {
 pub struct InvokePayload {
   /// The invoke command.
   pub cmd: String,
-  #[serde(rename = "__tauriModule")]
-  #[doc(hidden)]
-  pub tauri_module: Option<String>,
   /// The success callback.
   pub callback: CallbackFn,
   /// The error callback.

@@ -179,8 +179,6 @@ pub mod api;
 pub(crate) mod app;
 pub mod async_runtime;
 pub mod command;
-/// The Tauri API endpoints.
-mod endpoints;
 mod error;
 mod event;
 mod hooks;

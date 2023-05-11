@@ -30,10 +30,10 @@ export type UnlistenFn = () => void
  * @returns
  */
 async function _unlisten(event: string, eventId: number): Promise<void> {
-  await invoke("plugin:event|unlisten", {
+  await invoke('plugin:event|unlisten', {
     event,
-    eventId,
-  });
+    eventId
+  })
 }
 
 /**
@@ -49,11 +49,11 @@ async function emit(
   windowLabel?: WindowLabel,
   payload?: unknown
 ): Promise<void> {
-  await invoke("plugin:event|emit", {
+  await invoke('plugin:event|emit', {
     event,
     windowLabel,
-    payload,
-  });
+    payload
+  })
 }
 
 /**
@@ -68,13 +68,13 @@ async function listen<T>(
   windowLabel: string | null,
   handler: EventCallback<T>
 ): Promise<UnlistenFn> {
-  return invoke<number>("plugin:event|listen", {
+  return invoke<number>('plugin:event|listen', {
     event,
     windowLabel,
-    handler: transformCallback(handler),
+    handler: transformCallback(handler)
   }).then((eventId) => {
-    return async () => _unlisten(event, eventId);
-  });
+    return async () => _unlisten(event, eventId)
+  })
 }
 
 /**
@@ -91,7 +91,7 @@ async function once<T>(
 ): Promise<UnlistenFn> {
   return listen<T>(event, windowLabel, (eventData) => {
     handler(eventData)
-    _unlisten(event, eventData.id).catch(() => { })
+    _unlisten(event, eventData.id).catch(() => {})
   })
 }
 

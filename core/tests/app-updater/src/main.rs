@@ -5,7 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-  let mut context = tauri::generate_context!();
+  let mut context = tauri::build_script_context!();
   if std::env::var("TARGET").unwrap_or_default() == "nsis" {
     // /D sets the default installation directory ($INSTDIR),
     // overriding InstallDir and InstallDirRegKey.

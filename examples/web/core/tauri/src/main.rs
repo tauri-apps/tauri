@@ -12,6 +12,6 @@ fn greet(window: tauri::Window, name: String) {
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![greet])
-    .run(tauri::generate_context!())
+    .run(tauri::build_script_context!())
     .expect("error while running tauri application");
 }

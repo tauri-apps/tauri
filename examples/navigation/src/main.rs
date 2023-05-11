@@ -6,8 +6,6 @@
 
 fn main() {
   tauri::Builder::default()
-    .run(tauri::generate_context!(
-      "../../examples/navigation/tauri.conf.json"
-    ))
+    .run(tauri::build_script_context!())
     .expect("error while running tauri application");
 }

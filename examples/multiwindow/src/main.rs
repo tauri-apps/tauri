@@ -28,8 +28,6 @@ fn main() {
       let _window = builder.title("Tauri - Rust").build()?;
       Ok(())
     })
-    .run(tauri::generate_context!(
-      "../../examples/multiwindow/tauri.conf.json"
-    ))
+    .run(tauri::build_script_context!())
     .expect("failed to run tauri application");
 }

@@ -1,0 +1,12 @@
+[package]
+name = "streaming"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { path = "../../core/tauri-build" }
+
+[dependencies]
+percent-encoding = "2"
+tauri = { path = "../../core/tauri" }
+tauri-utils = { path = "../../core/tauri-utils" }

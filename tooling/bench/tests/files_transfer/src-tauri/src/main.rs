@@ -12,6 +12,6 @@ fn app_should_close(exit_code: i32) {
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![app_should_close])
-    .run(tauri::generate_context!())
+    .run(tauri::build_script_context!())
     .expect("error while running tauri application");
 }

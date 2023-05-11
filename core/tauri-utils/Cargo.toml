@@ -35,10 +35,15 @@ glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
-infer = "0.12"
+infer = "0.13"
+png = { version = "0.17", optional = true }
+ico = { version = "0.2.0", optional = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+embed_plist = "1.2"
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.44.0"
@@ -51,6 +56,7 @@ features = [
 ]
 
 [features]
+default = ["icon-ico", "icon-png"]
 build = [ "proc-macro2", "quote" ]
 compression = [ "brotli" ]
 schema = [ "schemars" ]
@@ -59,3 +65,6 @@ process-relaunch-dangerous-allow-symlink-macos = [ ]
 config-json5 = [ "json5" ]
 config-toml = [ "toml" ]
 resources = [ "glob", "walkdir" ]
+icon-ico = [ "ico" ]
+icon-png = [ "png" ]
+

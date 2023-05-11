@@ -30,6 +30,8 @@ walkdir = "2"
 filetime = "0.2"
 tauri-winres = "0.1"
 semver = "1"
+syn = "2"
+prettyplease = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 swift-rs = { version = "1.0.4", features = [ "build" ] }

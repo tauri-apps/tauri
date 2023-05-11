@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::context::ContextItems;
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput, ItemFn};
 
@@ -10,9 +9,6 @@ mod command;
 mod command_module;
 mod mobile;
 mod runtime;
-
-#[macro_use]
-mod context;
 
 /// Mark a function as a command handler. It creates a wrapper function with the necessary glue code.
 ///
@@ -54,19 +50,6 @@ pub fn mobile_entry_point(attributes: TokenStream, item: TokenStream) -> TokenSt
 #[proc_macro]
 pub fn generate_handler(item: TokenStream) -> TokenStream {
   parse_macro_input!(item as command::Handler).into()
-}
-
-/// Reads a Tauri config file and generates a `::tauri::Context` based on the content.
-///
-/// # Stability
-/// The output of this macro is managed internally by Tauri,
-/// and should not be accessed directly on normal applications.
-/// It may have breaking changes in the future.
-#[proc_macro]
-pub fn generate_context(items: TokenStream) -> TokenStream {
-  // this macro is exported from the context module
-  let path = parse_macro_input!(items as ContextItems);
-  context::generate_context(path).into()
 }
 
 /// Adds the default type for the last parameter (assumed to be runtime) for a specific feature.

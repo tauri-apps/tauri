@@ -1144,13 +1144,13 @@ impl<R: Runtime> WindowManager<R> {
 
 #[cfg(test)]
 mod test {
-  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
+  use crate::{plugin::PluginStore, StateManager, Wry};
 
   use super::WindowManager;
 
   #[test]
   fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let context = tauri_codegen_test::context();
     let manager: WindowManager<Wry> = WindowManager::with_handlers(
       context,
       PluginStore::default(),

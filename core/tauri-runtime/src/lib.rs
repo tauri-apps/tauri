@@ -35,6 +35,8 @@ use crate::http::{
   InvalidUri,
 };
 
+pub use tauri_utils::RawIcon as Icon;
+
 #[cfg(all(desktop, feature = "system-tray"))]
 use std::fmt;
 
@@ -266,17 +268,6 @@ pub enum Error {
 
 /// Result type.
 pub type Result<T> = std::result::Result<T, Error>;
-
-/// Window icon.
-#[derive(Debug, Clone)]
-pub struct Icon {
-  /// RGBA bytes of the icon.
-  pub rgba: Vec<u8>,
-  /// Icon width.
-  pub width: u32,
-  /// Icon height.
-  pub height: u32,
-}
 
 /// A type that can be used as an user event.
 pub trait UserEvent: Debug + Clone + Send + 'static {}

@@ -12,6 +12,6 @@ fn app_loaded_successfully() {
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![app_loaded_successfully])
-    .run(tauri::generate_context!())
+    .run(tauri::build_script_context!())
     .expect("error while running tauri application");
 }

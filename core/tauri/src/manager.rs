@@ -756,41 +756,38 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  fn prepare_ipc_handler(
-    &self,
-    app_handle: AppHandle<R>,
-  ) -> WebviewIpcHandler<EventLoopMessage, R> {
+  fn prepare_ipc_handler(&self) -> WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, #[allow(unused_mut)] mut request| {
-      let window = Window::new(manager.clone(), window, app_handle.clone());
+      if let Some(window) = manager.get_window(&window.label) {
+        #[cfg(feature = "isolation")]
+        if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+          match RawIsolationPayload::try_from(request.as_str())
+            .and_then(|raw| crypto_keys.decrypt(raw))
+          {
+            Ok(json) => request = json,
+            Err(e) => {
+              let error: crate::Error = e.into();
+              let _ = window.eval(&format!(
+                r#"console.error({})"#,
+                JsonValue::String(error.to_string())
+              ));
+              return;
+            }
+          }
+        }
 
-      #[cfg(feature = "isolation")]
-      if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-        match RawIsolationPayload::try_from(request.as_str())
-          .and_then(|raw| crypto_keys.decrypt(raw))
-        {
-          Ok(json) => request = json,
+        match serde_json::from_str::<InvokePayload>(&request) {
+          Ok(message) => {
+            let _ = window.on_message(message);
+          }
           Err(e) => {
             let error: crate::Error = e.into();
             let _ = window.eval(&format!(
               r#"console.error({})"#,
               JsonValue::String(error.to_string())
             ));
-            return;
           }
-        }
-      }
-
-      match serde_json::from_str::<InvokePayload>(&request) {
-        Ok(message) => {
-          let _ = window.on_message(message);
-        }
-        Err(e) => {
-          let error: crate::Error = e.into();
-          let _ = window.eval(&format!(
-            r#"console.error({})"#,
-            JsonValue::String(error.to_string())
-          ));
         }
       }
     })
@@ -1327,7 +1324,7 @@ impl<R: Runtime> WindowManager<R> {
       app_handle.clone(),
       web_resource_request_handler,
     )?;
-    pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
+    pending.ipc_handler = Some(self.prepare_ipc_handler());
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification

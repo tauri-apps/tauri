@@ -12,6 +12,7 @@ use url::Url;
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
 use crate::{
+  api::ipc::CallbackFn,
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
@@ -23,7 +24,7 @@ use crate::{
     webview::{WebviewAttributes, WindowBuilder as _},
     window::{
       dpi::{PhysicalPosition, PhysicalSize},
-      DetachedWindow, JsEventListenerKey, PendingWindow,
+      DetachedWindow, PendingWindow,
     },
     Dispatch, RuntimeHandle,
   },
@@ -50,10 +51,11 @@ use windows::Win32::Foundation::HWND;
 use tauri_macros::default_runtime;
 
 use std::{
+  collections::{HashMap, HashSet},
   fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::Arc,
+  sync::{Arc, Mutex},
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
@@ -695,6 +697,15 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   }
 }
 
+/// Key for a JS event listener.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct JsEventListenerKey {
+  /// The associated window label.
+  pub window_label: Option<String>,
+  /// The event name.
+  pub event: String,
+}
+
 // TODO: expand these docs since this is a pretty important type
 /// A webview window managed by Tauri.
 ///
@@ -708,6 +719,7 @@ pub struct Window<R: Runtime> {
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
+  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
 }
 
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
@@ -722,6 +734,7 @@ impl<R: Runtime> Clone for Window<R> {
       window: self.window.clone(),
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
+      js_event_listeners: self.js_event_listeners.clone(),
     }
   }
 }
@@ -873,6 +886,7 @@ impl<R: Runtime> Window<R> {
       window,
       manager,
       app_handle,
+      js_event_listeners: Default::default(),
     }
   }
 
@@ -1655,9 +1669,25 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.eval_script(js).map_err(Into::into)
   }
 
-  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u64) {
+  /// Register a JS event listener and return its identifier.
+  #[doc(hidden)]
+  pub fn listen_js(
+    &self,
+    window_label: Option<String>,
+    event: String,
+    handler: CallbackFn,
+  ) -> crate::Result<usize> {
+    let event_id = rand::random();
+
+    self.eval(&crate::event::listen_js(
+      self.manager().event_listeners_object_name(),
+      format!("'{}'", event),
+      event_id,
+      window_label.clone(),
+      format!("window['_{}']", handler.0),
+    ))?;
+
     self
-      .window
       .js_event_listeners
       .lock()
       .unwrap()
@@ -1666,12 +1696,22 @@ impl<R: Runtime> Window<R> {
         event,
       })
       .or_insert_with(Default::default)
-      .insert(id);
+      .insert(event_id);
+
+    Ok(event_id)
   }
 
-  pub(crate) fn unregister_js_listener(&self, id: u64) {
+  /// Unregister a JS event listener.
+  #[doc(hidden)]
+  pub fn unlisten_js(&self, event: String, id: usize) -> crate::Result<()> {
+    self.eval(&crate::event::unlisten_js(
+      self.manager().event_listeners_object_name(),
+      event,
+      id,
+    ))?;
+
     let mut empty = None;
-    let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
+    let mut js_listeners = self.js_event_listeners.lock().unwrap();
     let iter = js_listeners.iter_mut();
     for (key, ids) in iter {
       if ids.contains(&id) {
@@ -1686,12 +1726,13 @@ impl<R: Runtime> Window<R> {
     if let Some(key) = empty {
       js_listeners.remove(&key);
     }
+
+    Ok(())
   }
 
   /// Whether this window registered a listener to an event from the given window and event name.
   pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
     self
-      .window
       .js_event_listeners
       .lock()
       .unwrap()

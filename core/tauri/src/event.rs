@@ -300,7 +300,7 @@ mod test {
   }
 }
 
-pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: u64) -> String {
+pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: usize) -> String {
   format!(
     "
       (function () {{
@@ -319,7 +319,7 @@ pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: 
 pub fn listen_js(
   listeners_object_name: String,
   event: String,
-  event_id: u64,
+  event_id: usize,
   window_label: Option<String>,
   handler: String,
 ) -> String {

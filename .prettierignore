@@ -10,4 +10,4 @@ dist
 /tooling/cli/node
 /tooling/cli/schema.json
 /tooling/api/docs/js-api.json
-/core/config-schema/schema.json
+/core/tauri-config-schema/schema.json

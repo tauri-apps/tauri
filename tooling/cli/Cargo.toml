@@ -6,7 +6,7 @@ name = "tauri-cli"
 version = "2.0.0-alpha.8"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.65"
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
@@ -37,9 +37,6 @@ pkg-fmt = "zip"
 [[bin]]
 name = "cargo-tauri"
 path = "src/main.rs"
-
-[features]
-openssl-vendored = [ "tauri-mobile/openssl-vendored" ]
 
 [dependencies]
 tauri-mobile = { version = "0.4", default-features = false }
@@ -104,3 +101,6 @@ libc = "0.2"
 
 [profile.release]
 lto = true
+
+[features]
+openssl-vendored = [ "tauri-mobile/openssl-vendored" ]

@@ -51,17 +51,14 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
     let window = command.message.window();
     let value: String =
       Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
-    if value.starts_with(CHANNEL_PREFIX) {
-      let callback_id: Option<usize> = value
-        .split(CHANNEL_PREFIX)
-        .nth(1)
-        .and_then(|id| id.parse().ok());
-      if let Some(id) = callback_id {
-        return Ok(Channel {
-          id: CallbackFn(id),
-          window,
-        });
-      }
+    if let Some(callback_id) = value
+      .split_once(CHANNEL_PREFIX)
+      .and_then(|(_prefix, id)| id.parse().ok())
+    {
+      return Ok(Channel {
+        id: CallbackFn(callback_id),
+        window,
+      });
     }
     Err(InvokeError::from_anyhow(anyhow::anyhow!(
       "invalid channel value `{value}`, expected a string in the `{CHANNEL_PREFIX}ID` format"

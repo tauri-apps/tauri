@@ -28,7 +28,7 @@ use tauri_utils::{
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
-use crate::pattern::{format_real_schema, PatternJavascript};
+use crate::pattern::PatternJavascript;
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
@@ -148,7 +148,7 @@ fn set_csp<R: Runtime>(
     let default_src = csp
       .entry("default-src".into())
       .or_insert_with(Default::default);
-    default_src.push(format_real_schema(schema));
+    default_src.push(crate::pattern::format_real_schema(schema));
   }
 
   Csp::DirectiveMap(csp).to_string()
@@ -236,7 +236,7 @@ pub struct InnerWindowManager<R: Runtime> {
   /// The script that initializes the invoke system.
   invoke_initialization_script: String,
   /// Application pattern.
-  pattern: Pattern,
+  pub(crate) pattern: Pattern,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -377,24 +377,13 @@ impl<R: Runtime> WindowManager<R> {
   /// Get the base URL to use for webview requests.
   ///
   /// In dev mode, this will be based on the `devPath` configuration value.
-  fn get_url(&self) -> Cow<'_, Url> {
+  pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
+      #[cfg(windows)]
+      _ => Cow::Owned(Url::parse("https://tauri.localhost").unwrap()),
+      #[cfg(not(windows))]
       _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
-    }
-  }
-
-  /// Get the origin as it will be seen in the webview.
-  fn get_browser_origin(&self) -> String {
-    match self.base_path() {
-      AppUrl::Url(WindowUrl::External(url)) => {
-        if PROXY_DEV_SERVER {
-          format_real_schema("tauri")
-        } else {
-          url.origin().ascii_serialization()
-        }
-      }
-      _ => format_real_schema("tauri"),
     }
   }
 
@@ -470,7 +459,6 @@ impl<R: Runtime> WindowManager<R> {
     if let Pattern::Isolation { schema, .. } = self.pattern() {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
-          origin: self.get_browser_origin(),
           isolation_src: &crate::pattern::format_real_schema(schema),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
@@ -492,7 +480,7 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
-    let window_url = Url::parse(&pending.url).unwrap();
+    let window_url = pending.current_url.lock().unwrap().clone();
     let window_origin =
       if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
         format!("https://{}.localhost", window_url.scheme())
@@ -1028,7 +1016,6 @@ impl<R: Runtime> WindowManager<R> {
     #[derive(Template)]
     #[default_template("../scripts/init.js")]
     struct InitJavascript<'a> {
-      origin: String,
       #[raw]
       pattern_script: &'a str,
       #[raw]
@@ -1095,7 +1082,6 @@ impl<R: Runtime> WindowManager<R> {
     let hotkeys = "";
 
     InitJavascript {
-      origin: self.get_browser_origin(),
       pattern_script,
       ipc_script,
       bundle_script,
@@ -1178,7 +1164,16 @@ mod test {
     );
 
     #[cfg(custom_protocol)]
-    assert_eq!(manager.get_url().to_string(), "tauri://localhost");
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) {
+          "https://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
 
     #[cfg(dev)]
     assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
@@ -1229,25 +1224,23 @@ impl<R: Runtime> WindowManager<R> {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
     #[allow(unused_mut)] // mut url only for the data-url parsing
-    let (is_local, mut url) = match &pending.webview_attributes.url {
+    let mut url = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
         let url = if PROXY_DEV_SERVER {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
           self.get_url()
         };
-        (
-          true,
-          // ignore "index.html" just to simplify the url
-          if path.to_str() != Some("index.html") {
-            url
-              .join(&path.to_string_lossy())
-              // this will never fail
-              .unwrap()
-          } else {
-            url.into_owned()
-          },
-        )
+        // ignore "index.html" just to simplify the url
+        if path.to_str() != Some("index.html") {
+          url
+            .join(&path.to_string_lossy())
+            .map_err(crate::Error::InvalidUrl)
+            // this will never fail
+            .unwrap()
+        } else {
+          url.into_owned()
+        }
       }
       WindowUrl::External(url) => {
         let config_url = self.get_url();
@@ -1257,7 +1250,7 @@ impl<R: Runtime> WindowManager<R> {
           url.set_scheme("tauri").unwrap();
           url.set_host(Some("localhost")).unwrap();
         }
-        (is_local, url)
+        url
       }
       _ => unimplemented!(),
     };
@@ -1285,7 +1278,7 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    pending.url = url.to_string();
+    *pending.current_url.lock().unwrap() = url;
 
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
@@ -1326,6 +1319,16 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
+    let label = pending.label.clone();
+    pending = self.prepare_pending_window(
+      pending,
+      &label,
+      window_labels,
+      app_handle.clone(),
+      web_resource_request_handler,
+    )?;
+    pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
+
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -1346,17 +1349,27 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    if is_local {
-      let label = pending.label.clone();
-      pending = self.prepare_pending_window(
-        pending,
-        &label,
-        window_labels,
-        app_handle.clone(),
-        web_resource_request_handler,
-      )?;
-      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
-    }
+    #[cfg(feature = "isolation")]
+    let pattern = self.pattern().clone();
+    let current_url_ = pending.current_url.clone();
+    let navigation_handler = pending.navigation_handler.take();
+    pending.navigation_handler = Some(Box::new(move |url| {
+      // always allow navigation events for the isolation iframe and do not emit them for consumers
+      #[cfg(feature = "isolation")]
+      if let Pattern::Isolation { schema, .. } = &pattern {
+        if url.scheme() == schema
+          && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
+        {
+          return true;
+        }
+      }
+      *current_url_.lock().unwrap() = url.clone();
+      if let Some(handler) = &navigation_handler {
+        handler(url)
+      } else {
+        true
+      }
+    }));
 
     Ok(pending)
   }

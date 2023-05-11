@@ -1,15 +1,12 @@
 <script>
   import { writable } from 'svelte/store'
   import { appWindow, getCurrent } from '@tauri-apps/api/window'
-  import * as os from '@tauri-apps/api/os'
 
   import Welcome from './views/Welcome.svelte'
   import Cli from './views/Cli.svelte'
   import Communication from './views/Communication.svelte'
   import Window from './views/Window.svelte'
-  import Updater from './views/Updater.svelte'
   import WebRTC from './views/WebRTC.svelte'
-  import App from './views/App.svelte'
 
   import { onMount } from 'svelte'
   import { listen } from '@tauri-apps/api/event'
@@ -38,19 +35,9 @@
       icon: 'i-codicon-terminal'
     },
     !isMobile && {
-      label: 'App',
-      component: App,
-      icon: 'i-codicon-hubot'
-    },
-    !isMobile && {
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
-    },
-    !isMobile && {
-      label: 'Updater',
-      component: Updater,
-      icon: 'i-codicon-cloud-download'
     },
     {
       label: 'WebRTC',
@@ -154,10 +141,7 @@
     document.addEventListener('mousemove', moveHandler)
   }
 
-  let isWindows
-  onMount(async () => {
-    isWindows = (await os.platform()) === 'win32'
-  })
+  const isWindows = navigator.appVersion.includes('Win')
 
   // mobile
   let isSideBarOpen = false

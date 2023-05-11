@@ -55,11 +55,26 @@ function transformCallback(
   return identifier
 }
 
-class Channel {
+class Channel<T = unknown> {
   id: number
+  // @ts-expect-error field used by the IPC serializer
+  private readonly __TAURI_CHANNEL_MARKER__ = true
+  #onmessage: (response: T) => void = () => {
+    // no-op
+  }
 
-  constructor(id: number) {
-    this.id = id
+  constructor() {
+    this.id = transformCallback((response: T) => {
+      this.#onmessage(response)
+    })
+  }
+
+  set onmessage(handler: (response: T) => void) {
+    this.#onmessage = handler
+  }
+
+  get onmessage(): (response: T) => void {
+    return this.#onmessage
   }
 
   toJSON(): string {
@@ -67,7 +82,7 @@ class Channel {
   }
 }
 
-class Listener {
+class PluginListener {
   plugin: string
   event: string
   channelId: number
@@ -84,26 +99,16 @@ class Listener {
 }
 
 /**
- * Creates a channel using the given handler function.
- *
- * @returns the channel to send to the IPC.
- *
- * @since 2.0.0
- */
-function channel(fn: (response: any) => void): Channel {
-  return new Channel(transformCallback(fn))
-}
-
-/**
  * Adds a listener to a plugin event.
  *
  * @returns The listener object to stop listening to the events.
  *
  * @since 2.0.0
  */
-async function addPluginListener<T>(plugin: string, event: string, cb: (payload: T) => void): Promise<Listener> {
-  const handler = channel(cb)
-  return invoke(`plugin:${plugin}|register_listener`, { event, handler }).then(() => new Listener(plugin, event, handler.id))
+async function addPluginListener<T>(plugin: string, event: string, cb: (payload: T) => void): Promise<PluginListener> {
+  const handler = new Channel<T>()
+  handler.onmessage = cb
+  return invoke(`plugin:${plugin}|register_listener`, { event, handler }).then(() => new PluginListener(plugin, event, handler.id))
 }
 
 /**
@@ -184,6 +189,6 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
     : `${protocol}://localhost/${path}`
 }
 
-export type { InvokeArgs, Channel, Listener }
+export type { InvokeArgs }
 
-export { transformCallback, channel, addPluginListener, invoke, convertFileSrc }
+export { transformCallback, Channel, PluginListener, addPluginListener, invoke, convertFileSrc }

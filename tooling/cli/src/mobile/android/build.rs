@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, ensure_init, env, log_finished, open_and_wait, with_config,
-  MobileTarget,
+  configure_cargo, delete_codegen_vars, ensure_init, env, inject_assets, log_finished,
+  open_and_wait, with_config, MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -152,6 +152,8 @@ fn run_build(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
+  let tauri_config = get_config(options.config.as_deref())?;
+
   let cli_options = CliOptions {
     features: build_options.features.clone(),
     args: build_options.args.clone(),
@@ -159,7 +161,7 @@ fn run_build(
     vars: Default::default(),
   };
   let _handle = write_options(
-    &get_config(options.config.as_deref())?
+    &tauri_config
       .lock()
       .unwrap()
       .as_ref()
@@ -174,6 +176,8 @@ fn run_build(
     .features
     .get_or_insert(Vec::new())
     .push("custom-protocol".into());
+
+  inject_assets(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let apk_outputs = if options.apk {
     apk::build(

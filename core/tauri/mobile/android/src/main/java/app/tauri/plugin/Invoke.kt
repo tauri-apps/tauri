@@ -204,7 +204,7 @@ class Invoke(
 
   fun getChannel(name: String): Channel? {
     val channelDef = getString(name, "")
-    val callback = channelDef.split(CHANNEL_PREFIX)[1].toLongOrNull() ?: return null
+    val callback = channelDef.substring(CHANNEL_PREFIX.length).toLongOrNull() ?: return null
     return Channel(callback) { res -> sendResponse(callback, PluginResult(res)) }
   }
 }

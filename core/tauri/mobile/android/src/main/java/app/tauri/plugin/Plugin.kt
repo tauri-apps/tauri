@@ -15,8 +15,8 @@ import app.tauri.Logger
 import app.tauri.PermissionHelper
 import app.tauri.PermissionState
 import app.tauri.annotation.ActivityCallback
-import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.Command
+import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import org.json.JSONException
 import java.util.*
@@ -126,7 +126,7 @@ abstract class Plugin(private val activity: Activity) {
 
       // If call was made without any custom permissions, request all from plugin annotation
       val aliasSet: MutableSet<String> = HashSet()
-      if (providedPermsList == null || providedPermsList.isEmpty()) {
+      if (providedPermsList.isNullOrEmpty()) {
         for (perm in annotation.permissions) {
           // If a permission is defined with no permission strings, separate it for auto-granting.
           // Otherwise, the alias is added to the list to be requested.
@@ -153,7 +153,7 @@ abstract class Plugin(private val activity: Activity) {
           permAliases = aliasSet.toTypedArray()
         }
       }
-      if (permAliases != null && permAliases.isNotEmpty()) {
+      if (!permAliases.isNullOrEmpty()) {
         // request permissions using provided aliases or all defined on the plugin
         requestPermissionForAliases(permAliases, invoke, "checkPermissions")
       } else if (autoGrantPerms.isNotEmpty()) {

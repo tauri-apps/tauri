@@ -2206,12 +2206,7 @@ impl TauriConfig {
   #[allow(dead_code)]
   pub fn all_features() -> Vec<&'static str> {
     let mut features = AllowlistConfig::all_features();
-    features.extend(vec![
-      "updater",
-      "system-tray",
-      "macos-private-api",
-      "isolation",
-    ]);
+    features.extend(vec!["system-tray", "macos-private-api", "isolation"]);
     features
   }
 
@@ -2219,9 +2214,6 @@ impl TauriConfig {
   #[allow(dead_code)]
   pub fn features(&self) -> Vec<&str> {
     let mut features = self.allowlist.to_features();
-    if self.updater.active {
-      features.push("updater");
-    }
     if self.system_tray.is_some() {
       features.push("system-tray");
     }

@@ -199,9 +199,6 @@ pub mod process;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
-#[cfg(updater)]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-pub mod updater;
 
 pub use tauri_utils as utils;
 
@@ -375,20 +372,6 @@ pub enum UpdaterEvent {
   AlreadyUpToDate,
   /// An error occurred while updating.
   Error(String),
-}
-
-#[cfg(updater)]
-impl UpdaterEvent {
-  pub(crate) fn status_message(self) -> &'static str {
-    match self {
-      Self::Pending => updater::EVENT_STATUS_PENDING,
-      Self::Downloaded => updater::EVENT_STATUS_DOWNLOADED,
-      Self::Updated => updater::EVENT_STATUS_SUCCESS,
-      Self::AlreadyUpToDate => updater::EVENT_STATUS_UPTODATE,
-      Self::Error(_) => updater::EVENT_STATUS_ERROR,
-      _ => unreachable!(),
-    }
-  }
 }
 
 /// The user event type.

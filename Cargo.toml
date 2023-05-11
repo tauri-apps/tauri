@@ -12,7 +12,6 @@ members = [
 
   # integration tests
   "core/tests/restart",
-  "core/tests/app-updater",
   "core/tests/tauri-codegen-test",
 
   # examples that only require Cargo
@@ -31,7 +30,6 @@ members = [
 exclude = [
   # examples that require NodeJS and/or NPM
   "examples/api/src-tauri",
-  "examples/updater/src-tauri",
   "examples/resources/src-tauri",
   "examples/sidecar/src-tauri",
   "examples/web/core",

@@ -94,7 +94,10 @@ class PluginListener {
   }
 
   async unregister(): Promise<void> {
-    return invoke(`plugin:${this.plugin}|remove_listener`, { event: this.event, channelId: this.channelId })
+    return invoke(`plugin:${this.plugin}|remove_listener`, {
+      event: this.event,
+      channelId: this.channelId
+    })
   }
 }
 
@@ -105,10 +108,16 @@ class PluginListener {
  *
  * @since 2.0.0
  */
-async function addPluginListener<T>(plugin: string, event: string, cb: (payload: T) => void): Promise<PluginListener> {
+async function addPluginListener<T>(
+  plugin: string,
+  event: string,
+  cb: (payload: T) => void
+): Promise<PluginListener> {
   const handler = new Channel<T>()
   handler.onmessage = cb
-  return invoke(`plugin:${plugin}|register_listener`, { event, handler }).then(() => new PluginListener(plugin, event, handler.id))
+  return invoke(`plugin:${plugin}|register_listener`, { event, handler }).then(
+    () => new PluginListener(plugin, event, handler.id)
+  )
 }
 
 /**
@@ -191,4 +200,11 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
 
 export type { InvokeArgs }
 
-export { transformCallback, Channel, PluginListener, addPluginListener, invoke, convertFileSrc }
+export {
+  transformCallback,
+  Channel,
+  PluginListener,
+  addPluginListener,
+  invoke,
+  convertFileSrc
+}

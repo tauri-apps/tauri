@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 public class Channel {
-  public let callback: UInt64
+  public let id: UInt64
   let handler: (JsonValue) -> Void
 
   public init(callback: UInt64, handler: @escaping (JsonValue) -> Void) {
-    self.callback = callback
+    self.id = callback
     self.handler = handler
   }
 

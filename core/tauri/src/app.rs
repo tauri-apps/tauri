@@ -1337,15 +1337,7 @@ impl<R: Runtime> Builder<R> {
     app.manage(Scopes {
       ipc: IpcScope::new(&app.config()),
       #[cfg(feature = "protocol-asset")]
-      asset_protocol: FsScope::for_fs_api(
-        &app,
-        &app
-          .config()
-          .tauri
-          .security
-          .asset_protocol
-          .scope,
-      )?,
+      asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
     });
 
     #[cfg(windows)]

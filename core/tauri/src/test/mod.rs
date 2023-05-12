@@ -44,7 +44,6 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
         pattern: PatternKind::Brownfield,
         windows: Vec::new(),
         bundle: Default::default(),
-        allowlist: Default::default(),
         security: Default::default(),
         system_tray: None,
         macos_private_api: false,

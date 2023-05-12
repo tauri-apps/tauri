@@ -37,11 +37,6 @@
         "exceptionDomain": ""
       }
     },
-    "allowlist": {
-      "window": {
-        "create": true
-      }
-    },
     "windows": [
       {
         "title": "Welcome to Tauri!",

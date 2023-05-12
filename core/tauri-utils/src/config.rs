@@ -1152,111 +1152,6 @@ macro_rules! check_feature {
   };
 }
 
-/// Allowlist for the window APIs.
-///
-/// See more: https://tauri.app/v1/api/config#windowallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct WindowAllowlistConfig {
-  /// Use this flag to enable all window API features.
-  #[serde(default)]
-  pub all: bool,
-  /// Allows dynamic window creation.
-  #[serde(default)]
-  pub create: bool,
-  /// Allows centering the window.
-  #[serde(default)]
-  pub center: bool,
-  /// Allows requesting user attention on the window.
-  #[serde(default, alias = "request-user-attention")]
-  pub request_user_attention: bool,
-  /// Allows setting the resizable flag of the window.
-  #[serde(default, alias = "set-resizable")]
-  pub set_resizable: bool,
-  /// Allows changing the window title.
-  #[serde(default, alias = "set-title")]
-  pub set_title: bool,
-  /// Allows maximizing the window.
-  #[serde(default)]
-  pub maximize: bool,
-  /// Allows unmaximizing the window.
-  #[serde(default)]
-  pub unmaximize: bool,
-  /// Allows minimizing the window.
-  #[serde(default)]
-  pub minimize: bool,
-  /// Allows unminimizing the window.
-  #[serde(default)]
-  pub unminimize: bool,
-  /// Allows showing the window.
-  #[serde(default)]
-  pub show: bool,
-  /// Allows hiding the window.
-  #[serde(default)]
-  pub hide: bool,
-  /// Allows closing the window.
-  #[serde(default)]
-  pub close: bool,
-  /// Allows setting the decorations flag of the window.
-  #[serde(default, alias = "set-decorations")]
-  pub set_decorations: bool,
-  /// Allows setting the shadow flag of the window.
-  #[serde(default, alias = "set-shadow")]
-  pub set_shadow: bool,
-  /// Allows setting the always_on_top flag of the window.
-  #[serde(default, alias = "set-always-on-top")]
-  pub set_always_on_top: bool,
-  /// Allows preventing the window contents from being captured by other apps.
-  #[serde(default, alias = "set-content-protected")]
-  pub set_content_protected: bool,
-  /// Allows setting the window size.
-  #[serde(default, alias = "set-size")]
-  pub set_size: bool,
-  /// Allows setting the window minimum size.
-  #[serde(default, alias = "set-min-size")]
-  pub set_min_size: bool,
-  /// Allows setting the window maximum size.
-  #[serde(default, alias = "set-max-size")]
-  pub set_max_size: bool,
-  /// Allows changing the position of the window.
-  #[serde(default, alias = "set-position")]
-  pub set_position: bool,
-  /// Allows setting the fullscreen flag of the window.
-  #[serde(default, alias = "set-fullscreen")]
-  pub set_fullscreen: bool,
-  /// Allows focusing the window.
-  #[serde(default, alias = "set-focus")]
-  pub set_focus: bool,
-  /// Allows changing the window icon.
-  #[serde(default, alias = "set-icon")]
-  pub set_icon: bool,
-  /// Allows setting the skip_taskbar flag of the window.
-  #[serde(default, alias = "set-skip-taskbar")]
-  pub set_skip_taskbar: bool,
-  /// Allows grabbing the cursor.
-  #[serde(default, alias = "set-cursor-grab")]
-  pub set_cursor_grab: bool,
-  /// Allows setting the cursor visibility.
-  #[serde(default, alias = "set-cursor-visible")]
-  pub set_cursor_visible: bool,
-  /// Allows changing the cursor icon.
-  #[serde(default, alias = "set-cursor-icon")]
-  pub set_cursor_icon: bool,
-  /// Allows setting the cursor position.
-  #[serde(default, alias = "set-cursor-position")]
-  pub set_cursor_position: bool,
-  /// Allows ignoring cursor events.
-  #[serde(default, alias = "set-ignore-cursor-events")]
-  pub set_ignore_cursor_events: bool,
-  /// Allows start dragging on the window.
-  #[serde(default, alias = "start-dragging")]
-  pub start_dragging: bool,
-  /// Allows opening the system dialog to print the window content.
-  #[serde(default)]
-  pub print: bool,
-}
-
 /// Protocol scope definition.
 /// It is a list of glob patterns that restrict the API access from the webview.
 ///
@@ -1365,9 +1260,6 @@ pub struct AllowlistConfig {
   /// Use this flag to enable all API features.
   #[serde(default)]
   pub all: bool,
-  /// Window API allowlist.
-  #[serde(default)]
-  pub window: WindowAllowlistConfig,
   /// Custom protocol allowlist.
   #[serde(default)]
   pub protocol: ProtocolAllowlistConfig,

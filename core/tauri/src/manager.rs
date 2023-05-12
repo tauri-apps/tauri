@@ -1321,7 +1321,7 @@ impl<R: Runtime> WindowManager<R> {
       pending,
       &label,
       window_labels,
-      app_handle.clone(),
+      app_handle,
       web_resource_request_handler,
     )?;
     pending.ipc_handler = Some(self.prepare_ipc_handler());

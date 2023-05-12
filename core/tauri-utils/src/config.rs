@@ -2413,9 +2413,7 @@ mod build {
   impl ToTokens for AllowlistConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let protocol = &self.protocol;
-      tokens.append_all(
-        quote! { ::tauri::utils::config::AllowlistConfig {  protocol: #protocol, ..Default::default() } },
-      )
+      tokens.append_all(quote! { ::tauri::utils::config::AllowlistConfig {  protocol: #protocol } })
     }
   }
 

@@ -1083,6 +1083,71 @@ pub struct RemoteDomainAccessScope {
   pub plugins: Vec<String>,
 }
 
+/// Protocol scope definition.
+/// It is a list of glob patterns that restrict the API access from the webview.
+///
+/// Each pattern can start with a variable that resolves to a system base directory.
+/// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
+/// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
+/// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum FsScope {
+  /// A list of paths that are allowed by this scope.
+  AllowedPaths(Vec<PathBuf>),
+  /// A complete scope configuration.
+  Scope {
+    /// A list of paths that are allowed by this scope.
+    #[serde(default)]
+    allow: Vec<PathBuf>,
+    /// A list of paths that are not allowed by this scope.
+    /// This gets precedence over the [`Self::Scope::allow`] list.
+    #[serde(default)]
+    deny: Vec<PathBuf>,
+  },
+}
+
+impl Default for FsScope {
+  fn default() -> Self {
+    Self::AllowedPaths(Vec::new())
+  }
+}
+
+impl FsScope {
+  /// The list of allowed paths.
+  pub fn allowed_paths(&self) -> &Vec<PathBuf> {
+    match self {
+      Self::AllowedPaths(p) => p,
+      Self::Scope { allow, .. } => allow,
+    }
+  }
+
+  /// The list of forbidden paths.
+  pub fn forbidden_paths(&self) -> Option<&Vec<PathBuf>> {
+    match self {
+      Self::AllowedPaths(_) => None,
+      Self::Scope { deny, .. } => Some(deny),
+    }
+  }
+}
+
+/// Config for the asset custom protocol.
+///
+/// See more: https://tauri.app/v1/api/config#assetprotocolconfig
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetProtocolConfig {
+  /// The access scope for the asset protocol.
+  #[serde(default, alias = "asset-scope")]
+  pub scope: FsScope,
+  /// Enables the asset protocol.
+  #[serde(default)]
+  pub enable: bool,
+}
+
 /// Security configuration.
 ///
 /// See more: https://tauri.app/v1/api/config#securityconfig
@@ -1134,136 +1199,9 @@ pub struct SecurityConfig {
   /// vulnerable to dangerous Tauri command related attacks otherwise.
   #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
   pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
-}
-
-/// Defines an allowlist type.
-pub trait Allowlist {
-  /// Returns all features associated with the allowlist struct.
-  fn all_features() -> Vec<&'static str>;
-  /// Returns the tauri features enabled on this allowlist.
-  fn to_features(&self) -> Vec<&'static str>;
-}
-
-macro_rules! check_feature {
-  ($self:ident, $features:ident, $flag:ident, $feature_name: expr) => {
-    if $self.$flag {
-      $features.push($feature_name)
-    }
-  };
-}
-
-/// Protocol scope definition.
-/// It is a list of glob patterns that restrict the API access from the webview.
-///
-/// Each pattern can start with a variable that resolves to a system base directory.
-/// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
-/// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
-/// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged)]
-pub enum FsAllowlistScope {
-  /// A list of paths that are allowed by this scope.
-  AllowedPaths(Vec<PathBuf>),
-  /// A complete scope configuration.
-  Scope {
-    /// A list of paths that are allowed by this scope.
-    #[serde(default)]
-    allow: Vec<PathBuf>,
-    /// A list of paths that are not allowed by this scope.
-    /// This gets precedence over the [`Self::Scope::allow`] list.
-    #[serde(default)]
-    deny: Vec<PathBuf>,
-  },
-}
-
-impl Default for FsAllowlistScope {
-  fn default() -> Self {
-    Self::AllowedPaths(Vec::new())
-  }
-}
-
-impl FsAllowlistScope {
-  /// The list of allowed paths.
-  pub fn allowed_paths(&self) -> &Vec<PathBuf> {
-    match self {
-      Self::AllowedPaths(p) => p,
-      Self::Scope { allow, .. } => allow,
-    }
-  }
-
-  /// The list of forbidden paths.
-  pub fn forbidden_paths(&self) -> Option<&Vec<PathBuf>> {
-    match self {
-      Self::AllowedPaths(_) => None,
-      Self::Scope { deny, .. } => Some(deny),
-    }
-  }
-}
-
-/// Allowlist for the custom protocols.
-///
-/// See more: https://tauri.app/v1/api/config#protocolallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProtocolAllowlistConfig {
-  /// The access scope for the asset protocol.
-  #[serde(default, alias = "asset-scope")]
-  pub asset_scope: FsAllowlistScope,
-  /// Enables the asset protocol.
-  #[serde(default)]
-  pub asset: bool,
-}
-
-impl Allowlist for ProtocolAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    Self {
-      asset_scope: Default::default(),
-      asset: true,
-    }
-    .to_features()
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    let mut features = Vec::new();
-    check_feature!(self, features, asset, "protocol-asset");
-    features
-  }
-}
-
-/// Allowlist configuration. The allowlist is a translation of the [Cargo allowlist features](https://docs.rs/tauri/latest/tauri/#cargo-allowlist-features).
-///
-/// # Notes
-///
-/// - Endpoints that don't have their own allowlist option are enabled by default.
-/// - There is only "opt-in", no "opt-out". Setting an option to `false` has no effect.
-///
-/// # Examples
-///
-/// - * [`"app-all": true`](https://tauri.app/v1/api/config/#appallowlistconfig.all) will make the [hide](https://tauri.app/v1/api/js/app#hide) endpoint be available regardless of whether `hide` is set to `false` or `true` in the allowlist.
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AllowlistConfig {
-  /// Custom protocol allowlist.
-  #[serde(default)]
-  pub protocol: ProtocolAllowlistConfig,
-}
-
-impl Allowlist for AllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let mut features = Vec::new();
-    features.extend(ProtocolAllowlistConfig::all_features());
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    let mut features = Vec::new();
-    features.extend(self.protocol.to_features());
-    features
-  }
+  /// Custom protocol config.
+  #[serde(default, alias="asset-protocol")]
+  pub asset_protocol: AssetProtocolConfig,
 }
 
 /// The application pattern.
@@ -1304,9 +1242,6 @@ pub struct TauriConfig {
   /// The bundler configuration.
   #[serde(default)]
   pub bundle: BundleConfig,
-  /// The allowlist configuration.
-  #[serde(default)]
-  pub allowlist: AllowlistConfig,
   /// Security configuration.
   #[serde(default)]
   pub security: SecurityConfig,
@@ -1322,15 +1257,13 @@ impl TauriConfig {
   /// Returns all Cargo features.
   #[allow(dead_code)]
   pub fn all_features() -> Vec<&'static str> {
-    let mut features = AllowlistConfig::all_features();
-    features.extend(vec!["system-tray", "macos-private-api", "isolation"]);
-    features
+    vec!["system-tray", "macos-private-api", "isolation"]
   }
 
   /// Returns the enabled Cargo features.
   #[allow(dead_code)]
   pub fn features(&self) -> Vec<&str> {
-    let mut features = self.allowlist.to_features();
+    let mut features = Vec::new();
     if self.system_tray.is_some() {
       features.push("system-tray");
     }
@@ -1339,6 +1272,13 @@ impl TauriConfig {
     }
     if let PatternKind::Isolation { .. } = self.pattern {
       features.push("isolation");
+    }
+    if self
+      .security
+      .asset_protocol
+      .enable
+    {
+      features.push("protocol-asset");
     }
     features.sort_unstable();
     features
@@ -1719,8 +1659,7 @@ impl PackageConfig {
 
 /// The Tauri configuration object.
 /// It is read from a file where you can define your frontend assets,
-/// configure the bundler, define a system tray,
-/// enable APIs via the allowlist and more.
+/// configure the bundler and define a system tray.
 ///
 /// The configuration file is generated by the
 /// [`tauri init`](https://tauri.app/v1/api/cli#init) command that lives in
@@ -2354,7 +2293,8 @@ mod build {
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
       let dangerous_remote_domain_ipc_access =
-        vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
+      vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
+      let asset_protocol = &self.asset_protocol;
 
       literal_struct!(
         tokens,
@@ -2363,7 +2303,8 @@ mod build {
         dev_csp,
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
-        dangerous_remote_domain_ipc_access
+        dangerous_remote_domain_ipc_access,
+        asset_protocol
       );
     }
   }
@@ -2385,9 +2326,9 @@ mod build {
     }
   }
 
-  impl ToTokens for FsAllowlistScope {
+  impl ToTokens for FsScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::FsAllowlistScope };
+      let prefix = quote! { ::tauri::utils::config::FsScope };
 
       tokens.append_all(match self {
         Self::AllowedPaths(allow) => {
@@ -2403,17 +2344,10 @@ mod build {
     }
   }
 
-  impl ToTokens for ProtocolAllowlistConfig {
+  impl ToTokens for AssetProtocolConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let asset_scope = &self.asset_scope;
-      tokens.append_all(quote! { ::tauri::utils::config::ProtocolAllowlistConfig { asset_scope: #asset_scope, ..Default::default() } })
-    }
-  }
-
-  impl ToTokens for AllowlistConfig {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let protocol = &self.protocol;
-      tokens.append_all(quote! { ::tauri::utils::config::AllowlistConfig {  protocol: #protocol } })
+      let scope = &self.scope;
+      tokens.append_all(quote! { ::tauri::utils::config::AssetProtocolConfig { scope: #scope, ..Default::default() } })
     }
   }
 
@@ -2424,7 +2358,6 @@ mod build {
       let bundle = &self.bundle;
       let security = &self.security;
       let system_tray = opt_lit(self.system_tray.as_ref());
-      let allowlist = &self.allowlist;
       let macos_private_api = self.macos_private_api;
 
       literal_struct!(
@@ -2435,7 +2368,6 @@ mod build {
         bundle,
         security,
         system_tray,
-        allowlist,
         macos_private_api
       );
     }
@@ -2525,8 +2457,8 @@ mod test {
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
         dangerous_remote_domain_ipc_access: Vec::new(),
+        asset_protocol: AssetProtocolConfig::default(),
       },
-      allowlist: AllowlistConfig::default(),
       system_tray: None,
       macos_private_api: false,
     };

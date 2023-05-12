@@ -1339,7 +1339,12 @@ impl<R: Runtime> Builder<R> {
       #[cfg(feature = "protocol-asset")]
       asset_protocol: FsScope::for_fs_api(
         &app,
-        &app.config().tauri.allowlist.protocol.asset_scope,
+        &app
+          .config()
+          .tauri
+          .security
+          .asset_protocol
+          .scope,
       )?,
     });
 

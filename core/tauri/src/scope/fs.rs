@@ -81,7 +81,7 @@ impl Scope {
   #[allow(unused)]
   pub(crate) fn for_fs_api<R: crate::Runtime, M: crate::Manager<R>>(
     manager: &M,
-    scope: &tauri_utils::config::FsAllowlistScope,
+    scope: &tauri_utils::config::FsScope,
   ) -> crate::Result<Self> {
     let mut allowed_patterns = HashSet::new();
     for path in scope.allowed_paths() {

@@ -84,15 +84,6 @@
         }
       }
     },
-    "allowlist": {
-      "protocol": {
-        "asset": true,
-        "assetScope": {
-          "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
-          "deny": ["$APPDATA/db/*.stronghold"]
-        }
-      }
-    },
     "windows": [],
     "security": {
       "csp": {
@@ -101,7 +92,14 @@
         "img-src": "'self' asset: https://asset.localhost blob: data:",
         "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
       },
-      "freezePrototype": true
+      "freezePrototype": true,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
+          "deny": ["$APPDATA/db/*.stronghold"]
+        }
+      }
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",

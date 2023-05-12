@@ -99,6 +99,7 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
 
 pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
   tauri_bundler::NsisSettings {
+    template: config.template,
     license: config.license,
     header_image: config.header_image,
     sidebar_image: config.sidebar_image,

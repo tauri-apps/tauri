@@ -615,7 +615,7 @@ pub fn build_wix_app_installer(
   let mut fragment_paths = Vec::new();
   let mut handlebars = Handlebars::new();
   handlebars.register_escape_fn(handlebars::no_escape);
-  let mut has_custom_template = false;
+  let mut custom_template_path = None;
   let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
@@ -626,15 +626,7 @@ pub fn build_wix_app_installer(
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
     enable_elevated_update_task = wix.enable_elevated_update_task;
-
-    if let Some(temp_path) = &wix.template {
-      let template = read_to_string(temp_path)?;
-      handlebars
-        .register_template_string("main.wxs", &template)
-        .map_err(|e| e.to_string())
-        .expect("Failed to setup custom handlebar template");
-      has_custom_template = true;
-    }
+    custom_template_path = wix.template.clone();
 
     if let Some(banner_path) = &wix.banner_path {
       let filename = banner_path
@@ -661,7 +653,12 @@ pub fn build_wix_app_installer(
     }
   }
 
-  if !has_custom_template {
+  if let Some(path) = custom_template_path {
+    handlebars
+      .register_template_string("main.wxs", read_to_string(path)?)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup custom handlebar template");
+  } else {
     handlebars
       .register_template_string("main.wxs", include_str!("../templates/main.wxs"))
       .map_err(|e| e.to_string())

@@ -29,12 +29,33 @@ pub enum Event {
 
 type EventListener = Box<dyn Fn(&Event) + Send>;
 
+/// Metadata for an allowed or forbidden path.
+#[derive(Clone)]
+pub struct PathMetadata {
+  is_dir: bool,
+  recursive: bool,
+}
+
+impl PathMetadata {
+  /// Whether the path represents a directory or not.
+  pub fn is_dir(&self) -> bool {
+    self.is_dir
+  }
+
+  /// Whether the path represents a recursive directory or not.
+  pub fn recursive(&self) -> bool {
+    self.recursive
+  }
+}
+
 /// Scope for filesystem access.
 #[derive(Clone)]
 pub struct Scope {
   allowed_patterns: Arc<Mutex<HashSet<Pattern>>>,
   forbidden_patterns: Arc<Mutex<HashSet<Pattern>>>,
   event_listeners: Arc<Mutex<HashMap<Uuid, EventListener>>>,
+  allowed_paths_metadata: Arc<Mutex<HashMap<PathBuf, PathMetadata>>>,
+  forbidden_paths_metadata: Arc<Mutex<HashMap<PathBuf, PathMetadata>>>,
 }
 
 impl fmt::Debug for Scope {
@@ -110,6 +131,8 @@ impl Scope {
       allowed_patterns: Arc::new(Mutex::new(allowed_patterns)),
       forbidden_patterns: Arc::new(Mutex::new(forbidden_patterns)),
       event_listeners: Default::default(),
+      allowed_paths_metadata: Default::default(),
+      forbidden_paths_metadata: Default::default(),
     })
   }
 
@@ -128,6 +151,26 @@ impl Scope {
     let id = Uuid::new_v4();
     self.event_listeners.lock().unwrap().insert(id, Box::new(f));
     id
+  }
+
+  /// Gets the metadata for the given allowed path.
+  pub fn allowed_path_metadata(&self, path: &Path) -> Option<PathMetadata> {
+    self
+      .allowed_paths_metadata
+      .lock()
+      .unwrap()
+      .get(path)
+      .cloned()
+  }
+
+  /// Gets the metadata for the given fobidden path.
+  pub fn forbidden_path_metadata(&self, path: &Path) -> Option<PathMetadata> {
+    self
+      .forbidden_paths_metadata
+      .lock()
+      .unwrap()
+      .get(path)
+      .cloned()
   }
 
   fn trigger(&self, event: Event) {
@@ -154,6 +197,13 @@ impl Scope {
         escaped_pattern_with(p, if recursive { "**" } else { "*" })
       })?;
     }
+    self.allowed_paths_metadata.lock().unwrap().insert(
+      path.to_path_buf(),
+      PathMetadata {
+        is_dir: true,
+        recursive,
+      },
+    );
     self.trigger(Event::PathAllowed(path.to_path_buf()));
     Ok(())
   }
@@ -168,6 +218,13 @@ impl Scope {
       path,
       escaped_pattern,
     )?;
+    self.allowed_paths_metadata.lock().unwrap().insert(
+      path.to_path_buf(),
+      PathMetadata {
+        is_dir: false,
+        recursive: false,
+      },
+    );
     self.trigger(Event::PathAllowed(path.to_path_buf()));
     Ok(())
   }
@@ -187,6 +244,13 @@ impl Scope {
         escaped_pattern_with(p, if recursive { "**" } else { "*" })
       })?;
     }
+    self.forbidden_paths_metadata.lock().unwrap().insert(
+      path.to_path_buf(),
+      PathMetadata {
+        is_dir: true,
+        recursive,
+      },
+    );
     self.trigger(Event::PathForbidden(path.to_path_buf()));
     Ok(())
   }
@@ -201,6 +265,13 @@ impl Scope {
       path,
       escaped_pattern,
     )?;
+    self.forbidden_paths_metadata.lock().unwrap().insert(
+      path.to_path_buf(),
+      PathMetadata {
+        is_dir: false,
+        recursive: false,
+      },
+    );
     self.trigger(Event::PathForbidden(path.to_path_buf()));
     Ok(())
   }
@@ -271,6 +342,8 @@ mod tests {
       allowed_patterns: Default::default(),
       forbidden_patterns: Default::default(),
       event_listeners: Default::default(),
+      allowed_paths_metadata: Default::default(),
+      forbidden_paths_metadata: Default::default(),
     }
   }
 

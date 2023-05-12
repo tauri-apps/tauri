@@ -12,9 +12,6 @@ pub enum Error {
   /// The path operation error.
   #[error("Path Error: {0}")]
   Path(String),
-  /// The path StripPrefixError error.
-  #[error("Path Error: {0}")]
-  PathPrefix(#[from] std::path::StripPrefixError),
   /// Error showing the dialog.
   #[error("Dialog Error: {0}")]
   Dialog(String),
@@ -42,9 +39,6 @@ pub enum Error {
   /// IO error.
   #[error(transparent)]
   Io(#[from] std::io::Error),
-  /// Ignore error.
-  #[error("failed to walkdir: {0}")]
-  Ignore(#[from] ignore::Error),
   /// Url error.
   #[error(transparent)]
   Url(#[from] url::ParseError),

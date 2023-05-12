@@ -9,9 +9,6 @@
       "identifier": "studio.tauri.example",
       "active": true
     },
-    "allowlist": {
-      "all": true
-    },
     "windows": [
       {
         "title": "Tauri App"

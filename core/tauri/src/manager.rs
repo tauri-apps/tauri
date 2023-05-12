@@ -505,7 +505,7 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push("tauri".into());
     }
 
-    #[cfg(protocol_asset)]
+    #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       use crate::path::SafePathBuf;
       use tokio::io::{AsyncReadExt, AsyncSeekExt};

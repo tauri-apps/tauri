@@ -27,7 +27,7 @@ use crate::{
   Runtime, Scopes, StateManager, Theme, Window,
 };
 
-#[cfg(protocol_asset)]
+#[cfg(feature = "protocol-asset")]
 use crate::scope::FsScope;
 
 use raw_window_handle::HasRawDisplayHandle;
@@ -1336,7 +1336,7 @@ impl<R: Runtime> Builder<R> {
 
     app.manage(Scopes {
       ipc: IpcScope::new(&app.config()),
-      #[cfg(protocol_asset)]
+      #[cfg(feature = "protocol-asset")]
       asset_protocol: FsScope::for_fs_api(
         &app,
         &app.config().tauri.allowlist.protocol.asset_scope,

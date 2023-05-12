@@ -6,9 +6,6 @@
     "withGlobalTauri": true
   },
   "tauri": {
-    "allowlist": {
-      "all": true
-    },
     "bundle": {
       "icon": [
         "icons/32x32.png",

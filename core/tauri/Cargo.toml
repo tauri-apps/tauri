@@ -18,7 +18,6 @@ no-default-features = true
 features = [
   "wry",
   "custom-protocol",
-  "api-all",
   "system-tray",
   "devtools",
   "icon-png",
@@ -136,8 +135,6 @@ macos-private-api = [
   "tauri-runtime-wry/macos-private-api",
 ]
 window-data-url = ["data-url"]
-api-all = ["protocol-all"]
-protocol-all = ["protocol-asset"]
 protocol-asset = []
 config-json5 = ["tauri-macros/config-json5"]
 config-toml = ["tauri-macros/config-toml"]

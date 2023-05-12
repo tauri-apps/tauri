@@ -1212,9 +1212,6 @@ pub struct ProtocolAllowlistConfig {
   /// The access scope for the asset protocol.
   #[serde(default, alias = "asset-scope")]
   pub asset_scope: FsAllowlistScope,
-  /// Use this flag to enable all custom protocols.
-  #[serde(default)]
-  pub all: bool,
   /// Enables the asset protocol.
   #[serde(default)]
   pub asset: bool,
@@ -1222,24 +1219,17 @@ pub struct ProtocolAllowlistConfig {
 
 impl Allowlist for ProtocolAllowlistConfig {
   fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
+    Self {
       asset_scope: Default::default(),
-      all: false,
       asset: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("protocol-all");
-    features
+    }
+    .to_features()
   }
 
   fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["protocol-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, asset, "protocol-asset");
-      features
-    }
+    let mut features = Vec::new();
+    check_feature!(self, features, asset, "protocol-asset");
+    features
   }
 }
 
@@ -1257,9 +1247,6 @@ impl Allowlist for ProtocolAllowlistConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AllowlistConfig {
-  /// Use this flag to enable all API features.
-  #[serde(default)]
-  pub all: bool,
   /// Custom protocol allowlist.
   #[serde(default)]
   pub protocol: ProtocolAllowlistConfig,
@@ -1267,19 +1254,15 @@ pub struct AllowlistConfig {
 
 impl Allowlist for AllowlistConfig {
   fn all_features() -> Vec<&'static str> {
-    let mut features = vec!["api-all"];
+    let mut features = Vec::new();
     features.extend(ProtocolAllowlistConfig::all_features());
     features
   }
 
   fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["api-all"]
-    } else {
-      let mut features = Vec::new();
-      features.extend(self.protocol.to_features());
-      features
-    }
+    let mut features = Vec::new();
+    features.extend(self.protocol.to_features());
+    features
   }
 }
 
@@ -1783,9 +1766,6 @@ impl PackageConfig {
 ///     "version": "0.1.0"
 ///   },
 ///   "tauri": {
-///     "allowlist": {
-///       "all": true
-///     },
 ///     "bundle": {},
 ///     "security": {
 ///       "csp": null

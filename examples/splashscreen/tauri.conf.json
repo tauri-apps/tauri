@@ -26,9 +26,6 @@
       "copyright": "",
       "category": "DeveloperTool"
     },
-    "allowlist": {
-      "all": false
-    },
     "windows": [
       {
         "label": "main",

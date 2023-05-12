@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use heck::AsShoutySnakeCase;
-use heck::AsSnakeCase;
-use heck::ToSnakeCase;
 
 use once_cell::sync::OnceCell;
 
@@ -51,11 +49,6 @@ fn main() {
   let mobile = target_os == "ios" || target_os == "android";
   alias("desktop", !mobile);
   alias("mobile", mobile);
-
-  let api_all = has_feature("api-all");
-  alias("api_all", api_all);
-
-  alias_module("protocol", &["asset"], api_all);
 
   let checked_features_out_path = Path::new(&var("OUT_DIR").unwrap()).join("checked_features");
   std::fs::write(
@@ -137,34 +130,6 @@ fn main() {
       println!("cargo:ios_library_path={}", lib_path.display());
     }
   }
-}
-
-// create aliases for the given module with its apis.
-// each api is translated into a feature flag in the format of `<module>-<api>`
-// and aliased as `<module_snake_case>_<api_snake_case>`.
-//
-// The `<module>-all` feature is also aliased to `<module>_all`.
-//
-// If any of the features is enabled, the `<module_snake_case>_any` alias is created.
-//
-// Note that both `module` and `apis` strings must be written in kebab case.
-fn alias_module(module: &str, apis: &[&str], api_all: bool) {
-  let all_feature_name = format!("{module}-all");
-  let all = has_feature(&all_feature_name) || api_all;
-  alias(&all_feature_name.to_snake_case(), all);
-
-  let mut any = all;
-
-  for api in apis {
-    let has = has_feature(&format!("{module}-{api}")) || all;
-    alias(
-      &format!("{}_{}", AsSnakeCase(module), AsSnakeCase(api)),
-      has,
-    );
-    any = any || has;
-  }
-
-  alias(&format!("{}_any", AsSnakeCase(module)), any);
 }
 
 fn add_manifest() {

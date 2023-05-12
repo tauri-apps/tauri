@@ -12,21 +12,21 @@ use std::path::Path;
 
 pub(crate) struct Scopes {
   pub ipc: IpcScope,
-  #[cfg(protocol_asset)]
+  #[cfg(feature = "protocol-asset")]
   pub asset_protocol: FsScope,
 }
 
 impl Scopes {
   #[allow(dead_code, unused)]
   pub(crate) fn allow_directory(&self, path: &Path, recursive: bool) -> crate::Result<()> {
-    #[cfg(protocol_asset)]
+    #[cfg(feature = "protocol-asset")]
     self.asset_protocol.allow_directory(path, recursive)?;
     Ok(())
   }
 
   #[allow(dead_code, unused)]
   pub(crate) fn allow_file(&self, path: &Path) -> crate::Result<()> {
-    #[cfg(protocol_asset)]
+    #[cfg(feature = "protocol-asset")]
     self.asset_protocol.allow_file(path)?;
     Ok(())
   }

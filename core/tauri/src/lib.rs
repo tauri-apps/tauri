@@ -36,11 +36,8 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that enables commands for Tauri's API package.
 //! These features are automatically enabled by the Tauri CLI based on the `allowlist` configuration under `tauri.conf.json`.
 //!
-//! - **api-all**: Enables all API endpoints.
-//!
 //! ### Protocol allowlist
 //!
-//! - **protocol-all**: Enables all Protocol APIs.
 //! - **protocol-asset**: Enables the `asset` custom protocol.
 
 #![warn(missing_docs, rust_2018_idioms)]
@@ -706,7 +703,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Gets the scope for the asset protocol.
-  #[cfg(protocol_asset)]
+  #[cfg(feature = "protocol-asset")]
   fn asset_protocol_scope(&self) -> FsScope {
     self.state::<Scopes>().inner().asset_protocol.clone()
   }
@@ -783,52 +780,6 @@ mod tests {
       if !manifest.features.iter().any(|(f, _)| f == checked_feature) {
         panic!(
           "Feature {checked_feature} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml"
-        );
-      }
-    }
-  }
-
-  #[test]
-  fn all_allowlist_features_are_aliased() {
-    let manifest = get_manifest();
-    let all_modules = manifest
-      .features
-      .iter()
-      .find(|(f, _)| f.as_str() == "api-all")
-      .map(|(_, enabled)| enabled)
-      .expect("api-all feature must exist");
-
-    let checked_features = CHECKED_FEATURES.split(',').collect::<Vec<&str>>();
-    assert!(
-      checked_features.contains(&"api-all"),
-      "`api-all` is not aliased"
-    );
-
-    // features that look like an allowlist feature, but are not
-    let allowed = [
-      "process-relaunch-dangerous-allow-symlink-macos",
-      "window-data-url",
-    ];
-
-    for module_all_feature in all_modules {
-      let module = module_all_feature.replace("-all", "");
-      assert!(
-        checked_features.contains(&module_all_feature.as_str()),
-        "`{module}` is not aliased"
-      );
-
-      let module_prefix = format!("{module}-");
-      // we assume that module features are the ones that start with `<module>-`
-      // though it's not 100% accurate, we have an allowed list to fix it
-      let module_features = manifest
-        .features
-        .keys()
-        .filter(|f| f.starts_with(&module_prefix));
-      for module_feature in module_features {
-        assert!(
-          allowed.contains(&module_feature.as_str())
-            || checked_features.contains(&module_feature.as_str()),
-          "`{module_feature}` is not aliased"
         );
       }
     }

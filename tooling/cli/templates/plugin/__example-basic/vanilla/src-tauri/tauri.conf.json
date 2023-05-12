@@ -40,9 +40,6 @@
         "timestampUrl": ""
       }
     },
-    "allowlist": {
-      "all": false
-    },
     "windows": [
       {
         "title": "app",

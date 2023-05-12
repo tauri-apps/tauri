@@ -1925,11 +1925,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "enableTauriAPI": {
-          "description": "Enables access to the Tauri API.",
-          "default": false,
-          "type": "boolean"
         }
       },
       "additionalProperties": false

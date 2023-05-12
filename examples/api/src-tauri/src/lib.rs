@@ -51,15 +51,7 @@ pub fn run() {
           .content_protected(true);
       }
 
-      #[cfg(target_os = "windows")]
-      {
-        window_builder = window_builder
-          .transparent(true)
-          .decorations(false)
-          .shadow(true);
-      }
-
-      let _window = window_builder.build().unwrap();
+      let window = window_builder.build().unwrap();
 
       #[cfg(debug_assertions)]
       _window.open_devtools();

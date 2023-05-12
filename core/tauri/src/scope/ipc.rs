@@ -14,7 +14,6 @@ pub struct RemoteDomainAccessScope {
   domain: String,
   windows: Vec<String>,
   plugins: Vec<String>,
-  enable_tauri_api: bool,
 }
 
 impl RemoteDomainAccessScope {
@@ -25,7 +24,6 @@ impl RemoteDomainAccessScope {
       domain: domain.into(),
       windows: Vec::new(),
       plugins: Vec::new(),
-      enable_tauri_api: false,
     }
   }
 
@@ -47,9 +45,13 @@ impl RemoteDomainAccessScope {
     self
   }
 
-  /// Enables access to the Tauri API.
-  pub fn enable_tauri_api(mut self) -> Self {
-    self.enable_tauri_api = true;
+  /// Adds the given list of plugins to the allowed plugin list.
+  pub fn add_plugins<I, S>(mut self, plugins: I) -> Self
+  where
+    I: IntoIterator<Item = S>,
+    S: Into<String>,
+  {
+    self.plugins.extend(plugins.into_iter().map(Into::into));
     self
   }
 
@@ -66,11 +68,6 @@ impl RemoteDomainAccessScope {
   /// The list of plugins enabled by this scope.
   pub fn plugins(&self) -> &Vec<String> {
     &self.plugins
-  }
-
-  /// Whether this scope enables Tauri API access or not.
-  pub fn enables_tauri_api(&self) -> bool {
-    self.enable_tauri_api
   }
 }
 
@@ -99,7 +96,6 @@ impl Scope {
         domain: s.domain,
         windows: s.windows,
         plugins: s.plugins,
-        enable_tauri_api: s.enable_tauri_api,
       })
       .collect();
 
@@ -119,7 +115,7 @@ impl Scope {
   ///     app.ipc_scope().configure_remote_access(
   ///       RemoteDomainAccessScope::new("tauri.app")
   ///         .add_window("main")
-  ///         .enable_tauri_api()
+  ///         .add_plugins(["path", "event"])
   ///       );
   ///     Ok(())
   ///   });
@@ -238,7 +234,6 @@ mod tests {
 
     InvokePayload {
       cmd: "plugin:path|is_absolute".into(),
-      tauri_module: None,
       callback,
       error,
       inner: serde_json::Value::Object(payload),
@@ -251,7 +246,6 @@ mod tests {
 
     InvokePayload {
       cmd: format!("plugin:{PLUGIN_NAME}|doSomething"),
-      tauri_module: None,
       callback,
       error,
       inner: Default::default(),
@@ -262,8 +256,7 @@ mod tests {
   fn scope_not_defined() {
     let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
       .add_window("other")
-      .add_plugin("path")
-      .enable_tauri_api()]);
+      .add_plugin("path")]);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response::<()>(
@@ -280,8 +273,7 @@ mod tests {
   fn scope_not_defined_for_window() {
     let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("second")
-      .add_plugin("path")
-      .enable_tauri_api()]);
+      .add_plugin("path")]);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response::<()>(
@@ -295,8 +287,7 @@ mod tests {
   fn scope_not_defined_for_url() {
     let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("github.com")
       .add_window("main")
-      .add_plugin("path")
-      .enable_tauri_api()]);
+      .add_plugin("path")]);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response::<()>(
@@ -313,12 +304,10 @@ mod tests {
     let (_app, mut window) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app")
         .add_window("main")
-        .add_plugin("path")
-        .enable_tauri_api(),
+        .add_plugin("path"),
       RemoteDomainAccessScope::new("sub.tauri.app")
         .add_window("main")
-        .add_plugin("path")
-        .enable_tauri_api(),
+        .add_plugin("path"),
     ]);
 
     window.navigate("https://tauri.app".parse().unwrap());
@@ -352,8 +341,7 @@ mod tests {
   fn subpath_is_allowed() {
     let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("main")
-      .add_plugin("path")
-      .enable_tauri_api()]);
+      .add_plugin("path")]);
 
     window.navigate("https://tauri.app/inner/path".parse().unwrap());
     assert_ipc_response(&window, path_is_absolute_payload(), Ok(true));

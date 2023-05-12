@@ -19,4 +19,4 @@ import * as tauri from './tauri'
 /** @ignore */
 const invoke = tauri.invoke
 
-export { invoke, event, path, tauri }
+export { invoke, event, tauri }

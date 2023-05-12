@@ -349,7 +349,7 @@ dependencies {"
 
     if !error_message.is_empty() {
       return Err(anyhow!("
-      The `tauri` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
+      The `tauri` dependency features on the `Cargo.toml` file does not match the `tauri.conf.json` config.
       Please run `tauri dev` or `tauri build` or {}.
     ", error_message));
     }

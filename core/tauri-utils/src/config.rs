@@ -1200,7 +1200,7 @@ pub struct SecurityConfig {
   #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
   pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
   /// Custom protocol config.
-  #[serde(default, alias="asset-protocol")]
+  #[serde(default, alias = "asset-protocol")]
   pub asset_protocol: AssetProtocolConfig,
 }
 
@@ -1257,7 +1257,12 @@ impl TauriConfig {
   /// Returns all Cargo features.
   #[allow(dead_code)]
   pub fn all_features() -> Vec<&'static str> {
-    vec!["system-tray", "macos-private-api", "isolation"]
+    vec![
+      "system-tray",
+      "macos-private-api",
+      "isolation",
+      "protocol-asset",
+    ]
   }
 
   /// Returns the enabled Cargo features.
@@ -1273,11 +1278,7 @@ impl TauriConfig {
     if let PatternKind::Isolation { .. } = self.pattern {
       features.push("isolation");
     }
-    if self
-      .security
-      .asset_protocol
-      .enable
-    {
+    if self.security.asset_protocol.enable {
       features.push("protocol-asset");
     }
     features.sort_unstable();
@@ -2293,7 +2294,7 @@ mod build {
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
       let dangerous_remote_domain_ipc_access =
-      vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
+        vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
       let asset_protocol = &self.asset_protocol;
 
       literal_struct!(

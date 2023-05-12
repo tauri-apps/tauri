@@ -42,41 +42,6 @@
 //!
 //! - **protocol-all**: Enables all Protocol APIs.
 //! - **protocol-asset**: Enables the `asset` custom protocol.
-//!
-//! ### Window allowlist
-//!
-//! - **window-all**: Enables all [Window APIs](https://tauri.app/en/docs/api/js/modules/window).
-//! - **window-create**: Enables the API used to [create new windows](https://tauri.app/en/docs/api/js/classes/window.webviewwindow/).
-//! - **window-center**: Enables the [`center` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#center).
-//! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#requestuserattention).
-//! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setresizable).
-//! - **window-set-title**: Enables the [`setTitle` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#settitle).
-//! - **window-maximize**: Enables the [`maximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#maximize).
-//! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unmaximize).
-//! - **window-minimize**: Enables the [`minimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#minimize).
-//! - **window-unminimize**: Enables the [`unminimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unminimize).
-//! - **window-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#show).
-//! - **window-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#hide).
-//! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
-//! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
-//! - **window-set-shadow**: Enables the [`setShadow` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setshadow).
-//! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
-//! - **window-set-content-protected**: Enables the [`setContentProtected` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcontentprotected).
-//! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
-//! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
-//! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
-//! - **window-set-position**: Enables the [`setPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setposition).
-//! - **window-set-fullscreen**: Enables the [`setFullscreen` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfullscreen).
-//! - **window-set-focus**: Enables the [`setFocus` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfocus).
-//! - **window-set-icon**: Enables the [`setIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#seticon).
-//! - **window-set-skip-taskbar**: Enables the [`setSkipTaskbar` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setskiptaskbar).
-//! - **window-set-cursor-grab**: Enables the [`setCursorGrab` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorgrab).
-//! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorvisible).
-//! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
-//! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
-//! - **window-set-ignore-cursor-events**: Enables the [`setIgnoreCursorEvents` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setignorecursorevents).
-//! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
-//! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]

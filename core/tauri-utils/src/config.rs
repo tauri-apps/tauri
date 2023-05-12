@@ -1257,118 +1257,6 @@ pub struct WindowAllowlistConfig {
   pub print: bool,
 }
 
-impl Allowlist for WindowAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      all: false,
-      create: true,
-      center: true,
-      request_user_attention: true,
-      set_resizable: true,
-      set_title: true,
-      maximize: true,
-      unmaximize: true,
-      minimize: true,
-      unminimize: true,
-      show: true,
-      hide: true,
-      close: true,
-      set_decorations: true,
-      set_always_on_top: true,
-      set_content_protected: false,
-      set_size: true,
-      set_min_size: true,
-      set_max_size: true,
-      set_position: true,
-      set_fullscreen: true,
-      set_focus: true,
-      set_icon: true,
-      set_skip_taskbar: true,
-      set_cursor_grab: true,
-      set_cursor_visible: true,
-      set_cursor_icon: true,
-      set_cursor_position: true,
-      set_ignore_cursor_events: true,
-      set_shadow: true,
-      start_dragging: true,
-      print: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("window-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["window-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, create, "window-create");
-      check_feature!(self, features, center, "window-center");
-      check_feature!(
-        self,
-        features,
-        request_user_attention,
-        "window-request-user-attention"
-      );
-      check_feature!(self, features, set_resizable, "window-set-resizable");
-      check_feature!(self, features, set_title, "window-set-title");
-      check_feature!(self, features, maximize, "window-maximize");
-      check_feature!(self, features, unmaximize, "window-unmaximize");
-      check_feature!(self, features, minimize, "window-minimize");
-      check_feature!(self, features, unminimize, "window-unminimize");
-      check_feature!(self, features, show, "window-show");
-      check_feature!(self, features, hide, "window-hide");
-      check_feature!(self, features, close, "window-close");
-      check_feature!(self, features, set_decorations, "window-set-decorations");
-      check_feature!(self, features, set_shadow, "window-set-shadow");
-      check_feature!(
-        self,
-        features,
-        set_always_on_top,
-        "window-set-always-on-top"
-      );
-      check_feature!(
-        self,
-        features,
-        set_content_protected,
-        "window-set-content-protected"
-      );
-      check_feature!(self, features, set_size, "window-set-size");
-      check_feature!(self, features, set_min_size, "window-set-min-size");
-      check_feature!(self, features, set_max_size, "window-set-max-size");
-      check_feature!(self, features, set_position, "window-set-position");
-      check_feature!(self, features, set_fullscreen, "window-set-fullscreen");
-      check_feature!(self, features, set_focus, "window-set-focus");
-      check_feature!(self, features, set_icon, "window-set-icon");
-      check_feature!(self, features, set_skip_taskbar, "window-set-skip-taskbar");
-      check_feature!(self, features, set_cursor_grab, "window-set-cursor-grab");
-      check_feature!(
-        self,
-        features,
-        set_cursor_visible,
-        "window-set-cursor-visible"
-      );
-      check_feature!(self, features, set_cursor_icon, "window-set-cursor-icon");
-      check_feature!(
-        self,
-        features,
-        set_cursor_position,
-        "window-set-cursor-position"
-      );
-      check_feature!(
-        self,
-        features,
-        set_ignore_cursor_events,
-        "window-set-ignore-cursor-events"
-      );
-      check_feature!(self, features, start_dragging, "window-start-dragging");
-      check_feature!(self, features, print, "window-print");
-      features
-    }
-  }
-}
-
 /// Protocol scope definition.
 /// It is a list of glob patterns that restrict the API access from the webview.
 ///
@@ -1488,7 +1376,6 @@ pub struct AllowlistConfig {
 impl Allowlist for AllowlistConfig {
   fn all_features() -> Vec<&'static str> {
     let mut features = vec!["api-all"];
-    features.extend(WindowAllowlistConfig::all_features());
     features.extend(ProtocolAllowlistConfig::all_features());
     features
   }
@@ -1498,7 +1385,6 @@ impl Allowlist for AllowlistConfig {
       vec!["api-all"]
     } else {
       let mut features = Vec::new();
-      features.extend(self.window.to_features());
       features.extend(self.protocol.to_features());
       features
     }

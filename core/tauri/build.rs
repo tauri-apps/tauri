@@ -55,44 +55,6 @@ fn main() {
   let api_all = has_feature("api-all");
   alias("api_all", api_all);
 
-  alias_module(
-    "window",
-    &[
-      "create",
-      "center",
-      "request-user-attention",
-      "set-resizable",
-      "set-title",
-      "maximize",
-      "unmaximize",
-      "minimize",
-      "unminimize",
-      "show",
-      "hide",
-      "close",
-      "set-decorations",
-      "set-shadow",
-      "set-always-on-top",
-      "set-content-protected",
-      "set-size",
-      "set-min-size",
-      "set-max-size",
-      "set-position",
-      "set-fullscreen",
-      "set-focus",
-      "set-icon",
-      "set-skip-taskbar",
-      "set-cursor-grab",
-      "set-cursor-visible",
-      "set-cursor-icon",
-      "set-cursor-position",
-      "set-ignore-cursor-events",
-      "start-dragging",
-      "print",
-    ],
-    api_all,
-  );
-
   alias_module("protocol", &["asset"], api_all);
 
   let checked_features_out_path = Path::new(&var("OUT_DIR").unwrap()).join("checked_features");

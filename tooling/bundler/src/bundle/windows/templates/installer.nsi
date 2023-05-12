@@ -118,9 +118,6 @@ Function PageReinstall
   ; and they can chose to abort it if doesn't make sense.
   StrCpy $0 0
   wix_loop:
-    ${If} ${RunningX64}
-      SetRegView 64
-    ${EndIf}
     EnumRegKey $1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" $0
     StrCmp $1 "" wix_done ; Exit loop if there is no more keys to loop on
     IntOp $0 $0 + 1
@@ -131,9 +128,6 @@ Function PageReinstall
     StrCpy $R6 "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1"
     Goto compare_version
   wix_done:
-    ${If} ${RunningX64}
-      SetRegView Default
-    ${EndIf}
 
   ; Check if there is an existing installation, if not, abort the reinstall page
   ReadRegStr $R0 SHCTX "${UNINSTKEY}" ""
@@ -345,6 +339,16 @@ Function .onInit
     SetShellVarContext all
   !endif
 
+  ${If} ${RunningX64}
+    !if "${ARCH}" == "x64"
+      SetRegView 64
+    !else if "${ARCH}" == "arm64"
+      SetRegView 64
+    !else
+      SetRegView 32
+    !endif
+  ${EndIf}
+
   ; Set default install location
   !if "${INSTALLMODE}" == "perMachine"
     ${If} ${RunningX64}
@@ -532,6 +536,16 @@ Section Install
 SectionEnd
 
 Function un.onInit
+  ${If} ${RunningX64}
+    !if "${ARCH}" == "x64"
+      SetRegView 64
+    !else if "${ARCH}" == "arm64"
+      SetRegView 64
+    !else
+      SetRegView 32
+    !endif
+  ${EndIf}
+
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_UNINIT
   !endif

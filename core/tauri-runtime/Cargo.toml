@@ -34,9 +34,6 @@ raw-window-handle = "0.5"
 rand = "0.8"
 url = { version = "2" }
 
-[target."cfg(windows)".dependencies]
-webview2-com = "0.22"
-
 [target."cfg(windows)".dependencies.windows]
 version = "0.44"
 features = [ "Win32_Foundation" ]

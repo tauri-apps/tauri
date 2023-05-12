@@ -356,10 +356,7 @@ fn run_light(
 ) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
 
-  let mut args: Vec<String> = vec![
-    "-o".to_string(),
-    display_path(output_path),
-  ];
+  let mut args: Vec<String> = vec!["-o".to_string(), display_path(output_path)];
 
   args.extend(arguments);
 

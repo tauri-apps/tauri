@@ -326,6 +326,11 @@ pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
 
 impl<W: runtime::Runtime<EventLoopMessage>> Runtime for W {}
 
+/// Returns Tauri version.
+pub fn version() -> &'static str {
+  env!("CARGO_PKG_VERSION")
+}
+
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///
 /// The default config file path is a `tauri.conf.json` file inside the Cargo manifest directory of

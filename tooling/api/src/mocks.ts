@@ -2,6 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/** @ignore */
+declare global {
+  interface Window {
+    __TAURI_METADATA__: {
+      __windows: WindowDef[]
+      __currentWindow: WindowDef
+    }
+  }
+}
+
+/** @ignore */
+interface WindowDef {
+  label: string
+}
+
 interface IPCMessage {
   cmd: string
   callback: number

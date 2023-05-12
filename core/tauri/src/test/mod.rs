@@ -9,7 +9,7 @@ pub use mock_runtime::*;
 
 use std::{borrow::Cow, sync::Arc};
 
-use crate::{Manager, Pattern, WindowBuilder};
+use crate::{Pattern, WindowBuilder};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{Config, PatternKind, TauriConfig, WindowUrl},
@@ -80,14 +80,4 @@ pub fn mock_app() -> crate::App<MockRuntime> {
     .unwrap();
 
   app
-}
-
-#[allow(dead_code)]
-pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRuntime> {
-  let app = mock_app();
-  crate::endpoints::InvokeContext {
-    window: app.get_window("main").unwrap(),
-    config: app.config(),
-    package_info: app.package_info().clone(),
-  }
 }

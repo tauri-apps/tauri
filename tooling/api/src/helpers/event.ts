@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { type WindowLabel } from '../window'
 import { invoke, transformCallback } from '../tauri'
 import { type EventName } from '../event'
 
@@ -46,7 +45,7 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
  */
 async function emit(
   event: string,
-  windowLabel?: WindowLabel,
+  windowLabel?: string,
   payload?: unknown
 ): Promise<void> {
   await invoke('plugin:event|emit', {

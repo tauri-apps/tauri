@@ -1321,7 +1321,8 @@ impl<R: Runtime> WindowManager<R> {
       pending,
       &label,
       window_labels,
-      app_handle,
+      #[allow(clippy::redundant_clone)]
+      app_handle.clone(),
       web_resource_request_handler,
     )?;
     pending.ipc_handler = Some(self.prepare_ipc_handler());

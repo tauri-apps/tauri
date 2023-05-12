@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { type WindowLabel } from '../window'
-import { invokeTauriCommand } from './tauri'
-import { transformCallback } from '../tauri'
+import { invoke, transformCallback } from '../tauri'
 import { type EventName } from '../event'
 
 export interface Event<T> {
@@ -31,13 +30,9 @@ export type UnlistenFn = () => void
  * @returns
  */
 async function _unlisten(event: string, eventId: number): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Event',
-    message: {
-      cmd: 'unlisten',
-      event,
-      eventId
-    }
+  await invoke('plugin:event|unlisten', {
+    event,
+    eventId
   })
 }
 
@@ -54,14 +49,10 @@ async function emit(
   windowLabel?: WindowLabel,
   payload?: unknown
 ): Promise<void> {
-  await invokeTauriCommand({
-    __tauriModule: 'Event',
-    message: {
-      cmd: 'emit',
-      event,
-      windowLabel,
-      payload
-    }
+  await invoke('plugin:event|emit', {
+    event,
+    windowLabel,
+    payload
   })
 }
 
@@ -77,14 +68,10 @@ async function listen<T>(
   windowLabel: string | null,
   handler: EventCallback<T>
 ): Promise<UnlistenFn> {
-  return invokeTauriCommand<number>({
-    __tauriModule: 'Event',
-    message: {
-      cmd: 'listen',
-      event,
-      windowLabel,
-      handler: transformCallback(handler)
-    }
+  return invoke<number>('plugin:event|listen', {
+    event,
+    windowLabel,
+    handler: transformCallback(handler)
   }).then((eventId) => {
     return async () => _unlisten(event, eventId)
   })

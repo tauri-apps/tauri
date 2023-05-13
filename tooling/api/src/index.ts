@@ -14,8 +14,8 @@
  */
 
 import * as event from './event'
-import * as path from './path'
 import * as tauri from './tauri'
+import * as path from './path'
 
 /** @ignore */
 const invoke = tauri.invoke

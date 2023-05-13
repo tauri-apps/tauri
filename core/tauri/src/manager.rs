@@ -505,7 +505,7 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push("tauri".into());
     }
 
-    #[cfg(protocol_asset)]
+    #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       use crate::path::SafePathBuf;
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
@@ -1321,6 +1321,7 @@ impl<R: Runtime> WindowManager<R> {
       pending,
       &label,
       window_labels,
+      #[allow(clippy::redundant_clone)]
       app_handle.clone(),
       web_resource_request_handler,
     )?;

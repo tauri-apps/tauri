@@ -72,11 +72,7 @@ jobs:
               key: no-default
             }
           - {
-              args: --features api-all,
-              key: api-all
-            }
-          - {
-              args: --features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,updater,system-tray,
+              args: --features compression,wry,linux-protocol-headers,isolation,custom-protocol,system-tray,
               key: all
             }
 

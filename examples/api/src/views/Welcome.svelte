@@ -5,7 +5,3 @@
   development process. In the future, this app will be used on Tauri's integration
   tests.
 </p>
-
-<br />
-<br />
-<br />

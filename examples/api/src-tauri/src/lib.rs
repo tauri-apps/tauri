@@ -45,7 +45,6 @@ pub fn run() {
       #[cfg(desktop)]
       {
         window_builder = window_builder
-          .user_agent("Tauri API")
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)

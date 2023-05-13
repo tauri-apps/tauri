@@ -27,7 +27,6 @@ serde_json = "1"
 heck = "0.4"
 json-patch = "1.0"
 walkdir = "2"
-filetime = "0.2"
 tauri-winres = "0.1"
 semver = "1"
 

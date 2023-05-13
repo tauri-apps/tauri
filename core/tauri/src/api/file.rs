@@ -4,15 +4,7 @@
 
 //! Types and functions related to file operations.
 
-#[cfg(feature = "fs-extract-api")]
-mod extract;
-mod file_move;
-
 use std::{fs, path::Path};
-
-#[cfg(feature = "fs-extract-api")]
-pub use extract::*;
-pub use file_move::*;
 
 /// Reads the entire contents of a file into a string.
 pub fn read_string<P: AsRef<Path>>(file: P) -> crate::api::Result<String> {

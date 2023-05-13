@@ -264,6 +264,9 @@ pub use self::runtime::ClipboardManager;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
 
+/// The Tauri version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 /// Updater events.
 #[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
@@ -325,11 +328,6 @@ pub enum EventLoopMessage {
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
 
 impl<W: runtime::Runtime<EventLoopMessage>> Runtime for W {}
-
-/// Returns Tauri version.
-pub fn version() -> &'static str {
-  env!("CARGO_PKG_VERSION")
-}
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///

@@ -1,5 +1,5 @@
 ---
-"tauri": "patch"
+'tauri': 'patch'
 ---
 
-Added `tauri::version` function to retrieve Tauri's version from Rust.
+Added `tauri::VERSION` const to get Tauri's version from Rust.

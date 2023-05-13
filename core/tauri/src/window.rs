@@ -1582,7 +1582,6 @@ impl<R: Runtime> Window<R> {
                     objects::JObject,
                     JNIEnv,
                   };
-                  use crate::api::ipc::CallbackFn;
 
                   fn handle_message<R: Runtime>(
                     plugin: &str,

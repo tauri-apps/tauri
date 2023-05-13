@@ -34,18 +34,9 @@ pub enum Error {
   /// Runtime error.
   #[error("runtime error: {0}")]
   Runtime(#[from] tauri_runtime::Error),
-  /// Failed to create window.
-  #[error("failed to create window")]
-  CreateWindow,
   /// Window label must be unique.
   #[error("a window with label `{0}` already exists")]
   WindowLabelAlreadyExists(String),
-  /// Can't access webview dispatcher because the webview was closed or not found.
-  #[error("webview not found: invalid label or it was closed")]
-  WebviewNotFound,
-  /// Failed to send message to webview.
-  #[error("failed to send message to the webview")]
-  FailedToSendMessage,
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),
@@ -61,9 +52,6 @@ pub enum Error {
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
   InvalidIcon(std::io::Error),
-  /// API not whitelisted on tauri.conf.json
-  #[error("'{0}' not in the allowlist (https://tauri.app/docs/api/config#tauri.allowlist)")]
-  ApiNotAllowlisted(String),
   /// Invalid args when running a command.
   #[error("invalid args `{1}` for command `{0}`: {2}")]
   InvalidArgs(&'static str, &'static str, serde_json::Error),

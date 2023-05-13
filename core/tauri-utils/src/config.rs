@@ -1141,7 +1141,7 @@ impl FsScope {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AssetProtocolConfig {
   /// The access scope for the asset protocol.
-  #[serde(default, alias = "asset-scope")]
+  #[serde(default)]
   pub scope: FsScope,
   /// Enables the asset protocol.
   #[serde(default)]

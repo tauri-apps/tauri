@@ -1599,12 +1599,15 @@ fn on_window_event<R: Runtime>(
     WindowEvent::FileDrop(event) => match event {
       FileDropEvent::Hovered(paths) => window.emit(WINDOW_FILE_DROP_HOVER_EVENT, paths)?,
       FileDropEvent::Dropped(paths) => {
-        let scopes = window.state::<Scopes>();
-        for path in paths {
-          if path.is_file() {
-            let _ = scopes.allow_file(path);
-          } else {
-            let _ = scopes.allow_directory(path, false);
+        #[cfg(feature = "protocol-asset")]
+        {
+          let scopes = window.state::<Scopes>();
+          for path in paths {
+            if path.is_file() {
+              let _ = scopes.asset_protocol.allow_file(path);
+            } else {
+              let _ = scopes.asset_protocol.allow_directory(path, false);
+            }
           }
         }
         window.emit(WINDOW_FILE_DROP_EVENT, paths)?

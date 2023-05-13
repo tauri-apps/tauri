@@ -21,6 +21,7 @@ features = [
   "system-tray",
   "devtools",
   "icon-png",
+  "protocol-asset",
   "dox",
 ]
 rustdoc-args = ["--cfg", "doc_cfg"]

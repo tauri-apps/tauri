@@ -6,8 +6,6 @@
  * The path module provides utilities for working with file and directory paths.
  *
  * This package is also accessible with `window.__TAURI__.path` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
- *
- * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @module
  */
 

@@ -77,7 +77,7 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 }
 
 impl Scope {
-  /// Creates a new scope from a `FsAllowlistScope` configuration.
+  /// Creates a new scope from a [`tauri_utils::config::FsScope`] configuration.
   #[allow(unused)]
   pub(crate) fn for_fs_api<R: crate::Runtime, M: crate::Manager<R>>(
     manager: &M,

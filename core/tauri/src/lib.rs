@@ -30,15 +30,6 @@
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
 //! - **icon-ico**: Adds support to set `.ico` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
 //! - **icon-png**: Adds support to set `.png` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
-//!
-//! ## Cargo allowlist features
-//!
-//! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that enables commands for Tauri's API package.
-//! These features are automatically enabled by the Tauri CLI based on the `allowlist` configuration under `tauri.conf.json`.
-//!
-//! ### Protocol allowlist
-//!
-//! - **protocol-asset**: Enables the `asset` custom protocol.
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
@@ -85,7 +76,7 @@ mod jni_helpers;
 /// Path APIs.
 pub mod path;
 pub mod process;
-/// The allowlist scopes.
+/// The scopes for webview access of system resources.
 pub mod scope;
 mod state;
 
@@ -792,13 +783,6 @@ mod test_utils {
 
   pub fn assert_send<T: Send>() {}
   pub fn assert_sync<T: Sync>() {}
-
-  #[allow(dead_code)]
-  pub fn assert_not_allowlist_error<T>(res: anyhow::Result<T>) {
-    if let Err(e) = res {
-      assert!(!e.to_string().contains("not on the allowlist"));
-    }
-  }
 
   proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]

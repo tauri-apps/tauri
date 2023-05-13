@@ -2126,7 +2126,7 @@ mod build {
       let windows = &self.windows;
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
-      let updater = quote!(Default::default());
+      let updater = &self.updater;
 
       literal_struct!(
         tokens,

@@ -188,8 +188,10 @@ fn build_nsis_app_installer(
 
   let mut install_mode = NSISInstallerMode::CurrentUser;
   let mut languages = vec!["English".into()];
+  let mut custom_template_path = None;
   let mut custom_language_files = None;
   if let Some(nsis) = &settings.windows().nsis {
+    custom_template_path = nsis.template.clone();
     custom_language_files = nsis.custom_language_files.clone();
     install_mode = nsis.install_mode;
     if let Some(langs) = &nsis.languages {
@@ -376,10 +378,17 @@ fn build_nsis_app_installer(
     }
     output
   });
-  handlebars
-    .register_template_string("installer.nsi", include_str!("./templates/installer.nsi"))
-    .map_err(|e| e.to_string())
-    .expect("Failed to setup handlebar template");
+  if let Some(path) = custom_template_path {
+    handlebars
+      .register_template_string("installer.nsi", std::fs::read_to_string(path)?)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup custom handlebar template");
+  } else {
+    handlebars
+      .register_template_string("installer.nsi", include_str!("./templates/installer.nsi"))
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup handlebar template");
+  }
   let installer_nsi_path = output_path.join("installer.nsi");
   write(
     &installer_nsi_path,
@@ -542,10 +551,21 @@ fn get_lang_data(
         UTF_16LE,
       )),
     )),
+    "dutch" => Some((
+      lang_file,
+      Some((include_str!("./templates/nsis-languages/Dutch.nsh"), UTF_8)),
+    )),
     "english" => Some((
       lang_file,
       Some((
         include_str!("./templates/nsis-languages/English.nsh"),
+        UTF_8,
+      )),
+    )),
+    "japanese" => Some((
+      lang_file,
+      Some((
+        include_str!("./templates/nsis-languages/Japanese.nsh"),
         UTF_8,
       )),
     )),
@@ -573,6 +593,20 @@ fn get_lang_data(
     "french" => Some((
       lang_file,
       Some((include_str!("./templates/nsis-languages/French.nsh"), UTF_8)),
+    )),
+    "spanish" => Some((
+      lang_file,
+      Some((
+        include_str!("./templates/nsis-languages/Spanish.nsh"),
+        UTF_8,
+      )),
+    )),
+    "spanishinternational" => Some((
+      lang_file,
+      Some((
+        include_str!("./templates/nsis-languages/SpanishInternational.nsh"),
+        UTF_8,
+      )),
     )),
     _ => None,
   }

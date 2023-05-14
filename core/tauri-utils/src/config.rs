@@ -435,6 +435,8 @@ pub struct WixConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NsisConfig {
+  /// A custom .nsi template to use.
+  pub template: Option<PathBuf>,
   /// The path to the license file to render on the installer.
   pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
@@ -2874,7 +2876,7 @@ pub struct PackageConfig {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
 }

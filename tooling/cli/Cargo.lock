@@ -179,7 +179,6 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d9a9bf8b79a749ee0b911b91b671cc2b6c670bdbc7e3dfd537576ddc94bb2a2"
 dependencies = [
- "flate2",
  "http",
  "log",
  "native-tls",
@@ -3349,7 +3348,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -3389,7 +3388,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "1.3.0"
+version = "1.3.1"
 dependencies = [
  "anyhow",
  "axum",

@@ -2069,8 +2069,14 @@
               "items": {
                 "type": "string"
               }
+            },
+            "require_literal_leading_dot": {
+              "description": "Whether or not paths that contain components that start with a `.` will require that `.` appears literally in the pattern; `*`, `?`, `**`, or `[...]` will not match. This is useful because such files are conventionally considered hidden on Unix systems and it might be desirable to skip them when listing files.\n\nDefaults to `true` on Unix systems and `true` on Windows",
+              "default": true,
+              "type": "boolean"
             }
-          }
+          },
+          "additionalProperties": false
         }
       ]
     },

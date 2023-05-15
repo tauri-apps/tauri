@@ -38,15 +38,17 @@ SetCompressor /SOLID lzma
     !addplugindir "${PLUGINSPATH}"
 !endif
 
-RequestExecutionLevel user
 
 !if "${INSTALLMODE}" == "perMachine"
   RequestExecutionLevel highest
 !endif
 
+!if "${INSTALLMODE}" == "currentUser"
+  RequestExecutionLevel user
+!endif
+
 !if "${INSTALLMODE}" == "both"
   !define MULTIUSER_MUI
-  !define MULTIUSER_EXECUTIONLEVEL Highest
   !define MULTIUSER_INSTALLMODE_INSTDIR "${PRODUCTNAME}"
   !define MULTIUSER_INSTALLMODE_COMMANDLINE
   !if "${ARCH}" == "x64"
@@ -58,11 +60,7 @@ RequestExecutionLevel user
   !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME "CurrentUser"
   !define MULTIUSER_INSTALLMODEPAGE_SHOWUSERNAME
   !define MULTIUSER_INSTALLMODE_FUNCTION RestorePreviousInstallLocation
-  Function RestorePreviousInstallLocation
-    ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
-    StrCmp $4 "" +2 0
-      StrCpy $INSTDIR $4
-  FunctionEnd
+  !define MULTIUSER_EXECUTIONLEVEL Highest
   !include MultiUser.nsh
 !endif
 
@@ -287,22 +285,27 @@ Function .onInit
     SetShellVarContext all
   !endif
 
-  !if "${INSTALLMODE}" == "perMachine"
-    ; Set default install location
-    ${If} ${RunningX64}
-      !if "${ARCH}" == "x64"
-        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
-      !else if "${ARCH}" == "arm64"
-        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
-      !else
+  ${If} $INSTDIR == ""
+    !if "${INSTALLMODE}" == "perMachine"
+      ; Set default install location
+      ${If} ${RunningX64}
+        !if "${ARCH}" == "x64"
+          StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
+        !else if "${ARCH}" == "arm64"
+          StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
+        !else
+          StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
+        !endif
+      ${Else}
         StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
-      !endif
-    ${Else}
-      StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
-    ${EndIf}
-  !else if "${INSTALLMODE}" == "currentUser"
-    StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
-  !endif
+      ${EndIf}
+    !else if "${INSTALLMODE}" == "currentUser"
+      StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
+    !endif
+
+    Call RestorePreviousInstallLocation
+  ${EndIf}
+
 
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_INIT
@@ -443,14 +446,8 @@ Section Install
 
   !if "${INSTALLMODE}" == "both"
     ; Save install mode to be selected by default for the next installation such as updating
+    ; or when uninstalling
     WriteRegStr SHCTX "${UNINSTKEY}" $MultiUser.InstallMode 1
-
-    ; Save install mode to be read by the uninstaller in order to remove the correct
-    ; registry key
-    FileOpen $4 "$INSTDIR\installmode" w
-    FileWrite $4 $MultiUser.InstallMode
-    FileClose $4
-    SetFileAttributes "$INSTDIR\installmode" HIDDEN|READONLY
   !endif
 
   ; Registry information for add/remove programs
@@ -486,27 +483,6 @@ FunctionEnd
 Section Uninstall
   !insertmacro CheckIfAppIsRunning
 
-  ; Remove registry information for add/remove programs
-  !if "${INSTALLMODE}" == "both"
-    ; Get the saved install mode
-    FileOpen $4 "$INSTDIR\installmode" r
-    FileRead $4 $1
-    FileClose $4
-    Delete "$INSTDIR\installmode"
-
-    ${If} $1 == "AllUsers"
-      DeleteRegKey HKLM "${UNINSTKEY}"
-    ${ElseIf} $1 == "CurrentUser"
-      DeleteRegKey HKCU "${UNINSTKEY}"
-    ${EndIf}
-  !else if "${INSTALLMODE}" == "perMachine"
-    DeleteRegKey HKLM "${UNINSTKEY}"
-  !else
-    DeleteRegKey HKCU "${UNINSTKEY}"
-  !endif
-
-  DeleteRegValue HKCU "${MANUPRODUCTKEY}" "Installer Language"
-
   ; Delete the app directory and its content from disk
   ; Copy main executable
   Delete "$INSTDIR\${MAINBINARYNAME}.exe"
@@ -540,5 +516,21 @@ Section Uninstall
     RmDir /r "$APPDATA\${BUNDLEID}"
     RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
   ${EndIf}
+
+  ; Remove registry information for add/remove programs
+  !if "${INSTALLMODE}" == "both"
+    DeleteRegKey SHCTX "${UNINSTKEY}"
+  !else if "${INSTALLMODE}" == "perMachine"
+    DeleteRegKey HKLM "${UNINSTKEY}"
+  !else
+    DeleteRegKey HKCU "${UNINSTKEY}"
+  !endif
+
+  DeleteRegValue HKCU "${MANUPRODUCTKEY}" "Installer Language"
 SectionEnd
 
+Function RestorePreviousInstallLocation
+  ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
+  StrCmp $4 "" +2 0
+    StrCpy $INSTDIR $4
+FunctionEnd

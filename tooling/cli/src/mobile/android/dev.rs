@@ -134,7 +134,7 @@ fn run_dev(
     .as_ref()
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
-  dev_options.target = Some(target_triple.clone());
+  dev_options.target = Some(target_triple);
   let mut interface = crate::dev::setup(&mut dev_options, true)?;
 
   let interface_options = InterfaceOptions {
@@ -149,24 +149,6 @@ fn run_dev(
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   configure_cargo(app, Some((&mut env, config)))?;
-
-  // run an initial build to initialize plugins
-  let target = Target::all()
-    .values()
-    .find(|t| t.triple == target_triple)
-    .unwrap_or_else(|| Target::all().values().next().unwrap());
-  target.build(
-    config,
-    metadata,
-    &env,
-    noise_level,
-    true,
-    if options.release_mode {
-      Profile::Release
-    } else {
-      Profile::Debug
-    },
-  )?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;

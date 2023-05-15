@@ -3,19 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::HashMap,
   env::{var, var_os},
-  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, File},
+  fs::{copy, create_dir, create_dir_all, remove_dir_all, File},
   io::Write,
   path::{Path, PathBuf},
-  thread::sleep,
-  time::{Duration, SystemTime},
 };
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
+#[derive(Debug, Default, Deserialize, Serialize, Eq, PartialEq)]
 pub(crate) struct PluginMetadata {
   pub path: PathBuf,
 }
@@ -73,42 +70,13 @@ impl PluginBuilder {
             let pkg_name = var("CARGO_PKG_NAME").unwrap();
             println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
 
-            let plugins_json_path = project_dir.join(".tauri").join("plugins.json");
-            let mut plugins: HashMap<String, PluginMetadata> = if plugins_json_path.exists() {
-              let s = read_to_string(&plugins_json_path)?;
-              serde_json::from_str(&s)?
-            } else {
-              Default::default()
-            };
+            let plugins_json_path = project_dir.join(".tauri").join("plugins").join(pkg_name);
 
-            let metadata = PluginMetadata { path: source };
-            let already_set = plugins
-              .get(&pkg_name)
-              .map(|m| m == &metadata)
-              .unwrap_or(false);
-            if !already_set {
-              plugins.insert(pkg_name, metadata);
-              let mut file = File::create(&plugins_json_path)?;
-              file.write_all(serde_json::to_string(&plugins)?.as_bytes())?;
-              file.flush()?;
+            let mut file = File::create(&plugins_json_path)?;
+            file.write_all(source.display().to_string().as_bytes())?;
+            file.flush()?;
+            file.sync_data()?;
 
-              // wait for the file to be written before moving to the app build script
-              let now = SystemTime::now()
-                .checked_sub(Duration::from_millis(10))
-                .unwrap();
-              let mut attempts = 0;
-              while !plugins_json_path
-                .metadata()
-                .map(|m| m.modified().unwrap() >= now)
-                .unwrap_or(false)
-              {
-                attempts += 1;
-                if attempts == 10 {
-                  anyhow::bail!("Could not determine whether the plugins.json file has been modified or not, please rerun the build.");
-                }
-                sleep(Duration::from_millis(100));
-              }
-            }
             println!("cargo:rerun-if-changed={}", plugins_json_path.display());
           }
         }

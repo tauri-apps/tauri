@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{detect_target_ok, ensure_init, env, with_config, MobileTarget};
+use super::{detect_target_ok, ensure_init, env, with_config, CliOptions, MobileTarget};
 use crate::Result;
 use anyhow::Context;
 use clap::{ArgAction, Parser};
 
 use tauri_mobile::{
-  android::target::Target,
+  android::{
+    config::{Config as AndroidConfig, Metadata as AndroidMetadata},
+    env::Env,
+    target::Target,
+  },
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},
 };
@@ -18,7 +22,7 @@ use std::{
   path::PathBuf,
 };
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Default, Parser)]
 pub struct Options {
   /// Targets to build.
   #[clap(
@@ -29,10 +33,10 @@ pub struct Options {
     default_value = Target::DEFAULT_KEY,
     value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
   )]
-  targets: Option<Vec<String>>,
+  pub targets: Option<Vec<String>>,
   /// Builds with the release flag
   #[clap(short, long)]
-  release: bool,
+  pub release: bool,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -44,32 +48,43 @@ pub fn command(options: Options) -> Result<()> {
 
   with_config(None, |_app, config, metadata, cli_options| {
     ensure_init(config.project_dir(), MobileTarget::Android)?;
-
     let env = env()?;
-
-    call_for_targets_with_fallback(
-      options.targets.unwrap_or_default().iter(),
-      &detect_target_ok,
+    run(
+      config,
+      metadata,
+      &cli_options,
       &env,
-      |target: &Target| {
-        target
-          .build(
-            config,
-            metadata,
-            &env,
-            cli_options.noise_level,
-            true,
-            profile,
-          )
-          .map_err(|e| anyhow::anyhow!(e.to_string()))
-      },
+      options.targets.unwrap_or_default(),
+      profile,
     )
-    .map_err(|e| anyhow::anyhow!(e.to_string()))??;
-
-    generate_gradle_files(config.project_dir())?;
-
-    Ok(())
   })
+}
+
+pub fn run(
+  config: &AndroidConfig,
+  metadata: &AndroidMetadata,
+  cli_options: &CliOptions,
+  env: &Env,
+  targets: Vec<String>,
+  profile: Profile,
+) -> Result<()> {
+  call_for_targets_with_fallback(targets.iter(), &detect_target_ok, env, |target: &Target| {
+    target
+      .build(
+        config,
+        metadata,
+        env,
+        cli_options.noise_level,
+        true,
+        profile,
+      )
+      .map_err(|e| anyhow::anyhow!(e.to_string()))
+  })
+  .map_err(|e| anyhow::anyhow!(e.to_string()))??;
+
+  generate_gradle_files(config.project_dir())?;
+
+  Ok(())
 }
 
 fn generate_gradle_files(project_dir: PathBuf) -> Result<()> {

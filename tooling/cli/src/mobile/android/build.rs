@@ -77,17 +77,33 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(
     Some(Default::default()),
-    |app, config, _metadata, _cli_options| {
+    |app, config, metadata, cli_options| {
       set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
+
+      let profile = if options.debug {
+        Profile::Debug
+      } else {
+        Profile::Release
+      };
 
       ensure_init(config.project_dir(), MobileTarget::Android)?;
 
       let mut env = env()?;
       configure_cargo(app, Some((&mut env, config)))?;
 
+      // run an initial build to initialize plugins
+      super::android_studio_script::run(
+        config,
+        metadata,
+        &cli_options,
+        &env,
+        vec![Target::DEFAULT_KEY.into()],
+        profile,
+      )?;
+
       let open = options.open;
-      run_build(options, config, &mut env, noise_level)?;
+      run_build(options, profile, config, &mut env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);
@@ -101,16 +117,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
 fn run_build(
   mut options: Options,
+  profile: Profile,
   config: &AndroidConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  let profile = if options.debug {
-    Profile::Debug
-  } else {
-    Profile::Release
-  };
-
   if !(options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
     options.apk = true;

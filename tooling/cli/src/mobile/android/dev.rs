@@ -95,14 +95,14 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(
     Some(Default::default()),
-    |app, config, metadata, _cli_options| {
+    |app, config, metadata, cli_options| {
       set_var(
         "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
         WEBVIEW_CLIENT_CLASS_EXTENSION,
       );
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
       ensure_init(config.project_dir(), MobileTarget::Android)?;
-      run_dev(options, app, config, metadata, noise_level).map_err(Into::into)
+      run_dev(options, app, config, metadata, &cli_options, noise_level).map_err(Into::into)
     },
   )
   .map_err(Into::into)
@@ -113,6 +113,7 @@ fn run_dev(
   app: &App,
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
+  cli_options: &CliOptions,
   noise_level: NoiseLevel,
 ) -> Result<()> {
   setup_dev_config(&mut options.config, options.force_ip_prompt)?;
@@ -134,7 +135,7 @@ fn run_dev(
     .as_ref()
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
-  dev_options.target = Some(target_triple);
+  dev_options.target = Some(target_triple.clone());
   let mut interface = crate::dev::setup(&mut dev_options, true)?;
 
   let interface_options = InterfaceOptions {
@@ -149,6 +150,25 @@ fn run_dev(
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   configure_cargo(app, Some((&mut env, config)))?;
+
+  // run an initial build to initialize plugins
+  let target = Target::all()
+    .iter()
+    .find(|(_, t)| t.triple == target_triple)
+    .map(|(k, _)| k.to_string())
+    .unwrap_or_else(|| Target::DEFAULT_KEY.into());
+  super::android_studio_script::run(
+    config,
+    metadata,
+    cli_options,
+    &env,
+    vec![target],
+    if options.release_mode {
+      Profile::Release
+    } else {
+      Profile::Debug
+    },
+  )?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;

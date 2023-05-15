@@ -221,7 +221,7 @@
           "pattern": "^[^/\\:*?\"<>|]+$"
         },
         "version": {
-          "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.",
+          "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.",
           "default": null,
           "type": [
             "string",
@@ -1661,6 +1661,13 @@
       "description": "Configuration for the Installer bundle using NSIS.",
       "type": "object",
       "properties": {
+        "template": {
+          "description": "A custom .nsi template to use.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "license": {
           "description": "The path to the license file to render on the installer.",
           "type": [
@@ -1705,6 +1712,16 @@
             "null"
           ],
           "items": {
+            "type": "string"
+          }
+        },
+        "customLanguageFiles": {
+          "description": "A key-value pair where the key is the language and the value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.\n\nSee <https://github.com/tauri-apps/tauri/blob/dev/tooling/bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.\n\n**Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
             "type": "string"
           }
         },

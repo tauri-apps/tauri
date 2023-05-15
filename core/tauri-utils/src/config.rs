@@ -435,6 +435,8 @@ pub struct WixConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NsisConfig {
+  /// A custom .nsi template to use.
+  pub template: Option<PathBuf>,
   /// The path to the license file to render on the installer.
   pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
@@ -459,6 +461,13 @@ pub struct NsisConfig {
   ///
   /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
+  /// A key-value pair where the key is the language and the
+  /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
+  ///
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/tooling/bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.
+  ///
+  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
+  pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   #[serde(default, alias = "display-language-selector")]
@@ -2867,7 +2876,7 @@ pub struct PackageConfig {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
 }

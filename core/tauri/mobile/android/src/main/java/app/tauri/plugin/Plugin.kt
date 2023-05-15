@@ -20,9 +20,11 @@ import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import org.json.JSONException
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 
 abstract class Plugin(private val activity: Activity) {
   var handle: PluginHandle? = null
+  private val listeners: MutableMap<String, MutableList<Channel>> = mutableMapOf()
 
   open fun load(webView: WebView) {}
 
@@ -74,6 +76,55 @@ abstract class Plugin(private val activity: Activity) {
       path = path.replace("file://", "")
     }
     return "asset://localhost$path"
+  }
+
+  fun trigger(event: String, payload: JSObject) {
+    val eventListeners = listeners[event]
+    if (!eventListeners.isNullOrEmpty()) {
+      val listeners = CopyOnWriteArrayList(eventListeners)
+      for (channel in listeners) {
+        channel.send(payload)
+      }
+    }
+  }
+
+  @Command
+  open fun registerListener(invoke: Invoke) {
+    val event = invoke.getString("event")
+    val channel = invoke.getChannel("handler")
+
+    if (event == null || channel == null) {
+      invoke.reject("`event` or `handler` not provided")
+    } else {
+      val eventListeners = listeners[event]
+      if (eventListeners.isNullOrEmpty()) {
+        listeners[event] = mutableListOf(channel)
+      } else {
+        eventListeners.add(channel)
+      }
+    }
+
+    invoke.resolve()
+  }
+
+  @Command
+  open fun removeListener(invoke: Invoke) {
+    val event = invoke.getString("event")
+    val channelId = invoke.getLong("channelId")
+
+    if (event == null || channelId == null) {
+      invoke.reject("`event` or `channelId` not provided")
+    } else {
+      val eventListeners = listeners[event]
+      if (!eventListeners.isNullOrEmpty()) {
+        val c = eventListeners.find { c -> c.id == channelId }
+        if (c != null) {
+          eventListeners.remove(c)
+        }
+      }
+    }
+
+    invoke.resolve()
   }
 
   /**

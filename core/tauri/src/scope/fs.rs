@@ -108,15 +108,15 @@ impl Scope {
     }
 
     let require_literal_leading_dot = match scope {
+      FsAllowlistScope::Scope {
+        require_literal_leading_dot: Some(require),
+        ..
+      } => *require,
       // dotfiles are not supposed to be exposed by default on unix
       #[cfg(unix)]
-      FsAllowlistScope::AllowedPaths(_) => false,
+      _ => false,
       #[cfg(windows)]
-      FsAllowlistScope::AllowedPaths(_) => true,
-      FsAllowlistScope::Scope {
-        require_literal_leading_dot,
-        ..
-      } => *require_literal_leading_dot,
+      _ => true,
     };
 
     Ok(Self {

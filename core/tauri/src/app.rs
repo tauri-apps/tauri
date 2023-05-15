@@ -19,13 +19,16 @@ use crate::{
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
-  scope::{FsScope, IpcScope},
+  scope::IpcScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
   Context, DeviceEventFilter, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager,
   Runtime, Scopes, StateManager, Theme, Window,
 };
+
+#[cfg(feature = "protocol-asset")]
+use crate::scope::FsScope;
 
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
@@ -174,18 +177,11 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
-  /// Updater event.
-  #[cfg(updater)]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-  Updater(crate::UpdaterEvent),
 }
 
 impl From<EventLoopMessage> for RunEvent {
   fn from(event: EventLoopMessage) -> Self {
-    match event {
-      #[cfg(updater)]
-      EventLoopMessage::Updater(event) => RunEvent::Updater(event),
-    }
+    match event {}
   }
 }
 
@@ -250,13 +246,6 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: WindowManager<R>,
-}
-
-impl<R: Runtime> AppHandle<R> {
-  /// Creates a proxy to send events through the event loop.
-  pub fn create_proxy(&self) -> R::EventLoopProxy {
-    self.runtime_handle.create_proxy()
-  }
 }
 
 /// APIs specific to the wry runtime.
@@ -612,6 +601,7 @@ shared_app_impl!(AppHandle<R>);
 impl<R: Runtime> App<R> {
   fn register_core_plugins(&self) -> crate::Result<()> {
     self.handle.plugin(crate::path::init())?;
+    self.handle.plugin(crate::event::init())?;
     Ok(())
   }
 
@@ -1346,12 +1336,8 @@ impl<R: Runtime> Builder<R> {
 
     app.manage(Scopes {
       ipc: IpcScope::new(&app.config()),
-      fs: FsScope::for_fs_api(&app, &app.config().tauri.allowlist.fs.scope)?,
-      #[cfg(protocol_asset)]
-      asset_protocol: FsScope::for_fs_api(
-        &app,
-        &app.config().tauri.allowlist.protocol.asset_scope,
-      )?,
+      #[cfg(feature = "protocol-asset")]
+      asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
     });
 
     #[cfg(windows)]

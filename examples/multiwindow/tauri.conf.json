@@ -26,11 +26,6 @@
       "copyright": "",
       "category": "DeveloperTool"
     },
-    "allowlist": {
-      "window": {
-        "create": true
-      }
-    },
     "windows": [
       {
         "label": "Main",
@@ -49,9 +44,6 @@
     ],
     "security": {
       "csp": "default-src 'self'"
-    },
-    "updater": {
-      "active": false
     }
   }
 }

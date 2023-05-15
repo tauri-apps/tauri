@@ -7,5 +7,5 @@
 
 fn main() {
   #[cfg(desktop)]
-  api::run();
+  api_lib::run();
 }

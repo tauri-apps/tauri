@@ -10,27 +10,35 @@ pub use self::ipc::Scope as IpcScope;
 pub use fs::{Event as FsScopeEvent, Pattern as GlobPattern, Scope as FsScope};
 use std::path::Path;
 
-pub(crate) struct Scopes {
-  pub ipc: IpcScope,
-  pub fs: FsScope,
-  #[cfg(protocol_asset)]
-  pub asset_protocol: FsScope,
+/// Managed state for all the core scopes in a tauri application.
+pub struct Scopes {
+  pub(crate) ipc: IpcScope,
+  #[cfg(feature = "protocol-asset")]
+  pub(crate) asset_protocol: FsScope,
 }
 
 impl Scopes {
-  #[allow(dead_code)]
-  pub(crate) fn allow_directory(&self, path: &Path, recursive: bool) -> crate::Result<()> {
-    self.fs.allow_directory(path, recursive)?;
-    #[cfg(protocol_asset)]
+  /// Allows a directory on the scopes.
+  #[allow(unused)]
+  pub fn allow_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> crate::Result<()> {
+    #[cfg(feature = "protocol-asset")]
     self.asset_protocol.allow_directory(path, recursive)?;
     Ok(())
   }
 
-  #[allow(dead_code)]
-  pub(crate) fn allow_file(&self, path: &Path) -> crate::Result<()> {
-    self.fs.allow_file(path)?;
-    #[cfg(protocol_asset)]
+  /// Allows a file on the scopes.
+  #[allow(unused)]
+  pub fn allow_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
+    #[cfg(feature = "protocol-asset")]
     self.asset_protocol.allow_file(path)?;
+    Ok(())
+  }
+
+  /// Forbids a file on the scopes.
+  #[allow(unused)]
+  pub fn forbid_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
+    #[cfg(feature = "protocol-asset")]
+    self.asset_protocol.forbid_file(path)?;
     Ok(())
   }
 }

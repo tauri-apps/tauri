@@ -3673,7 +3673,7 @@ mod build {
         Self::Scope { allow, deny , require_literal_leading_dot} => {
           let allow = vec_lit(allow, path_buf_lit);
           let deny = vec_lit(deny, path_buf_lit);
-          let  require_literal_leading_dot = require_literal_leading_dot;
+          let  require_literal_leading_dot = opt_lit(require_literal_leading_dot.as_ref());
           quote! { #prefix::Scope { allow: #allow, deny: #deny, require_literal_leading_dot: #require_literal_leading_dot } }
         }
       });

@@ -609,8 +609,11 @@ fn get_lang_data(
       )),
     )),
     "persian" => Some((
-      include_str!("./templates/nsis-languages/Persian.nsh"),
-      UTF_16LE,
+      lang_file,
+      Some((
+        include_str!("./templates/nsis-languages/Persian.nsh"),
+        UTF_16LE,
+      )),
     )),
     _ => None,
   }

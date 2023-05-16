@@ -1025,17 +1025,11 @@ impl<R: Runtime> WindowManager<R> {
       #[raw]
       core_script: &'a str,
       #[raw]
-      window_dialogs_script: &'a str,
-      #[raw]
-      window_print_script: &'a str,
-      #[raw]
       event_initialization_script: &'a str,
       #[raw]
       plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
-      #[raw]
-      hotkeys: &'a str,
     }
 
     let bundle_script = if with_global_tauri {
@@ -1049,34 +1043,6 @@ impl<R: Runtime> WindowManager<R> {
     } else {
       ""
     };
-
-    #[cfg(any(debug_assertions, feature = "devtools"))]
-    let hotkeys = &format!(
-      "
-      {};
-      window.hotkeys('{}', () => {{
-        window.__TAURI_INVOKE__('tauri', {{
-          __tauriModule: 'Window',
-          message: {{
-            cmd: 'manage',
-            data: {{
-              cmd: {{
-                type: '__toggleDevtools'
-              }}
-            }}
-          }}
-        }});
-      }});
-    ",
-      include_str!("../scripts/hotkey.js"),
-      if cfg!(target_os = "macos") {
-        "command+option+i"
-      } else {
-        "ctrl+shift+i"
-      }
-    );
-    #[cfg(not(any(debug_assertions, feature = "devtools")))]
-    let hotkeys = "";
 
     InitJavascript {
       pattern_script,
@@ -1093,23 +1059,9 @@ impl<R: Runtime> WindowManager<R> {
         )
       ),
       core_script: include_str!("../scripts/core.js"),
-
-      // window.print works on Linux/Windows; need to use the API on macOS
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
-      window_print_script: include_str!("../scripts/window_print.js"),
-      #[cfg(not(any(target_os = "macos", target_os = "ios")))]
-      window_print_script: "",
-
-      // dialogs are implemented natively on Android
-      #[cfg(not(target_os = "android"))]
-      window_dialogs_script: include_str!("../scripts/window_dialogs.js"),
-      #[cfg(target_os = "android")]
-      window_dialogs_script: "",
-
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,
-      hotkeys,
     }
     .render_default(&Default::default())
     .map(|s| s.into_string())

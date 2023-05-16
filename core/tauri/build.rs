@@ -116,6 +116,7 @@ fn main() {
       )
       .expect("failed to write proguard-tauri.pro");
     }
+
     let lib_path =
       PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/android");
     println!("cargo:android_library_path={}", lib_path.display());

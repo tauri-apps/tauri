@@ -81,6 +81,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
+      let profile = if options.debug {
+        Profile::Debug
+      } else {
+        Profile::Release
+      };
+
       ensure_init(config.project_dir(), MobileTarget::Android)?;
 
       let mut env = env()?;
@@ -101,7 +107,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       )?;
 
       let open = options.open;
-      run_build(options, config, &mut env, noise_level)?;
+      run_build(options, profile, config, &mut env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);
@@ -115,16 +121,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
 fn run_build(
   mut options: Options,
+  profile: Profile,
   config: &AndroidConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  let profile = if options.debug {
-    Profile::Debug
-  } else {
-    Profile::Release
-  };
-
   if !(options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
     options.apk = true;

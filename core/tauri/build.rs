@@ -10,8 +10,6 @@ use std::env::var_os;
 use std::fs::read_dir;
 use std::fs::read_to_string;
 use std::fs::write;
-use std::fs::File;
-use std::io::Write;
 use std::{
   env::var,
   path::{Path, PathBuf},
@@ -107,30 +105,6 @@ fn main() {
       }
     }
 
-    let lib_path =
-      PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/android");
-
-    if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-      let plugin_output_path = project_dir
-        .join(".tauri")
-        .join("plugins")
-        .join("tauri-android");
-
-      let mut file =
-        File::create(&plugin_output_path).expect("failed to create tauri metadata output file");
-      file
-        .write_all(lib_path.display().to_string().as_bytes())
-        .expect("failed to write tauri metadata output file");
-      file
-        .flush()
-        .expect("failed to flush tauri metadata output file");
-      file
-        .sync_data()
-        .expect("failed to sync tauri metadata output file");
-
-      println!("cargo:rerun-if-changed={}", plugin_output_path.display());
-    }
-
     if let Some(project_dir) = var_os("WRY_ANDROID_PROJECT_PATH").map(PathBuf::from) {
       let tauri_proguard = include_str!("./mobile/proguard-tauri.pro").replace(
         "$PACKAGE",
@@ -143,6 +117,8 @@ fn main() {
       .expect("failed to write proguard-tauri.pro");
     }
 
+    let lib_path =
+      PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/android");
     println!("cargo:android_library_path={}", lib_path.display());
   }
 

@@ -2,6 +2,7 @@
 name = "tauri-plugin-sample"
 version = "0.1.0"
 edition = "2021"
+links = "tauri-plugin-sample"
 
 [dependencies]
 tauri = { path = "../../../../core/tauri" }

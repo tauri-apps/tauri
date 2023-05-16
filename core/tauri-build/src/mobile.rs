@@ -4,8 +4,7 @@
 
 use std::{
   env::{var, var_os},
-  fs::{copy, create_dir, create_dir_all, read_dir, read_to_string, remove_dir_all, write, File},
-  io::Write,
+  fs::{copy, create_dir, create_dir_all, remove_dir_all, write},
   path::{Path, PathBuf},
 };
 
@@ -66,19 +65,7 @@ impl PluginBuilder {
           )
           .context("failed to copy tauri-api to the plugin project")?;
 
-          if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-            let pkg_name = var("CARGO_PKG_NAME").unwrap();
-            println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PROJECT_PATH");
-
-            let plugins_json_path = project_dir.join(".tauri").join("plugins").join(pkg_name);
-
-            let mut file = File::create(&plugins_json_path)?;
-            file.write_all(source.display().to_string().as_bytes())?;
-            file.flush()?;
-            file.sync_data()?;
-
-            println!("cargo:rerun-if-changed={}", plugins_json_path.display());
-          }
+          println!("cargo:android_library_path={}", source.display());
         }
       }
       #[cfg(target_os = "macos")]
@@ -170,28 +157,33 @@ val implementation by configurations
 dependencies {"
     .to_string();
 
-  let plugin_output_folder = project_dir.join(".tauri").join("plugins");
+  for (env, value) in std::env::vars_os() {
+    let env = env.to_string_lossy();
+    if env.starts_with("DEP_") && env.ends_with("_ANDROID_LIBRARY_PATH") {
+      let name_len = env.len() - "DEP_".len() - "_ANDROID_LIBRARY_PATH".len();
+      let mut plugin_name = env
+        .chars()
+        .skip("DEP_".len())
+        .take(name_len)
+        .collect::<String>()
+        .to_lowercase()
+        .replace('_', "-");
+      if plugin_name == "tauri" {
+        plugin_name = "tauri-android".into();
+      }
+      let plugin_path = PathBuf::from(value);
 
-  for entry in read_dir(&plugin_output_folder)? {
-    let entry = entry?;
-    let plugin_name = entry
-      .path()
-      .file_name()
-      .unwrap()
-      .to_string_lossy()
-      .into_owned();
-    let plugin_path = read_to_string(entry.path())?;
+      gradle_settings.push_str(&format!("include ':{plugin_name}'"));
+      gradle_settings.push('\n');
+      gradle_settings.push_str(&format!(
+        "project(':{plugin_name}').projectDir = new File({:?})",
+        tauri_utils::display_path(plugin_path)
+      ));
+      gradle_settings.push('\n');
 
-    gradle_settings.push_str(&format!("include ':{plugin_name}'"));
-    gradle_settings.push('\n');
-    gradle_settings.push_str(&format!(
-      "project(':{plugin_name}').projectDir = new File({:?})",
-      tauri_utils::display_path(plugin_path)
-    ));
-    gradle_settings.push('\n');
-
-    app_build_gradle.push('\n');
-    app_build_gradle.push_str(&format!(r#"  implementation(project(":{plugin_name}"))"#));
+      app_build_gradle.push('\n');
+      app_build_gradle.push_str(&format!(r#"  implementation(project(":{plugin_name}"))"#));
+    }
   }
 
   app_build_gradle.push_str("\n}");
@@ -203,7 +195,6 @@ dependencies {"
 
   println!("cargo:rerun-if-changed={}", gradle_settings_path.display());
   println!("cargo:rerun-if-changed={}", app_build_gradle_path.display());
-  println!("cargo:rerun-if-changed={}", plugin_output_folder.display());
 
   Ok(())
 }

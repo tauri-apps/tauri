@@ -24,7 +24,7 @@ use std::{
   env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, read_to_string, remove_dir_all, write},
+  fs::{read_to_string, write},
   net::SocketAddr,
   path::PathBuf,
   process::{exit, ExitStatus},
@@ -315,16 +315,8 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       project_dir.display(),
       target.command_name(),
     )
-  } else {
-    if target == Target::Android {
-      let tauri_dir = project_dir.join(".tauri");
-      create_dir_all(&tauri_dir)?;
-      let tauri_plugins_dir = tauri_dir.join("plugins");
-      let _ = remove_dir_all(&tauri_plugins_dir);
-      create_dir_all(&tauri_plugins_dir)?;
-    }
-    Ok(())
   }
+  Ok(())
 }
 
 fn log_finished(outputs: Vec<PathBuf>, kind: &str) {

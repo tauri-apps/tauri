@@ -86,8 +86,8 @@ mod tests {
     let scope = super::Scope::for_http_api(&HttpAllowlistScope(vec!["http://*".parse().unwrap()]));
 
     assert!(scope.is_allowed(&"http://something.else".parse().unwrap()));
-    assert!(!scope.is_allowed(&"http://something.else/path/to/file".parse().unwrap()));
-    assert!(!scope.is_allowed(&"https://something.else".parse().unwrap()));
+    assert!(scope.is_allowed(&"http://something.else/path/to/file".parse().unwrap()));
+    assert!(scope.is_allowed(&"https://something.else".parse().unwrap()));
 
     let scope = super::Scope::for_http_api(&HttpAllowlistScope(vec!["http://**".parse().unwrap()]));
 

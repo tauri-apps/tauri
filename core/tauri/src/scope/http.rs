@@ -20,8 +20,13 @@ impl Scope {
         .0
         .iter()
         .map(|url| {
-          glob::Pattern::new(url.as_str())
-            .unwrap_or_else(|_| panic!("scoped URL is not a valid glob pattern: `{url}`"))
+          glob::Pattern::new(
+            url
+              .as_str()
+              .strip_suffix('/')
+              .unwrap_or_else(|| url.as_str()),
+          )
+          .unwrap_or_else(|_| panic!("scoped URL is not a valid glob pattern: `{url}`"))
         })
         .collect(),
     }

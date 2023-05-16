@@ -77,7 +77,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(
     Some(Default::default()),
-    |app, config, metadata, cli_options| {
+    |app, config, metadata, _cli_options| {
       set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
@@ -93,13 +93,17 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       configure_cargo(app, Some((&mut env, config)))?;
 
       // run an initial build to initialize plugins
-      super::android_studio_script::run(
+      Target::all().values().next().unwrap().build(
         config,
         metadata,
-        &cli_options,
         &env,
-        vec![Target::DEFAULT_KEY.into()],
-        profile,
+        noise_level,
+        true,
+        if options.debug {
+          Profile::Debug
+        } else {
+          Profile::Release
+        },
       )?;
 
       let open = options.open;

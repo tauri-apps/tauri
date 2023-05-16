@@ -14,7 +14,10 @@ use tauri_utils::{
   resources::{external_binaries, resource_relpath, ResourcePaths},
 };
 
-use std::path::{Path, PathBuf};
+use std::{
+  env::var_os,
+  path::{Path, PathBuf},
+};
 
 #[cfg(feature = "codegen")]
 mod codegen;
@@ -263,6 +266,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   android_package_prefix.pop();
   println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_PREFIX={android_package_prefix}");
+
+  if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+    mobile::generate_gradle_files(project_dir)?;
+  }
 
   cfg_alias("dev", !has_feature("custom-protocol"));
 

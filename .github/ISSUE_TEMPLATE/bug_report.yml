@@ -5,7 +5,7 @@
 name: 🐞 Bug Report
 title: '[bug] '
 description: Report a bug
-labels: ['type: bug', 'status: needs triage']
+labels: ['type: bug', 'status: needs repro']
 
 body:
   - type: markdown
@@ -32,8 +32,9 @@ body:
       label: Reproduction
       description: A link to a reproduction repo or steps to reproduce the behaviour.
       placeholder: |
-        Please provide a minimal reproduction or steps to reproduce, see this guide https://stackoverflow.com/help/minimal-reproducible-example
-        Why reproduction is required? see this article https://antfu.me/posts/why-reproductions-are-required
+        Please provide a minimal complete and reproducible example. Bug issues without this will be difficult to triage.
+        See this guide for more info: https://stackoverflow.com/help/minimal-reproducible-example
+        And why reproduction is required? see this article https://antfu.me/posts/why-reproductions-are-required
 
   - type: textarea
     id: expected-behavior

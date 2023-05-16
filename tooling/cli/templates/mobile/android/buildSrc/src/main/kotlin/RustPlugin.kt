@@ -21,7 +21,7 @@ open class RustPlugin : Plugin<Project> {
         val abiList = (findProperty("abiList") as? String)?.split(',') ?: defaultAbiList
 
         val defaultArchList = listOf({{quote-and-join arch-list}});
-        val archList = (findProperty("archList") as? String)?.split(',') ?: listOf({{quote-and-join arch-list}})
+        val archList = (findProperty("archList") as? String)?.split(',') ?: defaultArchList
 
         val targetsList = (findProperty("targetList") as? String)?.split(',') ?: listOf({{quote-and-join target-list}})
 

@@ -963,7 +963,7 @@ pub fn get_profile(options: &Options) -> String {
     .iter()
     .position(|a| a == "--profile")
     .map(|i| options.args[i + 1].clone())
-    .unwrap_or_else(|| options.debug.then_some("debug").unwrap_or("release").into())
+    .unwrap_or_else(|| if options.debug { "debug" } else { "release" }.into())
 }
 
 #[allow(unused_variables)]

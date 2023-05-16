@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
+use super::{get_profile, AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
 use crate::CommandExt;
 use tauri_utils::display_path;
 
@@ -125,7 +125,7 @@ pub fn build(
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
-        .out_dir(Some(triple.into()), options.debug)
+        .out_dir(Some(triple.into()), get_profile(&options))
         .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())

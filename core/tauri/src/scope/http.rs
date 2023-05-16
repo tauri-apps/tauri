@@ -19,7 +19,7 @@ impl Scope {
       allowed_urls: scope
         .0
         .iter()
-        .map(|url| {
+        .flat_map(|url| {
           [
             glob::Pattern::new(url.as_str())
               .unwrap_or_else(|_| panic!("scoped URL is not a valid glob pattern: `{url}`")),
@@ -32,7 +32,6 @@ impl Scope {
             .unwrap_or_else(|_| panic!("scoped URL is not a valid glob pattern: `{url}`")),
           ]
         })
-        .flatten()
         .collect(),
     }
   }

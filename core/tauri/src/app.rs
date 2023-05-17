@@ -23,7 +23,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
-  Context, DeviceEventFilter, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager,
+  Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
   Runtime, Scopes, StateManager, Theme, Window,
 };
 
@@ -568,6 +568,11 @@ macro_rules! shared_app_impl {
         AssetResolver {
           manager: self.manager.clone(),
         }
+      }
+
+      /// Returns the default window icon.
+      pub fn default_window_icon(&self) -> Option<&Icon> {
+        self.manager.inner.default_window_icon.as_ref()
       }
 
       /// Shows the application, but does not automatically focus it.

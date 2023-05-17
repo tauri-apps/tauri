@@ -3393,6 +3393,7 @@ dependencies = [
  "anyhow",
  "axum",
  "base64 0.21.0",
+ "cc",
  "clap",
  "colored",
  "common-path",

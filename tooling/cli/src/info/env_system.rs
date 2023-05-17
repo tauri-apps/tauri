@@ -20,6 +20,40 @@ struct VsInstanceInfo {
 const VSWHERE: &[u8] = include_bytes!("../../scripts/vswhere.exe");
 
 #[cfg(windows)]
+fn has_windows_sdk_libs() -> bool {
+  #[cfg(target_arch = "x86")]
+  let target = "i686";
+  #[cfg(not(target_arch = "x86"))]
+  let arch = std::env::consts::ARCH;
+
+  let tool = cc::windows_registry::find_tool(&format!("{}-pc-windows-msvc", arch), "cl.exe");
+  // Check if there's any Visual Studio installation present
+  if tool.is_none() || cc::windows_registry::find_vs_version().is_err() {
+    return false;
+  }
+
+  // We don't know the exact name of the Windows SDK Visual Studio Component so we search for files the SDK includes
+  let lib_env = tool
+    .unwrap()
+    .env()
+    .iter()
+    .filter(|e| e.0.to_ascii_lowercase() == "lib")
+    .map(|e| e.1.clone())
+    .collect::<Vec<_>>();
+
+  if let Some(paths) = lib_env.first() {
+    for mut path in std::env::split_paths(&paths) {
+      path.push("kernel32.lib");
+      if path.exists() {
+        return true;
+      }
+    }
+  };
+
+  false
+}
+
+#[cfg(windows)]
 fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
   let mut vswhere = std::env::temp_dir();
   vswhere.push("vswhere.exe");
@@ -30,23 +64,22 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
       let _ = file.write_all(VSWHERE);
     }
   }
+  // Check there are Visual Studio installations which has the "MSVC - C++ Buildtools" component
   let output = Command::new(vswhere)
     .args([
       "-prerelease",
       "-products",
       "*",
-      "-requiresAny",
       "-requires",
-      "Microsoft.VisualStudio.Workload.NativeDesktop",
-      "-requires",
-      "Microsoft.VisualStudio.Workload.VCTools",
+      "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
       "-format",
       "json",
     ])
     .output()?;
-  Ok(if output.status.success() {
+  Ok(if output.status.success() && has_windows_sdk_libs() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let instances: Vec<VsInstanceInfo> = serde_json::from_str(&stdout)?;
+
     Some(
       instances
         .iter()

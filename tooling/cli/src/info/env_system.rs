@@ -58,7 +58,8 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
       let _ = file.write_all(VSWHERE);
     }
   }
-  // Check there are Visual Studio installations which has the "MSVC - C++ Buildtools" component
+
+  // Check if there are Visual Studio installations that have the "MSVC - C++ Buildtools" component
   let output = Command::new(vswhere)
     .args([
       "-prerelease",
@@ -70,6 +71,7 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
       "json",
     ])
     .output()?;
+
   Ok(if output.status.success() && has_windows_sdk_libs() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let instances: Vec<VsInstanceInfo> = serde_json::from_str(&stdout)?;

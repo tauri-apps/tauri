@@ -20,35 +20,9 @@ struct VsInstanceInfo {
 const VSWHERE: &[u8] = include_bytes!("../../scripts/vswhere.exe");
 
 #[cfg(windows)]
-fn has_windows_sdk_libs() -> bool {
-  #[cfg(target_arch = "x86")]
-  let target = "i686";
-  #[cfg(not(target_arch = "x86"))]
-  let arch = std::env::consts::ARCH;
+fn build_tools_version() -> crate::Result<Vec<String>> {
+  use itertools::Itertools;
 
-  let tool = cc::windows_registry::find_tool(&format!("{}-pc-windows-msvc", arch), "cl.exe");
-  // Check if there's any Visual Studio installation present
-  if tool.is_none() || cc::windows_registry::find_vs_version().is_err() {
-    return false;
-  }
-
-  // We don't know the exact name of the Windows SDK Visual Studio Component so we search for files the SDK includes
-  for envs in tool.unwrap().env() {
-    if envs.0.to_ascii_lowercase() == "lib" {
-      for mut path in std::env::split_paths(&envs.1) {
-        path.push("kernel32.lib");
-        if path.exists() {
-          return true;
-        }
-      }
-    }
-  }
-
-  false
-}
-
-#[cfg(windows)]
-fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
   let mut vswhere = std::env::temp_dir();
   vswhere.push("vswhere.exe");
 
@@ -59,32 +33,57 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
     }
   }
 
-  // Check if there are Visual Studio installations that have the "MSVC - C++ Buildtools" component
-  let output = Command::new(vswhere)
+  // Check if there are Visual Studio installations that have the "MSVC - C++ Buildtools" and "Windows SDK" components.
+  // Both the Windows 10 and Windows 11 SDKs work so we need to query it twice.
+  let output_sdk10 = Command::new(&vswhere)
     .args([
       "-prerelease",
       "-products",
       "*",
       "-requires",
       "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+      "-requires",
+      "Microsoft.VisualStudio.Component.Windows10SDK.*",
       "-format",
       "json",
     ])
     .output()?;
 
-  Ok(if output.status.success() && has_windows_sdk_libs() {
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let instances: Vec<VsInstanceInfo> = serde_json::from_str(&stdout)?;
+  let output_sdk11 = Command::new(vswhere)
+    .args([
+      "-prerelease",
+      "-products",
+      "*",
+      "-requires",
+      "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+      "-requires",
+      "Microsoft.VisualStudio.Component.Windows11SDK.*",
+      "-format",
+      "json",
+    ])
+    .output()?;
 
-    Some(
-      instances
-        .iter()
-        .map(|i| i.display_name.clone())
-        .collect::<Vec<String>>(),
-    )
-  } else {
-    None
-  })
+  let mut instances: Vec<VsInstanceInfo> = Vec::new();
+
+  if output_sdk10.status.success() {
+    let stdout = String::from_utf8_lossy(&output_sdk10.stdout);
+    let found: Vec<VsInstanceInfo> = serde_json::from_str(&stdout)?;
+    instances.extend(found);
+  }
+
+  if output_sdk11.status.success() {
+    let stdout = String::from_utf8_lossy(&output_sdk11.stdout);
+    let found: Vec<VsInstanceInfo> = serde_json::from_str(&stdout)?;
+    instances.extend(found);
+  }
+
+  Ok(
+    instances
+      .iter()
+      .map(|i| i.display_name.clone())
+      .unique()
+      .collect::<Vec<String>>(),
+  )
 }
 
 #[cfg(windows)]
@@ -219,13 +218,11 @@ pub fn items() -> Vec<SectionItem> {
     #[cfg(windows)]
     SectionItem::new(
       || {
-        let build_tools = build_tools_version()
-          .unwrap_or_default()
-          .unwrap_or_default();
+        let build_tools = build_tools_version().unwrap_or_default();
         if build_tools.is_empty() {
           Some((
             format!(
-              "Couldn't detect Visual Studio or Visual Studio Build Tools. Download from {}",
+              "Couldn't detect any Visual Studio or VS Build Tools instance with MSVC and SDK components. Download from {}",
               "https://aka.ms/vs/17/release/vs_BuildTools.exe".cyan()
             ),
             Status::Error,

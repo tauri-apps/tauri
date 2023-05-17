@@ -238,8 +238,8 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 
-  /// The current webview URL.
-  pub current_url: Arc<Mutex<Url>>,
+  /// The resolved URL to load on the webview.
+  pub url: String,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -280,7 +280,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
         web_resource_request_handler: Default::default(),
-        current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
+        url: "tauri://localhost".to_string(),
       })
     }
   }
@@ -311,7 +311,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
         web_resource_request_handler: Default::default(),
-        current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
+        url: "tauri://localhost".to_string(),
       })
     }
   }
@@ -352,9 +352,6 @@ pub struct JsEventListenerKey {
 /// A webview window that is not yet managed by Tauri.
 #[derive(Debug)]
 pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
-  /// The current webview URL.
-  pub current_url: Arc<Mutex<Url>>,
-
   /// Name of the window
   pub label: String,
 
@@ -371,7 +368,6 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
   fn clone(&self) -> Self {
     Self {
-      current_url: self.current_url.clone(),
       label: self.label.clone(),
       dispatcher: self.dispatcher.clone(),
       menu_ids: self.menu_ids.clone(),

@@ -681,6 +681,9 @@ pub struct Window<R: Runtime> {
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
+
+  #[cfg(test)]
+  pub(crate) current_url: url::Url,
 }
 
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
@@ -695,6 +698,8 @@ impl<R: Runtime> Clone for Window<R> {
       window: self.window.clone(),
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
+      #[cfg(test)]
+      current_url: self.current_url.clone(),
     }
   }
 }
@@ -891,6 +896,8 @@ impl<R: Runtime> Window<R> {
       window,
       manager,
       app_handle,
+      #[cfg(test)]
+      current_url: "http://tauri.app".parse().unwrap(),
     }
   }
 
@@ -1383,13 +1390,20 @@ impl<R: Runtime> Window<R> {
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
   /// Returns the current url of the webview.
+  // TODO: in v2, change this type to Result
+  #[cfg(not(test))]
   pub fn url(&self) -> Url {
-    self.window.current_url.lock().unwrap().clone()
+    self.window.dispatcher.url().unwrap()
   }
 
   #[cfg(test)]
-  pub(crate) fn navigate(&self, url: Url) {
-    *self.window.current_url.lock().unwrap() = url;
+  pub fn url(&self) -> Url {
+    self.current_url.clone()
+  }
+
+  #[cfg(test)]
+  pub(crate) fn navigate(&mut self, url: Url) {
+    self.current_url = url;
   }
 
   /// Handles this window receiving an [`InvokeMessage`].

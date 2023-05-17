@@ -33,22 +33,16 @@ fn has_windows_sdk_libs() -> bool {
   }
 
   // We don't know the exact name of the Windows SDK Visual Studio Component so we search for files the SDK includes
-  let lib_env = tool
-    .unwrap()
-    .env()
-    .iter()
-    .filter(|e| e.0.to_ascii_lowercase() == "lib")
-    .map(|e| e.1.clone())
-    .collect::<Vec<_>>();
-
-  if let Some(paths) = lib_env.first() {
-    for mut path in std::env::split_paths(&paths) {
-      path.push("kernel32.lib");
-      if path.exists() {
-        return true;
+  for envs in tool.unwrap().env() {
+    if envs.0.to_ascii_lowercase() == "lib" {
+      for mut path in std::env::split_paths(&envs.1) {
+        path.push("kernel32.lib");
+        if path.exists() {
+          return true;
+        }
       }
     }
-  };
+  }
 
   false
 }

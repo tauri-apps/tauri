@@ -21,8 +21,6 @@ const VSWHERE: &[u8] = include_bytes!("../../scripts/vswhere.exe");
 
 #[cfg(windows)]
 fn build_tools_version() -> crate::Result<Vec<String>> {
-  use itertools::Itertools;
-
   let mut vswhere = std::env::temp_dir();
   vswhere.push("vswhere.exe");
 
@@ -77,13 +75,15 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
     instances.extend(found);
   }
 
-  Ok(
-    instances
-      .iter()
-      .map(|i| i.display_name.clone())
-      .unique()
-      .collect::<Vec<String>>(),
-  )
+  let mut instances: Vec<String> = instances
+    .iter()
+    .map(|i| i.display_name.clone())
+    .collect::<Vec<String>>();
+
+  instances.sort_unstable();
+  instances.dedup();
+
+  Ok(instances)
 }
 
 #[cfg(windows)]

@@ -69,7 +69,6 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     Ok(DetachedWindow {
       label: pending.label,
-      current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       dispatcher: MockDispatcher {
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
@@ -703,7 +702,6 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     Ok(DetachedWindow {
       label: pending.label,
-      current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       dispatcher: MockDispatcher {
         context: self.context.clone(),
         last_evaluated_script: Default::default(),

@@ -533,6 +533,17 @@ Section Install
 
 SectionEnd
 
+Var Restart
+Function .onInstSuccess
+  ; Check for `/R` flag only in silent installer because
+  ; gui installer has a toggle for the user to restart the app
+  IfSilent 0 done
+    ${GetOptions} $CMDLINE "/R" $Restart
+    IfErrors done 0 ; if errors were found then `/R` wasn't passed, so we skip restarting
+      Exec '"$INSTDIR\${MAINBINARYNAME}.exe"'
+  done:
+FunctionEnd
+
 Function un.onInit
   ${If} ${RunningX64}
     !if "${ARCH}" == "x64"

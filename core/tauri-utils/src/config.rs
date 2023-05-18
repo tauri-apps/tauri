@@ -38,6 +38,10 @@ use crate::TitleBarStyle;
 
 pub use self::parse::parse;
 
+fn default_true() -> bool {
+  true
+}
+
 /// An URL to open on a Tauri webview window.
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -519,7 +523,7 @@ pub enum WebviewInstallMode {
   /// Results in a smaller installer size, but is not recommended on Windows 7.
   DownloadBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
-    #[serde(default = "default_webview_install_silent")]
+    #[serde(default = "default_true")]
     silent: bool,
   },
   /// Embed the bootstrapper and run it.
@@ -527,7 +531,7 @@ pub enum WebviewInstallMode {
   /// Increases the installer size by around 1.8MB, but offers better support on Windows 7.
   EmbedBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
-    #[serde(default = "default_webview_install_silent")]
+    #[serde(default = "default_true")]
     silent: bool,
   },
   /// Embed the offline installer and run it.
@@ -535,7 +539,7 @@ pub enum WebviewInstallMode {
   /// Increases the installer size by around 127MB.
   OfflineInstaller {
     /// Instructs the installer to run the installer in silent mode. Defaults to `true`.
-    #[serde(default = "default_webview_install_silent")]
+    #[serde(default = "default_true")]
     silent: bool,
   },
   /// Embed a fixed webview2 version and use it at runtime.
@@ -549,15 +553,9 @@ pub enum WebviewInstallMode {
   },
 }
 
-fn default_webview_install_silent() -> bool {
-  true
-}
-
 impl Default for WebviewInstallMode {
   fn default() -> Self {
-    Self::DownloadBootstrapper {
-      silent: default_webview_install_silent(),
-    }
+    Self::DownloadBootstrapper { silent: true }
   }
 }
 
@@ -598,7 +596,7 @@ pub struct WindowsConfig {
   /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
   ///
   /// The default value of this flag is `true`.
-  #[serde(default = "default_allow_downgrades", alias = "allow-downgrades")]
+  #[serde(default = "default_true", alias = "allow-downgrades")]
   pub allow_downgrades: bool,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
@@ -615,15 +613,11 @@ impl Default for WindowsConfig {
       tsp: false,
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
-      allow_downgrades: default_allow_downgrades(),
+      allow_downgrades: true,
       wix: None,
       nsis: None,
     }
   }
-}
-
-fn default_allow_downgrades() -> bool {
-  true
 }
 
 /// Configuration for tauri-bundler.
@@ -901,7 +895,7 @@ pub struct WindowConfig {
   /// Whether the file drop is enabled or not on the webview. By default it is enabled.
   ///
   /// Disabling it is required to use drag and drop on the frontend on Windows.
-  #[serde(default = "default_file_drop_enabled", alias = "file-drop-enabled")]
+  #[serde(default = "default_true", alias = "file-drop-enabled")]
   pub file_drop_enabled: bool,
   /// Whether or not the window starts centered or not.
   #[serde(default)]
@@ -929,7 +923,7 @@ pub struct WindowConfig {
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
   /// Whether the window is resizable or not.
-  #[serde(default = "default_resizable")]
+  #[serde(default = "default_true")]
   pub resizable: bool,
   /// The window title.
   #[serde(default = "default_title")]
@@ -938,7 +932,7 @@ pub struct WindowConfig {
   #[serde(default)]
   pub fullscreen: bool,
   /// Whether the window will be initially focused or not.
-  #[serde(default = "default_focus")]
+  #[serde(default = "default_true")]
   pub focus: bool,
   /// Whether the window is transparent or not.
   ///
@@ -950,10 +944,10 @@ pub struct WindowConfig {
   #[serde(default)]
   pub maximized: bool,
   /// Whether the window is visible or not.
-  #[serde(default = "default_visible")]
+  #[serde(default = "default_true")]
   pub visible: bool,
   /// Whether the window should have borders and bars.
-  #[serde(default = "default_decorations")]
+  #[serde(default = "default_true")]
   pub decorations: bool,
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
@@ -995,7 +989,7 @@ impl Default for WindowConfig {
       label: default_window_label(),
       url: WindowUrl::default(),
       user_agent: None,
-      file_drop_enabled: default_file_drop_enabled(),
+      file_drop_enabled: true,
       center: false,
       x: None,
       y: None,
@@ -1005,14 +999,14 @@ impl Default for WindowConfig {
       min_height: None,
       max_width: None,
       max_height: None,
-      resizable: default_resizable(),
+      resizable: true,
       title: default_title(),
       fullscreen: false,
       focus: false,
       transparent: false,
       maximized: false,
-      visible: default_visible(),
-      decorations: default_decorations(),
+      visible: true,
+      decorations: true,
       always_on_top: false,
       content_protected: false,
       skip_taskbar: false,
@@ -1038,28 +1032,8 @@ fn default_height() -> f64 {
   600f64
 }
 
-fn default_resizable() -> bool {
-  true
-}
-
 fn default_title() -> String {
   "Tauri App".to_string()
-}
-
-fn default_focus() -> bool {
-  true
-}
-
-fn default_visible() -> bool {
-  true
-}
-
-fn default_decorations() -> bool {
-  true
-}
-
-fn default_file_drop_enabled() -> bool {
-  true
 }
 
 /// A Content-Security-Policy directive source list.
@@ -1302,12 +1276,13 @@ macro_rules! check_feature {
 /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
 /// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum FsAllowlistScope {
   /// A list of paths that are allowed by this scope.
   AllowedPaths(Vec<PathBuf>),
   /// A complete scope configuration.
+  #[serde(rename_all = "camelCase")]
   Scope {
     /// A list of paths that are allowed by this scope.
     #[serde(default)]
@@ -1316,6 +1291,16 @@ pub enum FsAllowlistScope {
     /// This gets precedence over the [`Self::Scope::allow`] list.
     #[serde(default)]
     deny: Vec<PathBuf>,
+    /// Whether or not paths that contain components that start with a `.`
+    /// will require that `.` appears literally in the pattern; `*`, `?`, `**`,
+    /// or `[...]` will not match. This is useful because such files are
+    /// conventionally considered hidden on Unix systems and it might be
+    /// desirable to skip them when listing files.
+    ///
+    /// Defaults to `false` on Unix systems and `true` on Windows
+    // dotfiles are not supposed to be exposed by default on unix
+    #[serde(alias = "require-literal-leading-dot")]
+    require_literal_leading_dot: Option<bool>,
   },
 }
 
@@ -1892,11 +1877,13 @@ impl Allowlist for DialogAllowlistConfig {
 /// The scoped URL is matched against the request URL using a glob pattern.
 ///
 /// Examples:
-/// - "https://**": allows all HTTPS urls
+/// - "https://*": allows all HTTPS urls
 /// - "https://*.github.com/tauri-apps/tauri": allows any subdomain of "github.com" with the "tauri-apps/api" path
 /// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
 #[allow(rustdoc::bare_urls)]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+// TODO: in v2, parse into a String or a custom type that perserves the
+// glob string because Url type will add a trailing slash
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct HttpAllowlistScope(pub Vec<Url>);
 
@@ -2477,9 +2464,9 @@ pub enum WindowsUpdateInstallMode {
   /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
   BasicUi,
   /// The quiet mode means there's no user interaction required.
-  /// Requires admin privileges if the installer does (WiX).
+  /// Requires admin privileges if the installer does.
   Quiet,
-  /// Specifies unattended mode, which means the installation only shows a progress bar.
+  /// Specifies unattended mode, which means the installation only shows a progress bar. **msi (Wix) Only**
   Passive,
   // to add more modes, we need to check if the updater relaunch makes sense
   // i.e. for a full UI mode, the user can also mark the installer to start the app
@@ -2492,6 +2479,14 @@ impl WindowsUpdateInstallMode {
       Self::BasicUi => &["/qb+"],
       Self::Quiet => &["/quiet"],
       Self::Passive => &["/passive"],
+    }
+  }
+
+  /// Returns the associated nsis arguments.
+  pub fn nsis_args(&self) -> &'static [&'static str] {
+    match self {
+      Self::Quiet => &["/S", "/R"],
+      _ => &[],
     }
   }
 }
@@ -2570,7 +2565,7 @@ pub struct UpdaterConfig {
   #[serde(default)]
   pub active: bool,
   /// Display built-in dialog or use event system if disabled.
-  #[serde(default = "default_dialog")]
+  #[serde(default = "default_true")]
   pub dialog: bool,
   /// The updater endpoints. TLS is enforced on production.
   ///
@@ -2601,7 +2596,7 @@ impl<'de> Deserialize<'de> for UpdaterConfig {
     struct InnerUpdaterConfig {
       #[serde(default)]
       active: bool,
-      #[serde(default = "default_dialog")]
+      #[serde(default = "default_true")]
       dialog: bool,
       endpoints: Option<Vec<UpdaterEndpoint>>,
       pubkey: Option<String>,
@@ -2631,7 +2626,7 @@ impl Default for UpdaterConfig {
   fn default() -> Self {
     Self {
       active: false,
-      dialog: default_dialog(),
+      dialog: true,
       endpoints: None,
       pubkey: "".into(),
       windows: Default::default(),
@@ -2654,24 +2649,10 @@ pub struct SystemTrayConfig {
   #[serde(default, alias = "icon-as-template")]
   pub icon_as_template: bool,
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.
-  #[serde(
-    default = "default_tray_menu_on_left_click",
-    alias = "menu-on-left-click"
-  )]
+  #[serde(default = "default_true", alias = "menu-on-left-click")]
   pub menu_on_left_click: bool,
   /// Title for MacOS tray
   pub title: Option<String>,
-}
-
-fn default_tray_menu_on_left_click() -> bool {
-  true
-}
-
-// We enable the unnecessary_wraps because we need
-// to use an Option for dialog otherwise the CLI schema will mark
-// the dialog as a required field which is not as we default it to true.
-fn default_dialog() -> bool {
-  true
 }
 
 /// Defines the URL or assets to embed in the application.
@@ -3699,10 +3680,11 @@ mod build {
           let allowed_paths = vec_lit(allow, path_buf_lit);
           quote! { #prefix::AllowedPaths(#allowed_paths) }
         }
-        Self::Scope { allow, deny } => {
+        Self::Scope { allow, deny , require_literal_leading_dot} => {
           let allow = vec_lit(allow, path_buf_lit);
           let deny = vec_lit(deny, path_buf_lit);
-          quote! { #prefix::Scope { allow: #allow, deny: #deny } }
+          let  require_literal_leading_dot = opt_lit(require_literal_leading_dot.as_ref());
+          quote! { #prefix::Scope { allow: #allow, deny: #deny, require_literal_leading_dot: #require_literal_leading_dot } }
         }
       });
     }

@@ -21,14 +21,16 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_FIPS_COMPLIANT` — Specify WiX `FipsCompliant` option
 - `TAURI_PRIVATE_KEY` — Private key used to sign your app bundles
 - `TAURI_KEY_PASSWORD` — The private key password, see `TAURI_PRIVATE_KEY`
-- `APPLE_CERTIFICATE` —
-- `APPLE_CERTIFICATE_PASSWORD` —
-- `APPLE_ID` —
-- `APPLE_PASSWORD` —
-- `APPLE_API_KEY` —
-- `APPLE_API_ISSUER` —
-- `APPLE_SIGNING_IDENTITY` —
-- `APPLE_PROVIDER_SHORT_NAME` —
+- `APPLE_CERTIFICATE` — Base64 encoded of the `.p12` certificate for code signing. To get this value, run `openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt`.
+- `APPLE_CERTIFICATE_PASSWORD` — The password you used to export the certificate.
+- `APPLE_ID` — The Apple ID used to notarize the application. If this environment variable is provided, `APPLE_PASSWORD` must also be set. Alternatively, `APPLE_API_KEY` and `APPLE_API_ISSUER` can be used to authenticate.
+- `APPLE_PASSWORD` — The Apple password used to authenticate for application notarization. Required if `APPLE_ID` is specified. An app-specific password can be used. Alternatively to entering the password in plaintext, it may also be specified using a '@keychain:' or '@env:' prefix followed by a keychain password item name or environment variable name.
+- `APPLE_API_KEY` — Alternative to `APPLE_ID` and `APPLE_PASSWORD` for notarization authentication using JWT.
+  - This option will search the following directories in sequence for a private key file with the name of 'AuthKey_<api_key>.p8': './private_keys', '~/private_keys', '~/.private_keys', and '~/.appstoreconnect/private_keys'. Additionally, you can set environment variable $API_PRIVATE_KEYS_DIR or a user default API_PRIVATE_KEYS_DIR to specify the directory where your AuthKey file is located.
+  - See [creating API keys](https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api) for more information.
+- `APPLE_API_ISSUER` — Issuer ID. Required if `APPLE_API_KEY` is specified.
+- `APPLE_SIGNING_IDENTITY` — The identity used to code sign. Overwrites `tauri.conf.json > tauri > bundle > macOS > signingIdentity`.
+- `APPLE_PROVIDER_SHORT_NAME` — If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. Overwrites `tauri.conf.json > tauri > bundle > macOS > providerShortName`.
 - `CI` — If set, the CLI will run in CI mode and won't require any user interaction.
 
 ### Tauri CLI Hook Commands

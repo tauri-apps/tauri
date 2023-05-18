@@ -12,7 +12,7 @@ on:
       - 'tooling/cli/src/mobile/**'
       - '!tooling/cli/src/mobile/ios.rs'
       - '!tooling/cli/src/mobile/ios/**'
-      - 'tooling/cli/src/interface/rust.rs'
+      - 'tooling/cli/src/interface/**'
       - 'core/tauri-build/src/mobile.rs'
       - 'core/tauri/mobile/android/**'
       - 'core/tauri/mobile/android-codegen/**'

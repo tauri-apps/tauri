@@ -16,7 +16,12 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use tauri_mobile::{
-  android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
+  android::{
+    aab, apk,
+    config::{Config as AndroidConfig, Metadata as AndroidMetadata},
+    env::Env,
+    target::Target,
+  },
   opts::{NoiseLevel, Profile},
   target::TargetTrait,
 };
@@ -92,22 +97,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       let mut env = env()?;
       configure_cargo(app, Some((&mut env, config)))?;
 
-      // run an initial build to initialize plugins
-      Target::all().values().next().unwrap().build(
-        config,
-        metadata,
-        &env,
-        noise_level,
-        true,
-        if options.debug {
-          Profile::Debug
-        } else {
-          Profile::Release
-        },
-      )?;
-
       let open = options.open;
-      run_build(options, profile, config, &mut env, noise_level)?;
+      run_build(options, profile, config, metadata, &mut env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);
@@ -123,6 +114,7 @@ fn run_build(
   mut options: Options,
   profile: Profile,
   config: &AndroidConfig,
+  metadata: &AndroidMetadata,
   env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
@@ -141,6 +133,16 @@ fn run_build(
       .into(),
   );
   let interface = crate::build::setup(&mut build_options, true)?;
+
+  // run an initial build to initialize plugins
+  Target::all().values().next().unwrap().build(
+    config,
+    metadata,
+    env,
+    noise_level,
+    true,
+    profile,
+  )?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,

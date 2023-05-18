@@ -349,19 +349,15 @@ fn shared_options(
   features: &mut Option<Vec<String>>,
   app_settings: &RustAppSettings,
 ) {
-  if mobile {
-    features
-      .get_or_insert(Vec::new())
-      .push("tauri/rustls-tls".into());
-  } else {
-    let all_features = app_settings
-      .manifest
-      .all_enabled_features(if let Some(f) = features { f } else { &[] });
-    if !all_features.contains(&"tauri/rustls-tls".into()) {
-      features
-        .get_or_insert(Vec::new())
-        .push("tauri/native-tls".into());
-    }
+  let all_features = app_settings
+    .manifest
+    .all_enabled_features(if let Some(f) = features { f } else { &[] });
+  if !all_features.contains(&"tauri/rustls-tls".into()) {
+    features.get_or_insert(Vec::new()).push(if mobile {
+      "tauri/native-tls-vendored".into()
+    } else {
+      "tauri/native-tls".into()
+    });
   }
 }
 

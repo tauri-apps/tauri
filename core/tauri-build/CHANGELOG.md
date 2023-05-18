@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-alpha.5]
+
+- [`3188f376`](https://www.github.com/tauri-apps/tauri/commit/3188f3764978c6d1452ee31d5a91469691e95094)([#6883](https://www.github.com/tauri-apps/tauri/pull/6883)) Bump the MSRV to 1.65.
+- [`2969d1cb`](https://www.github.com/tauri-apps/tauri/commit/2969d1cbba39301f9cc611d9f7d7051d80eef846)([#6773](https://www.github.com/tauri-apps/tauri/pull/6773)) Use absolute path to each Android plugin project instead of copying the files to enhance developer experience.
+- [`cdad6e08`](https://www.github.com/tauri-apps/tauri/commit/cdad6e083728ea61bd6fc734ef93f6306056ea2e)([#6774](https://www.github.com/tauri-apps/tauri/pull/6774)) Changed how the `tauri-android` dependency is injected. This requires the `gen/android` project to be recreated.
+- [`5a768d5c`](https://www.github.com/tauri-apps/tauri/commit/5a768d5ce69d6c9011c41f38a43481087c8d4921)([#6886](https://www.github.com/tauri-apps/tauri/pull/6886)) Remove `WindowsAttributes::sdk_dir`.
+
 ## \[2.0.0-alpha.4]
 
 - Added `android` configuration object under `tauri > bundle`.

@@ -1,16 +1,16 @@
 [package]
-authors = ["Tauri Programme within The Commons Conservancy"]
-categories = ["gui", "web-programming"]
+authors = [ "Tauri Programme within The Commons Conservancy" ]
+categories = [ "gui", "web-programming" ]
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2021"
 rust-version = "1.65"
-exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
+exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 homepage = "https://tauri.app"
 license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "2.0.0-alpha.8"
+version = "2.0.0-alpha.9"
 links = "Tauri"
 
 [package.metadata.docs.rs]
@@ -22,35 +22,35 @@ features = [
   "devtools",
   "icon-png",
   "protocol-asset",
-  "dox",
+  "dox"
 ]
-rustdoc-args = ["--cfg", "doc_cfg"]
+rustdoc-args = [ "--cfg", "doc_cfg" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
-  "x86_64-apple-darwin",
+  "x86_64-apple-darwin"
 ]
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["reqwest"]
+normal = [ "reqwest" ]
 
 [dependencies]
-serde_json = { version = "1.0", features = ["raw_value"] }
-serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = [ "raw_value" ] }
+serde = { version = "1.0", features = [ "derive" ] }
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures-util = "0.3"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = [ "v4" ] }
 url = { version = "2.3" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1"
-tauri-runtime = { version = "0.13.0-alpha.4", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.0-alpha.4", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-alpha.4", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.13.0-alpha.4", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "0.13.0-alpha.5", path = "../tauri-runtime" }
+tauri-macros = { version = "2.0.0-alpha.5", path = "../tauri-macros" }
+tauri-utils = { version = "2.0.0-alpha.5", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "0.13.0-alpha.5", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
-semver = { version = "1.0", features = ["serde"] }
+semver = { version = "1.0", features = [ "serde" ] }
 serde_repr = "0.1"
 state = "0.5"
 tempfile = "3"
@@ -58,7 +58,7 @@ http = "0.2"
 dirs-next = "2.0"
 percent-encoding = "2.2"
 reqwest = { version = "0.11", default-features = false, features = [ "json", "stream" ] }
-bytes = { version = "1", features = ["serde"] }
+bytes = { version = "1", features = [ "serde" ] }
 raw-window-handle = "0.5"
 time = { version = "0.3", optional = true }
 glob = "0.3"
@@ -69,9 +69,9 @@ png = { version = "0.17", optional = true }
 ico = { version = "0.2.0", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.16", features = ["v3_24"] }
+gtk = { version = "0.16", features = [ "v3_24" ] }
 glib = "0.16"
-webkit2gtk = { version = "0.19.1", features = ["v2_38"] }
+webkit2gtk = { version = "0.19.1", features = [ "v2_38" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -81,9 +81,9 @@ objc = "0.2"
 [target."cfg(windows)".dependencies]
 webview2-com = "0.22"
 
-[target."cfg(windows)".dependencies.windows]
-version = "0.44"
-features = ["Win32_Foundation"]
+  [target."cfg(windows)".dependencies.windows]
+  version = "0.44"
+  features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"android\", target_os = \"ios\"))".dependencies]
 log = "0.4"
@@ -107,38 +107,38 @@ tauri-build = { path = "../tauri-build/", version = "2.0.0-alpha.1" }
 proptest = "1.0.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-tauri = { path = ".", default-features = false, features = ["wry"] }
-tokio = { version = "1", features = ["full"] }
+tauri = { path = ".", default-features = false, features = [ "wry" ] }
+tokio = { version = "1", features = [ "full" ] }
 cargo_toml = "0.11"
 winnow = "=0.4.1"
 
 [features]
-default = ["wry", "compression", "objc-exception"]
-compression = ["tauri-macros/compression", "tauri-utils/compression"]
-wry = ["tauri-runtime-wry"]
-objc-exception = ["tauri-runtime-wry/objc-exception"]
-linux-protocol-headers = ["tauri-runtime-wry/linux-headers", "webkit2gtk/v2_36"]
-isolation = ["tauri-utils/isolation", "tauri-macros/isolation"]
-custom-protocol = ["tauri-macros/custom-protocol"]
-native-tls = ["reqwest/native-tls"]
-native-tls-vendored = ["reqwest/native-tls-vendored"]
-rustls-tls = ["reqwest/rustls-tls"]
-system-tray = ["tauri-runtime/system-tray", "tauri-runtime-wry/system-tray"]
-devtools = ["tauri-runtime/devtools", "tauri-runtime-wry/devtools"]
-dox = ["tauri-runtime-wry/dox"]
+default = [ "wry", "compression", "objc-exception" ]
+compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
+wry = [ "tauri-runtime-wry" ]
+objc-exception = [ "tauri-runtime-wry/objc-exception" ]
+linux-protocol-headers = [ "tauri-runtime-wry/linux-headers", "webkit2gtk/v2_36" ]
+isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
+custom-protocol = [ "tauri-macros/custom-protocol" ]
+native-tls = [ "reqwest/native-tls" ]
+native-tls-vendored = [ "reqwest/native-tls-vendored" ]
+rustls-tls = [ "reqwest/rustls-tls" ]
+system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
+devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
+dox = [ "tauri-runtime-wry/dox" ]
 process-relaunch-dangerous-allow-symlink-macos = [ "tauri-utils/process-relaunch-dangerous-allow-symlink-macos" ]
 macos-private-api = [
   "tauri-runtime/macos-private-api",
-  "tauri-runtime-wry/macos-private-api",
+  "tauri-runtime-wry/macos-private-api"
 ]
-window-data-url = ["data-url"]
-protocol-asset = []
-config-json5 = ["tauri-macros/config-json5"]
-config-toml = ["tauri-macros/config-toml"]
-icon-ico = ["infer", "ico"]
-icon-png = ["infer", "png"]
+window-data-url = [ "data-url" ]
+protocol-asset = [ ]
+config-json5 = [ "tauri-macros/config-json5" ]
+config-toml = [ "tauri-macros/config-toml" ]
+icon-ico = [ "infer", "ico" ]
+icon-png = [ "infer", "png" ]
 
 [[example]]
 name = "commands"
@@ -175,4 +175,4 @@ path = "../../examples/streaming/main.rs"
 [[example]]
 name = "isolation"
 path = "../../examples/isolation/main.rs"
-required-features = ["isolation"]
+required-features = [ "isolation" ]

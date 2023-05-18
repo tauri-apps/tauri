@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.5]
+
+- [`96639ca2`](https://www.github.com/tauri-apps/tauri/commit/96639ca239c9e4f75142fc07868ac46822111cff)([#6749](https://www.github.com/tauri-apps/tauri/pull/6749)) Moved the `shell` functionality to its own plugin in the plugins-workspace repository.
+- [`3188f376`](https://www.github.com/tauri-apps/tauri/commit/3188f3764978c6d1452ee31d5a91469691e95094)([#6883](https://www.github.com/tauri-apps/tauri/pull/6883)) Bump the MSRV to 1.65.
+- [`ae102980`](https://www.github.com/tauri-apps/tauri/commit/ae102980fcdde3f55effdc0623ea425b48d07dd1)([#6719](https://www.github.com/tauri-apps/tauri/pull/6719)) Refactor the `Context` conditional fields and only parse the tray icon on desktop.
+
 ## \[2.0.0-alpha.4]
 
 - Added `android` configuration object under `tauri > bundle`.

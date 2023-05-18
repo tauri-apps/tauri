@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-alpha.5]
+
+- [`7a4b1fb9`](https://www.github.com/tauri-apps/tauri/commit/7a4b1fb96da475053c61960f362bbecf18cd00d4)([#6839](https://www.github.com/tauri-apps/tauri/pull/6839)) Added support to attibutes for each command path in the `generate_handler` macro.
+- [`96639ca2`](https://www.github.com/tauri-apps/tauri/commit/96639ca239c9e4f75142fc07868ac46822111cff)([#6749](https://www.github.com/tauri-apps/tauri/pull/6749)) Moved the `shell` functionality to its own plugin in the plugins-workspace repository.
+- [`3188f376`](https://www.github.com/tauri-apps/tauri/commit/3188f3764978c6d1452ee31d5a91469691e95094)([#6883](https://www.github.com/tauri-apps/tauri/pull/6883)) Bump the MSRV to 1.65.
+- [`9a79dc08`](https://www.github.com/tauri-apps/tauri/commit/9a79dc085870e0c1a5df13481ff271b8c6cc3b78)([#6947](https://www.github.com/tauri-apps/tauri/pull/6947)) Removed the module command macros.
+
 ## \[2.0.0-alpha.4]
 
 - Added `android` configuration object under `tauri > bundle`.

@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-alpha.5]
+
+- [`2d5378bf`](https://www.github.com/tauri-apps/tauri/commit/2d5378bfc1ba817ee2f331b41738a90e5997e5e8)([#6717](https://www.github.com/tauri-apps/tauri/pull/6717)) Removed the `UpdaterSettings::dialog` field.
+- [`6a6b1388`](https://www.github.com/tauri-apps/tauri/commit/6a6b1388ea5787aea4c0e0b0701a4772087bbc0f)([#6853](https://www.github.com/tauri-apps/tauri/pull/6853)) Correctly escape XML for resource files in WiX bundler.
+- [`3188f376`](https://www.github.com/tauri-apps/tauri/commit/3188f3764978c6d1452ee31d5a91469691e95094)([#6883](https://www.github.com/tauri-apps/tauri/pull/6883)) Bump the MSRV to 1.65.
+- [`422b4817`](https://www.github.com/tauri-apps/tauri/commit/422b48179856504e980a156500afa8e22c44d357)([#6871](https://www.github.com/tauri-apps/tauri/pull/6871)) Added the following languages to the NSIS bundler:
+
+  - `Spanish`
+  - `SpanishInternational`
+- [`2915bd06`](https://www.github.com/tauri-apps/tauri/commit/2915bd068ed40dc01a363b69212c6b6f2d3ec01e)([#6854](https://www.github.com/tauri-apps/tauri/pull/6854)) Correctly escape arguments in NSIS script to fix bundling apps that use non-default WebView2 install modes.
+
 ## \[2.0.0-alpha.4]
 
 - Added `android` configuration object under `tauri > bundle`.

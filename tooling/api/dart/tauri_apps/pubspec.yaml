@@ -1,0 +1,18 @@
+name: tauri_apps
+description: Tauri is a framework for building tiny, blazingly fast binaries for all major platforms.
+version: 0.0.1
+repository: https://github.com/tauri-apps/tauri.git
+homepage: https://next--tauri.netlify.app/
+
+environment:
+  sdk: '>=2.19.6 <4.0.0'
+
+dependencies:
+  collection: ^1.17.1
+  crypto: ^3.0.2
+  meta: ^1.9.1
+  universal_html: ^2.2.1
+  universal_io: ^2.2.0
+
+dev_dependencies:
+  test: ^1.21.0

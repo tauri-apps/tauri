@@ -2815,7 +2815,7 @@
           ]
         },
         {
-          "description": "Specifies unattended mode, which means the installation only shows a progress bar. **Wix Only**",
+          "description": "Specifies unattended mode, which means the installation only shows a progress bar. **msi (Wix) Only**",
           "type": "string",
           "enum": [
             "passive"

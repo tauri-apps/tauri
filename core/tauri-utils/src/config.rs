@@ -2481,7 +2481,7 @@ pub enum WindowsUpdateInstallMode {
   /// The quiet mode means there's no user interaction required.
   /// Requires admin privileges if the installer does.
   Quiet,
-  /// Specifies unattended mode, which means the installation only shows a progress bar. **Wix Only**
+  /// Specifies unattended mode, which means the installation only shows a progress bar. **msi (Wix) Only**
   Passive,
   // to add more modes, we need to check if the updater relaunch makes sense
   // i.e. for a full UI mode, the user can also mark the installer to start the app

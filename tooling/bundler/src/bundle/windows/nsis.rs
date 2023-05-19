@@ -570,6 +570,10 @@ fn get_lang_data(
         UTF_8,
       )),
     )),
+    "korean" => Some((
+      lang_file,
+      Some((include_str!("./templates/nsis-languages/Korean.nsh"), UTF_8)),
+    )),
     "portuguesebr" => Some((
       lang_file,
       Some((

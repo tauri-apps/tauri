@@ -30,6 +30,7 @@ Var ReinstallPageCheck
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 
 Name "${PRODUCTNAME}"
+BrandingText "{{copyright}}"
 OutFile "${OUTFILE}"
 Unicode true
 SetCompressor /SOLID lzma

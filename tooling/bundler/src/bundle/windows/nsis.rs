@@ -177,6 +177,7 @@ fn build_nsis_app_installer(
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
+  data.insert("copyright", to_json(settings.copyright_string()));
 
   let version = settings.version_string();
   data.insert("version", to_json(version));

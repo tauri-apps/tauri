@@ -346,6 +346,8 @@ fn build_command(
     args.push(target);
   }
 
+  args.push("--bins".into());
+
   let mut build_cmd = Command::new(runner);
   build_cmd.arg("build");
   build_cmd.args(args);

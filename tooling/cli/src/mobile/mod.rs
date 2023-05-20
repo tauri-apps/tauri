@@ -125,12 +125,23 @@ impl Target {
   }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
+}
+
+impl Default for CliOptions {
+  fn default() -> Self {
+    Self {
+      features: None,
+      args: vec!["--lib".into()],
+      noise_level: Default::default(),
+      vars: Default::default(),
+    }
+  }
 }
 
 fn setup_dev_config(

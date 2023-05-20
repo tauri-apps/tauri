@@ -346,14 +346,17 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
 
 fn shared_options(
   mobile: bool,
+  args: &mut Vec<String>,
   features: &mut Option<Vec<String>>,
   app_settings: &RustAppSettings,
 ) {
   if mobile {
+    args.push("--lib".into());
     features
       .get_or_insert(Vec::new())
       .push("tauri/rustls-tls".into());
   } else {
+    args.push("--bins".into());
     let all_features = app_settings
       .manifest
       .all_enabled_features(if let Some(f) = features { f } else { &[] });
@@ -385,7 +388,7 @@ fn dev_options(
   }
   *args = dev_args;
 
-  shared_options(mobile, features, app_settings);
+  shared_options(mobile, args, features, app_settings);
 
   if !args.contains(&"--no-default-features".into()) {
     let manifest_features = app_settings.manifest.features();
@@ -410,11 +413,16 @@ fn dev_options(
 }
 
 impl Rust {
-  pub fn build_options(&self, features: &mut Option<Vec<String>>, mobile: bool) {
+  pub fn build_options(
+    &self,
+    args: &mut Vec<String>,
+    features: &mut Option<Vec<String>>,
+    mobile: bool,
+  ) {
     features
       .get_or_insert(Vec::new())
       .push("custom-protocol".into());
-    shared_options(mobile, features, &self.app_settings);
+    shared_options(mobile, args, features, &self.app_settings);
   }
 
   fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(

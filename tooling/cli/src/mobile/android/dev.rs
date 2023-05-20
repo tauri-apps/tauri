@@ -175,7 +175,7 @@ fn run_dev(
     MobileOptions {
       debug: !options.release_mode,
       features: options.features,
-      args: vec!["--lib".into()],
+      args: Vec::new(),
       config: options.config,
       no_watch: options.no_watch,
     },

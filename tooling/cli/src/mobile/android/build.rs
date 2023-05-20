@@ -67,7 +67,7 @@ impl From<Options> for BuildOptions {
       features: options.features,
       bundles: None,
       config: options.config,
-      args: vec!["--lib".into()],
+      args: Vec::new(),
       ci: false,
     }
   }

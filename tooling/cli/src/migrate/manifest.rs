@@ -162,3 +162,166 @@ fn migrate_dependency_table<D: TableLike>(dep: &mut D, version: String, remove: 
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use itertools::Itertools;
+
+  fn migrate_deps<F: FnOnce(&[&str]) -> String>(get_toml: F) {
+    let keep_features = vec!["isolation", "protocol-asset"];
+    let mut features = super::features_to_remove();
+    features.extend(keep_features.clone());
+    let toml = get_toml(&features);
+
+    let mut manifest = toml.parse::<toml_edit::Document>().expect("invalid toml");
+    super::migrate_manifest(&mut manifest).expect("failed to migrate manifest");
+
+    let dependencies = manifest
+      .as_table()
+      .get("dependencies")
+      .expect("missing manifest dependencies")
+      .as_table()
+      .expect("manifest dependencies isn't a table");
+
+    let tauri = dependencies
+      .get("tauri")
+      .expect("missing tauri dependency in manifest");
+
+    let tauri_table = if let Some(table) = tauri.as_table() {
+      table.clone()
+    } else if let Some(toml_edit::Value::InlineTable(table)) = tauri.as_value() {
+      table.clone().into_table()
+    } else if let Some(version) = tauri.as_str() {
+      // convert the value to a table for the assert logic below
+      let mut table = toml_edit::Table::new();
+      table.insert(
+        "version",
+        toml_edit::Item::Value(version.to_string().into()),
+      );
+      table.insert(
+        "features",
+        toml_edit::Item::Value(toml_edit::Value::Array(Default::default())),
+      );
+      table
+    } else {
+      panic!("unexpected tauri dependency format");
+    };
+
+    // assert version matches
+    let version = tauri_table
+      .get("version")
+      .expect("missing version")
+      .as_str()
+      .expect("version must be a string");
+    assert_eq!(version, super::dependency_version());
+
+    // assert features matches
+    let features = tauri_table
+      .get("features")
+      .expect("missing features")
+      .as_array()
+      .expect("features must be an array")
+      .clone();
+    if toml.contains("reqwest-native-tls-vendored") {
+      assert!(
+        features
+          .iter()
+          .any(|f| f.as_str().expect("feature must be a string") == "native-tls-vendored"),
+        "reqwest-native-tls-vendored was not replaced with native-tls-vendored"
+      );
+    }
+    for feature in features.iter() {
+      let feature = feature.as_str().expect("feature must be a string");
+      assert!(
+        keep_features.contains(&feature) || feature == "native-tls-vendored",
+        "feature {feature} should have been removed"
+      );
+    }
+  }
+
+  fn migrate_lib(toml: &str) {
+    let mut manifest = toml.parse::<toml_edit::Document>().expect("invalid toml");
+    super::migrate_manifest(&mut manifest).expect("failed to migrate manifest");
+
+    let lib = manifest
+      .as_table()
+      .get("lib")
+      .expect("missing manifest lib")
+      .as_table()
+      .expect("manifest lib isn't a table");
+
+    let crate_types = lib
+      .get("crate-type")
+      .expect("missing lib crate-type")
+      .as_array()
+      .expect("crate-type must be an array");
+    let mut not_added_crate_types = super::CRATE_TYPES.to_vec();
+    for t in crate_types {
+      let t = t.as_str().expect("crate-type must be a string");
+      if let Some(i) = not_added_crate_types.iter().position(|ty| ty == &t) {
+        not_added_crate_types.remove(i);
+      }
+    }
+    assert!(
+      not_added_crate_types.is_empty(),
+      "missing crate-type: {not_added_crate_types:?}"
+    );
+  }
+
+  #[test]
+  fn migrate_table() {
+    migrate_deps(|features| {
+      format!(
+        r#"
+    [dependencies]
+    tauri = {{ version = "1.0.0", features = [{}] }}
+"#,
+        features.iter().map(|f| format!("{:?}", f)).join(", ")
+      )
+    });
+  }
+
+  #[test]
+  fn migrate_inline_table() {
+    migrate_deps(|features| {
+      format!(
+        r#"
+    [dependencies.tauri]
+    version = "1.0.0"
+    features = [{}]
+"#,
+        features.iter().map(|f| format!("{:?}", f)).join(", ")
+      )
+    });
+  }
+
+  #[test]
+  fn migrate_str() {
+    migrate_deps(|_features| {
+      r#"
+    [dependencies]
+    tauri = "1.0.0"
+"#
+      .into()
+    })
+  }
+
+  #[test]
+  fn migrate_missing_lib() {
+    migrate_lib("[dependencies]");
+  }
+
+  #[test]
+  fn migrate_missing_crate_types() {
+    migrate_lib("[lib]");
+  }
+
+  #[test]
+  fn migrate_add_crate_types() {
+    migrate_lib(
+      r#"
+    [lib]
+    crate-type = ["something"]"#,
+    );
+  }
+}

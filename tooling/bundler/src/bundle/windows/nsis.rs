@@ -620,6 +620,13 @@ fn get_lang_data(
         UTF_16LE,
       )),
     )),
+    "turkish" => Some((
+      lang_file,
+      Some((
+        include_str!("./templates/nsis-languages/Turkish.nsh"),
+        UTF_8,
+      )),
+    )),
     _ => None,
   }
 }

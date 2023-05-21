@@ -193,7 +193,7 @@ fn crate_version(
   (crate_version_string, suffix)
 }
 
-pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<SectionItem> {
+pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
   let mut items = Vec::new();
   if tauri_dir.is_some() || app_dir.is_some() {
     if let Some(tauri_dir) = tauri_dir {
@@ -210,7 +210,7 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<Secti
 
       for dep in ["tauri", "tauri-build", "wry", "tao"] {
         let (version_string, version_suffix) =
-          crate_version(&tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
+          crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
         let dep = dep.to_string();
         let item = SectionItem::new(
           move || {

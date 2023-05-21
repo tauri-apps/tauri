@@ -1,13 +1,13 @@
 [package]
 name = "tauri-utils"
-version = "1.2.1"
+version = "2.0.0-alpha.5"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.65"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
@@ -41,7 +41,7 @@ infer = "0.12"
 heck = "0.4"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.39.0"
+version = "0.44.0"
 features = [
   "implement",
   "Win32_Foundation",

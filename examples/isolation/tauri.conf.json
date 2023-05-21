@@ -50,9 +50,6 @@
         "timestampUrl": ""
       }
     },
-    "updater": {
-      "active": false
-    },
     "windows": [
       {
         "title": "Isolation",

@@ -54,6 +54,10 @@ impl ConfigFormat {
           "tauri.macos.conf.json"
         } else if cfg!(windows) {
           "tauri.windows.conf.json"
+        } else if cfg!(target_os = "android") {
+          "tauri.android.conf.json"
+        } else if cfg!(target_os = "ios") {
+          "tauri.ios.conf.json"
         } else {
           "tauri.linux.conf.json"
         }
@@ -63,6 +67,10 @@ impl ConfigFormat {
           "tauri.macos.conf.json5"
         } else if cfg!(windows) {
           "tauri.windows.conf.json5"
+        } else if cfg!(target_os = "android") {
+          "tauri.android.conf.json"
+        } else if cfg!(target_os = "ios") {
+          "tauri.ios.conf.json"
         } else {
           "tauri.linux.conf.json5"
         }
@@ -72,6 +80,10 @@ impl ConfigFormat {
           "Tauri.macos.toml"
         } else if cfg!(windows) {
           "Tauri.windows.toml"
+        } else if cfg!(target_os = "android") {
+          "tauri.android.toml"
+        } else if cfg!(target_os = "ios") {
+          "tauri.ios.toml"
         } else {
           "Tauri.linux.toml"
         }
@@ -170,11 +182,13 @@ pub fn is_configuration_file(path: &Path) -> bool {
 
 /// Reads the configuration from the given root directory.
 ///
-/// It first looks for a `tauri.conf.json[5]` file on the given directory. The file must exist.
+/// It first looks for a `tauri.conf.json[5]` or `Tauri.toml` file on the given directory. The file must exist.
 /// Then it looks for a platform-specific configuration file:
-/// - `tauri.macos.conf.json[5]` on macOS
-/// - `tauri.linux.conf.json[5]` on Linux
-/// - `tauri.windows.conf.json[5]` on Windows
+/// - `tauri.macos.conf.json[5]` or `Tauri.macos.toml` on macOS
+/// - `tauri.linux.conf.json[5]` or `Tauri.linux.toml` on Linux
+/// - `tauri.windows.conf.json[5]` or `Tauri.windows.toml` on Windows
+/// - `tauri.android.conf.json[5]` or `Tauri.android.toml` on Android
+/// - `tauri.ios.conf.json[5]` or `Tauri.ios.toml` on iOS
 /// Merging the configurations using [JSON Merge Patch (RFC 7396)].
 ///
 /// [JSON Merge Patch (RFC 7396)]: https://datatracker.ietf.org/doc/html/rfc7396.

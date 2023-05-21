@@ -1,0 +1,35 @@
+{{{{raw}}}}
+name: Clippy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  clippy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.1
+
+      - name: Install clippy with stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo clippy --manifest-path=Cargo.toml --all-targets --all-features -- -D warnings
+{{{{/raw}}}}

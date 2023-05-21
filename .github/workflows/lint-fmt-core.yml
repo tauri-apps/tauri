@@ -50,11 +50,10 @@ jobs:
         clippy:
           - { args: '', key: 'empty' }
           - {
-              args: '--features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart',
+              args: '--features compression,wry,linux-protocol-headers,isolation,custom-protocol,system-tray',
               key: 'all'
             }
           - { args: '--features custom-protocol', key: 'custom-protocol' }
-          - { args: '--features api-all', key: 'api-all' }
 
     steps:
       - uses: actions/checkout@v2
@@ -62,7 +61,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - uses: actions-rs/toolchain@v1
         with:

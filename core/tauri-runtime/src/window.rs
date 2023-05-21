@@ -15,7 +15,7 @@ use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
 
 use std::{
-  collections::{HashMap, HashSet},
+  collections::HashMap,
   hash::{Hash, Hasher},
   path::PathBuf,
   sync::{mpsc::Sender, Arc, Mutex},
@@ -99,9 +99,10 @@ fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
 
 /// Describes the appearance of the mouse cursor.
 #[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum CursorIcon {
   /// The platform-dependent default cursor.
+  #[default]
   Default,
   /// A simple crosshair.
   Crosshair,
@@ -203,10 +204,11 @@ impl<'de> Deserialize<'de> for CursorIcon {
   }
 }
 
-impl Default for CursorIcon {
-  fn default() -> Self {
-    CursorIcon::Default
-  }
+#[cfg(target_os = "android")]
+pub struct CreationContext<'a> {
+  pub env: jni::JNIEnv<'a>,
+  pub activity: jni::objects::JObject<'a>,
+  pub webview: jni::objects::JObject<'a>,
 }
 
 /// A webview window that has yet to be built.
@@ -228,14 +230,16 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// Maps runtime id to a string menu id.
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 
-  /// A HashMap mapping JS event names with associated listener ids.
-  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
-
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
 
   /// The current webview URL.
   pub current_url: Arc<Mutex<Url>>,
+
+  #[cfg(target_os = "android")]
+  #[allow(clippy::type_complexity)]
+  pub on_webview_created:
+    Option<Box<dyn Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -273,9 +277,10 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         label,
         ipc_handler: None,
         menu_ids: Arc::new(Mutex::new(menu_ids)),
-        js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
         current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
+        #[cfg(target_os = "android")]
+        on_webview_created: None,
       })
     }
   }
@@ -303,9 +308,10 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         label,
         ipc_handler: None,
         menu_ids: Arc::new(Mutex::new(menu_ids)),
-        js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
         current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
+        #[cfg(target_os = "android")]
+        on_webview_created: None,
       })
     }
   }
@@ -332,15 +338,17 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
       .uri_scheme_protocols
       .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
   }
-}
 
-/// Key for a JS event listener.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct JsEventListenerKey {
-  /// The associated window label.
-  pub window_label: Option<String>,
-  /// The event name.
-  pub event: String,
+  #[cfg(target_os = "android")]
+  pub fn on_webview_created<
+    F: Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send + 'static,
+  >(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.on_webview_created.replace(Box::new(f));
+    self
+  }
 }
 
 /// A webview window that is not yet managed by Tauri.
@@ -357,9 +365,6 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
 
   /// Maps runtime id to a string menu id.
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
-
-  /// A HashMap mapping JS event names with associated listener ids.
-  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
 }
 
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
@@ -369,7 +374,6 @@ impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
       label: self.label.clone(),
       dispatcher: self.dispatcher.clone(),
       menu_ids: self.menu_ids.clone(),
-      js_event_listeners: self.js_event_listeners.clone(),
     }
   }
 }

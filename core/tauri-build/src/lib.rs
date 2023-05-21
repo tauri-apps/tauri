@@ -4,6 +4,7 @@
 
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+use anyhow::Context;
 pub use anyhow::Result;
 use cargo_toml::{Dependency, Manifest};
 use heck::AsShoutySnakeCase;
@@ -13,10 +14,15 @@ use tauri_utils::{
   resources::{external_binaries, resource_relpath, ResourcePaths},
 };
 
-use std::path::{Path, PathBuf};
+use std::{
+  env::var_os,
+  path::{Path, PathBuf},
+};
 
 #[cfg(feature = "codegen")]
 mod codegen;
+/// Mobile build functions.
+pub mod mobile;
 mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
@@ -102,17 +108,6 @@ fn cfg_alias(alias: &str, has_feature: bool) {
 #[derive(Debug, Default)]
 pub struct WindowsAttributes {
   window_icon_path: Option<PathBuf>,
-  /// The path to the sdk location.
-  ///
-  /// For the GNU toolkit this has to be the path where MinGW put windres.exe and ar.exe.
-  /// This could be something like: "C:\Program Files\mingw-w64\x86_64-5.3.0-win32-seh-rt_v4-rev0\mingw64\bin"
-  ///
-  /// For MSVC the Windows SDK has to be installed. It comes with the resource compiler rc.exe.
-  /// This should be set to the root directory of the Windows SDK, e.g., "C:\Program Files (x86)\Windows Kits\10" or,
-  /// if multiple 10 versions are installed, set it directly to the correct bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
-  ///
-  /// If it is left unset, it will look up a path in the registry, i.e. HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots
-  sdk_dir: Option<PathBuf>,
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
@@ -137,14 +132,6 @@ impl WindowsAttributes {
     self
       .window_icon_path
       .replace(window_icon_path.as_ref().into());
-    self
-  }
-
-  /// Sets the sdk dir for windows. Currently only used on Windows. This must be a valid UTF-8
-  /// path. Defaults to whatever the `winres` crate determines is best.
-  #[must_use]
-  pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {
-    self.sdk_dir = Some(sdk_dir.as_ref().into());
     self
   }
 
@@ -268,6 +255,22 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   let config: Config = serde_json::from_value(config)?;
 
+  let s = config.tauri.bundle.identifier.split('.');
+  let last = s.clone().count() - 1;
+  let mut android_package_prefix = String::new();
+  for (i, w) in s.enumerate() {
+    if i == 0 || i != last {
+      android_package_prefix.push_str(w);
+      android_package_prefix.push('_');
+    }
+  }
+  android_package_prefix.pop();
+  println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_PREFIX={android_package_prefix}");
+
+  if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+    mobile::generate_gradle_files(project_dir)?;
+  }
+
   cfg_alias("dev", !has_feature("custom-protocol"));
 
   let ws_path = get_workspace_dir()?;
@@ -300,13 +303,16 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if !error_message.is_empty() {
       return Err(anyhow!("
-      The `tauri` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
+      The `tauri` dependency features on the `Cargo.toml` file does not match the `tauri.conf.json` config.
       Please run `tauri dev` or `tauri build` or {}.
     ", error_message));
     }
   }
 
   let target_triple = std::env::var("TARGET").unwrap();
+
+  println!("cargo:rustc-env=TAURI_TARGET_TRIPLE={target_triple}");
+
   let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
   let target_dir = out_dir
@@ -344,7 +350,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   if target_triple.contains("windows") {
-    use anyhow::Context;
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};
 
@@ -365,49 +370,42 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       .window_icon_path
       .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
 
-    if window_icon_path.exists() {
-      let mut res = WindowsResource::new();
+    if target_triple.contains("windows") {
+      if window_icon_path.exists() {
+        let mut res = WindowsResource::new();
 
-      if let Some(manifest) = attributes.windows_attributes.app_manifest {
-        res.set_manifest(&manifest);
-      } else {
-        res.set_manifest(include_str!("window-app-manifest.xml"));
-      }
-
-      if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
-        if let Some(sdk_dir_str) = sdk_dir.to_str() {
-          res.set_toolkit_path(sdk_dir_str);
+        if let Some(manifest) = attributes.windows_attributes.app_manifest {
+          res.set_manifest(&manifest);
         } else {
-          return Err(anyhow!(
-            "sdk_dir path is not valid; only UTF-8 characters are allowed"
-          ));
+          res.set_manifest(include_str!("window-app-manifest.xml"));
         }
-      }
-      if let Some(version) = &config.package.version {
-        if let Ok(v) = Version::parse(version) {
-          let version = v.major << 48 | v.minor << 32 | v.patch << 16;
-          res.set_version_info(VersionInfo::FILEVERSION, version);
-          res.set_version_info(VersionInfo::PRODUCTVERSION, version);
+
+        if let Some(version) = &config.package.version {
+          if let Ok(v) = Version::parse(version) {
+            let version = v.major << 48 | v.minor << 32 | v.patch << 16;
+            res.set_version_info(VersionInfo::FILEVERSION, version);
+            res.set_version_info(VersionInfo::PRODUCTVERSION, version);
+          }
+          res.set("FileVersion", version);
+          res.set("ProductVersion", version);
         }
-        res.set("FileVersion", version);
-        res.set("ProductVersion", version);
-      }
-      if let Some(product_name) = &config.package.product_name {
-        res.set("ProductName", product_name);
-        res.set("FileDescription", product_name);
-      }
-      res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
-      res.compile().with_context(|| {
-        format!(
-          "failed to compile `{}` into a Windows Resource file during tauri-build",
+        if let Some(product_name) = &config.package.product_name {
+          res.set("ProductName", product_name);
+          res.set("FileDescription", product_name);
+        }
+        res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
+        res.compile().with_context(|| {
+          format!(
+            "failed to compile `{}` into a Windows Resource file during tauri-build",
+            window_icon_path.display()
+          )
+        })?;
+      } else {
+        return Err(anyhow!(format!(
+          "`{}` not found; required for generating a Windows Resource file during tauri-build",
           window_icon_path.display()
-        )
-      })?;
-    } else {
-      return Err(anyhow!(format!(
-        "`{}` not found; required for generating a Windows Resource file during tauri-build",
-        window_icon_path.display()
-      )));
+        )));
+      }
     }
 
     let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap();

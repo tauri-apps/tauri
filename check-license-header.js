@@ -11,7 +11,7 @@ SPDX-License-Identifier: Apache-2.0
 SPDX-License-Identifier: MIT`
 const bundlerLicense = '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
 
-const extensions = ['.rs', '.js', '.ts', '.yml']
+const extensions = ['.rs', '.js', '.ts', '.yml', '.swift', '.kt']
 const ignore = ['target', 'templates', 'node_modules', 'gen', 'dist', 'bundle.js', 'bundle.global.js']
 
 async function checkFile(file) {
@@ -25,8 +25,8 @@ async function checkFile(file) {
     let contents = ``
     let i = 0
     for await (let line of rl) {
-      // ignore empty lines, allow shebang and bundler license
-      if (line.length === 0 || line.startsWith("#!") || line === bundlerLicense) {
+      // ignore empty lines, allow shebang, swift-tools-version and bundler license
+      if (line.length === 0 || line.startsWith("#!") || line.startsWith('// swift-tools-version:') || line === bundlerLicense) {
         continue
       }
 

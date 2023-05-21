@@ -17,6 +17,8 @@ mod app;
 mod env_nodejs;
 mod env_rust;
 mod env_system;
+#[cfg(target_os = "macos")]
+mod ios;
 mod packages_nodejs;
 mod packages_rust;
 
@@ -249,7 +251,7 @@ pub fn command(options: Options) -> Result<()> {
   };
   packages
     .items
-    .extend(packages_rust::items(app_dir, tauri_dir.clone()));
+    .extend(packages_rust::items(app_dir, tauri_dir.as_deref()));
   packages
     .items
     .extend(packages_nodejs::items(app_dir, &metadata, yarn_version));
@@ -259,10 +261,27 @@ pub fn command(options: Options) -> Result<()> {
     interactive,
     items: Vec::new(),
   };
-  app.items.extend(app::items(app_dir, tauri_dir));
+  app.items.extend(app::items(app_dir, tauri_dir.as_deref()));
 
   environment.display();
   packages.display();
   app.display();
+
+  // iOS
+  #[cfg(target_os = "macos")]
+  {
+    if let Some(p) = &tauri_dir {
+      if p.join("gen/apple").exists() {
+        let mut ios = Section {
+          label: "iOS",
+          interactive,
+          items: Vec::new(),
+        };
+        ios.items.extend(ios::items());
+        ios.display();
+      }
+    }
+  }
+
   Ok(())
 }

@@ -35,7 +35,7 @@ use std::{
 // URLS for the NSIS toolchain.
 #[cfg(target_os = "windows")]
 const NSIS_URL: &str =
-  "https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08.zip/download";
+  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3/nsis-3.zip";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
@@ -344,6 +344,21 @@ fn build_nsis_app_installer(
   }
 
   let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(|s| {
+    let mut output = String::new();
+    for c in s.chars() {
+      match c {
+        '\"' => output.push_str("$\\\""),
+        '$' => output.push_str("$$"),
+        '`' => output.push_str("$\\`"),
+        '\n' => output.push_str("$\\n"),
+        '\t' => output.push_str("$\\t"),
+        '\r' => output.push_str("$\\r"),
+        _ => output.push(c),
+      }
+    }
+    output
+  });
   handlebars
     .register_template_string("installer.nsi", include_str!("./templates/installer.nsi"))
     .map_err(|e| e.to_string())
@@ -511,6 +526,14 @@ fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Enco
       UTF_8,
     )),
     "french" => Some((include_str!("./templates/nsis-languages/French.nsh"), UTF_8)),
+    "spanish" => Some((
+      include_str!("./templates/nsis-languages/Spanish.nsh"),
+      UTF_8,
+    )),
+    "spanishinternational" => Some((
+      include_str!("./templates/nsis-languages/SpanishInternational.nsh"),
+      UTF_8,
+    )),
     _ => None,
   }
 }

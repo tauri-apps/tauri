@@ -15,3 +15,6 @@ log = "0.4.17"
 
 [build-dependencies]
 napi-build = "2.0"
+
+[features]
+openssl-vendored = ["tauri-cli/openssl-vendored"]

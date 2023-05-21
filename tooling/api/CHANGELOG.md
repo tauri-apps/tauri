@@ -1,5 +1,57 @@
 # Changelog
 
+## \[2.0.0-alpha.4]
+
+- [`0ab5f40d`](https://www.github.com/tauri-apps/tauri/commit/0ab5f40d3a4207f20e4440587b41c4e78f91d233)([#6813](https://www.github.com/tauri-apps/tauri/pull/6813)) Add channel API for sending data across the IPC.
+- [`3245d14b`](https://www.github.com/tauri-apps/tauri/commit/3245d14b9eb256a5c5675c7030bac7082855df47)([#6895](https://www.github.com/tauri-apps/tauri/pull/6895)) Moved the `app` feature to its own plugin in the plugins-workspace repository.
+- [`09376af5`](https://www.github.com/tauri-apps/tauri/commit/09376af59424cc27803fa2820d2ac0d4cdc90a6d)([#6704](https://www.github.com/tauri-apps/tauri/pull/6704)) Moved the `cli` feature to its own plugin in the plugins-workspace repository.
+- [`2d5378bf`](https://www.github.com/tauri-apps/tauri/commit/2d5378bfc1ba817ee2f331b41738a90e5997e5e8)([#6717](https://www.github.com/tauri-apps/tauri/pull/6717)) Moved the dialog APIs to its own plugin in the plugins-workspace repository.
+- [`39f1b04f`](https://www.github.com/tauri-apps/tauri/commit/39f1b04f7be4966488484829cd54c8ce72a04200)([#6943](https://www.github.com/tauri-apps/tauri/pull/6943)) Moved the `event` JS APIs to a plugin.
+- [`fc4d687e`](https://www.github.com/tauri-apps/tauri/commit/fc4d687ef0ef2ea069ed73c40916da733b5dcb8f)([#6716](https://www.github.com/tauri-apps/tauri/pull/6716)) Moved the file system APIs to its own plugin in the plugins-workspace repository.
+- [`f78a3783`](https://www.github.com/tauri-apps/tauri/commit/f78a378344bbec48533641661d865920a8f46f8f)([#6742](https://www.github.com/tauri-apps/tauri/pull/6742)) Moved the `http` feature to its own plugin in the plugins-workspace repository.
+- [`29ce9ce2`](https://www.github.com/tauri-apps/tauri/commit/29ce9ce2ce7dfb260d556d5cffd075e8fe06660c)([#6902](https://www.github.com/tauri-apps/tauri/pull/6902)) Moved the `os` feature to its own plugin in the plugins-workspace repository.
+- [`60cf9ed2`](https://www.github.com/tauri-apps/tauri/commit/60cf9ed2fcd7be4df41e86cf18735efe9b6cb254)([#6905](https://www.github.com/tauri-apps/tauri/pull/6905)) Moved the `process` feature to its own plugin in the plugins-workspace repository.
+- [`96639ca2`](https://www.github.com/tauri-apps/tauri/commit/96639ca239c9e4f75142fc07868ac46822111cff)([#6749](https://www.github.com/tauri-apps/tauri/pull/6749)) Moved the `shell` functionality to its own plugin in the plugins-workspace repository.
+- [`b072daa3`](https://www.github.com/tauri-apps/tauri/commit/b072daa3bd3e38b808466666619ddb885052c5b2)([#6919](https://www.github.com/tauri-apps/tauri/pull/6919)) Moved the `updater` feature to its own plugin in the plugins-workspace repository.
+- [`cebd7526`](https://www.github.com/tauri-apps/tauri/commit/cebd75261ac71b98976314a450cb292eeeec1515)([#6728](https://www.github.com/tauri-apps/tauri/pull/6728)) Moved the `clipboard` feature to its own plugin in the plugins-workspace repository.
+- [`3f17ee82`](https://www.github.com/tauri-apps/tauri/commit/3f17ee82f6ff21108806edb7b00500b8512b8dc7)([#6737](https://www.github.com/tauri-apps/tauri/pull/6737)) Moved the `global-shortcut` feature to its own plugin in the plugins-workspace repository.
+- [`9a79dc08`](https://www.github.com/tauri-apps/tauri/commit/9a79dc085870e0c1a5df13481ff271b8c6cc3b78)([#6947](https://www.github.com/tauri-apps/tauri/pull/6947)) Moved the `window` JS APIs to its own plugin in the plugins-workspace repository.
+
+## \[2.0.0-alpha.3]
+
+- Overload the dialog `open` function to have better TS result types.
+  - [1eacd51d](https://www.github.com/tauri-apps/tauri/commit/1eacd51d185ba69a3c3cb2cc93c792e2d5929843) overloaded the open function for convenient type inference ([#5619](https://www.github.com/tauri-apps/tauri/pull/5619)) on 2023-04-07
+
+## \[2.0.0-alpha.2]
+
+- Added `raw` encoding option to read stdout and stderr raw bytes.
+  - [f992e7f5](https://www.github.com/tauri-apps/tauri/commit/f992e7f58bf975c654a3daf36780b31a32bac064) chore(changes): readd change file on 2023-04-03
+- Removed shell's `Command` constructor and added the `Command.create` static function instead.
+  - [509d4678](https://www.github.com/tauri-apps/tauri/commit/509d4678b12816c1dd08a9a5efa71ba556d91c27) Support sending raw byte data to the "data" event for child command's stdout and stderr ([#5789](https://www.github.com/tauri-apps/tauri/pull/5789)) on 2023-03-31
+
+## \[2.0.0-alpha.1]
+
+- Added the `shadow` option when creating a window and `setShadow` function.
+  - [a81750d7](https://www.github.com/tauri-apps/tauri/commit/a81750d779bc72f0fdb7de90b7fbddfd8049b328) feat(core): add shadow APIs ([#6206](https://www.github.com/tauri-apps/tauri/pull/6206)) on 2023-02-08
+
+## \[2.0.0-alpha.0]
+
+- First mobile alpha release!
+  - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.3.0]
+
+- Return correct type for ` event.payload  ` in `onResized` and `onMoved` window event handlers.
+  - [0b46637e](https://www.github.com/tauri-apps/tauri/commit/0b46637ebaba54403afa32a1cb466f09df2db999) fix(api): construct correct object for onResized and onMoved, closes [#6507](https://www.github.com/tauri-apps/tauri/pull/6507) ([#6509](https://www.github.com/tauri-apps/tauri/pull/6509)) on 2023-04-03
+- Added the `WindowOptions::contentProtected` option and `WebviewWindow#setContentProtected` to change it at runtime.
+  - [4ab5545b](https://www.github.com/tauri-apps/tauri/commit/4ab5545b7a831c549f3c65e74de487ede3ab7ce5) feat: add content protection api, closes [#5132](https://www.github.com/tauri-apps/tauri/pull/5132) ([#5513](https://www.github.com/tauri-apps/tauri/pull/5513)) on 2022-12-13
+- Allow setting the text of the dialog buttons.
+  - [00e1efaa](https://www.github.com/tauri-apps/tauri/commit/00e1efaa9b33876d41dd360624b69971e70d3856) feat: customize button texts of message dialog ([#4383](https://www.github.com/tauri-apps/tauri/pull/4383)) on 2022-12-28
+- Add `is_minimized()` window method.
+  - [62144ef3](https://www.github.com/tauri-apps/tauri/commit/62144ef3be63b237869e511826edfb938e2c7174) feat: add is_minimized (fix [#3878](https://www.github.com/tauri-apps/tauri/pull/3878)) ([#5618](https://www.github.com/tauri-apps/tauri/pull/5618)) on 2022-12-13
+- Add `title` getter on window.
+  - [233e43b0](https://www.github.com/tauri-apps/tauri/commit/233e43b0c34fada1ca025378533a0b76931a6540) feat: add `title` getter on window, closes [#5023](https://www.github.com/tauri-apps/tauri/pull/5023) ([#5515](https://www.github.com/tauri-apps/tauri/pull/5515)) on 2022-12-13
+
 ## \[1.2.0]
 
 - Added the `acceptFirstMouse` window option.

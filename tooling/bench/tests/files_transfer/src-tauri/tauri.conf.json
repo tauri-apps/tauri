@@ -33,13 +33,6 @@
         "exceptionDomain": ""
       }
     },
-    "allowlist": {
-      "all": false,
-      "fs": {
-        "readFile": true,
-        "scope": ["$HOME/.tauri_3mb.json"]
-      }
-    },
     "windows": [
       {
         "title": "Welcome to Tauri!",
@@ -51,9 +44,6 @@
     ],
     "security": {
       "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
-    },
-    "updater": {
-      "active": false
     }
   }
 }

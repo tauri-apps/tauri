@@ -105,7 +105,7 @@ fn main() {
       }
     }
 
-    if let Some(project_dir) = var_os("WRY_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+    if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
       let tauri_proguard = include_str!("./mobile/proguard-tauri.pro").replace(
         "$PACKAGE",
         &var("WRY_ANDROID_PACKAGE").expect("missing `WRY_ANDROID_PACKAGE` environment variable"),

@@ -6,30 +6,31 @@ Var ReinstallPageCheck
 !include x64.nsh
 !include WordFunc.nsh
 
-!define MANUFACTURER "{{{manufacturer}}}"
-!define PRODUCTNAME "{{{product_name}}}"
-!define VERSION "{{{version}}}"
-!define INSTALLMODE "{{{install_mode}}}"
-!define LICENSE "{{{license}}}"
-!define INSTALLERICON "{{{installer_icon}}}"
-!define SIDEBARIMAGE "{{{sidebar_image}}}"
-!define HEADERIMAGE "{{{header_image}}}"
-!define MAINBINARYNAME "{{{main_binary_name}}}"
-!define MAINBINARYSRCPATH "{{{main_binary_path}}}"
-!define BUNDLEID "{{{bundle_id}}}"
-!define OUTFILE "{{{out_file}}}"
-!define ARCH "{{{arch}}}"
-!define PLUGINSPATH "{{{additional_plugins_path}}}"
-!define ALLOWDOWNGRADES "{{{allow_downgrades}}}"
-!define DISPLAYLANGUAGESELECTOR "{{{display_language_selector}}}"
-!define INSTALLWEBVIEW2MODE "{{{install_webview2_mode}}}"
-!define WEBVIEW2INSTALLERARGS "{{{webview2_installer_args}}}"
-!define WEBVIEW2BOOTSTRAPPERPATH "{{{webview2_bootstrapper_path}}}"
-!define WEBVIEW2INSTALLERPATH "{{{webview2_installer_path}}}"
+!define MANUFACTURER "{{manufacturer}}"
+!define PRODUCTNAME "{{product_name}}"
+!define VERSION "{{version}}"
+!define INSTALLMODE "{{install_mode}}"
+!define LICENSE "{{license}}"
+!define INSTALLERICON "{{installer_icon}}"
+!define SIDEBARIMAGE "{{sidebar_image}}"
+!define HEADERIMAGE "{{header_image}}"
+!define MAINBINARYNAME "{{main_binary_name}}"
+!define MAINBINARYSRCPATH "{{main_binary_path}}"
+!define BUNDLEID "{{bundle_id}}"
+!define OUTFILE "{{out_file}}"
+!define ARCH "{{arch}}"
+!define PLUGINSPATH "{{additional_plugins_path}}"
+!define ALLOWDOWNGRADES "{{allow_downgrades}}"
+!define DISPLAYLANGUAGESELECTOR "{{display_language_selector}}"
+!define INSTALLWEBVIEW2MODE "{{install_webview2_mode}}"
+!define WEBVIEW2INSTALLERARGS "{{webview2_installer_args}}"
+!define WEBVIEW2BOOTSTRAPPERPATH "{{webview2_bootstrapper_path}}"
+!define WEBVIEW2INSTALLERPATH "{{webview2_installer_path}}"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 
 Name "${PRODUCTNAME}"
+BrandingText "{{copyright}}"
 OutFile "${OUTFILE}"
 Unicode true
 SetCompressor /SOLID lzma
@@ -38,15 +39,17 @@ SetCompressor /SOLID lzma
     !addplugindir "${PLUGINSPATH}"
 !endif
 
-RequestExecutionLevel user
 
 !if "${INSTALLMODE}" == "perMachine"
   RequestExecutionLevel highest
 !endif
 
+!if "${INSTALLMODE}" == "currentUser"
+  RequestExecutionLevel user
+!endif
+
 !if "${INSTALLMODE}" == "both"
   !define MULTIUSER_MUI
-  !define MULTIUSER_EXECUTIONLEVEL Highest
   !define MULTIUSER_INSTALLMODE_INSTDIR "${PRODUCTNAME}"
   !define MULTIUSER_INSTALLMODE_COMMANDLINE
   !if "${ARCH}" == "x64"
@@ -58,11 +61,7 @@ RequestExecutionLevel user
   !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME "CurrentUser"
   !define MULTIUSER_INSTALLMODEPAGE_SHOWUSERNAME
   !define MULTIUSER_INSTALLMODE_FUNCTION RestorePreviousInstallLocation
-  Function RestorePreviousInstallLocation
-    ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
-    StrCmp $4 "" +2 0
-      StrCpy $INSTDIR $4
-  FunctionEnd
+  !define MULTIUSER_EXECUTIONLEVEL Highest
   !include MultiUser.nsh
 !endif
 
@@ -272,8 +271,8 @@ FunctionEnd
 !insertmacro MUI_LANGUAGE "{{this}}"
 {{/each}}
 !insertmacro MUI_RESERVEFILE_LANGDLL
-{{#each languages}}
-  !include "{{this}}.nsh"
+{{#each language_files}}
+  !include "{{this}}"
 {{/each}}
 
 Function .onInit
@@ -287,22 +286,27 @@ Function .onInit
     SetShellVarContext all
   !endif
 
-  !if "${INSTALLMODE}" == "perMachine"
-    ; Set default install location
-    ${If} ${RunningX64}
-      !if "${ARCH}" == "x64"
-        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
-      !else if "${ARCH}" == "arm64"
-        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
-      !else
+  ${If} $INSTDIR == ""
+    !if "${INSTALLMODE}" == "perMachine"
+      ; Set default install location
+      ${If} ${RunningX64}
+        !if "${ARCH}" == "x64"
+          StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
+        !else if "${ARCH}" == "arm64"
+          StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
+        !else
+          StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
+        !endif
+      ${Else}
         StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
-      !endif
-    ${Else}
-      StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
-    ${EndIf}
-  !else if "${INSTALLMODE}" == "currentUser"
-    StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
-  !endif
+      ${EndIf}
+    !else if "${INSTALLMODE}" == "currentUser"
+      StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
+    !endif
+
+    Call RestorePreviousInstallLocation
+  ${EndIf}
+
 
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_INIT
@@ -356,7 +360,7 @@ Section Webview2
 
   !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
     CreateDirectory "$INSTDIR\redist"
-    File /oname="$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe" "WEBVIEW2BOOTSTRAPPERPATH"
+    File "/oname=$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
     DetailPrint "$(installingWebview2)"
     StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe"
     Goto install_webview2
@@ -364,7 +368,7 @@ Section Webview2
 
   !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
     CreateDirectory "$INSTDIR\redist"
-    File /oname="$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe" "WEBVIEW2INSTALLERPATH"
+    File "/oname=$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
     DetailPrint "$(installingWebview2)"
     StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe"
     Goto install_webview2
@@ -443,14 +447,8 @@ Section Install
 
   !if "${INSTALLMODE}" == "both"
     ; Save install mode to be selected by default for the next installation such as updating
+    ; or when uninstalling
     WriteRegStr SHCTX "${UNINSTKEY}" $MultiUser.InstallMode 1
-
-    ; Save install mode to be read by the uninstaller in order to remove the correct
-    ; registry key
-    FileOpen $4 "$INSTDIR\installmode" w
-    FileWrite $4 $MultiUser.InstallMode
-    FileClose $4
-    SetFileAttributes "$INSTDIR\installmode" HIDDEN|READONLY
   !endif
 
   ; Registry information for add/remove programs
@@ -475,6 +473,17 @@ Section Install
 
 SectionEnd
 
+Var Restart
+Function .onInstSuccess
+  ; Check for `/R` flag only in silent installer because
+  ; gui installer has a toggle for the user to restart the app
+  IfSilent 0 done
+    ${GetOptions} $CMDLINE "/R" $Restart
+    IfErrors done 0 ; if errors were found then `/R` wasn't passed, so we skip restarting
+      Exec '"$INSTDIR\${MAINBINARYNAME}.exe"'
+  done:
+FunctionEnd
+
 Function un.onInit
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_UNINIT
@@ -485,27 +494,6 @@ FunctionEnd
 
 Section Uninstall
   !insertmacro CheckIfAppIsRunning
-
-  ; Remove registry information for add/remove programs
-  !if "${INSTALLMODE}" == "both"
-    ; Get the saved install mode
-    FileOpen $4 "$INSTDIR\installmode" r
-    FileRead $4 $1
-    FileClose $4
-    Delete "$INSTDIR\installmode"
-
-    ${If} $1 == "AllUsers"
-      DeleteRegKey HKLM "${UNINSTKEY}"
-    ${ElseIf} $1 == "CurrentUser"
-      DeleteRegKey HKCU "${UNINSTKEY}"
-    ${EndIf}
-  !else if "${INSTALLMODE}" == "perMachine"
-    DeleteRegKey HKLM "${UNINSTKEY}"
-  !else
-    DeleteRegKey HKCU "${UNINSTKEY}"
-  !endif
-
-  DeleteRegValue HKCU "${MANUPRODUCTKEY}" "Installer Language"
 
   ; Delete the app directory and its content from disk
   ; Copy main executable
@@ -540,5 +528,21 @@ Section Uninstall
     RmDir /r "$APPDATA\${BUNDLEID}"
     RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
   ${EndIf}
+
+  ; Remove registry information for add/remove programs
+  !if "${INSTALLMODE}" == "both"
+    DeleteRegKey SHCTX "${UNINSTKEY}"
+  !else if "${INSTALLMODE}" == "perMachine"
+    DeleteRegKey HKLM "${UNINSTKEY}"
+  !else
+    DeleteRegKey HKCU "${UNINSTKEY}"
+  !endif
+
+  DeleteRegValue HKCU "${MANUPRODUCTKEY}" "Installer Language"
 SectionEnd
 
+Function RestorePreviousInstallLocation
+  ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
+  StrCmp $4 "" +2 0
+    StrCpy $INSTDIR $4
+FunctionEnd

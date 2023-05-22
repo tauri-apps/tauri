@@ -4,9 +4,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use crate::{manager::WindowManager, Config, Runtime, Window};
-#[cfg(feature = "isolation")]
-use crate::{pattern::ISOLATION_IFRAME_SRC_DOMAIN, sealed::ManagerBase, Pattern};
+use crate::{Config, Runtime, Window};
 use url::Url;
 
 /// IPC access configuration for a remote domain.
@@ -88,8 +86,7 @@ pub struct Scope {
 }
 
 impl Scope {
-  #[allow(unused_variables)]
-  pub(crate) fn new<R: Runtime>(config: &Config, manager: &WindowManager<R>) -> Self {
+  pub(crate) fn new(config: &Config) -> Self {
     #[allow(unused_mut)]
     let mut remote_access: Vec<RemoteDomainAccessScope> = config
       .tauri
@@ -105,17 +102,6 @@ impl Scope {
         enable_tauri_api: s.enable_tauri_api,
       })
       .collect();
-
-    #[cfg(feature = "isolation")]
-    if let Pattern::Isolation { schema, .. } = &manager.inner.pattern {
-      remote_access.push(RemoteDomainAccessScope {
-        scheme: Some(schema.clone()),
-        domain: ISOLATION_IFRAME_SRC_DOMAIN.into(),
-        windows: Vec::new(),
-        plugins: Vec::new(),
-        enable_tauri_api: true,
-      });
-    }
 
     Self {
       remote_access: Arc::new(Mutex::new(remote_access)),
@@ -155,13 +141,6 @@ impl Scope {
     for s in &*self.remote_access.lock().unwrap() {
       #[allow(unused_mut)]
       let mut matches_window = s.windows.contains(&label);
-      // the isolation iframe is always able to access the IPC
-      #[cfg(feature = "isolation")]
-      if let Pattern::Isolation { schema, .. } = &window.manager().inner.pattern {
-        if schema == url.scheme() && url.domain() == Some(ISOLATION_IFRAME_SRC_DOMAIN) {
-          matches_window = true;
-        }
-      }
 
       let matches_scheme = s
         .scheme
@@ -281,7 +260,7 @@ mod tests {
 
   #[test]
   fn scope_not_defined() {
-    let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
       .add_window("other")
       .enable_tauri_api()]);
 
@@ -298,7 +277,7 @@ mod tests {
 
   #[test]
   fn scope_not_defined_for_window() {
-    let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("second")
       .enable_tauri_api()]);
 
@@ -312,7 +291,7 @@ mod tests {
 
   #[test]
   fn scope_not_defined_for_url() {
-    let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("github.com")
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("github.com")
       .add_window("main")
       .enable_tauri_api()]);
 
@@ -374,7 +353,7 @@ mod tests {
 
   #[test]
   fn subpath_is_allowed() {
-    let (app, window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("main")
       .enable_tauri_api()]);
 
@@ -388,7 +367,7 @@ mod tests {
 
   #[test]
   fn tauri_api_not_allowed() {
-    let (_app, window) = test_context(vec![
+    let (_app, mut window) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app").add_window("main")
     ]);
 
@@ -402,7 +381,7 @@ mod tests {
 
   #[test]
   fn plugin_allowed() {
-    let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("main")
       .add_plugin(PLUGIN_NAME)]);
 
@@ -416,7 +395,7 @@ mod tests {
 
   #[test]
   fn plugin_not_allowed() {
-    let (_app, window) = test_context(vec![
+    let (_app, mut window) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app").add_window("main")
     ]);
 

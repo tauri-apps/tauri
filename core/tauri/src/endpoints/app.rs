@@ -37,7 +37,7 @@ impl Cmd {
   }
 
   fn get_tauri_version<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
-    Ok(env!("CARGO_PKG_VERSION"))
+    Ok(crate::VERSION)
   }
 
   #[module_command_handler(app_show)]

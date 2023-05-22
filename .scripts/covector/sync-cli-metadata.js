@@ -52,8 +52,8 @@ const metadata = JSON.parse(readFileSync(filePath, 'utf-8'))
 // set field version
 let version
 if (packageNickname === '@tauri-apps/cli') {
-  version = inc(metadata[packageNickname].version)
-  metadata[packageNickname].version = version
+  version = inc(metadata['cli.js'].version)
+  metadata['cli.js'].version = version
 } else {
   version = inc(metadata[packageNickname])
   metadata[packageNickname] = version

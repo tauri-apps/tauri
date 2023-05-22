@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  eslint-@tauri-apps/cli:
+  eslint-tauri-apps/cli:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -36,7 +36,7 @@ jobs:
         working-directory: ./tooling/cli/node/
         run: yarn format:check
 
-  eslint-@tauri-apps/api:
+  eslint-tauri-apps/api:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

@@ -5,9 +5,9 @@
 use clap::{Parser, Subcommand};
 use std::{
   env::set_var,
-  fs::create_dir,
+  fs::{create_dir, create_dir_all, write},
   process::exit,
-  thread::{sleep, spawn},
+  thread::sleep,
   time::Duration,
 };
 use sublime_fuzzy::best_match;
@@ -110,6 +110,7 @@ pub fn get_config(
         .logcat()
       ),
     ],
+    min_sdk_version: Some(config.tauri.bundle.android.min_sdk_version),
     ..Default::default()
   };
   let config = AndroidConfig::from_raw(app.clone(), Some(raw)).unwrap();
@@ -214,7 +215,8 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
     } else {
       device_list.into_iter().next().unwrap()
     };
-    println!(
+
+    log::info!(
       "Detected connected device: {} with target {:?}",
       device,
       device.target().triple,
@@ -269,15 +271,20 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     Ok(device)
   } else {
     let emulator = emulator_prompt(env, target)?;
-    let handle = emulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
+    log::info!("Starting emulator {}", emulator.name());
+    emulator.start_detached(env)?;
+    let mut tries = 0;
     loop {
       sleep(Duration::from_secs(2));
       if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
         return Ok(device);
       }
+      if tries >= 3 {
+        log::info!("Waiting for emulator to start... (maybe the emulator is unathorized or offline, run `adb devices` to check)");
+      } else {
+        log::info!("Waiting for emulator to start...");
+      }
+      tries += 1;
     }
   }
 }
@@ -294,4 +301,16 @@ fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {
   loop {
     sleep(Duration::from_secs(24 * 60 * 60));
   }
+}
+
+fn inject_assets(config: &AndroidConfig, tauri_config: &TauriConfig) -> Result<()> {
+  let asset_dir = config.project_dir().join("app/src/main/assets");
+  create_dir_all(&asset_dir)?;
+
+  write(
+    asset_dir.join("tauri.conf.json"),
+    serde_json::to_string(&tauri_config)?,
+  )?;
+
+  Ok(())
 }

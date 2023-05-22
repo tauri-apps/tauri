@@ -8,6 +8,7 @@ package-lock.json
 .vscode/settings.json
 yarn.lock
 
+/.tauri
 /target
 Cargo.lock
 node_modules/

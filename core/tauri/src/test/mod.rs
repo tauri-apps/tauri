@@ -7,16 +7,12 @@
 mod mock_runtime;
 pub use mock_runtime::*;
 
-#[cfg(shell_scope)]
-use std::collections::HashMap;
 use std::{borrow::Cow, sync::Arc};
 
-#[cfg(shell_scope)]
-use crate::ShellScopeConfig;
-use crate::{Manager, Pattern, WindowBuilder};
+use crate::{Pattern, WindowBuilder};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
-  config::{CliConfig, Config, PatternKind, TauriConfig, WindowUrl},
+  config::{Config, PatternKind, TauriConfig, WindowUrl},
 };
 
 pub struct NoopAsset {
@@ -47,18 +43,8 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       tauri: TauriConfig {
         pattern: PatternKind::Brownfield,
         windows: Vec::new(),
-        cli: Some(CliConfig {
-          description: None,
-          long_description: None,
-          before_help: None,
-          after_help: None,
-          args: None,
-          subcommands: None,
-        }),
         bundle: Default::default(),
-        allowlist: Default::default(),
         security: Default::default(),
-        updater: Default::default(),
         system_tray: None,
         macos_private_api: false,
       },
@@ -68,6 +54,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     assets: Arc::new(assets),
     default_window_icon: None,
     app_icon: None,
+    #[cfg(desktop)]
     system_tray_icon: None,
     package_info: crate::PackageInfo {
       name: "test".into(),
@@ -78,11 +65,6 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
-    #[cfg(shell_scope)]
-    shell_scope: ShellScopeConfig {
-      open: None,
-      scopes: HashMap::new(),
-    },
   }
 }
 
@@ -96,13 +78,4 @@ pub fn mock_app() -> crate::App<MockRuntime> {
     .unwrap();
 
   app
-}
-
-pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRuntime> {
-  let app = mock_app();
-  crate::endpoints::InvokeContext {
-    window: app.get_window("main").unwrap(),
-    config: app.config(),
-    package_info: app.package_info().clone(),
-  }
 }

@@ -33,11 +33,7 @@ use crate::{
   Result,
 };
 
-use std::{
-  process::exit,
-  thread::{sleep, spawn},
-  time::Duration,
-};
+use std::{process::exit, thread::sleep, time::Duration};
 
 mod build;
 mod dev;
@@ -239,13 +235,6 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device
     } else {
       simulator_list.into_iter().next().unwrap()
     };
-
-    log::info!("Starting simulator {}", device.name());
-    let handle = device.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
-
     Ok(device)
   } else {
     Err(anyhow::anyhow!("No available iOS Simulator detected"))
@@ -257,10 +246,8 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     Ok(device)
   } else {
     let simulator = simulator_prompt(env, target)?;
-    let handle = simulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
+    log::info!("Starting simulator {}", simulator.name());
+    simulator.start_detached(env)?;
     Ok(simulator.into())
   }
 }

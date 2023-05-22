@@ -5,4 +5,4 @@
 package app.tauri.annotation
 
 @Retention(AnnotationRetention.RUNTIME)
-annotation class PluginMethod
+annotation class Command

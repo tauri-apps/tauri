@@ -12,6 +12,7 @@ use url::Url;
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
 use crate::{
+  api::ipc::CallbackFn,
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
@@ -23,7 +24,7 @@ use crate::{
     webview::{WebviewAttributes, WindowBuilder as _},
     window::{
       dpi::{PhysicalPosition, PhysicalSize},
-      DetachedWindow, JsEventListenerKey, PendingWindow,
+      DetachedWindow, PendingWindow,
     },
     Dispatch, RuntimeHandle,
   },
@@ -50,10 +51,11 @@ use windows::Win32::Foundation::HWND;
 use tauri_macros::default_runtime;
 
 use std::{
+  collections::{HashMap, HashSet},
   fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::Arc,
+  sync::{Arc, Mutex},
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
@@ -329,14 +331,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       self.label.clone(),
     )?;
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    let mut pending = self.manager.prepare_window(
+    let pending = self.manager.prepare_window(
       self.app_handle.clone(),
       pending,
       &labels,
       web_resource_request_handler,
     )?;
     let window_effects = pending.webview_attributes.window_effects.clone();
-    pending.navigation_handler = self.navigation_handler.take();
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
@@ -709,6 +710,15 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   }
 }
 
+/// Key for a JS event listener.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct JsEventListenerKey {
+  /// The associated window label.
+  pub window_label: Option<String>,
+  /// The event name.
+  pub event: String,
+}
+
 // TODO: expand these docs since this is a pretty important type
 /// A webview window managed by Tauri.
 ///
@@ -718,10 +728,11 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 #[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
-  window: DetachedWindow<EventLoopMessage, R>,
+  pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
+  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
 }
 
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
@@ -736,6 +747,7 @@ impl<R: Runtime> Clone for Window<R> {
       window: self.window.clone(),
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
+      js_event_listeners: self.js_event_listeners.clone(),
     }
   }
 }
@@ -887,6 +899,7 @@ impl<R: Runtime> Window<R> {
       window,
       manager,
       app_handle,
+      js_event_listeners: Default::default(),
     }
   }
 
@@ -1466,13 +1479,40 @@ impl<R: Runtime> Window<R> {
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
   /// Returns the current url of the webview.
-  pub fn url(&self) -> crate::Result<Url> {
-    self.window.dispatcher.url().map_err(Into::into)
+  pub fn url(&self) -> Url {
+    self.window.current_url.lock().unwrap().clone()
+  }
+
+  #[cfg(test)]
+  pub(crate) fn navigate(&self, url: Url) {
+    *self.window.current_url.lock().unwrap() = url;
   }
 
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
+    let current_url = self.url();
+    let config_url = manager.get_url();
+    let is_local =
+      config_url.make_relative(&current_url).is_some() || current_url.scheme() == "tauri";
+
+    let mut scope_not_found_error_message =
+      ipc_scope_not_found_error_message(&self.window.label, current_url.as_str());
+    let scope = if is_local {
+      None
+    } else {
+      match self.ipc_scope().remote_access_for(&self, &current_url) {
+        Ok(scope) => Some(scope),
+        Err(e) => {
+          if e.matches_window {
+            scope_not_found_error_message = ipc_scope_domain_error_message(current_url.as_str());
+          } else if e.matches_domain {
+            scope_not_found_error_message = ipc_scope_window_error_message(&self.window.label);
+          }
+          None
+        }
+      }
+    };
     match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
@@ -1489,14 +1529,23 @@ impl<R: Runtime> Window<R> {
         let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
 
         let mut invoke = Invoke { message, resolver };
-        if let Some(module) = &payload.tauri_module {
-          crate::endpoints::handle(
-            module.to_string(),
-            invoke,
-            manager.config(),
-            manager.package_info(),
-          );
-        } else if payload.cmd.starts_with("plugin:") {
+        if !is_local && scope.is_none() {
+          invoke.resolver.reject(scope_not_found_error_message);
+          return Ok(());
+        }
+
+        if payload.cmd.starts_with("plugin:") {
+          if !is_local {
+            let command = invoke.message.command.replace("plugin:", "");
+            let plugin_name = command.split('|').next().unwrap().to_string();
+            if !scope
+              .map(|s| s.plugins().contains(&plugin_name))
+              .unwrap_or(true)
+            {
+              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+              return Ok(());
+            }
+          }
           let command = invoke.message.command.replace("plugin:", "");
           let mut tokens = command.split('|');
           // safe to unwrap: split always has a least one item
@@ -1523,12 +1572,12 @@ impl<R: Runtime> Window<R> {
               self.with_webview(move |webview| {
                 unsafe {
                   crate::ios::post_ipc_message(
-                    webview.inner(),
+                    webview.inner() as _,
                     &plugin.as_str().into(),
                     &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
                       .as_str()
                       .into(),
-                    crate::ios::json_to_dictionary(message.payload),
+                    crate::ios::json_to_dictionary(&message.payload) as _,
                     callback.0,
                     error.0,
                   )
@@ -1551,7 +1600,6 @@ impl<R: Runtime> Window<R> {
                     objects::JObject,
                     JNIEnv,
                   };
-                  use crate::api::ipc::CallbackFn;
 
                   fn handle_message<R: Runtime>(
                     plugin: &str,
@@ -1562,7 +1610,7 @@ impl<R: Runtime> Window<R> {
                     activity: JObject<'_>,
                     webview: JObject<'_>,
                   ) -> Result<(), JniError> {
-                    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, message.payload)?;
+                    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, &message.payload)?;
                     let plugin_manager = env
                       .call_method(
                         activity,
@@ -1627,9 +1675,24 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.eval_script(js).map_err(Into::into)
   }
 
-  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u64) {
+  /// Register a JS event listener and return its identifier.
+  pub(crate) fn listen_js(
+    &self,
+    window_label: Option<String>,
+    event: String,
+    handler: CallbackFn,
+  ) -> crate::Result<usize> {
+    let event_id = rand::random();
+
+    self.eval(&crate::event::listen_js(
+      self.manager().event_listeners_object_name(),
+      format!("'{}'", event),
+      event_id,
+      window_label.clone(),
+      format!("window['_{}']", handler.0),
+    ))?;
+
     self
-      .window
       .js_event_listeners
       .lock()
       .unwrap()
@@ -1638,12 +1701,21 @@ impl<R: Runtime> Window<R> {
         event,
       })
       .or_insert_with(Default::default)
-      .insert(id);
+      .insert(event_id);
+
+    Ok(event_id)
   }
 
-  pub(crate) fn unregister_js_listener(&self, id: u64) {
+  /// Unregister a JS event listener.
+  pub(crate) fn unlisten_js(&self, event: String, id: usize) -> crate::Result<()> {
+    self.eval(&crate::event::unlisten_js(
+      self.manager().event_listeners_object_name(),
+      event,
+      id,
+    ))?;
+
     let mut empty = None;
-    let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
+    let mut js_listeners = self.js_event_listeners.lock().unwrap();
     let iter = js_listeners.iter_mut();
     for (key, ids) in iter {
       if ids.contains(&id) {
@@ -1658,12 +1730,13 @@ impl<R: Runtime> Window<R> {
     if let Some(key) = empty {
       js_listeners.remove(&key);
     }
+
+    Ok(())
   }
 
   /// Whether this window registered a listener to an event from the given window and event name.
   pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
     self
-      .window
       .js_event_listeners
       .lock()
       .unwrap()
@@ -1841,6 +1914,20 @@ impl<R: Runtime> Window<R> {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
   }
+}
+
+pub(crate) const IPC_SCOPE_DOES_NOT_ALLOW: &str = "Not allowed by the scope";
+
+pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> String {
+  format!("Scope not defined for window `{label}` and URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
+}
+
+pub(crate) fn ipc_scope_window_error_message(label: &str) -> String {
+  format!("Scope not defined for window `{}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access", label)
+}
+
+pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
+  format!("Scope not defined for URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
 }
 
 #[cfg(test)]

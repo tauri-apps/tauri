@@ -5,8 +5,8 @@ plugins {
 gradlePlugin {
     plugins {
         create("pluginsForCoolKids") {
-            id = "rustPlugin"
-            implementationClass = "{{reverse-domain app.domain}}.RustPlugin"
+            id = "rust"
+            implementationClass = "RustPlugin"
         }
     }
 }
@@ -18,6 +18,6 @@ repositories {
 
 dependencies {
     compileOnly(gradleApi())
-    implementation("com.android.tools.build:gradle:7.3.1")
+    implementation("com.android.tools.build:gradle:8.0.0")
 }
 

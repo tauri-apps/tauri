@@ -12,7 +12,7 @@
 import * as eventApi from './helpers/event'
 import type { EventCallback, UnlistenFn, Event } from './helpers/event'
 
-export type EventName = TauriEvent | string
+export type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
 /**
  * @since 1.1.0
@@ -30,12 +30,7 @@ export enum TauriEvent {
   WINDOW_FILE_DROP = 'tauri://file-drop',
   WINDOW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
   WINDOW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
-  MENU = 'tauri://menu',
-  CHECK_UPDATE = 'tauri://update',
-  UPDATE_AVAILABLE = 'tauri://update-available',
-  INSTALL_UPDATE = 'tauri://update-install',
-  STATUS_UPDATE = 'tauri://update-status',
-  DOWNLOAD_PROGRESS = 'tauri://update-download-progress'
+  MENU = 'tauri://menu'
 }
 
 /**

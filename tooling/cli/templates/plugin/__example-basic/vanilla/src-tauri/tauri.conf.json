@@ -40,12 +40,6 @@
         "timestampUrl": ""
       }
     },
-    "updater": {
-      "active": false
-    },
-    "allowlist": {
-      "all": false
-    },
     "windows": [
       {
         "title": "app",

@@ -9,4 +9,5 @@ dist
 /tooling/cli/templates
 /tooling/cli/node
 /tooling/cli/schema.json
-/core/config-schema/schema.json
+/tooling/api/docs/js-api.json
+/core/tauri-config-schema/schema.json

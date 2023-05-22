@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: test mobile
+name: test android
 
 on:
   pull_request:
@@ -14,6 +14,7 @@ on:
       - '!tooling/cli/src/mobile/ios/**'
       - 'core/tauri-build/src/mobile.rs'
       - 'core/tauri/mobile/android/**'
+      - 'core/tauri/mobile/android-codegen/**'
   workflow_dispatch:
 
 concurrency:
@@ -56,7 +57,7 @@ jobs:
       - uses: actions/setup-java@v3
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 17
           cache: gradle
 
       - name: Setup NDK

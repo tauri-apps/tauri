@@ -6,6 +6,7 @@ package app.tauri
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.res.AssetManager
 import android.database.Cursor
 import android.net.Uri
 import android.os.Environment
@@ -18,6 +19,12 @@ import kotlin.math.min
 
 internal class FsUtils {
   companion object {
+    fun readAsset(assetManager: AssetManager, fileName: String): String {
+      assetManager.open(fileName).bufferedReader().use {
+        return it.readText()
+      }
+    }
+
     fun getFileUrlForUri(context: Context, uri: Uri): String? {
       // DocumentProvider
       if (DocumentsContract.isDocumentUri(context, uri)) {

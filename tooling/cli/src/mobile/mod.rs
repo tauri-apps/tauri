@@ -12,19 +12,19 @@ use crate::{
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
 use anyhow::{bail, Result};
-use jsonrpsee::client_transport::ws::WsTransportClientBuilder;
+use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
-use jsonrpsee::rpc_params;
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
+use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
+use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
-use shared_child::SharedChild;
 
 use std::{
   collections::HashMap,
   env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, read_to_string, write},
+  fs::{read_to_string, write},
   net::SocketAddr,
   path::PathBuf,
   process::{exit, ExitStatus},
@@ -34,10 +34,10 @@ use std::{
   },
 };
 use tauri_mobile::{
-  bossy,
   config::app::{App, Raw as RawAppConfig},
   env::Error as EnvError,
   opts::{NoiseLevel, Profile},
+  ChildHandle,
 };
 use tokio::runtime::Runtime;
 
@@ -55,14 +55,14 @@ const MIN_DEVICE_MATCH_SCORE: isize = 0;
 
 #[derive(Clone)]
 pub struct DevChild {
-  child: Arc<SharedChild>,
+  child: Arc<ChildHandle>,
   manually_killed_process: Arc<AtomicBool>,
 }
 
 impl DevChild {
-  fn new(handle: bossy::Handle) -> Self {
+  fn new(handle: ChildHandle) -> Self {
     Self {
-      child: Arc::new(SharedChild::new(handle.into()).unwrap()),
+      child: Arc::new(handle),
       manually_killed_process: Default::default(),
     }
   }
@@ -76,11 +76,11 @@ impl DevProcess for DevChild {
   }
 
   fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    self.child.try_wait()
+    self.child.try_wait().map(|res| res.map(|o| o.status))
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
-    self.child.wait()
+    self.child.wait().map(|o| o.status)
   }
 
   fn manually_killed_process(&self) -> bool {
@@ -125,7 +125,7 @@ impl Target {
   }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
@@ -133,7 +133,21 @@ pub struct CliOptions {
   pub vars: HashMap<String, OsString>,
 }
 
-fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> {
+impl Default for CliOptions {
+  fn default() -> Self {
+    Self {
+      features: None,
+      args: vec!["--lib".into()],
+      noise_level: Default::default(),
+      vars: Default::default(),
+    }
+  }
+}
+
+fn setup_dev_config(
+  config_extension: &mut Option<String>,
+  force_ip_prompt: bool,
+) -> crate::Result<()> {
   let config = get_config(config_extension.as_deref())?;
 
   let mut dev_path = config
@@ -154,7 +168,7 @@ fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> 
       _ => false,
     };
     if localhost {
-      let ip = crate::dev::local_ip_address();
+      let ip = crate::dev::local_ip_address(force_ip_prompt);
       url.set_host(Some(&ip.to_string())).unwrap();
       if let Some(c) = config_extension {
         let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
@@ -276,11 +290,14 @@ fn get_app(config: &TauriConfig) -> App {
   .expect("failed to load interface");
 
   let app_name = interface.app_settings().app_name().unwrap_or(app_name);
-  let lib_name = interface.app_settings().lib_name();
+  let lib_name = interface
+    .app_settings()
+    .lib_name()
+    .unwrap_or_else(|| app_name.to_snek_case());
 
   let raw = RawAppConfig {
     name: app_name,
-    lib_name,
+    lib_name: Some(lib_name),
     stylized_name: config.package.product_name.clone(),
     domain,
     asset_dir: None,
@@ -309,10 +326,8 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       project_dir.display(),
       target.command_name(),
     )
-  } else {
-    create_dir_all(project_dir.join("tauri-plugins"))?;
-    Ok(())
   }
+  Ok(())
 }
 
 fn log_finished(outputs: Vec<PathBuf>, kind: &str) {

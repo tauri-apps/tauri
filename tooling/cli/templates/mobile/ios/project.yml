@@ -78,7 +78,7 @@ targets:
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
       groups: [app]
     dependencies:
-      - framework: lib{{app.lib_name}}.a
+      - framework: lib{{app.lib-name}}.a
         embed: false
       {{~#each ios-libraries}}
       - framework: {{this}}
@@ -116,12 +116,12 @@ targets:
         discoveredDependencyFile: {{this.discovered-dependency-file}}{{/if}}
       {{~/each}}
 
-      - script: {{ tauri-binary }} {{ tauri-binary-args-str }} -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:?}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+      - script: {{ tauri-binary }} {{ tauri-binary-args-str }} -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
         name: Build Rust Code
         basedOnDependencyAnalysis: false
         outputFiles:
-          - $(SRCROOT)/target/aarch64-apple-ios/${CONFIGURATION}/deps/lib{{app.lib_name}}.a
-          - $(SRCROOT)/target/x86_64-apple-ios/${CONFIGURATION}/deps/lib{{app.lib_name}}.a
+          - $(SRCROOT)/target/aarch64-apple-ios/${CONFIGURATION}/deps/lib{{app.lib-name}}.a
+          - $(SRCROOT)/target/x86_64-apple-ios/${CONFIGURATION}/deps/lib{{app.lib-name}}.a
     {{~#if ios-post-compile-scripts}}
     postCompileScripts:
       {{~#each ios-post-compile-scripts}}{{#if this.path}}

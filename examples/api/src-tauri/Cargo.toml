@@ -3,10 +3,11 @@ name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.65"
 license = "Apache-2.0 OR MIT"
 
 [lib]
+name = "api_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -20,6 +21,13 @@ log = "0.4"
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
+
+[patch.crates-io]
+tauri = { path = "../../../core/tauri" }
+tauri-build = { path = "../../../core/tauri-build" }
+
 [patch.'https://github.com/tauri-apps/tauri']
 tauri = { path = "../../../core/tauri" }
 tauri-build = { path = "../../../core/tauri-build" }
@@ -27,18 +35,12 @@ tauri-build = { path = "../../../core/tauri-build" }
 [dependencies.tauri]
 path = "../../../core/tauri"
 features = [
-  "api-all",
-  "cli",
-  "global-shortcut",
-  "http-multipart",
+  "protocol-asset",
   "icon-ico",
   "icon-png",
   "isolation",
   "macos-private-api",
-  "windows7-compat",
-  "reqwest-client",
-  "system-tray",
-  "updater"
+  "system-tray"
 ]
 
 [target."cfg(target_os = \"windows\")".dependencies]

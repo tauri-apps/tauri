@@ -46,7 +46,8 @@ public class PluginManager {
 		}
 	}
 
-	func load<P: Plugin>(webview: WKWebView?, name: String, plugin: P) {
+	func load<P: Plugin>(name: String, plugin: P, config: JSObject, webview: WKWebView?) {
+    plugin.setConfig(config)
 		let handle = PluginHandle(plugin: plugin)
 		if let webview = webview {
 			handle.instance.load(webview: webview)
@@ -63,11 +64,12 @@ public class PluginManager {
 					var error: NSError? = nil
 					withUnsafeMutablePointer(to: &error) {
 						let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
-						unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin, selectorWithThrows, invoke, OpaquePointer($0))
+						unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin.instance, selectorWithThrows, invoke, OpaquePointer($0))
 					}
 					if let error = error {
 						invoke.reject("\(error)")
-						let _ = toRust(error) // TODO app is crashing without this memory leak (when an error is thrown)
+						// TODO: app crashes without this leak
+						let _ = Unmanaged.passRetained(error)
 					}
 				} else {
 					let selector = Selector(("\(invoke.command):"))
@@ -90,11 +92,13 @@ extension PluginManager: NSCopying {
 	}
 }
 
-public func registerPlugin<P: Plugin>(webview: WKWebView?, name: String, plugin: P) {
+@_cdecl("register_plugin")
+func registerPlugin(name: SRString, plugin: NSObject, config: NSDictionary?, webview: WKWebView?) {
 	PluginManager.shared.load(
-		webview: webview,
-		name: name,
-		plugin: plugin
+		name: name.toString(),
+		plugin: plugin as! Plugin,
+    config: JSTypes.coerceDictionaryToJSObject(config ?? [:], formattingDatesAsStrings: true)!,
+    webview: webview
 	)
 }
 
@@ -105,9 +109,8 @@ func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
 }
 
 @_cdecl("post_ipc_message")
-func postIpcMessage(webview: WKWebView, name: UnsafePointer<SRString>, command: UnsafePointer<SRString>, data: NSDictionary, callback: UInt, error: UInt) {
-	let invoke = Invoke(command: command.pointee.to_string(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
-		let (fn, payload) = errorResult == nil ? (callback, successResult) : (error, errorResult)
+func postIpcMessage(webview: WKWebView, name: SRString, command: SRString, data: NSDictionary, callback: UInt64, error: UInt64) {
+	let invoke = Invoke(command: command.toString(), callback: callback, error: error, sendResponse: { (fn: UInt64, payload: JsonValue?) -> Void in
 		var payloadJson: String
 		do {
 			try payloadJson = payload == nil ? "null" : payload!.jsonRepresentation() ?? "`Failed to serialize payload`"
@@ -116,19 +119,21 @@ func postIpcMessage(webview: WKWebView, name: UnsafePointer<SRString>, command: 
 		}
 		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
 	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
-	PluginManager.shared.invoke(name: name.pointee.to_string(), invoke: invoke)
+	PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
 }
 
 @_cdecl("run_plugin_method")
-func runPluginMethod(
+func runCommand(
 	id: Int,
-	name: UnsafePointer<SRString>,
-	command: UnsafePointer<SRString>,
+	name: SRString,
+	command: SRString,
 	data: NSDictionary,
 	callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>?) -> Void
 ) {
-	let invoke = Invoke(command: command.pointee.to_string(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
-		let (success, payload) = errorResult == nil ? (true, successResult) : (false, errorResult)
+  let callbackId: UInt64 = 0
+  let errorId: UInt64 = 1
+	let invoke = Invoke(command: command.toString(), callback: callbackId, error: errorId, sendResponse: { (fn: UInt64, payload: JsonValue?) -> Void in
+		let success = fn == callbackId
 		var payloadJson: String = ""
 		do {
 			try payloadJson = payload == nil ? "null" : payload!.jsonRepresentation() ?? "`Failed to serialize payload`"
@@ -137,5 +142,5 @@ func runPluginMethod(
 		}
 		callback(id, success, payloadJson.cString(using: String.Encoding.utf8))
 	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
-	PluginManager.shared.invoke(name: name.pointee.to_string(), invoke: invoke)
+	PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
 }

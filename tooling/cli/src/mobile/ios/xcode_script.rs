@@ -4,15 +4,15 @@
 
 use super::{env, with_config};
 use crate::{
-  helpers::config::get as get_config,
+  helpers::{app_paths::tauri_dir, config::get as get_config},
   interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   Result,
 };
 
 use clap::Parser;
-use tauri_mobile::{apple::target::Target, opts::Profile, util};
+use tauri_mobile::{apple::target::Target, opts::Profile};
 
-use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
+use std::{collections::HashMap, env::var_os, ffi::OsStr, path::PathBuf};
 
 #[derive(Debug, Parser)]
 pub struct Options {
@@ -55,28 +55,24 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  // `xcode-script` is ran from the `gen/apple` folder.
-  std::env::set_current_dir(
-    std::env::current_dir()
-      .unwrap()
-      .parent()
-      .unwrap()
-      .parent()
-      .unwrap(),
-  )
-  .unwrap();
+  // `xcode-script` is ran from the `gen/apple` folder when not using NPM.
+  if var_os("npm_lifecycle_event").is_none() {
+    std::env::set_current_dir(
+      std::env::current_dir()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap(),
+    )
+    .unwrap();
+  }
 
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
   with_config(None, |_root_conf, config, metadata, cli_options| {
-    let env = env()?;
-    // The `PATH` env var Xcode gives us is missing any additions
-    // made by the user's profile, so we'll manually add cargo's
-    // `PATH`.
-    let env = env
-      .explicit_env_vars(cli_options.vars)
-      .prepend_to_path(util::home_dir()?.join(".cargo/bin"));
+    let env = env()?.explicit_env_vars(cli_options.vars);
 
     if !options.sdk_root.is_dir() {
       return Err(anyhow::anyhow!(
@@ -204,17 +200,19 @@ pub fn command(options: Options) -> Result<()> {
       if !lib_path.exists() {
         return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"rlib\"]`", lib_path.display()));
       }
-      std::fs::create_dir_all(format!(
+
+      let tauri_path = tauri_dir();
+      std::fs::create_dir_all(tauri_path.join(format!(
         "gen/apple/Externals/{}",
         profile.as_str()
-      ))?;
+      )))?;
       std::fs::copy(
         lib_path,
-        format!(
+        tauri_path.join(format!(
           "gen/apple/Externals/{}/lib{}.a",
           profile.as_str(),
           config.app().lib_name()
-        ),
+        ))
       )?;
     }
     Ok(())

@@ -137,12 +137,8 @@ pub struct PackageSettings {
 pub struct UpdaterSettings {
   /// Whether the updater is active or not.
   pub active: bool,
-  /// The updater endpoints.
-  pub endpoints: Option<Vec<String>>,
   /// Signature public key.
   pub pubkey: String,
-  /// Display built-in dialog or use event system if disabled.
-  pub dialog: bool,
   /// Args to pass to `msiexec.exe` to run the updater on Windows.
   pub msiexec_args: Option<&'static [&'static str]>,
 }

@@ -12,13 +12,15 @@ import androidx.core.app.ActivityCompat
 import app.tauri.PermissionHelper
 import app.tauri.PermissionState
 import app.tauri.annotation.ActivityCallback
+import app.tauri.annotation.Command
 import app.tauri.annotation.PermissionCallback
-import app.tauri.annotation.PluginMethod
 import app.tauri.annotation.TauriPlugin
 import java.lang.reflect.Method
+import java.util.Arrays
 
-class PluginHandle(private val manager: PluginManager, val name: String, private val instance: Plugin) {
-  private val pluginMethods: HashMap<String, PluginMethodData> = HashMap()
+
+class PluginHandle(private val manager: PluginManager, val name: String, val instance: Plugin, val config: JSObject) {
+  private val commands: HashMap<String, CommandData> = HashMap()
   private val permissionCallbackMethods: HashMap<String, Method> = HashMap()
   private val startActivityCallbackMethods: HashMap<String, Method> = HashMap()
   var annotation: TauriPlugin?
@@ -120,22 +122,28 @@ class PluginHandle(private val manager: PluginManager, val name: String, private
   }
 
   @Throws(
-    InvalidPluginMethodException::class,
+    InvalidCommandException::class,
     IllegalAccessException::class
   )
   fun invoke(invoke: Invoke) {
-    val methodMeta = pluginMethods[invoke.command]
-      ?: throw InvalidPluginMethodException("No command " + invoke.command + " found for plugin " + instance.javaClass.name)
+    val methodMeta = commands[invoke.command]
+      ?: throw InvalidCommandException("No command " + invoke.command + " found for plugin " + instance.javaClass.name)
     methodMeta.method.invoke(instance, invoke)
   }
 
   private fun indexMethods() {
-    val methods: Array<Method> = instance.javaClass.methods
+    val methods = mutableListOf<Method>()
+    var pluginCursor: Class<*> = instance.javaClass
+    while (pluginCursor.name != Any::class.java.name) {
+      methods.addAll(listOf(*pluginCursor.declaredMethods))
+      pluginCursor = pluginCursor.superclass
+    }
+
     for (method in methods) {
-      if (method.isAnnotationPresent(PluginMethod::class.java)) {
-        val pluginMethod = method.getAnnotation(PluginMethod::class.java) ?: continue
-        val methodMeta = PluginMethodData(method, pluginMethod)
-        pluginMethods[method.name] = methodMeta
+      if (method.isAnnotationPresent(Command::class.java)) {
+        val command = method.getAnnotation(Command::class.java) ?: continue
+        val methodMeta = CommandData(method, command)
+        commands[method.name] = methodMeta
       } else if (method.isAnnotationPresent(ActivityCallback::class.java)) {
         startActivityCallbackMethods[method.name] = method
       } else if (method.isAnnotationPresent(PermissionCallback::class.java)) {

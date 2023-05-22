@@ -112,7 +112,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     };
 
     if let Some(types) = &package_types {
-      if config_.tauri.updater.active && !types.contains(&PackageType::Updater) {
+      if config_.tauri.bundle.updater.active && !types.contains(&PackageType::Updater) {
         warn!("The updater is enabled but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
       }
     }
@@ -142,13 +142,6 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     // set env vars used by the bundler
     #[cfg(target_os = "linux")]
     {
-      use crate::helpers::config::ShellAllowlistOpen;
-      if matches!(
-        config_.tauri.allowlist.shell.open,
-        ShellAllowlistOpen::Flag(true) | ShellAllowlistOpen::Validate(_)
-      ) {
-        std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");
-      }
       if config_.tauri.system_tray.is_some() {
         if let Ok(tray) = std::env::var("TAURI_TRAY") {
           std::env::set_var(
@@ -188,7 +181,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       .filter(|bundle| bundle.package_type == PackageType::Updater)
       .collect();
     // If updater is active and we bundled it
-    if config_.tauri.updater.active && !updater_bundles.is_empty() {
+    if config_.tauri.bundle.updater.active && !updater_bundles.is_empty() {
       // if no password provided we use an empty string
       let password = var_os("TAURI_KEY_PASSWORD")
         .map(|v| v.to_str().unwrap().to_string())
@@ -211,7 +204,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       }?;
 
       let pubkey =
-        base64::engine::general_purpose::STANDARD.decode(&config_.tauri.updater.pubkey)?;
+        base64::engine::general_purpose::STANDARD.decode(&config_.tauri.bundle.updater.pubkey)?;
       let pub_key_decoded = String::from_utf8_lossy(&pubkey);
       let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 
@@ -240,20 +233,15 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 }
 
 pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
-  let (merge_config, merge_config_path) = if let Some(config) = &options.config {
-    if config.starts_with('{') {
-      (Some(config.to_string()), None)
-    } else {
-      (
-        Some(
-          std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?,
-        ),
-        Some(config.clone()),
-      )
-    }
-  } else {
-    (None, None)
+  let (merge_config, merge_config_path) = match &options.config {
+    Some(config) if config.starts_with('{') => (Some(config.to_string()), None),
+    Some(config) => (
+      Some(std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?),
+      Some(config.clone()),
+    ),
+    None => (None, None),
   };
+
   options.config = merge_config;
 
   let tauri_path = tauri_dir();
@@ -342,7 +330,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     .features
     .get_or_insert(Vec::new())
     .extend(config_.build.features.clone().unwrap_or_default());
-  interface.build_options(&mut options.features, mobile);
+  interface.build_options(&mut options.args, &mut options.features, mobile);
 
   Ok(interface)
 }

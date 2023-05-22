@@ -28,7 +28,7 @@ use tauri_utils::{
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
-use crate::pattern::{format_real_schema, PatternJavascript};
+use crate::pattern::PatternJavascript;
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
@@ -56,7 +56,7 @@ use crate::{
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use crate::api::path::{resolve_path, BaseDirectory};
+use crate::path::BaseDirectory;
 
 use crate::{runtime::menu::Menu, MenuEvent};
 
@@ -148,7 +148,7 @@ fn set_csp<R: Runtime>(
     let default_src = csp
       .entry("default-src".into())
       .or_insert_with(Default::default);
-    default_src.push(format_real_schema(schema));
+    default_src.push(crate::pattern::format_real_schema(schema));
   }
 
   Csp::DirectiveMap(csp).to_string()
@@ -219,6 +219,7 @@ pub struct InnerWindowManager<R: Runtime> {
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
+  #[cfg(desktop)]
   pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
@@ -235,22 +236,26 @@ pub struct InnerWindowManager<R: Runtime> {
   /// The script that initializes the invoke system.
   invoke_initialization_script: String,
   /// Application pattern.
-  pattern: Pattern,
+  pub(crate) pattern: Pattern,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("InnerWindowManager")
-      .field("plugins", &self.plugins)
+    let mut d = f.debug_struct("InnerWindowManager");
+
+    d.field("plugins", &self.plugins)
       .field("state", &self.state)
       .field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
-      .field("tray_icon", &self.tray_icon)
       .field("package_info", &self.package_info)
       .field("menu", &self.menu)
-      .field("pattern", &self.pattern)
-      .finish()
+      .field("pattern", &self.pattern);
+
+    #[cfg(desktop)]
+    d.field("tray_icon", &self.tray_icon);
+
+    d.finish()
   }
 }
 
@@ -322,6 +327,7 @@ impl<R: Runtime> WindowManager<R> {
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
+        #[cfg(desktop)]
         tray_icon: context.system_tray_icon,
         package_info: context.package_info,
         pattern: context.pattern,
@@ -371,24 +377,13 @@ impl<R: Runtime> WindowManager<R> {
   /// Get the base URL to use for webview requests.
   ///
   /// In dev mode, this will be based on the `devPath` configuration value.
-  fn get_url(&self) -> Cow<'_, Url> {
+  pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
+      #[cfg(windows)]
+      _ => Cow::Owned(Url::parse("https://tauri.localhost").unwrap()),
+      #[cfg(not(windows))]
       _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
-    }
-  }
-
-  /// Get the origin as it will be seen in the webview.
-  fn get_browser_origin(&self) -> String {
-    match self.base_path() {
-      AppUrl::Url(WindowUrl::External(url)) => {
-        if PROXY_DEV_SERVER {
-          format_real_schema("tauri")
-        } else {
-          url.origin().ascii_serialization()
-        }
-      }
-      _ => format_real_schema("tauri"),
     }
   }
 
@@ -464,7 +459,6 @@ impl<R: Runtime> WindowManager<R> {
     if let Pattern::Isolation { schema, .. } = self.pattern() {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
-          origin: self.get_browser_origin(),
           isolation_src: &crate::pattern::format_real_schema(schema),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
@@ -486,7 +480,7 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
-    let window_url = Url::parse(&pending.url).unwrap();
+    let window_url = pending.current_url.lock().unwrap().clone();
     let window_origin =
       if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
         format!("https://{}.localhost", window_url.scheme())
@@ -511,9 +505,9 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push("tauri".into());
     }
 
-    #[cfg(protocol_asset)]
+    #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
-      use crate::api::file::SafePathBuf;
+      use crate::path::SafePathBuf;
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
       use url::Position;
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
@@ -762,41 +756,38 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  fn prepare_ipc_handler(
-    &self,
-    app_handle: AppHandle<R>,
-  ) -> WebviewIpcHandler<EventLoopMessage, R> {
+  fn prepare_ipc_handler(&self) -> WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, #[allow(unused_mut)] mut request| {
-      let window = Window::new(manager.clone(), window, app_handle.clone());
+      if let Some(window) = manager.get_window(&window.label) {
+        #[cfg(feature = "isolation")]
+        if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+          match RawIsolationPayload::try_from(request.as_str())
+            .and_then(|raw| crypto_keys.decrypt(raw))
+          {
+            Ok(json) => request = json,
+            Err(e) => {
+              let error: crate::Error = e.into();
+              let _ = window.eval(&format!(
+                r#"console.error({})"#,
+                JsonValue::String(error.to_string())
+              ));
+              return;
+            }
+          }
+        }
 
-      #[cfg(feature = "isolation")]
-      if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-        match RawIsolationPayload::try_from(request.as_str())
-          .and_then(|raw| crypto_keys.decrypt(raw))
-        {
-          Ok(json) => request = json,
+        match serde_json::from_str::<InvokePayload>(&request) {
+          Ok(message) => {
+            let _ = window.on_message(message);
+          }
           Err(e) => {
             let error: crate::Error = e.into();
             let _ = window.eval(&format!(
               r#"console.error({})"#,
               JsonValue::String(error.to_string())
             ));
-            return;
           }
-        }
-      }
-
-      match serde_json::from_str::<InvokePayload>(&request) {
-        Ok(message) => {
-          let _ = window.on_message(message);
-        }
-        Err(e) => {
-          let error: crate::Error = e.into();
-          let _ = window.eval(&format!(
-            r#"console.error({})"#,
-            JsonValue::String(error.to_string())
-          ));
         }
       }
     })
@@ -911,7 +902,7 @@ impl<R: Runtime> WindowManager<R> {
     struct CachedResponse {
       status: http::StatusCode,
       headers: http::HeaderMap,
-      body: Cow<'static, [u8]>,
+      body: bytes::Bytes,
     }
 
     #[cfg(all(dev, mobile))]
@@ -938,16 +929,22 @@ impl<R: Runtime> WindowManager<R> {
 
       #[cfg(all(dev, mobile))]
       let mut response = {
-        use attohttpc::StatusCode;
+        use reqwest::StatusCode;
         let decoded_path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
         let url = format!("{url}{decoded_path}");
-        let mut proxy_builder = attohttpc::get(&url).danger_accept_invalid_certs(true);
+        #[allow(unused_mut)]
+        let mut client_builder = reqwest::ClientBuilder::new();
+        #[cfg(any(feature = "native-tls", feature = "rustls-tls"))]
+        {
+          client_builder = client_builder.danger_accept_invalid_certs(true);
+        }
+        let mut proxy_builder = client_builder.build().unwrap().get(&url);
         for (name, value) in request.headers() {
           proxy_builder = proxy_builder.header(name, value);
         }
-        match proxy_builder.send() {
+        match crate::async_runtime::block_on(proxy_builder.send()) {
           Ok(r) => {
             let mut response_cache_ = response_cache.lock().unwrap();
             let mut response = None;
@@ -957,12 +954,13 @@ impl<R: Runtime> WindowManager<R> {
             let response = if let Some(r) = response {
               r
             } else {
-              let (status, headers, reader) = r.split();
-              let body = reader.bytes()?;
+              let status = r.status();
+              let headers = r.headers().clone();
+              let body = crate::async_runtime::block_on(r.bytes())?;
               let response = CachedResponse {
                 status,
                 headers,
-                body: body.into(),
+                body,
               };
               response_cache_.insert(url.clone(), response);
               response_cache_.get(&url).unwrap()
@@ -972,7 +970,7 @@ impl<R: Runtime> WindowManager<R> {
             }
             builder
               .status(response.status)
-              .body(response.body.clone())?
+              .body(response.body.to_vec())?
           }
           Err(e) => {
             debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
@@ -1015,7 +1013,6 @@ impl<R: Runtime> WindowManager<R> {
     #[derive(Template)]
     #[default_template("../scripts/init.js")]
     struct InitJavascript<'a> {
-      origin: String,
       #[raw]
       pattern_script: &'a str,
       #[raw]
@@ -1028,17 +1025,11 @@ impl<R: Runtime> WindowManager<R> {
       #[raw]
       core_script: &'a str,
       #[raw]
-      window_dialogs_script: &'a str,
-      #[raw]
-      window_print_script: &'a str,
-      #[raw]
       event_initialization_script: &'a str,
       #[raw]
       plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
-      #[raw]
-      hotkeys: &'a str,
     }
 
     let bundle_script = if with_global_tauri {
@@ -1053,36 +1044,7 @@ impl<R: Runtime> WindowManager<R> {
       ""
     };
 
-    #[cfg(any(debug_assertions, feature = "devtools"))]
-    let hotkeys = &format!(
-      "
-      {};
-      window.hotkeys('{}', () => {{
-        window.__TAURI_INVOKE__('tauri', {{
-          __tauriModule: 'Window',
-          message: {{
-            cmd: 'manage',
-            data: {{
-              cmd: {{
-                type: '__toggleDevtools'
-              }}
-            }}
-          }}
-        }});
-      }});
-    ",
-      include_str!("../scripts/hotkey.js"),
-      if cfg!(target_os = "macos") {
-        "command+option+i"
-      } else {
-        "ctrl+shift+i"
-      }
-    );
-    #[cfg(not(any(debug_assertions, feature = "devtools")))]
-    let hotkeys = "";
-
     InitJavascript {
-      origin: self.get_browser_origin(),
       pattern_script,
       ipc_script,
       bundle_script,
@@ -1097,23 +1059,9 @@ impl<R: Runtime> WindowManager<R> {
         )
       ),
       core_script: include_str!("../scripts/core.js"),
-
-      // window.print works on Linux/Windows; need to use the API on macOS
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
-      window_print_script: include_str!("../scripts/window_print.js"),
-      #[cfg(not(any(target_os = "macos", target_os = "ios")))]
-      window_print_script: "",
-
-      // dialogs are implemented natively on Android
-      #[cfg(not(target_os = "android"))]
-      window_dialogs_script: include_str!("../scripts/window_dialogs.js"),
-      #[cfg(target_os = "android")]
-      window_dialogs_script: "",
-
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,
-      hotkeys,
     }
     .render_default(&Default::default())
     .map(|s| s.into_string())
@@ -1165,7 +1113,16 @@ mod test {
     );
 
     #[cfg(custom_protocol)]
-    assert_eq!(manager.get_url().to_string(), "tauri://localhost");
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) {
+          "https://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
 
     #[cfg(dev)]
     assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
@@ -1216,26 +1173,23 @@ impl<R: Runtime> WindowManager<R> {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
     #[allow(unused_mut)] // mut url only for the data-url parsing
-    let (is_local, mut url) = match &pending.webview_attributes.url {
+    let mut url = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
         let url = if PROXY_DEV_SERVER {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
           self.get_url()
         };
-        (
-          true,
-          // ignore "index.html" just to simplify the url
-          if path.to_str() != Some("index.html") {
-            url
-              .join(&path.to_string_lossy())
-              .map_err(crate::Error::InvalidUrl)
-              // this will never fail
-              .unwrap()
-          } else {
-            url.into_owned()
-          },
-        )
+        // ignore "index.html" just to simplify the url
+        if path.to_str() != Some("index.html") {
+          url
+            .join(&path.to_string_lossy())
+            .map_err(crate::Error::InvalidUrl)
+            // this will never fail
+            .unwrap()
+        } else {
+          url.into_owned()
+        }
       }
       WindowUrl::External(url) => {
         let config_url = self.get_url();
@@ -1245,7 +1199,7 @@ impl<R: Runtime> WindowManager<R> {
           url.set_scheme("tauri").unwrap();
           url.set_host(Some("localhost")).unwrap();
         }
-        (is_local, url)
+        url
       }
       _ => unimplemented!(),
     };
@@ -1273,7 +1227,7 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    pending.url = url.to_string();
+    *pending.current_url.lock().unwrap() = url;
 
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
@@ -1314,28 +1268,24 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
-    if is_local {
-      let label = pending.label.clone();
-      pending = self.prepare_pending_window(
-        pending,
-        &label,
-        window_labels,
-        app_handle.clone(),
-        web_resource_request_handler,
-      )?;
-      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
-    }
+    let label = pending.label.clone();
+    pending = self.prepare_pending_window(
+      pending,
+      &label,
+      window_labels,
+      #[allow(clippy::redundant_clone)]
+      app_handle.clone(),
+      web_resource_request_handler,
+    )?;
+    pending.ipc_handler = Some(self.prepare_ipc_handler());
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      let local_app_data = resolve_path(
-        &self.inner.config,
-        &self.inner.package_info,
-        self.inner.state.get::<crate::Env>().inner(),
+      let local_app_data = app_handle.path().resolve(
         &self.inner.config.tauri.bundle.identifier,
-        Some(BaseDirectory::LocalData),
+        BaseDirectory::LocalData,
       );
       if let Ok(user_data_dir) = local_app_data {
         pending.webview_attributes.data_directory = Some(user_data_dir);
@@ -1348,6 +1298,28 @@ impl<R: Runtime> WindowManager<R> {
         create_dir_all(user_data_dir)?;
       }
     }
+
+    #[cfg(feature = "isolation")]
+    let pattern = self.pattern().clone();
+    let current_url_ = pending.current_url.clone();
+    let navigation_handler = pending.navigation_handler.take();
+    pending.navigation_handler = Some(Box::new(move |url| {
+      // always allow navigation events for the isolation iframe and do not emit them for consumers
+      #[cfg(feature = "isolation")]
+      if let Pattern::Isolation { schema, .. } = &pattern {
+        if url.scheme() == schema
+          && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
+        {
+          return true;
+        }
+      }
+      *current_url_.lock().unwrap() = url.clone();
+      if let Some(handler) = &navigation_handler {
+        handler(url)
+      } else {
+        true
+      }
+    }));
 
     Ok(pending)
   }
@@ -1408,7 +1380,7 @@ impl<R: Runtime> WindowManager<R> {
     {
       window
         .with_webview(|w| {
-          unsafe { crate::ios::on_webview_created(w.inner(), w.view_controller()) };
+          unsafe { crate::ios::on_webview_created(w.inner() as _, w.view_controller() as _) };
         })
         .expect("failed to run on_webview_created hook");
     }

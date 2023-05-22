@@ -4,11 +4,11 @@
 
 package app.tauri.plugin
 
-import app.tauri.annotation.PluginMethod
+import app.tauri.annotation.Command
 import java.lang.reflect.Method
 
-class PluginMethodData(
-  val method: Method, methodDecorator: PluginMethod
+class CommandData(
+  val method: Method, methodDecorator: Command
 ) {
 
   // The name of the method

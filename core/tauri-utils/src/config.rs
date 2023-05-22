@@ -772,6 +772,7 @@ pub struct WindowEffectsConfig {
 }
 
 /// The [`WindowEffectsConfig`] object builder
+#[derive(Default)]
 pub struct WindowEffectsConfigBuilder(WindowEffectsConfig);
 impl WindowEffectsConfigBuilder {
   /// Create a new [`WindowEffectsConfig`] builder

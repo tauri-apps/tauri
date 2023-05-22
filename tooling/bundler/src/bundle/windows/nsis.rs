@@ -177,6 +177,7 @@ fn build_nsis_app_installer(
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
+  data.insert("copyright", to_json(settings.copyright_string()));
 
   let version = settings.version_string();
   data.insert("version", to_json(version));
@@ -569,6 +570,10 @@ fn get_lang_data(
         UTF_8,
       )),
     )),
+    "korean" => Some((
+      lang_file,
+      Some((include_str!("./templates/nsis-languages/Korean.nsh"), UTF_8)),
+    )),
     "portuguesebr" => Some((
       lang_file,
       Some((
@@ -613,6 +618,13 @@ fn get_lang_data(
       Some((
         include_str!("./templates/nsis-languages/Persian.nsh"),
         UTF_16LE,
+      )),
+    )),
+    "turkish" => Some((
+      lang_file,
+      Some((
+        include_str!("./templates/nsis-languages/Turkish.nsh"),
+        UTF_8,
       )),
     )),
     _ => None,

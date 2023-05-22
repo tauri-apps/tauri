@@ -6,7 +6,7 @@
 /*
 This script is solely intended to be run as part of the `covector version` step to
 keep the `../tooling/cli/metadata.json` up to date with other version bumps. Long term
-we should look to find a more "rusty way" to import / "pin" a version value in our cli.rs
+we should look to find a more "rusty way" to import / "pin" a version value in our tauri-cli
 rust binaries.
 */
 
@@ -14,7 +14,7 @@ const { readFileSync, writeFileSync } = require('fs')
 
 const packageNickname = process.argv[2]
 const filePath =
-  packageNickname === 'cli.js'
+  packageNickname === '@tauri-apps/cli'
     ? `../../../tooling/cli/metadata.json`
     : `../../tooling/cli/metadata.json`
 const bump = process.argv[3]
@@ -51,7 +51,7 @@ const metadata = JSON.parse(readFileSync(filePath, 'utf-8'))
 
 // set field version
 let version
-if (packageNickname === 'cli.js') {
+if (packageNickname === '@tauri-apps/cli') {
   version = inc(metadata[packageNickname].version)
   metadata[packageNickname].version = version
 } else {

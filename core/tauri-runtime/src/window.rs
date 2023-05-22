@@ -184,7 +184,7 @@ impl<'de> Deserialize<'de> for CursorIcon {
       "grab" => CursorIcon::Grab,
       "grabbing" => CursorIcon::Grabbing,
       "allscroll" => CursorIcon::AllScroll,
-      "zoomun" => CursorIcon::ZoomIn,
+      "zoomin" => CursorIcon::ZoomIn,
       "zoomout" => CursorIcon::ZoomOut,
       "eresize" => CursorIcon::EResize,
       "nresize" => CursorIcon::NResize,

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: core clippy and fmt check
+name: lint cli
 
 on:
   push:
@@ -11,10 +11,8 @@ on:
       - next
   pull_request:
     paths:
-      - '.github/workflows/lint-fmt-core.yml'
-      - 'core/**'
-      - '!core/tauri/scripts/**'
-      - 'examples/**'
+      - '.github/workflows/lint-cli.yml'
+      - 'tooling/cli/**'
 
 env:
   RUST_BACKTRACE: 1
@@ -25,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fmt_check:
+  fmt:
     runs-on: ubuntu-latest
 
     steps:
@@ -41,28 +39,13 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
+          args: --manifest-path ./tooling/cli/Cargo.toml --all -- --check
 
-  core_clippy_check:
+  clippy:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        clippy:
-          - { args: '', key: 'empty' }
-          - {
-              args: '--features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart',
-              key: 'all'
-            }
-          - { args: '--features custom-protocol', key: 'custom-protocol' }
-          - { args: '--features api-all', key: 'api-all' }
 
     steps:
       - uses: actions/checkout@v2
-
-      - name: install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -71,13 +54,17 @@ jobs:
           override: true
           components: clippy
 
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
+
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: core -> ../target
-          save-if: ${{ matrix.clippy.key == 'all' }}
+          workspaces: tooling/cli
 
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./core/tauri/Cargo.toml --all-targets ${{ matrix.clippy.args }} -- -D warnings
-          name: ${{ matrix.clippy.key }}
+          args: --manifest-path ./tooling/cli/Cargo.toml --all-targets --all-features -- -D warnings
+          name: cli

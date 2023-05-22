@@ -64,7 +64,7 @@ mod window_effects {
   #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
   #[serde(rename_all = "camelCase")]
   /// Platform-specific window effects
-  pub enum WindowEffects {
+  pub enum WindowEffect {
     /// A default material appropriate for the view's effectiveAppearance. **macOS 10.14-**
     #[deprecated(
       since = "macOS 10.14",
@@ -143,7 +143,7 @@ mod window_effects {
   }
 }
 
-pub use window_effects::{WindowEffectState, WindowEffects};
+pub use window_effects::{WindowEffect, WindowEffectState};
 
 /// How the window title bar should be displayed on macOS.
 #[derive(Debug, Clone, PartialEq, Eq)]

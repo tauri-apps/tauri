@@ -34,7 +34,7 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{TitleBarStyle, WindowEffectState, WindowEffects};
+use crate::{TitleBarStyle, WindowEffect, WindowEffectState};
 
 pub use self::parse::parse;
 
@@ -761,7 +761,7 @@ pub struct Color(pub u8, pub u8, pub u8, pub u8);
 pub struct WindowEffectsConfig {
   /// List of Window effects to apply to the Window.
   /// Conflicting effects will apply the first one and ignore the rest.
-  pub effects: Vec<WindowEffects>,
+  pub effects: Vec<WindowEffect>,
   /// Window effect state **macOS Only**
   pub state: Option<WindowEffectState>,
   /// Window effect corner radius **macOS Only**
@@ -769,6 +769,65 @@ pub struct WindowEffectsConfig {
   /// Window effect color. Affects [`WindowEffects::Blur`] and [`WindowEffects::Acrylic`] only
   /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
   pub color: Option<Color>,
+}
+
+/// The [`WindowEffectsConfig`] object builder
+pub struct WindowEffectsConfigBuilder(WindowEffectsConfig);
+impl WindowEffectsConfigBuilder {
+  /// Create a new [`WindowEffectsConfig`] builder
+  pub fn new() -> Self {
+    Self(WindowEffectsConfig::default())
+  }
+
+  /// Create a new [`WindowEffectsConfig`] builder from specified config
+  pub fn from_config(config: WindowEffectsConfig) -> Self {
+    Self(config)
+  }
+
+  /// Adds effect to the [`WindowEffectsConfig`] `effects` field
+  pub fn effect(mut self, effect: WindowEffect) -> Self {
+    self.0.effects.push(effect);
+    self
+  }
+
+  /// Adds effects to the [`WindowEffectsConfig`] `effects` field
+  pub fn effects(mut self, effects: Vec<WindowEffect>) -> Self {
+    self.0.effects.extend_from_slice(&effects);
+    self
+  }
+
+  /// Clears the [`WindowEffectsConfig`] `effects` field
+  pub fn clear_effects(mut self) -> Self {
+    self.0.effects.clear();
+    self
+  }
+
+  /// Sets `state` field for the [`WindowEffectsConfig`] **macOS Only**
+  pub fn state(mut self, state: WindowEffectState) -> Self {
+    self.0.state = Some(state);
+    self
+  }
+  /// Sets `radius` field fo the [`WindowEffectsConfig`] **macOS Only**
+  pub fn radius(mut self, radius: f64) -> Self {
+    self.0.radius = Some(radius);
+    self
+  }
+  /// Sets `color` field fo the [`WindowEffectsConfig`] **Windows Only**
+  pub fn color(mut self, color: Color) -> Self {
+    self.0.color = Some(color);
+    self
+  }
+
+  /// Builds a [`WindowEffectsConfig`]
+  pub fn build(self) -> WindowEffectsConfig {
+    self.0
+  }
+}
+
+impl From<WindowEffectsConfig> for WindowEffectsConfigBuilder {
+  fn from(value: WindowEffectsConfig) -> Self {
+    Self::from_config(value)
+  }
 }
 
 /// The window configuration object.
@@ -2013,34 +2072,34 @@ mod build {
     }
   }
 
-  impl ToTokens for crate::WindowEffects {
+  impl ToTokens for crate::WindowEffect {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let prefix = quote! { ::tauri::utils::WindowEffects };
 
       #[allow(deprecated)]
       tokens.append_all(match self {
-        WindowEffects::AppearanceBased => quote! { #prefix::AppearanceBased},
-        WindowEffects::Light => quote! { #prefix::Light},
-        WindowEffects::Dark => quote! { #prefix::Dark},
-        WindowEffects::MediumLight => quote! { #prefix::MediumLight},
-        WindowEffects::UltraDark => quote! { #prefix::UltraDark},
-        WindowEffects::Titlebar => quote! { #prefix::Titlebar},
-        WindowEffects::Selection => quote! { #prefix::Selection},
-        WindowEffects::Menu => quote! { #prefix::Menu},
-        WindowEffects::Popover => quote! { #prefix::Popover},
-        WindowEffects::Sidebar => quote! { #prefix::Sidebar},
-        WindowEffects::HeaderView => quote! { #prefix::HeaderView},
-        WindowEffects::Sheet => quote! { #prefix::Sheet},
-        WindowEffects::WindowBackground => quote! { #prefix::WindowBackground},
-        WindowEffects::HudWindow => quote! { #prefix::HudWindow},
-        WindowEffects::FullScreenUI => quote! { #prefix::FullScreenUI},
-        WindowEffects::Tooltip => quote! { #prefix::Tooltip},
-        WindowEffects::ContentBackground => quote! { #prefix::ContentBackground},
-        WindowEffects::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
-        WindowEffects::UnderPageBackground => quote! { #prefix::UnderPageBackground},
-        WindowEffects::Mica => quote! { #prefix::Mica},
-        WindowEffects::Blur => quote! { #prefix::Blur},
-        WindowEffects::Acrylic => quote! { #prefix::Acrylic},
+        WindowEffect::AppearanceBased => quote! { #prefix::AppearanceBased},
+        WindowEffect::Light => quote! { #prefix::Light},
+        WindowEffect::Dark => quote! { #prefix::Dark},
+        WindowEffect::MediumLight => quote! { #prefix::MediumLight},
+        WindowEffect::UltraDark => quote! { #prefix::UltraDark},
+        WindowEffect::Titlebar => quote! { #prefix::Titlebar},
+        WindowEffect::Selection => quote! { #prefix::Selection},
+        WindowEffect::Menu => quote! { #prefix::Menu},
+        WindowEffect::Popover => quote! { #prefix::Popover},
+        WindowEffect::Sidebar => quote! { #prefix::Sidebar},
+        WindowEffect::HeaderView => quote! { #prefix::HeaderView},
+        WindowEffect::Sheet => quote! { #prefix::Sheet},
+        WindowEffect::WindowBackground => quote! { #prefix::WindowBackground},
+        WindowEffect::HudWindow => quote! { #prefix::HudWindow},
+        WindowEffect::FullScreenUI => quote! { #prefix::FullScreenUI},
+        WindowEffect::Tooltip => quote! { #prefix::Tooltip},
+        WindowEffect::ContentBackground => quote! { #prefix::ContentBackground},
+        WindowEffect::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
+        WindowEffect::UnderPageBackground => quote! { #prefix::UnderPageBackground},
+        WindowEffect::Mica => quote! { #prefix::Mica},
+        WindowEffect::Blur => quote! { #prefix::Blur},
+        WindowEffect::Acrylic => quote! { #prefix::Acrylic},
       })
     }
   }

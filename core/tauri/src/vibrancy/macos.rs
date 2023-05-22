@@ -5,7 +5,7 @@
 #![cfg(target_os = "macos")]
 #![allow(deprecated)]
 
-use crate::{WindowEffectState, WindowEffects, WindowEffectsConfig};
+use crate::{WindowEffect, WindowEffectState, WindowEffectsConfig};
 use cocoa::{
   appkit::{
     NSAppKitVersionNumber, NSAppKitVersionNumber10_10, NSAppKitVersionNumber10_11,
@@ -27,25 +27,25 @@ pub fn apply_effects(window: id, effects: WindowEffectsConfig) {
   let mut appearance: NSVisualEffectMaterial = if let Some(effect) = effects.into_iter().find(|e| {
     matches!(
       e,
-      WindowEffects::AppearanceBased
-        | WindowEffects::Light
-        | WindowEffects::Dark
-        | WindowEffects::MediumLight
-        | WindowEffects::UltraDark
-        | WindowEffects::Titlebar
-        | WindowEffects::Selection
-        | WindowEffects::Menu
-        | WindowEffects::Popover
-        | WindowEffects::Sidebar
-        | WindowEffects::HeaderView
-        | WindowEffects::Sheet
-        | WindowEffects::WindowBackground
-        | WindowEffects::HudWindow
-        | WindowEffects::FullScreenUI
-        | WindowEffects::Tooltip
-        | WindowEffects::ContentBackground
-        | WindowEffects::UnderWindowBackground
-        | WindowEffects::UnderPageBackground
+      WindowEffect::AppearanceBased
+        | WindowEffect::Light
+        | WindowEffect::Dark
+        | WindowEffect::MediumLight
+        | WindowEffect::UltraDark
+        | WindowEffect::Titlebar
+        | WindowEffect::Selection
+        | WindowEffect::Menu
+        | WindowEffect::Popover
+        | WindowEffect::Sidebar
+        | WindowEffect::HeaderView
+        | WindowEffect::Sheet
+        | WindowEffect::WindowBackground
+        | WindowEffect::HudWindow
+        | WindowEffect::FullScreenUI
+        | WindowEffect::Tooltip
+        | WindowEffect::ContentBackground
+        | WindowEffect::UnderWindowBackground
+        | WindowEffect::UnderPageBackground
     )
   }) {
     effect.into()
@@ -261,29 +261,29 @@ pub enum NSVisualEffectState {
   Inactive = 2,
 }
 
-impl From<crate::WindowEffects> for NSVisualEffectMaterial {
-  fn from(value: crate::WindowEffects) -> Self {
+impl From<crate::WindowEffect> for NSVisualEffectMaterial {
+  fn from(value: crate::WindowEffect) -> Self {
     match value {
-      WindowEffects::AppearanceBased => NSVisualEffectMaterial::AppearanceBased,
-      WindowEffects::Light => NSVisualEffectMaterial::Light,
-      WindowEffects::Dark => NSVisualEffectMaterial::Dark,
-      WindowEffects::MediumLight => NSVisualEffectMaterial::MediumLight,
-      WindowEffects::UltraDark => NSVisualEffectMaterial::UltraDark,
-      WindowEffects::Titlebar => NSVisualEffectMaterial::Titlebar,
-      WindowEffects::Selection => NSVisualEffectMaterial::Selection,
-      WindowEffects::Menu => NSVisualEffectMaterial::Menu,
-      WindowEffects::Popover => NSVisualEffectMaterial::Popover,
-      WindowEffects::Sidebar => NSVisualEffectMaterial::Sidebar,
-      WindowEffects::HeaderView => NSVisualEffectMaterial::HeaderView,
-      WindowEffects::Sheet => NSVisualEffectMaterial::Sheet,
-      WindowEffects::WindowBackground => NSVisualEffectMaterial::WindowBackground,
-      WindowEffects::HudWindow => NSVisualEffectMaterial::HudWindow,
-      WindowEffects::FullScreenUI => NSVisualEffectMaterial::FullScreenUI,
-      WindowEffects::Tooltip => NSVisualEffectMaterial::Tooltip,
-      WindowEffects::ContentBackground => NSVisualEffectMaterial::ContentBackground,
-      WindowEffects::UnderWindowBackground => NSVisualEffectMaterial::UnderWindowBackground,
-      WindowEffects::UnderPageBackground => NSVisualEffectMaterial::UnderPageBackground,
-      WindowEffects::Mica | WindowEffects::Blur | WindowEffects::Acrylic => unreachable!(),
+      WindowEffect::AppearanceBased => NSVisualEffectMaterial::AppearanceBased,
+      WindowEffect::Light => NSVisualEffectMaterial::Light,
+      WindowEffect::Dark => NSVisualEffectMaterial::Dark,
+      WindowEffect::MediumLight => NSVisualEffectMaterial::MediumLight,
+      WindowEffect::UltraDark => NSVisualEffectMaterial::UltraDark,
+      WindowEffect::Titlebar => NSVisualEffectMaterial::Titlebar,
+      WindowEffect::Selection => NSVisualEffectMaterial::Selection,
+      WindowEffect::Menu => NSVisualEffectMaterial::Menu,
+      WindowEffect::Popover => NSVisualEffectMaterial::Popover,
+      WindowEffect::Sidebar => NSVisualEffectMaterial::Sidebar,
+      WindowEffect::HeaderView => NSVisualEffectMaterial::HeaderView,
+      WindowEffect::Sheet => NSVisualEffectMaterial::Sheet,
+      WindowEffect::WindowBackground => NSVisualEffectMaterial::WindowBackground,
+      WindowEffect::HudWindow => NSVisualEffectMaterial::HudWindow,
+      WindowEffect::FullScreenUI => NSVisualEffectMaterial::FullScreenUI,
+      WindowEffect::Tooltip => NSVisualEffectMaterial::Tooltip,
+      WindowEffect::ContentBackground => NSVisualEffectMaterial::ContentBackground,
+      WindowEffect::UnderWindowBackground => NSVisualEffectMaterial::UnderWindowBackground,
+      WindowEffect::UnderPageBackground => NSVisualEffectMaterial::UnderPageBackground,
+      WindowEffect::Mica | WindowEffect::Blur | WindowEffect::Acrylic => unreachable!(),
     }
   }
 }

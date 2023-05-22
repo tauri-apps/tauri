@@ -573,7 +573,7 @@
           "description": "List of Window effects to apply to the Window. Conflicting effects will apply the first one and ignore the rest.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/WindowEffects"
+            "$ref": "#/definitions/WindowEffect"
           }
         },
         "state": {
@@ -609,7 +609,7 @@
       },
       "additionalProperties": false
     },
-    "WindowEffects": {
+    "WindowEffect": {
       "description": "Platform-specific window effects",
       "oneOf": [
         {

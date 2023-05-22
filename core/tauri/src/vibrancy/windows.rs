@@ -9,7 +9,7 @@
 
 use std::ffi::c_void;
 
-use crate::{Color, WindowEffects, WindowEffectsConfig};
+use crate::{Color, WindowEffect, WindowEffectsConfig};
 use tauri_utils::platform::{get_function_impl, is_windows_7, windows_version};
 use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE};
 use windows::Win32::{
@@ -25,7 +25,7 @@ pub fn apply_effects(window: HWND, effects: WindowEffectsConfig) {
   let effect = if let Some(effect) = effects.iter().find(|e| {
     matches!(
       e,
-      WindowEffects::Mica | WindowEffects::Acrylic | WindowEffects::Blur
+      WindowEffect::Mica | WindowEffect::Acrylic | WindowEffect::Blur
     )
   }) {
     effect
@@ -34,9 +34,9 @@ pub fn apply_effects(window: HWND, effects: WindowEffectsConfig) {
   };
 
   match effect {
-    WindowEffects::Blur => apply_blur(window, color),
-    WindowEffects::Acrylic => apply_acrylic(window, color),
-    WindowEffects::Mica => apply_mica(window),
+    WindowEffect::Blur => apply_blur(window, color),
+    WindowEffect::Acrylic => apply_acrylic(window, color),
+    WindowEffect::Mica => apply_mica(window),
     _ => unreachable!(),
   }
 }

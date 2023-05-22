@@ -9,6 +9,8 @@ Var ReinstallPageCheck
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
 !define VERSION "{{version}}"
+!define VERSIONWITHBUILD "{{version_with_build}}"
+!define SHORTDESCRIPTION "{{short_description}}"
 !define INSTALLMODE "{{install_mode}}"
 !define LICENSE "{{license}}"
 !define INSTALLERICON "{{installer_icon}}"
@@ -34,6 +36,13 @@ BrandingText "{{copyright}}"
 OutFile "${OUTFILE}"
 Unicode true
 SetCompressor /SOLID lzma
+
+VIProductVersion "${VERSIONWITHBUILD}"
+VIAddVersionKey "ProductName" "${PRODUCTNAME}"
+VIAddVersionKey "FileDescription" "${SHORTDESCRIPTION}"
+VIAddVersionKey "LegalCopyright" "${COPYRIGHT}"
+VIAddVersionKey "FileVersion" "${VERSION}"
+VIAddVersionKey "ProductVersion" "${VERSION}"
 
 !if "${PLUGINSPATH}" != ""
     !addplugindir "${PLUGINSPATH}"

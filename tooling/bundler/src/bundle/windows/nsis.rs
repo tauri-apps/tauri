@@ -121,6 +121,25 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   Ok(())
 }
 
+fn add_build_number_if_needed(version_str: &str) -> anyhow::Result<String> {
+  let version = semver::Version::parse(version_str).context("invalid app version")?;
+  if !version.build.is_empty() {
+    let build = version.build.parse::<u64>();
+    if build.is_ok() {
+      return Ok(format!(
+        "{}.{}.{}.{}",
+        version.major, version.minor, version.patch, version.build
+      ));
+    } else {
+      anyhow::bail!("optional build metadata in app version must be numeric-only");
+    }
+  }
+
+  Ok(format!(
+    "{}.{}.{}.0",
+    version.major, version.minor, version.patch,
+  ))
+}
 fn build_nsis_app_installer(
   settings: &Settings,
   _nsis_toolset_path: &Path,
@@ -164,7 +183,9 @@ fn build_nsis_app_installer(
   let mut data = BTreeMap::new();
 
   let bundle_id = settings.bundle_identifier();
-  let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
+  let manufacturer = settings
+    .publisher()
+    .unwrap_or_else(|| bundle_id.split('.').nth(1).unwrap_or(bundle_id));
 
   #[cfg(not(target_os = "windows"))]
   {
@@ -177,10 +198,15 @@ fn build_nsis_app_installer(
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
+  data.insert("short_description", to_json(settings.short_description()));
   data.insert("copyright", to_json(settings.copyright_string()));
 
   let version = settings.version_string();
   data.insert("version", to_json(version));
+  data.insert(
+    "version_with_build",
+    to_json(add_build_number_if_needed(version)?),
+  );
 
   data.insert(
     "allow_downgrades",

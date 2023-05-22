@@ -739,7 +739,7 @@ fn copy_files_and_run<R: Read + Seek>(
       if crate::utils::config::WindowsUpdateInstallMode::Quiet
         == config.tauri.updater.windows.install_mode
       {
-        installer.arg("/S");
+        installer.args(config.tauri.updater.windows.install_mode.nsis_args());
       }
       installer.args(&config.tauri.updater.windows.installer_args);
 
@@ -802,7 +802,6 @@ fn copy_files_and_run<R: Read + Seek>(
         .updater
         .windows
         .install_mode
-        .clone()
         .msiexec_args()
         .iter()
         .map(|p| p.to_string())

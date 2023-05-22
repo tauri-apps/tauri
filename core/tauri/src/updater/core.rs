@@ -735,15 +735,11 @@ fn copy_files_and_run<R: Read + Seek>(
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
-      let mut installer = Command::new(found_path);
-      if crate::utils::config::WindowsUpdateInstallMode::Quiet
-        == config.tauri.updater.windows.install_mode
-      {
-        installer.args(config.tauri.updater.windows.install_mode.nsis_args());
-      }
-      installer.args(&config.tauri.updater.windows.installer_args);
-
-      installer.spawn().expect("installer failed to start");
+      Command::new(found_path)
+        .args(config.tauri.updater.windows.install_mode.nsis_args())
+        .args(&config.tauri.updater.windows.installer_args)
+        .spawn()
+        .expect("installer failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {

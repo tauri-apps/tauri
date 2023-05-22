@@ -12,12 +12,14 @@ import androidx.core.app.ActivityCompat
 import app.tauri.PermissionHelper
 import app.tauri.PermissionState
 import app.tauri.annotation.ActivityCallback
-import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.Command
+import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import java.lang.reflect.Method
+import java.util.Arrays
 
-class PluginHandle(private val manager: PluginManager, val name: String, private val instance: Plugin) {
+
+class PluginHandle(private val manager: PluginManager, val name: String, val instance: Plugin, val config: JSObject) {
   private val commands: HashMap<String, CommandData> = HashMap()
   private val permissionCallbackMethods: HashMap<String, Method> = HashMap()
   private val startActivityCallbackMethods: HashMap<String, Method> = HashMap()
@@ -130,7 +132,13 @@ class PluginHandle(private val manager: PluginManager, val name: String, private
   }
 
   private fun indexMethods() {
-    val methods: Array<Method> = instance.javaClass.methods
+    val methods = mutableListOf<Method>()
+    var pluginCursor: Class<*> = instance.javaClass
+    while (pluginCursor.name != Any::class.java.name) {
+      methods.addAll(listOf(*pluginCursor.declaredMethods))
+      pluginCursor = pluginCursor.superclass
+    }
+
     for (method in methods) {
       if (method.isAnnotationPresent(Command::class.java)) {
         val command = method.getAnnotation(Command::class.java) ?: continue

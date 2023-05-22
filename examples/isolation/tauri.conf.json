@@ -1,5 +1,5 @@
 {
-  "$schema": "../../core/config-schema/schema.json",
+  "$schema": "../../core/tauri-config-schema/schema.json",
   "package": {
     "productName": "Isolation",
     "version": "0.1.0"
@@ -49,9 +49,6 @@
         "digestAlgorithm": "sha256",
         "timestampUrl": ""
       }
-    },
-    "updater": {
-      "active": false
     },
     "windows": [
       {

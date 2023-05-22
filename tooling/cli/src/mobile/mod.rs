@@ -12,19 +12,19 @@ use crate::{
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
 use anyhow::{bail, Result};
+use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
 use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
-use shared_child::SharedChild;
 
 use std::{
   collections::HashMap,
   env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, read_to_string, write},
+  fs::{read_to_string, write},
   net::SocketAddr,
   path::PathBuf,
   process::{exit, ExitStatus},
@@ -34,10 +34,10 @@ use std::{
   },
 };
 use tauri_mobile::{
-  bossy,
   config::app::{App, Raw as RawAppConfig},
   env::Error as EnvError,
   opts::{NoiseLevel, Profile},
+  ChildHandle,
 };
 use tokio::runtime::Runtime;
 
@@ -55,14 +55,14 @@ const MIN_DEVICE_MATCH_SCORE: isize = 0;
 
 #[derive(Clone)]
 pub struct DevChild {
-  child: Arc<SharedChild>,
+  child: Arc<ChildHandle>,
   manually_killed_process: Arc<AtomicBool>,
 }
 
 impl DevChild {
-  fn new(handle: bossy::Handle) -> Self {
+  fn new(handle: ChildHandle) -> Self {
     Self {
-      child: Arc::new(SharedChild::new(handle.into()).unwrap()),
+      child: Arc::new(handle),
       manually_killed_process: Default::default(),
     }
   }
@@ -76,11 +76,11 @@ impl DevProcess for DevChild {
   }
 
   fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    self.child.try_wait()
+    self.child.try_wait().map(|res| res.map(|o| o.status))
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
-    self.child.wait()
+    self.child.wait().map(|o| o.status)
   }
 
   fn manually_killed_process(&self) -> bool {
@@ -282,7 +282,7 @@ fn get_app(config: &TauriConfig) -> App {
   let lib_name = interface
     .app_settings()
     .lib_name()
-    .unwrap_or(app_name.clone());
+    .unwrap_or_else(|| app_name.to_snek_case());
 
   let raw = RawAppConfig {
     name: app_name,
@@ -315,10 +315,8 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       project_dir.display(),
       target.command_name(),
     )
-  } else {
-    create_dir_all(project_dir.join(".tauri").join("plugins"))?;
-    Ok(())
   }
+  Ok(())
 }
 
 fn log_finished(outputs: Vec<PathBuf>, kind: &str) {

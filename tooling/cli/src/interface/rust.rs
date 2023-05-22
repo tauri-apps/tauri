@@ -623,6 +623,7 @@ struct BinarySettings {
 
 /// The package settings.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct CargoPackageSettings {
   /// the package's name.
   pub name: Option<String>,
@@ -692,7 +693,6 @@ impl AppSettings for RustAppSettings {
       features,
       config.tauri.bundle.clone(),
       config.tauri.system_tray.clone(),
-      config.tauri.updater.clone(),
     )
   }
 
@@ -1028,7 +1028,6 @@ fn tauri_config_to_bundle_settings(
   features: &[String],
   config: crate::helpers::config::BundleConfig,
   system_tray_config: Option<crate::helpers::config::SystemTrayConfig>,
-  updater_config: crate::helpers::config::UpdaterConfig,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
 
@@ -1158,15 +1157,9 @@ fn tauri_config_to_bundle_settings(
       allow_downgrades: config.windows.allow_downgrades,
     },
     updater: Some(UpdaterSettings {
-      active: updater_config.active,
-      // we set it to true by default we shouldn't have to use
-      // unwrap_or as we have a default value but used to prevent any failing
-      dialog: updater_config.dialog,
-      pubkey: updater_config.pubkey,
-      endpoints: updater_config
-        .endpoints
-        .map(|endpoints| endpoints.iter().map(|e| e.to_string()).collect()),
-      msiexec_args: Some(updater_config.windows.install_mode.msiexec_args()),
+      active: config.updater.active,
+      pubkey: config.updater.pubkey,
+      msiexec_args: Some(config.updater.windows.install_mode.msiexec_args()),
     }),
     ..Default::default()
   })

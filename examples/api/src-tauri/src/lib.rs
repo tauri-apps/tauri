@@ -35,25 +35,20 @@ pub fn run() {
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
       #[cfg(desktop)]
-      tray::create_tray(app)?;
+      {
+        tray::create_tray(app)?;
+
+        app.handle().plugin(tauri_plugin_cli::init())?;
+      }
 
       let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());
       #[cfg(desktop)]
       {
         window_builder = window_builder
-          .user_agent("Tauri API")
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
           .content_protected(true);
-      }
-
-      #[cfg(target_os = "windows")]
-      {
-        window_builder = window_builder
-          .transparent(true)
-          .shadow(true)
-          .decorations(false);
       }
 
       let window = window_builder.build().unwrap();

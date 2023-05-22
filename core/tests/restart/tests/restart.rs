@@ -45,7 +45,7 @@ fn symlink_runner(create_symlinks: impl Fn(&Path) -> io::Result<Symlink>) -> Res
     // run the command from the symlink, so that we can test if restart resolves it correctly
     let mut cmd = Command::new(link);
 
-    // add the restart parameter so that the invocation will call tauri::api::process::restart
+    // add the restart parameter so that the invocation will call tauri::process::restart
     cmd.arg("restart");
 
     let output = cmd.output()?;

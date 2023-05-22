@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use clap::{Parser, Subcommand};
-use std::{env::set_var, fs::create_dir, process::exit, thread::sleep, time::Duration};
+use std::{
+  env::set_var,
+  fs::{create_dir, create_dir_all, write},
+  process::exit,
+  thread::sleep,
+  time::Duration,
+};
 use sublime_fuzzy::best_match;
 use tauri_mobile::{
   android::{
@@ -104,6 +110,7 @@ pub fn get_config(
         .logcat()
       ),
     ],
+    min_sdk_version: Some(config.tauri.bundle.android.min_sdk_version),
     ..Default::default()
   };
   let config = AndroidConfig::from_raw(app.clone(), Some(raw)).unwrap();
@@ -294,4 +301,16 @@ fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {
   loop {
     sleep(Duration::from_secs(24 * 60 * 60));
   }
+}
+
+fn inject_assets(config: &AndroidConfig, tauri_config: &TauriConfig) -> Result<()> {
+  let asset_dir = config.project_dir().join("app/src/main/assets");
+  create_dir_all(&asset_dir)?;
+
+  write(
+    asset_dir.join("tauri.conf.json"),
+    serde_json::to_string(&tauri_config)?,
+  )?;
+
+  Ok(())
 }

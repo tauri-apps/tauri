@@ -313,7 +313,12 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
       use crate::helpers::web_dev_server::start_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
-        let server_url = start_dev_server(path, options.port);
+        let ip = if mobile {
+          *local_ip_address(options.force_ip_prompt)
+        } else {
+          Ipv4Addr::new(127, 0, 0, 1).into()
+        };
+        let server_url = start_dev_server(path, ip, options.port)?;
         let server_url = format!("http://{server_url}");
         dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 

@@ -4,12 +4,14 @@
 
 package app.tauri.plugin
 
+import android.content.Context
 import android.content.Intent
 import android.webkit.WebView
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import app.tauri.FsUtils
 import app.tauri.JniMethod
 import app.tauri.Logger
 
@@ -46,6 +48,12 @@ class PluginManager(val activity: AppCompatActivity) {
       }
   }
 
+  fun onNewIntent(intent: Intent) {
+    for (plugin in plugins.values) {
+      plugin.instance.onNewIntent(intent)
+    }
+  }
+
   fun startActivityForResult(intent: Intent, callback: ActivityResultCallback) {
     startActivityForResultCallback = callback
     startActivityForResultLauncher.launch(intent)
@@ -69,8 +77,8 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun load(webView: WebView?, name: String, plugin: Plugin) {
-    val handle = PluginHandle(this, name, plugin)
+  fun load(webView: WebView?, name: String, plugin: Plugin, config: JSObject) {
+    val handle = PluginHandle(this, name, plugin, config)
     plugins[name] = handle
     if (webView != null) {
       plugin.load(webView)
@@ -79,11 +87,7 @@ class PluginManager(val activity: AppCompatActivity) {
 
   @JniMethod
   fun postIpcMessage(webView: WebView, pluginId: String, command: String, data: JSObject, callback: Long, error: Long) {
-    val invoke = Invoke(callback, command, { successResult, errorResult ->
-      val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(
-        error,
-        errorResult
-      )
+    val invoke = Invoke(callback, command, callback, error, { fn, result ->
       webView.evaluateJavascript("window['_$fn']($result)", null)
     }, data)
 
@@ -92,8 +96,17 @@ class PluginManager(val activity: AppCompatActivity) {
 
   @JniMethod
   fun runCommand(id: Int, pluginId: String, command: String, data: JSObject) {
-    val invoke = Invoke(id.toLong(), command, { successResult, errorResult ->
-      handlePluginResponse(id, successResult?.toString(), errorResult?.toString())
+    val successId = 0L
+    val errorId = 1L
+    val invoke = Invoke(id.toLong(), command, successId, errorId, { fn, result ->
+      var success: PluginResult? = null
+      var error: PluginResult? = null
+      if (fn == successId) {
+        success = result
+      } else {
+        error = result
+      }
+      handlePluginResponse(id, success?.toString(), error?.toString())
     }, data)
 
     dispatchPluginMessage(invoke, pluginId)
@@ -113,7 +126,16 @@ class PluginManager(val activity: AppCompatActivity) {
         plugins[pluginId]?.invoke(invoke)
       }
     } catch (e: Exception) {
-      invoke.reject(e.toString())
+      invoke.reject(if (e.message?.isEmpty() != false) { e.toString() } else { e.message })
+    }
+  }
+
+  companion object {
+    fun loadConfig(context: Context, plugin: String): JSObject {
+      val tauriConfigJson = FsUtils.readAsset(context.assets, "tauri.conf.json")
+      val tauriConfig = JSObject(tauriConfigJson)
+      val plugins = tauriConfig.getJSObject("plugins", JSObject())
+      return plugins.getJSObject(plugin, JSObject())
     }
   }
 

@@ -17,7 +17,6 @@ use tauri_mobile::{
     deps, rust_version_check,
     target::Target,
   },
-  bossy,
   config::app::DEFAULT_ASSET_DIR,
   target::TargetTrait as _,
   util::{self, cli::TextWrapper},
@@ -181,17 +180,27 @@ pub fn gen(
   // Note that Xcode doesn't always reload the project nicely; reopening is
   // often necessary.
   println!("Generating Xcode project...");
-  bossy::Command::impure("xcodegen")
-    .with_args(["generate", "--spec"])
-    .with_arg(dest.join("project.yml"))
-    .run_and_wait()
-    .with_context(|| "failed to run `xcodegen`")?;
+  duct::cmd(
+    "xcodegen",
+    [
+      "generate",
+      "--spec",
+      &dest.join("project.yml").to_string_lossy(),
+    ],
+  )
+  .run()
+  .with_context(|| "failed to run `xcodegen`")?;
 
   if !ios_pods.is_empty() || !macos_pods.is_empty() {
-    bossy::Command::impure_parse("pod install")
-      .with_arg(format!("--project-directory={}", dest.display()))
-      .run_and_wait()
-      .with_context(|| "failed to run `pod install`")?;
+    duct::cmd(
+      "pod",
+      [
+        "install",
+        &format!("--project-directory={}", dest.display()),
+      ],
+    )
+    .run()
+    .with_context(|| "failed to run `pod install`")?;
   }
   Ok(())
 }

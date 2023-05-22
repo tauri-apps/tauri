@@ -38,9 +38,15 @@ swift!(pub fn run_plugin_method(
   data: *const c_void,
   callback: PluginMessageCallback
 ));
+swift!(pub fn register_plugin(
+  name: &SRString,
+  plugin: *const c_void,
+  config: *const c_void,
+  webview: *const c_void
+));
 swift!(pub fn on_webview_created(webview: *const c_void, controller: *const c_void));
 
-pub fn json_to_dictionary(json: JsonValue) -> id {
+pub fn json_to_dictionary(json: &JsonValue) -> id {
   if let serde_json::Value::Object(map) = json {
     unsafe {
       let dictionary: id = msg_send![class!(NSMutableDictionary), alloc];
@@ -78,14 +84,14 @@ impl NSString {
   }
 }
 
-unsafe fn add_json_value_to_array(array: id, value: JsonValue) {
+unsafe fn add_json_value_to_array(array: id, value: &JsonValue) {
   match value {
     JsonValue::Null => {
       let null: id = msg_send![class!(NSNull), null];
       let () = msg_send![array, addObject: null];
     }
     JsonValue::Bool(val) => {
-      let value = if val { YES } else { NO };
+      let value = if *val { YES } else { NO };
       let v: id = msg_send![class!(NSNumber), numberWithBool: value];
       let () = msg_send![array, addObject: v];
     }
@@ -123,7 +129,7 @@ unsafe fn add_json_value_to_array(array: id, value: JsonValue) {
   }
 }
 
-unsafe fn add_json_entry_to_dictionary(data: id, key: String, value: JsonValue) {
+unsafe fn add_json_entry_to_dictionary(data: id, key: &str, value: &JsonValue) {
   let key = NSString::new(&key);
   match value {
     JsonValue::Null => {
@@ -131,7 +137,8 @@ unsafe fn add_json_entry_to_dictionary(data: id, key: String, value: JsonValue) 
       let () = msg_send![data, setObject:null forKey: key];
     }
     JsonValue::Bool(val) => {
-      let value = if val { YES } else { NO };
+      let flag = if *val { YES } else { NO };
+      let value: id = msg_send![class!(NSNumber), numberWithBool: flag];
       let () = msg_send![data, setObject:value forKey: key];
     }
     JsonValue::Number(val) => {

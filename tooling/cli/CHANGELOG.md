@@ -1,5 +1,45 @@
 # Changelog
 
+## \[2.0.0-alpha.9]
+
+- [`19cd0e49`](https://www.github.com/tauri-apps/tauri/commit/19cd0e49603ad3500cd2180bfa16e1649e3a771a)([#6811](https://www.github.com/tauri-apps/tauri/pull/6811)) Add `key.properties` file to android's `.gitignore`.
+- [`124d5c5a`](https://www.github.com/tauri-apps/tauri/commit/124d5c5adf67f0b68d2e41c7ddb07d9cb63f1996)([#6788](https://www.github.com/tauri-apps/tauri/pull/6788)) On mobile, fix regression introduced in `tauri-cli` version `2.0.0-alpha.3` where library not found error was thrown.
+- [`31444ac1`](https://www.github.com/tauri-apps/tauri/commit/31444ac196add770f2ad18012d7c18bce7538f22)([#6725](https://www.github.com/tauri-apps/tauri/pull/6725)) Update mobile template to `wry@0.28`
+- [`6d1fa49f`](https://www.github.com/tauri-apps/tauri/commit/6d1fa49fce3a03965ce7c656390e682ce5b776e3)([#6881](https://www.github.com/tauri-apps/tauri/pull/6881)) Clear Android plugin JSON file before building Rust library to ensure removed plugins are propagated to the Android project.
+- [`5a9307d1`](https://www.github.com/tauri-apps/tauri/commit/5a9307d11c1643221bc2a280feb00024f8fa6030)([#6890](https://www.github.com/tauri-apps/tauri/pull/6890)) Update android template to gradle 8.0
+- [`73c803a5`](https://www.github.com/tauri-apps/tauri/commit/73c803a561181137f20366f5d52511392a619f2b)([#6837](https://www.github.com/tauri-apps/tauri/pull/6837)) Inject Tauri configuration in the Android assets.
+- [`e1e85dc2`](https://www.github.com/tauri-apps/tauri/commit/e1e85dc2a5f656fc37867e278cae8042037740ac)([#6925](https://www.github.com/tauri-apps/tauri/pull/6925)) Moved the updater configuration to the `BundleConfig`.
+- [`3188f376`](https://www.github.com/tauri-apps/tauri/commit/3188f3764978c6d1452ee31d5a91469691e95094)([#6883](https://www.github.com/tauri-apps/tauri/pull/6883)) Bump the MSRV to 1.65.
+- [`2969d1cb`](https://www.github.com/tauri-apps/tauri/commit/2969d1cbba39301f9cc611d9f7d7051d80eef846)([#6773](https://www.github.com/tauri-apps/tauri/pull/6773)) Use absolute path to each Android plugin project instead of copying the files to enhance developer experience.
+- [`d48aaa15`](https://www.github.com/tauri-apps/tauri/commit/d48aaa150a1ceeb65ec0ba18f1e3795f70c838e3)([#6894](https://www.github.com/tauri-apps/tauri/pull/6894)) Add Cargo manifest files for the plugin example templates.
+- [`e1e85dc2`](https://www.github.com/tauri-apps/tauri/commit/e1e85dc2a5f656fc37867e278cae8042037740ac)([#6925](https://www.github.com/tauri-apps/tauri/pull/6925)) Removed the allowlist configuration.
+
+## \[2.0.0-alpha.8]
+
+- Do not gitignore the Android project's `buildSrc` folder by default since we removed absolute paths from it.
+  - [ee2d3b97](https://www.github.com/tauri-apps/tauri/commit/ee2d3b971df6d3630b8d935394fb4febcfa3a909) fix(cli): remove buildSrc from Android project gitignored paths ([#6702](https://www.github.com/tauri-apps/tauri/pull/6702)) on 2023-04-13
+- Fixes iOS build script using the wrong path for the app library file.
+  - [abc5f91f](https://www.github.com/tauri-apps/tauri/commit/abc5f91fa3569efc9dfdee46d1c501eda8755944) fix(cli): iOS Xcode script using incorrect library path ([#6699](https://www.github.com/tauri-apps/tauri/pull/6699)) on 2023-04-13
+
+## \[2.0.0-alpha.7]
+
+- Add `--release` flag for `tauri android dev` however you will need to sign your Android app, see https://next--tauri.netlify.app/next/guides/distribution/sign-android
+  - [63f088e5](https://www.github.com/tauri-apps/tauri/commit/63f088e5fc9701fd7fb329dad7ffb27a2d8fd5aa) feat(cli): add `--release` for `android dev` ([#6638](https://www.github.com/tauri-apps/tauri/pull/6638)) on 2023-04-05
+- Build only specified rust targets for `tauri android build` instead of all.
+  - [d03e47d1](https://www.github.com/tauri-apps/tauri/commit/d03e47d141c3917520975be9081775dbc4e9d4fd) fix: only build specified rust targets for aab/apk build ([#6625](https://www.github.com/tauri-apps/tauri/pull/6625)) on 2023-04-05
+- Use local ip address for built-in dev server on mobile.
+  - [7fec0f08](https://www.github.com/tauri-apps/tauri/commit/7fec0f083c932dc63ccb8716080d97e2ab985b25) fix(cli): use local ip addr for built-in server on mobile, closes [#6454](https://www.github.com/tauri-apps/tauri/pull/6454) ([#6631](https://www.github.com/tauri-apps/tauri/pull/6631)) on 2023-04-04
+- Change minimum Android SDK version to 21 for the plugin library.
+  - [db4c9dc6](https://www.github.com/tauri-apps/tauri/commit/db4c9dc655e07ee2184fe04571f500f7910890cd) feat(core): add option to configure Android's minimum SDK version ([#6651](https://www.github.com/tauri-apps/tauri/pull/6651)) on 2023-04-07
+- Readd the Cargo.toml file to the plugin template.
+  - [5288a386](https://www.github.com/tauri-apps/tauri/commit/5288a386f1bf8ac11f991350463c3f5c20983f43) fix(cli): readd Cargo.toml to the plugin template ([#6637](https://www.github.com/tauri-apps/tauri/pull/6637)) on 2023-04-04
+
+## \[2.0.0-alpha.6]
+
+- Use Ubuntu 20.04 to compile the CLI for cargo-binstall, increasing the minimum libc required.
+- Automatically enable the `rustls-tls` tauri feature on mobile and `native-tls` on desktop if `rustls-tls` is not enabled.
+  - [cfdee00f](https://www.github.com/tauri-apps/tauri/commit/cfdee00f2b1455a9719bc44823fdaeabbe4c1cb2) refactor(core): fix tls features, use rustls on mobile ([#6591](https://www.github.com/tauri-apps/tauri/pull/6591)) on 2023-03-30
+
 ## \[2.0.0-alpha.5]
 
 - Fixes the iOS project script to build the Rust library.
@@ -90,6 +130,49 @@
   - [a9c8e565](https://www.github.com/tauri-apps/tauri/commit/a9c8e565c6495961940877df7090f307be16b554) feat: add `android open` and `ios open` commands ([#4946](https://www.github.com/tauri-apps/tauri/pull/4946)) on 2022-08-15
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.3.0]
+
+- Look for available port when using the built-in dev server for static files.
+  - [a7ee5ca7](https://www.github.com/tauri-apps/tauri/commit/a7ee5ca7c348d33bdfdc1213b6850bcf5c39d6e6) fix(cli): look for available ports for built-in dev server, closes [#6511](https://www.github.com/tauri-apps/tauri/pull/6511) ([#6514](https://www.github.com/tauri-apps/tauri/pull/6514)) on 2023-03-31
+- Add `--port` to specify the port used for static files dev server. It can also be specified through `TAURI_DEV_SERVER_PORT` env var.
+  - [b7a2ce2c](https://www.github.com/tauri-apps/tauri/commit/b7a2ce2c633c8383851ec9ec3c2cafda39f19745) feat(cli): add --port, closes [#6186](https://www.github.com/tauri-apps/tauri/pull/6186) ([#6283](https://www.github.com/tauri-apps/tauri/pull/6283)) on 2023-03-16
+- Fix `tauri info` panicking when parsing crates version on a newly created project without a `Cargo.lock` file.
+  - [c2608423](https://www.github.com/tauri-apps/tauri/commit/c2608423b6eec5eb91d0ffc861714c011ad3988b) fix(cli): don't panic when a crate version couldn't be parsed ([#5873](https://www.github.com/tauri-apps/tauri/pull/5873)) on 2022-12-26
+- Improve the error message when `rustc` couldn't be found.
+  - [7aab3e20](https://www.github.com/tauri-apps/tauri/commit/7aab3e2076272c14c78a563e288a1b04ed3cfd41) fix(cli.rs): improve `rustc` not found error msg ([#6021](https://www.github.com/tauri-apps/tauri/pull/6021)) on 2023-01-17
+- Add `--ci` flag and respect the `CI` environment variable on the `signer generate` command. In this case the default password will be an empty string and the CLI will not prompt for a value.
+  - [8fb1df8a](https://www.github.com/tauri-apps/tauri/commit/8fb1df8aa65a52cdb4a7e1bb9dda9b912a7a2895) feat(cli): add `--ci` flag to `signer generate`, closes [#6089](https://www.github.com/tauri-apps/tauri/pull/6089) ([#6097](https://www.github.com/tauri-apps/tauri/pull/6097)) on 2023-01-19
+- Fix Outdated Github Actions in the Plugin Templates `with-api` and `backend`
+  - [a926b49a](https://www.github.com/tauri-apps/tauri/commit/a926b49a01925ca757d391994bfac3beea29599b) Fix Github Actions of Tauri Plugin with-api template ([#6603](https://www.github.com/tauri-apps/tauri/pull/6603)) on 2023-04-03
+- Do not crash on Cargo.toml watcher.
+  - [e8014a7f](https://www.github.com/tauri-apps/tauri/commit/e8014a7f612a1094461ddad63aacc498a2682ff5) fix(cli): do not crash on watcher ([#6303](https://www.github.com/tauri-apps/tauri/pull/6303)) on 2023-02-17
+- On Windows, printing consistent paths on Windows with backslashs only.
+  - [9da99607](https://www.github.com/tauri-apps/tauri/commit/9da996073ff07d4b59668a5315d40e9bc578e340) fix(cli): fix printing paths on Windows ([#6137](https://www.github.com/tauri-apps/tauri/pull/6137)) on 2023-01-26
+- Add `--png` option for the `icon` command to generate custom icon sizes.
+  - [9d214412](https://www.github.com/tauri-apps/tauri/commit/9d2144128fc5fad67d8404bce95f82297ebb0e4a) feat(cli): add option to make custom icon sizes, closes [#5121](https://www.github.com/tauri-apps/tauri/pull/5121) ([#5246](https://www.github.com/tauri-apps/tauri/pull/5246)) on 2022-12-27
+- Skip the password prompt on the build command when `TAURI_KEY_PASSWORD` environment variable is empty and the `--ci` argument is provided or the `CI` environment variable is set.
+  - [d4f89af1](https://www.github.com/tauri-apps/tauri/commit/d4f89af18d69fd95a4d8a1ede8442547c6a6d0ee) feat: skip password prompt on the build command if CI is set fixes [#6089](https://www.github.com/tauri-apps/tauri/pull/6089) on 2023-01-18
+- Fix `default-run` not deserialized.
+  - [57c6bf07](https://www.github.com/tauri-apps/tauri/commit/57c6bf07bb380847abdf27c3fff9891d99c1c98c) fix(cli): fix default-run not deserialized ([#6584](https://www.github.com/tauri-apps/tauri/pull/6584)) on 2023-03-30
+- Fixes HTML serialization removing template tags on the dev server.
+  - [314f0e21](https://www.github.com/tauri-apps/tauri/commit/314f0e212fd2b9e452bfe3424cdce2b0bf37b5d7) fix(cli): web_dev_server html template serialization (fix [#6165](https://www.github.com/tauri-apps/tauri/pull/6165)) ([#6166](https://www.github.com/tauri-apps/tauri/pull/6166)) on 2023-01-29
+- Use escaping on Handlebars templates.
+  - [6d6b6e65](https://www.github.com/tauri-apps/tauri/commit/6d6b6e653ea70fc02794f723092cdc860995c259) feat: configure escaping on handlebars templates ([#6678](https://www.github.com/tauri-apps/tauri/pull/6678)) on 2023-05-02
+- Fix building apps with unicode characters in their `productName`.
+  - [72621892](https://www.github.com/tauri-apps/tauri/commit/72621892fe8195bad67b4237467ebd7e89f6af7f) fix(cli): use `unicode` feature for `heck` crate, closes [#5860](https://www.github.com/tauri-apps/tauri/pull/5860) ([#5872](https://www.github.com/tauri-apps/tauri/pull/5872)) on 2022-12-26
+- Bump minimum supported Rust version to 1.60.
+  - [5fdc616d](https://www.github.com/tauri-apps/tauri/commit/5fdc616df9bea633810dcb814ac615911d77222c) feat: Use the zbus-backed of notify-rust ([#6332](https://www.github.com/tauri-apps/tauri/pull/6332)) on 2023-03-31
+- Add initial support for building `nsis` bundles on non-Windows platforms.
+  - [60e6f6c3](https://www.github.com/tauri-apps/tauri/commit/60e6f6c3f1605f3064b5bb177992530ff788ccf0) feat(bundler): Add support for creating NSIS bundles on unix hosts ([#5788](https://www.github.com/tauri-apps/tauri/pull/5788)) on 2023-01-19
+- Add `nsis` bundle target
+  - [c94e1326](https://www.github.com/tauri-apps/tauri/commit/c94e1326a7c0767a13128a8b1d327a00156ece12) feat(bundler): add `nsis`, closes [#4450](https://www.github.com/tauri-apps/tauri/pull/4450), closes [#2319](https://www.github.com/tauri-apps/tauri/pull/2319) ([#4674](https://www.github.com/tauri-apps/tauri/pull/4674)) on 2023-01-03
+- Remove default features from Cargo.toml template.
+  - [b08ae637](https://www.github.com/tauri-apps/tauri/commit/b08ae637a0f58b38cbce9b8a1fa0b6c5dc0cfd05) fix(cli): remove default features from template ([#6074](https://www.github.com/tauri-apps/tauri/pull/6074)) on 2023-01-17
+- Added support for Cargo's workspace inheritance for package information. The cli now also detects inherited `tauri` and `tauri-build` dependencies and disables manifest rewrites accordingly.
+  - [cd8c074a](https://www.github.com/tauri-apps/tauri/commit/cd8c074ae6592303d3f6844a4fb6d262eae913b2) feat(cli): add support for Cargo's workspace inheritance for the package version, closes [#5070](https://www.github.com/tauri-apps/tauri/pull/5070) ([#5775](https://www.github.com/tauri-apps/tauri/pull/5775)) on 2022-12-14
+  - [d20a7288](https://www.github.com/tauri-apps/tauri/commit/d20a728892eee1858ab525ab6216cd721f473ab5) feat: Further improve workspace inheritance, closes [#6122](https://www.github.com/tauri-apps/tauri/pull/6122), [#5070](https://www.github.com/tauri-apps/tauri/pull/5070) ([#6144](https://www.github.com/tauri-apps/tauri/pull/6144)) on 2023-01-26
+- Use Ubuntu 20.04 to compile the CLI for cargo-binstall, increasing the minimum libc required.
 
 ## \[1.2.3]
 

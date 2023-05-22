@@ -2,7 +2,4 @@ include ':app'
 {{~#each asset-packs}}
 include ':{{this}}'{{/each}}
 
-include ':tauri-android'
-project(':tauri-android').projectDir = new File('./.tauri/tauri-api')
-
 apply from: 'tauri.settings.gradle'

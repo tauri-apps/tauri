@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, open_and_wait,
-  setup_dev_config, with_config, MobileTarget,
+  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, inject_assets,
+  open_and_wait, setup_dev_config, with_config, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -68,6 +68,9 @@ pub struct Options {
   /// Force prompting for an IP to use to connect to the dev server on mobile.
   #[clap(long)]
   pub force_ip_prompt: bool,
+  /// Run the code in release mode
+  #[clap(long = "release")]
+  pub release_mode: bool,
 }
 
 impl From<Options> for DevOptions {
@@ -78,12 +81,12 @@ impl From<Options> for DevOptions {
       features: options.features,
       exit_on_panic: options.exit_on_panic,
       config: options.config,
-      release_mode: false,
       args: Vec::new(),
       no_watch: options.no_watch,
       no_dev_server: options.no_dev_server,
       port: options.port,
       force_ip_prompt: options.force_ip_prompt,
+      release_mode: options.release_mode,
     }
   }
 }
@@ -152,14 +155,25 @@ fn run_dev(
     .values()
     .find(|t| t.triple == target_triple)
     .unwrap_or_else(|| Target::all().values().next().unwrap());
-  target.build(config, metadata, &env, noise_level, true, Profile::Debug)?;
+  target.build(
+    config,
+    metadata,
+    &env,
+    noise_level,
+    true,
+    if options.release_mode {
+      Profile::Release
+    } else {
+      Profile::Debug
+    },
+  )?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
   interface.mobile_dev(
     MobileOptions {
-      debug: true,
+      debug: !options.release_mode,
       features: options.features,
       args: Vec::new(),
       config: options.config,
@@ -172,8 +186,10 @@ fn run_dev(
         noise_level,
         vars: Default::default(),
       };
+
+      let tauri_config = get_config(options.config.as_deref())?;
       let _handle = write_options(
-        &get_config(options.config.as_deref())?
+        &tauri_config
           .lock()
           .unwrap()
           .as_ref()
@@ -183,6 +199,8 @@ fn run_dev(
           .identifier,
         cli_options,
       )?;
+
+      inject_assets(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
       if open {
         open_and_wait(config, &env)

@@ -39,14 +39,11 @@ type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
 #[derive(Clone)]
 pub struct RuntimeContext {
   shortcuts: Arc<Mutex<ShortcutMap>>,
-  clipboard: Arc<Mutex<Option<String>>>,
 }
 
 impl fmt::Debug for RuntimeContext {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("RuntimeContext")
-      .field("clipboard", &self.clipboard)
-      .finish()
+    f.debug_struct("RuntimeContext").finish()
   }
 }
 
@@ -69,11 +66,12 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     Ok(DetachedWindow {
       label: pending.label,
+      current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       dispatcher: MockDispatcher {
         context: self.context.clone(),
+        last_evaluated_script: Default::default(),
       },
       menu_ids: Default::default(),
-      js_event_listeners: Default::default(),
     })
   }
 
@@ -131,63 +129,12 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 #[derive(Debug, Clone)]
 pub struct MockDispatcher {
   context: RuntimeContext,
+  last_evaluated_script: Arc<Mutex<Option<String>>>,
 }
 
-#[cfg(all(desktop, feature = "global-shortcut"))]
-#[derive(Debug, Clone)]
-pub struct MockGlobalShortcutManager {
-  context: RuntimeContext,
-}
-
-#[cfg(all(desktop, feature = "global-shortcut"))]
-impl tauri_runtime::GlobalShortcutManager for MockGlobalShortcutManager {
-  fn is_registered(&self, accelerator: &str) -> Result<bool> {
-    Ok(
-      self
-        .context
-        .shortcuts
-        .lock()
-        .unwrap()
-        .contains_key(accelerator),
-    )
-  }
-
-  fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()> {
-    self
-      .context
-      .shortcuts
-      .lock()
-      .unwrap()
-      .insert(accelerator.into(), Box::new(handler));
-    Ok(())
-  }
-
-  fn unregister_all(&mut self) -> Result<()> {
-    *self.context.shortcuts.lock().unwrap() = Default::default();
-    Ok(())
-  }
-
-  fn unregister(&mut self, accelerator: &str) -> Result<()> {
-    self.context.shortcuts.lock().unwrap().remove(accelerator);
-    Ok(())
-  }
-}
-
-#[cfg(feature = "clipboard")]
-#[derive(Debug, Clone)]
-pub struct MockClipboardManager {
-  context: RuntimeContext,
-}
-
-#[cfg(feature = "clipboard")]
-impl tauri_runtime::ClipboardManager for MockClipboardManager {
-  fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()> {
-    self.context.clipboard.lock().unwrap().replace(text.into());
-    Ok(())
-  }
-
-  fn read_text(&self) -> Result<Option<String>> {
-    Ok(self.context.clipboard.lock().unwrap().clone())
+impl MockDispatcher {
+  pub fn last_evaluated_script(&self) -> Option<String> {
+    self.last_evaluated_script.lock().unwrap().clone()
   }
 }
 
@@ -590,6 +537,11 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    self
+      .last_evaluated_script
+      .lock()
+      .unwrap()
+      .replace(script.into());
     Ok(())
   }
 
@@ -646,10 +598,6 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy {
 #[derive(Debug)]
 pub struct MockRuntime {
   pub context: RuntimeContext,
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  global_shortcut_manager: MockGlobalShortcutManager,
-  #[cfg(feature = "clipboard")]
-  clipboard_manager: MockClipboardManager,
   #[cfg(all(desktop, feature = "system-tray"))]
   tray_handler: MockTrayHandler,
 }
@@ -658,17 +606,8 @@ impl MockRuntime {
   fn init() -> Self {
     let context = RuntimeContext {
       shortcuts: Default::default(),
-      clipboard: Default::default(),
     };
     Self {
-      #[cfg(all(desktop, feature = "global-shortcut"))]
-      global_shortcut_manager: MockGlobalShortcutManager {
-        context: context.clone(),
-      },
-      #[cfg(feature = "clipboard")]
-      clipboard_manager: MockClipboardManager {
-        context: context.clone(),
-      },
       #[cfg(all(desktop, feature = "system-tray"))]
       tray_handler: MockTrayHandler {
         context: context.clone(),
@@ -681,10 +620,6 @@ impl MockRuntime {
 impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Dispatcher = MockDispatcher;
   type Handle = MockRuntimeHandle;
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  type GlobalShortcutManager = MockGlobalShortcutManager;
-  #[cfg(feature = "clipboard")]
-  type ClipboardManager = MockClipboardManager;
   #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler = MockTrayHandler;
   type EventLoopProxy = EventProxy;
@@ -708,24 +643,15 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     }
   }
 
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
-    self.global_shortcut_manager.clone()
-  }
-
-  #[cfg(feature = "clipboard")]
-  fn clipboard_manager(&self) -> Self::ClipboardManager {
-    self.clipboard_manager.clone()
-  }
-
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     Ok(DetachedWindow {
       label: pending.label,
+      current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       dispatcher: MockDispatcher {
         context: self.context.clone(),
+        last_evaluated_script: Default::default(),
       },
       menu_ids: Default::default(),
-      js_event_listeners: Default::default(),
     })
   }
 

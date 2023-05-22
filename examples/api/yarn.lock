@@ -98,7 +98,7 @@
     svelte-hmr "^0.14.12"
 
 "@tauri-apps/api@../../tooling/api/dist":
-  version "1.0.2"
+  version "2.0.0-alpha.3"
 
 "@unocss/cli@0.39.3":
   version "0.39.3"

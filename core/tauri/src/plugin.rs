@@ -12,7 +12,7 @@ use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 
-use std::{collections::HashMap, fmt, result::Result as StdResult};
+use std::{collections::HashMap, fmt, result::Result as StdResult, sync::Arc};
 
 /// Mobile APIs.
 #[cfg(mobile)]
@@ -70,11 +70,20 @@ type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
 /// A handle to a plugin.
-#[derive(Clone)]
+#[derive(Debug)]
 #[allow(dead_code)]
 pub struct PluginHandle<R: Runtime> {
   name: &'static str,
   handle: AppHandle<R>,
+}
+
+impl<R: Runtime> Clone for PluginHandle<R> {
+  fn clone(&self) -> Self {
+    Self {
+      name: self.name,
+      handle: self.handle.clone(),
+    }
+  }
 }
 
 impl<R: Runtime> PluginHandle<R> {
@@ -90,6 +99,7 @@ impl<R: Runtime> PluginHandle<R> {
 pub struct PluginApi<R: Runtime, C: DeserializeOwned> {
   handle: AppHandle<R>,
   name: &'static str,
+  raw_config: Arc<JsonValue>,
   config: C,
 }
 
@@ -97,6 +107,11 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   /// Returns the plugin configuration.
   pub fn config(&self) -> &C {
     &self.config
+  }
+
+  /// Returns the application handle.
+  pub fn app(&self) -> &AppHandle<R> {
+    &self.handle
   }
 }
 
@@ -453,6 +468,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
         PluginApi {
           name: self.name,
           handle: app.clone(),
+          raw_config: Arc::new(config.clone()),
           config: serde_json::from_value(config)?,
         },
       )?;

@@ -15,16 +15,27 @@ import app.tauri.Logger
 import app.tauri.PermissionHelper
 import app.tauri.PermissionState
 import app.tauri.annotation.ActivityCallback
-import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.Command
+import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import org.json.JSONException
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 
 abstract class Plugin(private val activity: Activity) {
   var handle: PluginHandle? = null
+  private val listeners: MutableMap<String, MutableList<Channel>> = mutableMapOf()
 
   open fun load(webView: WebView) {}
+
+  fun getConfig(): JSObject {
+    return handle!!.config
+  }
+
+  /**
+   * Handle a new intent being received by the application
+   */
+  open fun onNewIntent(intent: Intent) {}
 
   /**
    * Start activity for result with the provided Intent and resolve calling the provided callback method name.
@@ -67,6 +78,55 @@ abstract class Plugin(private val activity: Activity) {
     return "asset://localhost$path"
   }
 
+  fun trigger(event: String, payload: JSObject) {
+    val eventListeners = listeners[event]
+    if (!eventListeners.isNullOrEmpty()) {
+      val listeners = CopyOnWriteArrayList(eventListeners)
+      for (channel in listeners) {
+        channel.send(payload)
+      }
+    }
+  }
+
+  @Command
+  open fun registerListener(invoke: Invoke) {
+    val event = invoke.getString("event")
+    val channel = invoke.getChannel("handler")
+
+    if (event == null || channel == null) {
+      invoke.reject("`event` or `handler` not provided")
+    } else {
+      val eventListeners = listeners[event]
+      if (eventListeners.isNullOrEmpty()) {
+        listeners[event] = mutableListOf(channel)
+      } else {
+        eventListeners.add(channel)
+      }
+    }
+
+    invoke.resolve()
+  }
+
+  @Command
+  open fun removeListener(invoke: Invoke) {
+    val event = invoke.getString("event")
+    val channelId = invoke.getLong("channelId")
+
+    if (event == null || channelId == null) {
+      invoke.reject("`event` or `channelId` not provided")
+    } else {
+      val eventListeners = listeners[event]
+      if (!eventListeners.isNullOrEmpty()) {
+        val c = eventListeners.find { c -> c.id == channelId }
+        if (c != null) {
+          eventListeners.remove(c)
+        }
+      }
+    }
+
+    invoke.resolve()
+  }
+
   /**
    * Exported plugin method for checking the granted status for each permission
    * declared on the plugin. This plugin call responds with a mapping of permissions to
@@ -74,7 +134,7 @@ abstract class Plugin(private val activity: Activity) {
    */
   @Command
   @PermissionCallback
-  fun checkPermissions(invoke: Invoke) {
+  open fun checkPermissions(invoke: Invoke) {
     val permissionsResult: Map<String, PermissionState?> = getPermissionStates()
     if (permissionsResult.isEmpty()) {
       // if no permissions are defined on the plugin, resolve undefined
@@ -117,7 +177,7 @@ abstract class Plugin(private val activity: Activity) {
 
       // If call was made without any custom permissions, request all from plugin annotation
       val aliasSet: MutableSet<String> = HashSet()
-      if (providedPermsList == null || providedPermsList.isEmpty()) {
+      if (providedPermsList.isNullOrEmpty()) {
         for (perm in annotation.permissions) {
           // If a permission is defined with no permission strings, separate it for auto-granting.
           // Otherwise, the alias is added to the list to be requested.
@@ -144,7 +204,7 @@ abstract class Plugin(private val activity: Activity) {
           permAliases = aliasSet.toTypedArray()
         }
       }
-      if (permAliases != null && permAliases.isNotEmpty()) {
+      if (!permAliases.isNullOrEmpty()) {
         // request permissions using provided aliases or all defined on the plugin
         requestPermissionForAliases(permAliases, invoke, "checkPermissions")
       } else if (autoGrantPerms.isNotEmpty()) {

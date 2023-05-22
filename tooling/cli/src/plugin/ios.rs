@@ -99,15 +99,13 @@ tauri-build = "{}"
       let init_fn = format!(
         r#"
 #[cfg(target_os = "ios")]
-extern "C" {{
-  fn init_plugin_{name}(webview: tauri::cocoa::base::id);
-}}
+tauri::ios_plugin_binding!(init_plugin_{name});
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {{
   Builder::new("{name}")
     .setup(|app| {{
       #[cfg(target_os = "ios")]
-      app.initialize_ios_plugin(init_plugin_{name})?;
+      app.register_ios_plugin(init_plugin_{name})?;
       Ok(())
     }})
     .build()

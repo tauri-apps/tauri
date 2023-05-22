@@ -9,11 +9,11 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 build
-/buildSrc/src/main/{{package-path}}/kotlin/BuildTask.kt
-/buildSrc/src/main/{{package-path}}/kotlin/RustPlugin.kt
 /captures
 .externalNativeBuild
 .cxx
 local.properties
+key.properties
 
 /.tauri
+/tauri.settings.gradle

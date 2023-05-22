@@ -40,4 +40,4 @@ jobs:
           cache: yarn
           cache-dependency-path: tooling/*/yarn.lock
       - run: |
-        echo "${{ fromJson(needs.generate-matrix.outputs.matrix)['-tauri-apps-api']}}"
+        echo "${{ fromJson(needs.generate-matrix.outputs.matrix).'-tauri-apps-api'}}"

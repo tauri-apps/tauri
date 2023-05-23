@@ -35,7 +35,7 @@ use tauri_utils::config::parse::is_configuration_file;
 use super::{AppSettings, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::{nsis_settings, reload as reload_config, wix_settings, BundleSettings, Config},
+  config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
 };
 use tauri_utils::display_path;
 

@@ -10,7 +10,6 @@ use serde::Deserialize;
 use std::{
   fmt::{self, Display, Formatter},
   panic,
-  process::Command,
 };
 
 mod app;
@@ -71,18 +70,6 @@ pub(crate) fn cli_upstream_version() -> Result<String> {
     .and_then(|meta_str| Ok(serde_json::from_str::<VersionMetadata>(&meta_str)))
     .and_then(|json| Ok(json.unwrap().js_cli.version))
     .map_err(|e| anyhow::Error::new(e))
-}
-
-pub fn cross_command(bin: &str) -> Command {
-  #[cfg(target_os = "windows")]
-  let cmd = {
-    let mut cmd = Command::new("cmd");
-    cmd.arg("/c").arg(bin);
-    cmd
-  };
-  #[cfg(not(target_os = "windows"))]
-  let cmd = Command::new(bin);
-  cmd
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]

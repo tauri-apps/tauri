@@ -426,7 +426,7 @@ fn build_nsis_app_installer(
 
   for (lang, data) in languages_data.iter() {
     if let Some(content) = data {
-      write_ut16_le_with_bom(output_path.join(lang).with_extension("nsh"), &content)?;
+      write_ut16_le_with_bom(output_path.join(lang).with_extension("nsh"), content)?;
     }
   }
 

@@ -572,6 +572,7 @@ fn get_lang_data(
     )),
     "persian" => Some(include_str!("./templates/nsis-languages/Persian.nsh")),
     "turkish" => Some(include_str!("./templates/nsis-languages/Turkish.nsh")),
+    "swedish" => Some(include_str!("./templates/nsis-languages/Swedish.nsh")),
     _ => return Ok(None),
   };
 

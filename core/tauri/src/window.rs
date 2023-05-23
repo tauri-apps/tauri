@@ -1334,7 +1334,11 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   pub fn set_effects<E: Into<Option<WindowEffectsConfig>>>(&self, effects: E) -> crate::Result<()> {
-    crate::vibrancy::set_window_effects(self, effects.into())
+    let effects = effects.into();
+    let window = self.clone();
+    self.run_on_main_thread(move || {
+      let _ = crate::vibrancy::set_window_effects(&window, effects);
+    })
   }
 
   /// Determines if this window should always be on top of other windows.

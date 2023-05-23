@@ -115,6 +115,15 @@ jobs:
           repository: tauri-apps/tauri-docs
           event-type: update-docs
 
+      - name: Get `@tauri-apps/cli` release id
+        id: cliReleaseId
+        if: |
+          steps.covector.outputs.successfulPublish == 'true' &&
+          contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
+        run: |
+          id=$(jq '.-tauri-apps-cli-releaseId' <<< "${{ steps.covector.outputs }}")
+          echo "cliReleaseId=$id" >> "$GITHUB_OUTPUT"
+
       - name: Trigger `@tauri-apps/cli` publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
@@ -124,7 +133,7 @@ jobs:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
           event-type: publish-js-cli
-          client-payload: '{"releaseId": "${{ steps.covector.outputs.-tauri-apps-cli-releaseId }}" }'
+          client-payload: '{"releaseId": "${{ steps.cliReleaseId.outputs.cliReleaseId }}" }'
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |

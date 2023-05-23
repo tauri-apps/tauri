@@ -119,7 +119,7 @@ mod window_effects {
     ///
     /// This effect has bad performance when resizing/dragging the window on Windows 11 build 22621.
     Blur,
-    /// **Windows 10/11**
+    /// **Windows 10/11 Only**
     ///
     /// ## Notes
     ///
@@ -134,11 +134,11 @@ mod window_effects {
   #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
   #[serde(rename_all = "camelCase")]
   pub enum WindowEffectState {
-    /// Make window effect state follow the window's active state **macOS only**
+    /// Make window effect state follow the window's active state
     FollowsWindowActiveState,
-    /// Make window effect state always active **macOS only**
+    /// Make window effect state always active
     Active,
-    /// Make window effect state always inactive **macOS only**
+    /// Make window effect state always inactive
     Inactive,
   }
 }

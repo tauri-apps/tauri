@@ -614,7 +614,14 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   }
 
   /// Sets window effects
-  pub fn window_effects(mut self, effects: WindowEffectsConfig) -> Self {
+  ///
+  /// Requires the window to be transparent
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Linux**: Unsupported
+  pub fn effects(mut self, effects: WindowEffectsConfig) -> Self {
     self.webview_attributes = self.webview_attributes.window_effects(effects);
     self
   }
@@ -1316,11 +1323,8 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Sets window effects, pass `None` to clear any effects applied if possible.
-  /// Note that the window must be transparent.
   ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux**: Not supported.
+  /// Requires the window to be transparent
   ///
   /// ```rust,no_run
   /// use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};
@@ -1338,6 +1342,11 @@ impl<R: Runtime> Window<R> {
   ///     Ok(())
   ///   });
   /// ```
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Linux**: Unsupported
   pub fn set_effects<E: Into<Option<WindowEffectsConfig>>>(&self, effects: E) -> crate::Result<()> {
     let effects = effects.into();
     let window = self.clone();

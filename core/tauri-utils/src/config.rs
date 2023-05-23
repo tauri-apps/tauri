@@ -889,6 +889,13 @@ pub struct WindowConfig {
   #[serde(default = "default_true")]
   pub shadow: bool,
   /// Window effects
+  ///
+  /// Requires the window to be transparent
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Linux**: Unsupported
   #[serde(default, alias = "window-effects")]
   pub window_effects: Option<WindowEffectsConfig>,
 }

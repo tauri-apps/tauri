@@ -613,9 +613,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Sets window effects
+  /// Sets window effects.
   ///
-  /// Requires the window to be transparent
+  /// Requires the window to be transparent.
   ///
   /// ## Platform-specific:
   ///
@@ -1322,9 +1322,12 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Sets window effects, pass `None` to clear any effects applied if possible.
+  /// Sets window effects, pass [`None`] to clear any effects applied if possible.
   ///
-  /// Requires the window to be transparent
+  /// Requires the window to be transparent.
+  ///
+  /// See [`EffectsBuilder`] for a convenient builder for [`WindowEffectsConfig`].
+  ///
   ///
   /// ```rust,no_run
   /// use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};

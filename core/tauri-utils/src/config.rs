@@ -888,9 +888,9 @@ pub struct WindowConfig {
   /// - **Linux:** Unsupported.
   #[serde(default = "default_true")]
   pub shadow: bool,
-  /// Window effects
+  /// Window effects.
   ///
-  /// Requires the window to be transparent
+  /// Requires the window to be transparent.
   ///
   /// ## Platform-specific:
   ///

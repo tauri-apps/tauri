@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -220,7 +220,7 @@ pub use self::utils::TitleBarStyle;
 #[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle},
+  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
   self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {
@@ -264,6 +264,9 @@ pub use self::runtime::ClipboardManager;
 #[cfg(all(desktop, feature = "global-shortcut"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
+
+/// The Tauri version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Updater events.
 #[cfg(updater)]
@@ -778,6 +781,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Gets the scope for the filesystem APIs.
   fn fs_scope(&self) -> FsScope {
     self.state::<Scopes>().inner().fs.clone()
+  }
+
+  /// Gets the scope for the IPC.
+  fn ipc_scope(&self) -> IpcScope {
+    self.state::<Scopes>().inner().ipc.clone()
   }
 
   /// Gets the scope for the asset protocol.

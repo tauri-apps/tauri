@@ -3,7 +3,7 @@ name = "sidecar"
 version = "0.1.0"
 description = "A Tauri application with a sidecar binary"
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.60"
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = ["codegen"] }
@@ -14,5 +14,4 @@ serde = { version = "1.0", features = [ "derive" ] }
 tauri = { path = "../../../core/tauri", features = ["process-command-api", "shell-sidecar"] }
 
 [features]
-default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]

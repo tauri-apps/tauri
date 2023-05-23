@@ -1,5 +1,44 @@
 # Changelog
 
+## \[1.2.1]
+
+- Correctly escape XML for resource files in WiX bundler.
+  - [6a6b1388](https://www.github.com/tauri-apps/tauri/commit/6a6b1388ea5787aea4c0e0b0701a4772087bbc0f) fix(bundler): correctly escape resource xml, fixes [#6853](https://www.github.com/tauri-apps/tauri/pull/6853) ([#6855](https://www.github.com/tauri-apps/tauri/pull/6855)) on 2023-05-04
+
+- Added the following languages to the NSIS bundler:
+
+- `Spanish`
+
+- `SpanishInternational`
+
+- [422b4817](https://www.github.com/tauri-apps/tauri/commit/422b48179856504e980a156500afa8e22c44d357) Add Spanish and SpanishInternational languages ([#6871](https://www.github.com/tauri-apps/tauri/pull/6871)) on 2023-05-06
+
+- Correctly escape arguments in NSIS script to fix bundling apps that use non-default WebView2 install modes.
+  - [2915bd06](https://www.github.com/tauri-apps/tauri/commit/2915bd068ed40dc01a363b69212c6b6f2d3ec01e) fix(bundler): Fix webview install modes in NSIS bundler ([#6854](https://www.github.com/tauri-apps/tauri/pull/6854)) on 2023-05-04
+
+## \[1.2.0]
+
+- Add dylib support to `tauri.bundle.macOS.frameworks`.
+  - [ce76d95a](https://www.github.com/tauri-apps/tauri/commit/ce76d95ab186f4556166a2a22360067eab000fc8) feat(tauri-cli): add dylib support to `tauri.bundle.macOS.frameworks`, closes [#4615](https://www.github.com/tauri-apps/tauri/pull/4615) ([#5732](https://www.github.com/tauri-apps/tauri/pull/5732)) on 2022-12-31
+- Added support for pre-release identifiers and build numbers for the `.msi` bundle target. Only one of each can be used and it must be numeric only. The version must still be semver compatible according to https://semver.org/.
+  - [20ff1f45](https://www.github.com/tauri-apps/tauri/commit/20ff1f45968f1cfd30d093bb58255b348fbdfb98) feat(bundler): Add support for numeric-only build numbers in msi version ([#6096](https://www.github.com/tauri-apps/tauri/pull/6096)) on 2023-01-19
+- On Windows, printing consistent paths on Windows with backslashs only.
+  - [9da99607](https://www.github.com/tauri-apps/tauri/commit/9da996073ff07d4b59668a5315d40e9bc578e340) fix(cli): fix printing paths on Windows ([#6137](https://www.github.com/tauri-apps/tauri/pull/6137)) on 2023-01-26
+- Fixed error during bundling process for the appimage target on subsequent bundling attempts.
+  - [2f70d8da](https://www.github.com/tauri-apps/tauri/commit/2f70d8da2bc079400bb49e6793f755306049aab2) fix: symlink issue bundling for linux [#5781](https://www.github.com/tauri-apps/tauri/pull/5781) ([#6391](https://www.github.com/tauri-apps/tauri/pull/6391)) on 2023-03-17
+- Fixes DMG bundling not finding bundle to set icon position.
+  - [7489f966](https://www.github.com/tauri-apps/tauri/commit/7489f9669734a48be063907696b0f200a293ccb6) fix(bundler): fix problem of macOS bunder while i18n is set, closes [#6614](https://www.github.com/tauri-apps/tauri/pull/6614) ([#6615](https://www.github.com/tauri-apps/tauri/pull/6615)) on 2023-04-03
+- Use escaping on Handlebars templates.
+  - [6d6b6e65](https://www.github.com/tauri-apps/tauri/commit/6d6b6e653ea70fc02794f723092cdc860995c259) feat: configure escaping on handlebars templates ([#6678](https://www.github.com/tauri-apps/tauri/pull/6678)) on 2023-05-02
+- Bump minimum supported Rust version to 1.60.
+  - [5fdc616d](https://www.github.com/tauri-apps/tauri/commit/5fdc616df9bea633810dcb814ac615911d77222c) feat: Use the zbus-backed of notify-rust ([#6332](https://www.github.com/tauri-apps/tauri/pull/6332)) on 2023-03-31
+- Add initial support for building `nsis` bundles on non-Windows platforms.
+  - [60e6f6c3](https://www.github.com/tauri-apps/tauri/commit/60e6f6c3f1605f3064b5bb177992530ff788ccf0) feat(bundler): Add support for creating NSIS bundles on unix hosts ([#5788](https://www.github.com/tauri-apps/tauri/pull/5788)) on 2023-01-19
+- Add `nsis` bundle target
+  - [c94e1326](https://www.github.com/tauri-apps/tauri/commit/c94e1326a7c0767a13128a8b1d327a00156ece12) feat(bundler): add `nsis`, closes [#4450](https://www.github.com/tauri-apps/tauri/pull/4450), closes [#2319](https://www.github.com/tauri-apps/tauri/pull/2319) ([#4674](https://www.github.com/tauri-apps/tauri/pull/4674)) on 2023-01-03
+- On Windows, the `msi` installer's `Launch App` checkbox will be checked by default.
+  - [89602cdc](https://www.github.com/tauri-apps/tauri/commit/89602cdce34f3ea5b4a9b8921dc04a197f2d7de8) feat(bundler): check `Launch app` by default for WiX, closes [#5859](https://www.github.com/tauri-apps/tauri/pull/5859) ([#5871](https://www.github.com/tauri-apps/tauri/pull/5871)) on 2022-12-26
+
 ## \[1.1.2]
 
 - Fixes blank taskbar icon on WiX updates.

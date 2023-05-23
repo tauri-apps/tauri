@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -748,6 +748,12 @@ impl WindowBuilder for WindowBuilderWrapper {
         "The window is set to be transparent but the `macos-private-api` is not enabled.
         This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.app/docs/api/config#tauri.macOSPrivateApi>
       ");
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+      // Mouse event is disabled on Linux since sudden event bursts could block event loop.
+      window.inner = window.inner.with_cursor_moved_event(false);
     }
 
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
@@ -2526,21 +2532,7 @@ fn handle_user_message<T: UserEvent>(
           let _ = webview.print();
         }
       }
-      WebviewMessage::WebviewEvent(event) => {
-        let window_event_listeners = windows
-          .borrow()
-          .get(&id)
-          .map(|w| w.window_event_listeners.clone());
-        if let Some(window_event_listeners) = window_event_listeners {
-          if let Some(event) = WindowEventWrapper::from(&event).0 {
-            let listeners = window_event_listeners.lock().unwrap();
-            let handlers = listeners.values();
-            for handler in handlers {
-              handler(&event);
-            }
-          }
-        }
-      }
+      WebviewMessage::WebviewEvent(_event) => { /* already handled */ }
     },
     Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
@@ -2577,14 +2569,18 @@ fn handle_user_message<T: UserEvent>(
     Message::Tray(tray_id, tray_message) => {
       let mut trays = system_tray_manager.trays.lock().unwrap();
 
-      if let TrayMessage::Create(tray, tx) = tray_message {
+      if let TrayMessage::Create(mut tray, tx) = tray_message {
+        let mut listeners = Vec::new();
+        if let Some(l) = tray.on_event.take() {
+          listeners.push(Arc::new(l));
+        }
         match create_tray(WryTrayId(tray_id), tray, event_loop) {
           Ok((tray, items)) => {
             trays.insert(
               tray_id,
               TrayContext {
                 tray: Arc::new(Mutex::new(Some(tray))),
-                listeners: Default::default(),
+                listeners: Arc::new(Mutex::new(listeners)),
                 items: Arc::new(Mutex::new(items)),
               },
             );
@@ -2828,6 +2824,24 @@ fn handle_event_loop<T: UserEvent>(
       let global_listeners_iter = global_listeners.iter();
       for global_listener in global_listeners_iter {
         global_listener(id.0, &event);
+      }
+    }
+    Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {
+      if let Some(event) = WindowEventWrapper::from(&event).0 {
+        let windows = windows.borrow();
+        let window = windows.get(&id);
+        if let Some(window) = window {
+          callback(RunEvent::WindowEvent {
+            label: window.label.clone(),
+            event: event.clone(),
+          });
+
+          let listeners = window.window_event_listeners.lock().unwrap();
+          let handlers = listeners.values();
+          for handler in handlers {
+            handler(&event);
+          }
+        }
       }
     }
     Event::WindowEvent {

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -142,7 +142,7 @@ fn main() {
   )
   .expect("failed to write checked_features file");
 
-  // workaround needed to preven `STATUS_ENTRYPOINT_NOT_FOUND` error
+  // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error
   // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
   let target_os = std::env::var("CARGO_CFG_TARGET_OS");
   let target_env = std::env::var("CARGO_CFG_TARGET_ENV");

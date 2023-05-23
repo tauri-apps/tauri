@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -57,7 +57,7 @@ const MIN_JSON_PARSE_LEN: usize = 10_240;
 ///   bar: String,
 /// }
 /// let foo = Foo { bar: "x".repeat(20_000).into() };
-/// let value = serialize_js_with(&foo, SerializeOptions::default(), |v| format!("console.log({})", v)).unwrap();
+/// let value = serialize_js_with(&foo, SerializeOptions::default(), |v| format!("console.log({v})")).unwrap();
 /// assert_eq!(value, format!("console.log(JSON.parse('{{\"bar\":\"{}\"}}'))", foo.bar));
 /// ```
 pub fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
@@ -179,8 +179,7 @@ pub fn format_callback<T: Serialize>(
     }} else {{
       console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
     }}"#,
-      fn = function_name.0,
-      arg = arg
+      fn = function_name.0
     )
   })
 }
@@ -281,7 +280,7 @@ mod test {
 
   // check arbitrary strings in the format callback function
   #[quickcheck]
-  fn qc_formating(f: CallbackFn, a: String) -> bool {
+  fn qc_formatting(f: CallbackFn, a: String) -> bool {
     // call format callback
     let fc = format_callback(f, &a).unwrap();
     fc.contains(&format!(

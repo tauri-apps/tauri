@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -89,7 +89,7 @@ pub fn command(options: Options) -> Result<()> {
     png_targets.extend(
       [32, 128]
         .into_iter()
-        .map(|size| PngTarget::new(size, format!("{}x{}.png", size, size)))
+        .map(|size| PngTarget::new(size, format!("{size}x{size}.png")))
         .collect::<Vec<PngTarget>>(),
     );
     png(&source, &out_dir, png_targets).context("Failed to generate png icons")?;
@@ -99,7 +99,7 @@ pub fn command(options: Options) -> Result<()> {
       &out_dir,
       png_icon_sizes
         .into_iter()
-        .map(|size| PngTarget::new(size, format!("{}x{}.png", size, size)))
+        .map(|size| PngTarget::new(size, format!("{size}x{size}.png")))
         .collect(),
     )?;
   }

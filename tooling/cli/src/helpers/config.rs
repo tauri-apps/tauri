@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -94,6 +94,20 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,
     fips_compliant: var_os("TAURI_FIPS_COMPLIANT").map_or(false, |v| v == "true"),
+  }
+}
+
+pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
+  tauri_bundler::NsisSettings {
+    template: config.template,
+    license: config.license,
+    header_image: config.header_image,
+    sidebar_image: config.sidebar_image,
+    installer_icon: config.installer_icon,
+    install_mode: config.install_mode,
+    languages: config.languages,
+    custom_language_files: config.custom_language_files,
+    display_language_selector: config.display_language_selector,
   }
 }
 

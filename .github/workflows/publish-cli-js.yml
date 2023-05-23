@@ -1,4 +1,8 @@
-name: publish cli.js
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: publish `@tauri-apps/cli`
 env:
   DEBUG: napi:*
   APP_NAME: cli
@@ -7,10 +11,10 @@ on:
   workflow_dispatch:
     inputs:
       releaseId:
-        description: 'ID of the cli.js release'
+        description: 'ID of the `@tauri-apps/cli` release'
         required: true
   repository_dispatch:
-    types: [publish-clijs]
+    types: [publish-js-cli]
 
 defaults:
   run:
@@ -36,14 +40,14 @@ jobs:
             build: yarn build:release --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
             architecture: x64
-          - host: ubuntu-18.04
+          - host: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
               cd tooling/cli/node
               yarn build:release --target x86_64-unknown-linux-gnu
               strip *.node
-          - host: ubuntu-18.04
+          - host: ubuntu-20.04
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
@@ -55,14 +59,14 @@ jobs:
             build: |
               yarn build:release --target=aarch64-apple-darwin
               strip -x *.node
-          - host: ubuntu-18.04
+          - host: ubuntu-20.04
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
               cd tooling/cli/node
               yarn build:release --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
-          - host: ubuntu-18.04
+          - host: ubuntu-20.04
             architecture: x64
             target: armv7-unknown-linux-gnueabihf
             setup: |
@@ -71,7 +75,7 @@ jobs:
             build: |
               yarn build:release --target=armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip *.node
-          - host: ubuntu-18.04
+          - host: ubuntu-20.04
             architecture: x64
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -295,7 +299,7 @@ jobs:
         shell: bash
       - name: Install system dependencies
         run: |
-          apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev gtk+3.0-dev
+          apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl gtk+3.0-dev
       - name: Setup and run tests
         run: |
           yarn tauri --help

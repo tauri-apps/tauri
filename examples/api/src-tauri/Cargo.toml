@@ -3,8 +3,11 @@ name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.60"
 license = "Apache-2.0 OR MIT"
+
+[lib]
+name = "api_lib"
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = ["codegen", "isolation"] }
@@ -32,7 +35,6 @@ features = [
 ]
 
 [target."cfg(target_os = \"windows\")".dependencies]
-window-vibrancy = "0.2"
 window-shadows= "0.2"
 
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
@@ -49,7 +51,6 @@ mobile-entry-point = "0.1.0"
 env_logger = "0.9.0"
 
 [features]
-default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
 
 # default to small, optimized release binaries

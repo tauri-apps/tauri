@@ -3,14 +3,14 @@ authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.60"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 homepage = "https://tauri.app"
 license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.2.3"
+version = "1.3.0"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -49,10 +49,10 @@ url = { version = "2.3" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1"
-tauri-runtime = { version = "0.12.1", path = "../tauri-runtime" }
-tauri-macros = { version = "1.2.1", path = "../tauri-macros" }
-tauri-utils = { version = "1.2.1", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.12.2", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "0.13.0", path = "../tauri-runtime" }
+tauri-macros = { version = "1.3.0", path = "../tauri-macros" }
+tauri-utils = { version = "1.3.0", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "0.13.0", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 semver = { version = "1.0", features = [ "serde" ] }
 serde_repr = "0.1"
@@ -65,18 +65,18 @@ flate2 = "1.0"
 http = "0.2"
 dirs-next = "2.0"
 percent-encoding = "2.2"
-base64 = { version = "0.13", optional = true }
+base64 = { version = "0.21", optional = true }
 clap = { version = "3", optional = true }
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
 attohttpc = { version = "0.22", features = [ "compress", "json", "form" ], optional = true }
-open = { version = "3.0", optional = true }
+open = { version = "3.2", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
 raw-window-handle = "0.5"
 minisign-verify = { version = "0.2", optional = true }
 time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }
-os_info = { version = "3.5.0", optional = true }
+os_info = { version = "3", optional = true }
 regex = { version = "1.6.0", optional = true }
 glob = "0.3"
 data-url = { version = "0.2", optional = true }
@@ -88,8 +88,8 @@ encoding_rs = "0.8.31"
 sys-locale = { version = "0.2.3", optional = true }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-rfd = { version = "0.10", optional = true, features=["gtk3", "common-controls-v6"] }
-notify-rust = { version = "4.5", default-features = false, features = [ "d" ], optional = true }
+rfd = { version = "0.10", optional = true, features = [ "gtk3", "common-controls-v6" ] }
+notify-rust = { version = "4.5", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }

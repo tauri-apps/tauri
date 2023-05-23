@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -46,10 +46,15 @@ impl std::fmt::Display for MimeType {
 impl MimeType {
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType.
   pub fn parse_from_uri(uri: &str) -> MimeType {
+    Self::parse_from_uri_with_fallback(uri, Self::Html)
+  }
+
+  /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType with specified fallback for unknown file extensions.
+  pub fn parse_from_uri_with_fallback(uri: &str, fallback: MimeType) -> MimeType {
     let suffix = uri.split('.').last();
     match suffix {
       Some("bin") => Self::OctetStream,
-      Some("css") => Self::Css,
+      Some("css" | "less" | "sass" | "styl") => Self::Css,
       Some("csv") => Self::Csv,
       Some("html") => Self::Html,
       Some("ico") => Self::Ico,
@@ -61,15 +66,19 @@ impl MimeType {
       Some("svg") => Self::Svg,
       Some("mp4") => Self::Mp4,
       // Assume HTML when a TLD is found for eg. `wry:://tauri.app` | `wry://hello.com`
-      Some(_) => Self::Html,
-      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
+      Some(_) => fallback,
       // using octet stream according to this:
+      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
       None => Self::OctetStream,
     }
   }
 
   /// infer mimetype from content (or) URI if needed.
   pub fn parse(content: &[u8], uri: &str) -> String {
+    Self::parse_with_fallback(content, uri, Self::Html)
+  }
+  /// infer mimetype from content (or) URI if needed with specified fallback for unknown file extensions.
+  pub fn parse_with_fallback(content: &[u8], uri: &str, fallback: MimeType) -> String {
     let mime = if uri.ends_with(".svg") {
       // when reading svg, we can't use `infer`
       None
@@ -78,8 +87,10 @@ impl MimeType {
     };
 
     match mime {
-      Some(mime) if mime == MIMETYPE_PLAIN => Self::parse_from_uri(uri).to_string(),
-      None => Self::parse_from_uri(uri).to_string(),
+      Some(mime) if mime == MIMETYPE_PLAIN => {
+        Self::parse_from_uri_with_fallback(uri, fallback).to_string()
+      }
+      None => Self::parse_from_uri_with_fallback(uri, fallback).to_string(),
       Some(mime) => mime.to_string(),
     }
   }

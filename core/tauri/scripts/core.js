@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -136,6 +136,10 @@
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
       // prevents text cursor
       e.preventDefault()
+      // fix #2549: double click on drag region edge causes content to maximize without window sizing change
+      // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
+      e.stopImmediatePropagation()
+
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
       window.__TAURI_INVOKE__('tauri', {
         __tauriModule: 'Window',

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -51,9 +51,9 @@
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  *
- * # Window events
+ * ## Window events
  *
- * Events can be listened using `appWindow.listen`:
+ * Events can be listened to using `appWindow.listen`:
  * ```typescript
  * import { appWindow } from "@tauri-apps/api/window";
  * appWindow.listen("my-window-event", ({ event, payload }) => { });
@@ -64,7 +64,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { emit, Event, listen, once } from './helpers/event'
+import { emit, type Event, listen, once } from './helpers/event'
 import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'
@@ -279,7 +279,7 @@ export type CursorIcon =
  */
 function getCurrent(): WebviewWindow {
   return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
   })
 }
@@ -293,7 +293,7 @@ function getAll(): WebviewWindow[] {
   return window.__TAURI_METADATA__.__windows.map(
     (w) =>
       new WebviewWindow(w.label, {
-        // @ts-expect-error
+        // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
         skip: true
       })
   )
@@ -307,6 +307,7 @@ export type WindowLabel = string
 /**
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
  *
+ * @ignore
  * @since 1.0.0
  */
 class WebviewWindowHandle {
@@ -406,6 +407,7 @@ class WebviewWindowHandle {
     return emit(event, this.label, payload)
   }
 
+  /** @ignore */
   _handleTauriEvent<T>(event: string, handler: EventCallback<T>): boolean {
     if (localTauriEvents.includes(event)) {
       if (!(event in this.listeners)) {
@@ -424,6 +426,7 @@ class WebviewWindowHandle {
 /**
  * Manage the current window object.
  *
+ * @ignore
  * @since 1.0.0
  */
 class WindowManager extends WebviewWindowHandle {
@@ -1669,7 +1672,10 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.0.2
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
-    return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, handler)
+    return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, (e) => {
+      e.payload = mapPhysicalSize(e.payload)
+      handler(e)
+    })
   }
 
   /**
@@ -1692,7 +1698,10 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.0.2
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
-    return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, handler)
+    return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, (e) => {
+      e.payload = mapPhysicalPosition(e.payload)
+      handler(e)
+    })
   }
 
   /**
@@ -1719,8 +1728,9 @@ class WindowManager extends WebviewWindowHandle {
    *
    * @since 1.0.2
    */
+  /* eslint-disable @typescript-eslint/promise-function-async */
   async onCloseRequested(
-    handler: (event: CloseRequestedEvent) => void
+    handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
     return this.listen<null>(TauriEvent.WINDOW_CLOSE_REQUESTED, (event) => {
       const evt = new CloseRequestedEvent(event)
@@ -1731,6 +1741,7 @@ class WindowManager extends WebviewWindowHandle {
       })
     })
   }
+  /* eslint-enable */
 
   /**
    * Listen to window focus change.
@@ -1989,7 +2000,7 @@ class WebviewWindow extends WindowManager {
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {
     super(label)
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not a public API so it is not defined in WindowOptions
     if (!options?.skip) {
       invokeTauriCommand({
         __tauriModule: 'Window',
@@ -2021,7 +2032,7 @@ class WebviewWindow extends WindowManager {
    */
   static getByLabel(label: string): WebviewWindow | null {
     if (getAll().some((w) => w.label === label)) {
-      // @ts-expect-error
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       return new WebviewWindow(label, { skip: true })
     }
     return null
@@ -2034,7 +2045,7 @@ if ('__TAURI_METADATA__' in window) {
   appWindow = new WebviewWindow(
     window.__TAURI_METADATA__.__currentWindow.label,
     {
-      // @ts-expect-error
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       skip: true
     }
   )
@@ -2043,7 +2054,7 @@ if ('__TAURI_METADATA__' in window) {
     `Could not find "window.__TAURI_METADATA__". The "appWindow" value will reference the "main" window label.\nNote that this is not an issue if running this frontend on a browser instead of a Tauri window.`
   )
   appWindow = new WebviewWindow('main', {
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
   })
 }
@@ -2141,10 +2152,6 @@ interface WindowOptions {
    * The user agent for the webview.
    */
   userAgent?: string
-  /**
-   * Additional arguments for the webview. **Windows Only**
-   */
-  additionalBrowserArguments?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
@@ -2153,9 +2160,17 @@ function mapMonitor(m: Monitor | null): Monitor | null {
     : {
         name: m.name,
         scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position.x, m.position.y),
-        size: new PhysicalSize(m.size.width, m.size.height)
+        position: mapPhysicalPosition(m.position),
+        size: mapPhysicalSize(m.size)
       }
+}
+
+function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
+  return new PhysicalPosition(m.x, m.y)
+}
+
+function mapPhysicalSize(m: PhysicalSize): PhysicalSize {
+  return new PhysicalSize(m.width, m.height)
 }
 
 /**

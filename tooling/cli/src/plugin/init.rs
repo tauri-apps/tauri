@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -89,7 +89,8 @@ pub fn command(mut options: Options) -> Result<()> {
       };
 
     let _ = remove_dir_all(&template_target_path);
-    let handlebars = Handlebars::new();
+    let mut handlebars = Handlebars::new();
+    handlebars.register_escape_fn(handlebars::no_escape);
 
     let mut data = BTreeMap::new();
     data.insert("plugin_name_original", to_json(&options.plugin_name));
@@ -107,7 +108,7 @@ pub fn command(mut options: Options) -> Result<()> {
       data.insert(
         "license_header",
         to_json(
-          "// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+          "// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
              // SPDX-License-Identifier: Apache-2.0
              // SPDX-License-Identifier: MIT\n\n"
             .replace("  ", "")

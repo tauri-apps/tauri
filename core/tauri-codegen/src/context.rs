@@ -1,10 +1,11 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
+use base64::Engine;
 use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
@@ -57,7 +58,10 @@ fn map_core_assets(
               let mut hasher = Sha256::new();
               hasher.update(&script);
               let hash = hasher.finalize();
-              scripts.push(format!("'sha256-{}'", base64::encode(hash)));
+              scripts.push(format!(
+                "'sha256-{}'",
+                base64::engine::general_purpose::STANDARD.encode(hash)
+              ));
             }
             csp_hashes
               .inline_scripts
@@ -74,9 +78,10 @@ fn map_core_assets(
             let mut hasher = Sha256::new();
             hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
             let hash = hasher.finalize();
-            csp_hashes
-              .styles
-              .push(format!("'sha256-{}'", base64::encode(hash)));
+            csp_hashes.styles.push(format!(
+              "'sha256-{}'",
+              base64::engine::general_purpose::STANDARD.encode(hash)
+            ));
           }
         }
 

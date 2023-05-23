@@ -1,4 +1,4 @@
-# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-tauri-core:
+  test:
     runs-on: ${{ matrix.platform.os }}
 
     strategy:
@@ -39,12 +39,12 @@ jobs:
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.59.0'
+              toolchain: '1.60.0'
             }
           - {
               target: x86_64-apple-darwin,
               os: macos-latest,
-              toolchain: '1.59.0'
+              toolchain: '1.60.0'
             }
         features:
           - {
@@ -81,6 +81,18 @@ jobs:
         with:
           workspaces: core -> ../target
           save-if: ${{ matrix.features.key == 'all' }}
+
+      - name: Downgrade crates with MSRV conflict
+        # The --precise flag can only be used once per invocation.
+        run: |
+          cargo update -p toml:0.7.4 --precise 0.7.3
+          cargo update -p toml_edit --precise 0.19.8
+          cargo update -p toml_datetime --precise 0.6.1
+          cargo update -p serde_spanned --precise 0.6.1
+          cargo update -p winnow --precise 0.4.1
+          cargo update -p time --precise 0.3.15
+          cargo update -p ignore --precise 0.4.18
+          cargo update -p raw-window-handle --precise 0.5.0
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

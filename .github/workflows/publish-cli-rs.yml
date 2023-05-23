@@ -1,4 +1,8 @@
-name: publish cli.rs
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: publish `tauri-cli`
 env:
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 on:
@@ -8,40 +12,45 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.target.platform }}
+    runs-on: ${{ matrix.config.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - {
-              name: 'x86_64-unknown-linux-gnu',
-              platform: 'ubuntu-18.04',
-              ext: ''
-            }
-          - { name: 'x86_64-apple-darwin', platform: 'macos-latest', ext: '' }
-          - {
-              name: 'x86_64-pc-windows-msvc',
-              platform: 'windows-latest',
-              ext: '.exe'
-            }
+        config:
+          - os: ubuntu-20.04
+            rust_target: x86_64-unknown-linux-gnu
+            ext: ''
+          - os: macos-latest
+            rust_target: x86_64-apple-darwin
+            ext: ''
+          - os: macos-latest
+            rust_target: aarch64-apple-darwin
+            ext: ''
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            ext: '.exe'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: install stable
-        uses: actions-rs/toolchain@v1
+      - name: 'Setup Rust'
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          targets: ${{ matrix.config.rust_target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.config.rust_target }}
 
       - name: install Linux dependencies
-        if: matrix.target.platform == 'ubuntu-latest'
+        if: matrix.config.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
 
-      - name: build CLI
+      - name: Build CLI
         uses: actions-rs/cargo@v1
         with:
           command: build
@@ -50,8 +59,8 @@ jobs:
       - name: Upload CLI
         uses: actions/upload-artifact@v3
         with:
-          name: cargo-tauri-${{ matrix.target.name }}${{ matrix.target.ext }}
-          path: tooling/cli/target/release/cargo-tauri${{ matrix.target.ext }}
+          name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}
+          path: tooling/cli/target/release/cargo-tauri${{ matrix.config.ext }}
           if-no-files-found: error
 
   upload:
@@ -71,12 +80,12 @@ jobs:
         run: ./.scripts/ci/pack-cli.sh
 
       - name: Get CLI version
-        run: echo "CLI_VERSION=$(cat tooling/cli/metadata.json | jq '."cli.js".version' -r)" >> $GITHUB_ENV
+        run: echo "CLI_VERSION=$(cat tooling/cli/metadata.json | jq '."@tauri-apps/cli".version' -r)" >> $GITHUB_ENV
 
       - name: Publish release
         uses: softprops/action-gh-release@50195ba7f6f93d1ac97ba8332a178e008ad176aa
         with:
-          tag_name: cli.rs-v${{ env.CLI_VERSION }}
+          tag_name: tauri-cli-v${{ env.CLI_VERSION }}
           files: |
             outputs/cargo-tauri-*.zip
             outputs/cargo-tauri-*.tgz

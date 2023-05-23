@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../core/config-schema/schema.json",
+  "$schema": "../../../../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:4000"

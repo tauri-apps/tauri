@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -23,6 +23,8 @@ use std::{
 
 type UriSchemeProtocol =
   dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
+
+type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
 
 /// UI scaling utilities.
 pub mod dpi;
@@ -182,7 +184,7 @@ impl<'de> Deserialize<'de> for CursorIcon {
       "grab" => CursorIcon::Grab,
       "grabbing" => CursorIcon::Grabbing,
       "allscroll" => CursorIcon::AllScroll,
-      "zoomun" => CursorIcon::ZoomIn,
+      "zoomin" => CursorIcon::ZoomIn,
       "zoomout" => CursorIcon::ZoomOut,
       "eresize" => CursorIcon::EResize,
       "nresize" => CursorIcon::NResize,
@@ -225,9 +227,6 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// How to handle IPC calls on the webview window.
   pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
 
-  /// The resolved URL to load on the webview.
-  pub url: String,
-
   /// Maps runtime id to a string menu id.
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 
@@ -236,6 +235,11 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
 
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
+
+  pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+
+  /// The resolved URL to load on the webview.
+  pub url: String,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -272,10 +276,11 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
+        web_resource_request_handler: Default::default(),
+        url: "tauri://localhost".to_string(),
       })
     }
   }
@@ -302,10 +307,11 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
+        web_resource_request_handler: Default::default(),
+        url: "tauri://localhost".to_string(),
       })
     }
   }

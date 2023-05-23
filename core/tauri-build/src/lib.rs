@@ -1,19 +1,22 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
+use cargo_toml::{Dependency, Manifest};
 use heck::AsShoutySnakeCase;
 
-use tauri_utils::resources::{external_binaries, resource_relpath, ResourcePaths};
+use tauri_utils::{
+  config::Config,
+  resources::{external_binaries, resource_relpath, ResourcePaths},
+};
 
 use std::path::{Path, PathBuf};
 
 #[cfg(feature = "codegen")]
 mod codegen;
-#[cfg(windows)]
 mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
@@ -113,8 +116,26 @@ pub struct WindowsAttributes {
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
-  /// ```ignore
+  /// ```text
   #[doc = include_str!("window-app-manifest.xml")]
+  /// ```
+  ///
+  /// ## Warning
+  ///
+  /// if you are using tauri's dialog APIs, you need to specify a dependency on Common Control v6 by adding the following to your custom manifest:
+  /// ```text
+  ///  <dependency>
+  ///    <dependentAssembly>
+  ///      <assemblyIdentity
+  ///        type="win32"
+  ///        name="Microsoft.Windows.Common-Controls"
+  ///        version="6.0.0.0"
+  ///        processorArchitecture="*"
+  ///        publicKeyToken="6595b64144ccf1df"
+  ///        language="*"
+  ///      />
+  ///    </dependentAssembly>
+  ///  </dependency>
   /// ```
   ///
   /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
@@ -145,39 +166,57 @@ impl WindowsAttributes {
     self
   }
 
-  /// Sets the Windows app [manifest].
+  /// Sets the [application manifest] to be included with the application on Windows.
+  ///
+  /// Defaults to:
+  /// ```text
+  #[doc = include_str!("window-app-manifest.xml")]
+  /// ```
+  ///
+  /// ## Warning
+  ///
+  /// if you are using tauri's dialog APIs, you need to specify a dependency on Common Control v6 by adding the following to your custom manifest:
+  /// ```text
+  ///  <dependency>
+  ///    <dependentAssembly>
+  ///      <assemblyIdentity
+  ///        type="win32"
+  ///        name="Microsoft.Windows.Common-Controls"
+  ///        version="6.0.0.0"
+  ///        processorArchitecture="*"
+  ///        publicKeyToken="6595b64144ccf1df"
+  ///        language="*"
+  ///      />
+  ///    </dependentAssembly>
+  ///  </dependency>
+  /// ```
   ///
   /// # Example
   ///
   /// The following manifest will brand the exe as requesting administrator privileges.
   /// Thus, everytime it is executed, a Windows UAC dialog will appear.
   ///
-  /// Note that you can move the manifest contents to a separate file and use `include_str!("manifest.xml")`
-  /// instead of the inline string.
-  ///
   /// ```rust,no_run
   /// let mut windows = tauri_build::WindowsAttributes::new();
   /// windows = windows.app_manifest(r#"
   /// <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  /// <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
-  ///     <security>
-  ///         <requestedPrivileges>
-  ///             <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
-  ///         </requestedPrivileges>
-  ///     </security>
-  /// </trustInfo>
+  ///   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+  ///       <security>
+  ///           <requestedPrivileges>
+  ///               <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+  ///           </requestedPrivileges>
+  ///       </security>
+  ///   </trustInfo>
   /// </assembly>
   /// "#);
-  /// tauri_build::try_build(
-  ///   tauri_build::Attributes::new().windows_attributes(windows)
-  /// ).expect("failed to run build script");
+  /// let attrs =  tauri_build::Attributes::new().windows_attributes(windows);
+  /// tauri_build::try_build(attrs).expect("failed to run build script");
   /// ```
   ///
-  /// Defaults to:
-  /// ```ignore
-  #[doc = include_str!("window-app-manifest.xml")]
+  /// Note that you can move the manifest contents to a separate file and use `include_str!("manifest.xml")`
+  /// instead of the inline string.
+  ///
   /// [manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
-  /// ```
   #[must_use]
   pub fn app_manifest<S: AsRef<str>>(mut self, manifest: S) -> Self {
     self.app_manifest = Some(manifest.as_ref().to_string());
@@ -243,8 +282,6 @@ pub fn build() {
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;
-  use cargo_toml::{Dependency, Manifest};
-  use tauri_utils::config::{Config, TauriConfig};
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
   println!("cargo:rerun-if-changed=tauri.conf.json");
@@ -269,50 +306,33 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   cfg_alias("dev", !has_feature("custom-protocol"));
 
-  let mut manifest = Manifest::from_path("Cargo.toml")?;
+  let ws_path = get_workspace_dir()?;
+  let mut manifest =
+    Manifest::<cargo_toml::Value>::from_slice_with_metadata(&std::fs::read("Cargo.toml")?)?;
+
+  if let Ok(ws_manifest) = Manifest::from_path(ws_path.join("Cargo.toml")) {
+    Manifest::complete_from_path_and_workspace(
+      &mut manifest,
+      Path::new("Cargo.toml"),
+      Some((&ws_manifest, ws_path.as_path())),
+    )?;
+  } else {
+    Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
+  }
+
+  if let Some(tauri_build) = manifest.build_dependencies.remove("tauri-build") {
+    let error_message = check_features(&config, tauri_build, true);
+
+    if !error_message.is_empty() {
+      return Err(anyhow!("
+      The `tauri-build` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
+      Please run `tauri dev` or `tauri build` or {}.
+    ", error_message));
+    }
+  }
+
   if let Some(tauri) = manifest.dependencies.remove("tauri") {
-    let features = match tauri {
-      Dependency::Simple(_) => Vec::new(),
-      Dependency::Detailed(dep) => dep.features,
-      Dependency::Inherited(dep) => dep.features,
-    };
-
-    let all_cli_managed_features = TauriConfig::all_features();
-    let diff = features_diff(
-      &features
-        .into_iter()
-        .filter(|f| all_cli_managed_features.contains(&f.as_str()))
-        .collect::<Vec<String>>(),
-      &config
-        .tauri
-        .features()
-        .into_iter()
-        .map(|f| f.to_string())
-        .collect::<Vec<String>>(),
-    );
-
-    let mut error_message = String::new();
-    if !diff.remove.is_empty() {
-      error_message.push_str("remove the `");
-      error_message.push_str(&diff.remove.join(", "));
-      error_message.push_str(if diff.remove.len() == 1 {
-        "` feature"
-      } else {
-        "` features"
-      });
-      if !diff.add.is_empty() {
-        error_message.push_str(" and ");
-      }
-    }
-    if !diff.add.is_empty() {
-      error_message.push_str("add the `");
-      error_message.push_str(&diff.add.join(", "));
-      error_message.push_str(if diff.add.len() == 1 {
-        "` feature"
-      } else {
-        "` features"
-      });
-    }
+    let error_message = check_features(&config, tauri, false);
 
     if !error_message.is_empty() {
       return Err(anyhow!("
@@ -344,25 +364,25 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config.tauri.bundle.resources.clone().unwrap_or_default();
-  #[cfg(windows)]
-  if let Some(fixed_webview2_runtime_path) = &config.tauri.bundle.windows.webview_fixed_runtime_path
-  {
-    resources.push(fixed_webview2_runtime_path.display().to_string());
+  if target_triple.contains("windows") {
+    if let Some(fixed_webview2_runtime_path) =
+      &config.tauri.bundle.windows.webview_fixed_runtime_path
+    {
+      resources.push(fixed_webview2_runtime_path.display().to_string());
+    }
   }
   copy_resources(ResourcePaths::new(resources.as_slice(), true), target_dir)?;
 
-  #[cfg(target_os = "macos")]
-  {
-    if let Some(version) = config.tauri.bundle.macos.minimum_system_version {
-      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={}", version);
+  if target_triple.contains("darwin") {
+    if let Some(version) = &config.tauri.bundle.macos.minimum_system_version {
+      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
     }
   }
 
-  #[cfg(windows)]
-  {
+  if target_triple.contains("windows") {
     use anyhow::Context;
     use semver::Version;
-    use winres::{VersionInfo, WindowsResource};
+    use tauri_winres::{VersionInfo, WindowsResource};
 
     fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
       let icon_path = config
@@ -399,18 +419,23 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           ));
         }
       }
-      if let Some(version) = &config.package.version {
-        if let Ok(v) = Version::parse(version) {
+      if let Some(version_str) = &config.package.version {
+        if let Ok(v) = Version::parse(version_str) {
           let version = v.major << 48 | v.minor << 32 | v.patch << 16;
           res.set_version_info(VersionInfo::FILEVERSION, version);
           res.set_version_info(VersionInfo::PRODUCTVERSION, version);
         }
-        res.set("FileVersion", version);
-        res.set("ProductVersion", version);
+        res.set("FileVersion", version_str);
+        res.set("ProductVersion", version_str);
       }
       if let Some(product_name) = &config.package.product_name {
         res.set("ProductName", product_name);
-        res.set("FileDescription", product_name);
+      }
+      if let Some(short_description) = &config.tauri.bundle.short_description {
+        res.set("FileDescription", short_description);
+      }
+      if let Some(copyright) = &config.tauri.bundle.copyright {
+        res.set("LegalCopyright", copyright);
       }
       res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
       res.compile().with_context(|| {
@@ -484,6 +509,89 @@ fn features_diff(current: &[String], expected: &[String]) -> Diff {
   }
 
   Diff { remove, add }
+}
+
+fn check_features(config: &Config, dependency: Dependency, is_tauri_build: bool) -> String {
+  use tauri_utils::config::{PatternKind, TauriConfig};
+
+  let features = match dependency {
+    Dependency::Simple(_) => Vec::new(),
+    Dependency::Detailed(dep) => dep.features,
+    Dependency::Inherited(dep) => dep.features,
+  };
+
+  let all_cli_managed_features = if is_tauri_build {
+    vec!["isolation"]
+  } else {
+    TauriConfig::all_features()
+  };
+
+  let expected = if is_tauri_build {
+    match config.tauri.pattern {
+      PatternKind::Isolation { .. } => vec!["isolation".to_string()],
+      _ => vec![],
+    }
+  } else {
+    config
+      .tauri
+      .features()
+      .into_iter()
+      .map(|f| f.to_string())
+      .collect::<Vec<String>>()
+  };
+
+  let diff = features_diff(
+    &features
+      .into_iter()
+      .filter(|f| all_cli_managed_features.contains(&f.as_str()))
+      .collect::<Vec<String>>(),
+    &expected,
+  );
+
+  let mut error_message = String::new();
+  if !diff.remove.is_empty() {
+    error_message.push_str("remove the `");
+    error_message.push_str(&diff.remove.join(", "));
+    error_message.push_str(if diff.remove.len() == 1 {
+      "` feature"
+    } else {
+      "` features"
+    });
+    if !diff.add.is_empty() {
+      error_message.push_str(" and ");
+    }
+  }
+  if !diff.add.is_empty() {
+    error_message.push_str("add the `");
+    error_message.push_str(&diff.add.join(", "));
+    error_message.push_str(if diff.add.len() == 1 {
+      "` feature"
+    } else {
+      "` features"
+    });
+  }
+
+  error_message
+}
+
+#[derive(serde::Deserialize)]
+struct CargoMetadata {
+  workspace_root: PathBuf,
+}
+
+fn get_workspace_dir() -> Result<PathBuf> {
+  let output = std::process::Command::new("cargo")
+    .args(["metadata", "--no-deps", "--format-version", "1"])
+    .output()?;
+
+  if !output.status.success() {
+    return Err(anyhow::anyhow!(
+      "cargo metadata command exited with a non zero exit code: {}",
+      String::from_utf8(output.stderr)?
+    ));
+  }
+
+  Ok(serde_json::from_slice::<CargoMetadata>(&output.stdout)?.workspace_root)
 }
 
 #[cfg(test)]

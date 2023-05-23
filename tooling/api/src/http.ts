@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -57,11 +57,11 @@ interface Duration {
  * @since 1.0.0
  */
 interface ClientOptions {
-  maxRedirections?: number
   /**
    * Defines the maximum number of redirects the client should follow.
    * If set to 0, no redirects will be followed.
    */
+  maxRedirections?: number
   connectTimeout?: number | Duration
 }
 
@@ -123,11 +123,7 @@ class Body {
    * // alternatively, use a FormData:
    * const form = new FormData();
    * form.append('key', 'value');
-   * form.append('image', {
-   *   file: '/path/to/file',
-   *   mime: 'image/jpeg',
-   *   fileName: 'image.jpg'
-   * });
+   * form.append('image', file, 'image.png');
    * const formBody = Body.form(form);
    * ```
    *
@@ -362,8 +358,7 @@ class Client {
           response.data = JSON.parse(response.data as string)
         } catch (e) {
           if (response.ok && (response.data as unknown as string) === '') {
-            // @ts-expect-error
-            response.data = {}
+            response.data = {} as T
           } else if (response.ok) {
             throw Error(
               `Failed to parse response \`${response.data}\` as JSON: ${e};
@@ -557,4 +552,4 @@ export type {
   FetchOptions
 }
 
-export { getClient, fetch, Body, Client, Response, ResponseType, FilePart }
+export { getClient, fetch, Body, Client, Response, ResponseType, type FilePart }

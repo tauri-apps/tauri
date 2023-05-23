@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -137,9 +137,9 @@ pub struct Output {
 fn relative_command_path(command: String) -> crate::Result<String> {
   match platform::current_exe()?.parent() {
     #[cfg(windows)]
-    Some(exe_dir) => Ok(format!("{}\\{}.exe", exe_dir.display(), command)),
+    Some(exe_dir) => Ok(format!("{}\\{command}.exe", exe_dir.display())),
     #[cfg(not(windows))]
-    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.display(), command)),
+    Some(exe_dir) => Ok(format!("{}/{command}", exe_dir.display())),
     None => Err(crate::api::Error::Command("Could not evaluate executable dir".to_string()).into()),
   }
 }

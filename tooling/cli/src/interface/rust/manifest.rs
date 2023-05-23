@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,6 +8,8 @@ use crate::helpers::{
 };
 
 use anyhow::Context;
+use itertools::Itertools;
+use log::info;
 use toml_edit::{Array, Document, InlineTable, Item, Table, Value};
 
 use std::{
@@ -82,7 +84,7 @@ fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> V
   f
 }
 
-fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
+pub fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
   let mut manifest_str = String::new();
 
   let mut manifest_file = File::open(manifest_path)
@@ -114,6 +116,16 @@ fn write_features(
 ) -> crate::Result<bool> {
   let item = dependencies.entry(dependency_name).or_insert(Item::None);
 
+  // do not rewrite if dependency uses workspace inheritance
+  if item
+    .get("workspace")
+    .and_then(|v| v.as_bool())
+    .unwrap_or_default()
+  {
+    info!("`{dependency_name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]", features.iter().join(", "));
+    return Ok(false);
+  }
+
   if let Some(dep) = item.as_table_mut() {
     let manifest_features = dep.entry("features").or_insert(Item::None);
     if let Item::Value(Value::Array(f)) = &manifest_features {
@@ -134,14 +146,15 @@ fn write_features(
       }
 
       // remove features that shouldn't be in the manifest anymore
-      let mut i = 0;
-      while i < features_array.len() {
-        if let Some(f) = features_array.get(i).and_then(|f| f.as_str()) {
+      let mut i = features_array.len();
+      while i != 0 {
+        let index = i - 1;
+        if let Some(f) = features_array.get(index).and_then(|f| f.as_str()) {
           if !features.contains(f) {
-            features_array.remove(i);
+            features_array.remove(index);
           }
         }
-        i += 1;
+        i -= 1;
       }
     } else {
       *manifest_features = Item::Value(Value::Array(toml_array(features)));

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -772,7 +772,7 @@ async function extname(path: string): Promise<string> {
  * import { basename, resolveResource } from '@tauri-apps/api/path';
  * const resourcePath = await resolveResource('app.conf');
  * const base = await basename(resourcePath);
- * assert(base === 'app');
+ * assert(base === 'app.conf');
  * ```
  *
  * @param ext An optional file extension to be removed from the returned path.

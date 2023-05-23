@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -37,7 +37,7 @@ impl Cmd {
   }
 
   fn get_tauri_version<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
-    Ok(env!("CARGO_PKG_VERSION"))
+    Ok(crate::VERSION)
   }
 
   #[module_command_handler(app_show)]

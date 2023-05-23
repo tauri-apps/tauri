@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -39,7 +39,6 @@ pub(crate) struct IpcJavascript<'a> {
 #[derive(Template)]
 #[default_template("../scripts/isolation.js")]
 pub(crate) struct IsolationJavascript<'a> {
-  pub(crate) origin: String,
   pub(crate) isolation_src: &'a str,
   pub(crate) style: &'a str,
 }

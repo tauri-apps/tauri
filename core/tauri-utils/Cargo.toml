@@ -1,41 +1,41 @@
 [package]
 name = "tauri-utils"
-version = "1.2.1"
+version = "1.3.0"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.60"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-serde = { version = "1.0", features = [ "derive" ] }
-serde_json = "1.0"
-thiserror = "1.0.30"
+serde = { version = "1", features = [ "derive" ] }
+serde_json = "1"
+thiserror = "1"
 phf = { version = "0.10", features = [ "macros" ] }
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
-url = { version = "2.2", features = [ "serde" ] }
+url = { version = "2", features = [ "serde" ] }
 kuchiki = "0.8"
 html5ever = "0.25"
-proc-macro2 = { version = "1.0", optional = true }
-quote = { version = "1.0", optional = true }
+proc-macro2 = { version = "1", optional = true }
+quote = { version = "1", optional = true }
 schemars = { version = "0.8", features = [ "url" ], optional = true }
-serde_with = "1.12"
-aes-gcm = { version = "0.9", optional = true }
+serde_with = "2"
+aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.2", optional = true, features = [ "std" ] }
 serialize-to-javascript = { version = "=0.1.1", optional = true }
 ctor = "0.1"
 json5 = { version = "0.4", optional = true }
 toml = { version = "0.5", optional = true }
-json-patch = "0.2"
-glob = { version = "0.3.0", optional = true }
+json-patch = "1.0"
+glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
-memchr = "2.4"
+memchr = "2"
 semver = "1"
-infer = "0.7"
+infer = "0.12"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"

@@ -1,7 +1,8 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use base64::Engine;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha256};
@@ -181,9 +182,10 @@ impl CspHashes {
           })?,
         );
         let hash = hasher.finalize();
-        self
-          .scripts
-          .push(format!("'sha256-{}'", base64::encode(hash)));
+        self.scripts.push(format!(
+          "'sha256-{}'",
+          base64::engine::general_purpose::STANDARD.encode(hash)
+        ));
       }
     }
 
@@ -431,6 +433,7 @@ impl ToTokens for EmbeddedAssets {
 
     // we expect phf related items to be in path when generating the path code
     tokens.append_all(quote! {{
+        #[allow(unused)]
         use ::tauri::utils::assets::{CspHash, EmbeddedAssets, phf, phf::phf_map};
         EmbeddedAssets::new(phf_map! { #assets }, &[#global_hashes], phf_map! { #html_hashes })
     }});

@@ -771,66 +771,6 @@ pub struct WindowEffectsConfig {
   pub color: Option<Color>,
 }
 
-/// The [`WindowEffectsConfig`] object builder
-#[derive(Default)]
-pub struct WindowEffectsConfigBuilder(WindowEffectsConfig);
-impl WindowEffectsConfigBuilder {
-  /// Create a new [`WindowEffectsConfig`] builder
-  pub fn new() -> Self {
-    Self(WindowEffectsConfig::default())
-  }
-
-  /// Create a new [`WindowEffectsConfig`] builder from specified config
-  pub fn from_config(config: WindowEffectsConfig) -> Self {
-    Self(config)
-  }
-
-  /// Adds effect to the [`WindowEffectsConfig`] `effects` field
-  pub fn effect(mut self, effect: WindowEffect) -> Self {
-    self.0.effects.push(effect);
-    self
-  }
-
-  /// Adds effects to the [`WindowEffectsConfig`] `effects` field
-  pub fn effects(mut self, effects: Vec<WindowEffect>) -> Self {
-    self.0.effects.extend_from_slice(&effects);
-    self
-  }
-
-  /// Clears the [`WindowEffectsConfig`] `effects` field
-  pub fn clear_effects(mut self) -> Self {
-    self.0.effects.clear();
-    self
-  }
-
-  /// Sets `state` field for the [`WindowEffectsConfig`] **macOS Only**
-  pub fn state(mut self, state: WindowEffectState) -> Self {
-    self.0.state = Some(state);
-    self
-  }
-  /// Sets `radius` field fo the [`WindowEffectsConfig`] **macOS Only**
-  pub fn radius(mut self, radius: f64) -> Self {
-    self.0.radius = Some(radius);
-    self
-  }
-  /// Sets `color` field fo the [`WindowEffectsConfig`] **Windows Only**
-  pub fn color(mut self, color: Color) -> Self {
-    self.0.color = Some(color);
-    self
-  }
-
-  /// Builds a [`WindowEffectsConfig`]
-  pub fn build(self) -> WindowEffectsConfig {
-    self.0
-  }
-}
-
-impl From<WindowEffectsConfig> for WindowEffectsConfigBuilder {
-  fn from(value: WindowEffectsConfig) -> Self {
-    Self::from_config(value)
-  }
-}
-
 /// The window configuration object.
 ///
 /// See more: https://tauri.app/v1/api/config#windowconfig

@@ -4,4 +4,4 @@
 'tauri-runtime': minor
 ---
 
-Added the `window_effects` option when creating a window and `Window::set_window_effects` to change it at runtime.
+Added the `window_effects` option when creating a window and `Window::set_effects` to change it at runtime.

@@ -7,6 +7,7 @@
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
+pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
 #[cfg(target_os = "macos")]
@@ -1315,8 +1316,25 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Sets window effects, pass `None` to clear any effects applied if possible.
-  pub fn set_window_effects(&self, effects: Option<WindowEffectsConfig>) -> crate::Result<()> {
-    crate::vibrancy::set_window_effects(self, effects)
+  ///
+  /// ```rust,no_run
+  /// use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = app.get_window("main").unwrap();
+  ///     window.set_effects(
+  ///       EffectsBuilder::new()
+  ///         .effect(Effect::Popover)
+  ///         .state(EffectState::Active)
+  ///         .radius(5.)
+  ///         .color(Color(0, 0, 0, 255))
+  ///         .build(),
+  ///     )?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn set_effects<E: Into<Option<WindowEffectsConfig>>>(&self, effects: E) -> crate::Result<()> {
+    crate::vibrancy::set_window_effects(self, effects.into())
   }
 
   /// Determines if this window should always be on top of other windows.
@@ -1913,6 +1931,61 @@ impl<R: Runtime> Window<R> {
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
+  }
+}
+
+/// The [`WindowEffectsConfig`] object builder
+#[derive(Default)]
+pub struct EffectsBuilder(WindowEffectsConfig);
+impl EffectsBuilder {
+  /// Create a new [`WindowEffectsConfig`] builder
+  pub fn new() -> Self {
+    Self(WindowEffectsConfig::default())
+  }
+
+  /// Adds effect to the [`WindowEffectsConfig`] `effects` field
+  pub fn effect(mut self, effect: Effect) -> Self {
+    self.0.effects.push(effect);
+    self
+  }
+
+  /// Adds effects to the [`WindowEffectsConfig`] `effects` field
+  pub fn effects<I: IntoIterator<Item = Effect>>(mut self, effects: I) -> Self {
+    self.0.effects.extend(effects);
+    self
+  }
+
+  /// Clears the [`WindowEffectsConfig`] `effects` field
+  pub fn clear_effects(mut self) -> Self {
+    self.0.effects.clear();
+    self
+  }
+
+  /// Sets `state` field for the [`WindowEffectsConfig`] **macOS Only**
+  pub fn state(mut self, state: EffectState) -> Self {
+    self.0.state = Some(state);
+    self
+  }
+  /// Sets `radius` field fo the [`WindowEffectsConfig`] **macOS Only**
+  pub fn radius(mut self, radius: f64) -> Self {
+    self.0.radius = Some(radius);
+    self
+  }
+  /// Sets `color` field fo the [`WindowEffectsConfig`] **Windows Only**
+  pub fn color(mut self, color: Color) -> Self {
+    self.0.color = Some(color);
+    self
+  }
+
+  /// Builds a [`WindowEffectsConfig`]
+  pub fn build(self) -> WindowEffectsConfig {
+    self.0
+  }
+}
+
+impl From<WindowEffectsConfig> for EffectsBuilder {
+  fn from(value: WindowEffectsConfig) -> Self {
+    Self(value)
   }
 }
 

@@ -183,8 +183,8 @@ pub use {
   self::state::{State, StateManager},
   self::utils::{
     assets::Assets,
-    config::{Color, Config, WindowEffectsConfig, WindowEffectsConfigBuilder, WindowUrl},
-    Env, PackageInfo, Theme, WindowEffect, WindowEffectState,
+    config::{Config, WindowUrl},
+    Env, PackageInfo, Theme,
   },
   self::window::{Monitor, Window, WindowBuilder},
   scope::*,

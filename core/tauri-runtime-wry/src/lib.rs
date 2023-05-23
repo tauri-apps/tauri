@@ -67,8 +67,8 @@ use wry::{
   webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
 };
 
-pub use wry::webview::webview_version;
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
+pub use wry::webview::webview_version;
 
 #[cfg(windows)]
 use wry::webview::WebviewExtWindows;

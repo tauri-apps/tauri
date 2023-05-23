@@ -137,7 +137,7 @@ fn main() {
             .collect::<Vec<_>>();
 
           let mut id = boundary_id.lock().unwrap();
-          *id = *id + 1;
+          *id += 1;
           let boundary = format!("sadasq2e{id}");
           let boundary_sep = format!("\r\n--{boundary}\r\n");
           let boundary_closer = format!("\r\n--{boundary}\r\n");

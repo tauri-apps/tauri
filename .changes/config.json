@@ -1,6 +1,15 @@
 {
   "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
   "timeout": 3600000,
+  "changeTags": {
+    "feat": "New Features",
+    "enhance": "Enhancements",
+    "bug": "Bug Fixes",
+    "pref": "Performance Improvements",
+    "changes": "What's Changed",
+    "deps": "Dependencies"
+  },
+  "defaultChangeTag": "changes",
   "pkgManagers": {
     "rust": {
       "errorOnVersionRange": "^2.0.0-0",
@@ -123,13 +132,13 @@
     }
   },
   "packages": {
-    "api": {
+    "@tauri-apps/api": {
       "path": "./tooling/api",
       "manager": "javascript",
       "assets": [
         {
           "path": "./tooling/api/dist/tauri-apps-api-${ pkgFile.version }.tgz",
-          "name": "api-${ pkgFile.version }.tgz"
+          "name": "tauri-apps-api-${ pkgFile.version }.tgz"
         }
       ],
       "prepublish": [
@@ -231,11 +240,11 @@
       ],
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
-    "cli.js": {
+    "@tauri-apps/cli": {
       "path": "./tooling/cli/node",
       "manager": "javascript",
       "getPublishedVersion": "node ../../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
-      "dependencies": ["cli.rs"],
+      "dependencies": ["tauri-cli"],
       "postversion": [
         "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
         "cargo build --manifest-path ../../../core/tauri-config-schema/Cargo.toml"
@@ -244,7 +253,7 @@
       "publish": [],
       "postpublish": []
     },
-    "cli.rs": {
+    "tauri-cli": {
       "path": "./tooling/cli",
       "manager": "rust",
       "dependencies": ["tauri-bundler", "tauri-utils"],

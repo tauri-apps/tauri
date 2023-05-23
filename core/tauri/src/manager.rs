@@ -25,6 +25,7 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
+use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
@@ -49,10 +50,6 @@ use crate::{
   },
   Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
-};
-use crate::{
-  app::{GlobalMenuEventListener, WindowMenuEvent},
-  window::WebResourceRequestHandler,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -401,7 +398,6 @@ impl<R: Runtime> WindowManager<R> {
     label: &str,
     window_labels: &[String],
     app_handle: AppHandle<R>,
-    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
@@ -474,7 +470,7 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
-    let window_url = pending.current_url.lock().unwrap().clone();
+    let window_url = Url::parse(&pending.url).unwrap();
     let window_origin =
       if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
         format!("https://{}.localhost", window_url.scheme())
@@ -492,6 +488,7 @@ impl<R: Runtime> WindowManager<R> {
       };
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
+      let web_resource_request_handler = pending.web_resource_request_handler.take();
       pending.register_uri_scheme_protocol(
         "tauri",
         self.prepare_uri_scheme_protocol(&window_origin, web_resource_request_handler),
@@ -932,7 +929,6 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
     mut pending: PendingWindow<EventLoopMessage, R>,
     window_labels: &[String],
-    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
@@ -979,7 +975,7 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    *pending.current_url.lock().unwrap() = url;
+    pending.url = url.to_string();
 
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
@@ -996,13 +992,7 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     let label = pending.label.clone();
-    pending = self.prepare_pending_window(
-      pending,
-      &label,
-      window_labels,
-      app_handle.clone(),
-      web_resource_request_handler,
-    )?;
+    pending = self.prepare_pending_window(pending, &label, window_labels, app_handle.clone())?;
     pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
 
     // in `Windows`, we need to force a data_directory
@@ -1028,10 +1018,19 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    let current_url_ = pending.current_url.clone();
+    #[cfg(feature = "isolation")]
+    let pattern = self.pattern().clone();
     let navigation_handler = pending.navigation_handler.take();
     pending.navigation_handler = Some(Box::new(move |url| {
-      *current_url_.lock().unwrap() = url.clone();
+      // always allow navigation events for the isolation iframe and do not emit them for consumers
+      #[cfg(feature = "isolation")]
+      if let Pattern::Isolation { schema, .. } = &pattern {
+        if url.scheme() == schema
+          && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
+        {
+          return true;
+        }
+      }
       if let Some(handler) = &navigation_handler {
         handler(url)
       } else {

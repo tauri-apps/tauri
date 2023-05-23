@@ -35,6 +35,7 @@ pub struct Scope {
   allowed_patterns: Arc<Mutex<HashSet<Pattern>>>,
   forbidden_patterns: Arc<Mutex<HashSet<Pattern>>>,
   event_listeners: Arc<Mutex<HashMap<Uuid, EventListener>>>,
+  match_options: glob::MatchOptions,
 }
 
 impl fmt::Debug for Scope {
@@ -106,10 +107,29 @@ impl Scope {
       }
     }
 
+    let require_literal_leading_dot = match scope {
+      FsAllowlistScope::Scope {
+        require_literal_leading_dot: Some(require),
+        ..
+      } => *require,
+      // dotfiles are not supposed to be exposed by default on unix
+      #[cfg(unix)]
+      _ => false,
+      #[cfg(windows)]
+      _ => true,
+    };
+
     Ok(Self {
       allowed_patterns: Arc::new(Mutex::new(allowed_patterns)),
       forbidden_patterns: Arc::new(Mutex::new(forbidden_patterns)),
       event_listeners: Default::default(),
+      match_options: glob::MatchOptions {
+        // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
+        // see: https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5
+        require_literal_separator: true,
+        require_literal_leading_dot,
+        ..Default::default()
+      },
     })
   }
 
@@ -216,22 +236,12 @@ impl Scope {
 
     if let Ok(path) = path {
       let path: PathBuf = path.components().collect();
-      let options = glob::MatchOptions {
-        // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
-        // see: https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5
-        require_literal_separator: true,
-        // dotfiles are not supposed to be exposed by default
-        #[cfg(unix)]
-        require_literal_leading_dot: true,
-        ..Default::default()
-      };
-
       let forbidden = self
         .forbidden_patterns
         .lock()
         .unwrap()
         .iter()
-        .any(|p| p.matches_path_with(&path, options));
+        .any(|p| p.matches_path_with(&path, self.match_options));
 
       if forbidden {
         false
@@ -241,7 +251,7 @@ impl Scope {
           .lock()
           .unwrap()
           .iter()
-          .any(|p| p.matches_path_with(&path, options));
+          .any(|p| p.matches_path_with(&path, self.match_options));
         allowed
       }
     } else {
@@ -271,6 +281,17 @@ mod tests {
       allowed_patterns: Default::default(),
       forbidden_patterns: Default::default(),
       event_listeners: Default::default(),
+      match_options: glob::MatchOptions {
+        // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
+        // see: https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5
+        require_literal_separator: true,
+        // dotfiles are not supposed to be exposed by default on unix
+        #[cfg(unix)]
+        require_literal_leading_dot: false,
+        #[cfg(windows)]
+        require_literal_leading_dot: true,
+        ..Default::default()
+      },
     }
   }
 

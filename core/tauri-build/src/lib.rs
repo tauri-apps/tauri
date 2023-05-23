@@ -116,8 +116,26 @@ pub struct WindowsAttributes {
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
-  /// ```ignore
+  /// ```text
   #[doc = include_str!("window-app-manifest.xml")]
+  /// ```
+  ///
+  /// ## Warning
+  ///
+  /// if you are using tauri's dialog APIs, you need to specify a dependency on Common Control v6 by adding the following to your custom manifest:
+  /// ```text
+  ///  <dependency>
+  ///    <dependentAssembly>
+  ///      <assemblyIdentity
+  ///        type="win32"
+  ///        name="Microsoft.Windows.Common-Controls"
+  ///        version="6.0.0.0"
+  ///        processorArchitecture="*"
+  ///        publicKeyToken="6595b64144ccf1df"
+  ///        language="*"
+  ///      />
+  ///    </dependentAssembly>
+  ///  </dependency>
   /// ```
   ///
   /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
@@ -148,39 +166,57 @@ impl WindowsAttributes {
     self
   }
 
-  /// Sets the Windows app [manifest].
+  /// Sets the [application manifest] to be included with the application on Windows.
+  ///
+  /// Defaults to:
+  /// ```text
+  #[doc = include_str!("window-app-manifest.xml")]
+  /// ```
+  ///
+  /// ## Warning
+  ///
+  /// if you are using tauri's dialog APIs, you need to specify a dependency on Common Control v6 by adding the following to your custom manifest:
+  /// ```text
+  ///  <dependency>
+  ///    <dependentAssembly>
+  ///      <assemblyIdentity
+  ///        type="win32"
+  ///        name="Microsoft.Windows.Common-Controls"
+  ///        version="6.0.0.0"
+  ///        processorArchitecture="*"
+  ///        publicKeyToken="6595b64144ccf1df"
+  ///        language="*"
+  ///      />
+  ///    </dependentAssembly>
+  ///  </dependency>
+  /// ```
   ///
   /// # Example
   ///
   /// The following manifest will brand the exe as requesting administrator privileges.
   /// Thus, everytime it is executed, a Windows UAC dialog will appear.
   ///
-  /// Note that you can move the manifest contents to a separate file and use `include_str!("manifest.xml")`
-  /// instead of the inline string.
-  ///
   /// ```rust,no_run
   /// let mut windows = tauri_build::WindowsAttributes::new();
   /// windows = windows.app_manifest(r#"
   /// <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  /// <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
-  ///     <security>
-  ///         <requestedPrivileges>
-  ///             <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
-  ///         </requestedPrivileges>
-  ///     </security>
-  /// </trustInfo>
+  ///   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+  ///       <security>
+  ///           <requestedPrivileges>
+  ///               <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+  ///           </requestedPrivileges>
+  ///       </security>
+  ///   </trustInfo>
   /// </assembly>
   /// "#);
-  /// tauri_build::try_build(
-  ///   tauri_build::Attributes::new().windows_attributes(windows)
-  /// ).expect("failed to run build script");
+  /// let attrs =  tauri_build::Attributes::new().windows_attributes(windows);
+  /// tauri_build::try_build(attrs).expect("failed to run build script");
   /// ```
   ///
-  /// Defaults to:
-  /// ```ignore
-  #[doc = include_str!("window-app-manifest.xml")]
+  /// Note that you can move the manifest contents to a separate file and use `include_str!("manifest.xml")`
+  /// instead of the inline string.
+  ///
   /// [manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
-  /// ```
   #[must_use]
   pub fn app_manifest<S: AsRef<str>>(mut self, manifest: S) -> Self {
     self.app_manifest = Some(manifest.as_ref().to_string());
@@ -383,18 +419,23 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           ));
         }
       }
-      if let Some(version) = &config.package.version {
-        if let Ok(v) = Version::parse(version) {
+      if let Some(version_str) = &config.package.version {
+        if let Ok(v) = Version::parse(version_str) {
           let version = v.major << 48 | v.minor << 32 | v.patch << 16;
           res.set_version_info(VersionInfo::FILEVERSION, version);
           res.set_version_info(VersionInfo::PRODUCTVERSION, version);
         }
-        res.set("FileVersion", version);
-        res.set("ProductVersion", version);
+        res.set("FileVersion", version_str);
+        res.set("ProductVersion", version_str);
       }
       if let Some(product_name) = &config.package.product_name {
         res.set("ProductName", product_name);
-        res.set("FileDescription", product_name);
+      }
+      if let Some(short_description) = &config.tauri.bundle.short_description {
+        res.set("FileDescription", short_description);
+      }
+      if let Some(copyright) = &config.tauri.bundle.copyright {
+        res.set("LegalCopyright", copyright);
       }
       res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
       res.compile().with_context(|| {

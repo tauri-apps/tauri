@@ -298,13 +298,14 @@ impl<R: Runtime> UpdateBuilder<R> {
   ///     Ok(())
   ///   });
   /// ```
+  ///
+  /// If ther server responds with status code `204`, this method will return [`Error::UpToDate`]
   pub async fn check(self) -> Result<UpdateResponse<R>> {
     let handle = self.inner.app.clone();
-    let events = self.events;
     // check updates
     match self.inner.build().await {
       Ok(update) => {
-        if events {
+        if self.events {
           // send notification if we need to update
           if update.should_update {
             let body = update.body.clone().unwrap_or_else(|| String::from(""));
@@ -341,7 +342,13 @@ impl<R: Runtime> UpdateBuilder<R> {
       }
       Err(e) => {
         if self.events {
-          send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
+          send_status_update(
+            &handle,
+            match e {
+              Error::UpToDate => UpdaterEvent::AlreadyUpToDate,
+              _ => UpdaterEvent::Error(e.to_string()),
+            },
+          );
         }
         Err(e)
       }
@@ -428,7 +435,13 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(handle: AppHandle<R>) {
         }
       }
       Err(e) => {
-        send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
+        send_status_update(
+          &handle,
+          match e {
+            Error::UpToDate => UpdaterEvent::AlreadyUpToDate,
+            _ => UpdaterEvent::Error(e.to_string()),
+          },
+        );
       }
     }
   }

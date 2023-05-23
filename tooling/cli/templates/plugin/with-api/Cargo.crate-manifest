@@ -8,6 +8,6 @@ rust-version = "1.60"
 exclude = ["/examples", "/webview-dist", "/webview-src", "node_modules"]
 
 [dependencies]
-tauri = {{{  tauri_dep }}}
+tauri = {{  tauri_dep }}
 serde = "1.0"
 thiserror = "1.0"

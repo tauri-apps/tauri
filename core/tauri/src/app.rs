@@ -1627,7 +1627,7 @@ impl<R: Runtime> Builder<R> {
 
     let env = Env::default();
     app.manage(Scopes {
-      ipc: IpcScope::new(&app.config(), &app.manager),
+      ipc: IpcScope::new(&app.config()),
       fs: FsScope::for_fs_api(
         &app.manager.config(),
         app.package_info(),
@@ -1705,10 +1705,9 @@ impl<R: Runtime> Builder<R> {
       .collect::<Vec<_>>();
 
     for pending in self.pending_windows {
-      let pending =
-        app
-          .manager
-          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
+      let pending = app
+        .manager
+        .prepare_window(app.handle.clone(), pending, &window_labels)?;
       let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
       let _window = app.manager.attach_window(app.handle(), detached);
     }

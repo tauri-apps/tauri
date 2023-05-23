@@ -76,6 +76,7 @@ mod hooks;
 mod manager;
 mod pattern;
 pub mod plugin;
+mod vibrancy;
 pub mod window;
 use tauri_runtime as runtime;
 #[cfg(target_os = "ios")]

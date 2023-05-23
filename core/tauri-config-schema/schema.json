@@ -488,6 +488,17 @@
           "description": "Whether or not the window has shadow.\n\n## Platform-specific\n\n- **Windows:** - `false` has no effect on decorated window, shadow are always ON. - `true` will make ndecorated window have a 1px white border, and on Windows 11, it will have a rounded corners. - **Linux:** Unsupported.",
           "default": true,
           "type": "boolean"
+        },
+        "windowEffects": {
+          "description": "Window effects.\n\nRequires the window to be transparent.\n\n## Platform-specific:\n\n- **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891 - **Linux**: Unsupported",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WindowEffectsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -550,6 +561,271 @@
           ]
         }
       ]
+    },
+    "WindowEffectsConfig": {
+      "description": "The window effects configuration object",
+      "type": "object",
+      "required": [
+        "effects"
+      ],
+      "properties": {
+        "effects": {
+          "description": "List of Window effects to apply to the Window. Conflicting effects will apply the first one and ignore the rest.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WindowEffect"
+          }
+        },
+        "state": {
+          "description": "Window effect state **macOS Only**",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WindowEffectState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "radius": {
+          "description": "Window effect corner radius **macOS Only**",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "color": {
+          "description": "Window effect color. Affects [`WindowEffects::Blur`] and [`WindowEffects::Acrylic`] only on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Color"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "WindowEffect": {
+      "description": "Platform-specific window effects",
+      "oneOf": [
+        {
+          "description": "A default material appropriate for the view's effectiveAppearance. **macOS 10.14-**",
+          "deprecated": true,
+          "type": "string",
+          "enum": [
+            "appearanceBased"
+          ]
+        },
+        {
+          "description": "*macOS 10.14-**",
+          "deprecated": true,
+          "type": "string",
+          "enum": [
+            "light"
+          ]
+        },
+        {
+          "description": "*macOS 10.14-**",
+          "deprecated": true,
+          "type": "string",
+          "enum": [
+            "dark"
+          ]
+        },
+        {
+          "description": "*macOS 10.14-**",
+          "deprecated": true,
+          "type": "string",
+          "enum": [
+            "mediumLight"
+          ]
+        },
+        {
+          "description": "*macOS 10.14-**",
+          "deprecated": true,
+          "type": "string",
+          "enum": [
+            "ultraDark"
+          ]
+        },
+        {
+          "description": "*macOS 10.10+**",
+          "type": "string",
+          "enum": [
+            "titlebar"
+          ]
+        },
+        {
+          "description": "*macOS 10.10+**",
+          "type": "string",
+          "enum": [
+            "selection"
+          ]
+        },
+        {
+          "description": "*macOS 10.11+**",
+          "type": "string",
+          "enum": [
+            "menu"
+          ]
+        },
+        {
+          "description": "*macOS 10.11+**",
+          "type": "string",
+          "enum": [
+            "popover"
+          ]
+        },
+        {
+          "description": "*macOS 10.11+**",
+          "type": "string",
+          "enum": [
+            "sidebar"
+          ]
+        },
+        {
+          "description": "*macOS 10.14+**",
+          "type": "string",
+          "enum": [
+            "headerView"
+          ]
+        },
+        {
+          "description": "*macOS 10.14+**",
+          "type": "string",
+          "enum": [
+            "sheet"
+          ]
+        },
+        {
+          "description": "*macOS 10.14+**",
+          "type": "string",
+          "enum": [
+            "windowBackground"
+          ]
+        },
+        {
+          "description": "*macOS 10.14+**",
+          "type": "string",
+          "enum": [
+            "hudWindow"
+          ]
+        },
+        {
+          "description": "*macOS 10.14+**",
+          "type": "string",
+          "enum": [
+            "fullScreenUI"
+          ]
+        },
+        {
+          "description": "*macOS 10.14+**",
+          "type": "string",
+          "enum": [
+            "tooltip"
+          ]
+        },
+        {
+          "description": "*macOS 10.14+**",
+          "type": "string",
+          "enum": [
+            "contentBackground"
+          ]
+        },
+        {
+          "description": "*macOS 10.14+**",
+          "type": "string",
+          "enum": [
+            "underWindowBackground"
+          ]
+        },
+        {
+          "description": "*macOS 10.14+**",
+          "type": "string",
+          "enum": [
+            "underPageBackground"
+          ]
+        },
+        {
+          "description": "*Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "mica"
+          ]
+        },
+        {
+          "description": "**Windows 7/10/11(22H1) Only**\n\n## Notes\n\nThis effect has bad performance when resizing/dragging the window on Windows 11 build 22621.",
+          "type": "string",
+          "enum": [
+            "blur"
+          ]
+        },
+        {
+          "description": "**Windows 10/11 Only**\n\n## Notes\n\nThis effect has bad performance when resizing/dragging the window on Windows 10 v1903+ and Windows 11 build 22000.",
+          "type": "string",
+          "enum": [
+            "acrylic"
+          ]
+        }
+      ]
+    },
+    "WindowEffectState": {
+      "description": "Window effect state **macOS only**\n\n<https://developer.apple.com/documentation/appkit/nsvisualeffectview/state>",
+      "oneOf": [
+        {
+          "description": "Make window effect state follow the window's active state",
+          "type": "string",
+          "enum": [
+            "followsWindowActiveState"
+          ]
+        },
+        {
+          "description": "Make window effect state always active",
+          "type": "string",
+          "enum": [
+            "active"
+          ]
+        },
+        {
+          "description": "Make window effect state always inactive",
+          "type": "string",
+          "enum": [
+            "inactive"
+          ]
+        }
+      ]
+    },
+    "Color": {
+      "description": "a tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.",
+      "type": "array",
+      "items": [
+        {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      ],
+      "maxItems": 4,
+      "minItems": 4
     },
     "BundleConfig": {
       "description": "Configuration for tauri-bundler.\n\nSee more: https://tauri.app/v1/api/config#bundleconfig",

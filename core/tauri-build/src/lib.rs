@@ -368,12 +368,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .resources
     .clone()
     .unwrap_or_else(|| BundleResources::List(Vec::new()));
-    if let Some(fixed_webview2_runtime_path) =
-      &config.tauri.bundle.windows.webview_fixed_runtime_path
-    {
-      resources.push(fixed_webview2_runtime_path.display().to_string());
-    }
+  if let Some(fixed_webview2_runtime_path) = &config.tauri.bundle.windows.webview_fixed_runtime_path
+  {
+    resources.push(fixed_webview2_runtime_path.display().to_string());
   }
+
   match resources {
     BundleResources::List(res) => {
       copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?

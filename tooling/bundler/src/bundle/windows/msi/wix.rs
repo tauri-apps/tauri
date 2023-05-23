@@ -25,7 +25,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-use tauri_utils::config::WebviewInstallMode;
+use tauri_utils::{config::WebviewInstallMode, display_path};
 use uuid::Uuid;
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.

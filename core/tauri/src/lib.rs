@@ -210,6 +210,10 @@ use std::{collections::HashMap, fmt, sync::Arc};
 // Export types likely to be used by the application.
 pub use runtime::http;
 
+#[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+pub use tauri_runtime_wry::webview_version;
+
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
 pub use runtime::{menu::NativeImage, ActivationPolicy};

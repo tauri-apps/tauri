@@ -4,6 +4,8 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::sync::{Arc, Mutex};
+
 fn main() {
   use std::{
     io::{Read, Seek, SeekFrom, Write},
@@ -33,6 +35,9 @@ fn main() {
     assert!(status.status.success());
     assert!(video_file.exists());
   }
+
+  // NOTE: for production use `rand` crate to generate a random boundary
+  let boundary_id = Arc::new(Mutex::new(0));
 
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![video_uri])
@@ -131,7 +136,9 @@ fn main() {
             })
             .collect::<Vec<_>>();
 
-          let boundary = "sadasdq2e";
+          let mut id = boundary_id.lock().unwrap();
+          *id = *id + 1;
+          let boundary = format!("sadasq2e{id}");
           let boundary_sep = format!("\r\n--{boundary}\r\n");
           let boundary_closer = format!("\r\n--{boundary}\r\n");
 
@@ -193,17 +200,3 @@ fn video_uri() -> (&'static str, std::path::PathBuf) {
   #[cfg(not(feature = "protocol-asset"))]
   ("stream", "example/test_video.mp4".into())
 }
-
-// fn random_boundary() -> String {
-//   use rand::RngCore;
-
-//   let mut x = [0 as u8; 30];
-//   rand::thread_rng().fill_bytes(&mut x);
-//   (&x[..])
-//     .iter()
-//     .map(|&x| format!("{:x}", x))
-//     .fold(String::new(), |mut a, x| {
-//       a.push_str(x.as_str());
-//       a
-//     })
-// }

@@ -184,13 +184,14 @@ mod pattern;
 pub mod plugin;
 pub mod window;
 use tauri_runtime as runtime;
+#[cfg(protocol_asset)]
+mod asset_protocol;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
 #[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
-
 pub use tauri_utils as utils;
 
 /// A Tauri [`Runtime`] wrapper around wry.

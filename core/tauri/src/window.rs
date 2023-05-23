@@ -1316,7 +1316,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Sets window effects, pass `None` to clear any effects applied if possible.
-  /// Note that the window must be transparent and without decorations.
+  /// Note that the window must be transparent.
   ///
   /// ## Platform-specific
   ///

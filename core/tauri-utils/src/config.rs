@@ -2015,7 +2015,7 @@ mod build {
 
   impl ToTokens for crate::WindowEffect {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::WindowEffects };
+      let prefix = quote! { ::tauri::utils::WindowEffect };
 
       #[allow(deprecated)]
       tokens.append_all(match self {

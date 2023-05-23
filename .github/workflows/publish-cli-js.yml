@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: publish cli.js
+name: publish `@tauri-apps/cli`
 env:
   DEBUG: napi:*
   APP_NAME: cli
@@ -11,10 +11,10 @@ on:
   workflow_dispatch:
     inputs:
       releaseId:
-        description: 'ID of the cli.js release'
+        description: 'ID of the `@tauri-apps/cli` release'
         required: true
   repository_dispatch:
-    types: [publish-clijs]
+    types: [publish-js-cli]
 
 defaults:
   run:

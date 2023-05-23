@@ -417,19 +417,14 @@ fn build_nsis_app_installer(
       .expect("Failed to setup handlebar template");
   }
   let installer_nsi_path = output_path.join("installer.nsi");
-  write(
+  write_ut16_le_with_bom(
     &installer_nsi_path,
-    encoding_rs::UTF_8
-      .encode(handlebars.render("installer.nsi", &data)?.as_str())
-      .0,
+    handlebars.render("installer.nsi", &data)?.as_str(),
   )?;
 
   for (lang, data) in languages_data.iter() {
-    if let Some((content, encoding)) = data {
-      write(
-        output_path.join(lang).with_extension("nsh"),
-        encoding.encode(content).0,
-      )?;
+    if let Some(content) = data {
+      write_ut16_le_with_bom(output_path.join(lang).with_extension("nsh"), &content)?;
     }
   }
 
@@ -553,12 +548,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
 fn get_lang_data(
   lang: &str,
   custom_lang_files: Option<&HashMap<String, PathBuf>>,
-) -> Option<(
-  String,
-  Option<(&'static str, &'static encoding_rs::Encoding)>,
-)> {
-  use encoding_rs::*;
-
+) -> Option<(String, Option<&'static str>)> {
   if let Some(path) = custom_lang_files.and_then(|h| h.get(lang)) {
     return Some((
       dunce::canonicalize(path)
@@ -573,86 +563,71 @@ fn get_lang_data(
   match lang.to_lowercase().as_str() {
     "arabic" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/Arabic.nsh"),
-        UTF_16LE,
-      )),
+      Some(include_str!("./templates/nsis-languages/Arabic.nsh")),
     )),
     "dutch" => Some((
       lang_file,
-      Some((include_str!("./templates/nsis-languages/Dutch.nsh"), UTF_8)),
+      Some(include_str!("./templates/nsis-languages/Dutch.nsh")),
     )),
     "english" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/English.nsh"),
-        UTF_8,
-      )),
+      Some(include_str!("./templates/nsis-languages/English.nsh")),
     )),
     "japanese" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/Japanese.nsh"),
-        UTF_8,
-      )),
+      Some(include_str!("./templates/nsis-languages/Japanese.nsh")),
     )),
     "korean" => Some((
       lang_file,
-      Some((include_str!("./templates/nsis-languages/Korean.nsh"), UTF_8)),
+      Some(include_str!("./templates/nsis-languages/Korean.nsh")),
     )),
     "portuguesebr" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/PortugueseBR.nsh"),
-        UTF_8,
-      )),
+      Some(include_str!("./templates/nsis-languages/PortugueseBR.nsh")),
     )),
     "tradchinese" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/TradChinese.nsh"),
-        UTF_8,
-      )),
+      Some(include_str!("./templates/nsis-languages/TradChinese.nsh")),
     )),
     "simpchinese" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/SimpChinese.nsh"),
-        UTF_8,
-      )),
+      Some(include_str!("./templates/nsis-languages/SimpChinese.nsh")),
     )),
     "french" => Some((
       lang_file,
-      Some((include_str!("./templates/nsis-languages/French.nsh"), UTF_8)),
+      Some(include_str!("./templates/nsis-languages/French.nsh")),
     )),
     "spanish" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/Spanish.nsh"),
-        UTF_8,
-      )),
+      Some(include_str!("./templates/nsis-languages/Spanish.nsh")),
     )),
     "spanishinternational" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/SpanishInternational.nsh"),
-        UTF_8,
+      Some(include_str!(
+        "./templates/nsis-languages/SpanishInternational.nsh"
       )),
     )),
     "persian" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/Persian.nsh"),
-        UTF_16LE,
-      )),
+      Some(include_str!("./templates/nsis-languages/Persian.nsh")),
     )),
     "turkish" => Some((
       lang_file,
-      Some((
-        include_str!("./templates/nsis-languages/Turkish.nsh"),
-        UTF_8,
-      )),
+      Some(include_str!("./templates/nsis-languages/Turkish.nsh")),
     )),
     _ => None,
   }
+}
+
+fn write_ut16_le_with_bom<P: AsRef<Path>>(path: P, content: &str) -> crate::Result<()> {
+  use std::fs::File;
+  use std::io::{BufWriter, Write};
+
+  let file = File::create(path)?;
+  let mut output = BufWriter::new(file);
+  output.write_all(&[0xFF, 0xFE])?; // the BOM part
+  for utf16 in content.encode_utf16() {
+    output.write_all(&utf16.to_le_bytes())?;
+  }
+  Ok(())
 }

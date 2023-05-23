@@ -258,18 +258,14 @@ fn build_nsis_app_installer(
     }),
   );
 
-  let languages_data =  languages
-  .iter()
-  .filter_map(|lang| {
-    match get_lang_data(lang, custom_language_files.as_ref()) {
-      Ok(Some(data)) => Some(data),
-      Ok(None) => {
-        log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > tauri > bundle > windows > nsis > custom_language_files`");
-        None
-      } ,
-      Err(e) =>  panic!("{e}")
+  let mut languages_data = Vec::new();
+  for lang in &languages {
+    if let Some(data) = get_lang_data(lang, custom_language_files.as_ref())? {
+      languages_data.push(data);
+    } else {
+      log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > tauri > bundle > windows > nsis > custom_language_files`");
     }
-  }).collect::<Vec<_>>();
+  }
 
   data.insert("languages", to_json(languages.clone()));
   data.insert(

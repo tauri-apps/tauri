@@ -48,7 +48,7 @@ fn main() {
         .decode_utf8_lossy()
         .to_string();
 
-      if path != "example/test_video.mp4" {
+      if path != "test_video.mp4" {
         // return error 404 if it's not our video
         return ResponseBuilder::new().status(404).body(Vec::new());
       }
@@ -198,5 +198,5 @@ fn video_uri() -> (&'static str, std::path::PathBuf) {
   }
 
   #[cfg(not(feature = "protocol-asset"))]
-  ("stream", "example/test_video.mp4".into())
+  ("stream", "test_video.mp4".into())
 }

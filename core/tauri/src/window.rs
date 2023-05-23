@@ -1316,6 +1316,11 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Sets window effects, pass `None` to clear any effects applied if possible.
+  /// Note that the window must be transparent and without decorations.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux**: Not supported.
   ///
   /// ```rust,no_run
   /// use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};

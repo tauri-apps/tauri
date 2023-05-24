@@ -1,7 +1,7 @@
 ---
 "tauri-utils": patch
-"cli.rs": patch
-"cli.js": patch
+"tauri-cli": patch
+"@tauri-apps/cli": patch
 ---
 
 Added the `desktop_template` option on `tauri.conf.json > tauri > bundle > deb`.

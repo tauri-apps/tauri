@@ -276,6 +276,10 @@ pub struct DebConfig {
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>

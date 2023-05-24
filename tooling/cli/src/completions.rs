@@ -12,13 +12,6 @@ use std::io::Cursor;
 #[clap(about = "Shell completions")]
 pub struct Options {
   /// Shell to generate a completion script for.
-  ///
-  /// Can be one of the following:
-  /// - bash
-  /// - elvish
-  /// - fish
-  /// - zsh
-  /// - powershell
   #[clap(short, long, verbatim_doc_comment)]
   shell: Shell,
 }

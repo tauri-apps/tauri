@@ -105,6 +105,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setClosable": false,
             "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
@@ -116,7 +117,9 @@
             "setIcon": false,
             "setIgnoreCursorEvents": false,
             "setMaxSize": false,
+            "setMaximizable": false,
             "setMinSize": false,
+            "setMinimizable": false,
             "setPosition": false,
             "setResizable": false,
             "setSize": false,
@@ -221,7 +224,7 @@
           "pattern": "^[^/\\:*?\"<>|]+$"
         },
         "version": {
-          "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.",
+          "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.",
           "default": null,
           "type": [
             "string",
@@ -383,6 +386,7 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setClosable": false,
               "setContentProtected": false,
               "setCursorGrab": false,
               "setCursorIcon": false,
@@ -394,7 +398,9 @@
               "setIcon": false,
               "setIgnoreCursorEvents": false,
               "setMaxSize": false,
+              "setMaximizable": false,
               "setMinSize": false,
+              "setMinimizable": false,
               "setPosition": false,
               "setResizable": false,
               "setSize": false,
@@ -605,7 +611,22 @@
           "format": "double"
         },
         "resizable": {
-          "description": "Whether the window is resizable or not.",
+          "description": "Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.",
+          "default": true,
+          "type": "boolean"
+        },
+        "maximizable": {
+          "description": "Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored.\n\n## Platform-specific\n\n- **macOS:** Disables the \"zoom\" button in the window titlebar, which is also used to enter fullscreen mode. - **Linux / iOS / Android:** Unsupported.",
+          "default": true,
+          "type": "boolean"
+        },
+        "minimizable": {
+          "description": "Whether the window's native minimize button is enabled or not.\n\n## Platform-specific\n\n- **Linux / iOS / Android:** Unsupported.",
+          "default": true,
+          "type": "boolean"
+        },
+        "closable": {
+          "description": "Whether the window's native close button is enabled or not.\n\n## Platform-specific\n\n- **Linux:** \"GTK+ will do its best to convince the window manager not to show a close button. Depending on the system, this function may not have any effect when called on a window that is already visible\" - **iOS / Android:** Unsupported.",
           "default": true,
           "type": "boolean"
         },
@@ -1270,6 +1291,13 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "desktopTemplate": {
+          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -1661,6 +1689,13 @@
       "description": "Configuration for the Installer bundle using NSIS.",
       "type": "object",
       "properties": {
+        "template": {
+          "description": "A custom .nsi template to use.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "license": {
           "description": "The path to the license file to render on the installer.",
           "type": [
@@ -1705,6 +1740,16 @@
             "null"
           ],
           "items": {
+            "type": "string"
+          }
+        },
+        "customLanguageFiles": {
+          "description": "A key-value pair where the key is the language and the value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.\n\nSee <https://github.com/tauri-apps/tauri/blob/dev/tooling/bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.\n\n**Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
             "type": "string"
           }
         },
@@ -1785,6 +1830,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setClosable": false,
             "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
@@ -1796,7 +1842,9 @@
             "setIcon": false,
             "setIgnoreCursorEvents": false,
             "setMaxSize": false,
+            "setMaximizable": false,
             "setMinSize": false,
+            "setMinimizable": false,
             "setPosition": false,
             "setResizable": false,
             "setSize": false,
@@ -2052,6 +2100,13 @@
               "items": {
                 "type": "string"
               }
+            },
+            "requireLiteralLeadingDot": {
+              "description": "Whether or not paths that contain components that start with a `.` will require that `.` appears literally in the pattern; `*`, `?`, `**`, or `[...]` will not match. This is useful because such files are conventionally considered hidden on Unix systems and it might be desirable to skip them when listing files.\n\nDefaults to `false` on Unix systems and `true` on Windows",
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           }
         }
@@ -2083,6 +2138,21 @@
         },
         "setResizable": {
           "description": "Allows setting the resizable flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setMaximizable": {
+          "description": "Allows setting whether the window's native maximize button is enabled or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setMinimizable": {
+          "description": "Allows setting whether the window's native minimize button is enabled or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setClosable": {
+          "description": "Allows setting whether the window's native close button is enabled or not.",
           "default": false,
           "type": "boolean"
         },
@@ -2414,7 +2484,7 @@
       "additionalProperties": false
     },
     "HttpAllowlistScope": {
-      "description": "HTTP API scope definition. It is a list of URLs that can be accessed by the webview when using the HTTP APIs. The scoped URL is matched against the request URL using a glob pattern.\n\nExamples: - \"https://**\": allows all HTTPS urls - \"https://*.github.com/tauri-apps/tauri\": allows any subdomain of \"github.com\" with the \"tauri-apps/api\" path - \"https://myapi.service.com/users/*\": allows access to any URLs that begins with \"https://myapi.service.com/users/\"",
+      "description": "HTTP API scope definition. It is a list of URLs that can be accessed by the webview when using the HTTP APIs. The scoped URL is matched against the request URL using a glob pattern.\n\nExamples: - \"https://*\": allows all HTTPS urls - \"https://*.github.com/tauri-apps/tauri\": allows any subdomain of \"github.com\" with the \"tauri-apps/api\" path - \"https://myapi.service.com/users/*\": allows access to any URLs that begins with \"https://myapi.service.com/users/\"",
       "type": "array",
       "items": {
         "type": "string",
@@ -2791,7 +2861,7 @@
           ]
         },
         {
-          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does (WiX).",
+          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does.",
           "type": "string",
           "enum": [
             "quiet"

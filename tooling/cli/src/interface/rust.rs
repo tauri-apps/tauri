@@ -663,7 +663,7 @@ impl AppSettings for RustAppSettings {
       .expect("Cargo manifest must have the `package.name` field");
 
     let out_dir = self
-      .out_dir(options.target.clone(), options.debug)
+      .out_dir(options.target.clone(), get_profile(options))
       .with_context(|| "failed to get project out directory")?;
 
     let binary_extension: String = if self.target_triple.contains("windows") {
@@ -900,12 +900,12 @@ impl RustAppSettings {
     &self.cargo_package_settings
   }
 
-  pub fn out_dir(&self, target: Option<String>, debug: bool) -> crate::Result<PathBuf> {
+  pub fn out_dir(&self, target: Option<String>, profile: String) -> crate::Result<PathBuf> {
     get_target_dir(
       target
         .as_deref()
         .or_else(|| self.cargo_config.build().target()),
-      !debug,
+      profile,
     )
   }
 }
@@ -932,9 +932,9 @@ fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   Ok(serde_json::from_slice(&output.stdout)?)
 }
 
-/// This function determines the 'target' directory and suffixes it with 'release' or 'debug'
+/// This function determines the 'target' directory and suffixes it with the profile
 /// to determine where the compiled binary will be located.
-fn get_target_dir(target: Option<&str>, is_release: bool) -> crate::Result<PathBuf> {
+fn get_target_dir(target: Option<&str>, profile: String) -> crate::Result<PathBuf> {
   let mut path = get_cargo_metadata()
     .with_context(|| "failed to get cargo metadata")?
     .target_directory;
@@ -943,7 +943,7 @@ fn get_target_dir(target: Option<&str>, is_release: bool) -> crate::Result<PathB
     path.push(triple);
   }
 
-  path.push(if is_release { "release" } else { "debug" });
+  path.push(profile);
 
   Ok(path)
 }
@@ -955,6 +955,15 @@ pub fn get_workspace_dir() -> crate::Result<PathBuf> {
       .with_context(|| "failed to get cargo metadata")?
       .workspace_root,
   )
+}
+
+pub fn get_profile(options: &Options) -> String {
+  options
+    .args
+    .iter()
+    .position(|a| a == "--profile")
+    .map(|i| options.args[i + 1].clone())
+    .unwrap_or_else(|| if options.debug { "debug" } else { "release" }.into())
 }
 
 #[allow(unused_variables)]
@@ -1058,6 +1067,7 @@ fn tauri_config_to_bundle_settings(
         Some(depends)
       },
       files: config.deb.files,
+      desktop_template: config.deb.desktop_template,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,

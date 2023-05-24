@@ -67,6 +67,9 @@ pub enum WindowManagerCmd {
   IsMaximized,
   IsDecorated,
   IsResizable,
+  IsMaximizable,
+  IsMinimizable,
+  IsClosable,
   IsVisible,
   Title,
   CurrentMonitor,
@@ -80,6 +83,12 @@ pub enum WindowManagerCmd {
   RequestUserAttention(Option<UserAttentionType>),
   #[cfg(window_set_resizable)]
   SetResizable(bool),
+  #[cfg(window_set_maximizable)]
+  SetMaximizable(bool),
+  #[cfg(window_set_minimizable)]
+  SetMinimizable(bool),
+  #[cfg(window_set_closable)]
+  SetClosable(bool),
   #[cfg(window_set_title)]
   SetTitle(String),
   #[cfg(window_maximize)]
@@ -256,6 +265,9 @@ impl Cmd {
       WindowManagerCmd::IsMaximized => return Ok(window.is_maximized()?.into()),
       WindowManagerCmd::IsDecorated => return Ok(window.is_decorated()?.into()),
       WindowManagerCmd::IsResizable => return Ok(window.is_resizable()?.into()),
+      WindowManagerCmd::IsMaximizable => return Ok(window.is_maximizable()?.into()),
+      WindowManagerCmd::IsMinimizable => return Ok(window.is_minimizable()?.into()),
+      WindowManagerCmd::IsClosable => return Ok(window.is_closable()?.into()),
       WindowManagerCmd::IsVisible => return Ok(window.is_visible()?.into()),
       WindowManagerCmd::Title => return Ok(window.title()?.into()),
       WindowManagerCmd::CurrentMonitor => return Ok(window.current_monitor()?.into()),
@@ -271,6 +283,12 @@ impl Cmd {
       }
       #[cfg(window_set_resizable)]
       WindowManagerCmd::SetResizable(resizable) => window.set_resizable(resizable)?,
+      #[cfg(window_set_maximizable)]
+      WindowManagerCmd::SetMaximizable(maximizable) => window.set_maximizable(maximizable)?,
+      #[cfg(window_set_minimizable)]
+      WindowManagerCmd::SetMinimizable(minimizable) => window.set_minimizable(minimizable)?,
+      #[cfg(window_set_closable)]
+      WindowManagerCmd::SetClosable(closable) => window.set_closable(closable)?,
       #[cfg(window_set_title)]
       WindowManagerCmd::SetTitle(title) => window.set_title(&title)?,
       #[cfg(window_maximize)]

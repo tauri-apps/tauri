@@ -69,7 +69,6 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     Ok(DetachedWindow {
       label: pending.label,
-      current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       dispatcher: MockDispatcher {
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
@@ -219,6 +218,18 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   fn resizable(self, resizable: bool) -> Self {
+    self
+  }
+
+  fn maximizable(self, resizable: bool) -> Self {
+    self
+  }
+
+  fn minimizable(self, resizable: bool) -> Self {
+    self
+  }
+
+  fn closable(self, resizable: bool) -> Self {
     self
   }
 
@@ -392,6 +403,18 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn is_maximizable(&self) -> Result<bool> {
+    Ok(true)
+  }
+
+  fn is_minimizable(&self) -> Result<bool> {
+    Ok(true)
+  }
+
+  fn is_closable(&self) -> Result<bool> {
+    Ok(true)
+  }
+
   fn is_visible(&self) -> Result<bool> {
     Ok(true)
   }
@@ -455,6 +478,18 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_maximizable(&self, maximizable: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_minimizable(&self, minimizable: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_closable(&self, closable: bool) -> Result<()> {
     Ok(())
   }
 
@@ -703,7 +738,6 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     Ok(DetachedWindow {
       label: pending.label,
-      current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
       dispatcher: MockDispatcher {
         context: self.context.clone(),
         last_evaluated_script: Default::default(),

@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: updater test artifacts
+name: test updater artifacts
 on:
   schedule:
     - cron: '0 0 * * *'
   pull_request:
     paths:
-      - '.github/workflows/artifacts-updater.yml'
+      - '.github/workflows/test-updater-artifacts.yml'
       - 'examples/updater/**'
   workflow_dispatch:
 
@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-artifacts:
+  test:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -48,7 +48,7 @@ jobs:
             core -> ../target
             tooling/cli
 
-      - name: build and install cli.rs
+      - name: build and install `tauri-cli`
         run: cargo install --path tooling/cli --force
       - name: Check whether code signing should be enabled
         id: enablecodesigning

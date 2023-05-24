@@ -37,10 +37,12 @@ fn print_completions(shell: Shell, cmd: &mut Command) {
   let completions = String::from_utf8_lossy(&b);
 
   let shell_completions = match shell {
-    Shell::Bash => completions.replace(
-      &format!("-o default {}", cmd_name),
-      &format!("-o default {}", bin_name),
-    ),
+    Shell::Bash => completions
+      .replace(
+        &format!("-o default {}", cmd_name),
+        &format!("-o default {}", bin_name),
+      )
+      .replace(&cmd_name.replace('_', "__"), &cmd_name),
     Shell::Fish => {
       completions.replace(&format!("-c {}", cmd_name), &format!("-c \"{}\"", bin_name))
     }

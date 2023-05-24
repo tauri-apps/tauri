@@ -1566,7 +1566,7 @@ impl<R: Runtime> Builder<R> {
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
       let label = config.label.clone();
-      let webview_attributes = WebviewAttributes::from_config(&config);
+      let webview_attributes = WebviewAttributes::from(&config);
 
       self.pending_windows.push(PendingWindow::with_config(
         config,

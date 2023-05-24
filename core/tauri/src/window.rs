@@ -217,7 +217,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       runtime: manager.runtime(),
       app_handle: manager.app_handle(),
       label: config.label.clone(),
-      webview_attributes: WebviewAttributes::from_config(&config),
+      webview_attributes: WebviewAttributes::from(&config),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
         config,
       ),

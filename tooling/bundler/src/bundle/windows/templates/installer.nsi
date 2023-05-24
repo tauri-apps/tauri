@@ -117,7 +117,6 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 
 ; 4. Custom page to ask user if he wants to reinstall/uninstall
 ;    only if a previous installtion was detected
-Var ReinstallPageCheck
 Page custom PageReinstall PageLeaveReinstall
 Function PageReinstall
   ; Uninstall previous WiX installation if exists.
@@ -286,7 +285,6 @@ FunctionEnd
 
 ; 6. Start menu shortcut page
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
-Var AppStartMenuFolder
 !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 
 ; 7. Installation page

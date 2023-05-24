@@ -20,10 +20,7 @@ use tauri_utils::display_path;
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
-use tauri_utils::{
-  config::{NSISInstallerMode, WebviewInstallMode},
-  resources::resource_relpath,
-};
+use tauri_utils::config::{NSISInstallerMode, WebviewInstallMode};
 
 use std::{
   collections::{BTreeMap, HashMap},
@@ -474,34 +471,37 @@ fn build_nsis_app_installer(
 }
 
 /// BTreeMap<OriginalPath, (ParentOfTargetPath, TargetPath)>
-type ResourcesMap = BTreeMap<PathBuf, (String, PathBuf)>;
+type ResourcesMap = BTreeMap<PathBuf, (PathBuf, PathBuf)>;
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
   let mut resources = ResourcesMap::new();
   let cwd = std::env::current_dir()?;
 
   let mut added_resources = Vec::new();
 
-  for src in settings.resource_files() {
-    let src = src?;
-    let resource_path = dunce::canonicalize(cwd.join(&src))?;
+  for resource in settings.resource_files().iter() {
+    let resource = resource?;
+
+    let src = cwd.join(resource.path());
+    let resource_path = dunce::simplified(&src);
 
     // In some glob resource paths like `assets/**/*` a file might appear twice
     // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
     // when it finds one. So we must check it before processing the file.
-    if added_resources.contains(&resource_path) {
+    if added_resources.contains(&resource_path.to_path_buf()) {
       continue;
     }
-    added_resources.push(resource_path.clone());
+    added_resources.push(resource_path.to_path_buf());
 
-    let target_path = resource_relpath(&src);
+    let target_path = resource.target();
     resources.insert(
-      resource_path,
+      resource_path.to_path_buf().clone(),
       (
         target_path
           .parent()
-          .map(|p| p.to_string_lossy().to_string())
-          .unwrap_or_default(),
-        target_path,
+          .expect("Couldn't get parent of target path")
+          .to_path_buf()
+          .clone(),
+        target_path.to_path_buf().clone(),
       ),
     );
   }

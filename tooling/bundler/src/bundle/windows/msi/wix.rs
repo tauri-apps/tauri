@@ -86,7 +86,7 @@ struct ResourceFile {
   /// the id to use on the WIX XML.
   id: String,
   /// the file path.
-  path: String,
+  path: PathBuf,
 }
 
 /// A resource directory to bundle with WIX.
@@ -120,7 +120,7 @@ impl ResourceDirectory {
           r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{path}" /></Component>"#,
           id = file.id,
           guid = file.guid,
-          path = file.path
+          path = file.path.display()
         ).as_str()
       );
     }
@@ -912,25 +912,22 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   for resource in settings.resource_files().iter() {
     let resource = resource?;
 
-    let resource_path = cwd
-      .join(resource.path())
-      .into_os_string()
-      .into_string()
-      .expect("failed to read resource path");
+    let src = cwd.join(resource.path());
+    let resource_path = dunce::simplified(&src);
 
     // In some glob resource paths like `assets/**/*` a file might appear twice
     // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
     // when it finds one. So we must check it before processing the file.
-    if added_resources.contains(&resource_path) {
+    if added_resources.contains(&resource_path.to_path_buf()) {
       continue;
     }
 
-    added_resources.push(resource_path.clone());
+    added_resources.push(resource_path.to_path_buf());
 
     let resource_entry = ResourceFile {
       id: format!("I{}", Uuid::new_v4().as_simple()),
       guid: Uuid::new_v4().to_string(),
-      path: resource_path,
+      path: resource_path.to_path_buf(),
     };
 
     // split the resource path directories
@@ -999,7 +996,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let out_dir = settings.project_out_directory();
   for dll in glob::glob(out_dir.join("*.dll").to_string_lossy().to_string().as_str())? {
     let path = dll?;
-    let resource_path = path.to_string_lossy().into_owned();
+    let resource_path = dunce::simplified(&path);
     let relative_path = path
       .strip_prefix(out_dir)
       .unwrap()
@@ -1009,7 +1006,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       dlls.push(ResourceFile {
         id: format!("I{}", Uuid::new_v4().as_simple()),
         guid: Uuid::new_v4().to_string(),
-        path: resource_path,
+        path: resource_path.to_path_buf(),
       });
     }
   }

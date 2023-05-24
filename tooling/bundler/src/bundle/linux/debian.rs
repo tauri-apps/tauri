@@ -149,6 +149,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   let file = &mut common::create_file(&desktop_file_path)?;
 
   let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(handlebars::no_escape);
   if let Some(template) = &settings.deb().desktop_template {
     handlebars
       .register_template_string("main.desktop", read_to_string(template)?)

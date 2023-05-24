@@ -482,26 +482,25 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     let resource = resource?;
 
     let src = cwd.join(resource.path());
-    let resource_path = dunce::simplified(&src);
+    let resource_path = dunce::simplified(&src).to_path_buf();
 
     // In some glob resource paths like `assets/**/*` a file might appear twice
     // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
     // when it finds one. So we must check it before processing the file.
-    if added_resources.contains(&resource_path.to_path_buf()) {
+    if added_resources.contains(&resource_path) {
       continue;
     }
-    added_resources.push(resource_path.to_path_buf());
+    added_resources.push(resource_path.clone());
 
     let target_path = resource.target();
     resources.insert(
-      resource_path.to_path_buf().clone(),
+      resource_path,
       (
         target_path
           .parent()
           .expect("Couldn't get parent of target path")
-          .to_path_buf()
-          .clone(),
-        target_path.to_path_buf().clone(),
+          .to_path_buf(),
+        target_path.to_path_buf(),
       ),
     );
   }

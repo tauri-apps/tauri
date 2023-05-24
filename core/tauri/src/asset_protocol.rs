@@ -46,7 +46,7 @@ pub fn asset_protocol_handler(
 
   let mut resp = ResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
 
-  crate::async_runtime::block_on(async move {
+  let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {
     let mut file = File::open(&path).await?;
 
     // get file length
@@ -72,91 +72,99 @@ pub fn asset_protocol_handler(
       )
     };
 
-    resp = resp.header(CONTENT_TYPE, &mime_type);
+    Ok::<(File, u64, String, Option<Vec<u8>>), anyhow::Error>((file, len, mime_type, read_bytes))
+  })?;
 
-    // handle 206 (partial range) http requests
-    let response = if let Some(range_header) = request
-      .headers()
-      .get("range")
-      .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
-    {
-      resp = resp.header(ACCEPT_RANGES, "bytes");
+  resp = resp.header(CONTENT_TYPE, &mime_type);
 
-      let not_satisfiable = || {
-        ResponseBuilder::new()
-          .status(StatusCode::RANGE_NOT_SATISFIABLE)
-          .header(CONTENT_RANGE, format!("bytes */{len}"))
-          .body(vec![])
-      };
+  // handle 206 (partial range) http requests
+  let response = if let Some(range_header) = request
+    .headers()
+    .get("range")
+    .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
+  {
+    resp = resp.header(ACCEPT_RANGES, "bytes");
 
-      // parse range header
-      let ranges = if let Ok(ranges) = HttpRange::parse(&range_header, len) {
-        ranges
-          .iter()
-          // map the output to spec range <start-end>, example: 0-499
-          .map(|r| (r.start, r.start + r.length - 1))
-          .collect::<Vec<_>>()
-      } else {
+    let not_satisfiable = || {
+      ResponseBuilder::new()
+        .status(StatusCode::RANGE_NOT_SATISFIABLE)
+        .header(CONTENT_RANGE, format!("bytes */{len}"))
+        .body(vec![])
+    };
+
+    // parse range header
+    let ranges = if let Ok(ranges) = HttpRange::parse(&range_header, len) {
+      ranges
+        .iter()
+        // map the output to spec range <start-end>, example: 0-499
+        .map(|r| (r.start, r.start + r.length - 1))
+        .collect::<Vec<_>>()
+    } else {
+      return not_satisfiable();
+    };
+
+    /// The Maximum bytes we send in one range
+    const MAX_LEN: u64 = 1000 * 1024;
+
+    // single-part range header
+    if ranges.len() == 1 {
+      let &(start, mut end) = ranges.first().unwrap();
+
+      // check if a range is not satisfiable
+      //
+      // this should be already taken care of by the range parsing library
+      // but checking here again for extra assurance
+      if start >= len || end >= len || end < start {
         return not_satisfiable();
-      };
+      }
 
-      /// The Maximum bytes we send in one range
-      const MAX_LEN: u64 = 1000 * 1024;
+      // adjust end byte for MAX_LEN
+      end = start + (end - start).min(len - start).min(MAX_LEN - 1);
 
-      // single-part range header
-      if ranges.len() == 1 {
-        let &(start, mut end) = ranges.first().unwrap();
+      // calculate number of bytes needed to be read
+      let nbytes = end + 1 - start;
 
-        // check if a range is not satisfiable
-        //
-        // this should be already taken care of by the range parsing library
-        // but checking here again for extra assurance
-        if start >= len || end >= len || end < start {
-          return not_satisfiable();
-        }
-
-        // adjust end byte for MAX_LEN
-        end = start + (end - start).min(len - start).min(MAX_LEN - 1);
-
-        // calculate number of bytes needed to be read
-        let nbytes = end + 1 - start;
-
+      let buf = crate::async_runtime::safe_block_on(async move {
         let mut buf = Vec::with_capacity(nbytes as usize);
         file.seek(SeekFrom::Start(start)).await?;
         file.take(nbytes).read_to_end(&mut buf).await?;
+        Ok::<Vec<u8>, anyhow::Error>(buf)
+      })?;
 
-        resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
-        resp = resp.header(CONTENT_LENGTH, end + 1 - start);
-        resp = resp.status(StatusCode::PARTIAL_CONTENT);
-        resp.body(buf)
-      } else {
+      resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
+      resp = resp.header(CONTENT_LENGTH, end + 1 - start);
+      resp = resp.status(StatusCode::PARTIAL_CONTENT);
+      resp.body(buf)
+    } else {
+      let ranges = ranges
+        .iter()
+        .filter_map(|&(start, mut end)| {
+          // filter out unsatisfiable ranges
+          //
+          // this should be already taken care of by the range parsing library
+          // but checking here again for extra assurance
+          if start >= len || end >= len || end < start {
+            None
+          } else {
+            // adjust end byte for MAX_LEN
+            end = start + (end - start).min(len - start).min(MAX_LEN - 1);
+            Some((start, end))
+          }
+        })
+        .collect::<Vec<_>>();
+
+      let boundary = random_boundary();
+      let boundary_sep = format!("\r\n--{boundary}\r\n");
+      let boundary_closer = format!("\r\n--{boundary}\r\n");
+
+      resp = resp.header(
+        CONTENT_TYPE,
+        format!("multipart/byteranges; boundary={boundary}"),
+      );
+
+      let buf = crate::async_runtime::safe_block_on(async move {
         // multi-part range header
         let mut buf = Vec::new();
-        let ranges = ranges
-          .iter()
-          .filter_map(|&(start, mut end)| {
-            // filter out unsatisfiable ranges
-            //
-            // this should be already taken care of by the range parsing library
-            // but checking here again for extra assurance
-            if start >= len || end >= len || end < start {
-              None
-            } else {
-              // adjust end byte for MAX_LEN
-              end = start + (end - start).min(len - start).min(MAX_LEN - 1);
-              Some((start, end))
-            }
-          })
-          .collect::<Vec<_>>();
-
-        let boundary = random_boundary();
-        let boundary_sep = format!("\r\n--{boundary}\r\n");
-        let boundary_closer = format!("\r\n--{boundary}\r\n");
-
-        resp = resp.header(
-          CONTENT_TYPE,
-          format!("multipart/byteranges; boundary={boundary}"),
-        );
 
         for (end, start) in ranges {
           // a new range is being written, write the range boundary
@@ -184,24 +192,27 @@ pub fn asset_protocol_handler(
         // all ranges have been written, write the closing boundary
         buf.write_all(boundary_closer.as_bytes()).await?;
 
-        resp.body(buf)
-      }
+        Ok::<Vec<u8>, anyhow::Error>(buf)
+      })?;
+      resp.body(buf)
+    }
+  } else {
+    // avoid reading the file if we already read it
+    // as part of mime type detection
+    let buf = if let Some(b) = read_bytes {
+      b
     } else {
-      // avoid reading the file if we already read it
-      // as part of mime type detection
-      let buf = if let Some(b) = read_bytes {
-        b
-      } else {
+      crate::async_runtime::safe_block_on(async move {
         let mut local_buf = Vec::with_capacity(len as usize);
         file.read_to_end(&mut local_buf).await?;
-        local_buf
-      };
-      resp = resp.header(CONTENT_LENGTH, len);
-      resp.body(buf)
+        Ok::<Vec<u8>, anyhow::Error>(local_buf)
+      })?
     };
+    resp = resp.header(CONTENT_LENGTH, len);
+    resp.body(buf)
+  };
 
-    response
-  })
+  response
 }
 
 fn random_boundary() -> String {

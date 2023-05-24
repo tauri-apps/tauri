@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -12,7 +12,7 @@
 import * as eventApi from './helpers/event'
 import type { EventCallback, UnlistenFn, Event } from './helpers/event'
 
-export type EventName = TauriEvent | string
+export type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
 /**
  * @since 1.1.0
@@ -45,7 +45,7 @@ export enum TauriEvent {
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
  * const unlisten = await listen<string>('error', (event) => {
- *   console.log(`Got error in window ${event.windowLabel}, payload: ${payload}`);
+ *   console.log(`Got error in window ${event.windowLabel}, payload: ${event.payload}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,9 +13,9 @@ use crate::{
   CommandExt, Result,
 };
 use anyhow::{bail, Context};
-use clap::Parser;
-use log::warn;
-use log::{error, info};
+use base64::Engine;
+use clap::{ArgAction, Parser};
+use log::{debug, error, info, warn};
 use std::{
   env::{set_current_dir, var_os},
   path::{Path, PathBuf},
@@ -40,7 +40,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// Space or comma separated list of features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// Space or comma separated list of bundles to package.
   ///
@@ -48,24 +48,29 @@ pub struct Options {
   /// If `none` is specified, the bundler will be skipped.
   ///
   /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
   pub config: Option<String>,
   /// Command line arguments passed to the runner
   pub args: Vec<String>,
+  /// Skip prompting for values
+  #[clap(long)]
+  ci: bool,
 }
 
-pub fn command(mut options: Options) -> Result<()> {
+pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
+  options.ci = options.ci || std::env::var("CI").is_ok();
+  let ci = options.ci;
+
   let (merge_config, merge_config_path) = if let Some(config) = &options.config {
     if config.starts_with('{') {
       (Some(config.to_string()), None)
     } else {
       (
         Some(
-          std::fs::read_to_string(&config)
-            .with_context(|| "failed to read custom configuration")?,
+          std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?,
         ),
         Some(config.clone()),
       )
@@ -76,7 +81,7 @@ pub fn command(mut options: Options) -> Result<()> {
   options.config = merge_config;
 
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   let config = get_config(options.config.as_deref())?;
 
@@ -112,8 +117,17 @@ pub fn command(mut options: Options) -> Result<()> {
     std::process::exit(1);
   }
 
+  let mut interface = AppInterface::new(config_, options.target.clone())?;
+  let app_settings = interface.app_settings();
+  let interface_options = options.clone().into();
+
   if let Some(before_build) = config_.build.before_build_command.clone() {
-    run_hook("beforeBuildCommand", before_build, options.debug)?;
+    run_hook(
+      "beforeBuildCommand",
+      before_build,
+      &interface,
+      options.debug,
+    )?;
   }
 
   if let AppUrl::Url(WindowUrl::App(web_asset_path)) = &config_.build.dist_dir {
@@ -150,13 +164,10 @@ pub fn command(mut options: Options) -> Result<()> {
     options.runner = config_.build.runner.clone();
   }
 
-  if let Some(list) = options.features.as_mut() {
-    list.extend(config_.build.features.clone().unwrap_or_default());
-  }
-
-  let mut interface = AppInterface::new(config_)?;
-  let app_settings = interface.app_settings();
-  let interface_options = options.clone().into();
+  options
+    .features
+    .get_or_insert(Vec::new())
+    .extend(config_.build.features.clone().unwrap_or_default());
 
   let bin_path = app_settings.app_binary_path(&interface_options)?;
   let out_dir = bin_path.parent().unwrap();
@@ -181,8 +192,7 @@ pub fn command(mut options: Options) -> Result<()> {
           }
           None => {
             return Err(anyhow::anyhow!(format!(
-              "Unsupported bundle format: {}",
-              name
+              "Unsupported bundle format: {name}"
             )));
           }
         }
@@ -206,13 +216,24 @@ pub fn command(mut options: Options) -> Result<()> {
     // if we have a package to bundle, let's run the `before_bundle_command`.
     if package_types.as_ref().map_or(true, |p| !p.is_empty()) {
       if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
-        run_hook("beforeBundleCommand", before_bundle, options.debug)?;
+        run_hook(
+          "beforeBundleCommand",
+          before_bundle,
+          &interface,
+          options.debug,
+        )?;
       }
     }
 
-    let settings = app_settings
+    let mut settings = app_settings
       .get_bundler_settings(&options.into(), config_, out_dir, package_types)
       .with_context(|| "failed to build bundler settings")?;
+
+    settings.set_log_level(match verbosity {
+      0 => log::Level::Error,
+      1 => log::Level::Info,
+      _ => log::Level::Trace,
+    });
 
     // set env vars used by the bundler
     #[cfg(target_os = "linux")]
@@ -254,7 +275,9 @@ pub fn command(mut options: Options) -> Result<()> {
       }
     }
 
-    let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
+    let bundles = bundle_project(settings)
+      .map_err(|e| anyhow::anyhow!("{:#}", e))
+      .with_context(|| "failed to bundle project")?;
 
     let updater_bundles: Vec<&Bundle> = bundles
       .iter()
@@ -263,7 +286,9 @@ pub fn command(mut options: Options) -> Result<()> {
     // If updater is active and we bundled it
     if config_.tauri.updater.active && !updater_bundles.is_empty() {
       // if no password provided we use an empty string
-      let password = var_os("TAURI_KEY_PASSWORD").map(|v| v.to_str().unwrap().to_string());
+      let password = var_os("TAURI_KEY_PASSWORD")
+        .map(|v| v.to_str().unwrap().to_string())
+        .or_else(|| if ci { Some("".into()) } else { None });
       // get the private key
       let secret_key = if let Some(mut private_key) =
         var_os("TAURI_PRIVATE_KEY").map(|v| v.to_str().unwrap().to_string())
@@ -281,7 +306,8 @@ pub fn command(mut options: Options) -> Result<()> {
         Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable."))
       }?;
 
-      let pubkey = base64::decode(&config_.tauri.updater.pubkey)?;
+      let pubkey =
+        base64::engine::general_purpose::STANDARD.decode(&config_.tauri.updater.pubkey)?;
       let pub_key_decoded = String::from_utf8_lossy(&pubkey);
       let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 
@@ -309,7 +335,7 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
-fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
+fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool) -> Result<()> {
   let (script, script_cwd) = match hook {
     HookCommand::Script(s) if s.is_empty() => (None, None),
     HookCommand::Script(s) => (Some(s), None),
@@ -318,13 +344,19 @@ fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
   let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
   if let Some(script) = script {
     info!(action = "Running"; "{} `{}`", name, script);
+
+    let mut env = command_env(debug);
+    env.extend(interface.env());
+
+    debug!("Setting environment for hook {:?}", env);
+
     #[cfg(target_os = "windows")]
     let status = Command::new("cmd")
       .arg("/S")
       .arg("/C")
       .arg(&script)
       .current_dir(cwd)
-      .envs(command_env(debug))
+      .envs(env)
       .piped()
       .with_context(|| format!("failed to run `{}` with `cmd /C`", script))?;
     #[cfg(not(target_os = "windows"))]
@@ -332,9 +364,9 @@ fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
       .arg("-c")
       .arg(&script)
       .current_dir(cwd)
-      .envs(command_env(debug))
+      .envs(env)
       .piped()
-      .with_context(|| format!("failed to run `{}` with `sh -c`", script))?;
+      .with_context(|| format!("failed to run `{script}` with `sh -c`"))?;
 
     if !status.success() {
       bail!(
@@ -358,7 +390,13 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
   let msg = format!("{} {} at:", output_paths.len(), pluralised);
   info!("{}", msg);
   for path in output_paths {
+    #[cfg(unix)]
     info!("        {}", path.display());
+    #[cfg(windows)]
+    info!(
+      "        {}",
+      tauri_utils::display_path(path).replacen(r"\\?\", "", 1)
+    );
   }
   Ok(())
 }
@@ -369,9 +407,9 @@ mod pkgconfig_utils {
 
   pub fn get_appindicator_library_path() -> PathBuf {
     match get_library_path("ayatana-appindicator3-0.1") {
-      Some(p) => format!("{}/libayatana-appindicator3.so.1", p).into(),
+      Some(p) => format!("{p}/libayatana-appindicator3.so.1").into(),
       None => match get_library_path("appindicator3-0.1") {
-        Some(p) => format!("{}/libappindicator3.so.1", p).into(),
+        Some(p) => format!("{p}/libappindicator3.so.1").into(),
         None => panic!("Can't detect any appindicator library"),
       },
     }

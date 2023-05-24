@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -171,7 +171,7 @@ macro_rules! message_dialog_builder {
 
 /// Options for action buttons on message dialogs.
 #[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MessageDialogButtons {
   /// Ok button.
   Ok,
@@ -179,6 +179,10 @@ pub enum MessageDialogButtons {
   OkCancel,
   /// Yes and No buttons.
   YesNo,
+  /// OK button with customized text.
+  OkWithLabel(String),
+  /// Ok and Cancel buttons with customized text.
+  OkCancelWithLabels(String, String),
 }
 
 impl From<MessageDialogButtons> for rfd::MessageButtons {
@@ -187,6 +191,10 @@ impl From<MessageDialogButtons> for rfd::MessageButtons {
       MessageDialogButtons::Ok => Self::Ok,
       MessageDialogButtons::OkCancel => Self::OkCancel,
       MessageDialogButtons::YesNo => Self::YesNo,
+      MessageDialogButtons::OkWithLabel(ok_text) => Self::OkCustom(ok_text),
+      MessageDialogButtons::OkCancelWithLabels(ok_text, cancel_text) => {
+        Self::OkCancelCustom(ok_text, cancel_text)
+      }
     }
   }
 }
@@ -239,7 +247,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let file_path = FileDialogBuilder::new().pick_file();
     ///   // do something with the optional file path here
     ///   // the file path is `None` if the user closed the dialog
@@ -262,7 +270,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let file_path = FileDialogBuilder::new().pick_files();
     ///   // do something with the optional file paths here
     ///   // the file paths value is `None` if the user closed the dialog
@@ -286,7 +294,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let folder_path = FileDialogBuilder::new().pick_folder();
     ///   // do something with the optional folder path here
     ///   // the folder path is `None` if the user closed the dialog
@@ -309,7 +317,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let folder_paths = FileDialogBuilder::new().pick_folders();
     ///   // do something with the optional folder paths here
     ///   // the folder paths value is `None` if the user closed the dialog
@@ -333,7 +341,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let file_path = FileDialogBuilder::new().save_file();
     ///   // do something with the optional file path here
     ///   // the file path is `None` if the user closed the dialog

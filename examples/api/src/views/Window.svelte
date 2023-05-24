@@ -66,6 +66,7 @@
   let maximized = false
   let decorations = true
   let alwaysOnTop = false
+  let contentProtected = true
   let fullscreen = false
   let width = null
   let height = null
@@ -87,6 +88,7 @@
   let cursorX = null
   let cursorY = null
   let cursorIcon = 'default'
+  let cursorIgnoreEvents = false
   let windowTitle = 'Awesome Tauri Example!'
 
   function openUrl() {
@@ -181,6 +183,7 @@
     : windowMap[selectedWindow]?.unmaximize()
   $: windowMap[selectedWindow]?.setDecorations(decorations)
   $: windowMap[selectedWindow]?.setAlwaysOnTop(alwaysOnTop)
+  $: windowMap[selectedWindow]?.setContentProtected(contentProtected)
   $: windowMap[selectedWindow]?.setFullscreen(fullscreen)
 
   $: width &&
@@ -212,6 +215,7 @@
     windowMap[selectedWindow]?.setCursorPosition(
       new PhysicalPosition(cursorX, cursorY)
     )
+  $: windowMap[selectedWindow]?.setIgnoreCursorEvents(cursorIgnoreEvents)
 </script>
 
 <div class="flex flex-col children:grow gap-2">
@@ -283,6 +287,10 @@
       <label>
         Always on top
         <input type="checkbox" bind:checked={alwaysOnTop} />
+      </label>
+      <label>
+        Content protected
+        <input type="checkbox" bind:checked={contentProtected} />
       </label>
       <label>
         Fullscreen
@@ -412,6 +420,10 @@
       <label>
         <input type="checkbox" bind:checked={cursorVisible} />
         Visible
+      </label>
+      <label>
+        <input type="checkbox" bind:checked={cursorIgnoreEvents} />
+        Ignore events
       </label>
     </div>
     <div class="flex gap-2">

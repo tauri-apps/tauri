@@ -1,11 +1,8 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 // Application code for a splashscreen system that waits on a Rust initialization script
 mod rust {
@@ -34,9 +31,7 @@ mod rust {
         Ok(())
       })
       .invoke_handler(tauri::generate_handler![close_splashscreen])
-      .run(tauri::generate_context!(
-        "../../examples/splashscreen/tauri.conf.json"
-      ))
+      .run(super::context())
       .expect("failed to run app");
   }
 }
@@ -64,7 +59,7 @@ mod ui {
   }
 
   pub fn main() {
-    let context = tauri::generate_context!("../../examples/splashscreen/tauri.conf.json");
+    let context = super::context();
     tauri::Builder::default()
       .menu(if cfg!(target_os = "macos") {
         tauri::Menu::os_default(&context.package_info().name)
@@ -85,6 +80,10 @@ mod ui {
       .run(context)
       .expect("error while running tauri application");
   }
+}
+
+fn context() -> tauri::Context<tauri::utils::assets::EmbeddedAssets> {
+  tauri::generate_context!("../../examples/splashscreen/tauri.conf.json")
 }
 
 fn main() {

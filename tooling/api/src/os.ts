@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -160,5 +160,27 @@ async function tempdir(): Promise<string> {
   })
 }
 
-export { EOL, platform, version, type, arch, tempdir }
+/**
+ * Returns a String with a `BCP-47` language tag inside. If the locale couldn’t be obtained, `null` is returned instead.
+ * @example
+ * ```typescript
+ * import { locale } from '@tauri-apps/api/os';
+ * const locale = await locale();
+ * if (locale) {
+ *    // use the locale string here
+ * }
+ * ```
+ *
+ * @since 1.3.0
+ */
+async function locale(): Promise<string | null> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Os',
+    message: {
+      cmd: 'locale'
+    }
+  })
+}
+
+export { EOL, platform, version, type, arch, tempdir, locale }
 export type { Platform, OsType, Arch }

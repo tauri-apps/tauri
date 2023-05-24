@@ -1,17 +1,20 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
+use base64::Engine;
 use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
 use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
-use tauri_utils::html::{inject_nonce_token, parse as parse_html};
+use tauri_utils::html::{
+  inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
+};
 
 #[cfg(feature = "shell-scope")]
 use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
@@ -37,10 +40,10 @@ fn map_core_assets(
     options.dangerous_disable_asset_csp_modification.clone();
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
-      let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
-
       #[allow(clippy::collapsible_if)]
       if csp {
+        let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
+
         if target == Target::Linux {
           ::tauri_utils::html::inject_csp_token(&mut document);
         }
@@ -55,7 +58,10 @@ fn map_core_assets(
               let mut hasher = Sha256::new();
               hasher.update(&script);
               let hash = hasher.finalize();
-              scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
+              scripts.push(format!(
+                "'sha256-{}'",
+                base64::engine::general_purpose::STANDARD.encode(hash)
+              ));
             }
             csp_hashes
               .inline_scripts
@@ -72,14 +78,15 @@ fn map_core_assets(
             let mut hasher = Sha256::new();
             hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
             let hash = hasher.finalize();
-            csp_hashes
-              .styles
-              .push(format!("'sha256-{}'", base64::encode(&hash)));
+            csp_hashes.styles.push(format!(
+              "'sha256-{}'",
+              base64::engine::general_purpose::STANDARD.encode(hash)
+            ));
           }
         }
-      }
 
-      *input = document.to_string().as_bytes().to_vec();
+        *input = serialize_html_node(&document);
+      }
     }
     Ok(())
   }
@@ -139,7 +146,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     } else if target.contains("apple-ios") {
       Target::Ios
     } else {
-      panic!("unknown codegen target {}", target);
+      panic!("unknown codegen target {target}");
     }
   } else if cfg!(target_os = "linux") {
     Target::Linux
@@ -360,14 +367,15 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let pattern = match &options.pattern {
     PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),
+    #[cfg(not(feature = "isolation"))]
+    PatternKind::Isolation { dir: _ } => {
+      quote!(#root::Pattern::Brownfield(std::marker::PhantomData))
+    }
     #[cfg(feature = "isolation")]
     PatternKind::Isolation { dir } => {
       let dir = config_parent.join(dir);
       if !dir.exists() {
-        panic!(
-          "The isolation application path is set to `{:?}` but it does not exist",
-          dir
-        )
+        panic!("The isolation application path is set to `{dir:?}` but it does not exist")
       }
 
       let mut sets_isolation_hook = false;
@@ -408,7 +416,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     let shell_scope_open = match &config.tauri.allowlist.shell.open {
       ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
       ShellAllowlistOpen::Flag(true) => {
-        quote!(::std::option::Option::Some(#root::regex::Regex::new("^https?://").unwrap()))
+        quote!(::std::option::Option::Some(#root::regex::Regex::new(r#"^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+"#).unwrap()))
       }
       ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
         Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),
@@ -451,7 +459,7 @@ fn ico_icon<P: AsRef<Path>>(
   path: P,
 ) -> Result<TokenStream, EmbeddedAssetsError> {
   let path = path.as_ref();
-  let bytes = std::fs::read(&path)
+  let bytes = std::fs::read(path)
     .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
   let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
@@ -479,7 +487,7 @@ fn ico_icon<P: AsRef<Path>>(
 
 fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, EmbeddedAssetsError> {
   let path = path.as_ref();
-  let bytes = std::fs::read(&path)
+  let bytes = std::fs::read(path)
     .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
 
@@ -501,7 +509,7 @@ fn png_icon<P: AsRef<Path>>(
   path: P,
 ) -> Result<TokenStream, EmbeddedAssetsError> {
   let path = path.as_ref();
-  let bytes = std::fs::read(&path)
+  let bytes = std::fs::read(path)
     .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
   let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
@@ -531,13 +539,13 @@ fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
   use std::fs::File;
   use std::io::Write;
 
-  if let Ok(curr) = std::fs::read(&out_path) {
+  if let Ok(curr) = std::fs::read(out_path) {
     if curr == data {
       return Ok(());
     }
   }
 
-  let mut out_file = File::create(&out_path)?;
+  let mut out_file = File::create(out_path)?;
   out_file.write_all(data)
 }
 

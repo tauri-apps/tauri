@@ -17,6 +17,7 @@
   import Updater from './views/Updater.svelte'
   import Clipboard from './views/Clipboard.svelte'
   import WebRTC from './views/WebRTC.svelte'
+  import App from './views/App.svelte'
 
   import { onMount } from 'svelte'
   import { listen } from '@tauri-apps/api/event'
@@ -74,6 +75,11 @@
       label: 'Notifications',
       component: Notifications,
       icon: 'i-codicon-bell-dot'
+    },
+    !isMobile && {
+      label: 'App',
+      component: App,
+      icon: 'i-codicon-hubot'
     },
     !isMobile && {
       label: 'Window',
@@ -362,9 +368,7 @@
   <aside
     id="sidebar"
     class="lt-sm:h-screen lt-sm:shadow-lg lt-sm:shadow lt-sm:transition-transform lt-sm:absolute lt-sm:z-1999
-     {isWindows
-      ? 'bg-darkPrimaryLighter/60 lt-sm:bg-darkPrimaryLighter'
-      : 'bg-darkPrimaryLighter'} transition-colors-250 overflow-hidden grid select-none px-2"
+    bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid select-none px-2"
   >
     <img
       on:click={() => open('https://tauri.app/')}

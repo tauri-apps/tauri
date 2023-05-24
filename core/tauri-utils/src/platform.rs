@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -133,10 +133,10 @@ pub fn target_triple() -> crate::Result<String> {
       return Err(crate::Error::Environment);
     };
 
-    format!("{}-{}", os, env)
+    format!("{os}-{env}")
   };
 
-  Ok(format!("{}-{}", arch, os))
+  Ok(format!("{arch}-{os}"))
 }
 
 /// Computes the resource directory of the current environment.
@@ -157,8 +157,8 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
   let exe_dir = exe.parent().expect("failed to get exe directory");
   let curr_dir = exe_dir.display().to_string();
 
-  if curr_dir.ends_with(format!("{S}target{S}debug", S = MAIN_SEPARATOR).as_str())
-    || curr_dir.ends_with(format!("{S}target{S}release", S = MAIN_SEPARATOR).as_str())
+  if curr_dir.ends_with(format!("{MAIN_SEPARATOR}target{MAIN_SEPARATOR}debug").as_str())
+    || curr_dir.ends_with(format!("{MAIN_SEPARATOR}target{MAIN_SEPARATOR}release").as_str())
     || cfg!(target_os = "windows")
   {
     // running from the out dir or windows
@@ -172,7 +172,10 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
   {
     res = if curr_dir.ends_with("/data/usr/bin") {
       // running from the deb bundle dir
-      Ok(exe_dir.join(format!("../lib/{}", package_info.package_name())))
+      exe_dir
+        .join(format!("../lib/{}", package_info.package_name()))
+        .canonicalize()
+        .map_err(Into::into)
     } else if let Some(appdir) = &env.appdir {
       let appdir: &std::path::Path = appdir.as_ref();
       Ok(PathBuf::from(format!(
@@ -191,7 +194,10 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
 
   #[cfg(target_os = "macos")]
   {
-    res = Ok(exe_dir.join("../Resources"));
+    res = exe_dir
+      .join("../Resources")
+      .canonicalize()
+      .map_err(Into::into);
   }
 
   res

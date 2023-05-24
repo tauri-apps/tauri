@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -167,7 +167,7 @@ pub fn command(mut options: Options) -> Result<()> {
     let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = options.tauri_path {
       (
         format!(
-          r#"{{  path = {:?}, features = [ "api-all" ] }}"#,
+          r#"{{  path = {:?} }}"#,
           resolve_tauri_path(&tauri_path, "core/tauri")
         ),
         format!(
@@ -177,16 +177,14 @@ pub fn command(mut options: Options) -> Result<()> {
       )
     } else {
       (
-        format!(
-          r#"{{ version = "{}", features = [ "api-all" ] }}"#,
-          metadata.tauri
-        ),
+        format!(r#"{{ version = "{}" }}"#, metadata.tauri),
         format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
       )
     };
 
     let _ = remove_dir_all(&template_target_path);
-    let handlebars = Handlebars::new();
+    let mut handlebars = Handlebars::new();
+    handlebars.register_escape_fn(handlebars::no_escape);
 
     let mut data = BTreeMap::new();
     data.insert("tauri_dep", to_json(tauri_dep));

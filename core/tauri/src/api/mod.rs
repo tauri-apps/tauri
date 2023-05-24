@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,6 +13,9 @@ pub mod file;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "http-api")))]
 pub mod http;
 pub mod ipc;
+#[cfg(feature = "os-api")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "os-api")))]
+pub mod os;
 pub mod path;
 pub mod process;
 #[cfg(feature = "shell-open-api")]

@@ -1,5 +1,43 @@
 # Changelog
 
+## \[1.3.0]
+
+- Bump minimum supported Rust version to 1.60.
+  - [5fdc616d](https://www.github.com/tauri-apps/tauri/commit/5fdc616df9bea633810dcb814ac615911d77222c) feat: Use the zbus-backed of notify-rust ([#6332](https://www.github.com/tauri-apps/tauri/pull/6332)) on 2023-03-31
+- Pin `time` to `0.3.15`.
+  - [3d16461b](https://www.github.com/tauri-apps/tauri/commit/3d16461b68583ba7db037fbc217786e79b46ddf2) fix(core): pin time to 0.3.15 ([#6312](https://www.github.com/tauri-apps/tauri/pull/6312)) on 2023-02-19
+
+## \[1.2.1]
+
+- Fix `allowlist > app > show/hide` always disabled when `allowlist > app > all: false`.
+  - Bumped due to a bump in tauri-utils.
+  - [bb251087](https://www.github.com/tauri-apps/tauri/commit/bb2510876d0bdff736d36bf3a465cdbe4ad2b90c) fix(core): extend allowlist with `app`'s allowlist, closes [#5650](https://www.github.com/tauri-apps/tauri/pull/5650) ([#5652](https://www.github.com/tauri-apps/tauri/pull/5652)) on 2022-11-18
+
+## \[1.2.0]
+
+- Properly serialize HTML template tags.
+  - [aec5537d](https://www.github.com/tauri-apps/tauri/commit/aec5537de0205f62b2ae5c89da04d21930a6fc2e) fix(codegen): serialize template tags, closes [#4410](https://www.github.com/tauri-apps/tauri/pull/4410) ([#5247](https://www.github.com/tauri-apps/tauri/pull/5247)) on 2022-09-28
+- - [7d9aa398](https://www.github.com/tauri-apps/tauri/commit/7d9aa3987efce2d697179ffc33646d086c68030c) feat: bump MSRV to 1.59 ([#5296](https://www.github.com/tauri-apps/tauri/pull/5296)) on 2022-09-28
+
+## \[1.1.1]
+
+- Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.
+  - Bumped due to a bump in tauri-utils.
+  - [c764408d](https://www.github.com/tauri-apps/tauri/commit/c764408da7fae123edd41115bda42fa75a4731d2) fix: Add missing allowlist config for cursor apis, closes [#5207](https://www.github.com/tauri-apps/tauri/pull/5207) ([#5211](https://www.github.com/tauri-apps/tauri/pull/5211)) on 2022-09-16
+
+## \[1.1.0]
+
+- Use `TARGET` environment variable for code generation inside build scripts.
+  - [6ba99689](https://www.github.com/tauri-apps/tauri/commit/6ba99689aa7ed0ffa9072a1c8ab5db12c9bf95af) feat(codegen): use TARGET environment variable if set ([#4921](https://www.github.com/tauri-apps/tauri/pull/4921)) on 2022-08-12
+- Added support to configuration files in TOML format (Tauri.toml file).
+  - [ae83d008](https://www.github.com/tauri-apps/tauri/commit/ae83d008f9e1b89bfc8dddaca42aa5c1fbc36f6d) feat: add support to TOML config file `Tauri.toml`, closes [#4806](https://www.github.com/tauri-apps/tauri/pull/4806) ([#4813](https://www.github.com/tauri-apps/tauri/pull/4813)) on 2022-08-02
+- Improve tray icon read error message.
+  - [52f0c8bb](https://www.github.com/tauri-apps/tauri/commit/52f0c8bb836c6d50b7ce2393161394f4ce78f5ae) feat(core): improve tray icon read error messages ([#4850](https://www.github.com/tauri-apps/tauri/pull/4850)) on 2022-08-03
+- Fix relative paths in `version` field of `tauri.config.json` not being correctly parsed by `generate_context!()`.
+  - [accbc5e8](https://www.github.com/tauri-apps/tauri/commit/accbc5e8806a32efc555d019634fc2fa14d17f0a) fix(codegen): fix relative paths in `version` field of `tauri.config.json`, closes [#4723](https://www.github.com/tauri-apps/tauri/pull/4723) ([#4725](https://www.github.com/tauri-apps/tauri/pull/4725)) on 2022-07-24
+- Only rewrite temporary icon files when the content change, avoid needless rebuilds.
+  - [f957cbb5](https://www.github.com/tauri-apps/tauri/commit/f957cbb56ccbd8d1c047a978b4579946252a6fd2) fix(codegen): write output file when contents change ([#4889](https://www.github.com/tauri-apps/tauri/pull/4889)) on 2022-08-09
+
 ## \[1.0.4]
 
 - Validate `__TAURI_ISOLATION_HOOK__` being set by a file in the isolation application.

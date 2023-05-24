@@ -1,11 +1,9 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 mod wix;
-
-pub use wix::{MSI_FOLDER_NAME, MSI_UPDATER_FOLDER_NAME};
 
 use crate::Settings;
 use log::warn;

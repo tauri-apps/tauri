@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 const fixtureSetup = require('../fixtures/app-test-setup.js')
 const { resolve } = require('path')
 const { existsSync, readFileSync, writeFileSync } = require('fs')
@@ -6,7 +10,7 @@ const cli = require('~/main.js')
 
 const currentDirName = __dirname
 
-describe('[CLI] cli.js template', () => {
+describe('[CLI] @tauri-apps/cli template', () => {
   it('init a project and builds it', async () => {
     const cwd = process.cwd()
     const fixturePath = resolve(currentDirName, '../fixtures/empty')

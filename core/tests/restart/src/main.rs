@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -24,7 +24,7 @@ fn main() {
       env.args.clear();
       tauri::api::process::restart(&env)
     }
-    Some(invalid) => panic!("only argument `restart` is allowed, {} is invalid", invalid),
+    Some(invalid) => panic!("only argument `restart` is allowed, {invalid} is invalid"),
     None => {}
   };
 }

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -35,7 +35,7 @@ pub trait Plugin<R: Runtime>: Send {
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
-  /// so global variables must be assigned to `window` instead of implicity declared.
+  /// so global variables must be assigned to `window` instead of implicitly declared.
   fn initialization_script(&self) -> Option<String> {
     None
   }
@@ -203,7 +203,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
-  /// so global variables must be assigned to `window` instead of implicity declared.
+  /// so global variables must be assigned to `window` instead of implicitly declared.
   ///
   /// Note that calling this function multiple times overrides previous values.
   ///
@@ -545,7 +545,7 @@ impl<R: Runtime> PluginStore<R> {
       .values()
       .filter_map(|p| p.initialization_script())
       .fold(String::new(), |acc, script| {
-        format!("{}\n(function () {{ {} }})();", acc, script)
+        format!("{acc}\n(function () {{ {script} }})();")
       })
   }
 
@@ -586,9 +586,7 @@ impl<R: Runtime> PluginStore<R> {
         .unwrap_or_else(String::new);
       plugin.extend_api(invoke);
     } else {
-      invoke
-        .resolver
-        .reject(format!("plugin {} not found", target));
+      invoke.resolver.reject(format!("plugin {target} not found"));
     }
   }
 }

@@ -661,7 +661,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> Result<()>;
 
-  /// Updates the window's native maximize button state by calling into tao.
+  /// Updates the window's native maximize button state.
   ///
   /// ## Platform-specific
   ///
@@ -669,14 +669,14 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// - **Linux / iOS / Android:** Unsupported.
   fn set_maximizable(&self, maximizable: bool) -> Result<()>;
 
-  /// Updates the window's native minimize button state by calling into tao.
+  /// Updates the window's native minimize button state.
   ///
   /// ## Platform-specific
   ///
   /// - **Linux / iOS / Android:** Unsupported.
   fn set_minimizable(&self, minimizable: bool) -> Result<()>;
 
-  /// Updates the window's native close button state by calling into tao.
+  /// Updates the window's native close button state.
   ///
   /// ## Platform-specific
   ///

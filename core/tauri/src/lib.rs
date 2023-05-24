@@ -25,6 +25,7 @@
 //! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
 //! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
+//! - **os-api**: Enables the [`api::os`] module.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **global-shortcut**: Enables the global shortcut APIs.
 //! - **clipboard**: Enables the clipboard APIs.
@@ -187,13 +188,14 @@ mod pattern;
 pub mod plugin;
 pub mod window;
 use tauri_runtime as runtime;
+#[cfg(protocol_asset)]
+mod asset_protocol;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
 #[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
-
 pub use tauri_utils as utils;
 
 /// A Tauri [`Runtime`] wrapper around wry.
@@ -212,6 +214,10 @@ use std::{collections::HashMap, fmt, sync::Arc};
 
 // Export types likely to be used by the application.
 pub use runtime::http;
+
+#[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+pub use tauri_runtime_wry::webview_version;
 
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
@@ -266,6 +272,9 @@ pub use self::runtime::ClipboardManager;
 #[cfg(all(desktop, feature = "global-shortcut"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
+
+/// The Tauri version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Updater events.
 #[cfg(updater)]
@@ -782,6 +791,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.state::<Scopes>().inner().fs.clone()
   }
 
+  /// Gets the scope for the IPC.
+  fn ipc_scope(&self) -> IpcScope {
+    self.state::<Scopes>().inner().ipc.clone()
+  }
+
   /// Gets the scope for the asset protocol.
   #[cfg(protocol_asset)]
   fn asset_protocol_scope(&self) -> FsScope {
@@ -887,6 +901,7 @@ mod tests {
       "fs-extract-api",
       "http-api",
       "http-multipart",
+      "os-api",
       "process-command-api",
       "process-relaunch-dangerous-allow-symlink-macos",
       "window-data-url",

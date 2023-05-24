@@ -212,26 +212,18 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
-    let runtime = manager.runtime();
-    let app_handle = manager.app_handle();
-    let url = config.url.clone();
-    let file_drop_enabled = config.file_drop_enabled;
-    let mut builder = Self {
+    let builder = Self {
       manager: manager.manager().clone(),
-      runtime,
-      app_handle,
+      runtime: manager.runtime(),
+      app_handle: manager.app_handle(),
       label: config.label.clone(),
+      webview_attributes: WebviewAttributes::from(&config),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
         config,
       ),
-      webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
     };
-
-    if !file_drop_enabled {
-      builder = builder.disable_file_drop_handler();
-    }
 
     builder
   }
@@ -310,20 +302,19 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
   /// Creates a new webview window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
-    let web_resource_request_handler = self.web_resource_request_handler.take();
-    let pending = PendingWindow::new(
+    let mut pending = PendingWindow::new(
       self.window_builder.clone(),
       self.webview_attributes.clone(),
       self.label.clone(),
     )?;
-    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    let mut pending = self.manager.prepare_window(
-      self.app_handle.clone(),
-      pending,
-      &labels,
-      web_resource_request_handler,
-    )?;
     pending.navigation_handler = self.navigation_handler.take();
+    pending.web_resource_request_handler = self.web_resource_request_handler.take();
+
+    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
+    let pending = self
+      .manager
+      .prepare_window(self.app_handle.clone(), pending, &labels)?;
+
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
@@ -716,10 +707,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 #[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
-  window: DetachedWindow<EventLoopMessage, R>,
+  pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
+
+  #[cfg(test)]
+  pub(crate) current_url: url::Url,
 }
 
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
@@ -734,6 +728,8 @@ impl<R: Runtime> Clone for Window<R> {
       window: self.window.clone(),
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
+      #[cfg(test)]
+      current_url: self.current_url.clone(),
     }
   }
 }
@@ -930,6 +926,8 @@ impl<R: Runtime> Window<R> {
       window,
       manager,
       app_handle,
+      #[cfg(test)]
+      current_url: "http://tauri.app".parse().unwrap(),
     }
   }
 
@@ -1493,13 +1491,46 @@ impl<R: Runtime> Window<R> {
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
   /// Returns the current url of the webview.
-  pub fn url(&self) -> crate::Result<Url> {
-    self.window.dispatcher.url().map_err(Into::into)
+  // TODO: in v2, change this type to Result
+  #[cfg(not(test))]
+  pub fn url(&self) -> Url {
+    self.window.dispatcher.url().unwrap()
+  }
+
+  #[cfg(test)]
+  pub fn url(&self) -> Url {
+    self.current_url.clone()
+  }
+
+  #[cfg(test)]
+  pub(crate) fn navigate(&mut self, url: Url) {
+    self.current_url = url;
   }
 
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
+    let current_url = self.url();
+    let config_url = manager.get_url();
+    let is_local = config_url.make_relative(&current_url).is_some();
+
+    let mut scope_not_found_error_message =
+      ipc_scope_not_found_error_message(&self.window.label, current_url.as_str());
+    let scope = if is_local {
+      None
+    } else {
+      match self.ipc_scope().remote_access_for(&self, &current_url) {
+        Ok(scope) => Some(scope),
+        Err(e) => {
+          if e.matches_window {
+            scope_not_found_error_message = ipc_scope_domain_error_message(current_url.as_str());
+          } else if e.matches_domain {
+            scope_not_found_error_message = ipc_scope_window_error_message(&self.window.label);
+          }
+          None
+        }
+      }
+    };
     match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
@@ -1513,9 +1544,18 @@ impl<R: Runtime> Window<R> {
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
-
         let invoke = Invoke { message, resolver };
+
+        if !is_local && scope.is_none() {
+          invoke.resolver.reject(scope_not_found_error_message);
+          return Ok(());
+        }
+
         if let Some(module) = &payload.tauri_module {
+          if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
+            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+            return Ok(());
+          }
           crate::endpoints::handle(
             module.to_string(),
             invoke,
@@ -1523,6 +1563,17 @@ impl<R: Runtime> Window<R> {
             manager.package_info(),
           );
         } else if payload.cmd.starts_with("plugin:") {
+          if !is_local {
+            let command = invoke.message.command.replace("plugin:", "");
+            let plugin_name = command.split('|').next().unwrap().to_string();
+            if !scope
+              .map(|s| s.plugins().contains(&plugin_name))
+              .unwrap_or(true)
+            {
+              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+              return Ok(());
+            }
+          }
           manager.extend_api(invoke);
         } else {
           manager.run_invoke_handler(invoke);
@@ -1752,6 +1803,20 @@ impl<R: Runtime> Window<R> {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
   }
+}
+
+pub(crate) const IPC_SCOPE_DOES_NOT_ALLOW: &str = "Not allowed by the scope";
+
+pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> String {
+  format!("Scope not defined for window `{label}` and URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
+}
+
+pub(crate) fn ipc_scope_window_error_message(label: &str) -> String {
+  format!("Scope not defined for window `{}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access", label)
+}
+
+pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
+  format!("Scope not defined for URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
 }
 
 #[cfg(test)]

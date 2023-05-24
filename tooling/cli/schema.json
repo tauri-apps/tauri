@@ -166,6 +166,7 @@
         },
         "security": {
           "dangerousDisableAssetCspModification": false,
+          "dangerousRemoteDomainIpcAccess": [],
           "freezePrototype": false
         },
         "updater": {
@@ -223,7 +224,7 @@
           "pattern": "^[^/\\:*?\"<>|]+$"
         },
         "version": {
-          "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.",
+          "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.",
           "default": null,
           "type": [
             "string",
@@ -421,6 +422,7 @@
           "description": "Security configuration.",
           "default": {
             "dangerousDisableAssetCspModification": false,
+            "dangerousRemoteDomainIpcAccess": [],
             "freezePrototype": false
           },
           "allOf": [
@@ -1680,6 +1682,13 @@
       "description": "Configuration for the Installer bundle using NSIS.",
       "type": "object",
       "properties": {
+        "template": {
+          "description": "A custom .nsi template to use.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "license": {
           "description": "The path to the license file to render on the installer.",
           "type": [
@@ -1724,6 +1733,16 @@
             "null"
           ],
           "items": {
+            "type": "string"
+          }
+        },
+        "customLanguageFiles": {
+          "description": "A key-value pair where the key is the language and the value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.\n\nSee <https://github.com/tauri-apps/tauri/blob/dev/tooling/bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.\n\n**Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
             "type": "string"
           }
         },
@@ -2074,6 +2093,13 @@
               "items": {
                 "type": "string"
               }
+            },
+            "requireLiteralLeadingDot": {
+              "description": "Whether or not paths that contain components that start with a `.` will require that `.` appears literally in the pattern; `*`, `?`, `**`, or `[...]` will not match. This is useful because such files are conventionally considered hidden on Unix systems and it might be desirable to skip them when listing files.\n\nDefaults to `false` on Unix systems and `true` on Windows",
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           }
         }
@@ -2451,7 +2477,7 @@
       "additionalProperties": false
     },
     "HttpAllowlistScope": {
-      "description": "HTTP API scope definition. It is a list of URLs that can be accessed by the webview when using the HTTP APIs. The scoped URL is matched against the request URL using a glob pattern.\n\nExamples: - \"https://**\": allows all HTTPS urls - \"https://*.github.com/tauri-apps/tauri\": allows any subdomain of \"github.com\" with the \"tauri-apps/api\" path - \"https://myapi.service.com/users/*\": allows access to any URLs that begins with \"https://myapi.service.com/users/\"",
+      "description": "HTTP API scope definition. It is a list of URLs that can be accessed by the webview when using the HTTP APIs. The scoped URL is matched against the request URL using a glob pattern.\n\nExamples: - \"https://*\": allows all HTTPS urls - \"https://*.github.com/tauri-apps/tauri\": allows any subdomain of \"github.com\" with the \"tauri-apps/api\" path - \"https://myapi.service.com/users/*\": allows access to any URLs that begins with \"https://myapi.service.com/users/\"",
       "type": "array",
       "items": {
         "type": "string",
@@ -2642,6 +2668,14 @@
               "$ref": "#/definitions/DisabledCspModificationKind"
             }
           ]
+        },
+        "dangerousRemoteDomainIpcAccess": {
+          "description": "Allow external domains to send command to Tauri.\n\nBy default, external domains do not have access to `window.__TAURI__`, which means they cannot communicate with the commands defined in Rust. This prevents attacks where an externally loaded malicious or compromised sites could start executing commands on the user's device.\n\nThis configuration allows a set of external domains to have access to the Tauri commands. When you configure a domain to be allowed to access the IPC, all subpaths are allowed. Subdomains are not allowed.\n\n**WARNING:** Only use this option if you either have internal checks against malicious external sites or you can trust the allowed external sites. You application might be vulnerable to dangerous Tauri command related attacks otherwise.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RemoteDomainAccessScope"
+          }
         }
       },
       "additionalProperties": false
@@ -2693,6 +2727,48 @@
           }
         }
       ]
+    },
+    "RemoteDomainAccessScope": {
+      "description": "External command access definition.",
+      "type": "object",
+      "required": [
+        "domain",
+        "windows"
+      ],
+      "properties": {
+        "scheme": {
+          "description": "The URL scheme to allow. By default, all schemas are allowed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "domain": {
+          "description": "The domain to allow.",
+          "type": "string"
+        },
+        "windows": {
+          "description": "The list of window labels this scope applies to.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "plugins": {
+          "description": "The list of plugins that are allowed in this scope.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "enableTauriAPI": {
+          "description": "Enables access to the Tauri API.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
     },
     "UpdaterConfig": {
       "description": "The Updater configuration object.\n\nSee more: https://tauri.app/v1/api/config#updaterconfig",
@@ -2778,7 +2854,7 @@
           ]
         },
         {
-          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does (WiX).",
+          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does.",
           "type": "string",
           "enum": [
             "quiet"

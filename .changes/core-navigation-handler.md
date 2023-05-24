@@ -1,5 +1,5 @@
 ---
-"tauri": minor
+'tauri': 'patch:bug'
 ---
 
-Added `Window::on_navigation`.
+Fix `WindowBuilder::on_navigation` handler not registered properly.

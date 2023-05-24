@@ -10,6 +10,8 @@ Var PassiveMode
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
 !define VERSION "{{version}}"
+!define VERSIONWITHBUILD "{{version_with_build}}"
+!define SHORTDESCRIPTION "{{short_description}}"
 !define INSTALLMODE "{{install_mode}}"
 !define LICENSE "{{license}}"
 !define INSTALLERICON "{{installer_icon}}"
@@ -36,11 +38,19 @@ OutFile "${OUTFILE}"
 Unicode true
 SetCompressor /SOLID lzma
 
+VIProductVersion "${VERSIONWITHBUILD}"
+VIAddVersionKey "ProductName" "${PRODUCTNAME}"
+VIAddVersionKey "FileDescription" "${SHORTDESCRIPTION}"
+VIAddVersionKey "LegalCopyright" "${COPYRIGHT}"
+VIAddVersionKey "FileVersion" "${VERSION}"
+VIAddVersionKey "ProductVersion" "${VERSION}"
+
+; Plugins path, currently exists for linux only
 !if "${PLUGINSPATH}" != ""
     !addplugindir "${PLUGINSPATH}"
 !endif
 
-
+; Handle install mode, `perUser`, `perMachine` or `both`
 !if "${INSTALLMODE}" == "perMachine"
   RequestExecutionLevel highest
 !endif
@@ -66,14 +76,17 @@ SetCompressor /SOLID lzma
   !include MultiUser.nsh
 !endif
 
+; installer icon
 !if "${INSTALLERICON}" != ""
   !define MUI_ICON "${INSTALLERICON}"
 !endif
 
+; installer sidebar image
 !if "${SIDEBARIMAGE}" != ""
   !define MUI_WELCOMEFINISHPAGE_BITMAP "${SIDEBARIMAGE}"
 !endif
 
+; installer header image
 !if "${HEADERIMAGE}" != ""
   !define MUI_HEADERIMAGE
   !define MUI_HEADERIMAGE_BITMAP  "${HEADERIMAGE}"
@@ -85,28 +98,66 @@ SetCompressor /SOLID lzma
 !define MUI_LANGDLL_REGISTRY_VALUENAME "Installer Language"
 
 ; Installer pages, must be ordered as they appear
+; 1. Welcome Page
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_WELCOME
+
+; 2. License Page (if defined)
 !if "${LICENSE}" != ""
   !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
   !insertmacro MUI_PAGE_LICENSE "${LICENSE}"
 !endif
+
+; 3. Install mode (if it is set to `both`)
 !if "${INSTALLMODE}" == "both"
   !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
   !insertmacro MULTIUSER_PAGE_INSTALLMODE
 !endif
 
-; Custom page to ask user if he wants to reinstall/uninstall
+
+; 4. Custom page to ask user if he wants to reinstall/uninstall
+;    only if a previous installtion was detected
+Var ReinstallPageCheck
 Page custom PageReinstall PageLeaveReinstall
 Function PageReinstall
+  ; Uninstall previous WiX installation if exists.
+  ;
+  ; A WiX installer stores the isntallation info in registry
+  ; using a UUID and so we have to loop through all keys under
+  ; `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`
+  ; and check if `DisplayName` and `Publisher` keys match ${PRODUCTNAME} and ${MANUFACTURER}
+  ;
+  ; This has a potentional issue that there maybe another installation that matches
+  ; our ${PRODUCTNAME} and ${MANUFACTURER} but wasn't installed by our WiX installer,
+  ; however, this should be fine since the user will have to confirm the uninstallation
+  ; and they can chose to abort it if doesn't make sense.
+  StrCpy $0 0
+  wix_loop:
+    EnumRegKey $1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" $0
+    StrCmp $1 "" wix_done ; Exit loop if there is no more keys to loop on
+    IntOp $0 $0 + 1
+    ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "DisplayName"
+    ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "Publisher"
+    StrCmp "$R0$R1" "${PRODUCTNAME}${MANUFACTURER}" 0 wix_loop
+    StrCpy $R5 "wix"
+    StrCpy $R6 "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1"
+    Goto compare_version
+  wix_done:
+
   ; Check if there is an existing installation, if not, abort the reinstall page
   ReadRegStr $R0 SHCTX "${UNINSTKEY}" ""
   ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
   ${IfThen} "$R0$R1" == "" ${|} Abort ${|}
 
-  ; Compare this installar version with the existing installation and modify the messages presented to the user accordingly
+  ; Compare this installar version with the existing installation
+  ; and modify the messages presented to the user accordingly
+  compare_version:
   StrCpy $R4 "$(older)"
-  ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
+  ${If} $R5 == "wix"
+    ReadRegStr $R0 HKLM "$R6" "DisplayVersion"
+  ${Else}
+    ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
+  ${EndIf}
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
 
   nsis_tauri_utils::SemverCompare "${VERSION}" $R0
@@ -190,17 +241,22 @@ Function PageLeaveReinstall
   ;
   ; $R1 holds the radio buttons state. its meaning is dependant on the context
   StrCmp $R5 "1" 0 +2 ; Existing install is not the same version?
-    StrCmp $R1 "1" reinst_uninstall reinst_done
-  StrCmp $R1 "1" reinst_done ; Same version, skip to add/reinstall components?
+    StrCmp $R1 "1" reinst_uninstall reinst_done ; $R1 == "1", then user chose to uninstall existing version, otherwise skip uninstalling
+  StrCmp $R1 "1" reinst_done ; Same version? skip uninstalling
 
   reinst_uninstall:
-    ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
-    ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-
     HideWindow
-
     ClearErrors
     ExecWait '$R1 /P _?=$4' $0
+
+    ${If} $R5 == "wix"
+      ReadRegStr $R1 HKLM "$R6" "UninstallString"
+      ExecWait '$R1' $0
+    ${Else}
+      ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
+      ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
+      ExecWait '$R1 _?=$4' $0
+    ${EndIf}
 
     BringToFront
 
@@ -224,16 +280,24 @@ Function PageLeaveReinstall
   reinst_done:
 FunctionEnd
 
+; 5. Choose install directoy page
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_DIRECTORY
+
+; 6. Start menu shortcut page
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+Var AppStartMenuFolder
 !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
+
+; 7. Installation page
 !insertmacro MUI_PAGE_INSTFILES
 
+; 8. Finish page
+;
 ; Don't auto jump to finish page after installation page,
 ; because the installation page has useful info that can be used debug any issues with the installer.
 !define MUI_FINISHPAGE_NOAUTOCLOSE
-; Use show readme button in the finish page to create a desktop shortcut
+; Use show readme button in the finish page as a button create a desktop shortcut
 !define MUI_FINISHPAGE_SHOWREADME
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
@@ -243,6 +307,7 @@ FunctionEnd
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller Pages
+; 1. Confirm uninstall page
 Var DeleteAppDataCheckbox
 Var DeleteAppDataCheckboxState
 !define /ifndef WS_EX_LAYOUTRTL         0x00400000
@@ -264,6 +329,7 @@ Function un.ConfirmLeave
 FunctionEnd
 !insertmacro MUI_UNPAGE_CONFIRM
 
+; 2. Uninstalling Page
 !insertmacro MUI_UNPAGE_INSTFILES
 
 ;Languages
@@ -290,9 +356,19 @@ Function .onInit
     SetShellVarContext all
   !endif
 
+  ${If} ${RunningX64}
+    !if "${ARCH}" == "x64"
+      SetRegView 64
+    !else if "${ARCH}" == "arm64"
+      SetRegView 64
+    !else
+      SetRegView 32
+    !endif
+  ${EndIf}
+
   ${If} $INSTDIR == ""
+    ; Set default install location
     !if "${INSTALLMODE}" == "perMachine"
-      ; Set default install location
       ${If} ${RunningX64}
         !if "${ARCH}" == "x64"
           StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
@@ -349,6 +425,7 @@ Section WebView2
   StrCmp $4 "" 0 webview2_done
   StrCmp $5 "" 0 webview2_done
 
+  ; Webview2 install modes
   !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
     Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     DetailPrint "$(webview2Downloading)"
@@ -506,6 +583,16 @@ Function .onInstSuccess
 FunctionEnd
 
 Function un.onInit
+  ${If} ${RunningX64}
+    !if "${ARCH}" == "x64"
+      SetRegView 64
+    !else if "${ARCH}" == "arm64"
+      SetRegView 64
+    !else
+      SetRegView 32
+    !endif
+  ${EndIf}
+
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_UNINIT
   !endif

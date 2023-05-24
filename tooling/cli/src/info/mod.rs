@@ -29,7 +29,7 @@ struct JsCliVersionMetadata {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionMetadata {
-  #[serde(rename = "@tauri-apps/cli")]
+  #[serde(rename = "cli.js")]
   js_cli: JsCliVersionMetadata,
 }
 

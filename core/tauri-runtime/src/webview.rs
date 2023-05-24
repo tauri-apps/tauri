@@ -31,6 +31,23 @@ pub struct WebviewAttributes {
   pub additional_browser_args: Option<String>,
 }
 
+impl From<&WindowConfig> for WebviewAttributes {
+  fn from(config: &WindowConfig) -> Self {
+    let mut builder = Self::new(config.url.clone());
+    builder = builder.accept_first_mouse(config.accept_first_mouse);
+    if !config.file_drop_enabled {
+      builder = builder.disable_file_drop_handler();
+    }
+    if let Some(user_agent) = &config.user_agent {
+      builder = builder.user_agent(user_agent);
+    }
+    if let Some(additional_browser_args) = &config.additional_browser_args {
+      builder = builder.additional_browser_args(additional_browser_args);
+    }
+    builder
+  }
+}
+
 impl WebviewAttributes {
   /// Initializes the default attributes for a webview.
   pub fn new(url: WindowUrl) -> Self {

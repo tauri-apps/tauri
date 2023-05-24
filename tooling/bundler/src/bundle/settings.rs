@@ -149,7 +149,14 @@ pub struct DebianSettings {
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
-  /// Path to a custom desktop file template.
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  ///
+  /// Default file contents:
+  /// ```text
+  #[doc = include_str!("./linux/templates/main.desktop")]
+  /// ```
   pub desktop_template: Option<PathBuf>,
 }
 

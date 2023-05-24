@@ -1109,7 +1109,7 @@
           }
         },
         "desktopTemplate": {
-          "description": "Path to a custom desktop file template.",
+          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
           "type": [
             "string",
             "null"

@@ -155,7 +155,7 @@ Function PageReinstall
 
   ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
   Pop $R3
-  ; disable this radio button if downgarding and downgrades are disabled
+  ; disable this radio button if downgrading and downgrades are disabled
   !if "${ALLOWDOWNGRADES}" == "false"
     ${IfThen} $R0 == -1 ${|} EnableWindow $R3 0 ${|}
   !endif

@@ -105,6 +105,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setClosable": false,
             "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
@@ -116,7 +117,9 @@
             "setIcon": false,
             "setIgnoreCursorEvents": false,
             "setMaxSize": false,
+            "setMaximizable": false,
             "setMinSize": false,
+            "setMinimizable": false,
             "setPosition": false,
             "setResizable": false,
             "setSize": false,
@@ -383,6 +386,7 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setClosable": false,
               "setContentProtected": false,
               "setCursorGrab": false,
               "setCursorIcon": false,
@@ -394,7 +398,9 @@
               "setIcon": false,
               "setIgnoreCursorEvents": false,
               "setMaxSize": false,
+              "setMaximizable": false,
               "setMinSize": false,
+              "setMinimizable": false,
               "setPosition": false,
               "setResizable": false,
               "setSize": false,
@@ -605,7 +611,22 @@
           "format": "double"
         },
         "resizable": {
-          "description": "Whether the window is resizable or not.",
+          "description": "Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.",
+          "default": true,
+          "type": "boolean"
+        },
+        "maximizable": {
+          "description": "Whether the window's native maximize button is enabled or not. If resizable is set to false, this setting is ignored.\n\n## Platform-specific\n\n- **macOS:** Disables the \"zoom\" button in the window titlebar, which is also used to enter fullscreen mode. - **Linux / iOS / Android:** Unsupported.",
+          "default": true,
+          "type": "boolean"
+        },
+        "minimizable": {
+          "description": "Whether the window's native minimize button is enabled or not.\n\n## Platform-specific\n\n- **Linux / iOS / Android:** Unsupported.",
+          "default": true,
+          "type": "boolean"
+        },
+        "closable": {
+          "description": "Whether the window's native close button is enabled or not.\n\n## Platform-specific\n\n- **Linux:** \"GTK+ will do its best to convince the window manager not to show a close button. Depending on the system, this function may not have any effect when called on a window that is already visible\" - **iOS / Android:** Unsupported.",
           "default": true,
           "type": "boolean"
         },
@@ -1809,6 +1830,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setClosable": false,
             "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
@@ -1820,7 +1842,9 @@
             "setIcon": false,
             "setIgnoreCursorEvents": false,
             "setMaxSize": false,
+            "setMaximizable": false,
             "setMinSize": false,
+            "setMinimizable": false,
             "setPosition": false,
             "setResizable": false,
             "setSize": false,
@@ -2114,6 +2138,21 @@
         },
         "setResizable": {
           "description": "Allows setting the resizable flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setMaximizable": {
+          "description": "Allows setting whether the window's native maximize button is enabled or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setMinimizable": {
+          "description": "Allows setting whether the window's native minimize button is enabled or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setClosable": {
+          "description": "Allows setting whether the window's native close button is enabled or not.",
           "default": false,
           "type": "boolean"
         },

@@ -221,6 +221,18 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn maximizable(self, resizable: bool) -> Self {
+    self
+  }
+
+  fn minimizable(self, resizable: bool) -> Self {
+    self
+  }
+
+  fn closable(self, resizable: bool) -> Self {
+    self
+  }
+
   fn title<S: Into<String>>(self, title: S) -> Self {
     self
   }
@@ -391,6 +403,18 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn is_maximizable(&self) -> Result<bool> {
+    Ok(true)
+  }
+
+  fn is_minimizable(&self) -> Result<bool> {
+    Ok(true)
+  }
+
+  fn is_closable(&self) -> Result<bool> {
+    Ok(true)
+  }
+
   fn is_visible(&self) -> Result<bool> {
     Ok(true)
   }
@@ -454,6 +478,18 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_maximizable(&self, maximizable: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_minimizable(&self, minimizable: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_closable(&self, closable: bool) -> Result<()> {
     Ok(())
   }
 

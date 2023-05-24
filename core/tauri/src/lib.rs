@@ -125,6 +125,9 @@
 //! - **window-center**: Enables the [`center` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#center).
 //! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#requestuserattention).
 //! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setresizable).
+//! - **window-set-maximizable**: Enables the [`setMaximizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaximizable).
+//! - **window-set-minimizable**: Enables the [`setMinimizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminimizable).
+//! - **window-set-closable**: Enables the [`setClosable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setclosable).
 //! - **window-set-title**: Enables the [`setTitle` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#settitle).
 //! - **window-maximize**: Enables the [`maximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#maximize).
 //! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unmaximize).

@@ -39,7 +39,6 @@ pub(crate) struct IpcJavascript<'a> {
 #[derive(Template)]
 #[default_template("../scripts/isolation.js")]
 pub(crate) struct IsolationJavascript<'a> {
-  pub(crate) origin: String,
   pub(crate) isolation_src: &'a str,
   pub(crate) style: &'a str,
 }
@@ -62,9 +61,6 @@ impl PageLoadPayload {
 pub struct InvokePayload {
   /// The invoke command.
   pub cmd: String,
-  #[serde(rename = "__tauriModule")]
-  #[doc(hidden)]
-  pub tauri_module: Option<String>,
   /// The success callback.
   pub callback: CallbackFn,
   /// The error callback.

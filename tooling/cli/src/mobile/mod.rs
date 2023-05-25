@@ -24,7 +24,7 @@ use std::{
   env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, read_to_string, write},
+  fs::{read_to_string, write},
   net::SocketAddr,
   path::PathBuf,
   process::{exit, ExitStatus},
@@ -125,12 +125,23 @@ impl Target {
   }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
+}
+
+impl Default for CliOptions {
+  fn default() -> Self {
+    Self {
+      features: None,
+      args: vec!["--lib".into()],
+      noise_level: Default::default(),
+      vars: Default::default(),
+    }
+  }
 }
 
 fn setup_dev_config(
@@ -315,12 +326,8 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       project_dir.display(),
       target.command_name(),
     )
-  } else {
-    if target == Target::Android {
-      create_dir_all(project_dir.join(".tauri"))?;
-    }
-    Ok(())
   }
+  Ok(())
 }
 
 fn log_finished(outputs: Vec<PathBuf>, kind: &str) {

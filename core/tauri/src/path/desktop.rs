@@ -232,9 +232,9 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux:** Resolves to [`config_dir`]`/${bundle_identifier}/logs`.
+  /// - **Linux:** Resolves to [`data_local_dir`]`/${bundle_identifier}/logs`.
   /// - **macOS:** Resolves to [`home_dir`]`/Library/Logs/${bundle_identifier}`
-  /// - **Windows:** Resolves to [`config_dir`]`/${bundle_identifier}/logs`.
+  /// - **Windows:** Resolves to [`data_local_dir`]`/${bundle_identifier}/logs`.
   pub fn app_log_dir(&self) -> Result<PathBuf> {
     #[cfg(target_os = "macos")]
     let path = dirs_next::home_dir().ok_or(Error::UnknownPath).map(|dir| {
@@ -244,7 +244,7 @@ impl<R: Runtime> PathResolver<R> {
     });
 
     #[cfg(not(target_os = "macos"))]
-    let path = dirs_next::config_dir()
+    let path = dirs_next::data_local_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| {
         dir

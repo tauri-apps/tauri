@@ -19,13 +19,16 @@ use crate::{
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
-  scope::FsScope,
+  scope::IpcScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
-  Context, DeviceEventFilter, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager,
+  Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
   Runtime, Scopes, StateManager, Theme, Window,
 };
+
+#[cfg(feature = "protocol-asset")]
+use crate::scope::FsScope;
 
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
@@ -44,9 +47,6 @@ use std::{
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 use crate::runtime::RuntimeHandle;
-
-#[cfg(updater)]
-use crate::updater;
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
@@ -177,18 +177,11 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
-  /// Updater event.
-  #[cfg(updater)]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-  Updater(crate::UpdaterEvent),
 }
 
 impl From<EventLoopMessage> for RunEvent {
   fn from(event: EventLoopMessage) -> Self {
-    match event {
-      #[cfg(updater)]
-      EventLoopMessage::Updater(event) => RunEvent::Updater(event),
-    }
+    match event {}
   }
 }
 
@@ -232,12 +225,6 @@ impl<R: Runtime> GlobalWindowEvent<R> {
   }
 }
 
-#[cfg(updater)]
-#[derive(Debug, Clone, Default)]
-pub(crate) struct UpdaterSettings {
-  pub(crate) target: Option<String>,
-}
-
 /// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
 #[derive(Debug, Clone)]
 pub struct AssetResolver<R: Runtime> {
@@ -259,17 +246,6 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: WindowManager<R>,
-  /// The updater configuration.
-  #[cfg(updater)]
-  pub(crate) updater_settings: UpdaterSettings,
-}
-
-impl<R: Runtime> AppHandle<R> {
-  // currently only used on the updater
-  #[allow(dead_code)]
-  pub(crate) fn create_proxy(&self) -> R::EventLoopProxy {
-    self.runtime_handle.create_proxy()
-  }
 }
 
 /// APIs specific to the wry runtime.
@@ -306,8 +282,6 @@ impl<R: Runtime> Clone for AppHandle<R> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
-      #[cfg(updater)]
-      updater_settings: self.updater_settings.clone(),
     }
   }
 }
@@ -511,29 +485,6 @@ impl App<crate::Wry> {
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
-      #[cfg(updater)]
-      #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-      /// Gets the updater builder to manually check if an update is available.
-      ///
-      /// # Examples
-      ///
-      /// ```no_run
-      /// tauri::Builder::default()
-      ///   .setup(|app| {
-      ///     let handle = app.handle();
-      ///     tauri::async_runtime::spawn(async move {
-      #[cfg_attr(
-        feature = "updater",
-        doc = r#"     let response = handle.updater().check().await;"#
-      )]
-      ///     });
-      ///     Ok(())
-      ///   });
-      /// ```
-      pub fn updater(&self) -> updater::UpdateBuilder<R> {
-        updater::builder(self.app_handle())
-      }
-
       /// Gets a handle to the first system tray.
       ///
       /// Prefer [`Self::tray_handle_by_id`] when multiple system trays are created.
@@ -619,6 +570,11 @@ macro_rules! shared_app_impl {
         }
       }
 
+      /// Returns the default window icon.
+      pub fn default_window_icon(&self) -> Option<&Icon> {
+        self.manager.inner.default_window_icon.as_ref()
+      }
+
       /// Shows the application, but does not automatically focus it.
       #[cfg(target_os = "macos")]
       pub fn show(&self) -> crate::Result<()> {
@@ -650,6 +606,7 @@ shared_app_impl!(AppHandle<R>);
 impl<R: Runtime> App<R> {
   fn register_core_plugins(&self) -> crate::Result<()> {
     self.handle.plugin(crate::path::init())?;
+    self.handle.plugin(crate::event::init())?;
     Ok(())
   }
 
@@ -788,21 +745,6 @@ impl<R: Runtime> App<R> {
   }
 }
 
-#[cfg(updater)]
-impl<R: Runtime> App<R> {
-  fn run_updater(&self) {
-    // check if updater is active or not
-    if self.manager.config().tauri.updater.active {
-      // we only listen for `tauri://update`
-      // once we receive the call, we check if an update is available or not
-      // if there is a new update we emit `tauri://update-available` with details
-      // this is the user responsibilities to display dialog and ask if user want to install
-      // to install the update you need to invoke the Event `tauri://update-install`
-      updater::listener(self.handle());
-    }
-  }
-}
-
 /// Builds a Tauri application.
 ///
 /// # Examples
@@ -866,10 +808,6 @@ pub struct Builder<R: Runtime> {
   #[cfg(all(desktop, feature = "system-tray"))]
   system_tray_event_listeners: Vec<SystemTrayEventListener<R>>,
 
-  /// The updater configuration.
-  #[cfg(updater)]
-  updater_settings: UpdaterSettings,
-
   /// The device event filter.
   device_event_filter: DeviceEventFilter,
 }
@@ -898,8 +836,6 @@ impl<R: Runtime> Builder<R> {
       system_tray: None,
       #[cfg(all(desktop, feature = "system-tray"))]
       system_tray_event_listeners: Vec::new(),
-      #[cfg(updater)]
-      updater_settings: Default::default(),
       device_event_filter: Default::default(),
     }
   }
@@ -1307,42 +1243,6 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Sets the current platform's target name for the updater.
-  ///
-  /// See [`UpdateBuilder::target`](crate::updater::UpdateBuilder#method.target) for more information.
-  ///
-  /// # Examples
-  ///
-  /// - Use a macOS Universal binary target name:
-  ///
-  /// ```
-  /// let mut builder = tauri::Builder::default();
-  /// #[cfg(target_os = "macos")]
-  /// {
-  ///   builder = builder.updater_target("darwin-universal");
-  /// }
-  /// ```
-  ///
-  /// - Append debug information to the target:
-  ///
-  /// ```
-  /// let kind = if cfg!(debug_assertions) { "debug" } else { "release" };
-  /// tauri::Builder::default()
-  ///   .updater_target(format!("{}-{kind}", tauri::updater::target().unwrap()));
-  /// ```
-  ///
-  /// - Use the platform's target triple:
-  ///
-  /// ```
-  /// tauri::Builder::default()
-  ///   .updater_target(tauri::utils::platform::target_triple().unwrap());
-  /// ```
-  #[cfg(updater)]
-  pub fn updater_target<T: Into<String>>(mut self, target: T) -> Self {
-    self.updater_settings.target.replace(target.into());
-    self
-  }
-
   /// Change the device event filter mode.
   ///
   /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
@@ -1389,17 +1289,21 @@ impl<R: Runtime> Builder<R> {
     for config in manager.config().tauri.windows.clone() {
       let url = config.url.clone();
       let label = config.label.clone();
+      let window_effects = config.window_effects.clone();
 
       let mut webview_attributes =
         WebviewAttributes::new(url).accept_first_mouse(config.accept_first_mouse);
       if let Some(ua) = &config.user_agent {
-        webview_attributes = webview_attributes.user_agent(&ua.to_string());
+        webview_attributes = webview_attributes.user_agent(ua);
       }
       if let Some(args) = &config.additional_browser_args {
-        webview_attributes = webview_attributes.additional_browser_args(&args.to_string());
+        webview_attributes = webview_attributes.additional_browser_args(args);
       }
       if !config.file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();
+      }
+      if let Some(effects) = window_effects {
+        webview_attributes = webview_attributes.window_effects(effects);
       }
 
       self.pending_windows.push(PendingWindow::with_config(
@@ -1431,8 +1335,6 @@ impl<R: Runtime> Builder<R> {
       handle: AppHandle {
         runtime_handle,
         manager,
-        #[cfg(updater)]
-        updater_settings: self.updater_settings,
       },
     };
 
@@ -1442,12 +1344,9 @@ impl<R: Runtime> Builder<R> {
     app.manage(env);
 
     app.manage(Scopes {
-      fs: FsScope::for_fs_api(&app, &app.config().tauri.allowlist.fs.scope)?,
-      #[cfg(protocol_asset)]
-      asset_protocol: FsScope::for_fs_api(
-        &app,
-        &app.config().tauri.allowlist.protocol.asset_scope,
-      )?,
+      ipc: IpcScope::new(&app.config()),
+      #[cfg(feature = "protocol-asset")]
+      asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
     });
 
     #[cfg(windows)]
@@ -1535,13 +1434,18 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         app
           .manager
           .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
+      let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app.handle().runtime() {
         runtime.create_window(pending)?
       } else {
         // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
         unreachable!()
       };
-      let _window = app.manager.attach_window(app.handle(), detached);
+      let window = app.manager.attach_window(app.handle(), detached);
+
+      if let Some(effects) = window_effects {
+        crate::vibrancy::set_window_effects(&window, Some(effects))?;
+      }
     }
   }
 
@@ -1549,8 +1453,6 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     (setup)(app).map_err(|e| crate::Error::Setup(e.into()))?;
   }
 
-  #[cfg(updater)]
-  app.run_updater();
   Ok(())
 }
 

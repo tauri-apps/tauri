@@ -11,6 +11,7 @@ mod icon;
 mod info;
 mod init;
 mod interface;
+mod migrate;
 mod mobile;
 mod plugin;
 mod signer;
@@ -96,6 +97,8 @@ enum Commands {
   Android(mobile::android::Cli),
   #[cfg(target_os = "macos")]
   Ios(mobile::ios::Cli),
+  /// Migrate from v1 to v2
+  Migrate,
 }
 
 fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
@@ -198,6 +201,7 @@ where
     Commands::Android(c) => mobile::android::command(c, cli.verbose)?,
     #[cfg(target_os = "macos")]
     Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,
+    Commands::Migrate => migrate::command()?,
   }
 
   Ok(())

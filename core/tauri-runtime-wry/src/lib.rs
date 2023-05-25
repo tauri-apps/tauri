@@ -12,7 +12,7 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, WindowEvent,
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
   RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
@@ -90,7 +90,7 @@ use std::{
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
-    HashMap, HashSet,
+    HashMap,
   },
   fmt,
   ops::Deref,
@@ -204,8 +204,8 @@ impl<T: UserEvent> Context<T> {
 impl<T: UserEvent> Context<T> {
   fn create_webview(&self, pending: PendingWindow<T, Wry<T>>) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
+    let current_url = pending.current_url.clone();
     let menu_ids = pending.menu_ids.clone();
-    let js_event_listeners = pending.js_event_listeners.clone();
     let context = self.clone();
     let window_id = rand::random();
 
@@ -225,9 +225,9 @@ impl<T: UserEvent> Context<T> {
     };
     Ok(DetachedWindow {
       label,
+      current_url,
       dispatcher,
       menu_ids,
-      js_event_listeners,
     })
   }
 }
@@ -1940,8 +1940,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
+    let current_url = pending.current_url.clone();
     let menu_ids = pending.menu_ids.clone();
-    let js_event_listeners = pending.js_event_listeners.clone();
     let window_id = rand::random();
 
     let webview = create_webview(
@@ -1966,9 +1966,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     Ok(DetachedWindow {
       label,
+      current_url,
       dispatcher,
       menu_ids,
-      js_event_listeners,
     })
   }
 
@@ -2936,9 +2936,8 @@ fn create_webview<T: UserEvent>(
     mut window_builder,
     ipc_handler,
     label,
-    url,
+    current_url,
     menu_ids,
-    js_event_listeners,
     #[cfg(target_os = "android")]
     on_webview_created,
     ..
@@ -2987,7 +2986,7 @@ fn create_webview<T: UserEvent>(
   }
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
-    .with_url(&url)
+    .with_url(current_url.lock().unwrap().as_str())
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
@@ -3022,8 +3021,8 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,
       label.clone(),
+      current_url,
       menu_ids,
-      js_event_listeners,
       handler,
     ));
   }
@@ -3145,21 +3144,21 @@ fn create_webview<T: UserEvent>(
 fn create_ipc_handler<T: UserEvent>(
   context: Context<T>,
   label: String,
+  current_url: Arc<Mutex<Url>>,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
-  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
   handler: WebviewIpcHandler<T, Wry<T>>,
 ) -> Box<IpcHandler> {
   Box::new(move |window, request| {
     let window_id = context.webview_id_map.get(&window.id()).unwrap();
     handler(
       DetachedWindow {
+        current_url: current_url.clone(),
         dispatcher: WryDispatcher {
           window_id,
           context: context.clone(),
         },
         label: label.clone(),
         menu_ids: menu_ids.clone(),
-        js_event_listeners: js_event_listeners.clone(),
       },
       request,
     );

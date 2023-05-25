@@ -6,6 +6,7 @@ pub mod app_paths;
 pub mod config;
 pub mod flock;
 pub mod framework;
+pub mod npm;
 pub mod template;
 pub mod updater_signature;
 pub mod web_dev_server;
@@ -13,6 +14,7 @@ pub mod web_dev_server;
 use std::{
   collections::HashMap,
   path::{Path, PathBuf},
+  process::Command,
 };
 
 pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
@@ -37,4 +39,16 @@ pub fn resolve_tauri_path<P: AsRef<Path>>(path: P, crate_name: &str) -> PathBuf 
   } else {
     PathBuf::from("..").join(path).join(crate_name)
   }
+}
+
+pub fn cross_command(bin: &str) -> Command {
+  #[cfg(target_os = "windows")]
+  let cmd = {
+    let mut cmd = Command::new("cmd");
+    cmd.arg("/c").arg(bin);
+    cmd
+  };
+  #[cfg(not(target_os = "windows"))]
+  let cmd = Command::new(bin);
+  cmd
 }

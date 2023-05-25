@@ -1,22 +1,10 @@
 <script>
+  import { onMount } from 'svelte'
   import { writable } from 'svelte/store'
-  import { appWindow, getCurrent } from '@tauri-apps/api/window'
-  import * as os from '@tauri-apps/api/os'
 
   import Welcome from './views/Welcome.svelte'
-  import Cli from './views/Cli.svelte'
   import Communication from './views/Communication.svelte'
-  import Window from './views/Window.svelte'
-  import Updater from './views/Updater.svelte'
   import WebRTC from './views/WebRTC.svelte'
-  import App from './views/App.svelte'
-
-  import { onMount } from 'svelte'
-  import { listen } from '@tauri-apps/api/event'
-
-  appWindow.onFileDropEvent((event) => {
-    onMessage(`File drop: ${JSON.stringify(event.payload)}`)
-  })
 
   const userAgent = navigator.userAgent.toLowerCase()
   const isMobile = userAgent.includes('android') || userAgent.includes('iphone')
@@ -32,26 +20,6 @@
       component: Communication,
       icon: 'i-codicon-radio-tower'
     },
-    !isMobile && {
-      label: 'CLI',
-      component: Cli,
-      icon: 'i-codicon-terminal'
-    },
-    !isMobile && {
-      label: 'App',
-      component: App,
-      icon: 'i-codicon-hubot'
-    },
-    !isMobile && {
-      label: 'Window',
-      component: Window,
-      icon: 'i-codicon-window'
-    },
-    !isMobile && {
-      label: 'Updater',
-      component: Updater,
-      icon: 'i-codicon-cloud-download'
-    },
     {
       label: 'WebRTC',
       component: WebRTC,
@@ -62,25 +30,6 @@
   let selected = views[0]
   function select(view) {
     selected = view
-  }
-
-  // Window controls
-  let isWindowMaximized
-  onMount(async () => {
-    const window = getCurrent()
-    isWindowMaximized = await window.isMaximized()
-    listen('tauri://resize', async () => {
-      isWindowMaximized = await window.isMaximized()
-    })
-  })
-
-  function minimize() {
-    getCurrent().minimize()
-  }
-
-  async function toggleMaximize() {
-    const window = getCurrent()
-    ;(await window.isMaximized()) ? window.unmaximize() : window.maximize()
   }
 
   // dark/light
@@ -154,11 +103,6 @@
     document.addEventListener('mousemove', moveHandler)
   }
 
-  let isWindows
-  onMount(async () => {
-    isWindows = (await os.platform()) === 'win32'
-  })
-
   // mobile
   let isSideBarOpen = false
   let sidebar
@@ -227,52 +171,6 @@
   }
 </script>
 
-<!-- custom titlebar for Windows -->
-{#if isWindows}
-  <div
-    class="w-screen select-none h-8 pl-2 flex justify-between items-center absolute text-primaryText dark:text-darkPrimaryText"
-    data-tauri-drag-region
-  >
-    <span class="lt-sm:pl-10 text-darkPrimaryText">Tauri API Validation</span>
-    <span
-      class="
-      h-100%
-      children:h-100% children:w-12 children:inline-flex
-      children:items-center children:justify-center"
-    >
-      <span
-        title={isDark ? 'Switch to Light mode' : 'Switch to Dark mode'}
-        class="hover:bg-hoverOverlay active:bg-hoverOverlayDarker dark:hover:bg-darkHoverOverlay dark:active:bg-darkHoverOverlayDarker"
-        on:click={toggleDark}
-      >
-        {#if isDark}
-          <div class="i-ph-sun" />
-        {:else}
-          <div class="i-ph-moon" />
-        {/if}
-      </span>
-      <span
-        title="Minimize"
-        class="hover:bg-hoverOverlay active:bg-hoverOverlayDarker dark:hover:bg-darkHoverOverlay dark:active:bg-darkHoverOverlayDarker"
-        on:click={minimize}
-      >
-        <div class="i-codicon-chrome-minimize" />
-      </span>
-      <span
-        title={isWindowMaximized ? 'Restore' : 'Maximize'}
-        class="hover:bg-hoverOverlay active:bg-hoverOverlayDarker dark:hover:bg-darkHoverOverlay dark:active:bg-darkHoverOverlayDarker"
-        on:click={toggleMaximize}
-      >
-        {#if isWindowMaximized}
-          <div class="i-codicon-chrome-restore" />
-        {:else}
-          <div class="i-codicon-chrome-maximize" />
-        {/if}
-      </span>
-    </span>
-  </div>
-{/if}
-
 <!-- Sidebar toggle, only visible on small screens -->
 <div
   id="sidebarToggle"
@@ -292,27 +190,25 @@
   <aside
     id="sidebar"
     class="lt-sm:h-screen lt-sm:shadow-lg lt-sm:shadow lt-sm:transition-transform lt-sm:absolute lt-sm:z-1999
-      bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid select-none px-2"
+      bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid grid-rows-[min-content_auto] select-none px-2"
   >
     <img
       class="self-center p-7 cursor-pointer"
       src="tauri_logo.png"
       alt="Tauri logo"
     />
-    {#if !isWindows}
-      <a href="##" class="nv justify-between h-8" on:click={toggleDark}>
-        {#if isDark}
-          Switch to Light mode
-          <div class="i-ph-sun" />
-        {:else}
-          Switch to Dark mode
-          <div class="i-ph-moon" />
-        {/if}
-      </a>
-      <br />
-      <div class="bg-white/5 h-2px" />
-      <br />
-    {/if}
+    <a href="##" class="nv justify-between h-8" on:click={toggleDark}>
+      {#if isDark}
+        Switch to Light mode
+        <div class="i-ph-sun" />
+      {:else}
+        Switch to Dark mode
+        <div class="i-ph-moon" />
+      {/if}
+    </a>
+    <br />
+    <div class="bg-white/5 h-2px" />
+    <br />
 
     <a
       class="nv justify-between h-8"

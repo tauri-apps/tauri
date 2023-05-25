@@ -33,8 +33,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.client_payload.ref || '' }}
 
       - name: 'Setup Rust'
         uses: dtolnay/rust-toolchain@stable

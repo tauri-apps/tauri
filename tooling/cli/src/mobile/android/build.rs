@@ -81,6 +81,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
+      let profile = if options.debug {
+        Profile::Debug
+      } else {
+        Profile::Release
+      };
+
       ensure_init(config.project_dir(), MobileTarget::Android)?;
 
       let mut env = env()?;
@@ -101,7 +107,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       )?;
 
       let open = options.open;
-      run_build(options, config, &mut env, noise_level)?;
+      run_build(options, profile, config, &mut env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);
@@ -115,16 +121,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
 fn run_build(
   mut options: Options,
+  profile: Profile,
   config: &AndroidConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  let profile = if options.debug {
-    Profile::Debug
-  } else {
-    Profile::Release
-  };
-
   if !(options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
     options.apk = true;
@@ -185,7 +186,7 @@ fn run_build(
       env,
       noise_level,
       profile,
-      get_targets(options.targets.clone().unwrap_or_default())?,
+      get_targets_or_all(options.targets.clone().unwrap_or_default())?,
       options.split_per_abi,
     )?
   } else {
@@ -198,7 +199,7 @@ fn run_build(
       env,
       noise_level,
       profile,
-      get_targets(options.targets.unwrap_or_default())?,
+      get_targets_or_all(options.targets.unwrap_or_default())?,
       options.split_per_abi,
     )?
   } else {
@@ -211,24 +212,28 @@ fn run_build(
   Ok(())
 }
 
-fn get_targets<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {
-  let mut outs = Vec::new();
+fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {
+  if targets.is_empty() {
+    Ok(Target::all().iter().map(|t| t.1).collect())
+  } else {
+    let mut outs = Vec::new();
 
-  let possible_targets = Target::all()
-    .keys()
-    .map(|key| key.to_string())
-    .collect::<Vec<String>>()
-    .join(",");
+    let possible_targets = Target::all()
+      .keys()
+      .map(|key| key.to_string())
+      .collect::<Vec<String>>()
+      .join(",");
 
-  for t in targets {
-    let target = Target::for_name(&t).ok_or_else(|| {
-      anyhow::anyhow!(
-        "Target {} is invalid; the possible targets are {}",
-        t,
-        possible_targets
-      )
-    })?;
-    outs.push(target);
+    for t in targets {
+      let target = Target::for_name(&t).ok_or_else(|| {
+        anyhow::anyhow!(
+          "Target {} is invalid; the possible targets are {}",
+          t,
+          possible_targets
+        )
+      })?;
+      outs.push(target);
+    }
+    Ok(outs)
   }
-  Ok(outs)
 }

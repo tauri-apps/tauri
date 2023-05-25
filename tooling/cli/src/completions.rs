@@ -75,12 +75,6 @@ fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
   let completions = String::from_utf8_lossy(&b);
 
   let mut shell_completions = match shell {
-    Shell::Bash => completions
-      .replace(
-        &format!("-o default {}", cmd_name),
-        &format!("-o default {}", bin_name),
-      )
-      .replace(&cmd_name.replace('_', "__"), &cmd_name),
     Shell::Fish => {
       completions.replace(&format!("-c {}", cmd_name), &format!("-c \"{}\"", bin_name))
     }
@@ -90,8 +84,7 @@ fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
   for manager in PKG_MANAGERS {
     match shell {
       Shell::Bash => shell_completions.push_str(&format!(
-        "complete -F _{} -o bashdefault -o default {} tauri\n",
-        cmd_name,
+        "complete -F _cargo -o bashdefault -o default {} tauri\n",
         if manager == &"npm" {
           "npm run"
         } else {

@@ -102,3 +102,10 @@ libc = "0.2"
 
 [features]
 openssl-vendored = [ "tauri-mobile/openssl-vendored" ]
+
+[profile.release-size-optimized]
+inherits = "release"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "s"

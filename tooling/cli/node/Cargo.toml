@@ -18,9 +18,3 @@ napi-build = "2.0"
 
 [features]
 openssl-vendored = ["tauri-cli/openssl-vendored"]
-
-[profile.release]
-codegen-units = 1
-lto = true
-incremental = false
-opt-level = "s"

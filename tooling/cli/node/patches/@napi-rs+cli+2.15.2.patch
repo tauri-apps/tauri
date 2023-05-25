@@ -1,0 +1,19 @@
+diff --git a/node_modules/@napi-rs/cli/scripts/index.js b/node_modules/@napi-rs/cli/scripts/index.js
+index 185a80d..6902b2b 100755
+--- a/node_modules/@napi-rs/cli/scripts/index.js
++++ b/node_modules/@napi-rs/cli/scripts/index.js
+@@ -11549,7 +11549,13 @@ class BuildCommand extends Command {
+             if (!targetRootDir) {
+                 throw new TypeError('No target dir found');
+             }
+-            const targetDir = path$1.join(this.targetTripleDir, this.isRelease ? 'release' : 'debug');
++            let outputFolder = this.isRelease ? 'release' : 'debug';
++            if (this.cargoFlags.includes('--profile')) {
++              const args = this.cargoFlags.split(/[ =]/g);
++              const profileIndex = args.indexOf('--profile');
++              outputFolder = args[profileIndex + 1];
++            }
++            const targetDir = path$1.join(this.targetTripleDir, outputFolder);
+             const platformName = this.appendPlatformToFilename
+                 ? `.${triple.platformArchABI}`
+                 : '';

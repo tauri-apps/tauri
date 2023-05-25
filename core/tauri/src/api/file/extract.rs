@@ -4,7 +4,7 @@
 
 use std::{
   borrow::Cow,
-  fs,
+  fs::{self, create_dir},
   io::{self, Cursor, Read, Seek},
   path::{self, Path, PathBuf},
 };
@@ -102,6 +102,9 @@ impl<'a, R: Read> Entry<'a, R> {
           }
         } else {
           // handle files, symlinks, hard links, etc. and set permissions
+          if !into_path.exists() {
+            create_dir(into_path)?;
+          }
           entry.unpack_in(into_path)?;
         }
       }

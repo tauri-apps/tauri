@@ -32,7 +32,7 @@ fn commands_for_completions(shell: Shell, cmd: Command) -> Vec<Command> {
       })
       .collect()
   } else {
-    vec![cmd]
+    vec![Command::new("cargo").subcommand(cmd.name("tauri"))]
   }
 }
 
@@ -90,7 +90,7 @@ fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
   for manager in PKG_MANAGERS {
     match shell {
       Shell::Bash => shell_completions.push_str(&format!(
-        "complete -F _{} -o bashdefault -o default {} tauri",
+        "complete -F _{} -o bashdefault -o default {} tauri\n",
         cmd_name,
         if manager == &"npm" {
           "npm run"

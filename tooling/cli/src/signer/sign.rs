@@ -17,10 +17,10 @@ use tauri_utils::display_path;
 #[clap(about = "Sign a file")]
 pub struct Options {
   /// Load the private key from a file
-  #[clap(short = 'k', long, conflicts_with("private_key_path"))]
+  #[clap(short = 'k', long, conflicts_with("private-key-path"))]
   private_key: Option<String>,
   /// Load the private key from a string
-  #[clap(short = 'f', long, conflicts_with("private_key"))]
+  #[clap(short = 'f', long, conflicts_with("private-key"))]
   private_key_path: Option<PathBuf>,
   /// Set private key password when signing
   #[clap(short, long)]

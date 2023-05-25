@@ -38,8 +38,7 @@ fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
   let cmd_name = cmd.get_name().to_string().replace('-', "_");
 
   let mut buffer = Cursor::new(Vec::new());
-  let mut i = 0;
-  for mut cmd in commands_for_completions(shell, cmd) {
+  for (i, mut cmd) in commands_for_completions(shell, cmd).into_iter().enumerate() {
     let bin_name = cmd
       .get_bin_name()
       .map(|s| s.to_string())
@@ -63,8 +62,7 @@ fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
       buf
     };
 
-    buffer.write(&completions)?;
-    i += 1;
+    buffer.write_all(&completions)?;
   }
 
   let b = buffer.into_inner();

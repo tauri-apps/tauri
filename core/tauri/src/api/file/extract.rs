@@ -102,7 +102,7 @@ impl<'a, R: Read> Entry<'a, R> {
           }
         } else {
           // handle files, symlinks, hard links, etc. and set permissions
-          entry.unpack_in(into_path)?;
+          entry.unpack(into_path)?;
         }
       }
       Self::Zip(entry) => {

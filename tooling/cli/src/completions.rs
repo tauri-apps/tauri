@@ -37,12 +37,6 @@ fn commands_for_completions(shell: Shell, cmd: Command) -> Vec<Command> {
 }
 
 fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
-  let bin_name = cmd
-    .get_bin_name()
-    .map(|s| s.to_string())
-    .unwrap_or_else(|| cmd.get_name().to_string());
-  let cmd_name = cmd.get_name().to_string().replace('-', "_");
-
   let mut buffer = Cursor::new(Vec::new());
   for (i, mut cmd) in commands_for_completions(shell, cmd).into_iter().enumerate() {
     let bin_name = cmd
@@ -72,18 +66,11 @@ fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
   }
 
   let b = buffer.into_inner();
-  let completions = String::from_utf8_lossy(&b);
-
-  let mut shell_completions = match shell {
-    Shell::Fish => {
-      completions.replace(&format!("-c {}", cmd_name), &format!("-c \"{}\"", bin_name))
-    }
-    _ => completions.into_owned(),
-  };
+  let mut completions = String::from_utf8_lossy(&b).into_owned();
 
   for manager in PKG_MANAGERS {
     match shell {
-      Shell::Bash => shell_completions.push_str(&format!(
+      Shell::Bash => completions.push_str(&format!(
         "complete -F _cargo -o bashdefault -o default {} tauri\n",
         if manager == &"npm" {
           "npm run"
@@ -98,7 +85,7 @@ fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
     };
   }
 
-  print!("{}", shell_completions);
+  print!("{}", completions);
 
   Ok(())
 }

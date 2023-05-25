@@ -6,7 +6,7 @@ use crate::Result;
 use clap::{Command, Parser};
 use clap_complete::{generate, Shell};
 use log::info;
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 const PKG_MANAGERS: &[&str] = &["cargo", "pnpm", "npm", "yarn"];
 
@@ -19,7 +19,7 @@ pub struct Options {
 }
 
 fn commands_for_completions(shell: Shell, cmd: Command) -> Vec<Command> {
-  if let Shell::Zsh = shell {
+  if matches!(shell, Shell::Zsh | Shell::PowerShell) {
     let tauri = cmd.name("tauri");
     PKG_MANAGERS
       .iter()
@@ -30,7 +30,7 @@ fn commands_for_completions(shell: Shell, cmd: Command) -> Vec<Command> {
   }
 }
 
-fn print_completions(shell: Shell, cmd: Command) {
+fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
   let bin_name = cmd
     .get_bin_name()
     .map(|s| s.to_string())
@@ -38,18 +38,39 @@ fn print_completions(shell: Shell, cmd: Command) {
   let cmd_name = cmd.get_name().to_string().replace('-', "_");
 
   let mut buffer = Cursor::new(Vec::new());
+  let mut i = 0;
   for mut cmd in commands_for_completions(shell, cmd) {
     let bin_name = cmd
       .get_bin_name()
       .map(|s| s.to_string())
       .unwrap_or_else(|| cmd.get_name().to_string());
-    generate(shell, &mut cmd, bin_name, &mut buffer);
+
+    let mut buf = Vec::new();
+    generate(shell, &mut cmd, &bin_name, &mut buf);
+
+    let completions = if shell == Shell::PowerShell {
+      let s = String::from_utf8_lossy(&buf);
+      if i != 0 {
+        // namespaces have already been imported
+        s.replace("using namespace System.Management.Automation.Language", "")
+          .replace("using namespace System.Management.Automation", "")
+          .as_bytes()
+          .to_vec()
+      } else {
+        s.as_bytes().to_vec()
+      }
+    } else {
+      buf
+    };
+
+    buffer.write(&completions)?;
+    i += 1;
   }
 
   let b = buffer.into_inner();
   let completions = String::from_utf8_lossy(&b);
 
-  let shell_completions = match shell {
+  let mut shell_completions = match shell {
     Shell::Bash => completions
       .replace(
         &format!("-o default {}", cmd_name),
@@ -59,30 +80,31 @@ fn print_completions(shell: Shell, cmd: Command) {
     Shell::Fish => {
       completions.replace(&format!("-c {}", cmd_name), &format!("-c \"{}\"", bin_name))
     }
-    Shell::PowerShell => completions.replace(&format!("'{}", cmd_name), &format!("'{}", bin_name)),
     _ => completions.into_owned(),
   };
 
-  print!("{}", shell_completions);
-
   for manager in PKG_MANAGERS {
     match shell {
-      Shell::Bash => println!(
+      Shell::Bash => shell_completions.push_str(&format!(
         "complete -F _{} -o bashdefault -o default {} tauri",
         cmd_name, manager
-      ),
+      )),
       Shell::Fish => {}
       Shell::Zsh => {}
       Shell::PowerShell => {}
       _ => {}
     };
   }
+
+  print!("{}", shell_completions);
+
+  Ok(())
 }
 
 pub fn command(options: Options, cmd: Command) -> Result<()> {
   info!("Generating completion file for {}...", options.shell);
 
-  print_completions(options.shell, cmd);
+  print_completions(options.shell, cmd)?;
 
   Ok(())
 }

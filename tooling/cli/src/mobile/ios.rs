@@ -66,9 +66,6 @@ pub struct InitOptions {
   /// Reinstall dependencies
   #[clap(short, long)]
   reinstall_deps: bool,
-  /// Skips installing rust toolchains via rustup
-  #[clap(long)]
-  skip_targets_install: bool,
 }
 
 #[derive(Subcommand)]
@@ -85,12 +82,7 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => init_command(
-      MobileTarget::Ios,
-      options.ci,
-      options.reinstall_deps,
-      options.skip_targets_install,
-    )?,
+    Commands::Init(options) => init_command(MobileTarget::Ios, options.ci, options.reinstall_deps)?,
     Commands::Open => open::command()?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,

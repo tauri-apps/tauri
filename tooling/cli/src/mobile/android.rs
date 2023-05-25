@@ -62,9 +62,6 @@ pub struct InitOptions {
   /// Skip prompting for values
   #[clap(long)]
   ci: bool,
-  /// Skips installing rust toolchains via rustup
-  #[clap(long)]
-  skip_targets_install: bool,
 }
 
 #[derive(Subcommand)]
@@ -81,12 +78,7 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => init_command(
-      MobileTarget::Android,
-      options.ci,
-      false,
-      options.skip_targets_install,
-    )?,
+    Commands::Init(options) => init_command(MobileTarget::Android, options.ci, false)?,
     Commands::Open => open::command()?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,

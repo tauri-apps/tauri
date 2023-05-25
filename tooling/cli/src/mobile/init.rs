@@ -24,19 +24,13 @@ use std::{
   path::PathBuf,
 };
 
-pub fn command(
-  target: Target,
-  ci: bool,
-  reinstall_deps: bool,
-  skip_targets_install: bool,
-) -> Result<()> {
+pub fn command(target: Target, ci: bool, reinstall_deps: bool) -> Result<()> {
   let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
   exec(
     target,
     &wrapper,
     ci || var_os("CI").is_some(),
     reinstall_deps,
-    skip_targets_install,
   )
   .map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
@@ -84,7 +78,6 @@ pub fn exec(
   wrapper: &TextWrapper,
   #[allow(unused_variables)] non_interactive: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
-  skip_targets_install: bool,
 ) -> Result<App> {
   let tauri_config = get_tauri_config(None)?;
   let tauri_config_guard = tauri_config.lock().unwrap();
@@ -161,13 +154,7 @@ pub fn exec(
         let (app, config, metadata) =
           super::android::get_config(Some(app), tauri_config_, &Default::default());
         map.insert("android", &config);
-        super::android::project::gen(
-          &config,
-          &metadata,
-          (handlebars, map),
-          wrapper,
-          skip_targets_install,
-        )?;
+        super::android::project::gen(&config, &metadata, (handlebars, map), wrapper)?;
         app
       }
       Err(err) => {
@@ -196,7 +183,6 @@ pub fn exec(
         wrapper,
         non_interactive,
         reinstall_deps,
-        skip_targets_install,
       )?;
       app
     }

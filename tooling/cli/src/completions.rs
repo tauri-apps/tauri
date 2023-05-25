@@ -23,7 +23,13 @@ fn commands_for_completions(shell: Shell, cmd: Command) -> Vec<Command> {
     let tauri = cmd.name("tauri");
     PKG_MANAGERS
       .iter()
-      .map(|manager| Command::new(manager).subcommand(tauri.clone()))
+      .map(|manager| {
+        if manager == &"npm" {
+          Command::new(manager).subcommand(Command::new("run").subcommand(tauri.clone()))
+        } else {
+          Command::new(manager).subcommand(tauri.clone())
+        }
+      })
       .collect()
   } else {
     vec![cmd]
@@ -85,7 +91,12 @@ fn print_completions(shell: Shell, cmd: Command) -> Result<()> {
     match shell {
       Shell::Bash => shell_completions.push_str(&format!(
         "complete -F _{} -o bashdefault -o default {} tauri",
-        cmd_name, manager
+        cmd_name,
+        if manager == &"npm" {
+          "npm run"
+        } else {
+          manager
+        }
       )),
       Shell::Fish => {}
       Shell::Zsh => {}

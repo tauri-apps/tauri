@@ -314,7 +314,11 @@ fn update_app() {
     #[cfg(target_os = "macos")]
     {
       let meta = std::fs::symlink_metadata(
-        bundle_paths(&root_dir, "0.1.0").join("Contents/Frameworks/test.framework/test"),
+        bundle_paths(&root_dir, "0.1.0")
+          .first()
+          .unwrap()
+          .1
+          .join("Contents/Frameworks/test.framework/test"),
       )
       .expect("test.framework/test metadata");
       assert!(

@@ -34,9 +34,12 @@ pub fn gen(
   metadata: &Metadata,
   (handlebars, mut map): (Handlebars, template::JsonMap),
   wrapper: &TextWrapper,
+  skip_targets_install: bool,
 ) -> Result<()> {
-  println!("Installing Android toolchains...");
-  Target::install_all().with_context(|| "failed to run rustup")?;
+  if !skip_targets_install {
+    println!("Installing Android Rust toolchains...");
+    Target::install_all().with_context(|| "failed to run rustup")?;
+  }
   println!("Generating Android Studio project...");
   let dest = config.project_dir();
   let asset_packs = metadata.asset_packs().unwrap_or_default();

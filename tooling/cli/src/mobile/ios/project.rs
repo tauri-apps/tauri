@@ -33,9 +33,12 @@ pub fn gen(
   wrapper: &TextWrapper,
   non_interactive: bool,
   reinstall_deps: bool,
+  skip_targets_install: bool,
 ) -> Result<()> {
-  println!("Installing iOS toolchains...");
-  Target::install_all()?;
+  if !skip_targets_install {
+    println!("Installing iOS Rust toolchains...");
+    Target::install_all()?;
+  }
   rust_version_check(wrapper)?;
 
   deps::install_all(wrapper, non_interactive, true, reinstall_deps)

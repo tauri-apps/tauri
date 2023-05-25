@@ -112,7 +112,7 @@ where
     Some(bin_name) => Cli::command().bin_name(bin_name),
     None => Cli::command(),
   };
-  let mut cli_ = cli.clone();
+  let cli_ = cli.clone();
   let matches = cli.get_matches_from(args);
 
   let res = Cli::from_arg_matches(&matches).map_err(format_error::<Cli>);
@@ -170,7 +170,7 @@ where
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
-    Commands::Completions(options) => completions::command(options, &mut cli_)?,
+    Commands::Completions(options) => completions::command(options, cli_)?,
   }
 
   Ok(())

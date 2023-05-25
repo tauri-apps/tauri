@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use crate::Result;
+use anyhow::Context;
 use clap::{Command, Parser};
 use clap_complete::{generate, Shell};
 use log::info;
+
+use std::{fs::write, path::PathBuf};
 
 const PKG_MANAGERS: &[&str] = &["cargo", "pnpm", "npm", "yarn"];
 
@@ -15,6 +18,9 @@ pub struct Options {
   /// Shell to generate a completion script for.
   #[clap(short, long, verbatim_doc_comment)]
   shell: Shell,
+  /// Output file for the shell completions. By default the completions are printed to stdout.
+  #[clap(short, long)]
+  output: Option<PathBuf>,
 }
 
 fn completions_for(shell: Shell, manager: &'static str, cmd: Command) -> Vec<u8> {
@@ -81,7 +87,11 @@ pub fn command(options: Options, cmd: Command) -> Result<()> {
   info!("Generating completion file for {}...", options.shell);
 
   let completions = get_completions(options.shell, cmd)?;
-  print!("{completions}");
+  if let Some(output) = options.output {
+    write(output, completions).context("failed to write to output path")?;
+  } else {
+    print!("{completions}");
+  }
 
   Ok(())
 }

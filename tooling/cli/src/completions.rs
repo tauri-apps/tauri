@@ -19,7 +19,7 @@ pub struct Options {
 }
 
 fn commands_for_completions(shell: Shell, cmd: Command) -> Vec<Command> {
-  if matches!(shell, Shell::Zsh | Shell::PowerShell) {
+  if matches!(shell, Shell::Zsh | Shell::PowerShell | Shell::Fish) {
     let tauri = cmd.name("tauri");
     PKG_MANAGERS
       .iter()

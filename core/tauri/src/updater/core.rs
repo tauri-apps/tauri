@@ -383,18 +383,16 @@ impl<R: Runtime> UpdateBuilder<R> {
       // If we got a success, we stop the loop
       // and we set our remote_release variable
       if let Ok(res) = resp {
-        let res = res.read().await?;
+        let status = res.status();
         // got status code 2XX
-        if StatusCode::from_u16(res.status)
-          .map_err(|e| Error::Builder(e.to_string()))?
-          .is_success()
-        {
+        if status.is_success() {
           // if we got 204
-          if StatusCode::NO_CONTENT.as_u16() == res.status {
+          if status == StatusCode::NO_CONTENT {
             // return with `UpToDate` error
             // we should catch on the client
             return Err(Error::UpToDate);
           };
+          let res = res.read().await?;
           // Convert the remote result to our local struct
           let built_release = serde_json::from_value(res.data).map_err(Into::into);
           // make sure all went well and the remote data is compatible
@@ -737,15 +735,11 @@ fn copy_files_and_run<R: Read + Seek>(
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
-      let mut installer = Command::new(found_path);
-      if crate::utils::config::WindowsUpdateInstallMode::Quiet
-        == config.tauri.updater.windows.install_mode
-      {
-        installer.arg("/S");
-      }
-      installer.args(&config.tauri.updater.windows.installer_args);
-
-      installer.spawn().expect("installer failed to start");
+      Command::new(found_path)
+        .args(config.tauri.updater.windows.install_mode.nsis_args())
+        .args(&config.tauri.updater.windows.installer_args)
+        .spawn()
+        .expect("installer failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -804,7 +798,6 @@ fn copy_files_and_run<R: Read + Seek>(
         .updater
         .windows
         .install_mode
-        .clone()
         .msiexec_args()
         .iter()
         .map(|p| p.to_string())

@@ -80,6 +80,20 @@ impl<R: Runtime> MenuHandle<R> {
     panic!("item id not found")
   }
 
+  /// Attempts to get a handle to the menu item that has the specified `id`, return an error if `id` is not found.
+  pub fn try_get_item(&self, id: MenuIdRef<'_>) -> Option<MenuItemHandle<R>> {
+    self
+      .ids
+      .lock()
+      .unwrap()
+      .iter()
+      .find(|i| i.1 == id)
+      .map(|i| MenuItemHandle {
+        id: *i.0,
+        dispatcher: self.dispatcher.clone(),
+      })
+  }
+
   /// Shows the menu.
   pub fn show(&self) -> crate::Result<()> {
     self.dispatcher.show_menu().map_err(Into::into)

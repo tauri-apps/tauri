@@ -54,20 +54,20 @@ Some Tauri packages will be automatically built when running one of the examples
 
 ### Packages Overview
 
-- The JS API (`/tooling/api`) contains JS bindings to the builtin Rust functions in the Rust API.
-- cli.rs (`/tooling/cli`) is the primary CLI for creating and developing Tauri apps.
-- cli.js (`/tooling/cli/node`) is a Node.js CLI wrapper for `cli.rs`.
-- Tauri Bundler (`/tooling/bundler`) is used by the Rust CLI to package executables into installers.
 - Tauri Core (`/core/tauri`) is the heart of Tauri. It contains the code that starts the app, configures communication between Rust and the Webview, and ties all the other packages together.
 - The Macros (`/core/tauri-macros`) are used by Tauri Core for various functions.
-
-### Developing The Node.js CLI (cli.js)
-
-`cli.js` is a wrapper to `cli.rs` so most changes should be written on the Rust CLI. The `[Tauri repo root]/tooling/cli/node` folder contains only packaging scripts to properly publish the Rust CLI binaries to NPM.
+- Tauri Bundler (`/tooling/bundler`) is used by the Rust CLI to package executables into installers.
+- The Rust CLI aka `tauri-cli` (`/tooling/cli`) is the primary CLI for creating and developing Tauri apps.
+- The JS CLI aka `@tauri-apps/cli` (`/tooling/cli/node`) is a Node.js CLI wrapper for `tauri-cli`.
+- The JS API aka `@tauri-apps/api` (`/tooling/api`) contains JS bindings to the builtin Rust functions in the Rust API.
 
 ### Developing Tauri Bundler and Rust CLI
 
-The code for the bundler is located in `[Tauri repo root]/tooling/bundler`, and the code for the Rust CLI is located in `[Tauri repo root]/tooling/cli`. If you are using your local copy of cli.js (see above), any changes you make to the bundler and CLI will be automatically built and applied when running the build or dev command. Otherwise, running `cargo install --path .` in the Rust CLI directory will allow you to run `cargo tauri build` and `cargo tauri dev` anywhere, using the updated copy of the bundler and cli. You will have to run this command each time you make a change in either package.
+The code for the bundler is located in `[Tauri repo root]/tooling/bundler`, and the code for the Rust CLI is located in `[Tauri repo root]/tooling/cli`. If you are using your local copy of `@tauri-apps/cli` (see above), any changes you make to the bundler and CLI will be automatically built and applied when running the build or dev command. Otherwise, running `cargo install --path .` in the Rust CLI directory will allow you to run `cargo tauri build` and `cargo tauri dev` anywhere, using the updated copy of the bundler and cli. You will have to run this command each time you make a change in either package.
+
+### Developing The Node.js CLI (`@tauri-apps/cli`)
+
+`@tauri-apps/cli` is a wrapper to `tauri-cli` so most changes should be written on the Rust CLI. The `[Tauri repo root]/tooling/cli/node` folder contains only packaging scripts to properly publish the Rust CLI binaries to NPM.
 
 ### Developing Tauri Core and Related Components (Rust API, Macros, Codegen, and Utils)
 

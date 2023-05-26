@@ -18,6 +18,9 @@
  *         "center": true,
  *         "requestUserAttention": true,
  *         "setResizable": true,
+ *         "setMaximizable": true,
+ *         "setMinimizable": true,
+ *         "setClosable": true,
  *         "setTitle": true,
  *         "maximize": true,
  *         "unmaximize": true,
@@ -711,6 +714,96 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window’s native maximize button state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const maximizable = await appWindow.isMaximizable();
+   * ```
+   *
+   * @returns Whether the window's native maximize button is enabled or not.
+   *  */
+  async isMaximizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMaximizable'
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Gets the window’s native minimize button state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const minimizable = await appWindow.isMinimizable();
+   * ```
+   *
+   * @returns Whether the window's native minimize button is enabled or not.
+   *  */
+  async isMinimizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMinimizable'
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Gets the window’s native close button state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const closable = await appWindow.isClosable();
+   * ```
+   *
+   * @returns Whether the window's native close button is enabled or not.
+   *  */
+  async isClosable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isClosable'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current visible state.
    * @example
    * ```typescript
@@ -800,7 +893,6 @@ class WindowManager extends WebviewWindowHandle {
    * await appWindow.center();
    * ```
    *
-   * @param resizable
    * @returns A promise indicating the success or failure of the operation.
    */
   async center(): Promise<void> {
@@ -836,7 +928,7 @@ class WindowManager extends WebviewWindowHandle {
    * await appWindow.requestUserAttention();
    * ```
    *
-   * @param resizable
+   * @param requestType
    * @returns A promise indicating the success or failure of the operation.
    */
   async requestUserAttention(
@@ -886,6 +978,105 @@ class WindowManager extends WebviewWindowHandle {
           cmd: {
             type: 'setResizable',
             payload: resizable
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Sets whether the window's native maximize button is enabled or not.
+   * If resizable is set to false, this setting is ignored.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setMaximizable(false);
+   * ```
+   *
+   * @param maximizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setMaximizable(maximizable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setMaximizable',
+            payload: maximizable
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Sets whether the window's native minimize button is enabled or not.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setMinimizable(false);
+   * ```
+   *
+   * @param minimizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setMinimizable(minimizable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setMinimizable',
+            payload: minimizable
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Sets whether the window's native close button is enabled or not.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux:** GTK+ will do its best to convince the window manager not to show a close button. Depending on the system, this function may not have any effect when called on a window that is already visible
+   * - **iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setClosable(false);
+   * ```
+   *
+   * @param closable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setClosable(closable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setClosable',
+            payload: closable
           }
         }
       }
@@ -1699,7 +1890,10 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.0.2
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
-    return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, handler)
+    return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, (e) => {
+      e.payload = mapPhysicalSize(e.payload)
+      handler(e)
+    })
   }
 
   /**
@@ -1722,7 +1916,10 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.0.2
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
-    return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, handler)
+    return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, (e) => {
+      e.payload = mapPhysicalPosition(e.payload)
+      handler(e)
+    })
   }
 
   /**
@@ -1749,6 +1946,7 @@ class WindowManager extends WebviewWindowHandle {
    *
    * @since 1.0.2
    */
+  /* eslint-disable @typescript-eslint/promise-function-async */
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
@@ -1761,6 +1959,7 @@ class WindowManager extends WebviewWindowHandle {
       })
     })
   }
+  /* eslint-enable */
 
   /**
    * Listen to window focus change.
@@ -2192,10 +2391,6 @@ interface WindowOptions {
    * The user agent for the webview.
    */
   userAgent?: string
-  /**
-   * Additional arguments for the webview. **Windows Only**
-   */
-  additionalBrowserArguments?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
@@ -2204,9 +2399,17 @@ function mapMonitor(m: Monitor | null): Monitor | null {
     : {
         name: m.name,
         scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position.x, m.position.y),
-        size: new PhysicalSize(m.size.width, m.size.height)
+        position: mapPhysicalPosition(m.position),
+        size: mapPhysicalSize(m.size)
       }
+}
+
+function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
+  return new PhysicalPosition(m.x, m.y)
+}
+
+function mapPhysicalSize(m: PhysicalSize): PhysicalSize {
+  return new PhysicalSize(m.width, m.height)
 }
 
 /**

@@ -38,6 +38,10 @@ use crate::TitleBarStyle;
 
 pub use self::parse::parse;
 
+fn default_true() -> bool {
+  true
+}
+
 /// An URL to open on a Tauri webview window.
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -272,6 +276,10 @@ pub struct DebConfig {
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -435,6 +443,8 @@ pub struct WixConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NsisConfig {
+  /// A custom .nsi template to use.
+  pub template: Option<PathBuf>,
   /// The path to the license file to render on the installer.
   pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
@@ -459,6 +469,13 @@ pub struct NsisConfig {
   ///
   /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
+  /// A key-value pair where the key is the language and the
+  /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
+  ///
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/tooling/bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.
+  ///
+  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
+  pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   #[serde(default, alias = "display-language-selector")]
@@ -506,27 +523,27 @@ pub enum WebviewInstallMode {
   /// Do not install the Webview2 as part of the Windows Installer.
   Skip,
   /// Download the bootstrapper and run it.
-  /// Requires internet connection.
+  /// Requires an internet connection.
   /// Results in a smaller installer size, but is not recommended on Windows 7.
   DownloadBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
-    #[serde(default = "default_webview_install_silent")]
+    #[serde(default = "default_true")]
     silent: bool,
   },
   /// Embed the bootstrapper and run it.
-  /// Requires internet connection.
+  /// Requires an internet connection.
   /// Increases the installer size by around 1.8MB, but offers better support on Windows 7.
   EmbedBootstrapper {
     /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
-    #[serde(default = "default_webview_install_silent")]
+    #[serde(default = "default_true")]
     silent: bool,
   },
   /// Embed the offline installer and run it.
-  /// Does not require internet connection.
+  /// Does not require an internet connection.
   /// Increases the installer size by around 127MB.
   OfflineInstaller {
     /// Instructs the installer to run the installer in silent mode. Defaults to `true`.
-    #[serde(default = "default_webview_install_silent")]
+    #[serde(default = "default_true")]
     silent: bool,
   },
   /// Embed a fixed webview2 version and use it at runtime.
@@ -540,15 +557,9 @@ pub enum WebviewInstallMode {
   },
 }
 
-fn default_webview_install_silent() -> bool {
-  true
-}
-
 impl Default for WebviewInstallMode {
   fn default() -> Self {
-    Self::DownloadBootstrapper {
-      silent: default_webview_install_silent(),
-    }
+    Self::DownloadBootstrapper { silent: true }
   }
 }
 
@@ -589,7 +600,7 @@ pub struct WindowsConfig {
   /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
   ///
   /// The default value of this flag is `true`.
-  #[serde(default = "default_allow_downgrades", alias = "allow-downgrades")]
+  #[serde(default = "default_true", alias = "allow-downgrades")]
   pub allow_downgrades: bool,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
@@ -606,15 +617,11 @@ impl Default for WindowsConfig {
       tsp: false,
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
-      allow_downgrades: default_allow_downgrades(),
+      allow_downgrades: true,
       wix: None,
       nsis: None,
     }
   }
-}
-
-fn default_allow_downgrades() -> bool {
-  true
 }
 
 /// Configuration for tauri-bundler.
@@ -892,7 +899,7 @@ pub struct WindowConfig {
   /// Whether the file drop is enabled or not on the webview. By default it is enabled.
   ///
   /// Disabling it is required to use drag and drop on the frontend on Windows.
-  #[serde(default = "default_file_drop_enabled", alias = "file-drop-enabled")]
+  #[serde(default = "default_true", alias = "file-drop-enabled")]
   pub file_drop_enabled: bool,
   /// Whether or not the window starts centered or not.
   #[serde(default)]
@@ -919,9 +926,34 @@ pub struct WindowConfig {
   /// The max window height.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
-  /// Whether the window is resizable or not.
-  #[serde(default = "default_resizable")]
+  /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
+  #[serde(default = "default_true")]
   pub resizable: bool,
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub maximizable: bool,
+  /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub minimizable: bool,
+  /// Whether the window's native close button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub closable: bool,
   /// The window title.
   #[serde(default = "default_title")]
   pub title: String,
@@ -929,7 +961,7 @@ pub struct WindowConfig {
   #[serde(default)]
   pub fullscreen: bool,
   /// Whether the window will be initially focused or not.
-  #[serde(default = "default_focus")]
+  #[serde(default = "default_true")]
   pub focus: bool,
   /// Whether the window is transparent or not.
   ///
@@ -941,10 +973,10 @@ pub struct WindowConfig {
   #[serde(default)]
   pub maximized: bool,
   /// Whether the window is visible or not.
-  #[serde(default = "default_visible")]
+  #[serde(default = "default_true")]
   pub visible: bool,
   /// Whether the window should have borders and bars.
-  #[serde(default = "default_decorations")]
+  #[serde(default = "default_true")]
   pub decorations: bool,
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
@@ -986,7 +1018,7 @@ impl Default for WindowConfig {
       label: default_window_label(),
       url: WindowUrl::default(),
       user_agent: None,
-      file_drop_enabled: default_file_drop_enabled(),
+      file_drop_enabled: true,
       center: false,
       x: None,
       y: None,
@@ -996,14 +1028,17 @@ impl Default for WindowConfig {
       min_height: None,
       max_width: None,
       max_height: None,
-      resizable: default_resizable(),
+      resizable: true,
+      maximizable: true,
+      minimizable: true,
+      closable: true,
       title: default_title(),
       fullscreen: false,
       focus: false,
       transparent: false,
       maximized: false,
-      visible: default_visible(),
-      decorations: default_decorations(),
+      visible: true,
+      decorations: true,
       always_on_top: false,
       content_protected: false,
       skip_taskbar: false,
@@ -1029,28 +1064,8 @@ fn default_height() -> f64 {
   600f64
 }
 
-fn default_resizable() -> bool {
-  true
-}
-
 fn default_title() -> String {
   "Tauri App".to_string()
-}
-
-fn default_focus() -> bool {
-  true
-}
-
-fn default_visible() -> bool {
-  true
-}
-
-fn default_decorations() -> bool {
-  true
-}
-
-fn default_file_drop_enabled() -> bool {
-  true
 }
 
 /// A Content-Security-Policy directive source list.
@@ -1196,6 +1211,25 @@ impl Default for DisabledCspModificationKind {
   }
 }
 
+/// External command access definition.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoteDomainAccessScope {
+  /// The URL scheme to allow. By default, all schemas are allowed.
+  pub scheme: Option<String>,
+  /// The domain to allow.
+  pub domain: String,
+  /// The list of window labels this scope applies to.
+  pub windows: Vec<String>,
+  /// The list of plugins that are allowed in this scope.
+  #[serde(default)]
+  pub plugins: Vec<String>,
+  /// Enables access to the Tauri API.
+  #[serde(default, rename = "enableTauriAPI", alias = "enable-tauri-api")]
+  pub enable_tauri_api: bool,
+}
+
 /// Security configuration.
 ///
 /// See more: https://tauri.app/v1/api/config#securityconfig
@@ -1233,6 +1267,20 @@ pub struct SecurityConfig {
   /// Your application might be vulnerable to XSS attacks without this Tauri protection.
   #[serde(default, alias = "dangerous-disable-asset-csp-modification")]
   pub dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
+  /// Allow external domains to send command to Tauri.
+  ///
+  /// By default, external domains do not have access to `window.__TAURI__`, which means they cannot
+  /// communicate with the commands defined in Rust. This prevents attacks where an externally
+  /// loaded malicious or compromised sites could start executing commands on the user's device.
+  ///
+  /// This configuration allows a set of external domains to have access to the Tauri commands.
+  /// When you configure a domain to be allowed to access the IPC, all subpaths are allowed. Subdomains are not allowed.
+  ///
+  /// **WARNING:** Only use this option if you either have internal checks against malicious
+  /// external sites or you can trust the allowed external sites. You application might be
+  /// vulnerable to dangerous Tauri command related attacks otherwise.
+  #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
+  pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
 }
 
 /// Defines an allowlist type.
@@ -1260,12 +1308,13 @@ macro_rules! check_feature {
 /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
 /// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum FsAllowlistScope {
   /// A list of paths that are allowed by this scope.
   AllowedPaths(Vec<PathBuf>),
   /// A complete scope configuration.
+  #[serde(rename_all = "camelCase")]
   Scope {
     /// A list of paths that are allowed by this scope.
     #[serde(default)]
@@ -1274,6 +1323,16 @@ pub enum FsAllowlistScope {
     /// This gets precedence over the [`Self::Scope::allow`] list.
     #[serde(default)]
     deny: Vec<PathBuf>,
+    /// Whether or not paths that contain components that start with a `.`
+    /// will require that `.` appears literally in the pattern; `*`, `?`, `**`,
+    /// or `[...]` will not match. This is useful because such files are
+    /// conventionally considered hidden on Unix systems and it might be
+    /// desirable to skip them when listing files.
+    ///
+    /// Defaults to `false` on Unix systems and `true` on Windows
+    // dotfiles are not supposed to be exposed by default on unix
+    #[serde(alias = "require-literal-leading-dot")]
+    require_literal_leading_dot: Option<bool>,
   },
 }
 
@@ -1404,6 +1463,15 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the resizable flag of the window.
   #[serde(default, alias = "set-resizable")]
   pub set_resizable: bool,
+  /// Allows setting whether the window's native maximize button is enabled or not.
+  #[serde(default, alias = "set-maximizable")]
+  pub set_maximizable: bool,
+  /// Allows setting whether the window's native minimize button is enabled or not.
+  #[serde(default, alias = "set-minimizable")]
+  pub set_minimizable: bool,
+  /// Allows setting whether the window's native close button is enabled or not.
+  #[serde(default, alias = "set-closable")]
+  pub set_closable: bool,
   /// Allows changing the window title.
   #[serde(default, alias = "set-title")]
   pub set_title: bool,
@@ -1492,6 +1560,9 @@ impl Allowlist for WindowAllowlistConfig {
       center: true,
       request_user_attention: true,
       set_resizable: true,
+      set_maximizable: true,
+      set_minimizable: true,
+      set_closable: true,
       set_title: true,
       maximize: true,
       unmaximize: true,
@@ -1538,6 +1609,9 @@ impl Allowlist for WindowAllowlistConfig {
         "window-request-user-attention"
       );
       check_feature!(self, features, set_resizable, "window-set-resizable");
+      check_feature!(self, features, set_maximizable, "window-set-maximizable");
+      check_feature!(self, features, set_minimizable, "window-set-minimizable");
+      check_feature!(self, features, set_closable, "window-set-closable");
       check_feature!(self, features, set_title, "window-set-title");
       check_feature!(self, features, maximize, "window-maximize");
       check_feature!(self, features, unmaximize, "window-unmaximize");
@@ -1850,11 +1924,13 @@ impl Allowlist for DialogAllowlistConfig {
 /// The scoped URL is matched against the request URL using a glob pattern.
 ///
 /// Examples:
-/// - "https://**": allows all HTTPS urls
+/// - "https://*": allows all HTTPS urls
 /// - "https://*.github.com/tauri-apps/tauri": allows any subdomain of "github.com" with the "tauri-apps/api" path
 /// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
 #[allow(rustdoc::bare_urls)]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+// TODO: in v2, parse into a String or a custom type that perserves the
+// glob string because Url type will add a trailing slash
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct HttpAllowlistScope(pub Vec<Url>);
 
@@ -2435,7 +2511,7 @@ pub enum WindowsUpdateInstallMode {
   /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
   BasicUi,
   /// The quiet mode means there's no user interaction required.
-  /// Requires admin privileges if the installer does (WiX).
+  /// Requires admin privileges if the installer does.
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
   Passive,
@@ -2450,6 +2526,15 @@ impl WindowsUpdateInstallMode {
       Self::BasicUi => &["/qb+"],
       Self::Quiet => &["/quiet"],
       Self::Passive => &["/passive"],
+    }
+  }
+
+  /// Returns the associated nsis arguments.
+  pub fn nsis_args(&self) -> &'static [&'static str] {
+    match self {
+      Self::Passive => &["/P", "/R"],
+      Self::Quiet => &["/S", "/R"],
+      _ => &[],
     }
   }
 }
@@ -2528,7 +2613,7 @@ pub struct UpdaterConfig {
   #[serde(default)]
   pub active: bool,
   /// Display built-in dialog or use event system if disabled.
-  #[serde(default = "default_dialog")]
+  #[serde(default = "default_true")]
   pub dialog: bool,
   /// The updater endpoints. TLS is enforced on production.
   ///
@@ -2559,7 +2644,7 @@ impl<'de> Deserialize<'de> for UpdaterConfig {
     struct InnerUpdaterConfig {
       #[serde(default)]
       active: bool,
-      #[serde(default = "default_dialog")]
+      #[serde(default = "default_true")]
       dialog: bool,
       endpoints: Option<Vec<UpdaterEndpoint>>,
       pubkey: Option<String>,
@@ -2589,7 +2674,7 @@ impl Default for UpdaterConfig {
   fn default() -> Self {
     Self {
       active: false,
-      dialog: default_dialog(),
+      dialog: true,
       endpoints: None,
       pubkey: "".into(),
       windows: Default::default(),
@@ -2612,24 +2697,10 @@ pub struct SystemTrayConfig {
   #[serde(default, alias = "icon-as-template")]
   pub icon_as_template: bool,
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.
-  #[serde(
-    default = "default_tray_menu_on_left_click",
-    alias = "menu-on-left-click"
-  )]
+  #[serde(default = "default_true", alias = "menu-on-left-click")]
   pub menu_on_left_click: bool,
   /// Title for MacOS tray
   pub title: Option<String>,
-}
-
-fn default_tray_menu_on_left_click() -> bool {
-  true
-}
-
-// We enable the unnecessary_wraps because we need
-// to use an Option for dialog otherwise the CLI schema will mark
-// the dialog as a required field which is not as we default it to true.
-fn default_dialog() -> bool {
-  true
 }
 
 /// Defines the URL or assets to embed in the application.
@@ -2834,7 +2905,7 @@ pub struct PackageConfig {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
 }
@@ -3194,6 +3265,9 @@ mod build {
       let max_width = opt_lit(self.max_width.as_ref());
       let max_height = opt_lit(self.max_height.as_ref());
       let resizable = self.resizable;
+      let maximizable = self.maximizable;
+      let minimizable = self.minimizable;
+      let closable = self.closable;
       let title = str_lit(&self.title);
       let fullscreen = self.fullscreen;
       let focus = self.focus;
@@ -3228,6 +3302,9 @@ mod build {
         max_width,
         max_height,
         resizable,
+        maximizable,
+        minimizable,
+        closable,
         title,
         fullscreen,
         focus,
@@ -3590,12 +3667,34 @@ mod build {
     }
   }
 
+  impl ToTokens for RemoteDomainAccessScope {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let scheme = opt_str_lit(self.scheme.as_ref());
+      let domain = str_lit(&self.domain);
+      let windows = vec_lit(&self.windows, str_lit);
+      let plugins = vec_lit(&self.plugins, str_lit);
+      let enable_tauri_api = self.enable_tauri_api;
+
+      literal_struct!(
+        tokens,
+        RemoteDomainAccessScope,
+        scheme,
+        domain,
+        windows,
+        plugins,
+        enable_tauri_api
+      );
+    }
+  }
+
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_lit(self.csp.as_ref());
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
+      let dangerous_remote_domain_ipc_access =
+        vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
 
       literal_struct!(
         tokens,
@@ -3603,7 +3702,8 @@ mod build {
         csp,
         dev_csp,
         freeze_prototype,
-        dangerous_disable_asset_csp_modification
+        dangerous_disable_asset_csp_modification,
+        dangerous_remote_domain_ipc_access
       );
     }
   }
@@ -3634,10 +3734,11 @@ mod build {
           let allowed_paths = vec_lit(allow, path_buf_lit);
           quote! { #prefix::AllowedPaths(#allowed_paths) }
         }
-        Self::Scope { allow, deny } => {
+        Self::Scope { allow, deny , require_literal_leading_dot} => {
           let allow = vec_lit(allow, path_buf_lit);
           let deny = vec_lit(deny, path_buf_lit);
-          quote! { #prefix::Scope { allow: #allow, deny: #deny } }
+          let  require_literal_leading_dot = opt_lit(require_literal_leading_dot.as_ref());
+          quote! { #prefix::Scope { allow: #allow, deny: #deny, require_literal_leading_dot: #require_literal_leading_dot } }
         }
       });
     }
@@ -3868,6 +3969,7 @@ mod test {
         dev_csp: None,
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
+        dangerous_remote_domain_ipc_access: Vec::new(),
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

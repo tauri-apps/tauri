@@ -35,8 +35,22 @@ pub fn gen(
   (handlebars, mut map): (Handlebars, template::JsonMap),
   wrapper: &TextWrapper,
 ) -> Result<()> {
-  println!("Installing Android toolchains...");
-  Target::install_all().with_context(|| "failed to run rustup")?;
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+  let missing_targets = Target::all()
+    .values()
+    .filter(|t| !installed_targets.contains(&t.triple().into()))
+    .collect::<Vec<&Target>>();
+
+  if !missing_targets.is_empty() {
+    println!("Installing Android Rust toolchains...");
+    for target in missing_targets {
+      target
+        .install()
+        .context("failed to install target with rustup")?;
+    }
+  }
+
   println!("Generating Android Studio project...");
   let dest = config.project_dir();
   let asset_packs = metadata.asset_packs().unwrap_or_default();
@@ -52,10 +66,16 @@ pub fn gen(
     )),
   );
   map.insert("root-dir", config.app().root_dir());
-  map.insert("targets", Target::all().values().collect::<Vec<_>>());
-  map.insert("target-names", Target::all().keys().collect::<Vec<_>>());
   map.insert(
-    "arches",
+    "abi-list",
+    Target::all()
+      .values()
+      .map(|target| target.abi)
+      .collect::<Vec<_>>(),
+  );
+  map.insert("target-list", Target::all().keys().collect::<Vec<_>>());
+  map.insert(
+    "arch-list",
     Target::all()
       .values()
       .map(|target| target.arch)
@@ -77,6 +97,7 @@ pub fn gen(
       || metadata.app_dependencies().is_some()
       || metadata.app_dependencies_platform().is_some(),
   );
+  map.insert("has-asset-packs", !asset_packs.is_empty());
   map.insert(
     "asset-packs",
     asset_packs

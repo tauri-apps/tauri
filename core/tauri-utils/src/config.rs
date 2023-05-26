@@ -34,7 +34,7 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::TitleBarStyle;
+use crate::{TitleBarStyle, WindowEffect, WindowEffectState};
 
 pub use self::parse::parse;
 
@@ -609,6 +609,65 @@ impl Default for WindowsConfig {
   }
 }
 
+/// The Updater configuration object.
+///
+/// See more: https://tauri.app/v1/api/config#updaterconfig
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdaterConfig {
+  /// Whether the updater is active or not.
+  #[serde(default)]
+  pub active: bool,
+  /// Signature public key.
+  #[serde(default)] // use default just so the schema doesn't flag it as required
+  pub pubkey: String,
+  /// The Windows configuration for the updater.
+  #[serde(default)]
+  pub windows: UpdaterWindowsConfig,
+}
+
+impl<'de> Deserialize<'de> for UpdaterConfig {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    struct InnerUpdaterConfig {
+      #[serde(default)]
+      active: bool,
+      pubkey: Option<String>,
+      #[serde(default)]
+      windows: UpdaterWindowsConfig,
+    }
+
+    let config = InnerUpdaterConfig::deserialize(deserializer)?;
+
+    if config.active && config.pubkey.is_none() {
+      return Err(DeError::custom(
+        "The updater `pubkey` configuration is required.",
+      ));
+    }
+
+    Ok(UpdaterConfig {
+      active: config.active,
+      pubkey: config.pubkey.unwrap_or_default(),
+      windows: config.windows,
+    })
+  }
+}
+
+impl Default for UpdaterConfig {
+  fn default() -> Self {
+    Self {
+      active: false,
+      pubkey: "".into(),
+      windows: Default::default(),
+    }
+  }
+}
+
 /// Configuration for tauri-bundler.
 ///
 /// See more: https://tauri.app/v1/api/config#bundleconfig
@@ -683,6 +742,33 @@ pub struct BundleConfig {
   /// Android configuration.
   #[serde(default)]
   pub android: AndroidConfig,
+  /// The updater configuration.
+  #[serde(default)]
+  pub updater: UpdaterConfig,
+}
+
+/// a tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Color(pub u8, pub u8, pub u8, pub u8);
+
+/// The window effects configuration object
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowEffectsConfig {
+  /// List of Window effects to apply to the Window.
+  /// Conflicting effects will apply the first one and ignore the rest.
+  pub effects: Vec<WindowEffect>,
+  /// Window effect state **macOS Only**
+  pub state: Option<WindowEffectState>,
+  /// Window effect corner radius **macOS Only**
+  pub radius: Option<f64>,
+  /// Window effect color. Affects [`WindowEffects::Blur`] and [`WindowEffects::Acrylic`] only
+  /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
+  pub color: Option<Color>,
 }
 
 /// The window configuration object.
@@ -802,6 +888,16 @@ pub struct WindowConfig {
   /// - **Linux:** Unsupported.
   #[serde(default = "default_true")]
   pub shadow: bool,
+  /// Window effects.
+  ///
+  /// Requires the window to be transparent.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Linux**: Unsupported
+  #[serde(default, alias = "window-effects")]
+  pub window_effects: Option<WindowEffectsConfig>,
 }
 
 impl Default for WindowConfig {
@@ -838,6 +934,7 @@ impl Default for WindowConfig {
       tabbing_identifier: None,
       additional_browser_args: None,
       shadow: true,
+      window_effects: None,
     }
   }
 }
@@ -1019,9 +1116,71 @@ pub struct RemoteDomainAccessScope {
   /// The list of plugins that are allowed in this scope.
   #[serde(default)]
   pub plugins: Vec<String>,
-  /// Enables access to the Tauri API.
-  #[serde(default, rename = "enableTauriAPI", alias = "enable-tauri-api")]
-  pub enable_tauri_api: bool,
+}
+
+/// Protocol scope definition.
+/// It is a list of glob patterns that restrict the API access from the webview.
+///
+/// Each pattern can start with a variable that resolves to a system base directory.
+/// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
+/// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
+/// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum FsScope {
+  /// A list of paths that are allowed by this scope.
+  AllowedPaths(Vec<PathBuf>),
+  /// A complete scope configuration.
+  Scope {
+    /// A list of paths that are allowed by this scope.
+    #[serde(default)]
+    allow: Vec<PathBuf>,
+    /// A list of paths that are not allowed by this scope.
+    /// This gets precedence over the [`Self::Scope::allow`] list.
+    #[serde(default)]
+    deny: Vec<PathBuf>,
+  },
+}
+
+impl Default for FsScope {
+  fn default() -> Self {
+    Self::AllowedPaths(Vec::new())
+  }
+}
+
+impl FsScope {
+  /// The list of allowed paths.
+  pub fn allowed_paths(&self) -> &Vec<PathBuf> {
+    match self {
+      Self::AllowedPaths(p) => p,
+      Self::Scope { allow, .. } => allow,
+    }
+  }
+
+  /// The list of forbidden paths.
+  pub fn forbidden_paths(&self) -> Option<&Vec<PathBuf>> {
+    match self {
+      Self::AllowedPaths(_) => None,
+      Self::Scope { deny, .. } => Some(deny),
+    }
+  }
+}
+
+/// Config for the asset custom protocol.
+///
+/// See more: https://tauri.app/v1/api/config#assetprotocolconfig
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetProtocolConfig {
+  /// The access scope for the asset protocol.
+  #[serde(default)]
+  pub scope: FsScope,
+  /// Enables the asset protocol.
+  #[serde(default)]
+  pub enable: bool,
 }
 
 /// Security configuration.
@@ -1075,1075 +1234,9 @@ pub struct SecurityConfig {
   /// vulnerable to dangerous Tauri command related attacks otherwise.
   #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
   pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
-}
-
-/// Defines an allowlist type.
-pub trait Allowlist {
-  /// Returns all features associated with the allowlist struct.
-  fn all_features() -> Vec<&'static str>;
-  /// Returns the tauri features enabled on this allowlist.
-  fn to_features(&self) -> Vec<&'static str>;
-}
-
-macro_rules! check_feature {
-  ($self:ident, $features:ident, $flag:ident, $feature_name: expr) => {
-    if $self.$flag {
-      $features.push($feature_name)
-    }
-  };
-}
-
-/// Filesystem scope definition.
-/// It is a list of glob patterns that restrict the API access from the webview.
-///
-/// Each pattern can start with a variable that resolves to a system base directory.
-/// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
-/// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
-/// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged)]
-pub enum FsAllowlistScope {
-  /// A list of paths that are allowed by this scope.
-  AllowedPaths(Vec<PathBuf>),
-  /// A complete scope configuration.
-  Scope {
-    /// A list of paths that are allowed by this scope.
-    #[serde(default)]
-    allow: Vec<PathBuf>,
-    /// A list of paths that are not allowed by this scope.
-    /// This gets precedence over the [`Self::Scope::allow`] list.
-    #[serde(default)]
-    deny: Vec<PathBuf>,
-  },
-}
-
-impl Default for FsAllowlistScope {
-  fn default() -> Self {
-    Self::AllowedPaths(Vec::new())
-  }
-}
-
-impl FsAllowlistScope {
-  /// The list of allowed paths.
-  pub fn allowed_paths(&self) -> &Vec<PathBuf> {
-    match self {
-      Self::AllowedPaths(p) => p,
-      Self::Scope { allow, .. } => allow,
-    }
-  }
-
-  /// The list of forbidden paths.
-  pub fn forbidden_paths(&self) -> Option<&Vec<PathBuf>> {
-    match self {
-      Self::AllowedPaths(_) => None,
-      Self::Scope { deny, .. } => Some(deny),
-    }
-  }
-}
-
-/// Allowlist for the file system APIs.
-///
-/// See more: https://tauri.app/v1/api/config#fsallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct FsAllowlistConfig {
-  /// The access scope for the filesystem APIs.
-  #[serde(default)]
-  pub scope: FsAllowlistScope,
-  /// Use this flag to enable all file system API features.
-  #[serde(default)]
-  pub all: bool,
-  /// Read file from local filesystem.
-  #[serde(default, alias = "read-file")]
-  pub read_file: bool,
-  /// Write file to local filesystem.
-  #[serde(default, alias = "write-file")]
-  pub write_file: bool,
-  /// Read directory from local filesystem.
-  #[serde(default, alias = "read-dir")]
-  pub read_dir: bool,
-  /// Copy file from local filesystem.
-  #[serde(default, alias = "copy-file")]
-  pub copy_file: bool,
-  /// Create directory from local filesystem.
-  #[serde(default, alias = "create-dir")]
-  pub create_dir: bool,
-  /// Remove directory from local filesystem.
-  #[serde(default, alias = "remove-dir")]
-  pub remove_dir: bool,
-  /// Remove file from local filesystem.
-  #[serde(default, alias = "remove-file")]
-  pub remove_file: bool,
-  /// Rename file from local filesystem.
-  #[serde(default, alias = "rename-file")]
-  pub rename_file: bool,
-  /// Check if path exists on the local filesystem.
-  #[serde(default)]
-  pub exists: bool,
-}
-
-impl Allowlist for FsAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      scope: Default::default(),
-      all: false,
-      read_file: true,
-      write_file: true,
-      read_dir: true,
-      copy_file: true,
-      create_dir: true,
-      remove_dir: true,
-      remove_file: true,
-      rename_file: true,
-      exists: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("fs-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["fs-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, read_file, "fs-read-file");
-      check_feature!(self, features, write_file, "fs-write-file");
-      check_feature!(self, features, read_dir, "fs-read-dir");
-      check_feature!(self, features, copy_file, "fs-copy-file");
-      check_feature!(self, features, create_dir, "fs-create-dir");
-      check_feature!(self, features, remove_dir, "fs-remove-dir");
-      check_feature!(self, features, remove_file, "fs-remove-file");
-      check_feature!(self, features, rename_file, "fs-rename-file");
-      check_feature!(self, features, exists, "fs-exists");
-      features
-    }
-  }
-}
-
-/// Allowlist for the window APIs.
-///
-/// See more: https://tauri.app/v1/api/config#windowallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct WindowAllowlistConfig {
-  /// Use this flag to enable all window API features.
-  #[serde(default)]
-  pub all: bool,
-  /// Allows dynamic window creation.
-  #[serde(default)]
-  pub create: bool,
-  /// Allows centering the window.
-  #[serde(default)]
-  pub center: bool,
-  /// Allows requesting user attention on the window.
-  #[serde(default, alias = "request-user-attention")]
-  pub request_user_attention: bool,
-  /// Allows setting the resizable flag of the window.
-  #[serde(default, alias = "set-resizable")]
-  pub set_resizable: bool,
-  /// Allows changing the window title.
-  #[serde(default, alias = "set-title")]
-  pub set_title: bool,
-  /// Allows maximizing the window.
-  #[serde(default)]
-  pub maximize: bool,
-  /// Allows unmaximizing the window.
-  #[serde(default)]
-  pub unmaximize: bool,
-  /// Allows minimizing the window.
-  #[serde(default)]
-  pub minimize: bool,
-  /// Allows unminimizing the window.
-  #[serde(default)]
-  pub unminimize: bool,
-  /// Allows showing the window.
-  #[serde(default)]
-  pub show: bool,
-  /// Allows hiding the window.
-  #[serde(default)]
-  pub hide: bool,
-  /// Allows closing the window.
-  #[serde(default)]
-  pub close: bool,
-  /// Allows setting the decorations flag of the window.
-  #[serde(default, alias = "set-decorations")]
-  pub set_decorations: bool,
-  /// Allows setting the shadow flag of the window.
-  #[serde(default, alias = "set-shadow")]
-  pub set_shadow: bool,
-  /// Allows setting the always_on_top flag of the window.
-  #[serde(default, alias = "set-always-on-top")]
-  pub set_always_on_top: bool,
-  /// Allows preventing the window contents from being captured by other apps.
-  #[serde(default, alias = "set-content-protected")]
-  pub set_content_protected: bool,
-  /// Allows setting the window size.
-  #[serde(default, alias = "set-size")]
-  pub set_size: bool,
-  /// Allows setting the window minimum size.
-  #[serde(default, alias = "set-min-size")]
-  pub set_min_size: bool,
-  /// Allows setting the window maximum size.
-  #[serde(default, alias = "set-max-size")]
-  pub set_max_size: bool,
-  /// Allows changing the position of the window.
-  #[serde(default, alias = "set-position")]
-  pub set_position: bool,
-  /// Allows setting the fullscreen flag of the window.
-  #[serde(default, alias = "set-fullscreen")]
-  pub set_fullscreen: bool,
-  /// Allows focusing the window.
-  #[serde(default, alias = "set-focus")]
-  pub set_focus: bool,
-  /// Allows changing the window icon.
-  #[serde(default, alias = "set-icon")]
-  pub set_icon: bool,
-  /// Allows setting the skip_taskbar flag of the window.
-  #[serde(default, alias = "set-skip-taskbar")]
-  pub set_skip_taskbar: bool,
-  /// Allows grabbing the cursor.
-  #[serde(default, alias = "set-cursor-grab")]
-  pub set_cursor_grab: bool,
-  /// Allows setting the cursor visibility.
-  #[serde(default, alias = "set-cursor-visible")]
-  pub set_cursor_visible: bool,
-  /// Allows changing the cursor icon.
-  #[serde(default, alias = "set-cursor-icon")]
-  pub set_cursor_icon: bool,
-  /// Allows setting the cursor position.
-  #[serde(default, alias = "set-cursor-position")]
-  pub set_cursor_position: bool,
-  /// Allows ignoring cursor events.
-  #[serde(default, alias = "set-ignore-cursor-events")]
-  pub set_ignore_cursor_events: bool,
-  /// Allows start dragging on the window.
-  #[serde(default, alias = "start-dragging")]
-  pub start_dragging: bool,
-  /// Allows opening the system dialog to print the window content.
-  #[serde(default)]
-  pub print: bool,
-}
-
-impl Allowlist for WindowAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      all: false,
-      create: true,
-      center: true,
-      request_user_attention: true,
-      set_resizable: true,
-      set_title: true,
-      maximize: true,
-      unmaximize: true,
-      minimize: true,
-      unminimize: true,
-      show: true,
-      hide: true,
-      close: true,
-      set_decorations: true,
-      set_always_on_top: true,
-      set_content_protected: false,
-      set_size: true,
-      set_min_size: true,
-      set_max_size: true,
-      set_position: true,
-      set_fullscreen: true,
-      set_focus: true,
-      set_icon: true,
-      set_skip_taskbar: true,
-      set_cursor_grab: true,
-      set_cursor_visible: true,
-      set_cursor_icon: true,
-      set_cursor_position: true,
-      set_ignore_cursor_events: true,
-      set_shadow: true,
-      start_dragging: true,
-      print: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("window-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["window-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, create, "window-create");
-      check_feature!(self, features, center, "window-center");
-      check_feature!(
-        self,
-        features,
-        request_user_attention,
-        "window-request-user-attention"
-      );
-      check_feature!(self, features, set_resizable, "window-set-resizable");
-      check_feature!(self, features, set_title, "window-set-title");
-      check_feature!(self, features, maximize, "window-maximize");
-      check_feature!(self, features, unmaximize, "window-unmaximize");
-      check_feature!(self, features, minimize, "window-minimize");
-      check_feature!(self, features, unminimize, "window-unminimize");
-      check_feature!(self, features, show, "window-show");
-      check_feature!(self, features, hide, "window-hide");
-      check_feature!(self, features, close, "window-close");
-      check_feature!(self, features, set_decorations, "window-set-decorations");
-      check_feature!(self, features, set_shadow, "window-set-shadow");
-      check_feature!(
-        self,
-        features,
-        set_always_on_top,
-        "window-set-always-on-top"
-      );
-      check_feature!(
-        self,
-        features,
-        set_content_protected,
-        "window-set-content-protected"
-      );
-      check_feature!(self, features, set_size, "window-set-size");
-      check_feature!(self, features, set_min_size, "window-set-min-size");
-      check_feature!(self, features, set_max_size, "window-set-max-size");
-      check_feature!(self, features, set_position, "window-set-position");
-      check_feature!(self, features, set_fullscreen, "window-set-fullscreen");
-      check_feature!(self, features, set_focus, "window-set-focus");
-      check_feature!(self, features, set_icon, "window-set-icon");
-      check_feature!(self, features, set_skip_taskbar, "window-set-skip-taskbar");
-      check_feature!(self, features, set_cursor_grab, "window-set-cursor-grab");
-      check_feature!(
-        self,
-        features,
-        set_cursor_visible,
-        "window-set-cursor-visible"
-      );
-      check_feature!(self, features, set_cursor_icon, "window-set-cursor-icon");
-      check_feature!(
-        self,
-        features,
-        set_cursor_position,
-        "window-set-cursor-position"
-      );
-      check_feature!(
-        self,
-        features,
-        set_ignore_cursor_events,
-        "window-set-ignore-cursor-events"
-      );
-      check_feature!(self, features, start_dragging, "window-start-dragging");
-      check_feature!(self, features, print, "window-print");
-      features
-    }
-  }
-}
-
-/// A command allowed to be executed by the webview API.
-#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct ShellAllowedCommand {
-  /// The name for this allowed shell command configuration.
-  ///
-  /// This name will be used inside of the webview API to call this command along with
-  /// any specified arguments.
-  pub name: String,
-
-  /// The command name.
-  /// It can start with a variable that resolves to a system base directory.
-  /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
-  /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
-  /// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
-  #[serde(rename = "cmd", default)] // use default just so the schema doesn't flag it as required
-  pub command: PathBuf,
-
-  /// The allowed arguments for the command execution.
-  #[serde(default)]
-  pub args: ShellAllowedArgs,
-
-  /// If this command is a sidecar command.
-  #[serde(default)]
-  pub sidecar: bool,
-}
-
-impl<'de> Deserialize<'de> for ShellAllowedCommand {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    #[derive(Deserialize)]
-    struct InnerShellAllowedCommand {
-      name: String,
-      #[serde(rename = "cmd")]
-      command: Option<PathBuf>,
-      #[serde(default)]
-      args: ShellAllowedArgs,
-      #[serde(default)]
-      sidecar: bool,
-    }
-
-    let config = InnerShellAllowedCommand::deserialize(deserializer)?;
-
-    if !config.sidecar && config.command.is_none() {
-      return Err(DeError::custom(
-        "The shell scope `command` value is required.",
-      ));
-    }
-
-    Ok(ShellAllowedCommand {
-      name: config.name,
-      command: config.command.unwrap_or_default(),
-      args: config.args,
-      sidecar: config.sidecar,
-    })
-  }
-}
-
-/// A set of command arguments allowed to be executed by the webview API.
-///
-/// A value of `true` will allow any arguments to be passed to the command. `false` will disable all
-/// arguments. A list of [`ShellAllowedArg`] will set those arguments as the only valid arguments to
-/// be passed to the attached command configuration.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged, deny_unknown_fields)]
-#[non_exhaustive]
-pub enum ShellAllowedArgs {
-  /// Use a simple boolean to allow all or disable all arguments to this command configuration.
-  Flag(bool),
-
-  /// A specific set of [`ShellAllowedArg`] that are valid to call for the command configuration.
-  List(Vec<ShellAllowedArg>),
-}
-
-impl Default for ShellAllowedArgs {
-  fn default() -> Self {
-    Self::Flag(false)
-  }
-}
-
-/// A command argument allowed to be executed by the webview API.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged, deny_unknown_fields)]
-#[non_exhaustive]
-pub enum ShellAllowedArg {
-  /// A non-configurable argument that is passed to the command in the order it was specified.
-  Fixed(String),
-
-  /// A variable that is set while calling the command from the webview API.
-  ///
-  Var {
-    /// [regex] validator to require passed values to conform to an expected input.
-    ///
-    /// This will require the argument value passed to this variable to match the `validator` regex
-    /// before it will be executed.
-    ///
-    /// [regex]: https://docs.rs/regex/latest/regex/#syntax
-    validator: String,
-  },
-}
-
-/// Shell scope definition.
-/// It is a list of command names and associated CLI arguments that restrict the API access from the webview.
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct ShellAllowlistScope(pub Vec<ShellAllowedCommand>);
-
-/// Defines the `shell > open` api scope.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged, deny_unknown_fields)]
-#[non_exhaustive]
-pub enum ShellAllowlistOpen {
-  /// If the shell open API should be enabled.
-  ///
-  /// If enabled, the default validation regex (`^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+`) is used.
-  Flag(bool),
-
-  /// Enable the shell open API, with a custom regex that the opened path must match against.
-  ///
-  /// If using a custom regex to support a non-http(s) schema, care should be used to prevent values
-  /// that allow flag-like strings to pass validation. e.g. `--enable-debugging`, `-i`, `/R`.
-  Validate(String),
-}
-
-impl Default for ShellAllowlistOpen {
-  fn default() -> Self {
-    Self::Flag(false)
-  }
-}
-
-/// Allowlist for the shell APIs.
-///
-/// See more: https://tauri.app/v1/api/config#shellallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ShellAllowlistConfig {
-  /// Access scope for the binary execution APIs.
-  /// Sidecars are automatically enabled.
-  #[serde(default)]
-  pub scope: ShellAllowlistScope,
-  /// Use this flag to enable all shell API features.
-  #[serde(default)]
-  pub all: bool,
-  /// Enable binary execution.
-  #[serde(default)]
-  pub execute: bool,
-  /// Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar command,
-  /// an executable that is shipped with the application.
-  /// For more information see <https://tauri.app/v1/guides/building/sidecar>.
-  #[serde(default)]
-  pub sidecar: bool,
-  /// Open URL with the user's default application.
-  #[serde(default)]
-  pub open: ShellAllowlistOpen,
-}
-
-impl Allowlist for ShellAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      scope: Default::default(),
-      all: false,
-      execute: true,
-      sidecar: true,
-      open: ShellAllowlistOpen::Flag(true),
-    };
-    let mut features = allowlist.to_features();
-    features.push("shell-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["shell-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, execute, "shell-execute");
-      check_feature!(self, features, sidecar, "shell-sidecar");
-
-      if !matches!(self.open, ShellAllowlistOpen::Flag(false)) {
-        features.push("shell-open")
-      }
-
-      features
-    }
-  }
-}
-
-/// Allowlist for the dialog APIs.
-///
-/// See more: https://tauri.app/v1/api/config#dialogallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct DialogAllowlistConfig {
-  /// Use this flag to enable all dialog API features.
-  #[serde(default)]
-  pub all: bool,
-  /// Allows the API to open a dialog window to pick files.
-  #[serde(default)]
-  pub open: bool,
-  /// Allows the API to open a dialog window to pick where to save files.
-  #[serde(default)]
-  pub save: bool,
-  /// Allows the API to show a message dialog window.
-  #[serde(default)]
-  pub message: bool,
-  /// Allows the API to show a dialog window with Yes/No buttons.
-  #[serde(default)]
-  pub ask: bool,
-  /// Allows the API to show a dialog window with Ok/Cancel buttons.
-  #[serde(default)]
-  pub confirm: bool,
-}
-
-impl Allowlist for DialogAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      all: false,
-      open: true,
-      save: true,
-      message: true,
-      ask: true,
-      confirm: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("dialog-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["dialog-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, open, "dialog-open");
-      check_feature!(self, features, save, "dialog-save");
-      check_feature!(self, features, message, "dialog-message");
-      check_feature!(self, features, ask, "dialog-ask");
-      check_feature!(self, features, confirm, "dialog-confirm");
-      features
-    }
-  }
-}
-
-/// HTTP API scope definition.
-/// It is a list of URLs that can be accessed by the webview when using the HTTP APIs.
-/// The scoped URL is matched against the request URL using a glob pattern.
-///
-/// Examples:
-/// - "https://**": allows all HTTPS urls
-/// - "https://*.github.com/tauri-apps/tauri": allows any subdomain of "github.com" with the "tauri-apps/api" path
-/// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
-#[allow(rustdoc::bare_urls)]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct HttpAllowlistScope(pub Vec<Url>);
-
-/// Allowlist for the HTTP APIs.
-///
-/// See more: https://tauri.app/v1/api/config#httpallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct HttpAllowlistConfig {
-  /// The access scope for the HTTP APIs.
-  #[serde(default)]
-  pub scope: HttpAllowlistScope,
-  /// Use this flag to enable all HTTP API features.
-  #[serde(default)]
-  pub all: bool,
-  /// Allows making HTTP requests.
-  #[serde(default)]
-  pub request: bool,
-}
-
-impl Allowlist for HttpAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      scope: Default::default(),
-      all: false,
-      request: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("http-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["http-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, request, "http-request");
-      features
-    }
-  }
-}
-
-/// Allowlist for the notification APIs.
-///
-/// See more: https://tauri.app/v1/api/config#notificationallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct NotificationAllowlistConfig {
-  /// Use this flag to enable all notification API features.
-  #[serde(default)]
-  pub all: bool,
-}
-
-impl Allowlist for NotificationAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self { all: false };
-    let mut features = allowlist.to_features();
-    features.push("notification-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["notification-all"]
-    } else {
-      vec![]
-    }
-  }
-}
-
-/// Allowlist for the global shortcut APIs.
-///
-/// See more: https://tauri.app/v1/api/config#globalshortcutallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct GlobalShortcutAllowlistConfig {
-  /// Use this flag to enable all global shortcut API features.
-  #[serde(default)]
-  pub all: bool,
-}
-
-impl Allowlist for GlobalShortcutAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self { all: false };
-    let mut features = allowlist.to_features();
-    features.push("global-shortcut-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["global-shortcut-all"]
-    } else {
-      vec![]
-    }
-  }
-}
-
-/// Allowlist for the OS APIs.
-///
-/// See more: https://tauri.app/v1/api/config#osallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct OsAllowlistConfig {
-  /// Use this flag to enable all OS API features.
-  #[serde(default)]
-  pub all: bool,
-}
-
-impl Allowlist for OsAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self { all: false };
-    let mut features = allowlist.to_features();
-    features.push("os-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["os-all"]
-    } else {
-      vec![]
-    }
-  }
-}
-
-/// Allowlist for the path APIs.
-///
-/// See more: https://tauri.app/v1/api/config#pathallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct PathAllowlistConfig {
-  /// Use this flag to enable all path API features.
-  #[serde(default)]
-  pub all: bool,
-}
-
-impl Allowlist for PathAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self { all: false };
-    let mut features = allowlist.to_features();
-    features.push("path-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["path-all"]
-    } else {
-      vec![]
-    }
-  }
-}
-
-/// Allowlist for the custom protocols.
-///
-/// See more: https://tauri.app/v1/api/config#protocolallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProtocolAllowlistConfig {
-  /// The access scope for the asset protocol.
-  #[serde(default, alias = "asset-scope")]
-  pub asset_scope: FsAllowlistScope,
-  /// Use this flag to enable all custom protocols.
-  #[serde(default)]
-  pub all: bool,
-  /// Enables the asset protocol.
-  #[serde(default)]
-  pub asset: bool,
-}
-
-impl Allowlist for ProtocolAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      asset_scope: Default::default(),
-      all: false,
-      asset: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("protocol-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["protocol-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, asset, "protocol-asset");
-      features
-    }
-  }
-}
-
-/// Allowlist for the process APIs.
-///
-/// See more: https://tauri.app/v1/api/config#processallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProcessAllowlistConfig {
-  /// Use this flag to enable all process APIs.
-  #[serde(default)]
-  pub all: bool,
-  /// Enables the relaunch API.
-  #[serde(default)]
-  pub relaunch: bool,
-  /// Dangerous option that allows macOS to relaunch even if the binary contains a symlink.
-  ///
-  /// This is due to macOS having less symlink protection. Highly recommended to not set this flag
-  /// unless you have a very specific reason too, and understand the implications of it.
-  #[serde(
-    default,
-    alias = "relaunchDangerousAllowSymlinkMacOS",
-    alias = "relaunch-dangerous-allow-symlink-macos"
-  )]
-  pub relaunch_dangerous_allow_symlink_macos: bool,
-  /// Enables the exit API.
-  #[serde(default)]
-  pub exit: bool,
-}
-
-impl Allowlist for ProcessAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      all: false,
-      relaunch: true,
-      relaunch_dangerous_allow_symlink_macos: false,
-      exit: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("process-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["process-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, relaunch, "process-relaunch");
-      check_feature!(
-        self,
-        features,
-        relaunch_dangerous_allow_symlink_macos,
-        "process-relaunch-dangerous-allow-symlink-macos"
-      );
-      check_feature!(self, features, exit, "process-exit");
-      features
-    }
-  }
-}
-
-/// Allowlist for the clipboard APIs.
-///
-/// See more: https://tauri.app/v1/api/config#clipboardallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ClipboardAllowlistConfig {
-  /// Use this flag to enable all clipboard APIs.
-  #[serde(default)]
-  pub all: bool,
-  /// Enables the clipboard's `writeText` API.
-  #[serde(default, alias = "writeText")]
-  pub write_text: bool,
-  /// Enables the clipboard's `readText` API.
-  #[serde(default, alias = "readText")]
-  pub read_text: bool,
-}
-
-impl Allowlist for ClipboardAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      all: false,
-      write_text: true,
-      read_text: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("clipboard-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["clipboard-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, write_text, "clipboard-write-text");
-      check_feature!(self, features, read_text, "clipboard-read-text");
-      features
-    }
-  }
-}
-
-/// Allowlist for the app APIs.
-///
-/// See more: https://tauri.app/v1/api/config#appallowlistconfig
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AppAllowlistConfig {
-  /// Use this flag to enable all app APIs.
-  #[serde(default)]
-  pub all: bool,
-  /// Enables the app's `show` API.
-  #[serde(default)]
-  pub show: bool,
-  /// Enables the app's `hide` API.
-  #[serde(default)]
-  pub hide: bool,
-}
-
-impl Allowlist for AppAllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let allowlist = Self {
-      all: false,
-      show: true,
-      hide: true,
-    };
-    let mut features = allowlist.to_features();
-    features.push("app-all");
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["app-all"]
-    } else {
-      let mut features = Vec::new();
-      check_feature!(self, features, show, "app-show");
-      check_feature!(self, features, hide, "app-hide");
-      features
-    }
-  }
-}
-
-/// Allowlist configuration. The allowlist is a translation of the [Cargo allowlist features](https://docs.rs/tauri/latest/tauri/#cargo-allowlist-features).
-///
-/// # Notes
-///
-/// - Endpoints that don't have their own allowlist option are enabled by default.
-/// - There is only "opt-in", no "opt-out". Setting an option to `false` has no effect.
-///
-/// # Examples
-///
-/// - * [`"app-all": true`](https://tauri.app/v1/api/config/#appallowlistconfig.all) will make the [hide](https://tauri.app/v1/api/js/app#hide) endpoint be available regardless of whether `hide` is set to `false` or `true` in the allowlist.
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AllowlistConfig {
-  /// Use this flag to enable all API features.
-  #[serde(default)]
-  pub all: bool,
-  /// File system API allowlist.
-  #[serde(default)]
-  pub fs: FsAllowlistConfig,
-  /// Window API allowlist.
-  #[serde(default)]
-  pub window: WindowAllowlistConfig,
-  /// Shell API allowlist.
-  #[serde(default)]
-  pub shell: ShellAllowlistConfig,
-  /// Dialog API allowlist.
-  #[serde(default)]
-  pub dialog: DialogAllowlistConfig,
-  /// HTTP API allowlist.
-  #[serde(default)]
-  pub http: HttpAllowlistConfig,
-  /// Notification API allowlist.
-  #[serde(default)]
-  pub notification: NotificationAllowlistConfig,
-  /// Global shortcut API allowlist.
-  #[serde(default, alias = "global-shortcut")]
-  pub global_shortcut: GlobalShortcutAllowlistConfig,
-  /// OS allowlist.
-  #[serde(default)]
-  pub os: OsAllowlistConfig,
-  /// Path API allowlist.
-  #[serde(default)]
-  pub path: PathAllowlistConfig,
-  /// Custom protocol allowlist.
-  #[serde(default)]
-  pub protocol: ProtocolAllowlistConfig,
-  /// Process API allowlist.
-  #[serde(default)]
-  pub process: ProcessAllowlistConfig,
-  /// Clipboard APIs allowlist.
-  #[serde(default)]
-  pub clipboard: ClipboardAllowlistConfig,
-  /// App APIs allowlist.
-  #[serde(default)]
-  pub app: AppAllowlistConfig,
-}
-
-impl Allowlist for AllowlistConfig {
-  fn all_features() -> Vec<&'static str> {
-    let mut features = vec!["api-all"];
-    features.extend(FsAllowlistConfig::all_features());
-    features.extend(WindowAllowlistConfig::all_features());
-    features.extend(ShellAllowlistConfig::all_features());
-    features.extend(DialogAllowlistConfig::all_features());
-    features.extend(HttpAllowlistConfig::all_features());
-    features.extend(NotificationAllowlistConfig::all_features());
-    features.extend(GlobalShortcutAllowlistConfig::all_features());
-    features.extend(OsAllowlistConfig::all_features());
-    features.extend(PathAllowlistConfig::all_features());
-    features.extend(ProtocolAllowlistConfig::all_features());
-    features.extend(ProcessAllowlistConfig::all_features());
-    features.extend(ClipboardAllowlistConfig::all_features());
-    features.extend(AppAllowlistConfig::all_features());
-    features
-  }
-
-  fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["api-all"]
-    } else {
-      let mut features = Vec::new();
-      features.extend(self.fs.to_features());
-      features.extend(self.window.to_features());
-      features.extend(self.shell.to_features());
-      features.extend(self.dialog.to_features());
-      features.extend(self.http.to_features());
-      features.extend(self.notification.to_features());
-      features.extend(self.global_shortcut.to_features());
-      features.extend(self.os.to_features());
-      features.extend(self.path.to_features());
-      features.extend(self.protocol.to_features());
-      features.extend(self.process.to_features());
-      features.extend(self.clipboard.to_features());
-      features.extend(self.app.to_features());
-      features
-    }
-  }
+  /// Custom protocol config.
+  #[serde(default, alias = "asset-protocol")]
+  pub asset_protocol: AssetProtocolConfig,
 }
 
 /// The application pattern.
@@ -2184,15 +1277,9 @@ pub struct TauriConfig {
   /// The bundler configuration.
   #[serde(default)]
   pub bundle: BundleConfig,
-  /// The allowlist configuration.
-  #[serde(default)]
-  pub allowlist: AllowlistConfig,
   /// Security configuration.
   #[serde(default)]
   pub security: SecurityConfig,
-  /// The updater configuration.
-  #[serde(default)]
-  pub updater: UpdaterConfig,
   /// Configuration for app system tray.
   #[serde(alias = "system-tray")]
   pub system_tray: Option<SystemTrayConfig>,
@@ -2205,15 +1292,18 @@ impl TauriConfig {
   /// Returns all Cargo features.
   #[allow(dead_code)]
   pub fn all_features() -> Vec<&'static str> {
-    let mut features = AllowlistConfig::all_features();
-    features.extend(vec!["system-tray", "macos-private-api", "isolation"]);
-    features
+    vec![
+      "system-tray",
+      "macos-private-api",
+      "isolation",
+      "protocol-asset",
+    ]
   }
 
   /// Returns the enabled Cargo features.
   #[allow(dead_code)]
   pub fn features(&self) -> Vec<&str> {
-    let mut features = self.allowlist.to_features();
+    let mut features = Vec::new();
     if self.system_tray.is_some() {
       features.push("system-tray");
     }
@@ -2223,40 +1313,11 @@ impl TauriConfig {
     if let PatternKind::Isolation { .. } = self.pattern {
       features.push("isolation");
     }
+    if self.security.asset_protocol.enable {
+      features.push("protocol-asset");
+    }
     features.sort_unstable();
     features
-  }
-}
-
-/// A URL to an updater server.
-///
-/// The URL must use the `https` scheme on production.
-#[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct UpdaterEndpoint(pub Url);
-
-impl std::fmt::Display for UpdaterEndpoint {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.0)
-  }
-}
-
-impl<'de> Deserialize<'de> for UpdaterEndpoint {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    let url = Url::deserialize(deserializer)?;
-    #[cfg(all(not(debug_assertions), not(feature = "schema")))]
-    {
-      if url.scheme() != "https" {
-        return Err(serde::de::Error::custom(
-          "The configured updater endpoint must use the `https` protocol.",
-        ));
-      }
-    }
-    Ok(Self(url))
   }
 }
 
@@ -2341,86 +1402,9 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpdaterWindowsConfig {
-  /// Additional arguments given to the NSIS or WiX installer.
-  #[serde(default, alias = "installer-args")]
-  pub installer_args: Vec<String>,
   /// The installation mode for the update on Windows. Defaults to `passive`.
   #[serde(default, alias = "install-mode")]
   pub install_mode: WindowsUpdateInstallMode,
-}
-
-/// The Updater configuration object.
-///
-/// See more: https://tauri.app/v1/api/config#updaterconfig
-#[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct UpdaterConfig {
-  /// Whether the updater is active or not.
-  #[serde(default)]
-  pub active: bool,
-  /// The updater endpoints. TLS is enforced on production.
-  ///
-  /// The updater URL can contain the following variables:
-  /// - {{current_version}}: The version of the app that is requesting the update
-  /// - {{target}}: The operating system name (one of `linux`, `windows` or `darwin`).
-  /// - {{arch}}: The architecture of the machine (one of `x86_64`, `i686`, `aarch64` or `armv7`).
-  ///
-  /// # Examples
-  /// - "https://my.cdn.com/latest.json": a raw JSON endpoint that returns the latest version and download links for each platform.
-  /// - "https://updates.app.dev/{{target}}?version={{current_version}}&arch={{arch}}": a dedicated API with positional and query string arguments.
-  #[allow(rustdoc::bare_urls)]
-  pub endpoints: Option<Vec<UpdaterEndpoint>>,
-  /// Signature public key.
-  #[serde(default)] // use default just so the schema doesn't flag it as required
-  pub pubkey: String,
-  /// The Windows configuration for the updater.
-  #[serde(default)]
-  pub windows: UpdaterWindowsConfig,
-}
-
-impl<'de> Deserialize<'de> for UpdaterConfig {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    #[derive(Deserialize)]
-    struct InnerUpdaterConfig {
-      #[serde(default)]
-      active: bool,
-      endpoints: Option<Vec<UpdaterEndpoint>>,
-      pubkey: Option<String>,
-      #[serde(default)]
-      windows: UpdaterWindowsConfig,
-    }
-
-    let config = InnerUpdaterConfig::deserialize(deserializer)?;
-
-    if config.active && config.pubkey.is_none() {
-      return Err(DeError::custom(
-        "The updater `pubkey` configuration is required.",
-      ));
-    }
-
-    Ok(UpdaterConfig {
-      active: config.active,
-      endpoints: config.endpoints,
-      pubkey: config.pubkey.unwrap_or_default(),
-      windows: config.windows,
-    })
-  }
-}
-
-impl Default for UpdaterConfig {
-  fn default() -> Self {
-    Self {
-      active: false,
-      endpoints: None,
-      pubkey: "".into(),
-      windows: Default::default(),
-    }
-  }
 }
 
 /// Configuration for application system tray icon.
@@ -2711,8 +1695,7 @@ impl PackageConfig {
 
 /// The Tauri configuration object.
 /// It is read from a file where you can define your frontend assets,
-/// configure the bundler, enable the app updater, define a system tray,
-/// enable APIs via the allowlist and more.
+/// configure the bundler and define a system tray.
 ///
 /// The configuration file is generated by the
 /// [`tauri init`](https://tauri.app/v1/api/cli#init) command that lives in
@@ -2758,15 +1741,9 @@ impl PackageConfig {
 ///     "version": "0.1.0"
 ///   },
 ///   "tauri": {
-///     "allowlist": {
-///       "all": true
-///     },
 ///     "bundle": {},
 ///     "security": {
 ///       "csp": null
-///     },
-///     "updater": {
-///       "active": false
 ///     },
 ///     "windows": [
 ///       {
@@ -2982,7 +1959,7 @@ mod build {
         ::tauri::utils::config::$struct {
           $($field: #$field),+
         }
-      });
+      })
     };
   }
 
@@ -3014,6 +1991,23 @@ mod build {
     }
   }
 
+  impl ToTokens for Color {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let Color(r, g, b, a) = self;
+      tokens.append_all(quote! {::tauri::utils::Color(#r,#g,#b,#a)});
+    }
+  }
+  impl ToTokens for WindowEffectsConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let effects = vec_lit(self.effects.clone(), |d| d);
+      let state = opt_lit(self.state.as_ref());
+      let radius = opt_lit(self.radius.as_ref());
+      let color = opt_lit(self.color.as_ref());
+
+      literal_struct!(tokens, WindowEffectsConfig, effects, state, radius, color)
+    }
+  }
+
   impl ToTokens for crate::TitleBarStyle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let prefix = quote! { ::tauri::utils::TitleBarStyle };
@@ -3022,6 +2016,51 @@ mod build {
         Self::Visible => quote! { #prefix::Visible },
         Self::Transparent => quote! { #prefix::Transparent },
         Self::Overlay => quote! { #prefix::Overlay },
+      })
+    }
+  }
+
+  impl ToTokens for crate::WindowEffect {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::WindowEffect };
+
+      #[allow(deprecated)]
+      tokens.append_all(match self {
+        WindowEffect::AppearanceBased => quote! { #prefix::AppearanceBased},
+        WindowEffect::Light => quote! { #prefix::Light},
+        WindowEffect::Dark => quote! { #prefix::Dark},
+        WindowEffect::MediumLight => quote! { #prefix::MediumLight},
+        WindowEffect::UltraDark => quote! { #prefix::UltraDark},
+        WindowEffect::Titlebar => quote! { #prefix::Titlebar},
+        WindowEffect::Selection => quote! { #prefix::Selection},
+        WindowEffect::Menu => quote! { #prefix::Menu},
+        WindowEffect::Popover => quote! { #prefix::Popover},
+        WindowEffect::Sidebar => quote! { #prefix::Sidebar},
+        WindowEffect::HeaderView => quote! { #prefix::HeaderView},
+        WindowEffect::Sheet => quote! { #prefix::Sheet},
+        WindowEffect::WindowBackground => quote! { #prefix::WindowBackground},
+        WindowEffect::HudWindow => quote! { #prefix::HudWindow},
+        WindowEffect::FullScreenUI => quote! { #prefix::FullScreenUI},
+        WindowEffect::Tooltip => quote! { #prefix::Tooltip},
+        WindowEffect::ContentBackground => quote! { #prefix::ContentBackground},
+        WindowEffect::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
+        WindowEffect::UnderPageBackground => quote! { #prefix::UnderPageBackground},
+        WindowEffect::Mica => quote! { #prefix::Mica},
+        WindowEffect::Blur => quote! { #prefix::Blur},
+        WindowEffect::Acrylic => quote! { #prefix::Acrylic},
+      })
+    }
+  }
+
+  impl ToTokens for crate::WindowEffectState {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::WindowEffectState };
+
+      #[allow(deprecated)]
+      tokens.append_all(match self {
+        WindowEffectState::Active => quote! { #prefix::Active},
+        WindowEffectState::FollowsWindowActiveState => quote! { #prefix::FollowsWindowActiveState},
+        WindowEffectState::Inactive => quote! { #prefix::Inactive},
       })
     }
   }
@@ -3059,6 +2098,7 @@ mod build {
       let tabbing_identifier = opt_str_lit(self.tabbing_identifier.as_ref());
       let additional_browser_args = opt_str_lit(self.additional_browser_args.as_ref());
       let shadow = self.shadow;
+      let window_effects = opt_lit(self.window_effects.as_ref());
 
       literal_struct!(
         tokens,
@@ -3093,7 +2133,8 @@ mod build {
         accept_first_mouse,
         tabbing_identifier,
         additional_browser_args,
-        shadow
+        shadow,
+        window_effects
       );
     }
   }
@@ -3155,6 +2196,16 @@ mod build {
     }
   }
 
+  impl ToTokens for UpdaterConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let active = self.active;
+      let pubkey = str_lit(&self.pubkey);
+      let windows = &self.windows;
+
+      literal_struct!(tokens, UpdaterConfig, active, pubkey, windows);
+    }
+  }
+
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
@@ -3174,6 +2225,7 @@ mod build {
       let windows = &self.windows;
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
+      let updater = &self.updater;
 
       literal_struct!(
         tokens,
@@ -3194,7 +2246,8 @@ mod build {
         external_bin,
         windows,
         ios,
-        android
+        android,
+        updater
       );
     }
   }
@@ -3256,30 +2309,7 @@ mod build {
   impl ToTokens for UpdaterWindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let install_mode = &self.install_mode;
-      let installer_args = vec_lit(&self.installer_args, str_lit);
-      literal_struct!(tokens, UpdaterWindowsConfig, install_mode, installer_args);
-    }
-  }
-
-  impl ToTokens for UpdaterConfig {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let active = self.active;
-      let pubkey = str_lit(&self.pubkey);
-      let endpoints = opt_lit(
-        self
-          .endpoints
-          .as_ref()
-          .map(|list| {
-            vec_lit(list, |url| {
-              let url = url.0.as_str();
-              quote! { ::tauri::utils::config::UpdaterEndpoint(#url.parse().unwrap()) }
-            })
-          })
-          .as_ref(),
-      );
-      let windows = &self.windows;
-
-      literal_struct!(tokens, UpdaterConfig, active, pubkey, endpoints, windows);
+      literal_struct!(tokens, UpdaterWindowsConfig, install_mode);
     }
   }
 
@@ -3344,7 +2374,6 @@ mod build {
       let domain = str_lit(&self.domain);
       let windows = vec_lit(&self.windows, str_lit);
       let plugins = vec_lit(&self.plugins, str_lit);
-      let enable_tauri_api = self.enable_tauri_api;
 
       literal_struct!(
         tokens,
@@ -3352,8 +2381,7 @@ mod build {
         scheme,
         domain,
         windows,
-        plugins,
-        enable_tauri_api
+        plugins
       );
     }
   }
@@ -3366,6 +2394,7 @@ mod build {
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
       let dangerous_remote_domain_ipc_access =
         vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
+      let asset_protocol = &self.asset_protocol;
 
       literal_struct!(
         tokens,
@@ -3374,7 +2403,8 @@ mod build {
         dev_csp,
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
-        dangerous_remote_domain_ipc_access
+        dangerous_remote_domain_ipc_access,
+        asset_protocol
       );
     }
   }
@@ -3396,9 +2426,9 @@ mod build {
     }
   }
 
-  impl ToTokens for FsAllowlistScope {
+  impl ToTokens for FsScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::FsAllowlistScope };
+      let prefix = quote! { ::tauri::utils::config::FsScope };
 
       tokens.append_all(match self {
         Self::AllowedPaths(allow) => {
@@ -3414,112 +2444,10 @@ mod build {
     }
   }
 
-  impl ToTokens for FsAllowlistConfig {
+  impl ToTokens for AssetProtocolConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let scope = &self.scope;
-      tokens.append_all(
-        quote! { ::tauri::utils::config::FsAllowlistConfig { scope: #scope, ..Default::default() } },
-      )
-    }
-  }
-
-  impl ToTokens for ProtocolAllowlistConfig {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let asset_scope = &self.asset_scope;
-      tokens.append_all(quote! { ::tauri::utils::config::ProtocolAllowlistConfig { asset_scope: #asset_scope, ..Default::default() } })
-    }
-  }
-
-  impl ToTokens for HttpAllowlistScope {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let allowed_urls = vec_lit(&self.0, url_lit);
-      tokens.append_all(quote! { ::tauri::utils::config::HttpAllowlistScope(#allowed_urls) })
-    }
-  }
-
-  impl ToTokens for HttpAllowlistConfig {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let scope = &self.scope;
-      tokens.append_all(quote! { ::tauri::utils::config::HttpAllowlistConfig { scope: #scope, ..Default::default() } })
-    }
-  }
-
-  impl ToTokens for ShellAllowedCommand {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let name = str_lit(&self.name);
-      let command = path_buf_lit(&self.command);
-      let args = &self.args;
-      let sidecar = &self.sidecar;
-
-      literal_struct!(tokens, ShellAllowedCommand, name, command, args, sidecar);
-    }
-  }
-
-  impl ToTokens for ShellAllowedArgs {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::ShellAllowedArgs };
-
-      tokens.append_all(match self {
-        Self::Flag(flag) => quote!(#prefix::Flag(#flag)),
-        Self::List(list) => {
-          let list = vec_lit(list, identity);
-          quote!(#prefix::List(#list))
-        }
-      })
-    }
-  }
-
-  impl ToTokens for ShellAllowedArg {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::ShellAllowedArg };
-
-      tokens.append_all(match self {
-        Self::Fixed(fixed) => {
-          let fixed = str_lit(fixed);
-          quote!(#prefix::Fixed(#fixed))
-        }
-        Self::Var { validator } => {
-          let validator = str_lit(validator);
-          quote!(#prefix::Var { validator: #validator })
-        }
-      })
-    }
-  }
-
-  impl ToTokens for ShellAllowlistOpen {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::ShellAllowlistOpen };
-
-      tokens.append_all(match self {
-        Self::Flag(flag) => quote!(#prefix::Flag(#flag)),
-        Self::Validate(regex) => quote!(#prefix::Validate(#regex)),
-      })
-    }
-  }
-
-  impl ToTokens for ShellAllowlistScope {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let allowed_commands = vec_lit(&self.0, identity);
-      tokens.append_all(quote! { ::tauri::utils::config::ShellAllowlistScope(#allowed_commands) })
-    }
-  }
-
-  impl ToTokens for ShellAllowlistConfig {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let scope = &self.scope;
-      tokens.append_all(quote! { ::tauri::utils::config::ShellAllowlistConfig { scope: #scope, ..Default::default() } })
-    }
-  }
-
-  impl ToTokens for AllowlistConfig {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let fs = &self.fs;
-      let protocol = &self.protocol;
-      let http = &self.http;
-      let shell = &self.shell;
-      tokens.append_all(
-        quote! { ::tauri::utils::config::AllowlistConfig { fs: #fs, protocol: #protocol, http: #http, shell: #shell, ..Default::default() } },
-      )
+      tokens.append_all(quote! { ::tauri::utils::config::AssetProtocolConfig { scope: #scope, ..Default::default() } })
     }
   }
 
@@ -3528,10 +2456,8 @@ mod build {
       let pattern = &self.pattern;
       let windows = vec_lit(&self.windows, identity);
       let bundle = &self.bundle;
-      let updater = &self.updater;
       let security = &self.security;
       let system_tray = opt_lit(self.system_tray.as_ref());
-      let allowlist = &self.allowlist;
       let macos_private_api = self.macos_private_api;
 
       literal_struct!(
@@ -3540,10 +2466,8 @@ mod build {
         pattern,
         windows,
         bundle,
-        updater,
         security,
         system_tray,
-        allowlist,
         macos_private_api
       );
     }
@@ -3602,8 +2526,6 @@ mod test {
     let d_windows: Vec<WindowConfig> = vec![];
     // get default bundle
     let d_bundle = BundleConfig::default();
-    // get default updater
-    let d_updater = UpdaterConfig::default();
 
     // create a tauri config.
     let tauri = TauriConfig {
@@ -3627,12 +2549,7 @@ mod test {
         windows: Default::default(),
         ios: Default::default(),
         android: Default::default(),
-      },
-      updater: UpdaterConfig {
-        active: false,
-        pubkey: "".into(),
-        endpoints: None,
-        windows: Default::default(),
+        updater: Default::default(),
       },
       security: SecurityConfig {
         csp: None,
@@ -3640,8 +2557,8 @@ mod test {
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
         dangerous_remote_domain_ipc_access: Vec::new(),
+        asset_protocol: AssetProtocolConfig::default(),
       },
-      allowlist: AllowlistConfig::default(),
       system_tray: None,
       macos_private_api: false,
     };
@@ -3664,7 +2581,6 @@ mod test {
     assert_eq!(t_config, tauri);
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, tauri.bundle);
-    assert_eq!(d_updater, tauri.updater);
     assert_eq!(
       d_path,
       AppUrl::Url(WindowUrl::External(

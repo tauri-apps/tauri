@@ -82,6 +82,44 @@ class Channel<T = unknown> {
   }
 }
 
+class PluginListener {
+  plugin: string
+  event: string
+  channelId: number
+
+  constructor(plugin: string, event: string, channelId: number) {
+    this.plugin = plugin
+    this.event = event
+    this.channelId = channelId
+  }
+
+  async unregister(): Promise<void> {
+    return invoke(`plugin:${this.plugin}|remove_listener`, {
+      event: this.event,
+      channelId: this.channelId
+    })
+  }
+}
+
+/**
+ * Adds a listener to a plugin event.
+ *
+ * @returns The listener object to stop listening to the events.
+ *
+ * @since 2.0.0
+ */
+async function addPluginListener<T>(
+  plugin: string,
+  event: string,
+  cb: (payload: T) => void
+): Promise<PluginListener> {
+  const handler = new Channel<T>()
+  handler.onmessage = cb
+  return invoke(`plugin:${plugin}|register_listener`, { event, handler }).then(
+    () => new PluginListener(plugin, event, handler.id)
+  )
+}
+
 /**
  * Command arguments.
  *
@@ -162,4 +200,11 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
 
 export type { InvokeArgs }
 
-export { transformCallback, Channel, invoke, convertFileSrc }
+export {
+  transformCallback,
+  Channel,
+  PluginListener,
+  addPluginListener,
+  invoke,
+  convertFileSrc
+}

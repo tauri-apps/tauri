@@ -7,5 +7,5 @@ edition = "2021"
 tauri-build = { path = "../../tauri-build" }
 
 [dependencies]
-tauri = { path = "../../tauri", features = [ "api-all" ] }
+tauri = { path = "../../tauri", features = [ ] }
 tauri-utils = { path = "../../tauri-utils" }

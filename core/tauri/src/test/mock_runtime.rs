@@ -72,7 +72,6 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
         last_evaluated_script: Default::default(),
       },
       menu_ids: Default::default(),
-      js_event_listeners: Default::default(),
     })
   }
 
@@ -653,7 +652,6 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
         last_evaluated_script: Default::default(),
       },
       menu_ids: Default::default(),
-      js_event_listeners: Default::default(),
     })
   }
 

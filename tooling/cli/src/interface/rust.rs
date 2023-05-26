@@ -36,6 +36,7 @@ use tauri_utils::display_path;
 
 mod cargo_config;
 mod desktop;
+pub mod installation;
 pub mod manifest;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
@@ -346,14 +347,17 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
 
 fn shared_options(
   mobile: bool,
+  args: &mut Vec<String>,
   features: &mut Option<Vec<String>>,
   app_settings: &RustAppSettings,
 ) {
   if mobile {
+    args.push("--lib".into());
     features
       .get_or_insert(Vec::new())
       .push("tauri/rustls-tls".into());
   } else {
+    args.push("--bins".into());
     let all_features = app_settings
       .manifest
       .all_enabled_features(if let Some(f) = features { f } else { &[] });
@@ -385,7 +389,7 @@ fn dev_options(
   }
   *args = dev_args;
 
-  shared_options(mobile, features, app_settings);
+  shared_options(mobile, args, features, app_settings);
 
   if !args.contains(&"--no-default-features".into()) {
     let manifest_features = app_settings.manifest.features();
@@ -410,11 +414,16 @@ fn dev_options(
 }
 
 impl Rust {
-  pub fn build_options(&self, features: &mut Option<Vec<String>>, mobile: bool) {
+  pub fn build_options(
+    &self,
+    args: &mut Vec<String>,
+    features: &mut Option<Vec<String>>,
+    mobile: bool,
+  ) {
     features
       .get_or_insert(Vec::new())
       .push("custom-protocol".into());
-    shared_options(mobile, features, &self.app_settings);
+    shared_options(mobile, args, features, &self.app_settings);
   }
 
   fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
@@ -693,7 +702,6 @@ impl AppSettings for RustAppSettings {
       features,
       config.tauri.bundle.clone(),
       config.tauri.system_tray.clone(),
-      config.tauri.updater.clone(),
     )
   }
 
@@ -1029,7 +1037,6 @@ fn tauri_config_to_bundle_settings(
   features: &[String],
   config: crate::helpers::config::BundleConfig,
   system_tray_config: Option<crate::helpers::config::SystemTrayConfig>,
-  updater_config: crate::helpers::config::UpdaterConfig,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
 
@@ -1159,12 +1166,9 @@ fn tauri_config_to_bundle_settings(
       allow_downgrades: config.windows.allow_downgrades,
     },
     updater: Some(UpdaterSettings {
-      active: updater_config.active,
-      pubkey: updater_config.pubkey,
-      endpoints: updater_config
-        .endpoints
-        .map(|endpoints| endpoints.iter().map(|e| e.to_string()).collect()),
-      msiexec_args: Some(updater_config.windows.install_mode.msiexec_args()),
+      active: config.updater.active,
+      pubkey: config.updater.pubkey,
+      msiexec_args: Some(config.updater.windows.install_mode.msiexec_args()),
     }),
     ..Default::default()
   })

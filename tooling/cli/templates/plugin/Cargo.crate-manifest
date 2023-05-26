@@ -6,6 +6,7 @@ description = ""
 edition = "2021"
 rust-version = "1.65"
 exclude = ["/examples", "/webview-dist", "/webview-src", "/node_modules"]
+links = "tauri-plugin-{{ plugin_name }}"
 
 [dependencies]
 tauri = {{  tauri_dep }}

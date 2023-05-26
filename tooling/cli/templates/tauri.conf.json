@@ -43,9 +43,6 @@
         "timestampUrl": ""
       }
     },
-    "allowlist": {
-      "all": false
-    },
     "windows": [
       {
         "title": "{{ window_title }}",

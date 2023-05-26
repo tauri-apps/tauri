@@ -16,15 +16,12 @@
 //! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
-//! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
 //! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
 //! - **native-tls**: Provides TLS support to connect over HTTPS.
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
-//! - **dialog**: Enables the [`api::dialog`] module.
-//! - **fs-extract-api**: Enabled the `tauri::api::file::Extract` API.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
@@ -39,115 +36,9 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that enables commands for Tauri's API package.
 //! These features are automatically enabled by the Tauri CLI based on the `allowlist` configuration under `tauri.conf.json`.
 //!
-//! - **api-all**: Enables all API endpoints.
-//!
-//! ### Clipboard allowlist
-//!
-//! - **clipboard-all**: Enables all [Clipboard APIs](https://tauri.app/en/docs/api/js/modules/clipboard/).
-//! - **clipboard-read-text**: Enables the [`readText` API](https://tauri.app/en/docs/api/js/modules/clipboard/#readtext).
-//! - **clipboard-write-text**: Enables the [`writeText` API](https://tauri.app/en/docs/api/js/modules/clipboard/#writetext).
-//!
-//! ### Dialog allowlist
-//!
-//! - **dialog-all**: Enables all [Dialog APIs](https://tauri.app/en/docs/api/js/modules/dialog).
-//! - **dialog-ask**: Enables the [`ask` API](https://tauri.app/en/docs/api/js/modules/dialog#ask).
-//! - **dialog-confirm**: Enables the [`confirm` API](https://tauri.app/en/docs/api/js/modules/dialog#confirm).
-//! - **dialog-message**: Enables the [`message` API](https://tauri.app/en/docs/api/js/modules/dialog#message).
-//! - **dialog-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/dialog#open).
-//! - **dialog-save**: Enables the [`save` API](https://tauri.app/en/docs/api/js/modules/dialog#save).
-//!
-//! ### Filesystem allowlist
-//!
-//! - **fs-all**: Enables all [Filesystem APIs](https://tauri.app/en/docs/api/js/modules/fs).
-//! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.app/en/docs/api/js/modules/fs#copyfile).
-//! - **fs-create-dir**: Enables the [`createDir` API](https://tauri.app/en/docs/api/js/modules/fs#createdir).
-//! - **fs-exists**: Enables the [`exists` API](https://tauri.app/en/docs/api/js/modules/fs#exists).
-//! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
-//! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#readbinaryfile).
-//! - **fs-remove-dir**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#removedir).
-//! - **fs-remove-file**: Enables the [`removeFile` API](https://tauri.app/en/docs/api/js/modules/fs#removefile).
-//! - **fs-rename-file**: Enables the [`renameFile` API](https://tauri.app/en/docs/api/js/modules/fs#renamefile).
-//! - **fs-write-file**: Enables the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile) and the [`writeBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#writebinaryfile).
-//!
-//! ### Global shortcut allowlist
-//!
-//! - **global-shortcut-all**: Enables all [GlobalShortcut APIs](https://tauri.app/en/docs/api/js/modules/globalShortcut).
-//!
-//! ### HTTP allowlist
-//!
-//! - **http-all**: Enables all [HTTP APIs](https://tauri.app/en/docs/api/js/modules/http).
-//! - **http-request**: Enables the [`request` APIs](https://tauri.app/en/docs/api/js/classes/http.client/).
-//!
-//! ### Notification allowlist
-//!
-//! - **notification-all**: Enables all [Notification APIs](https://tauri.app/en/docs/api/js/modules/notification).
-//!
-//! ### OS allowlist
-//!
-//! - **os-all**: Enables all [OS APIs](https://tauri.app/en/docs/api/js/modules/os).
-//!
-//! ### Path allowlist
-//!
-//! - **path-all**: Enables all [Path APIs](https://tauri.app/en/docs/api/js/modules/path).
-//!
-//! ### Process allowlist
-//!
-//! - **process-all**: Enables all [Process APIs](https://tauri.app/en/docs/api/js/modules/process).
-//! - **process-exit**: Enables the [`exit` API](https://tauri.app/en/docs/api/js/modules/process#exit).
-//! - **process-relaunch**: Enables the [`relaunch` API](https://tauri.app/en/docs/api/js/modules/process#relaunch).
-//!
 //! ### Protocol allowlist
 //!
-//! - **protocol-all**: Enables all Protocol APIs.
 //! - **protocol-asset**: Enables the `asset` custom protocol.
-//!
-//! ### Shell allowlist
-//!
-//! - **shell-all**: Enables all [Clipboard APIs](https://tauri.app/en/docs/api/js/modules/shell).
-//! - **shell-execute**: Enables [executing arbitrary programs](https://tauri.app/en/docs/api/js/classes/shell.Command#constructor).
-//! - **shell-sidecar**: Enables [executing a `sidecar` program](https://tauri.app/en/docs/api/js/classes/shell.Command#sidecar).
-//! - **shell-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/shell#open).
-//!
-//! ### Window allowlist
-//!
-//! - **window-all**: Enables all [Window APIs](https://tauri.app/en/docs/api/js/modules/window).
-//! - **window-create**: Enables the API used to [create new windows](https://tauri.app/en/docs/api/js/classes/window.webviewwindow/).
-//! - **window-center**: Enables the [`center` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#center).
-//! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#requestuserattention).
-//! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setresizable).
-//! - **window-set-title**: Enables the [`setTitle` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#settitle).
-//! - **window-maximize**: Enables the [`maximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#maximize).
-//! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unmaximize).
-//! - **window-minimize**: Enables the [`minimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#minimize).
-//! - **window-unminimize**: Enables the [`unminimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unminimize).
-//! - **window-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#show).
-//! - **window-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#hide).
-//! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
-//! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
-//! - **window-set-shadow**: Enables the [`setShadow` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setshadow).
-//! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
-//! - **window-set-content-protected**: Enables the [`setContentProtected` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcontentprotected).
-//! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
-//! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
-//! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
-//! - **window-set-position**: Enables the [`setPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setposition).
-//! - **window-set-fullscreen**: Enables the [`setFullscreen` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfullscreen).
-//! - **window-set-focus**: Enables the [`setFocus` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfocus).
-//! - **window-set-icon**: Enables the [`setIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#seticon).
-//! - **window-set-skip-taskbar**: Enables the [`setSkipTaskbar` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setskiptaskbar).
-//! - **window-set-cursor-grab**: Enables the [`setCursorGrab` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorgrab).
-//! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorvisible).
-//! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
-//! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
-//! - **window-set-ignore-cursor-events**: Enables the [`setIgnoreCursorEvents` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setignorecursorevents).
-//! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
-//! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
-//!
-//! ### App allowlist
-//!
-//! - **app-all**: Enables all [App APIs](https://tauri.app/en/docs/api/js/modules/app).
-//! - **app-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/modules/app#show).
-//! - **app-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/modules/app#hide).
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
@@ -179,14 +70,13 @@ pub mod api;
 pub(crate) mod app;
 pub mod async_runtime;
 pub mod command;
-/// The Tauri API endpoints.
-mod endpoints;
 mod error;
 mod event;
 mod hooks;
 mod manager;
 mod pattern;
 pub mod plugin;
+mod vibrancy;
 pub mod window;
 use tauri_runtime as runtime;
 #[cfg(target_os = "ios")]
@@ -340,48 +230,9 @@ pub fn log_stdout() {
   });
 }
 
-/// Updater events.
-#[cfg(updater)]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-#[derive(Debug, Clone)]
-pub enum UpdaterEvent {
-  /// An update is available.
-  UpdateAvailable {
-    /// The update body.
-    body: String,
-    /// The update release date.
-    date: Option<time::OffsetDateTime>,
-    /// The update version.
-    version: String,
-  },
-  /// The update is pending and about to be downloaded.
-  Pending,
-  /// The update download received a progress event.
-  DownloadProgress {
-    /// The amount that was downloaded on this iteration.
-    /// Does not accumulate with previous chunks.
-    chunk_length: usize,
-    /// The total
-    content_length: Option<u64>,
-  },
-  /// The update has been downloaded and is now about to be installed.
-  Downloaded,
-  /// The update has been applied and the app is now up to date.
-  Updated,
-  /// The app is already up to date.
-  AlreadyUpToDate,
-  /// An error occurred while updating.
-  Error(String),
-}
-
 /// The user event type.
 #[derive(Debug, Clone)]
-pub enum EventLoopMessage {
-  /// Updater event.
-  #[cfg(updater)]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-  Updater(UpdaterEvent),
-}
+pub enum EventLoopMessage {}
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
@@ -605,18 +456,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.state::<Env>().inner().clone()
   }
 
-  /// Gets the scope for the filesystem APIs.
-  fn fs_scope(&self) -> FsScope {
-    self.state::<Scopes>().inner().fs.clone()
-  }
-
   /// Gets the scope for the IPC.
   fn ipc_scope(&self) -> IpcScope {
     self.state::<Scopes>().inner().ipc.clone()
   }
 
   /// Gets the scope for the asset protocol.
-  #[cfg(protocol_asset)]
+  #[cfg(feature = "protocol-asset")]
   fn asset_protocol_scope(&self) -> FsScope {
     self.state::<Scopes>().inner().asset_protocol.clone()
   }
@@ -693,53 +539,6 @@ mod tests {
       if !manifest.features.iter().any(|(f, _)| f == checked_feature) {
         panic!(
           "Feature {checked_feature} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml"
-        );
-      }
-    }
-  }
-
-  #[test]
-  fn all_allowlist_features_are_aliased() {
-    let manifest = get_manifest();
-    let all_modules = manifest
-      .features
-      .iter()
-      .find(|(f, _)| f.as_str() == "api-all")
-      .map(|(_, enabled)| enabled)
-      .expect("api-all feature must exist");
-
-    let checked_features = CHECKED_FEATURES.split(',').collect::<Vec<&str>>();
-    assert!(
-      checked_features.contains(&"api-all"),
-      "`api-all` is not aliased"
-    );
-
-    // features that look like an allowlist feature, but are not
-    let allowed = [
-      "fs-extract-api",
-      "process-relaunch-dangerous-allow-symlink-macos",
-      "window-data-url",
-    ];
-
-    for module_all_feature in all_modules {
-      let module = module_all_feature.replace("-all", "");
-      assert!(
-        checked_features.contains(&module_all_feature.as_str()),
-        "`{module}` is not aliased"
-      );
-
-      let module_prefix = format!("{module}-");
-      // we assume that module features are the ones that start with `<module>-`
-      // though it's not 100% accurate, we have an allowed list to fix it
-      let module_features = manifest
-        .features
-        .keys()
-        .filter(|f| f.starts_with(&module_prefix));
-      for module_feature in module_features {
-        assert!(
-          allowed.contains(&module_feature.as_str())
-            || checked_features.contains(&module_feature.as_str()),
-          "`{module_feature}` is not aliased"
         );
       }
     }

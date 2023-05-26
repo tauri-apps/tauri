@@ -72,20 +72,17 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, 'cli.rs')
-        uses: peter-evans/repository-dispatch@v1
+        uses: benc-uk/workflow-dispatch@v1
         with:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
-          repository: tauri-apps/tauri
-          event-type: publish-clijs
-          client-payload: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}", "ref": "${{ github.ref }}" }'
+          workflow: publish-cli-js.yml
+          inputs: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}", "ref": "${{ github.ref }}" }'
 
       - name: Trigger cli.rs publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, 'cli.rs')
-        uses: peter-evans/repository-dispatch@v1
+        uses: benc-uk/workflow-dispatch@v1
         with:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
-          repository: tauri-apps/tauri
-          event-type: publish-clirs
-          client-payload: '{"ref": "${{ github.ref }}" }'
+          workflow: publish-cli-rs.yml

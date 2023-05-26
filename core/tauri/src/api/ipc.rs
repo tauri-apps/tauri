@@ -67,7 +67,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
 }
 
 /// The `Callback` type is the return value of the `transformCallback` JavaScript function.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct CallbackFn(pub usize);
 
 /// The information about this is quite limited. On Chrome/Edge and Firefox, [the maximum string size is approximately 1 GB](https://stackoverflow.com/a/34958490).

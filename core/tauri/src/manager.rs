@@ -505,7 +505,7 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push("tauri".into());
     }
 
-    #[cfg(protocol_asset)]
+    #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       use crate::path::SafePathBuf;
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
@@ -756,41 +756,38 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  fn prepare_ipc_handler(
-    &self,
-    app_handle: AppHandle<R>,
-  ) -> WebviewIpcHandler<EventLoopMessage, R> {
+  fn prepare_ipc_handler(&self) -> WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, #[allow(unused_mut)] mut request| {
-      let window = Window::new(manager.clone(), window, app_handle.clone());
+      if let Some(window) = manager.get_window(&window.label) {
+        #[cfg(feature = "isolation")]
+        if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+          match RawIsolationPayload::try_from(request.as_str())
+            .and_then(|raw| crypto_keys.decrypt(raw))
+          {
+            Ok(json) => request = json,
+            Err(e) => {
+              let error: crate::Error = e.into();
+              let _ = window.eval(&format!(
+                r#"console.error({})"#,
+                JsonValue::String(error.to_string())
+              ));
+              return;
+            }
+          }
+        }
 
-      #[cfg(feature = "isolation")]
-      if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-        match RawIsolationPayload::try_from(request.as_str())
-          .and_then(|raw| crypto_keys.decrypt(raw))
-        {
-          Ok(json) => request = json,
+        match serde_json::from_str::<InvokePayload>(&request) {
+          Ok(message) => {
+            let _ = window.on_message(message);
+          }
           Err(e) => {
             let error: crate::Error = e.into();
             let _ = window.eval(&format!(
               r#"console.error({})"#,
               JsonValue::String(error.to_string())
             ));
-            return;
           }
-        }
-      }
-
-      match serde_json::from_str::<InvokePayload>(&request) {
-        Ok(message) => {
-          let _ = window.on_message(message);
-        }
-        Err(e) => {
-          let error: crate::Error = e.into();
-          let _ = window.eval(&format!(
-            r#"console.error({})"#,
-            JsonValue::String(error.to_string())
-          ));
         }
       }
     })
@@ -1028,17 +1025,11 @@ impl<R: Runtime> WindowManager<R> {
       #[raw]
       core_script: &'a str,
       #[raw]
-      window_dialogs_script: &'a str,
-      #[raw]
-      window_print_script: &'a str,
-      #[raw]
       event_initialization_script: &'a str,
       #[raw]
       plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
-      #[raw]
-      hotkeys: &'a str,
     }
 
     let bundle_script = if with_global_tauri {
@@ -1052,34 +1043,6 @@ impl<R: Runtime> WindowManager<R> {
     } else {
       ""
     };
-
-    #[cfg(any(debug_assertions, feature = "devtools"))]
-    let hotkeys = &format!(
-      "
-      {};
-      window.hotkeys('{}', () => {{
-        window.__TAURI_INVOKE__('tauri', {{
-          __tauriModule: 'Window',
-          message: {{
-            cmd: 'manage',
-            data: {{
-              cmd: {{
-                type: '__toggleDevtools'
-              }}
-            }}
-          }}
-        }});
-      }});
-    ",
-      include_str!("../scripts/hotkey.js"),
-      if cfg!(target_os = "macos") {
-        "command+option+i"
-      } else {
-        "ctrl+shift+i"
-      }
-    );
-    #[cfg(not(any(debug_assertions, feature = "devtools")))]
-    let hotkeys = "";
 
     InitJavascript {
       pattern_script,
@@ -1096,23 +1059,9 @@ impl<R: Runtime> WindowManager<R> {
         )
       ),
       core_script: include_str!("../scripts/core.js"),
-
-      // window.print works on Linux/Windows; need to use the API on macOS
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
-      window_print_script: include_str!("../scripts/window_print.js"),
-      #[cfg(not(any(target_os = "macos", target_os = "ios")))]
-      window_print_script: "",
-
-      // dialogs are implemented natively on Android
-      #[cfg(not(target_os = "android"))]
-      window_dialogs_script: include_str!("../scripts/window_dialogs.js"),
-      #[cfg(target_os = "android")]
-      window_dialogs_script: "",
-
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,
-      hotkeys,
     }
     .render_default(&Default::default())
     .map(|s| s.into_string())
@@ -1324,20 +1273,18 @@ impl<R: Runtime> WindowManager<R> {
       pending,
       &label,
       window_labels,
+      #[allow(clippy::redundant_clone)]
       app_handle.clone(),
       web_resource_request_handler,
     )?;
 
-    #[cfg(any(target_os = "linux", target_os = "windows"))]
-    let app_handle_data_dir = app_handle.clone();
-
-    pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
+    pending.ipc_handler = Some(self.prepare_ipc_handler());
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      let local_app_data = app_handle_data_dir.path().resolve(
+      let local_app_data = app_handle.path().resolve(
         &self.inner.config.tauri.bundle.identifier,
         BaseDirectory::LocalData,
       );

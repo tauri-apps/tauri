@@ -2,39 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{cross_command, VersionMetadata};
+use super::VersionMetadata;
 use super::{SectionItem, Status};
 use colored::Colorize;
 use serde::Deserialize;
-use std::fmt::Display;
 use std::path::{Path, PathBuf};
+
+use crate::helpers::{cross_command, npm::PackageManager};
 
 #[derive(Deserialize)]
 struct YarnVersionInfo {
   data: Vec<String>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-enum PackageManager {
-  Npm,
-  Pnpm,
-  Yarn,
-  YarnBerry,
-}
-
-impl Display for PackageManager {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(
-      f,
-      "{}",
-      match self {
-        PackageManager::Npm => "npm",
-        PackageManager::Pnpm => "pnpm",
-        PackageManager::Yarn => "yarn",
-        PackageManager::YarnBerry => "yarn berry",
-      }
-    )
-  }
 }
 
 fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<String>> {
@@ -154,74 +132,36 @@ fn npm_package_version<P: AsRef<Path>>(
   }
 }
 
-fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
-  let mut use_npm = false;
-  let mut use_pnpm = false;
-  let mut use_yarn = false;
-
-  for name in app_dir_entries {
-    if name.as_ref() == "package-lock.json" {
-      use_npm = true;
-    } else if name.as_ref() == "pnpm-lock.yaml" {
-      use_pnpm = true;
-    } else if name.as_ref() == "yarn.lock" {
-      use_yarn = true;
-    }
-  }
-
-  if !use_npm && !use_pnpm && !use_yarn {
-    println!(
-      "{}: no lock files found, defaulting to npm",
-      "WARNING".yellow()
-    );
-    return PackageManager::Npm;
-  }
-
-  let mut found = Vec::new();
-
-  if use_npm {
-    found.push(PackageManager::Npm);
-  }
-  if use_pnpm {
-    found.push(PackageManager::Pnpm);
-  }
-  if use_yarn {
-    found.push(PackageManager::Yarn);
-  }
-
-  if found.len() > 1 {
-    let pkg_manger = found[0];
-    println!(
-      "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
-      "WARNING".yellow(),
-      found.iter().map(ToString::to_string).collect::<Vec<_>>().join(" and "),
-      pkg_manger
-    );
-    return pkg_manger;
-  }
-
-  if use_npm {
-    PackageManager::Npm
-  } else if use_pnpm {
-    PackageManager::Pnpm
-  } else {
-    PackageManager::Yarn
-  }
-}
-
 pub fn items(
   app_dir: Option<&PathBuf>,
   metadata: &VersionMetadata,
   yarn_version: Option<String>,
 ) -> Vec<SectionItem> {
-  let mut package_manager = PackageManager::Npm;
-  if let Some(app_dir) = &app_dir {
-    let app_dir_entries = std::fs::read_dir(app_dir)
-      .unwrap()
-      .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-      .collect::<Vec<String>>();
-    package_manager = get_package_manager(&app_dir_entries);
-  }
+  let package_managers = app_dir
+    .map(PackageManager::from_project)
+    .unwrap_or_else(|| {
+      println!(
+        "{}: no lock files found, defaulting to npm",
+        "WARNING".yellow()
+      );
+      vec![PackageManager::Npm]
+    });
+
+  let mut package_manager = if package_managers.len() > 1 {
+    let pkg_manager = package_managers[0];
+    println!(
+          "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
+          "WARNING".yellow(),
+          package_managers.iter().map(ToString::to_string).collect::<Vec<_>>().join(" and "),
+          pkg_manager
+        );
+    pkg_manager
+  } else {
+    package_managers
+      .into_iter()
+      .next()
+      .unwrap_or(PackageManager::Npm)
+  };
 
   if package_manager == PackageManager::Yarn
     && yarn_version

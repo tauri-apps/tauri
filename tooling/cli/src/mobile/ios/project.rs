@@ -34,8 +34,22 @@ pub fn gen(
   non_interactive: bool,
   reinstall_deps: bool,
 ) -> Result<()> {
-  println!("Installing iOS toolchains...");
-  Target::install_all()?;
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+  let missing_targets = Target::all()
+    .values()
+    .filter(|t| !installed_targets.contains(&t.triple().into()))
+    .collect::<Vec<&Target>>();
+
+  if !missing_targets.is_empty() {
+    println!("Installing iOS Rust toolchains...");
+    for target in missing_targets {
+      target
+        .install()
+        .context("failed to install target with rustup")?;
+    }
+  }
+
   rust_version_check(wrapper)?;
 
   deps::install_all(wrapper, non_interactive, true, reinstall_deps)

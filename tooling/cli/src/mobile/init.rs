@@ -31,6 +31,7 @@ pub fn command(
   skip_targets_install: bool,
 ) -> Result<()> {
   let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
+
   exec(
     target,
     &wrapper,
@@ -86,7 +87,9 @@ pub fn exec(
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
 ) -> Result<App> {
+  let current_dir = current_dir()?;
   let tauri_config = get_tauri_config(None)?;
+
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
@@ -100,10 +103,8 @@ pub fn exec(
     .map(|bin| {
       let path = PathBuf::from(&bin);
       if path.exists() {
-        if let Ok(dir) = current_dir() {
-          let absolute_path = util::prefix_path(dir, path);
-          return absolute_path.into();
-        }
+        let absolute_path = util::prefix_path(&current_dir, path);
+        return absolute_path.into();
       }
       bin
     })
@@ -112,11 +113,9 @@ pub fn exec(
   for arg in args {
     let path = PathBuf::from(&arg);
     if path.exists() {
-      if let Ok(dir) = current_dir() {
-        let absolute_path = util::prefix_path(dir, path);
-        build_args.push(absolute_path.to_string_lossy().into_owned());
-        continue;
-      }
+      let absolute_path = util::prefix_path(&current_dir, path);
+      build_args.push(absolute_path.to_string_lossy().into_owned());
+      continue;
     }
     build_args.push(arg.to_string_lossy().into_owned());
     if arg == "android" || arg == "ios" {
@@ -158,8 +157,9 @@ pub fn exec(
     // Generate Android Studio project
     Target::Android => match AndroidEnv::new() {
       Ok(_env) => {
-        let (app, config, metadata) =
-          super::android::get_config(Some(app), tauri_config_, &Default::default());
+        let app = get_app(tauri_config_);
+        let (config, metadata) =
+          super::android::get_config(&app, tauri_config_, &Default::default());
         map.insert("android", &config);
         super::android::project::gen(
           &config,
@@ -186,8 +186,7 @@ pub fn exec(
     #[cfg(target_os = "macos")]
     // Generate Xcode project
     Target::Ios => {
-      let (app, config, metadata) =
-        super::ios::get_config(Some(app), tauri_config_, &Default::default());
+      let (config, metadata) = super::ios::get_config(&app, tauri_config_, &Default::default());
       map.insert("apple", &config);
       super::ios::project::gen(
         &config,

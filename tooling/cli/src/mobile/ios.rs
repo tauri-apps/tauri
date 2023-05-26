@@ -28,10 +28,7 @@ use super::{
   log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
-use crate::{
-  helpers::config::{get as get_tauri_config, Config as TauriConfig},
-  Result,
-};
+use crate::{helpers::config::Config as TauriConfig, Result};
 
 use std::{process::exit, thread::sleep, time::Duration};
 
@@ -101,11 +98,10 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 }
 
 pub fn get_config(
-  app: Option<App>,
+  app: &App,
   config: &TauriConfig,
   cli_options: &CliOptions,
-) -> (App, AppleConfig, AppleMetadata) {
-  let app = app.unwrap_or_else(|| get_app(config));
+) -> (AppleConfig, AppleMetadata) {
   let ios_options = cli_options.clone();
 
   let raw = RawAppleConfig {
@@ -144,23 +140,7 @@ pub fn get_config(
     macos: Default::default(),
   };
 
-  (app, config, metadata)
-}
-
-fn with_config<T>(
-  cli_options: Option<CliOptions>,
-  f: impl FnOnce(&App, &AppleConfig, &AppleMetadata, CliOptions) -> Result<T>,
-) -> Result<T> {
-  let (app, config, metadata, cli_options) = {
-    let tauri_config = get_tauri_config(None)?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options =
-      cli_options.unwrap_or_else(|| read_options(&tauri_config_.tauri.bundle.identifier));
-    let (app, config, metadata) = get_config(None, tauri_config_, &cli_options);
-    (app, config, metadata, cli_options)
-  };
-  f(&app, &config, &metadata, cli_options)
+  (config, metadata)
 }
 
 fn ios_deploy_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {

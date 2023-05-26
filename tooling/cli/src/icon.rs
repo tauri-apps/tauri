@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{helpers::app_paths::tauri_dir, Result};
+use crate::{
+  helpers::{app_paths::tauri_dir, config::get as get_tauri_config},
+  Result,
+};
 
 use std::{
   collections::HashMap,
@@ -356,24 +359,31 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
   }
 
   let mut entries = desktop_entries(out_dir);
-  let _ = crate::mobile::android::with_config(
-    Some(Default::default()),
-    |_app, config, _metadata, _cli_options| {
-      let android_out = out_dir.parent().unwrap().join(format!(
-        "gen/android/{}/app/src/main/res/",
-        config.app().name_snake()
-      ));
-      let out = if android_out.exists() {
-        android_out
-      } else {
-        let out = out_dir.join("android");
-        create_dir_all(&out).context("Can't create Android output directory")?;
-        out
-      };
-      entries.extend(android_entries(&out)?);
-      Ok(())
-    },
-  );
+
+  // Android
+  let (config, _metadata) = {
+    let tauri_config = get_tauri_config(None)?;
+
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    crate::mobile::android::get_config(
+      &crate::mobile::get_app(tauri_config_),
+      tauri_config_,
+      &Default::default(),
+    )
+  };
+  let android_out = out_dir.parent().unwrap().join(format!(
+    "gen/android/{}/app/src/main/res/",
+    config.app().name_snake()
+  ));
+  let out = if android_out.exists() {
+    android_out
+  } else {
+    let out = out_dir.join("android");
+    create_dir_all(&out).context("Can't create Android output directory")?;
+    out
+  };
+  entries.extend(android_entries(&out)?);
 
   let ios_out = out_dir
     .parent()

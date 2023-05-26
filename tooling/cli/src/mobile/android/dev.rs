@@ -3,18 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, inject_assets,
-  open_and_wait, setup_dev_config, with_config, MobileTarget,
+  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
+  inject_assets, open_and_wait, setup_dev_config, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
-  helpers::{config::get as get_config, flock},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{get as get_tauri_config, ConfigHandle},
+    flock, resolve_merge_config,
+  },
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
 };
 use clap::{ArgAction, Parser};
 
+use anyhow::Context;
 use tauri_mobile::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
@@ -27,7 +32,7 @@ use tauri_mobile::{
   target::TargetTrait,
 };
 
-use std::env::set_var;
+use std::env::{set_current_dir, set_var};
 
 const WEBVIEW_CLIENT_CLASS_EXTENSION: &str = "
     @android.annotation.SuppressLint(\"WebViewClientOnReceivedSslError\")
@@ -91,25 +96,38 @@ impl From<Options> for DevOptions {
   }
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
-  with_config(
-    Some(Default::default()),
-    |app, config, metadata, _cli_options| {
-      set_var(
-        "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
-        WEBVIEW_CLIENT_CLASS_EXTENSION,
-      );
-      set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
-      ensure_init(config.project_dir(), MobileTarget::Android)?;
-      run_dev(options, app, config, metadata, noise_level).map_err(Into::into)
-    },
-  )
-  .map_err(Into::into)
+
+  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
+  options.config = merge_config;
+
+  let tauri_config = get_tauri_config(options.config.as_deref())?;
+
+  let (app, config, metadata) = {
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    let app = get_app(tauri_config_);
+    let (config, metadata) = get_config(&app, tauri_config_, &Default::default());
+    (app, config, metadata)
+  };
+
+  set_var(
+    "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
+    WEBVIEW_CLIENT_CLASS_EXTENSION,
+  );
+  set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
+
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+
+  ensure_init(config.project_dir(), MobileTarget::Android)?;
+  run_dev(options, tauri_config, &app, &config, &metadata, noise_level)
 }
 
 fn run_dev(
   mut options: Options,
+  tauri_config: ConfigHandle,
   app: &App,
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
@@ -187,7 +205,6 @@ fn run_dev(
         vars: Default::default(),
       };
 
-      let tauri_config = get_config(options.config.as_deref())?;
       let _handle = write_options(
         &tauri_config
           .lock()

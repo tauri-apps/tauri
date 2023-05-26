@@ -4,7 +4,7 @@
 
 use super::{env, get_app, get_config, read_options};
 use crate::{
-  helpers::{app_paths::tauri_dir, config::get as get_tauri_config},
+  helpers::config::get as get_tauri_config,
   interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   Result,
 };
@@ -15,7 +15,7 @@ use tauri_mobile::{apple::target::Target, opts::Profile};
 
 use std::{
   collections::HashMap,
-  env::{set_current_dir, var_os},
+  env::{current_dir, set_current_dir, var_os},
   ffi::OsStr,
   path::PathBuf,
 };
@@ -63,22 +63,12 @@ pub fn command(options: Options) -> Result<()> {
 
   // `xcode-script` is ran from the `gen/apple` folder when not using NPM.
   if var_os("npm_lifecycle_event").is_none() {
-    std::env::set_current_dir(
-      std::env::current_dir()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap(),
-    )
-    .unwrap();
+    set_current_dir(current_dir()?.parent().unwrap().parent().unwrap()).unwrap();
   }
 
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
   let tauri_config = get_tauri_config(None)?;
 
   let (config, metadata, cli_options) = {

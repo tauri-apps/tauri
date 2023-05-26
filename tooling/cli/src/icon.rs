@@ -9,7 +9,6 @@ use crate::{
 
 use std::{
   collections::HashMap,
-  env::set_current_dir,
   fs::{create_dir_all, File},
   io::{BufWriter, Write},
   path::{Path, PathBuf},
@@ -363,8 +362,6 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
 
   // Android
   let (config, _metadata) = {
-    let tauri_path = tauri_dir();
-    set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
     let tauri_config = get_tauri_config(None)?;
 
     let tauri_config_guard = tauri_config.lock().unwrap();

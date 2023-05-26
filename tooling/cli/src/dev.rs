@@ -138,13 +138,13 @@ pub fn local_ip_address(force: bool) -> &'static IpAddr {
 }
 
 pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
-  let tauri_path = tauri_dir();
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
-
   let config = get_config(options.config.as_deref())?;
+
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   let interface = AppInterface::new(
     config.lock().unwrap().as_ref().unwrap(),

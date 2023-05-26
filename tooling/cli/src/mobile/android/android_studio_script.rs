@@ -3,20 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
-use crate::{
-  helpers::{app_paths::tauri_dir, config::get as get_tauri_config},
-  Result,
-};
+use crate::{helpers::config::get as get_tauri_config, Result};
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
 use tauri_mobile::{
   android::target::Target,
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},
 };
-
-use std::env::set_current_dir;
 
 #[derive(Debug, Parser)]
 pub struct Options {
@@ -42,8 +36,6 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
   let tauri_config = get_tauri_config(None)?;
 
   let (config, metadata, cli_options) = {

@@ -78,9 +78,6 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
-
   let tauri_config = get_tauri_config(options.config.as_deref())?;
   let (app, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
@@ -89,6 +86,9 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
     let (config, _metadata) = get_config(&app, tauri_config_, &Default::default());
     (app, config)
   };
+
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
 

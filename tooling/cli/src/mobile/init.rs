@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{get_app, Target};
-use crate::helpers::{app_paths::tauri_dir, config::get as get_tauri_config, template::JsonMap};
+use crate::helpers::{config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
-use anyhow::Context as _;
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 use tauri_mobile::{
   android::{
@@ -21,7 +20,7 @@ use tauri_mobile::{
 };
 
 use std::{
-  env::{current_dir, set_current_dir, var, var_os},
+  env::{current_dir, var, var_os},
   path::PathBuf,
 };
 
@@ -82,10 +81,7 @@ pub fn exec(
   #[allow(unused_variables)] reinstall_deps: bool,
 ) -> Result<App> {
   let current_dir = current_dir()?;
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
   let tauri_config = get_tauri_config(None)?;
-  set_current_dir(&current_dir)?;
 
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();

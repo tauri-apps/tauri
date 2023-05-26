@@ -3,19 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use super::{ensure_init, env, get_app, get_config, inject_assets, MobileTarget};
-use crate::{
-  helpers::{app_paths::tauri_dir, config::get as get_tauri_config},
-  Result,
-};
+use crate::{helpers::config::get as get_tauri_config, Result};
 
-use anyhow::Context;
 use tauri_mobile::os;
 
-use std::env::set_current_dir;
-
 pub fn command() -> Result<()> {
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
   let tauri_config = get_tauri_config(None)?;
 
   let (config, _metadata) = {

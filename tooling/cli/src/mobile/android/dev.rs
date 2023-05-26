@@ -102,9 +102,6 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
-
   let tauri_config = get_tauri_config(options.config.as_deref())?;
 
   let (app, config, metadata) = {
@@ -120,6 +117,10 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
     WEBVIEW_CLIENT_CLASS_EXTENSION,
   );
   set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
+
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+
   ensure_init(config.project_dir(), MobileTarget::Android)?;
   run_dev(options, tauri_config, &app, &config, &metadata, noise_level)
 }

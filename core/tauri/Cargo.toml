@@ -7,13 +7,13 @@ readme = "README.md"
 links = "Tauri"
 
 # workspace defined package items
-authors.workspace = true
-homepage.workspace = true
-repository.workspace = true
-categories.workspace = true
-license.workspace = true
-edition.workspace = true
-rust-version.workspace = true
+authors = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+categories = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 no-default-features = true

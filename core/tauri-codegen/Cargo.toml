@@ -6,13 +6,13 @@ exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 # workspace defined package items
-authors.workspace = true
-homepage.workspace = true
-repository.workspace = true
-categories.workspace = true
-license.workspace = true
-edition.workspace = true
-rust-version.workspace = true
+authors = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+categories = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 
 [dependencies]
 sha2 = "0.10"

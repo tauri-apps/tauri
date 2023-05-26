@@ -1,16 +1,18 @@
 [package]
 name = "tauri-runtime"
 version = "0.13.0-alpha.5"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
-categories = [ "gui", "web-programming" ]
-license = "Apache-2.0 OR MIT"
-homepage = "https://tauri.app"
-repository = "https://github.com/tauri-apps/tauri"
 description = "Runtime for Tauri applications"
-edition = "2021"
-rust-version = "1.65"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
+
+# workspace defined package items
+authors = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+categories = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true

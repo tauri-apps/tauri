@@ -1,57 +1,83 @@
-package {{reverse-domain app.domain}}
-
+import com.android.build.api.dsl.ApplicationExtension
 import org.gradle.api.DefaultTask
-import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import java.io.File
-import java.util.*
+import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.get
 
 const val TASK_GROUP = "rust"
 
 open class Config {
-    var rootDirRel: String? = null
-    var targets: List<String>? = null
-    var arches: List<String>? = null
+    lateinit var rootDirRel: String
 }
 
 open class RustPlugin : Plugin<Project> {
     private lateinit var config: Config
 
-    override fun apply(project: Project) {
-        config = project.extensions.create("rust", Config::class.java)
-        project.afterEvaluate {
-            if (config.targets == null) {
-                throw GradleException("targets cannot be null")
+    override fun apply(project: Project) = with(project) {
+        config = extensions.create("rust", Config::class.java)
+
+        val defaultAbiList = listOf({{quote-and-join abi-list}});
+        val abiList = (findProperty("abiList") as? String)?.split(',') ?: defaultAbiList
+
+        val defaultArchList = listOf({{quote-and-join arch-list}});
+        val archList = (findProperty("archList") as? String)?.split(',') ?: defaultArchList
+
+        val targetsList = (findProperty("targetList") as? String)?.split(',') ?: listOf({{quote-and-join target-list}})
+
+        extensions.configure<ApplicationExtension> {
+            @Suppress("UnstableApiUsage")
+            flavorDimensions.add("abi")
+            productFlavors {
+                create("universal") {
+                    dimension = "abi"
+                    ndk {
+                        abiFilters += abiList
+                    }
+                }
+                defaultArchList.forEachIndexed { index, arch ->
+                    create(arch) {
+                        dimension = "abi"
+                        ndk {
+                            abiFilters.add(defaultAbiList[index])
+                        }
+                    }
+                }
             }
-            if (config.arches == null) {
-                throw GradleException("arches cannot be null")
-            }
+        }
+
+        afterEvaluate {
             for (profile in listOf("debug", "release")) {
-                val profileCapitalized = profile.capitalize(Locale.ROOT)
-                val buildTask = project.tasks.maybeCreate(
-                    "rustBuild$profileCapitalized",
+                val profileCapitalized = profile.replaceFirstChar { it.uppercase() }
+                val buildTask = tasks.maybeCreate(
+                    "rustBuildUniversal$profileCapitalized",
                     DefaultTask::class.java
                 ).apply {
                     group = TASK_GROUP
                     description = "Build dynamic library in $profile mode for all targets"
                 }
-                for (targetPair in config.targets!!.withIndex()) {
+
+                tasks["mergeUniversal${profileCapitalized}JniLibFolders"].dependsOn(buildTask)
+
+                for (targetPair in targetsList.withIndex()) {
                     val targetName = targetPair.value
-                    val targetArch = config.arches!![targetPair.index]
-                    val targetArchCapitalized = targetArch.capitalize(Locale.ROOT)
+                    val targetArch = archList[targetPair.index]
+                    val targetArchCapitalized = targetArch.replaceFirstChar { it.uppercase() }
                     val targetBuildTask = project.tasks.maybeCreate(
                         "rustBuild$targetArchCapitalized$profileCapitalized",
                         BuildTask::class.java
                     ).apply {
                         group = TASK_GROUP
                         description = "Build dynamic library in $profile mode for $targetArch"
-                        rootDirRel = config.rootDirRel?.let { File(it) }
+                        rootDirRel = config.rootDirRel
                         target = targetName
                         release = profile == "release"
                     }
+
                     buildTask.dependsOn(targetBuildTask)
-                    project.tasks.findByName("preBuild")?.mustRunAfter(targetBuildTask)
+                    tasks["merge$targetArchCapitalized${profileCapitalized}JniLibFolders"].dependsOn(
+                        targetBuildTask
+                    )
                 }
             }
         }

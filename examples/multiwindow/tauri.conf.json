@@ -1,5 +1,5 @@
 {
-  "$schema": "../../core/config-schema/schema.json",
+  "$schema": "../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": ["index.html"],
     "devPath": ["index.html"],
@@ -26,11 +26,6 @@
       "copyright": "",
       "category": "DeveloperTool"
     },
-    "allowlist": {
-      "window": {
-        "create": true
-      }
-    },
     "windows": [
       {
         "label": "Main",
@@ -49,9 +44,6 @@
     ],
     "security": {
       "csp": "default-src 'self'"
-    },
-    "updater": {
-      "active": false
     }
   }
 }

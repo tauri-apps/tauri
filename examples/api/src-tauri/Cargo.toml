@@ -7,6 +7,7 @@ rust-version = "1.65"
 license = "Apache-2.0 OR MIT"
 
 [lib]
+name = "api_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -34,13 +35,12 @@ tauri-build = { path = "../../../core/tauri-build" }
 [dependencies.tauri]
 path = "../../../core/tauri"
 features = [
-  "api-all",
+  "protocol-asset",
   "icon-ico",
   "icon-png",
   "isolation",
   "macos-private-api",
-  "system-tray",
-  "updater"
+  "system-tray"
 ]
 
 [target."cfg(target_os = \"windows\")".dependencies]

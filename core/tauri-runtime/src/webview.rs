@@ -9,7 +9,7 @@ use crate::{menu::Menu, window::DetachedWindow, Icon};
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{
-  config::{WindowConfig, WindowUrl},
+  config::{WindowConfig, WindowEffectsConfig, WindowUrl},
   Theme,
 };
 
@@ -29,6 +29,7 @@ pub struct WebviewAttributes {
   pub clipboard: bool,
   pub accept_first_mouse: bool,
   pub additional_browser_args: Option<String>,
+  pub window_effects: Option<WindowEffectsConfig>,
 }
 
 impl WebviewAttributes {
@@ -43,6 +44,7 @@ impl WebviewAttributes {
       clipboard: false,
       accept_first_mouse: false,
       additional_browser_args: None,
+      window_effects: None,
     }
   }
 
@@ -95,6 +97,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
     self.additional_browser_args = Some(additional_args.to_string());
+    self
+  }
+
+  /// Sets window effects
+  #[must_use]
+  pub fn window_effects(mut self, effects: WindowEffectsConfig) -> Self {
+    self.window_effects = Some(effects);
     self
   }
 }

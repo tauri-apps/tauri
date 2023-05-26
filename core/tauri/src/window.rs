@@ -512,7 +512,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Whether the window should always be on top of other windows.
+  /// Prevents the window contents from being captured by other apps.
   #[must_use]
   pub fn content_protected(mut self, protected: bool) -> Self {
     self.window_builder = self.window_builder.content_protected(protected);

@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(protocol_asset)]
-
-use crate::api::file::SafePathBuf;
+use crate::path::SafePathBuf;
 use crate::scope::FsScope;
 use rand::RngCore;
 use std::io::SeekFrom;

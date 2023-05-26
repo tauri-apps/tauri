@@ -504,9 +504,6 @@ impl<R: Runtime> WindowManager<R> {
 
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
-      use crate::path::SafePathBuf;
-      use tokio::io::{AsyncReadExt, AsyncSeekExt};
-      use url::Position;
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
       pending.register_uri_scheme_protocol("asset", move |request| {
         crate::asset_protocol::asset_protocol_handler(

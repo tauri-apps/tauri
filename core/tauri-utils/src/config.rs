@@ -2979,7 +2979,7 @@ mod build {
   macro_rules! literal_struct {
     ($tokens:ident, $struct:ident, $($field:ident),+) => {
       $tokens.append_all(quote! {
-        ::tauri_utils::config::$struct {
+        ::tauri::utils::config::$struct {
           $($field: #$field),+
         }
       });
@@ -2988,7 +2988,7 @@ mod build {
 
   impl ToTokens for WindowUrl {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::WindowUrl };
+      let prefix = quote! { ::tauri::utils::config::WindowUrl };
 
       tokens.append_all(match self {
         Self::App(path) => {
@@ -3005,7 +3005,7 @@ mod build {
 
   impl ToTokens for crate::Theme {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::Theme };
+      let prefix = quote! { ::tauri::utils::Theme };
 
       tokens.append_all(match self {
         Self::Light => quote! { #prefix::Light },
@@ -3016,7 +3016,7 @@ mod build {
 
   impl ToTokens for crate::TitleBarStyle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::TitleBarStyle };
+      let prefix = quote! { ::tauri::utils::TitleBarStyle };
 
       tokens.append_all(match self {
         Self::Visible => quote! { #prefix::Visible },
@@ -3100,7 +3100,7 @@ mod build {
 
   impl ToTokens for PatternKind {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::PatternKind };
+      let prefix = quote! { ::tauri::utils::config::PatternKind };
 
       tokens.append_all(match self {
         Self::Brownfield => quote! { #prefix::Brownfield },
@@ -3117,7 +3117,7 @@ mod build {
 
   impl ToTokens for WebviewInstallMode {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::WebviewInstallMode };
+      let prefix = quote! { ::tauri::utils::config::WebviewInstallMode };
 
       tokens.append_all(match self {
         Self::Skip => quote! { #prefix::Skip },
@@ -3148,7 +3148,7 @@ mod build {
       } else {
         self.webview_install_mode.clone()
       };
-      tokens.append_all(quote! { ::tauri_utils::config::WindowsConfig {
+      tokens.append_all(quote! { ::tauri::utils::config::WindowsConfig {
         webview_install_mode: #webview_install_mode,
         ..Default::default()
       }})
@@ -3201,7 +3201,7 @@ mod build {
 
   impl ToTokens for AppUrl {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::AppUrl };
+      let prefix = quote! { ::tauri::utils::config::AppUrl };
 
       tokens.append_all(match self {
         Self::Url(url) => {
@@ -3243,7 +3243,7 @@ mod build {
 
   impl ToTokens for WindowsUpdateInstallMode {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::WindowsUpdateInstallMode };
+      let prefix = quote! { ::tauri::utils::config::WindowsUpdateInstallMode };
 
       tokens.append_all(match self {
         Self::BasicUi => quote! { #prefix::BasicUi },
@@ -3272,7 +3272,7 @@ mod build {
           .map(|list| {
             vec_lit(list, |url| {
               let url = url.0.as_str();
-              quote! { ::tauri_utils::config::UpdaterEndpoint(#url.parse().unwrap()) }
+              quote! { ::tauri::utils::config::UpdaterEndpoint(#url.parse().unwrap()) }
             })
           })
           .as_ref(),
@@ -3285,7 +3285,7 @@ mod build {
 
   impl ToTokens for CspDirectiveSources {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::CspDirectiveSources };
+      let prefix = quote! { ::tauri::utils::config::CspDirectiveSources };
 
       tokens.append_all(match self {
         Self::Inline(sources) => {
@@ -3302,7 +3302,7 @@ mod build {
 
   impl ToTokens for Csp {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::Csp };
+      let prefix = quote! { ::tauri::utils::config::Csp };
 
       tokens.append_all(match self {
         Self::Policy(policy) => {
@@ -3324,7 +3324,7 @@ mod build {
 
   impl ToTokens for DisabledCspModificationKind {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::DisabledCspModificationKind };
+      let prefix = quote! { ::tauri::utils::config::DisabledCspModificationKind };
 
       tokens.append_all(match self {
         Self::Flag(flag) => {
@@ -3398,7 +3398,7 @@ mod build {
 
   impl ToTokens for FsAllowlistScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::FsAllowlistScope };
+      let prefix = quote! { ::tauri::utils::config::FsAllowlistScope };
 
       tokens.append_all(match self {
         Self::AllowedPaths(allow) => {
@@ -3418,7 +3418,7 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let scope = &self.scope;
       tokens.append_all(
-        quote! { ::tauri_utils::config::FsAllowlistConfig { scope: #scope, ..Default::default() } },
+        quote! { ::tauri::utils::config::FsAllowlistConfig { scope: #scope, ..Default::default() } },
       )
     }
   }
@@ -3426,21 +3426,21 @@ mod build {
   impl ToTokens for ProtocolAllowlistConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let asset_scope = &self.asset_scope;
-      tokens.append_all(quote! { ::tauri_utils::config::ProtocolAllowlistConfig { asset_scope: #asset_scope, ..Default::default() } })
+      tokens.append_all(quote! { ::tauri::utils::config::ProtocolAllowlistConfig { asset_scope: #asset_scope, ..Default::default() } })
     }
   }
 
   impl ToTokens for HttpAllowlistScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let allowed_urls = vec_lit(&self.0, url_lit);
-      tokens.append_all(quote! { ::tauri_utils::config::HttpAllowlistScope(#allowed_urls) })
+      tokens.append_all(quote! { ::tauri::utils::config::HttpAllowlistScope(#allowed_urls) })
     }
   }
 
   impl ToTokens for HttpAllowlistConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let scope = &self.scope;
-      tokens.append_all(quote! { ::tauri_utils::config::HttpAllowlistConfig { scope: #scope, ..Default::default() } })
+      tokens.append_all(quote! { ::tauri::utils::config::HttpAllowlistConfig { scope: #scope, ..Default::default() } })
     }
   }
 
@@ -3457,7 +3457,7 @@ mod build {
 
   impl ToTokens for ShellAllowedArgs {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::ShellAllowedArgs };
+      let prefix = quote! { ::tauri::utils::config::ShellAllowedArgs };
 
       tokens.append_all(match self {
         Self::Flag(flag) => quote!(#prefix::Flag(#flag)),
@@ -3471,7 +3471,7 @@ mod build {
 
   impl ToTokens for ShellAllowedArg {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::ShellAllowedArg };
+      let prefix = quote! { ::tauri::utils::config::ShellAllowedArg };
 
       tokens.append_all(match self {
         Self::Fixed(fixed) => {
@@ -3488,7 +3488,7 @@ mod build {
 
   impl ToTokens for ShellAllowlistOpen {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri_utils::config::ShellAllowlistOpen };
+      let prefix = quote! { ::tauri::utils::config::ShellAllowlistOpen };
 
       tokens.append_all(match self {
         Self::Flag(flag) => quote!(#prefix::Flag(#flag)),
@@ -3500,14 +3500,14 @@ mod build {
   impl ToTokens for ShellAllowlistScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let allowed_commands = vec_lit(&self.0, identity);
-      tokens.append_all(quote! { ::tauri_utils::config::ShellAllowlistScope(#allowed_commands) })
+      tokens.append_all(quote! { ::tauri::utils::config::ShellAllowlistScope(#allowed_commands) })
     }
   }
 
   impl ToTokens for ShellAllowlistConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let scope = &self.scope;
-      tokens.append_all(quote! { ::tauri_utils::config::ShellAllowlistConfig { scope: #scope, ..Default::default() } })
+      tokens.append_all(quote! { ::tauri::utils::config::ShellAllowlistConfig { scope: #scope, ..Default::default() } })
     }
   }
 
@@ -3518,7 +3518,7 @@ mod build {
       let http = &self.http;
       let shell = &self.shell;
       tokens.append_all(
-        quote! { ::tauri_utils::config::AllowlistConfig { fs: #fs, protocol: #protocol, http: #http, shell: #shell, ..Default::default() } },
+        quote! { ::tauri::utils::config::AllowlistConfig { fs: #fs, protocol: #protocol, http: #http, shell: #shell, ..Default::default() } },
       )
     }
   }
@@ -3557,7 +3557,7 @@ mod build {
         str_lit,
         json_value_lit,
       );
-      tokens.append_all(quote! { ::tauri_utils::config::PluginConfig(#config) })
+      tokens.append_all(quote! { ::tauri::utils::config::PluginConfig(#config) })
     }
   }
 

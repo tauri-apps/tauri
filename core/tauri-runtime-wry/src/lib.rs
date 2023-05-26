@@ -1072,6 +1072,7 @@ pub enum WindowMessage {
   IsFullscreen(Sender<bool>),
   IsMinimized(Sender<bool>),
   IsMaximized(Sender<bool>),
+  IsFocused(Sender<bool>),
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
   IsMaximizable(Sender<bool>),
@@ -1306,6 +1307,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
   fn is_maximized(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsMaximized)
+  }
+
+  fn is_focused(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsFocused)
   }
 
   /// Gets the window’s current decoration state.
@@ -2467,6 +2472,7 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
             WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+            WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
             WindowMessage::IsMaximizable(tx) => tx.send(window.is_maximizable()).unwrap(),

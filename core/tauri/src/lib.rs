@@ -651,6 +651,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
   }
+  /// Fetch the focused window. Returns `None` if there is not any focused window.
+  fn get_focused_window(&self) -> Option<Window<R>> {
+    self.manager().get_focused_window()
+  }
 
   /// Fetch all managed windows.
   fn windows(&self) -> HashMap<String, Window<R>> {

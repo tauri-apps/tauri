@@ -1180,6 +1180,14 @@ impl<R: Runtime> WindowManager<R> {
     self.windows_lock().get(label).cloned()
   }
 
+  pub fn get_focused_window(&self) -> Option<Window<R>> {
+    self
+      .windows_lock()
+      .iter()
+      .find(|w| w.1.is_focused().unwrap_or(false))
+      .map(|w| w.1.clone())
+  }
+
   pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.windows_lock().clone()
   }

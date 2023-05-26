@@ -203,7 +203,7 @@ impl NSVisualEffectView for id {
 
 /// <https://developer.apple.com/documentation/appkit/nsvisualeffectview/material>
 #[repr(u64)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NSVisualEffectMaterial {
   #[deprecated = "Since macOS 10.14 a default material appropriate for the view's effectiveAppearance. You should instead choose an appropriate semantic material."]
   AppearanceBased = 0,
@@ -251,7 +251,7 @@ pub enum NSVisualEffectMaterial {
 /// <https://developer.apple.com/documentation/appkit/nsvisualeffectview/state>
 #[allow(dead_code)]
 #[repr(u64)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NSVisualEffectState {
   /// Make window vibrancy state follow the window's active state
   FollowsWindowActiveState = 0,

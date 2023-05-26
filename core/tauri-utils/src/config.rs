@@ -748,7 +748,7 @@ pub struct BundleConfig {
 }
 
 /// a tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);

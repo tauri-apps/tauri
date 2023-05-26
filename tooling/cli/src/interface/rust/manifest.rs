@@ -146,14 +146,15 @@ fn write_features(
       }
 
       // remove features that shouldn't be in the manifest anymore
-      let mut i = 0;
-      while i < features_array.len() {
-        if let Some(f) = features_array.get(i).and_then(|f| f.as_str()) {
+      let mut i = features_array.len();
+      while i != 0 {
+        let index = i - 1;
+        if let Some(f) = features_array.get(index).and_then(|f| f.as_str()) {
           if !features.contains(f) {
-            features_array.remove(i);
+            features_array.remove(index);
           }
         }
-        i += 1;
+        i -= 1;
       }
     } else {
       *manifest_features = Item::Value(Value::Array(toml_array(features)));

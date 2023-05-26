@@ -1,6 +1,6 @@
 ---
-"cli.rs": patch
-"cli.js": patch
+"tauri-cli": patch
+"@tauri-apps/cli": patch
 ---
 
 Fix `tauri android build/dev` crashing when used with standalone `pnpm` executable on Windows.

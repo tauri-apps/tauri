@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: cli clippy and fmt check
+name: lint cli
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
       - next
   pull_request:
     paths:
-      - '.github/workflows/lint-fmt-cli.yml'
+      - '.github/workflows/lint-cli.yml'
       - 'tooling/cli/**'
 
 env:
@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fmt_check:
+  fmt:
     runs-on: ubuntu-latest
 
     steps:
@@ -41,7 +41,7 @@ jobs:
           command: fmt
           args: --manifest-path ./tooling/cli/Cargo.toml --all -- --check
 
-  cli_clippy_check:
+  clippy:
     runs-on: ubuntu-latest
 
     steps:

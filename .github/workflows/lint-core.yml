@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: core clippy and fmt check
+name: lint core
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
       - next
   pull_request:
     paths:
-      - '.github/workflows/lint-fmt-core.yml'
+      - '.github/workflows/lint-core.yml'
       - 'core/**'
       - '!core/tauri/scripts/**'
       - 'examples/**'
@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fmt_check:
+  fmt:
     runs-on: ubuntu-latest
 
     steps:
@@ -43,7 +43,7 @@ jobs:
           command: fmt
           args: --all -- --check
 
-  core_clippy_check:
+  clippy:
     runs-on: ubuntu-latest
     strategy:
       matrix:

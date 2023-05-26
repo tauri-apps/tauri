@@ -24,6 +24,8 @@ use std::{
 type UriSchemeProtocol =
   dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
 
+type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+
 /// UI scaling utilities.
 pub mod dpi;
 
@@ -183,7 +185,7 @@ impl<'de> Deserialize<'de> for CursorIcon {
       "grab" => CursorIcon::Grab,
       "grabbing" => CursorIcon::Grabbing,
       "allscroll" => CursorIcon::AllScroll,
-      "zoomun" => CursorIcon::ZoomIn,
+      "zoomin" => CursorIcon::ZoomIn,
       "zoomout" => CursorIcon::ZoomOut,
       "eresize" => CursorIcon::EResize,
       "nresize" => CursorIcon::NResize,
@@ -233,13 +235,15 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
 
-  /// The current webview URL.
-  pub current_url: Arc<Mutex<Url>>,
+  /// The resolved URL to load on the webview.
+  pub url: String,
 
   #[cfg(target_os = "android")]
   #[allow(clippy::type_complexity)]
   pub on_webview_created:
     Option<Box<dyn Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send>>,
+
+  pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -278,9 +282,10 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         ipc_handler: None,
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         navigation_handler: Default::default(),
-        current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
+        url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
+        web_resource_request_handler: Default::default(),
       })
     }
   }
@@ -309,9 +314,10 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         ipc_handler: None,
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         navigation_handler: Default::default(),
-        current_url: Arc::new(Mutex::new("tauri://localhost".parse().unwrap())),
+        url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
+        web_resource_request_handler: Default::default(),
       })
     }
   }
@@ -354,9 +360,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
 /// A webview window that is not yet managed by Tauri.
 #[derive(Debug)]
 pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
-  /// The current webview URL.
-  pub current_url: Arc<Mutex<Url>>,
-
   /// Name of the window
   pub label: String,
 
@@ -370,7 +373,6 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
   fn clone(&self) -> Self {
     Self {
-      current_url: self.current_url.clone(),
       label: self.label.clone(),
       dispatcher: self.dispatcher.clone(),
       menu_ids: self.menu_ids.clone(),

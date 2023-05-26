@@ -38,6 +38,10 @@ use crate::{TitleBarStyle, WindowEffect, WindowEffectState};
 
 pub use self::parse::parse;
 
+fn default_true() -> bool {
+  true
+}
+
 /// An URL to open on a Tauri webview window.
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -272,6 +276,10 @@ pub struct DebConfig {
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -435,6 +443,8 @@ pub struct WixConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NsisConfig {
+  /// A custom .nsi template to use.
+  pub template: Option<PathBuf>,
   /// The path to the license file to render on the installer.
   pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
@@ -459,6 +469,13 @@ pub struct NsisConfig {
   ///
   /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
+  /// A key-value pair where the key is the language and the
+  /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
+  ///
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/tooling/bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.
+  ///
+  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
+  pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   #[serde(default, alias = "display-language-selector")]
@@ -542,9 +559,7 @@ pub enum WebviewInstallMode {
 
 impl Default for WebviewInstallMode {
   fn default() -> Self {
-    Self::DownloadBootstrapper {
-      silent: default_true(),
-    }
+    Self::DownloadBootstrapper { silent: true }
   }
 }
 
@@ -602,7 +617,7 @@ impl Default for WindowsConfig {
       tsp: false,
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
-      allow_downgrades: default_true(),
+      allow_downgrades: true,
       wix: None,
       nsis: None,
     }
@@ -818,9 +833,34 @@ pub struct WindowConfig {
   /// The max window height.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
-  /// Whether the window is resizable or not.
+  /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_true")]
   pub resizable: bool,
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub maximizable: bool,
+  /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub minimizable: bool,
+  /// Whether the window's native close button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub closable: bool,
   /// The window title.
   #[serde(default = "default_title")]
   pub title: String,
@@ -906,7 +946,7 @@ impl Default for WindowConfig {
       label: default_window_label(),
       url: WindowUrl::default(),
       user_agent: None,
-      file_drop_enabled: default_true(),
+      file_drop_enabled: true,
       center: false,
       x: None,
       y: None,
@@ -916,14 +956,17 @@ impl Default for WindowConfig {
       min_height: None,
       max_width: None,
       max_height: None,
-      resizable: default_true(),
+      resizable: true,
+      maximizable: true,
+      minimizable: true,
+      closable: true,
       title: default_title(),
       fullscreen: false,
       focus: false,
       transparent: false,
       maximized: false,
-      visible: default_true(),
-      decorations: default_true(),
+      visible: true,
+      decorations: true,
       always_on_top: false,
       content_protected: false,
       skip_taskbar: false,
@@ -949,10 +992,6 @@ fn default_width() -> f64 {
 
 fn default_height() -> f64 {
   600f64
-}
-
-fn default_true() -> bool {
-  true
 }
 
 fn default_title() -> String {
@@ -1127,12 +1166,13 @@ pub struct RemoteDomainAccessScope {
 /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
 /// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum FsScope {
   /// A list of paths that are allowed by this scope.
   AllowedPaths(Vec<PathBuf>),
   /// A complete scope configuration.
+  #[serde(rename_all = "camelCase")]
   Scope {
     /// A list of paths that are allowed by this scope.
     #[serde(default)]
@@ -1141,6 +1181,16 @@ pub enum FsScope {
     /// This gets precedence over the [`Self::Scope::allow`] list.
     #[serde(default)]
     deny: Vec<PathBuf>,
+    /// Whether or not paths that contain components that start with a `.`
+    /// will require that `.` appears literally in the pattern; `*`, `?`, `**`,
+    /// or `[...]` will not match. This is useful because such files are
+    /// conventionally considered hidden on Unix systems and it might be
+    /// desirable to skip them when listing files.
+    ///
+    /// Defaults to `false` on Unix systems and `true` on Windows
+    // dotfiles are not supposed to be exposed by default on unix
+    #[serde(alias = "require-literal-leading-dot")]
+    require_literal_leading_dot: Option<bool>,
   },
 }
 
@@ -1329,7 +1379,7 @@ pub enum WindowsUpdateInstallMode {
   /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
   BasicUi,
   /// The quiet mode means there's no user interaction required.
-  /// Requires admin privileges if the installer does (WiX).
+  /// Requires admin privileges if the installer does.
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
   Passive,
@@ -1344,6 +1394,15 @@ impl WindowsUpdateInstallMode {
       Self::BasicUi => &["/qb+"],
       Self::Quiet => &["/quiet"],
       Self::Passive => &["/passive"],
+    }
+  }
+
+  /// Returns the associated nsis arguments.
+  pub fn nsis_args(&self) -> &'static [&'static str] {
+    match self {
+      Self::Passive => &["/P", "/R"],
+      Self::Quiet => &["/S", "/R"],
+      _ => &[],
     }
   }
 }
@@ -1666,7 +1725,7 @@ pub struct PackageConfig {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
 }
@@ -2081,6 +2140,9 @@ mod build {
       let max_width = opt_lit(self.max_width.as_ref());
       let max_height = opt_lit(self.max_height.as_ref());
       let resizable = self.resizable;
+      let maximizable = self.maximizable;
+      let minimizable = self.minimizable;
+      let closable = self.closable;
       let title = str_lit(&self.title);
       let fullscreen = self.fullscreen;
       let focus = self.focus;
@@ -2117,6 +2179,9 @@ mod build {
         max_width,
         max_height,
         resizable,
+        maximizable,
+        minimizable,
+        closable,
         title,
         fullscreen,
         focus,
@@ -2435,10 +2500,11 @@ mod build {
           let allowed_paths = vec_lit(allow, path_buf_lit);
           quote! { #prefix::AllowedPaths(#allowed_paths) }
         }
-        Self::Scope { allow, deny } => {
+        Self::Scope { allow, deny , require_literal_leading_dot} => {
           let allow = vec_lit(allow, path_buf_lit);
           let deny = vec_lit(deny, path_buf_lit);
-          quote! { #prefix::Scope { allow: #allow, deny: #deny } }
+          let  require_literal_leading_dot = opt_lit(require_literal_leading_dot.as_ref());
+          quote! { #prefix::Scope { allow: #allow, deny: #deny, require_literal_leading_dot: #require_literal_leading_dot } }
         }
       });
     }

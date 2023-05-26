@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: test cli.js
+name: test `@tauri-apps/cli`
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/test-cli-js.yml'
-      # currently cli.js only tests the template
+      # currently` @tauri-apps/cli` only tests the template
       - 'tooling/cli/templates/app/**'
 
 env:
@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-tauri-js-cli:
+  test:
     runs-on: ${{ matrix.platform }}
 
     strategy:

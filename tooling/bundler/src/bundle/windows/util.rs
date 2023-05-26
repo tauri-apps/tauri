@@ -5,7 +5,7 @@
 use std::{
   fs::{create_dir_all, File},
   io::{Cursor, Read, Write},
-  path::{Path, PathBuf},
+  path::Path,
 };
 
 use log::info;
@@ -76,7 +76,7 @@ fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<
 }
 
 #[cfg(target_os = "windows")]
-pub fn try_sign(file_path: &PathBuf, settings: &Settings) -> crate::Result<()> {
+pub fn try_sign(file_path: &std::path::PathBuf, settings: &Settings) -> crate::Result<()> {
   use tauri_utils::display_path;
 
   if let Some(certificate_thumbprint) = settings.windows().certificate_thumbprint.as_ref() {
@@ -135,8 +135,4 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
   }
 
   Ok(())
-}
-
-pub fn remove_unc_lossy<P: AsRef<Path>>(p: P) -> PathBuf {
-  PathBuf::from(p.as_ref().to_string_lossy().replacen(r"\\?\", "", 1))
 }

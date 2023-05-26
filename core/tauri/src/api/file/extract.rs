@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   fs,
   io::{self, Cursor, Read, Seek},
-  path::{self, Path, PathBuf},
+  path::{self, Component, Path, PathBuf},
 };
 
 /// The archive reader.
@@ -89,21 +89,18 @@ impl<'a, R: Read> Entry<'a, R> {
   pub fn extract(self, into_path: &path::Path) -> crate::api::Result<()> {
     match self {
       Self::Tar(mut entry) => {
-        // determine if it's a file or a directory
-        if entry.header().entry_type() == tar::EntryType::Directory {
-          // this is a directory, lets create it
-          match fs::create_dir_all(into_path) {
-            Ok(_) => (),
-            Err(e) => {
-              if e.kind() != io::ErrorKind::AlreadyExists {
-                return Err(e.into());
-              }
-            }
-          }
-        } else {
-          // handle files, symlinks, hard links, etc. and set permissions
-          entry.unpack(into_path)?;
+        // handle files, symlinks, hard links, etc. and set permissions
+        let path = entry.path()?;
+        if path.components().any(|c| matches!(c, Component::ParentDir)) {
+          return Err(
+            std::io::Error::new(
+              std::io::ErrorKind::InvalidInput,
+              "cannot extract path with parent dir component",
+            )
+            .into(),
+          );
         }
+        entry.unpack(into_path)?;
       }
       Self::Zip(entry) => {
         if entry.is_dir {

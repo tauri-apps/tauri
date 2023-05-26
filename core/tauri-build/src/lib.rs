@@ -24,7 +24,7 @@ mod codegen;
 pub mod mobile;
 mod static_vcruntime;
 
-pub use codegen::context::CodegenContext;
+use codegen::context::CodegenContext;
 
 fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   let from = from.as_ref();

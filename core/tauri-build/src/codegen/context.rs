@@ -37,34 +37,6 @@ impl CodegenContext {
     Self::default()
   }
 
-  /// Set the path to the `tauri.conf.json` (relative to the package's directory).
-  ///
-  /// This defaults to a file called `tauri.conf.json` inside of the current working directory of
-  /// the package compiling; does not need to be set manually if that config file is in the same
-  /// directory as your `Cargo.toml`.
-  #[must_use]
-  pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
-    self.config_path = config_path.into();
-    self
-  }
-
-  /// Sets the output file's path.
-  ///
-  /// **Note:** This path should be relative to the `OUT_DIR`.
-  ///
-  /// Don't set this if you are using [`tauri::build_script_context!`] as that helper macro
-  /// expects the default value. This option can be useful if you are not using the helper and
-  /// instead using [`std::include!`] on the generated code yourself.
-  ///
-  /// Defaults to `tauri-build-context.rs`.
-  ///
-  /// [`tauri::build_script_context!`]: https://docs.rs/tauri/latest/tauri/macro.build_script_context.html
-  #[must_use]
-  pub fn out_file(mut self, filename: PathBuf) -> Self {
-    self.out_file = filename;
-    self
-  }
-
   /// Run the codegen in a `dev` context, meaning that Tauri is using a dev server or local file for development purposes,
   /// usually with the `tauri dev` CLI command.
   #[must_use]

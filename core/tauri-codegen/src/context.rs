@@ -373,10 +373,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     let info_plist_path = out_path.display().to_string();
     quote!(::tauri_utils::embed_plist::embed_info_plist!(#info_plist_path);)
   } else {
-    quote!()
+    TokenStream::new()
   };
   #[cfg(not(target_os = "macos"))]
-  let info_plist = quote!(());
+  let info_plist = TokenStream::new();
 
   let pattern = match &options.pattern {
     PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),

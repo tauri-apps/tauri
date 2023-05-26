@@ -16,7 +16,7 @@ use tauri_mobile::{
   target::{call_for_targets_with_fallback, TargetTrait},
 };
 
-use std::env::set_current_dir;
+use std::env::{current_dir, set_current_dir};
 
 #[derive(Debug, Parser)]
 pub struct Options {
@@ -43,8 +43,10 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
+  let current_dir = current_dir()?;
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
   let tauri_config = get_tauri_config(None)?;
+  set_current_dir(current_dir)?;
 
   let (config, metadata, cli_options) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

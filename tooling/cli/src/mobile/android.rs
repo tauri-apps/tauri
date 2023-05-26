@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::{
   env::set_var,
@@ -33,13 +32,7 @@ use super::{
   log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
-use crate::{
-  helpers::{
-    app_paths::tauri_dir,
-    config::{get as get_tauri_config, Config as TauriConfig},
-  },
-  Result,
-};
+use crate::{helpers::config::Config as TauriConfig, Result};
 
 mod android_studio_script;
 mod build;
@@ -93,11 +86,10 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 }
 
 pub fn get_config(
-  app: Option<App>,
+  app: &App,
   config: &TauriConfig,
   cli_options: &CliOptions,
-) -> (App, AndroidConfig, AndroidMetadata) {
-  let app = app.unwrap_or_else(|| get_app(config));
+) -> (AndroidConfig, AndroidMetadata) {
   let android_options = cli_options.clone();
 
   let raw = RawAndroidConfig {
@@ -154,26 +146,7 @@ pub fn get_config(
     src_main_dir.join("generated"),
   );
 
-  (app, config, metadata)
-}
-
-pub fn with_config<T>(
-  cli_options: Option<CliOptions>,
-  f: impl FnOnce(&App, &AndroidConfig, &AndroidMetadata, CliOptions) -> Result<T>,
-) -> Result<T> {
-  let (app, config, metadata, cli_options) = {
-    let tauri_path = tauri_dir();
-    std::env::set_current_dir(tauri_path)
-      .with_context(|| "failed to change current working directory")?;
-    let tauri_config = get_tauri_config(None)?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options =
-      cli_options.unwrap_or_else(|| read_options(&tauri_config_.tauri.bundle.identifier));
-    let (app, config, metadata) = get_config(None, tauri_config_, &cli_options);
-    (app, config, metadata, cli_options)
-  };
-  f(&app, &config, &metadata, cli_options)
+  (config, metadata)
 }
 
 fn env() -> Result<Env> {

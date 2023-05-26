@@ -3,25 +3,30 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, ensure_init, env, inject_assets, log_finished,
-  open_and_wait, with_config, MobileTarget,
+  configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_assets,
+  log_finished, open_and_wait, MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
-  helpers::{config::get as get_config, flock},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{get as get_tauri_config, ConfigHandle},
+    flock, resolve_merge_config,
+  },
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
 };
 use clap::{ArgAction, Parser};
 
+use anyhow::Context;
 use tauri_mobile::{
   android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
   opts::{NoiseLevel, Profile},
   target::TargetTrait,
 };
 
-use std::env::set_var;
+use std::env::{set_current_dir, set_var};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Android build")]
@@ -73,54 +78,72 @@ impl From<Options> for BuildOptions {
   }
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
-  with_config(
-    Some(Default::default()),
-    |app, config, metadata, _cli_options| {
-      set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
-      set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
-      let profile = if options.debug {
-        Profile::Debug
-      } else {
-        Profile::Release
-      };
+  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
+  options.config = merge_config;
 
-      ensure_init(config.project_dir(), MobileTarget::Android)?;
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-      let mut env = env()?;
-      configure_cargo(app, Some((&mut env, config)))?;
+  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let (app, config, metadata) = {
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    let app = get_app(tauri_config_);
+    let (config, metadata) = get_config(&app, tauri_config_, &Default::default());
+    (app, config, metadata)
+  };
 
-      // run an initial build to initialize plugins
-      Target::all().values().next().unwrap().build(
-        config,
-        metadata,
-        &env,
-        noise_level,
-        true,
-        if options.debug {
-          Profile::Debug
-        } else {
-          Profile::Release
-        },
-      )?;
+  set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
+  set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
-      let open = options.open;
-      run_build(options, profile, config, &mut env, noise_level)?;
+  let profile = if options.debug {
+    Profile::Debug
+  } else {
+    Profile::Release
+  };
 
-      if open {
-        open_and_wait(config, &env);
-      }
+  ensure_init(config.project_dir(), MobileTarget::Android)?;
 
-      Ok(())
+  let mut env = env()?;
+  configure_cargo(&app, Some((&mut env, &config)))?;
+
+  // run an initial build to initialize plugins
+  Target::all().values().next().unwrap().build(
+    &config,
+    &metadata,
+    &env,
+    noise_level,
+    true,
+    if options.debug {
+      Profile::Debug
+    } else {
+      Profile::Release
     },
-  )
-  .map_err(Into::into)
+  )?;
+
+  let open = options.open;
+  run_build(
+    options,
+    tauri_config,
+    profile,
+    &config,
+    &mut env,
+    noise_level,
+  )?;
+
+  if open {
+    open_and_wait(&config, &env);
+  }
+
+  Ok(())
 }
 
 fn run_build(
   mut options: Options,
+  tauri_config: ConfigHandle,
   profile: Profile,
   config: &AndroidConfig,
   env: &mut Env,
@@ -152,8 +175,6 @@ fn run_build(
   let bin_path = app_settings.app_binary_path(&interface_options)?;
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
-
-  let tauri_config = get_config(options.config.as_deref())?;
 
   let cli_options = CliOptions {
     features: build_options.features.clone(),

@@ -3,18 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, detect_target_ok, ensure_init, env, log_finished, open_and_wait, with_config,
-  MobileTarget,
+  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, log_finished,
+  open_and_wait, MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
-  helpers::{config::get as get_config, flock},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{get as get_tauri_config, ConfigHandle},
+    flock, resolve_merge_config,
+  },
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
 };
 use clap::{ArgAction, Parser};
 
+use anyhow::Context;
 use tauri_mobile::{
   apple::{config::Config as AppleConfig, target::Target},
   env::Env,
@@ -22,7 +27,7 @@ use tauri_mobile::{
   target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
 };
 
-use std::fs;
+use std::{env::set_current_dir, fs};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "iOS build")]
@@ -69,30 +74,40 @@ impl From<Options> for BuildOptions {
   }
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  with_config(
-    Some(Default::default()),
-    |app, config, _metadata, _cli_options| {
-      ensure_init(config.project_dir(), MobileTarget::Ios)?;
+pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
+  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
+  options.config = merge_config;
 
-      let mut env = env()?;
-      configure_cargo(app, None)?;
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-      let open = options.open;
-      run_build(options, config, &mut env, noise_level)?;
+  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let (app, config) = {
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    let app = get_app(tauri_config_);
+    let (config, _metadata) = get_config(&app, tauri_config_, &Default::default());
+    (app, config)
+  };
 
-      if open {
-        open_and_wait(config, &env);
-      }
+  ensure_init(config.project_dir(), MobileTarget::Ios)?;
 
-      Ok(())
-    },
-  )
-  .map_err(Into::into)
+  let mut env = env()?;
+  configure_cargo(&app, None)?;
+
+  let open = options.open;
+  run_build(options, tauri_config, &config, &mut env, noise_level)?;
+
+  if open {
+    open_and_wait(&config, &env);
+  }
+
+  Ok(())
 }
 
 fn run_build(
   mut options: Options,
+  tauri_config: ConfigHandle,
   config: &AppleConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
@@ -129,7 +144,7 @@ fn run_build(
     vars: Default::default(),
   };
   let _handle = write_options(
-    &get_config(options.config.as_deref())?
+    &tauri_config
       .lock()
       .unwrap()
       .as_ref()

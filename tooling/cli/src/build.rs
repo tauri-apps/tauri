@@ -7,6 +7,7 @@ use crate::{
     app_paths::{app_dir, tauri_dir},
     command_env,
     config::{get as get_config, AppUrl, HookCommand, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
+    resolve_merge_config,
     updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -233,15 +234,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 }
 
 pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
-  let (merge_config, merge_config_path) = match &options.config {
-    Some(config) if config.starts_with('{') => (Some(config.to_string()), None),
-    Some(config) => (
-      Some(std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?),
-      Some(config.clone()),
-    ),
-    None => (None, None),
-  };
-
+  let (merge_config, merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
   let tauri_path = tauri_dir();

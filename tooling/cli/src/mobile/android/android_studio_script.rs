@@ -2,15 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{detect_target_ok, ensure_init, env, with_config, MobileTarget};
-use crate::Result;
+use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
+use crate::{
+  helpers::{app_paths::tauri_dir, config::get as get_tauri_config},
+  Result,
+};
 use clap::{ArgAction, Parser};
 
+use anyhow::Context;
 use tauri_mobile::{
   android::target::Target,
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},
 };
+
+use std::env::set_current_dir;
 
 #[derive(Debug, Parser)]
 pub struct Options {
@@ -36,28 +42,37 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  with_config(None, |_app, config, metadata, cli_options| {
-    ensure_init(config.project_dir(), MobileTarget::Android)?;
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  let tauri_config = get_tauri_config(None)?;
 
-    let env = env()?;
+  let (config, metadata, cli_options) = {
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    let cli_options = read_options(&tauri_config_.tauri.bundle.identifier);
+    let (config, metadata) = get_config(&get_app(tauri_config_), tauri_config_, &cli_options);
+    (config, metadata, cli_options)
+  };
+  ensure_init(config.project_dir(), MobileTarget::Android)?;
 
-    call_for_targets_with_fallback(
-      options.targets.unwrap_or_default().iter(),
-      &detect_target_ok,
-      &env,
-      |target: &Target| {
-        target
-          .build(
-            config,
-            metadata,
-            &env,
-            cli_options.noise_level,
-            true,
-            profile,
-          )
-          .map_err(Into::into)
-      },
-    )
-    .map_err(|e| anyhow::anyhow!(e.to_string()))?
-  })
+  let env = env()?;
+
+  call_for_targets_with_fallback(
+    options.targets.unwrap_or_default().iter(),
+    &detect_target_ok,
+    &env,
+    |target: &Target| {
+      target
+        .build(
+          &config,
+          &metadata,
+          &env,
+          cli_options.noise_level,
+          true,
+          profile,
+        )
+        .map_err(Into::into)
+    },
+  )
+  .map_err(|e| anyhow::anyhow!(e.to_string()))?
 }

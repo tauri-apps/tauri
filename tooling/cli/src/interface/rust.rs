@@ -36,6 +36,7 @@ use tauri_utils::display_path;
 
 mod cargo_config;
 mod desktop;
+pub mod installation;
 pub mod manifest;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};

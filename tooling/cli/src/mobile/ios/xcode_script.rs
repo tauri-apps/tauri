@@ -4,7 +4,7 @@
 
 use super::{env, with_config};
 use crate::{
-  helpers::{app_paths::tauri_dir, config::get as get_config},
+  helpers::config::get as get_config,
   interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   Result,
 };
@@ -201,15 +201,15 @@ pub fn command(options: Options) -> Result<()> {
         return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"rlib\"]`", lib_path.display()));
       }
 
-      let tauri_path = tauri_dir();
-      std::fs::create_dir_all(tauri_path.join(format!(
-        "gen/apple/Externals/{}",
+      let project_dir = config.project_dir();
+      std::fs::create_dir_all(project_dir.join(format!(
+        "Externals/{}",
         profile.as_str()
       )))?;
       std::fs::copy(
         lib_path,
-        tauri_path.join(format!(
-          "gen/apple/Externals/{}/lib{}.a",
+        project_dir.join(format!(
+          "Externals/{}/lib{}.a",
           profile.as_str(),
           config.app().lib_name()
         ))

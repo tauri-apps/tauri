@@ -12,6 +12,7 @@ use crate::{
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
 use anyhow::{bail, Result};
+use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
 use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
@@ -23,7 +24,7 @@ use std::{
   env::{set_var, temp_dir},
   ffi::OsString,
   fmt::Write,
-  fs::{create_dir_all, read_to_string, write},
+  fs::{read_to_string, write},
   net::SocketAddr,
   path::PathBuf,
   process::{exit, ExitStatus},
@@ -124,12 +125,23 @@ impl Target {
   }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
+}
+
+impl Default for CliOptions {
+  fn default() -> Self {
+    Self {
+      features: None,
+      args: vec!["--lib".into()],
+      noise_level: Default::default(),
+      vars: Default::default(),
+    }
+  }
 }
 
 fn setup_dev_config(
@@ -281,7 +293,7 @@ fn get_app(config: &TauriConfig) -> App {
   let lib_name = interface
     .app_settings()
     .lib_name()
-    .unwrap_or(app_name.clone());
+    .unwrap_or_else(|| app_name.to_snek_case());
 
   let raw = RawAppConfig {
     name: app_name,
@@ -314,12 +326,8 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       project_dir.display(),
       target.command_name(),
     )
-  } else {
-    if target == Target::Android {
-      create_dir_all(project_dir.join(".tauri"))?;
-    }
-    Ok(())
   }
+  Ok(())
 }
 
 fn log_finished(outputs: Vec<PathBuf>, kind: &str) {

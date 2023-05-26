@@ -33,11 +33,11 @@ jobs:
               yarn build:release --features openssl-vendored
               strip -x *.node
           - host: windows-latest
-            build: yarn build:release
+            build: yarn build:release --features openssl-vendored
             target: x86_64-pc-windows-msvc
             architecture: x64
           - host: windows-latest
-            build: yarn build:release --target i686-pc-windows-msvc
+            build: yarn build:release --features openssl-vendored --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
             architecture: x64
           - host: ubuntu-20.04
@@ -45,14 +45,14 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
               cd tooling/cli/node
-              yarn build:release --target x86_64-unknown-linux-gnu
+              yarn build:release --features openssl-vendored --target x86_64-unknown-linux-gnu
               strip *.node
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
               cd tooling/cli/node
-              yarn build:release
+              yarn build:release --features openssl-vendored
               strip *.node
           - host: macos-latest
             target: aarch64-apple-darwin
@@ -64,7 +64,7 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
               cd tooling/cli/node
-              yarn build:release --target aarch64-unknown-linux-gnu
+              yarn build:release --features openssl-vendored --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
           - host: ubuntu-20.04
             architecture: x64
@@ -73,7 +73,7 @@ jobs:
               sudo apt-get update
               sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
             build: |
-              yarn build:release --target=armv7-unknown-linux-gnueabihf
+              yarn build:release --features openssl-vendored --target=armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip *.node
           - host: ubuntu-20.04
             architecture: x64
@@ -82,18 +82,16 @@ jobs:
             build: |
               cd tooling/cli/node
               rustup target add aarch64-unknown-linux-musl
-              yarn build:release --target aarch64-unknown-linux-musl
+              yarn build:release --features openssl-vendored --target aarch64-unknown-linux-musl
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
           #- host: windows-latest
           #  architecture: x64
           #  target: aarch64-pc-windows-msvc
-          #  build: yarn build:release --target aarch64-pc-windows-msvc
+          #  build: yarn build:release --features openssl-vendored --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.client_payload.ref || '' }}
       - name: Setup node
         uses: actions/setup-node@v3
         if: ${{ !matrix.settings.docker }}
@@ -181,7 +179,7 @@ jobs:
   #            freebsd-version
   #            cd ./tooling/cli/node/
   #            yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-  #            yarn build:release
+  #            yarn build:release --features openssl-vendored
   #            strip -x *.node
   #            rm -rf node_modules
   #            rm -rf ../target
@@ -403,4 +401,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
-          RELEASE_ID: ${{ github.event.client_payload.releaseId || github.event.inputs.releaseId }}
+          RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}

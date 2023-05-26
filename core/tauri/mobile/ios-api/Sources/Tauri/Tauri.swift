@@ -64,7 +64,7 @@ public class PluginManager {
 					var error: NSError? = nil
 					withUnsafeMutablePointer(to: &error) {
 						let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)
-						unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin, selectorWithThrows, invoke, OpaquePointer($0))
+						unsafeBitCast(methodIMP, to: (@convention(c)(Any?, Selector, Invoke, OpaquePointer) -> Void).self)(plugin.instance, selectorWithThrows, invoke, OpaquePointer($0))
 					}
 					if let error = error {
 						invoke.reject("\(error)")
@@ -93,11 +93,11 @@ extension PluginManager: NSCopying {
 }
 
 @_cdecl("register_plugin")
-func registerPlugin(name: SRString, plugin: NSObject, config: NSDictionary, webview: WKWebView?) {
+func registerPlugin(name: SRString, plugin: NSObject, config: NSDictionary?, webview: WKWebView?) {
 	PluginManager.shared.load(
 		name: name.toString(),
 		plugin: plugin as! Plugin,
-    config: JSTypes.coerceDictionaryToJSObject(config, formattingDatesAsStrings: true)!,
+    config: JSTypes.coerceDictionaryToJSObject(config ?? [:], formattingDatesAsStrings: true)!,
     webview: webview
 	)
 }
@@ -109,9 +109,8 @@ func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
 }
 
 @_cdecl("post_ipc_message")
-func postIpcMessage(webview: WKWebView, name: SRString, command: SRString, data: NSDictionary, callback: UInt, error: UInt) {
-	let invoke = Invoke(command: command.toString(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
-		let (fn, payload) = errorResult == nil ? (callback, successResult) : (error, errorResult)
+func postIpcMessage(webview: WKWebView, name: SRString, command: SRString, data: NSDictionary, callback: UInt64, error: UInt64) {
+	let invoke = Invoke(command: command.toString(), callback: callback, error: error, sendResponse: { (fn: UInt64, payload: JsonValue?) -> Void in
 		var payloadJson: String
 		do {
 			try payloadJson = payload == nil ? "null" : payload!.jsonRepresentation() ?? "`Failed to serialize payload`"
@@ -131,8 +130,10 @@ func runCommand(
 	data: NSDictionary,
 	callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>?) -> Void
 ) {
-	let invoke = Invoke(command: command.toString(), sendResponse: { (successResult: JsonValue?, errorResult: JsonValue?) -> Void in
-		let (success, payload) = errorResult == nil ? (true, successResult) : (false, errorResult)
+  let callbackId: UInt64 = 0
+  let errorId: UInt64 = 1
+	let invoke = Invoke(command: command.toString(), callback: callbackId, error: errorId, sendResponse: { (fn: UInt64, payload: JsonValue?) -> Void in
+		let success = fn == callbackId
 		var payloadJson: String = ""
 		do {
 			try payloadJson = payload == nil ? "null" : payload!.jsonRepresentation() ?? "`Failed to serialize payload`"

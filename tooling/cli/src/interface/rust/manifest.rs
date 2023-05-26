@@ -98,7 +98,7 @@ pub fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
   Ok(manifest)
 }
 
-fn toml_array(features: &HashSet<String>) -> Array {
+pub fn toml_array(features: &HashSet<String>) -> Array {
   let mut f = Array::default();
   let mut features: Vec<String> = features.iter().map(|f| f.to_string()).collect();
   features.sort();

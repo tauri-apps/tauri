@@ -5,6 +5,8 @@
 import Foundation
 import UIKit
 
+let CHANNEL_PREFIX = "__CHANNEL__:"
+
 @objc public class Invoke: NSObject, JSValueContainer, BridgedJSValueContainer {
 	public var dictionaryRepresentation: NSDictionary {
 		return data as NSDictionary
@@ -15,17 +17,21 @@ import UIKit
 	}()
 
   public var command: String
+  var callback: UInt64
+  var error: UInt64
 	public var data: JSObject
-	var sendResponse: (JsonValue?, JsonValue?) -> Void
+	var sendResponse: (UInt64, JsonValue?) -> Void
 
-	public init(command: String, sendResponse: @escaping (JsonValue?, JsonValue?) -> Void, data: JSObject?) {
+	public init(command: String, callback: UInt64, error: UInt64, sendResponse: @escaping (UInt64, JsonValue?) -> Void, data: JSObject?) {
     self.command = command
+    self.callback = callback
+    self.error = error
 		self.data = data ?? [:]
 		self.sendResponse = sendResponse
 	}
 
 	public func resolve() {
-		sendResponse(nil, nil)
+		sendResponse(callback, nil)
 	}
 
 	public func resolve(_ data: JsonObject) {
@@ -33,7 +39,7 @@ import UIKit
 	}
 
 	public func resolve(_ data: JsonValue) {
-		sendResponse(data, nil)
+		sendResponse(callback, data)
 	}
 
 	public func reject(_ message: String, _ code: String? = nil, _ error: Error? = nil, _ data: JsonValue? = nil) {
@@ -46,7 +52,7 @@ import UIKit
 				}
 			}
 		}
-		sendResponse(nil, .dictionary(payload as! JsonObject))
+		sendResponse(self.error, .dictionary(payload as! JsonObject))
 	}
 
 	public func unimplemented() {
@@ -54,7 +60,7 @@ import UIKit
 	}
 
 	public func unimplemented(_ message: String) {
-		sendResponse(nil, .dictionary(["message": message]))
+		sendResponse(error, .dictionary(["message": message]))
 	}
 
 	public func unavailable() {
@@ -62,6 +68,16 @@ import UIKit
 	}
 
 	public func unavailable(_ message: String) {
-		sendResponse(nil, .dictionary(["message": message]))
+		sendResponse(error, .dictionary(["message": message]))
 	}
+
+  public func getChannel(_ key: String) -> Channel? {
+    let channelDef = getString(key, "")
+    guard let callback = UInt64(channelDef.components(separatedBy: CHANNEL_PREFIX)[1]) else {
+      return nil
+    }
+    return Channel(callback: callback, handler: { (res: JsonValue) -> Void in
+      self.sendResponse(callback, res)
+    })
+  }
 }

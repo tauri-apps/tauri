@@ -145,7 +145,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
               #[allow(unreachable_code, clippy::diverging_sub_expression)]
               const _: () = if false {
                 trait AsyncCommandMustReturnResult {}
-                impl<A, B> AsyncCommandMustReturnResult for Result<A, B> {}
+                impl<A, B> AsyncCommandMustReturnResult for ::std::result::Result<A, B> {}
                 let _check: #return_type = unreachable!();
                 let _: &dyn AsyncCommandMustReturnResult = &_check;
               };

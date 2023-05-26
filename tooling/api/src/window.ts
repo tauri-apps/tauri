@@ -1459,12 +1459,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -1501,12 +1501,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -2391,17 +2391,29 @@ interface WindowOptions {
    * The user agent for the webview.
    */
   userAgent?: string
+  /**
+   * Whether the window's native maximize button is enabled or not. Defaults to `true`.
+   */
+  maximizable?: boolean
+  /**
+   * Whether the window's native minimize button is enabled or not. Defaults to `true`.
+   */
+  minimizable?: boolean
+  /**
+   * Whether the window's native close button is enabled or not. Defaults to `true`.
+   */
+  closable?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-        name: m.name,
-        scaleFactor: m.scaleFactor,
-        position: mapPhysicalPosition(m.position),
-        size: mapPhysicalSize(m.size)
-      }
+      name: m.name,
+      scaleFactor: m.scaleFactor,
+      position: mapPhysicalPosition(m.position),
+      size: mapPhysicalSize(m.size)
+    }
 }
 
 function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {

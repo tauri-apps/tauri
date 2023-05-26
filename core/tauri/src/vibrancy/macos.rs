@@ -63,9 +63,11 @@ pub fn apply_effects(window: id, effects: WindowEffectsConfig) {
       return;
     }
 
-    if appearance as u32 > 9 && NSAppKitVersionNumber < NSAppKitVersionNumber10_14 {
+    if appearance as u32 > 4 && NSAppKitVersionNumber < NSAppKitVersionNumber10_11 {
       appearance = NSVisualEffectMaterial::AppearanceBased;
-    } else if appearance as u32 > 4 && NSAppKitVersionNumber < NSAppKitVersionNumber10_11 {
+    }
+
+    if appearance as u32 > 9 && NSAppKitVersionNumber < NSAppKitVersionNumber10_14 {
       appearance = NSVisualEffectMaterial::AppearanceBased;
     }
 
@@ -201,20 +203,17 @@ impl NSVisualEffectView for id {
 
 /// <https://developer.apple.com/documentation/appkit/nsvisualeffectview/material>
 #[repr(u64)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NSVisualEffectMaterial {
-  #[deprecated(
-    since = "macOS 10.14",
-    note = "A default material appropriate for the view's effectiveAppearance.  You should instead choose an appropriate semantic material."
-  )]
+  #[deprecated = "Since macOS 10.14 a default material appropriate for the view's effectiveAppearance. You should instead choose an appropriate semantic material."]
   AppearanceBased = 0,
-  #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+  #[deprecated = "Since macOS 10.14 use a semantic material instead."]
   Light = 1,
-  #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+  #[deprecated = "Since macOS 10.14 use a semantic material instead."]
   Dark = 2,
-  #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+  #[deprecated = "Since macOS 10.14 use a semantic material instead."]
   MediumLight = 8,
-  #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+  #[deprecated = "Since macOS 10.14 use a semantic material instead."]
   UltraDark = 9,
 
   /// macOS 10.10+
@@ -252,7 +251,7 @@ pub enum NSVisualEffectMaterial {
 /// <https://developer.apple.com/documentation/appkit/nsvisualeffectview/state>
 #[allow(dead_code)]
 #[repr(u64)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NSVisualEffectState {
   /// Make window vibrancy state follow the window's active state
   FollowsWindowActiveState = 0,

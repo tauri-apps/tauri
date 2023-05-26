@@ -7,6 +7,7 @@ use crate::{
     app_paths::{app_dir, tauri_dir},
     command_env,
     config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WindowUrl},
+    resolve_merge_config,
   },
   interface::{AppInterface, DevProcess, ExitReason, Interface},
   CommandExt, Result,
@@ -138,15 +139,8 @@ pub fn local_ip_address(force: bool) -> &'static IpAddr {
 
 pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
   let tauri_path = tauri_dir();
-  options.config = if let Some(config) = &options.config {
-    Some(if config.starts_with('{') {
-      config.to_string()
-    } else {
-      std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?
-    })
-  } else {
-    None
-  };
+  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
+  options.config = merge_config;
 
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 

@@ -81,10 +81,11 @@ pub fn exec(
   #[allow(unused_variables)] non_interactive: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
 ) -> Result<App> {
-  let current_dir = current_dir();
+  let current_dir = current_dir()?;
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
   let tauri_config = get_tauri_config(None)?;
+  set_current_dir(&current_dir)?;
 
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
@@ -99,10 +100,8 @@ pub fn exec(
     .map(|bin| {
       let path = PathBuf::from(&bin);
       if path.exists() {
-        if let Ok(dir) = &current_dir {
-          let absolute_path = util::prefix_path(dir, path);
-          return absolute_path.into();
-        }
+        let absolute_path = util::prefix_path(&current_dir, path);
+        return absolute_path.into();
       }
       bin
     })
@@ -111,11 +110,9 @@ pub fn exec(
   for arg in args {
     let path = PathBuf::from(&arg);
     if path.exists() {
-      if let Ok(dir) = &current_dir {
-        let absolute_path = util::prefix_path(dir, path);
-        build_args.push(absolute_path.to_string_lossy().into_owned());
-        continue;
-      }
+      let absolute_path = util::prefix_path(&current_dir, path);
+      build_args.push(absolute_path.to_string_lossy().into_owned());
+      continue;
     }
     build_args.push(arg.to_string_lossy().into_owned());
     if arg == "android" || arg == "ios" {

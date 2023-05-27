@@ -37,7 +37,7 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.15.2",
+    "@napi-rs/cli": "2.16.1",
     "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
     "fs-extra": "11.1.1",
@@ -56,7 +56,7 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build:release": "cross-env TARGET=node napi build --platform --cargo-flags=\"--profile=release-size-optimized\"",
+    "build:release": "cross-env TARGET=node napi build --platform --profile release-size-optimized",
     "build": "cross-env TARGET=node napi build --platform",
     "prepublishOnly": "napi prepublish -t npm --gh-release-id $RELEASE_ID",
     "prepack": "cp ../schema.json .",
@@ -66,7 +66,5 @@
     "format": "prettier --write ./package.json ./tauri.js",
     "format:check": "prettier --check ./package.json ./tauri.js"
   },
-  "dependencies": {
-    "patch-package": "7.0.0"
-  }
+  "dependencies": {}
 }

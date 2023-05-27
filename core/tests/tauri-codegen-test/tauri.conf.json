@@ -1,17 +1,17 @@
 {
-  "$schema": "../../../../../core/tauri-config-schema/schema.json",
+  "$schema": "../../tauri-config-schema/schema.json",
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:4000"
   },
   "tauri": {
     "bundle": {
-      "identifier": "studio.tauri.example",
+      "identifier": "app.tauri.tauri-codegen-test",
       "active": true
     },
     "windows": [
       {
-        "title": "Tauri App"
+        "title": "Tauri Codegen Test"
       }
     ],
     "security": {

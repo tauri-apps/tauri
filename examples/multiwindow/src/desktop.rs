@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use tauri::WindowBuilder;
 
-fn main() {
+pub fn main() {
   tauri::Builder::default()
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
@@ -28,8 +26,6 @@ fn main() {
       let _window = builder.title("Tauri - Rust").build()?;
       Ok(())
     })
-    .run(tauri::generate_context!(
-      "../../examples/multiwindow/tauri.conf.json"
-    ))
+    .run(tauri::build_script_context!())
     .expect("failed to run tauri application");
 }

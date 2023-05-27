@@ -4,10 +4,10 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(desktop)]
+mod desktop;
+
 fn main() {
-  tauri::Builder::default()
-    .run(tauri::generate_context!(
-      "../../examples/navigation/tauri.conf.json"
-    ))
-    .expect("error while running tauri application");
+  #[cfg(desktop)]
+  desktop::main();
 }

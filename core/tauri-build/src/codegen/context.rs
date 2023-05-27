@@ -14,7 +14,6 @@ use tauri_utils::config::{AppUrl, WindowUrl};
 
 // TODO docs
 /// A builder for generating a Tauri application context during compile time.
-#[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
 #[derive(Debug)]
 pub struct CodegenContext {
   dev: bool,
@@ -36,34 +35,6 @@ impl CodegenContext {
   /// Create a new [`CodegenContext`] builder that is already filled with the default options.
   pub fn new() -> Self {
     Self::default()
-  }
-
-  /// Set the path to the `tauri.conf.json` (relative to the package's directory).
-  ///
-  /// This defaults to a file called `tauri.conf.json` inside of the current working directory of
-  /// the package compiling; does not need to be set manually if that config file is in the same
-  /// directory as your `Cargo.toml`.
-  #[must_use]
-  pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
-    self.config_path = config_path.into();
-    self
-  }
-
-  /// Sets the output file's path.
-  ///
-  /// **Note:** This path should be relative to the `OUT_DIR`.
-  ///
-  /// Don't set this if you are using [`tauri::tauri_build_context!`] as that helper macro
-  /// expects the default value. This option can be useful if you are not using the helper and
-  /// instead using [`std::include!`] on the generated code yourself.
-  ///
-  /// Defaults to `tauri-build-context.rs`.
-  ///
-  /// [`tauri::tauri_build_context!`]: https://docs.rs/tauri/latest/tauri/macro.tauri_build_context.html
-  #[must_use]
-  pub fn out_file(mut self, filename: PathBuf) -> Self {
-    self.out_file = filename;
-    self
   }
 
   /// Run the codegen in a `dev` context, meaning that Tauri is using a dev server or local file for development purposes,
@@ -128,10 +99,12 @@ impl CodegenContext {
     }
 
     #[cfg(target_os = "macos")]
-    println!(
-      "cargo:rerun-if-changed={}",
-      config_parent.join("Info.plist").display()
-    );
+    {
+      let plist = config_parent.join("Info.plist");
+      if plist.exists() {
+        println!("cargo:rerun-if-changed={}", plist.display());
+      }
+    }
 
     let code = context_codegen(ContextData {
       dev: self.dev,

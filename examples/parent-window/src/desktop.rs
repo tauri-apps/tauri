@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use tauri::{command, window::WindowBuilder, Window, WindowUrl};
 
 #[command]
@@ -20,7 +18,7 @@ async fn create_child_window(id: String, window: Window) {
   child.build().unwrap();
 }
 
-fn main() {
+pub fn main() {
   tauri::Builder::default()
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
@@ -36,8 +34,6 @@ fn main() {
         .build()?;
       Ok(())
     })
-    .run(tauri::generate_context!(
-      "../../examples/parent-window/tauri.conf.json"
-    ))
+    .run(tauri::build_script_context!())
     .expect("failed to run tauri application");
 }

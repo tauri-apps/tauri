@@ -19,15 +19,12 @@ use std::{
   path::{Path, PathBuf},
 };
 
-#[cfg(feature = "codegen")]
 mod codegen;
 /// Mobile build functions.
 pub mod mobile;
 mod static_vcruntime;
 
-#[cfg(feature = "codegen")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
-pub use codegen::context::CodegenContext;
+use codegen::context::CodegenContext;
 
 fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   let from = from.as_ref();
@@ -440,6 +437,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       _ => (),
     }
   }
+
+  let mut codegen = CodegenContext::new();
+
+  if !has_feature("custom-protocol") {
+    codegen = codegen.dev();
+  }
+
+  codegen.build();
 
   Ok(())
 }

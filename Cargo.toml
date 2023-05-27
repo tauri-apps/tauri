@@ -12,10 +12,23 @@ members = [
 
   # integration tests
   "core/tests/restart",
+  "core/tests/tauri-codegen-test",
+
+  # examples that only require Cargo
+  "examples/commands",
+  "examples/helloworld",
+  "examples/isolation",
+  "examples/multiwindow",
+  "examples/navigation",
+  "examples/parent-window",
+  "examples/splashscreen",
+  "examples/state",
+  "examples/streaming",
+  #"examples/tauri-dynamic-lib",
 ]
 
 exclude = [
-  # examples that can be compiled with the tauri CLI
+  # examples that require NodeJS and/or NPM
   "examples/api/src-tauri",
   "examples/resources/src-tauri",
   "examples/sidecar/src-tauri",

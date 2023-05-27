@@ -115,6 +115,7 @@ tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio = { version = "1", features = [ "full" ] }
 cargo_toml = "0.15"
 winnow = "=0.4.1"
+tauri-codegen-test = { path = "../tests/tauri-codegen-test" }
 
 [features]
 default = [ "wry", "compression", "objc-exception" ]
@@ -139,42 +140,5 @@ window-data-url = [ "data-url" ]
 protocol-asset = [ ]
 config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]
-icon-ico = [ "infer", "ico" ]
-icon-png = [ "infer", "png" ]
-
-[[example]]
-name = "commands"
-path = "../../examples/commands/main.rs"
-
-[[example]]
-name = "helloworld"
-path = "../../examples/helloworld/main.rs"
-
-[[example]]
-name = "multiwindow"
-path = "../../examples/multiwindow/main.rs"
-
-[[example]]
-name = "parent-window"
-path = "../../examples/parent-window/main.rs"
-
-[[example]]
-name = "navigation"
-path = "../../examples/navigation/main.rs"
-
-[[example]]
-name = "splashscreen"
-path = "../../examples/splashscreen/main.rs"
-
-[[example]]
-name = "state"
-path = "../../examples/state/main.rs"
-
-[[example]]
-name = "streaming"
-path = "../../examples/streaming/main.rs"
-
-[[example]]
-name = "isolation"
-path = "../../examples/isolation/main.rs"
-required-features = [ "isolation" ]
+icon-ico = [ "infer", "ico", "tauri-utils/icon-ico" ]
+icon-png = [ "infer", "png", "tauri-utils/icon-png" ]

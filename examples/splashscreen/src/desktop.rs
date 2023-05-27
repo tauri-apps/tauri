@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![cfg(desktop)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 // Application code for a splashscreen system that waits on a Rust initialization script
@@ -83,10 +84,10 @@ mod ui {
 }
 
 fn context() -> tauri::Context<tauri::utils::assets::EmbeddedAssets> {
-  tauri::generate_context!("../../examples/splashscreen/tauri.conf.json")
+  tauri::build_script_context!()
 }
 
-fn main() {
+pub fn main() {
   // toggle this flag to experiment with different splashscreen usages
   let ui = false;
   if ui {

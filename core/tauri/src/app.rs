@@ -618,10 +618,16 @@ impl<R: Runtime> App<R> {
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   ///
   /// # Examples
-  /// ```,no_run
+  ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
+  /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
-  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .build(context)
   ///   .expect("error while building tauri application");
   /// #[cfg(target_os = "macos")]
   /// app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -648,10 +654,16 @@ impl<R: Runtime> App<R> {
   /// - ** Linux / macOS / iOS / Android**: Unsupported.
   ///
   /// # Examples
-  /// ```,no_run
+  ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
+  /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
-  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .build(context)
   ///   .expect("error while building tauri application");
   /// app.set_device_event_filter(tauri::DeviceEventFilter::Always);
   /// app.run(|_app_handle, _event| {});
@@ -669,10 +681,16 @@ impl<R: Runtime> App<R> {
   /// Runs the application.
   ///
   /// # Examples
-  /// ```,no_run
+  ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
+  /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// let app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
-  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .build(context)
   ///   .expect("error while building tauri application");
   /// app.run(|_app_handle, event| match event {
   ///   tauri::RunEvent::ExitRequested { api, .. } => {
@@ -718,10 +736,16 @@ impl<R: Runtime> App<R> {
   /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
   /// # Examples
-  /// ```no_run
+  ///
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
+  /// ```rust,no_run
+  /// # let context = tauri_codegen_test::context();
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
-  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .build(context)
   ///   .expect("error while building tauri application");
   /// loop {
   ///   let iteration = app.run_iteration();
@@ -748,10 +772,16 @@ impl<R: Runtime> App<R> {
 /// Builds a Tauri application.
 ///
 /// # Examples
-/// ```,no_run
+///
+/// ```ignore
+/// let context = tauri::tauri_build_context!();
+/// ```
+///
+/// ```rust,no_run
+/// # let context = tauri_codegen_test::context();
 /// tauri::Builder::default()
 ///   // on an actual app, remove the string argument
-///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///   .run(context)
 ///  .expect("error while running tauri application");
 /// ```
 #[allow(clippy::type_complexity)]
@@ -988,7 +1018,11 @@ impl<R: Runtime> Builder<R> {
   ///
   /// Since the managed state is global and must be [`Send`] + [`Sync`], mutations can only happen through interior mutability:
   ///
-  /// ```,no_run
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
+  /// ```rust,no_run
   /// use std::{collections::HashMap, sync::Mutex};
   /// use tauri::State;
   /// // here we use Mutex to achieve interior mutability
@@ -1012,18 +1046,23 @@ impl<R: Runtime> Builder<R> {
   ///   storage.store.lock().unwrap().insert(key, value);
   /// }
   ///
+  /// # let context = tauri_codegen_test::context();
   /// tauri::Builder::default()
   ///   .manage(Storage { store: Default::default() })
   ///   .manage(DbConnection { db: Default::default() })
   ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
   ///   // on an actual app, remove the string argument
-  ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .run(context)
   ///   .expect("error while running tauri application");
   /// ```
   ///
   /// # Examples
   ///
-  /// ```,no_run
+  /// ```ignore
+  /// let context = tauri::tauri_build_context!();
+  /// ```
+  ///
+  /// ```rust,no_run
   /// use tauri::State;
   ///
   /// struct MyInt(isize);
@@ -1039,12 +1078,13 @@ impl<R: Runtime> Builder<R> {
   ///     println!("state: {}", state.inner().0);
   /// }
   ///
+  /// # let context = tauri_codegen_test::context();
   /// tauri::Builder::default()
   ///   .manage(MyInt(10))
   ///   .manage(MyString("Hello, managed state!".to_string()))
   ///   .invoke_handler(tauri::generate_handler![int_command, string_command])
   ///   // on an actual app, remove the string argument
-  ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .run(context)
   ///   .expect("error while running tauri application");
   /// ```
   #[must_use]

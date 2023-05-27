@@ -11,6 +11,6 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![greet])
         .plugin(tauri_plugin_{{ plugin_name_snake_case }}::init())
-        .run(tauri::generate_context!())
+        .run(tauri::build_script_context!())
         .expect("error while running tauri application");
 }

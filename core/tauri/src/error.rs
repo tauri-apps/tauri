@@ -89,4 +89,7 @@ pub enum Error {
   #[cfg(target_os = "android")]
   #[error("jni error: {0}")]
   Jni(#[from] jni::errors::Error),
+  /// An error happened while loading the Icon.
+  #[error(transparent)]
+  Icon(#[from] tauri_utils::IconError),
 }

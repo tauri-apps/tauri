@@ -1021,6 +1021,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "embed_plist"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ef6b89e5b37196644d8796de5268852ff179b44e96276cf4290264843743bb7"
+
+[[package]]
 name = "encode_unicode"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1686,6 +1692,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ico"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "031530fe562d8c8d71c0635013d6d155bbfe8ba0aa4b4d2d24ce8af6b71047bd"
+dependencies = [
+ "byteorder",
+ "png",
+]
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1772,6 +1788,15 @@ name = "infer"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a898e4b7951673fce96614ce5751d13c40fc5674bc2d759288e46c3ab62598b3"
+dependencies = [
+ "cfb",
+]
+
+[[package]]
+name = "infer"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f551f8c3a39f68f986517db0d1759de85881894fdc7db798bd2a9df9cb04b7fc"
 dependencies = [
  "cfb",
 ]
@@ -3988,7 +4013,7 @@ dependencies = [
  "getrandom 0.2.9",
  "heck",
  "html5ever",
- "infer",
+ "infer 0.12.0",
  "json-patch 1.0.0",
  "json5",
  "kuchiki",
@@ -4012,16 +4037,19 @@ version = "2.0.0-alpha.5"
 dependencies = [
  "aes-gcm",
  "ctor 0.1.26",
+ "embed_plist",
  "getrandom 0.2.9",
  "glob",
  "heck",
  "html5ever",
- "infer",
+ "ico",
+ "infer 0.13.0",
  "json-patch 1.0.0",
  "json5",
  "kuchiki",
  "memchr",
  "phf 0.10.1",
+ "png",
  "schemars",
  "semver",
  "serde",

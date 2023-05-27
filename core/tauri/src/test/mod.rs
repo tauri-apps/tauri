@@ -63,7 +63,6 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       description: "Tauri test",
       crate_name: "test",
     },
-    _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
   }
 }

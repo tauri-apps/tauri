@@ -2391,6 +2391,18 @@ interface WindowOptions {
    * The user agent for the webview.
    */
   userAgent?: string
+  /**
+   * Whether the window's native maximize button is enabled or not. Defaults to `true`.
+   */
+  maximizable?: boolean
+  /**
+   * Whether the window's native minimize button is enabled or not. Defaults to `true`.
+   */
+  minimizable?: boolean
+  /**
+   * Whether the window's native close button is enabled or not. Defaults to `true`.
+   */
+  closable?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

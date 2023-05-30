@@ -1,6 +1,6 @@
 ---
-"cli.rs": patch
-"cli.js": patch
+"tauri-cli": patch
+"@tauri-apps/cli": patch
 ---
 
 Add `key.properties` file to android's `.gitignore`.

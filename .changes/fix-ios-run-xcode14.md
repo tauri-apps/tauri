@@ -1,6 +1,6 @@
 ---
-"cli.rs": patch
-"cli.js": patch
+"tauri-cli": patch
+"@tauri-apps/cli": patch
 ---
 
 Fixes running on device using Xcode 14.

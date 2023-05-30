@@ -1,6 +1,6 @@
 ---
-"cli.rs": patch
-"cli.js": patch
+"tauri-cli": patch
+"@tauri-apps/cli": patch
 ---
 
 Improve local IP address detection with user selection.

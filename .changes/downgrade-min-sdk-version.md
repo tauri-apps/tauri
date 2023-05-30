@@ -1,5 +1,5 @@
 ---
-"cli.rs": patch
+"tauri-cli": patch
 "tauri": patch
 ---
 

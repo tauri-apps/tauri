@@ -360,11 +360,15 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
       };
       let mut i = 0;
       let sleep_interval = std::time::Duration::from_secs(2);
+      let timeout_duration = std::time::Duration::from_secs(1);
       let max_attempts = 90;
-      loop {
-        if std::net::TcpStream::connect(addrs).is_ok() {
-          break;
+      'waiting: loop {
+        for addr in addrs.iter() {
+          if std::net::TcpStream::connect_timeout(addr, timeout_duration).is_ok() {
+            break 'waiting;
+          }
         }
+
         if i % 3 == 1 {
           warn!(
             "Waiting for your frontend dev server to start on {}...",

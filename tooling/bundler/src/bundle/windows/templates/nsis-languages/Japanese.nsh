@@ -18,7 +18,7 @@ LangString unableToUninstall ${LANG_JAPANESE} "アンインストールできま
 LangString uninstallApp ${LANG_JAPANESE} "${PRODUCTNAME} をアンインストールする"
 LangString uninstallBeforeInstalling ${LANG_JAPANESE} "インストールする前にアンインストールする"
 LangString unknown ${LANG_JAPANESE} "不明"
-LangString webview2AbortError ${LANG_JAPANESE} WebView2 のインストールに失敗しました。 WebView2 がないとアプリは実行できません。インストーラーを再起動してください。"
+LangString webview2AbortError ${LANG_JAPANESE} "WebView2 のインストールに失敗しました。 WebView2 がないとアプリは実行できません。インストーラーを再起動してください。"
 LangString webview2DownloadError ${LANG_JAPANESE} "エラー: WebView2 のダウンロードに失敗しました - $0"
 LangString webview2DownloadSuccess ${LANG_JAPANESE} "WebView2 ブートストラップ が正常にダウンロードされました"
 LangString webview2Downloading ${LANG_JAPANESE} "WebView2 ブートストラップ をダウンロード中です..."

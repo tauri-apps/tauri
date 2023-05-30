@@ -31,6 +31,23 @@ pub struct WebviewAttributes {
   pub additional_browser_args: Option<String>,
 }
 
+impl From<&WindowConfig> for WebviewAttributes {
+  fn from(config: &WindowConfig) -> Self {
+    let mut builder = Self::new(config.url.clone());
+    builder = builder.accept_first_mouse(config.accept_first_mouse);
+    if !config.file_drop_enabled {
+      builder = builder.disable_file_drop_handler();
+    }
+    if let Some(user_agent) = &config.user_agent {
+      builder = builder.user_agent(user_agent);
+    }
+    if let Some(additional_browser_args) = &config.additional_browser_args {
+      builder = builder.additional_browser_args(additional_browser_args);
+    }
+    builder
+  }
+}
+
 impl WebviewAttributes {
   /// Initializes the default attributes for a webview.
   pub fn new(url: WindowUrl) -> Self {
@@ -140,8 +157,37 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self;
 
   /// Whether the window is resizable or not.
+  /// When resizable is set to false, native window's maximize button is automatically disabled.
   #[must_use]
   fn resizable(self, resizable: bool) -> Self;
+
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[must_use]
+  fn maximizable(self, maximizable: bool) -> Self;
+
+  /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[must_use]
+  fn minimizable(self, minimizable: bool) -> Self;
+
+  /// Whether the window's native close button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  fn closable(self, closable: bool) -> Self;
 
   /// The title of the window in the title bar.
   #[must_use]

@@ -68,6 +68,7 @@ use wry::{
 };
 
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
+pub use wry::webview::webview_version;
 
 #[cfg(windows)]
 use wry::webview::WebviewExtWindows;
@@ -214,7 +215,6 @@ impl<T: UserEvent> Context<T> {
 impl<T: UserEvent> Context<T> {
   fn create_webview(&self, pending: PendingWindow<T, Wry<T>>) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
-    let current_url = pending.current_url.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let context = self.clone();
@@ -236,7 +236,6 @@ impl<T: UserEvent> Context<T> {
     };
     Ok(DetachedWindow {
       label,
-      current_url,
       dispatcher,
       menu_ids,
       js_event_listeners,
@@ -718,6 +717,9 @@ impl WindowBuilder for WindowBuilderWrapper {
       .inner_size(config.width, config.height)
       .visible(config.visible)
       .resizable(config.resizable)
+      .maximizable(config.maximizable)
+      .minimizable(config.minimizable)
+      .closable(config.closable)
       .fullscreen(config.fullscreen)
       .decorations(config.decorations)
       .maximized(config.maximized)
@@ -813,6 +815,21 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn resizable(mut self, resizable: bool) -> Self {
     self.inner = self.inner.with_resizable(resizable);
+    self
+  }
+
+  fn maximizable(mut self, maximizable: bool) -> Self {
+    self.inner = self.inner.with_maximizable(maximizable);
+    self
+  }
+
+  fn minimizable(mut self, minimizable: bool) -> Self {
+    self.inner = self.inner.with_minimizable(minimizable);
+    self
+  }
+
+  fn closable(mut self, closable: bool) -> Self {
+    self.inner = self.inner.with_closable(closable);
     self
   }
 
@@ -1055,8 +1072,12 @@ pub enum WindowMessage {
   IsFullscreen(Sender<bool>),
   IsMinimized(Sender<bool>),
   IsMaximized(Sender<bool>),
+  IsFocused(Sender<bool>),
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
+  IsMaximizable(Sender<bool>),
+  IsMinimizable(Sender<bool>),
+  IsClosable(Sender<bool>),
   IsVisible(Sender<bool>),
   Title(Sender<String>),
   IsMenuVisible(Sender<bool>),
@@ -1077,6 +1098,9 @@ pub enum WindowMessage {
   Center,
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
   SetResizable(bool),
+  SetMaximizable(bool),
+  SetMinimizable(bool),
+  SetClosable(bool),
   SetTitle(String),
   Maximize,
   Unmaximize,
@@ -1285,6 +1309,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     window_getter!(self, WindowMessage::IsMaximized)
   }
 
+  fn is_focused(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsFocused)
+  }
+
   /// Gets the window’s current decoration state.
   fn is_decorated(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsDecorated)
@@ -1293,6 +1321,21 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   /// Gets the window’s current resizable state.
   fn is_resizable(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsResizable)
+  }
+
+  /// Gets the current native window's maximize button state
+  fn is_maximizable(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsMaximizable)
+  }
+
+  /// Gets the current native window's minimize button state
+  fn is_minimizable(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsMinimizable)
+  }
+
+  /// Gets the current native window's close button state
+  fn is_closable(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsClosable)
   }
 
   fn is_visible(&self) -> Result<bool> {
@@ -1383,6 +1426,27 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetResizable(resizable)),
+    )
+  }
+
+  fn set_maximizable(&self, maximizable: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetMaximizable(maximizable)),
+    )
+  }
+
+  fn set_minimizable(&self, minimizable: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetMinimizable(minimizable)),
+    )
+  }
+
+  fn set_closable(&self, closable: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetClosable(closable)),
     )
   }
 
@@ -1987,7 +2051,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
-    let current_url = pending.current_url.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let window_id = rand::random();
@@ -2014,7 +2077,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     Ok(DetachedWindow {
       label,
-      current_url,
       dispatcher,
       menu_ids,
       js_event_listeners,
@@ -2410,8 +2472,12 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
             WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+            WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
+            WindowMessage::IsMaximizable(tx) => tx.send(window.is_maximizable()).unwrap(),
+            WindowMessage::IsMinimizable(tx) => tx.send(window.is_minimizable()).unwrap(),
+            WindowMessage::IsClosable(tx) => tx.send(window.is_closable()).unwrap(),
             WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
             WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
             WindowMessage::IsMenuVisible(tx) => tx.send(window.is_menu_visible()).unwrap(),
@@ -2444,6 +2510,9 @@ fn handle_user_message<T: UserEvent>(
               window.request_user_attention(request_type.map(|r| r.0));
             }
             WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
+            WindowMessage::SetMaximizable(maximizable) => window.set_maximizable(maximizable),
+            WindowMessage::SetMinimizable(minimizable) => window.set_minimizable(minimizable),
+            WindowMessage::SetClosable(closable) => window.set_closable(closable),
             WindowMessage::SetTitle(title) => window.set_title(&title),
             WindowMessage::Maximize => window.set_maximized(true),
             WindowMessage::Unmaximize => window.set_maximized(false),
@@ -3044,7 +3113,7 @@ fn create_webview<T: UserEvent>(
     mut window_builder,
     ipc_handler,
     label,
-    current_url,
+    url,
     menu_ids,
     js_event_listeners,
     ..
@@ -3093,7 +3162,7 @@ fn create_webview<T: UserEvent>(
   }
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
-    .with_url(current_url.lock().unwrap().as_str())
+    .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
@@ -3128,7 +3197,6 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,
       label.clone(),
-      current_url,
       menu_ids,
       js_event_listeners,
       handler,
@@ -3239,7 +3307,6 @@ fn create_webview<T: UserEvent>(
 fn create_ipc_handler<T: UserEvent>(
   context: Context<T>,
   label: String,
-  current_url: Arc<Mutex<Url>>,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
   handler: WebviewIpcHandler<T, Wry<T>>,
@@ -3248,7 +3315,6 @@ fn create_ipc_handler<T: UserEvent>(
     let window_id = context.webview_id_map.get(&window.id()).unwrap();
     handler(
       DetachedWindow {
-        current_url: current_url.clone(),
         dispatcher: WryDispatcher {
           window_id,
           context: context.clone(),

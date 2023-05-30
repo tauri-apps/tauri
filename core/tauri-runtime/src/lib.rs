@@ -576,11 +576,35 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Gets the window's current maximized state.
   fn is_maximized(&self) -> Result<bool>;
 
+  /// Gets the window's current focus state.
+  fn is_focused(&self) -> Result<bool>;
+
   /// Gets the window’s current decoration state.
   fn is_decorated(&self) -> Result<bool>;
 
   /// Gets the window’s current resizable state.
   fn is_resizable(&self) -> Result<bool>;
+
+  /// Gets the window's native maximize button state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  fn is_maximizable(&self) -> Result<bool>;
+
+  /// Gets the window's native minize button state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  fn is_minimizable(&self) -> Result<bool>;
+
+  /// Gets the window's native close button state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  fn is_closable(&self) -> Result<bool>;
 
   /// Gets the window's current visibility state.
   fn is_visible(&self) -> Result<bool>;
@@ -639,6 +663,30 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> Result<()>;
+
+  /// Updates the window's native maximize button state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  fn set_maximizable(&self, maximizable: bool) -> Result<()>;
+
+  /// Updates the window's native minimize button state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  fn set_minimizable(&self, minimizable: bool) -> Result<()>;
+
+  /// Updates the window's native close button state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  fn set_closable(&self, closable: bool) -> Result<()>;
 
   /// Updates the window title.
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()>;

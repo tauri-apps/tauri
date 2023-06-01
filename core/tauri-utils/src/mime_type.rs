@@ -18,10 +18,11 @@ pub enum MimeType {
   Js,
   Json,
   Jsonld,
+  Mp4,
   OctetStream,
   Rtf,
   Svg,
-  Mp4,
+  Txt,
 }
 
 impl std::fmt::Display for MimeType {
@@ -34,10 +35,11 @@ impl std::fmt::Display for MimeType {
       MimeType::Js => "text/javascript",
       MimeType::Json => "application/json",
       MimeType::Jsonld => "application/ld+json",
+      MimeType::Mp4 => "video/mp4",
       MimeType::OctetStream => "application/octet-stream",
       MimeType::Rtf => "application/rtf",
       MimeType::Svg => "image/svg+xml",
-      MimeType::Mp4 => "video/mp4",
+      MimeType::Txt => &MIMETYPE_PLAIN,
     };
     write!(f, "{mime}")
   }
@@ -62,9 +64,10 @@ impl MimeType {
       Some("json") => Self::Json,
       Some("jsonld") => Self::Jsonld,
       Some("mjs") => Self::Js,
+      Some("mp4") => Self::Mp4,
       Some("rtf") => Self::Rtf,
       Some("svg") => Self::Svg,
-      Some("mp4") => Self::Mp4,
+      Some("txt") => Self::Txt,
       // Assume HTML when a TLD is found for eg. `wry:://tauri.app` | `wry://hello.com`
       Some(_) => fallback,
       // using octet stream according to this:
@@ -133,14 +136,17 @@ mod tests {
     let mjs: String = MimeType::parse_from_uri("https://example.com/bundled.mjs").to_string();
     assert_eq!(mjs, String::from("text/javascript"));
 
+    let mp4: String = MimeType::parse_from_uri("https://example.com/video.mp4").to_string();
+    assert_eq!(mp4, String::from("video/mp4"));
+
     let rtf: String = MimeType::parse_from_uri("https://example.com/document.rtf").to_string();
     assert_eq!(rtf, String::from("application/rtf"));
 
     let svg: String = MimeType::parse_from_uri("https://example.com/picture.svg").to_string();
     assert_eq!(svg, String::from("image/svg+xml"));
 
-    let mp4: String = MimeType::parse_from_uri("https://example.com/video.mp4").to_string();
-    assert_eq!(mp4, String::from("video/mp4"));
+    let txt: String = MimeType::parse_from_uri("https://example.com/file.txt").to_string();
+    assert_eq!(txt, String::from("text/plain"));
 
     let custom_scheme = MimeType::parse_from_uri("wry://tauri.app").to_string();
     assert_eq!(custom_scheme, String::from("text/html"));

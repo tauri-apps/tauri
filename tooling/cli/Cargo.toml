@@ -69,7 +69,7 @@ handlebars = "4.3"
 include_dir = "0.7"
 minisign = "0.7"
 base64 = "0.21.0"
-ureq = "2.5"
+ureq = {version="2.5", default-features = false, features = ["gzip"]}
 os_info = "3"
 semver = "1.0"
 regex = "1.6.0"
@@ -106,4 +106,9 @@ libc = "0.2"
 lto = true
 
 [features]
+default = [ "rustls" ]
 openssl-vendored = [ "tauri-mobile/openssl-vendored" ]
+native-tls = [ "tauri-bundler/native-tls", "ureq/native-tls" ]
+# ureq doesn't have a vendored mode but atto's feature should hopefully take care of it.
+native-tls-vendored = [ "tauri-bundler/native-tls-vendored", "ureq/native-tls" ]
+rustls = [ "tauri-bundler/rustls", "ureq/tls" ]

@@ -4394,6 +4394,7 @@ dependencies = [
  "base64 0.13.1",
  "flate2",
  "log",
+ "native-tls",
  "once_cell",
  "rustls",
  "url",

@@ -1,0 +1,21 @@
+{
+  "name": "@tauri-apps/cli-win32-arm64-msvc",
+  "version": "0.0.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "cli.win32-arm64-msvc.node",
+  "files": [
+    "cli.win32-arm64-msvc.node"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  }
+}

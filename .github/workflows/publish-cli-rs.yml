@@ -37,7 +37,7 @@ jobs:
           - os: windows-latest
             rust_target: aarch64-pc-windows-msvc
             ext: '.exe'
-            args: '--no-default-features --features native-tls-vendored'
+            args: '--no-default-features --features native-tls,native-tls-vendored'
 
     steps:
       - name: Checkout

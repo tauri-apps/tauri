@@ -23,6 +23,8 @@ use std::{
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+  let mut app_bundle_paths = vec![];
+
   // generate the .app bundle if needed
   if bundles
     .iter()
@@ -30,7 +32,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .count()
     == 0
   {
-    app::bundle_project(settings)?;
+    app_bundle_paths = app::bundle_project(settings)?;
   }
 
   // get the target path
@@ -146,6 +148,16 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .context("error running bundle_dmg.sh")?;
 
   fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
+
+  // Clean up .app if only .dmg, .app is directory
+  for app_bundle_path in app_bundle_paths {
+    info!(action = "Cleaning"; "{}", app_bundle_path.display());
+    match app_bundle_path.is_dir() {
+      true => fs::remove_dir_all(&app_bundle_path),
+      false => fs::remove_file(&app_bundle_path),
+    }
+    .with_context(|| format!("Failed to cleaning the {}", app_bundle_path.display()))?
+  }
 
   // Sign DMG if needed
   if let Some(identity) = &settings.macos().signing_identity {

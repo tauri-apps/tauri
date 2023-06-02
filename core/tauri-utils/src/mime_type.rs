@@ -39,7 +39,7 @@ impl std::fmt::Display for MimeType {
       MimeType::OctetStream => "application/octet-stream",
       MimeType::Rtf => "application/rtf",
       MimeType::Svg => "image/svg+xml",
-      MimeType::Txt => &MIMETYPE_PLAIN,
+      MimeType::Txt => MIMETYPE_PLAIN,
     };
     write!(f, "{mime}")
   }

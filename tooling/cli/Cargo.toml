@@ -97,5 +97,5 @@ lto = true
 default = [ "rustls" ]
 native-tls = [ "tauri-bundler/native-tls", "ureq/native-tls" ]
 # ureq doesn't have a vendored mode but atto's feature should hopefully take care of it.
-native-tls-vendored = [ "tauri-bundler/native-tls-vendored", "ureq/native-tls" ]
+native-tls-vendored = [ "tauri-bundler/native-tls-vendored" ]
 rustls = [ "tauri-bundler/rustls", "ureq/tls" ]

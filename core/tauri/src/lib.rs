@@ -846,10 +846,10 @@ pub mod test;
 #[cfg(test)]
 mod tests {
   use cargo_toml::Manifest;
-  use once_cell::sync::OnceCell;
+  use std::sync::OnceLock;
   use std::{env::var, fs::read_to_string, path::PathBuf};
 
-  static MANIFEST: OnceCell<Manifest> = OnceCell::new();
+  static MANIFEST: OnceLock<Manifest> = OnceLock::new();
   const CHECKED_FEATURES: &str = include_str!(concat!(env!("OUT_DIR"), "/checked_features"));
 
   fn get_manifest() -> &'static Manifest {

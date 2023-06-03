@@ -15,8 +15,8 @@ use clap::{ArgAction, Parser};
 
 use anyhow::{bail, Context};
 use log::{error, info, warn};
-use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
+use std::sync::OnceLock;
 
 use std::{
   env::set_current_dir,
@@ -27,8 +27,8 @@ use std::{
   },
 };
 
-static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
-static KILL_BEFORE_DEV_FLAG: OnceCell<AtomicBool> = OnceCell::new();
+static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
+static KILL_BEFORE_DEV_FLAG: OnceLock<AtomicBool> = OnceLock::new();
 
 #[cfg(unix)]
 const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");

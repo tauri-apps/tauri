@@ -6,11 +6,11 @@ use heck::AsShoutySnakeCase;
 use heck::AsSnakeCase;
 use heck::ToSnakeCase;
 
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 
 use std::{path::Path, sync::Mutex};
 
-static CHECKED_FEATURES: OnceCell<Mutex<Vec<String>>> = OnceCell::new();
+static CHECKED_FEATURES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 
 // checks if the given Cargo feature is enabled.
 fn has_feature(feature: &str) -> bool {

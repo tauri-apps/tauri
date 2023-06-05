@@ -26,6 +26,7 @@ features = [
   "devtools",
   "http-multipart",
   "icon-png",
+  "test",
   "dox"
 ]
 rustdoc-args = [ "--cfg", "doc_cfg" ]

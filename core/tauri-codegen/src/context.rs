@@ -179,7 +179,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .clone()
       .or_else(|| config.tauri.security.csp.clone())
   } else {
-    #[allow(clippy::redundant_clone)]
     config.tauri.security.csp.clone()
   };
   if csp.is_some() {

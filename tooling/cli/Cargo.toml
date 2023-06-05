@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-tauri-mobile = { version = "0.5", default-features = false }
+tauri-mobile = { git = "https://github.com/tauri-apps/tauri-mobile", branch = "feat/tls-features", default-features = false }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.16", features = [ "server" ] }
 jsonrpsee-core = "0.16"
@@ -69,7 +69,7 @@ handlebars = "4.3"
 include_dir = "0.7"
 minisign = "0.7"
 base64 = "0.21.0"
-ureq = {version="2.5", default-features = false, features = ["gzip"]}
+ureq = { version = "2.5", default-features = false, features = ["gzip"] }
 os_info = "3"
 semver = "1.0"
 regex = "1.6.0"
@@ -107,6 +107,6 @@ lto = true
 
 [features]
 default = [ "rustls" ]
-native-tls = [ "tauri-bundler/native-tls", "ureq/native-tls" ]
-native-tls-vendored = [ "native-tls", "tauri-bundler/native-tls-vendored" ]
-rustls = [ "tauri-bundler/rustls", "ureq/tls" ]
+native-tls = [ "tauri-bundler/native-tls", "tauri-mobile/native-tls", "ureq/native-tls" ]
+native-tls-vendored = [ "native-tls", "tauri-bundler/native-tls-vendored", "tauri-mobile/openssl-vendored" ]
+rustls = [ "tauri-bundler/rustls", "tauri-mobile/rustls", "ureq/tls" ]

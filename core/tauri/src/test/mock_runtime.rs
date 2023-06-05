@@ -505,7 +505,15 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    unimplemented!()
+    Ok(DetachedWindow {
+      label: pending.label,
+      dispatcher: MockDispatcher {
+        context: self.context.clone(),
+        last_evaluated_script: Default::default(),
+      },
+      menu_ids: Default::default(),
+      js_event_listeners: Default::default(),
+    })
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {

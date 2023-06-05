@@ -10,7 +10,7 @@
 //!
 //! # Examples
 //!
-//! ```rust,no_run
+//! ```rust
 //! #[tauri::command]
 //! fn my_cmd() {}
 //!
@@ -28,22 +28,38 @@
 //!
 //! fn main() {
 //!   let app = create_app(tauri::Builder::default());
-//!   app.run(|_handle, _event| {});
+//!   // app.run(|_handle, _event| {});
 //! }
 //!
-//! #[cfg(test)]
+//! //#[cfg(test)]
 //! mod tests {
-//!   #[cfg(test)]
+//!   use tauri::Manager;
+//!   //#[cfg(test)]
 //!   fn something() {
 //!     let app = super::create_app(tauri::test::mock_builder());
-//!     // do something with the app
+//!     let window = app.get_window("main").unwrap();
+//!     // do something with the app and window
+//!     // in this case we'll run the my_cmd command with no arguments
+//!     tauri::test::assert_ipc_response(
+//!       &window,
+//!       tauri::InvokePayload {
+//!         cmd: "my_cmd".into(),
+//!         tauri_module: None,
+//!         callback: tauri::api::ipc::CallbackFn(0),
+//!         error: tauri::api::ipc::CallbackFn(1),
+//!         inner: serde_json::Value::Null,
+//!       },
+//!       Ok(())
+//!     );
 //!   }
 //! }
+//! ```
 
 #![allow(unused_variables)]
 
 mod mock_runtime;
 pub use mock_runtime::*;
+use serde::Serialize;
 
 #[cfg(shell_scope)]
 use std::collections::HashMap;
@@ -51,7 +67,7 @@ use std::{borrow::Cow, sync::Arc};
 
 #[cfg(shell_scope)]
 use crate::ShellScopeConfig;
-use crate::{App, Builder, Context, Pattern};
+use crate::{App, Builder, Context, InvokePayload, Pattern, Window};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{CliConfig, Config, PatternKind, TauriConfig},
@@ -148,6 +164,93 @@ pub fn mock_builder() -> Builder<MockRuntime> {
 /// Creates a new [`App`] for testing using the [`mock_context`] with a [`noop_assets`].
 pub fn mock_app() -> App<MockRuntime> {
   mock_builder().build(mock_context(noop_assets())).unwrap()
+}
+
+/// Executes the given IPC message and assert the response matches the expected value.
+///
+/// # Examples
+///
+/// ```rust
+/// #[tauri::command]
+/// fn ping() -> &'static str {
+///   "pong"
+/// }
+///
+/// fn create_app<R: tauri::Runtime>(mut builder: tauri::Builder<R>) -> tauri::App<R> {
+///   builder
+///     .invoke_handler(tauri::generate_handler![ping])
+///     // remove the string argument on your app
+///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///     .expect("failed to build app")
+/// }
+///
+/// fn main() {
+///   let app = create_app(tauri::Builder::default());
+///   // app.run(|_handle, _event| {});}
+/// }
+///
+/// //#[cfg(test)]
+/// mod tests {
+///   use tauri::Manager;
+///
+///   //#[cfg(test)]
+///   fn something() {
+///     let app = super::create_app(tauri::test::mock_builder());
+///     let window = app.get_window("main").unwrap();
+///
+///     // run the `ping` command and assert it returns `pong`
+///     tauri::test::assert_ipc_response(
+///       &window,
+///       tauri::InvokePayload {
+///         cmd: "ping".into(),
+///         tauri_module: None,
+///         callback: tauri::api::ipc::CallbackFn(0),
+///         error: tauri::api::ipc::CallbackFn(1),
+///         inner: serde_json::Value::Null,
+///       },
+///       // the expected response is a success with the "pong" payload
+///       // we could also use Err("error message") here to ensure the command failed
+///       Ok("pong")
+///     );
+///   }
+/// }
+/// ```
+pub fn assert_ipc_response<T: Serialize>(
+  window: &Window<MockRuntime>,
+  payload: InvokePayload,
+  expected: Result<T, T>,
+) {
+  let callback = payload.callback;
+  let error = payload.error;
+  window.clone().on_message(payload).unwrap();
+
+  let mut num_tries = 0;
+  let evaluated_script = loop {
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    let evaluated_script = window.dispatcher().last_evaluated_script();
+    if let Some(s) = evaluated_script {
+      break s;
+    }
+    num_tries += 1;
+    if num_tries == 20 {
+      panic!("Response script not evaluated");
+    }
+  };
+  let (expected_response, fn_name) = match expected {
+    Ok(payload) => (payload, callback),
+    Err(payload) => (payload, error),
+  };
+  let expected = format!(
+    "window[\"_{}\"]({})",
+    fn_name.0,
+    crate::api::ipc::serialize_js(&expected_response).unwrap()
+  );
+
+  println!("Last evaluated script:");
+  println!("{evaluated_script}");
+  println!("Expected:");
+  println!("{expected}");
+  assert!(evaluated_script.contains(&expected));
 }
 
 #[cfg(test)]

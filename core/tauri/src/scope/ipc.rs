@@ -254,7 +254,7 @@ mod tests {
 
   #[test]
   fn scope_not_defined() {
-    let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
       .add_window("other")
       .add_plugin("path")]);
 
@@ -271,7 +271,7 @@ mod tests {
 
   #[test]
   fn scope_not_defined_for_window() {
-    let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("second")
       .add_plugin("path")]);
 
@@ -285,7 +285,7 @@ mod tests {
 
   #[test]
   fn scope_not_defined_for_url() {
-    let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("github.com")
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("github.com")
       .add_window("main")
       .add_plugin("path")]);
 
@@ -339,7 +339,7 @@ mod tests {
 
   #[test]
   fn subpath_is_allowed() {
-    let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("main")
       .add_plugin("path")]);
 
@@ -349,7 +349,7 @@ mod tests {
 
   #[test]
   fn tauri_api_not_allowed() {
-    let (_app, window) = test_context(vec![
+    let (_app, mut window) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app").add_window("main")
     ]);
 
@@ -363,7 +363,7 @@ mod tests {
 
   #[test]
   fn plugin_allowed() {
-    let (_app, window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("main")
       .add_plugin(PLUGIN_NAME)]);
 
@@ -377,7 +377,7 @@ mod tests {
 
   #[test]
   fn plugin_not_allowed() {
-    let (_app, window) = test_context(vec![
+    let (_app, mut window) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app").add_window("main")
     ]);
 

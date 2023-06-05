@@ -6,8 +6,8 @@
 "tauri-macros": major
 "tauri-build": major
 "tauri": major
-"cli.rs": major
-"cli.js": major
+"tauri-cli": major
+"@tauri-apps/cli": major
 ---
 
 First mobile alpha release!

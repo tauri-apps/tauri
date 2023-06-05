@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-tauri-core:
+  test:
     runs-on: ${{ matrix.platform.os }}
 
     strategy:

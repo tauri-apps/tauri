@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: test bundler
+name: test and lint bundler
 
 on:
   push:
@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-tauri-bundler:
+  test:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -48,7 +48,7 @@ jobs:
           cd ./tooling/bundler
           cargo test
 
-  fmt_check:
+  fmt:
     runs-on: ubuntu-latest
 
     steps:
@@ -66,7 +66,7 @@ jobs:
           command: fmt
           args: --manifest-path ./tooling/bundler/Cargo.toml --all -- --check
 
-  clippy-check:
+  clippy:
     runs-on: ubuntu-latest
 
     steps:

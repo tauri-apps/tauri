@@ -98,7 +98,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
     let _ = remove_dir_all(&template_target_path);
     let mut handlebars = Handlebars::new();
-    handlebars.register_escape_fn(|s| s.into());
+    handlebars.register_escape_fn(handlebars::no_escape);
 
     let mut data = BTreeMap::new();
     plugin_name_data(&mut data, &options.plugin_name);

@@ -1287,25 +1287,8 @@ impl<R: Runtime> Builder<R> {
 
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
-      let url = config.url.clone();
       let label = config.label.clone();
-      let window_effects = config.window_effects.clone();
-
-      let mut webview_attributes =
-        WebviewAttributes::new(url).accept_first_mouse(config.accept_first_mouse);
-      if let Some(ua) = &config.user_agent {
-        webview_attributes = webview_attributes.user_agent(ua);
-      }
-      if let Some(args) = &config.additional_browser_args {
-        webview_attributes = webview_attributes.additional_browser_args(args);
-      }
-      if !config.file_drop_enabled {
-        webview_attributes = webview_attributes.disable_file_drop_handler();
-      }
-      if let Some(effects) = window_effects {
-        webview_attributes = webview_attributes.window_effects(effects);
-      }
-
+      let webview_attributes = WebviewAttributes::from(&config);
       self.pending_windows.push(PendingWindow::with_config(
         config,
         webview_attributes,
@@ -1430,10 +1413,9 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
       .collect::<Vec<_>>();
 
     for pending in pending_windows {
-      let pending =
-        app
-          .manager
-          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
+      let pending = app
+        .manager
+        .prepare_window(app.handle.clone(), pending, &window_labels)?;
       let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app.handle().runtime() {
         runtime.create_window(pending)?

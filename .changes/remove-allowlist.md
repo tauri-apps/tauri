@@ -1,8 +1,8 @@
 ---
 "tauri": patch
 "tauri-utils": patch
-"cli.rs": patch
-"cli.js": patch
+"tauri-cli": patch
+"@tauri-apps/cli": patch
 ---
 
 Removed the allowlist configuration.

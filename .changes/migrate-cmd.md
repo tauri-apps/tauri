@@ -1,6 +1,6 @@
 ---
-"cli.rs": patch
-"cli.js": patch
+"tauri-cli": 'patch:feat'
+"@tauri-apps/cli": 'patch:feat'
 ---
 
 Added `migrate` command.

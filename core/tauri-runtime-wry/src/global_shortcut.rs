@@ -6,6 +6,7 @@
 
 use std::{
   collections::HashMap,
+  error::Error as StdError,
   fmt,
   sync::{
     mpsc::{channel, Sender},
@@ -18,7 +19,7 @@ use crate::{getter, Context, Message};
 use tauri_runtime::{Error, GlobalShortcutManager, Result, UserEvent};
 #[cfg(desktop)]
 pub use wry::application::{
-  accelerator::{Accelerator, AcceleratorId},
+  accelerator::{Accelerator, AcceleratorId, AcceleratorParseError},
   global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
 };
 
@@ -38,6 +39,15 @@ pub struct GlobalShortcutWrapper(GlobalShortcut);
 // SAFETY: usage outside of main thread is guarded, we use the event loop on such cases.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GlobalShortcutWrapper {}
+
+#[derive(Debug, Clone)]
+struct AcceleratorParseErrorWrapper(AcceleratorParseError);
+impl fmt::Display for AcceleratorParseErrorWrapper {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
+impl StdError for AcceleratorParseErrorWrapper {}
 
 /// Wrapper around [`WryShortcutManager`].
 #[derive(Clone)]
@@ -67,14 +77,21 @@ impl<T: UserEvent> GlobalShortcutManager for GlobalShortcutManagerHandle<T> {
       self,
       rx,
       Message::GlobalShortcut(GlobalShortcutMessage::IsRegistered(
-        accelerator.parse().expect("invalid accelerator"),
+        accelerator
+          .parse()
+          .map_err(|e: AcceleratorParseError| Error::GlobalShortcut(Box::new(
+            AcceleratorParseErrorWrapper(e)
+          )))?,
         tx
       ))
     )
   }
 
   fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()> {
-    let wry_accelerator: Accelerator = accelerator.parse().expect("invalid accelerator");
+    let wry_accelerator: Accelerator =
+      accelerator.parse().map_err(|e: AcceleratorParseError| {
+        Error::GlobalShortcut(Box::new(AcceleratorParseErrorWrapper(e)))
+      })?;
     let id = wry_accelerator.clone().id();
     let (tx, rx) = channel();
     let shortcut = getter!(

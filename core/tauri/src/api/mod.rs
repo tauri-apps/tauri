@@ -1,11 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 //! The Tauri API interface.
 
-#[cfg(feature = "dialog")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "dialog")))]
+#[cfg(all(desktop, feature = "dialog"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "dialog"))))]
 pub mod dialog;
 pub mod dir;
 pub mod file;
@@ -13,6 +13,9 @@ pub mod file;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "http-api")))]
 pub mod http;
 pub mod ipc;
+#[cfg(feature = "os-api")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "os-api")))]
+pub mod os;
 pub mod path;
 pub mod process;
 #[cfg(feature = "shell-open-api")]
@@ -28,8 +31,8 @@ pub mod cli;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
 pub use clap;
 
-#[cfg(feature = "notification")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "notification")))]
+#[cfg(all(desktop, feature = "notification"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "notification"))))]
 pub mod notification;
 
 mod error;

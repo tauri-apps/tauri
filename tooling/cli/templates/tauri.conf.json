@@ -6,8 +6,8 @@
   "build": {
     "distDir": "{{ dist_dir }}",
     "devPath": "{{ dev_path }}",
-    "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeDevCommand": "{{ before_dev_command }}",
+    "beforeBuildCommand": "{{ before_build_command }}"
   },
   "tauri": {
     "bundle": {
@@ -47,7 +47,7 @@
       "active": false
     },
     "allowlist": {
-      "all": true
+      "all": false
     },
     "windows": [
       {

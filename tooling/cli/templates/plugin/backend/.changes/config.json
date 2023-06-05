@@ -6,7 +6,7 @@
       "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -",
       "prepublish": [
         "sudo apt-get update",
-        "sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0",
+        "sudo apt-get install -y webkit2gtk-4.0",
         "cargo install cargo-audit",
         {
           "command": "cargo generate-lockfile",
@@ -14,12 +14,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"# Cargo Audit\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Cargo Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -29,7 +24,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -40,12 +35,7 @@
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Cargo Publish\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '<details>\n<summary><em><h4>Cargo Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -55,7 +45,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }

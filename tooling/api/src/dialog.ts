@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -14,6 +14,9 @@
  *     "allowlist": {
  *       "dialog": {
  *         "all": true, // enable all dialog APIs
+ *         "ask": true, // enable dialog ask API
+ *         "confirm": true, // enable dialog confirm API
+ *         "message": true, // enable dialog message API
  *         "open": true, // enable file open API
  *         "save": true // enable file save API
  *       }
@@ -27,7 +30,11 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 
-/** Extension filters for the file dialog. */
+/**
+ * Extension filters for the file dialog.
+ *
+ * @since 1.0.0
+ */
 interface DialogFilter {
   /** Filter name. */
   name: string
@@ -41,7 +48,11 @@ interface DialogFilter {
   extensions: string[]
 }
 
-/** Options for the open dialog. */
+/**
+ * Options for the open dialog.
+ *
+ * @since 1.0.0
+ */
 interface OpenDialogOptions {
   /** The title of the dialog window. */
   title?: string
@@ -60,7 +71,11 @@ interface OpenDialogOptions {
   recursive?: boolean
 }
 
-/** Options for the save dialog. */
+/**
+ * Options for the save dialog.
+ *
+ * @since 1.0.0
+ */
 interface SaveDialogOptions {
   /** The title of the dialog window. */
   title?: string
@@ -74,11 +89,27 @@ interface SaveDialogOptions {
   defaultPath?: string
 }
 
+/**
+ * @since 1.0.0
+ */
 interface MessageDialogOptions {
   /** The title of the dialog. Defaults to the app name. */
   title?: string
   /** The type of the dialog. Defaults to `info`. */
   type?: 'info' | 'warning' | 'error'
+  /** The label of the confirm button. */
+  okLabel?: string
+}
+
+interface ConfirmDialogOptions {
+  /** The title of the dialog. Defaults to the app name. */
+  title?: string
+  /** The type of the dialog. Defaults to `info`. */
+  type?: 'info' | 'warning' | 'error'
+  /** The label of the confirm button. */
+  okLabel?: string
+  /** The label of the cancel button. */
+  cancelLabel?: string
 }
 
 /**
@@ -130,6 +161,8 @@ interface MessageDialogOptions {
  * ```
  *
  * @returns A promise resolving to the selected path(s)
+ *
+ * @since 1.0.0
  */
 async function open(
   options: OpenDialogOptions = {}
@@ -160,17 +193,18 @@ async function open(
  * ```typescript
  * import { save } from '@tauri-apps/api/dialog';
  * const filePath = await save({
- *   multiple: true,
  *   filters: [{
  *     name: 'Image',
- *     extensions: ['stronghold']
+ *     extensions: ['png', 'jpeg']
  *   }]
  * });
  * ```
  *
  * @returns A promise resolving to the selected path.
+ *
+ * @since 1.0.0
  */
-async function save(options: SaveDialogOptions = {}): Promise<string> {
+async function save(options: SaveDialogOptions = {}): Promise<string | null> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }
@@ -193,10 +227,13 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
  * await message('File not found', { title: 'Tauri', type: 'error' });
  * ```
  *
- * @param {string} message The message to show.
- * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
+ * @param message The message to show.
+ * @param options The dialog's options. If a string, it represents the dialog title.
  *
- * @return {Promise<void>} A promise indicating the success or failure of the operation.
+ * @returns A promise indicating the success or failure of the operation.
+ *
+ * @since 1.0.0
+ *
  */
 async function message(
   message: string,
@@ -209,7 +246,8 @@ async function message(
       cmd: 'messageDialog',
       message: message.toString(),
       title: opts?.title?.toString(),
-      type: opts?.type
+      type: opts?.type,
+      buttonLabel: opts?.okLabel?.toString()
     }
   })
 }
@@ -223,14 +261,16 @@ async function message(
  * const yes2 = await ask('This action cannot be reverted. Are you sure?', { title: 'Tauri', type: 'warning' });
  * ```
  *
- * @param {string} message The message to show.
- * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
+ * @param message The message to show.
+ * @param options The dialog's options. If a string, it represents the dialog title.
  *
- * @return {Promise<void>} A promise resolving to a boolean indicating whether `Yes` was clicked or not.
+ * @returns A promise resolving to a boolean indicating whether `Yes` was clicked or not.
+ *
+ * @since 1.0.0
  */
 async function ask(
   message: string,
-  options?: string | MessageDialogOptions
+  options?: string | ConfirmDialogOptions
 ): Promise<boolean> {
   const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
@@ -239,7 +279,11 @@ async function ask(
       cmd: 'askDialog',
       message: message.toString(),
       title: opts?.title?.toString(),
-      type: opts?.type
+      type: opts?.type,
+      buttonLabels: [
+        opts?.okLabel?.toString() ?? 'Yes',
+        opts?.cancelLabel?.toString() ?? 'No'
+      ]
     }
   })
 }
@@ -253,14 +297,16 @@ async function ask(
  * const confirmed2 = await confirm('This action cannot be reverted. Are you sure?', { title: 'Tauri', type: 'warning' });
  * ```
  *
- * @param {string} message The message to show.
- * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
+ * @param message The message to show.
+ * @param options The dialog's options. If a string, it represents the dialog title.
  *
- * @return {Promise<void>} A promise resolving to a boolean indicating whether `Ok` was clicked or not.
+ * @returns A promise resolving to a boolean indicating whether `Ok` was clicked or not.
+ *
+ * @since 1.0.0
  */
 async function confirm(
   message: string,
-  options?: string | MessageDialogOptions
+  options?: string | ConfirmDialogOptions
 ): Promise<boolean> {
   const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
@@ -269,7 +315,11 @@ async function confirm(
       cmd: 'confirmDialog',
       message: message.toString(),
       title: opts?.title?.toString(),
-      type: opts?.type
+      type: opts?.type,
+      buttonLabels: [
+        opts?.okLabel?.toString() ?? 'Ok',
+        opts?.cancelLabel?.toString() ?? 'Cancel'
+      ]
     }
   })
 }
@@ -278,7 +328,8 @@ export type {
   DialogFilter,
   OpenDialogOptions,
   SaveDialogOptions,
-  MessageDialogOptions
+  MessageDialogOptions,
+  ConfirmDialogOptions
 }
 
 export { open, save, message, ask, confirm }

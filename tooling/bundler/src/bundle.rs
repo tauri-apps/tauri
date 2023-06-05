@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -12,8 +13,9 @@ mod path_utils;
 mod platform;
 mod settings;
 mod updater_bundle;
-#[cfg(target_os = "windows")]
 mod windows;
+
+use tauri_utils::display_path;
 
 pub use self::{
   category::AppCategory,
@@ -22,8 +24,10 @@ pub use self::{
     Settings, SettingsBuilder, UpdaterSettings,
   },
 };
+#[cfg(target_os = "macos")]
+use anyhow::Context;
 use log::{info, warn};
-pub use settings::{WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
+pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
 use std::{fmt::Write, path::PathBuf};
 
@@ -39,26 +43,55 @@ pub struct Bundle {
 /// Bundles the project.
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
-  let mut bundles = Vec::new();
+  let mut bundles: Vec<Bundle> = Vec::new();
   let package_types = settings.package_types()?;
 
+  let target_os = settings
+    .target()
+    .split('-')
+    .nth(2)
+    .unwrap_or(std::env::consts::OS)
+    .replace("darwin", "macos");
+
+  if target_os != std::env::consts::OS {
+    warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
+  }
+
   for package_type in &package_types {
+    // bundle was already built! e.g. DMG already built .app
+    if bundles.iter().any(|b| b.package_type == *package_type) {
+      continue;
+    }
+
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]
       PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
       #[cfg(target_os = "macos")]
       PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
+      // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
+      #[cfg(target_os = "macos")]
+      PackageType::Dmg => {
+        let bundled = macos::dmg::bundle_project(&settings, &bundles)?;
+        if !bundled.app.is_empty() {
+          bundles.push(Bundle {
+            package_type: PackageType::MacOsBundle,
+            bundle_paths: bundled.app,
+          });
+        }
+        bundled.dmg
+      }
+
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => windows::msi::bundle_project(&settings, false)?,
+      PackageType::Nsis => windows::nsis::bundle_project(&settings, false)?,
+
       #[cfg(target_os = "linux")]
       PackageType::Deb => linux::debian::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
       PackageType::Rpm => linux::rpm::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
       PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
-      // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
-      #[cfg(target_os = "macos")]
-      PackageType::Dmg => macos::dmg::bundle_project(&settings, &bundles)?,
+
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
       PackageType::Updater => updater_bundle::bundle_project(&settings, &bundles)?,
       _ => {
@@ -71,6 +104,33 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       package_type: package_type.to_owned(),
       bundle_paths,
     });
+  }
+
+  #[cfg(target_os = "macos")]
+  {
+    // Clean up .app if only building dmg or updater
+    if !package_types.contains(&PackageType::MacOsBundle) {
+      if let Some(app_bundle_paths) = bundles
+        .iter()
+        .position(|b| b.package_type == PackageType::MacOsBundle)
+        .map(|i| bundles.remove(i))
+        .map(|b| b.bundle_paths)
+      {
+        for app_bundle_path in &app_bundle_paths {
+          info!(action = "Cleaning"; "{}", app_bundle_path.display());
+          match app_bundle_path.is_dir() {
+            true => std::fs::remove_dir_all(app_bundle_path),
+            false => std::fs::remove_file(app_bundle_path),
+          }
+          .with_context(|| {
+            format!(
+              "Failed to clean the app bundle at {}",
+              app_bundle_path.display()
+            )
+          })?
+        }
+      }
+    }
   }
 
   let pluralised = if bundles.len() == 1 {
@@ -86,7 +146,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       if bundle.package_type == crate::PackageType::Updater {
         note = " (updater)";
       }
-      writeln!(printable_paths, "        {}{}", path.display(), note).unwrap();
+      writeln!(printable_paths, "        {}{}", display_path(path), note).unwrap();
     }
   }
 

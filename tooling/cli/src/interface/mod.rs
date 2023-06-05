@@ -1,10 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 pub mod rust;
 
 use std::{
+  collections::HashMap,
   path::{Path, PathBuf},
   process::ExitStatus,
 };
@@ -75,8 +76,9 @@ pub enum ExitReason {
 pub trait Interface: Sized {
   type AppSettings: AppSettings;
 
-  fn new(config: &Config) -> crate::Result<Self>;
+  fn new(config: &Config, target: Option<String>) -> crate::Result<Self>;
   fn app_settings(&self) -> &Self::AppSettings;
+  fn env(&self) -> HashMap<&str, String>;
   fn build(&mut self, options: Options) -> crate::Result<()>;
   fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -14,6 +14,7 @@
 //! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
+//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
@@ -23,6 +24,9 @@
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
 //! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
+//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
+//! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
+//! - **os-api**: Enables the [`api::os`] module.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **global-shortcut**: Enables the global shortcut APIs.
 //! - **clipboard**: Enables the clipboard APIs.
@@ -37,6 +41,7 @@
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
+//! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
 //! - **icon-ico**: Adds support to set `.ico` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
 //! - **icon-png**: Adds support to set `.png` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
 //!
@@ -67,6 +72,7 @@
 //! - **fs-all**: Enables all [Filesystem APIs](https://tauri.app/en/docs/api/js/modules/fs).
 //! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.app/en/docs/api/js/modules/fs#copyfile).
 //! - **fs-create-dir**: Enables the [`createDir` API](https://tauri.app/en/docs/api/js/modules/fs#createdir).
+//! - **fs-exists**: Enables the [`exists` API](https://tauri.app/en/docs/api/js/modules/fs#exists).
 //! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
 //! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#readbinaryfile).
 //! - **fs-remove-dir**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#removedir).
@@ -120,6 +126,9 @@
 //! - **window-center**: Enables the [`center` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#center).
 //! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#requestuserattention).
 //! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setresizable).
+//! - **window-set-maximizable**: Enables the [`setMaximizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaximizable).
+//! - **window-set-minimizable**: Enables the [`setMinimizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminimizable).
+//! - **window-set-closable**: Enables the [`setClosable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setclosable).
 //! - **window-set-title**: Enables the [`setTitle` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#settitle).
 //! - **window-maximize**: Enables the [`maximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#maximize).
 //! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unmaximize).
@@ -130,6 +139,7 @@
 //! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
 //! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
 //! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
+//! - **window-set-content-protected**: Enables the [`setContentProtected` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcontentprotected).
 //! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
 //! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
 //! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
@@ -142,8 +152,15 @@
 //! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorvisible).
 //! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
 //! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
+//! - **window-set-ignore-cursor-events**: Enables the [`setIgnoreCursorEvents` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setignorecursorevents).
 //! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
 //! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
+//!
+//! ### App allowlist
+//!
+//! - **app-all**: Enables all [App APIs](https://tauri.app/en/docs/api/js/modules/app).
+//! - **app-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/modules/app#show).
+//! - **app-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/modules/app#hide).
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
@@ -172,13 +189,14 @@ mod pattern;
 pub mod plugin;
 pub mod window;
 use tauri_runtime as runtime;
+#[cfg(protocol_asset)]
+mod asset_protocol;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
 #[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
-
 pub use tauri_utils as utils;
 
 /// A Tauri [`Runtime`] wrapper around wry.
@@ -198,18 +216,21 @@ use std::{collections::HashMap, fmt, sync::Arc};
 // Export types likely to be used by the application.
 pub use runtime::http;
 
+#[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+pub use tauri_runtime_wry::webview_version;
+
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
 pub use runtime::{menu::NativeImage, ActivationPolicy};
 
-#[cfg(feature = "system-tray")]
+#[cfg(target_os = "macos")]
+pub use self::utils::TitleBarStyle;
+#[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTrayEvent, SystemTrayHandle},
-  self::runtime::{
-    menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
-    SystemTray,
-  },
+  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
+  self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {
   self::app::WindowMenuEvent,
@@ -233,7 +254,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    RunIteration, UserAttentionType,
+    DeviceEventFilter, RunIteration, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -249,9 +270,12 @@ pub use {
 #[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
 pub use self::runtime::ClipboardManager;
 
-#[cfg(feature = "global-shortcut")]
+#[cfg(all(desktop, feature = "global-shortcut"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
+
+/// The Tauri version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Updater events.
 #[cfg(updater)]
@@ -277,7 +301,7 @@ pub enum UpdaterEvent {
     /// The total
     content_length: Option<u64>,
   },
-  /// The update has been download and is now about to be installed.
+  /// The update has been downloaded and is now about to be installed.
   Downloaded,
   /// The update has been applied and the app is now up to date.
   Updated,
@@ -365,7 +389,7 @@ pub enum Icon {
   Raw(Vec<u8>),
   /// Icon from raw RGBA bytes.
   Rgba {
-    /// RGBA byes of the icon image.
+    /// RGBA bytes of the icon image.
     rgba: Vec<u8>,
     /// Icon width.
     width: u32,
@@ -429,8 +453,7 @@ impl TryFrom<Icon> for runtime::Icon {
           })
         }
         _ => panic!(
-          "image `{}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags",
-          extension
+          "image `{extension}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags"
         ),
       }
       }
@@ -629,6 +652,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
   }
+  /// Fetch the focused window. Returns `None` if there is not any focused window.
+  fn get_focused_window(&self) -> Option<Window<R>> {
+    self.manager().get_focused_window()
+  }
 
   /// Fetch all managed windows.
   fn windows(&self) -> HashMap<String, Window<R>> {
@@ -769,6 +796,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.state::<Scopes>().inner().fs.clone()
   }
 
+  /// Gets the scope for the IPC.
+  fn ipc_scope(&self) -> IpcScope {
+    self.state::<Scopes>().inner().ipc.clone()
+  }
+
   /// Gets the scope for the asset protocol.
   #[cfg(protocol_asset)]
   fn asset_protocol_scope(&self) -> FsScope {
@@ -834,8 +866,8 @@ mod tests {
     let lib_code = read_to_string(manifest_dir.join("src/lib.rs")).expect("failed to read lib.rs");
 
     for f in get_manifest().features.keys() {
-      if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{}**", f))) {
-        panic!("Feature {} is not documented", f);
+      if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{f}**"))) {
+        panic!("Feature {f} is not documented");
       }
     }
   }
@@ -847,8 +879,7 @@ mod tests {
     for checked_feature in checked_features {
       if !manifest.features.iter().any(|(f, _)| f == checked_feature) {
         panic!(
-          "Feature {} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml",
-          checked_feature
+          "Feature {checked_feature} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml"
         );
       }
     }
@@ -875,6 +906,7 @@ mod tests {
       "fs-extract-api",
       "http-api",
       "http-multipart",
+      "os-api",
       "process-command-api",
       "process-relaunch-dangerous-allow-symlink-macos",
       "window-data-url",
@@ -884,24 +916,21 @@ mod tests {
       let module = module_all_feature.replace("-all", "");
       assert!(
         checked_features.contains(&module_all_feature.as_str()),
-        "`{}` is not aliased",
-        module
+        "`{module}` is not aliased"
       );
 
-      let module_prefix = format!("{}-", module);
+      let module_prefix = format!("{module}-");
       // we assume that module features are the ones that start with `<module>-`
       // though it's not 100% accurate, we have an allowed list to fix it
       let module_features = manifest
         .features
-        .iter()
-        .map(|(f, _)| f)
+        .keys()
         .filter(|f| f.starts_with(&module_prefix));
       for module_feature in module_features {
         assert!(
           allowed.contains(&module_feature.as_str())
             || checked_features.contains(&module_feature.as_str()),
-          "`{}` is not aliased",
-          module_feature
+          "`{module_feature}` is not aliased"
         );
       }
     }
@@ -929,7 +958,7 @@ mod test_utils {
     fn check_spawn_task(task in "[a-z]+") {
       // create dummy task function
       let dummy_task = async move {
-        format!("{}-run-dummy-task", task);
+        format!("{task}-run-dummy-task");
       };
       // call spawn
       crate::async_runtime::spawn(dummy_task);

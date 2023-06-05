@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -18,6 +18,9 @@
  *         "center": true,
  *         "requestUserAttention": true,
  *         "setResizable": true,
+ *         "setMaximizable": true,
+ *         "setMinimizable": true,
+ *         "setClosable": true,
  *         "setTitle": true,
  *         "maximize": true,
  *         "unmaximize": true,
@@ -28,6 +31,7 @@
  *         "close": true,
  *         "setDecorations": true,
  *         "setAlwaysOnTop": true,
+ *         "setContentProtected": true,
  *         "setSize": true,
  *         "setMinSize": true,
  *         "setMaxSize": true,
@@ -40,6 +44,7 @@
  *         "setCursorVisible": true,
  *         "setCursorIcon": true,
  *         "setCursorPosition": true,
+ *         "setIgnoreCursorEvents": true,
  *         "startDragging": true,
  *         "print": true
  *       }
@@ -49,9 +54,9 @@
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  *
- * # Window events
+ * ## Window events
  *
- * Events can be listened using `appWindow.listen`:
+ * Events can be listened to using `appWindow.listen`:
  * ```typescript
  * import { appWindow } from "@tauri-apps/api/window";
  * appWindow.listen("my-window-event", ({ event, payload }) => { });
@@ -62,11 +67,17 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { emit, Event, listen, once } from './helpers/event'
+import { emit, type Event, listen, once } from './helpers/event'
+import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'
+type TitleBarStyle = 'visible' | 'transparent' | 'overlay'
 
-/** Allows you to retrieve information about a given monitor. */
+/**
+ * Allows you to retrieve information about a given monitor.
+ *
+ * @since 1.0.0
+ */
 interface Monitor {
   /** Human-readable name of the monitor */
   name: string | null
@@ -78,7 +89,11 @@ interface Monitor {
   scaleFactor: number
 }
 
-/** The payload for the `scaleChange` event. */
+/**
+ * The payload for the `scaleChange` event.
+ *
+ * @since 1.0.2
+ */
 interface ScaleFactorChanged {
   /** The new window scale factor. */
   scaleFactor: number
@@ -92,7 +107,11 @@ type FileDropEvent =
   | { type: 'drop'; paths: string[] }
   | { type: 'cancel' }
 
-/** A size represented in logical pixels. */
+/**
+ * A size represented in logical pixels.
+ *
+ * @since 1.0.0
+ */
 class LogicalSize {
   type = 'Logical'
   width: number
@@ -104,7 +123,11 @@ class LogicalSize {
   }
 }
 
-/** A size represented in physical pixels. */
+/**
+ * A size represented in physical pixels.
+ *
+ * @since 1.0.0
+ */
 class PhysicalSize {
   type = 'Physical'
   width: number
@@ -130,7 +153,11 @@ class PhysicalSize {
   }
 }
 
-/** A position represented in logical pixels. */
+/**
+ *  A position represented in logical pixels.
+ *
+ * @since 1.0.0
+ */
 class LogicalPosition {
   type = 'Logical'
   x: number
@@ -142,7 +169,11 @@ class LogicalPosition {
   }
 }
 
-/** A position represented in physical pixels. */
+/**
+ *  A position represented in physical pixels.
+ *
+ * @since 1.0.0
+ */
 class PhysicalPosition {
   type = 'Physical'
   x: number
@@ -183,11 +214,15 @@ declare global {
   }
 }
 
-/** Attention type to request on a window. */
+/**
+ * Attention type to request on a window.
+ *
+ * @since 1.0.0
+ */
 enum UserAttentionType {
   /**
    * #### Platform-specific
-   *  - **macOS:** Bounces the dock icon until the application is in focus.
+   * - **macOS:** Bounces the dock icon until the application is in focus.
    * - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
    */
   Critical = 1,
@@ -243,25 +278,25 @@ export type CursorIcon =
 /**
  * Get an instance of `WebviewWindow` for the current webview window.
  *
- * @return The current WebviewWindow.
+ * @since 1.0.0
  */
 function getCurrent(): WebviewWindow {
   return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
   })
 }
 
 /**
- * Gets an instance of `WebviewWindow` for all available webview windows.
+ * Gets a list of instances of `WebviewWindow` for all available webview windows.
  *
- * @return The list of WebviewWindow.
+ * @since 1.0.0
  */
 function getAll(): WebviewWindow[] {
   return window.__TAURI_METADATA__.__windows.map(
     (w) =>
       new WebviewWindow(w.label, {
-        // @ts-expect-error
+        // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
         skip: true
       })
   )
@@ -274,12 +309,15 @@ const localTauriEvents = ['tauri://created', 'tauri://error']
 export type WindowLabel = string
 /**
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
+ *
+ * @ignore
+ * @since 1.0.0
  */
 class WebviewWindowHandle {
   /** The window label. It is a unique identifier for the window, can be used to reference it later. */
   label: WindowLabel
   /** Local event listeners. */
-  listeners: { [key: string]: Array<EventCallback<any>> }
+  listeners: Record<string, Array<EventCallback<any>>>
 
   constructor(label: WindowLabel) {
     this.label = label
@@ -372,6 +410,7 @@ class WebviewWindowHandle {
     return emit(event, this.label, payload)
   }
 
+  /** @ignore */
   _handleTauriEvent<T>(event: string, handler: EventCallback<T>): boolean {
     if (localTauriEvents.includes(event)) {
       if (!(event in this.listeners)) {
@@ -389,6 +428,9 @@ class WebviewWindowHandle {
 
 /**
  * Manage the current window object.
+ *
+ * @ignore
+ * @since 1.0.0
  */
 class WindowManager extends WebviewWindowHandle {
   // Getters
@@ -545,6 +587,31 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window's current minimized state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const minimized = await appWindow.isMinimized();
+   * ```
+   *
+   * @since 1.3.0
+   * */
+  async isMinimized(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMinimized'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current maximized state.
    * @example
    * ```typescript
@@ -563,6 +630,33 @@ class WindowManager extends WebviewWindowHandle {
           label: this.label,
           cmd: {
             type: 'isMaximized'
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Gets the window's current focus state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const focused = await appWindow.isFocused();
+   * ```
+   *
+   * @returns Whether the window is focused or not.
+   *
+   * @since 1.4
+   * */
+  async isFocused(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isFocused'
           }
         }
       }
@@ -620,6 +714,96 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window’s native maximize button state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const maximizable = await appWindow.isMaximizable();
+   * ```
+   *
+   * @returns Whether the window's native maximize button is enabled or not.
+   *  */
+  async isMaximizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMaximizable'
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Gets the window’s native minimize button state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const minimizable = await appWindow.isMinimizable();
+   * ```
+   *
+   * @returns Whether the window's native minimize button is enabled or not.
+   *  */
+  async isMinimizable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMinimizable'
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Gets the window’s native close button state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const closable = await appWindow.isClosable();
+   * ```
+   *
+   * @returns Whether the window's native close button is enabled or not.
+   *  */
+  async isClosable(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isClosable'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current visible state.
    * @example
    * ```typescript
@@ -645,11 +829,35 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window's current title.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const title = await appWindow.title();
+   * ```
+   *
+   * @since 1.3.0
+   * */
+  async title(): Promise<string> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'title'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current theme.
    *
    * #### Platform-specific
    *
-   * - **Linux:** Not implemented, always returns `light`.
    * - **macOS:** Theme was introduced on macOS 10.14. Returns `light` on macOS 10.13 and below.
    *
    * @example
@@ -685,7 +893,6 @@ class WindowManager extends WebviewWindowHandle {
    * await appWindow.center();
    * ```
    *
-   * @param resizable
    * @returns A promise indicating the success or failure of the operation.
    */
   async center(): Promise<void> {
@@ -721,7 +928,7 @@ class WindowManager extends WebviewWindowHandle {
    * await appWindow.requestUserAttention();
    * ```
    *
-   * @param resizable
+   * @param requestType
    * @returns A promise indicating the success or failure of the operation.
    */
   async requestUserAttention(
@@ -771,6 +978,105 @@ class WindowManager extends WebviewWindowHandle {
           cmd: {
             type: 'setResizable',
             payload: resizable
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Sets whether the window's native maximize button is enabled or not.
+   * If resizable is set to false, this setting is ignored.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setMaximizable(false);
+   * ```
+   *
+   * @param maximizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setMaximizable(maximizable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setMaximizable',
+            payload: maximizable
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Sets whether the window's native minimize button is enabled or not.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setMinimizable(false);
+   * ```
+   *
+   * @param minimizable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setMinimizable(minimizable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setMinimizable',
+            payload: minimizable
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Sets whether the window's native close button is enabled or not.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux:** GTK+ will do its best to convince the window manager not to show a close button. Depending on the system, this function may not have any effect when called on a window that is already visible
+   * - **iOS / Android:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setClosable(false);
+   * ```
+   *
+   * @param closable
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setClosable(closable: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setClosable',
+            payload: closable
           }
         }
       }
@@ -1059,6 +1365,34 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Prevents the window contents from being captured by other apps.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setContentProtected(true);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 1.2.0
+   */
+  async setContentProtected(protected_: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setContentProtected',
+            payload: protected_
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Resizes the window with a new inner size.
    * @example
    * ```typescript
@@ -1313,7 +1647,11 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Whether to show the window icon in the task bar or not.
+   * Whether the window icon should be hidden from the taskbar or not.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS:** Unsupported.
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
@@ -1478,6 +1816,34 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Changes the cursor events behavior.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setIgnoreCursorEvents(true);
+   * ```
+   *
+   * @param ignore `true` to ignore the cursor events; `false` to process them as usual.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setIgnoreCursorEvents(ignore: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setIgnoreCursorEvents',
+            payload: ignore
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Starts dragging the window.
    * @example
    * ```typescript
@@ -1518,12 +1884,16 @@ class WindowManager extends WebviewWindowHandle {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
-    return this.listen<PhysicalSize>('tauri://resize', handler)
+    return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, (e) => {
+      e.payload = mapPhysicalSize(e.payload)
+      handler(e)
+    })
   }
 
   /**
@@ -1540,12 +1910,16 @@ class WindowManager extends WebviewWindowHandle {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
-    return this.listen<PhysicalPosition>('tauri://move', handler)
+    return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, (e) => {
+      e.payload = mapPhysicalPosition(e.payload)
+      handler(e)
+    })
   }
 
   /**
@@ -1567,14 +1941,16 @@ class WindowManager extends WebviewWindowHandle {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
+  /* eslint-disable @typescript-eslint/promise-function-async */
   async onCloseRequested(
-    handler: (event: CloseRequestedEvent) => void
+    handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
-    return this.listen<null>('tauri://close-requested', (event) => {
+    return this.listen<null>(TauriEvent.WINDOW_CLOSE_REQUESTED, (event) => {
       const evt = new CloseRequestedEvent(event)
       void Promise.resolve(handler(evt)).then(() => {
         if (!evt.isPreventDefault()) {
@@ -1583,6 +1959,7 @@ class WindowManager extends WebviewWindowHandle {
       })
     })
   }
+  /* eslint-enable */
 
   /**
    * Listen to window focus change.
@@ -1598,19 +1975,20 @@ class WindowManager extends WebviewWindowHandle {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onFocusChanged(handler: EventCallback<boolean>): Promise<UnlistenFn> {
     const unlistenFocus = await this.listen<PhysicalPosition>(
-      'tauri://focus',
+      TauriEvent.WINDOW_FOCUS,
       (event) => {
         handler({ ...event, payload: true })
       }
     )
     const unlistenBlur = await this.listen<PhysicalPosition>(
-      'tauri://blur',
+      TauriEvent.WINDOW_BLUR,
       (event) => {
         handler({ ...event, payload: false })
       }
@@ -1639,14 +2017,18 @@ class WindowManager extends WebviewWindowHandle {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onScaleChanged(
     handler: EventCallback<ScaleFactorChanged>
   ): Promise<UnlistenFn> {
-    return this.listen<ScaleFactorChanged>('tauri://scale-change', handler)
+    return this.listen<ScaleFactorChanged>(
+      TauriEvent.WINDOW_SCALE_FACTOR_CHANGED,
+      handler
+    )
   }
 
   /**
@@ -1663,12 +2045,13 @@ class WindowManager extends WebviewWindowHandle {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
-    return this.listen<string>('tauri://menu', handler)
+    return this.listen<string>(TauriEvent.MENU, handler)
   }
 
   /**
@@ -1693,29 +2076,30 @@ class WindowManager extends WebviewWindowHandle {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onFileDropEvent(
     handler: EventCallback<FileDropEvent>
   ): Promise<UnlistenFn> {
     const unlistenFileDrop = await this.listen<string[]>(
-      'tauri://file-drop',
+      TauriEvent.WINDOW_FILE_DROP,
       (event) => {
         handler({ ...event, payload: { type: 'drop', paths: event.payload } })
       }
     )
 
     const unlistenFileHover = await this.listen<string[]>(
-      'tauri://file-drop-hover',
+      TauriEvent.WINDOW_FILE_DROP_HOVER,
       (event) => {
         handler({ ...event, payload: { type: 'hover', paths: event.payload } })
       }
     )
 
     const unlistenCancel = await this.listen<null>(
-      'tauri://file-drop-cancelled',
+      TauriEvent.WINDOW_FILE_DROP_CANCELLED,
       (event) => {
         handler({ ...event, payload: { type: 'cancel' } })
       }
@@ -1742,15 +2126,19 @@ class WindowManager extends WebviewWindowHandle {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onThemeChanged(handler: EventCallback<Theme>): Promise<UnlistenFn> {
-    return this.listen<Theme>('tauri://theme-changed', handler)
+    return this.listen<Theme>(TauriEvent.WINDOW_THEME_CHANGED, handler)
   }
 }
 
+/**
+ * @since 1.0.2
+ */
 class CloseRequestedEvent {
   /** Event name */
   event: EventName
@@ -1805,6 +2193,8 @@ class CloseRequestedEvent {
  * const unlisten = await webview.listen("event name", e => {});
  * unlisten();
  * ```
+ *
+ * @since 1.0.2
  */
 class WebviewWindow extends WindowManager {
   /**
@@ -1828,7 +2218,7 @@ class WebviewWindow extends WindowManager {
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {
     super(label)
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not a public API so it is not defined in WindowOptions
     if (!options?.skip) {
       invokeTauriCommand({
         __tauriModule: 'Window',
@@ -1860,8 +2250,29 @@ class WebviewWindow extends WindowManager {
    */
   static getByLabel(label: string): WebviewWindow | null {
     if (getAll().some((w) => w.label === label)) {
-      // @ts-expect-error
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       return new WebviewWindow(label, { skip: true })
+    }
+    return null
+  }
+
+  /**
+   *  Gets the focused window.
+   * @example
+   * ```typescript
+   * import { WebviewWindow } from '@tauri-apps/api/window';
+   * const focusedWindow = WebviewWindow.getFocusedWindow();
+   * ```
+   *
+   * @returns The WebviewWindow instance to communicate with the webview or `undefined` if there is not any focused window.
+   *
+   * @since 1.4
+   */
+  static async getFocusedWindow(): Promise<WebviewWindow | null> {
+    for (const w of getAll()) {
+      if (await w.isFocused()) {
+        return w
+      }
     }
     return null
   }
@@ -1873,7 +2284,7 @@ if ('__TAURI_METADATA__' in window) {
   appWindow = new WebviewWindow(
     window.__TAURI_METADATA__.__currentWindow.label,
     {
-      // @ts-expect-error
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       skip: true
     }
   )
@@ -1882,12 +2293,16 @@ if ('__TAURI_METADATA__' in window) {
     `Could not find "window.__TAURI_METADATA__". The "appWindow" value will reference the "main" window label.\nNote that this is not an issue if running this frontend on a browser instead of a Tauri window.`
   )
   appWindow = new WebviewWindow('main', {
-    // @ts-expect-error
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
   })
 }
 
-/** Configuration for the window to create. */
+/**
+ * Configuration for the window to create.
+ *
+ * @since 1.0.0
+ */
 interface WindowOptions {
   /**
    * Remote URL or local file path to open.
@@ -1921,7 +2336,7 @@ interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
-  /** Whether the window will be initially hidden or focused. */
+  /** Whether the window will be initially focused or not. */
   focus?: boolean
   /**
    * Whether the window is transparent or not.
@@ -1937,6 +2352,8 @@ interface WindowOptions {
   decorations?: boolean
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
+  /** Prevents the window contents from being captured by other apps. */
+  contentProtected?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
   /**
@@ -1951,6 +2368,60 @@ interface WindowOptions {
    * Only implemented on Windows and macOS 10.14+.
    */
   theme?: Theme
+  /**
+   * The style of the macOS title bar.
+   */
+  titleBarStyle?: TitleBarStyle
+  /**
+   * If `true`, sets the window title to be hidden on macOS.
+   */
+  hiddenTitle?: boolean
+  /**
+   * Whether clicking an inactive window also clicks through to the webview on macOS.
+   */
+  acceptFirstMouse?: boolean
+  /**
+   * Defines the window [tabbing identifier](https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier) on macOS.
+   *
+   * Windows with the same tabbing identifier will be grouped together.
+   * If the tabbing identifier is not set, automatic tabbing will be disabled.
+   */
+  tabbingIdentifier?: string
+  /**
+   * The user agent for the webview.
+   */
+  userAgent?: string
+  /**
+   * Whether the window's native maximize button is enabled or not. Defaults to `true`.
+   */
+  maximizable?: boolean
+  /**
+   * Whether the window's native minimize button is enabled or not. Defaults to `true`.
+   */
+  minimizable?: boolean
+  /**
+   * Whether the window's native close button is enabled or not. Defaults to `true`.
+   */
+  closable?: boolean
+}
+
+function mapMonitor(m: Monitor | null): Monitor | null {
+  return m === null
+    ? null
+    : {
+        name: m.name,
+        scaleFactor: m.scaleFactor,
+        position: mapPhysicalPosition(m.position),
+        size: mapPhysicalSize(m.size)
+      }
+}
+
+function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
+  return new PhysicalPosition(m.x, m.y)
+}
+
+function mapPhysicalSize(m: PhysicalSize): PhysicalSize {
+  return new PhysicalSize(m.width, m.height)
 }
 
 /**
@@ -1961,9 +2432,11 @@ interface WindowOptions {
  * import { currentMonitor } from '@tauri-apps/api/window';
  * const monitor = currentMonitor();
  * ```
+ *
+ * @since 1.0.0
  */
 async function currentMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand({
+  return invokeTauriCommand<Monitor | null>({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -1973,7 +2446,7 @@ async function currentMonitor(): Promise<Monitor | null> {
         }
       }
     }
-  })
+  }).then(mapMonitor)
 }
 
 /**
@@ -1984,9 +2457,11 @@ async function currentMonitor(): Promise<Monitor | null> {
  * import { primaryMonitor } from '@tauri-apps/api/window';
  * const monitor = primaryMonitor();
  * ```
+ *
+ * @since 1.0.0
  */
 async function primaryMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand({
+  return invokeTauriCommand<Monitor | null>({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -1996,7 +2471,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
         }
       }
     }
-  })
+  }).then(mapMonitor)
 }
 
 /**
@@ -2006,9 +2481,11 @@ async function primaryMonitor(): Promise<Monitor | null> {
  * import { availableMonitors } from '@tauri-apps/api/window';
  * const monitors = availableMonitors();
  * ```
- * */
+ *
+ * @since 1.0.0
+ */
 async function availableMonitors(): Promise<Monitor[]> {
-  return invokeTauriCommand({
+  return invokeTauriCommand<Monitor[]>({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -2018,7 +2495,7 @@ async function availableMonitors(): Promise<Monitor[]> {
         }
       }
     }
-  })
+  }).then((ms) => ms.map(mapMonitor) as Monitor[])
 }
 
 export {
@@ -2039,4 +2516,11 @@ export {
   availableMonitors
 }
 
-export type { Theme, Monitor, ScaleFactorChanged, FileDropEvent, WindowOptions }
+export type {
+  Theme,
+  TitleBarStyle,
+  Monitor,
+  ScaleFactorChanged,
+  FileDropEvent,
+  WindowOptions
+}

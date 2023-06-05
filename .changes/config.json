@@ -1,14 +1,23 @@
 {
   "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
   "timeout": 3600000,
+  "changeTags": {
+    "feat": "New Features",
+    "enhance": "Enhancements",
+    "bug": "Bug Fixes",
+    "pref": "Performance Improvements",
+    "changes": "What's Changed",
+    "deps": "Dependencies"
+  },
+  "defaultChangeTag": "changes",
   "pkgManagers": {
     "rust": {
       "errorOnVersionRange": "^2.0.0-0",
       "version": true,
-      "getPublishedVersion": "cargo search ${ pkgFile.pkg.package.name } --limit 1 | sed -nE \"s/^[^\\\"]*\\\"//; s/\\\".*//1p\"",
+      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js cargo ${ pkgFile.pkg.package.name } ${ pkgFile.pkg.package.version }",
       "prepublish": [
         "sudo apt-get update",
-        "sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf",
+        "sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev",
         "cargo install cargo-audit --features=fix",
         {
           "command": "cargo generate-lockfile",
@@ -17,12 +26,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"# Cargo Audit\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Cargo Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -33,7 +37,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -45,12 +49,7 @@
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Cargo Publish\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Cargo Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -60,7 +59,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -80,19 +79,14 @@
     "javascript": {
       "errorOnVersionRange": "^2.0.0-0",
       "version": true,
-      "getPublishedVersion": "npm view ${ pkgFile.pkg.name } version",
+      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "prepublish": [
         {
           "command": "yarn",
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Yarn Audit\n\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '<details>\n<summary>click to view</summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -115,12 +109,7 @@
       "publish": [
         "sleep 15s",
         {
-          "command": "echo \"# Yarn Package Publish\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -130,7 +119,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -143,13 +132,13 @@
     }
   },
   "packages": {
-    "api": {
+    "@tauri-apps/api": {
       "path": "./tooling/api",
       "manager": "javascript",
       "assets": [
         {
           "path": "./tooling/api/dist/tauri-apps-api-${ pkgFile.version }.tgz",
-          "name": "api-${ pkgFile.version }.tgz"
+          "name": "tauri-apps-api-${ pkgFile.version }.tgz"
         }
       ],
       "prepublish": [
@@ -158,12 +147,7 @@
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Yarn Audit\n\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '<details>\n<summary>click to view</summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -185,12 +169,7 @@
       ],
       "publish": [
         {
-          "command": "echo \"# Yarn Package Publish\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -200,7 +179,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -239,7 +218,16 @@
       "path": "./core/tauri-build",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": [
+        "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../tauri-config-schema/Cargo.toml"
+      ],
+      "assets": [
+        {
+          "path": "./tooling/cli/schema.json",
+          "name": "schema.json"
+        }
+      ]
     },
     "tauri": {
       "path": "./core/tauri",
@@ -252,20 +240,27 @@
       ],
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
-    "cli.js": {
+    "@tauri-apps/cli": {
       "path": "./tooling/cli/node",
       "manager": "javascript",
-      "dependencies": ["cli.rs"],
-      "postversion": "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+      "getPublishedVersion": "node ../../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
+      "dependencies": ["tauri-cli"],
+      "postversion": [
+        "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../../../core/tauri-config-schema/Cargo.toml"
+      ],
       "prepublish": [],
       "publish": [],
       "postpublish": []
     },
-    "cli.rs": {
+    "tauri-cli": {
       "path": "./tooling/cli",
       "manager": "rust",
       "dependencies": ["tauri-bundler", "tauri-utils"],
-      "postversion": "cargo check",
+      "postversion": [
+        "cargo check",
+        "cargo build --manifest-path ../../core/tauri-config-schema/Cargo.toml"
+      ],
       "assets": [
         {
           "path": "${ pkg.path }/target/package/tauri-cli-${ pkgFile.version }.crate",

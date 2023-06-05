@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -17,7 +18,7 @@ const KEYCHAIN_PWD: &str = "tauri-build";
 // APPLE_CERTIFICATE is the p12 certificate base64 encoded.
 // By example you can use; openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt
 // Then use the value of the base64 in APPLE_CERTIFICATE env variable.
-// You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when youy exported your certificate.
+// You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when you exported your certificate.
 // https://help.apple.com/xcode/mac/current/#/dev154b28f09 see: `Export a signing certificate`
 pub fn setup_keychain(
   certificate_encoded: OsString,
@@ -287,7 +288,7 @@ pub fn notarize(
     info!("notarization started; waiting for Apple response...");
 
     let uuid = uuid[1].to_string();
-    get_notarization_status(uuid, auth_args, settings)?;
+    get_notarization_status(uuid, auth_args)?;
     staple_app(app_bundle_path.clone())?;
   } else {
     return Err(
@@ -321,11 +322,7 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
   Ok(())
 }
 
-fn get_notarization_status(
-  uuid: String,
-  auth_args: Vec<String>,
-  settings: &Settings,
-) -> crate::Result<()> {
+fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Result<()> {
   std::thread::sleep(std::time::Duration::from_secs(10));
   let result = Command::new("xcrun")
     .args(vec!["altool", "--notarization-info", &uuid])
@@ -344,7 +341,7 @@ fn get_notarization_status(
     {
       let status = status[1].to_string();
       if status == "in progress" {
-        get_notarization_status(uuid, auth_args, settings)
+        get_notarization_status(uuid, auth_args)
       } else if status == "invalid" {
         Err(
           anyhow::anyhow!(format!(
@@ -365,10 +362,10 @@ fn get_notarization_status(
         Ok(())
       }
     } else {
-      get_notarization_status(uuid, auth_args, settings)
+      get_notarization_status(uuid, auth_args)
     }
   } else {
-    get_notarization_status(uuid, auth_args, settings)
+    get_notarization_status(uuid, auth_args)
   }
 }
 

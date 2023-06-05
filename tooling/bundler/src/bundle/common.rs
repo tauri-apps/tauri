@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -9,12 +10,12 @@ use std::{
   fs::{self, File},
   io::{self, BufReader, BufWriter},
   path::Path,
-  process::{Command, Output, Stdio},
+  process::{Command, ExitStatus, Output, Stdio},
   sync::{Arc, Mutex},
 };
 
 /// Returns true if the path has a filename indicating that it is a high-density
-/// "retina" icon.  Specifically, returns true the the file stem ends with
+/// "retina" icon.  Specifically, returns true the file stem ends with
 /// "@2x" (a convention specified by the [Apple developer docs](
 /// https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html)).
 #[allow(dead_code)]
@@ -31,7 +32,7 @@ pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
 /// needed.
 pub fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(&parent)?;
+    fs::create_dir_all(parent)?;
   }
   let file = File::create(path)?;
   Ok(BufWriter::new(file))
@@ -135,10 +136,22 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
 }
 
 pub trait CommandExt {
+  // The `pipe` function sets the stdout and stderr to properly
+  // show the command output in the Node.js wrapper.
+  fn piped(&mut self) -> std::io::Result<ExitStatus>;
   fn output_ok(&mut self) -> crate::Result<Output>;
 }
 
 impl CommandExt for Command {
+  fn piped(&mut self) -> std::io::Result<ExitStatus> {
+    self.stdout(os_pipe::dup_stdout()?);
+    self.stderr(os_pipe::dup_stderr()?);
+    let program = self.get_program().to_string_lossy().into_owned();
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+
+    self.status().map_err(Into::into)
+  }
+
   fn output_ok(&mut self) -> crate::Result<Output> {
     let program = self.get_program().to_string_lossy().into_owned();
     debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));

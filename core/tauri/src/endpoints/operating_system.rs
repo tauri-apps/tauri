@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -20,6 +20,7 @@ pub enum Cmd {
   OsType,
   Arch,
   Tempdir,
+  Locale,
 }
 
 #[cfg(os_all)]
@@ -42,6 +43,10 @@ impl Cmd {
 
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
     Ok(std::env::temp_dir())
+  }
+
+  fn locale<R: Runtime>(_context: InvokeContext<R>) -> super::Result<Option<String>> {
+    Ok(crate::api::os::locale())
   }
 }
 
@@ -66,6 +71,10 @@ impl Cmd {
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
     Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
   }
+
+  fn locale<R: Runtime>(_context: InvokeContext<R>) -> super::Result<Option<String>> {
+    Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
+  }
 }
 
 #[cfg(os_all)]
@@ -76,6 +85,8 @@ fn os_type() -> &'static str {
   return "Windows_NT";
   #[cfg(target_os = "macos")]
   return "Darwin";
+  #[cfg(target_os = "ios")]
+  return "iOS";
 }
 
 #[cfg(os_all)]
@@ -108,4 +119,8 @@ mod tests {
   #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn tempdir() {}
+
+  #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
+  #[quickcheck_macros::quickcheck]
+  fn locale() {}
 }

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -57,6 +57,8 @@ type Arch =
  * The operating system-specific end-of-line marker.
  * - `\n` on POSIX
  * - `\r\n` on Windows
+ *
+ * @since 1.0.0
  * */
 const EOL = isWindows() ? '\r\n' : '\n'
 
@@ -68,6 +70,9 @@ const EOL = isWindows() ? '\r\n' : '\n'
  * import { platform } from '@tauri-apps/api/os';
  * const platformName = await platform();
  * ```
+ *
+ * @since 1.0.0
+ *
  */
 async function platform(): Promise<Platform> {
   return invokeTauriCommand<Platform>({
@@ -85,6 +90,8 @@ async function platform(): Promise<Platform> {
  * import { version } from '@tauri-apps/api/os';
  * const osVersion = await version();
  * ```
+ *
+ * @since 1.0.0
  */
 async function version(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -102,6 +109,8 @@ async function version(): Promise<string> {
  * import { type } from '@tauri-apps/api/os';
  * const osType = await type();
  * ```
+ *
+ * @since 1.0.0
  */
 async function type(): Promise<OsType> {
   return invokeTauriCommand<OsType>({
@@ -120,6 +129,8 @@ async function type(): Promise<OsType> {
  * import { arch } from '@tauri-apps/api/os';
  * const archName = await arch();
  * ```
+ *
+ * @since 1.0.0
  */
 async function arch(): Promise<Arch> {
   return invokeTauriCommand<Arch>({
@@ -137,6 +148,8 @@ async function arch(): Promise<Arch> {
  * import { tempdir } from '@tauri-apps/api/os';
  * const tempdirPath = await tempdir();
  * ```
+ *
+ * @since 1.0.0
  */
 async function tempdir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -147,5 +160,27 @@ async function tempdir(): Promise<string> {
   })
 }
 
-export { EOL, platform, version, type, arch, tempdir }
+/**
+ * Returns a String with a `BCP-47` language tag inside. If the locale couldn’t be obtained, `null` is returned instead.
+ * @example
+ * ```typescript
+ * import { locale } from '@tauri-apps/api/os';
+ * const locale = await locale();
+ * if (locale) {
+ *    // use the locale string here
+ * }
+ * ```
+ *
+ * @since 1.3.0
+ */
+async function locale(): Promise<string | null> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Os',
+    message: {
+      cmd: 'locale'
+    }
+  })
+}
+
+export { EOL, platform, version, type, arch, tempdir, locale }
 export type { Platform, OsType, Arch }

@@ -478,12 +478,11 @@ impl<R: Runtime> WindowManager<R> {
         format!(
           "{}://{}{}",
           window_url.scheme(),
-          window_url.host().unwrap(),
-          if let Some(port) = window_url.port() {
-            format!(":{port}")
-          } else {
-            "".into()
-          }
+          window_url.host().map(|h| h.to_string()).unwrap_or_default(),
+          window_url
+            .port()
+            .map(|p| format!(":{p}"))
+            .unwrap_or_default()
         )
       };
 

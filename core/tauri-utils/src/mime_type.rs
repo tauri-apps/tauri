@@ -48,7 +48,7 @@ impl std::fmt::Display for MimeType {
 impl MimeType {
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType.
   pub fn parse_from_uri(uri: &str) -> MimeType {
-    Self::parse_from_uri_with_fallback(uri, Self::Txt)
+    Self::parse_from_uri_with_fallback(uri, Self::Html)
   }
 
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType with specified fallback for unknown file extensions.
@@ -149,6 +149,6 @@ mod tests {
     assert_eq!(txt, String::from("text/plain"));
 
     let custom_scheme = MimeType::parse_from_uri("wry://tauri.app").to_string();
-    assert_eq!(custom_scheme, String::from("text/plain"));
+    assert_eq!(custom_scheme, String::from("text/html"));
   }
 }

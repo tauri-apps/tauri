@@ -840,8 +840,8 @@ pub(crate) mod sealed {
   }
 }
 
-/// Utilities for unit testing on Tauri applications.
 #[cfg(any(test, feature = "test"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "test")))]
 pub mod test;
 
 #[cfg(test)]

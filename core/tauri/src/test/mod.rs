@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Utilities for unit testing on Tauri applications.
+//!
+//! # Stability
+//!
+//! This module is unstable.
+
 #![allow(unused_variables)]
 
 mod mock_runtime;
@@ -11,9 +17,9 @@ pub use mock_runtime::*;
 use std::collections::HashMap;
 use std::{borrow::Cow, sync::Arc};
 
-use crate::Pattern;
 #[cfg(shell_scope)]
 use crate::ShellScopeConfig;
+use crate::{App, Builder, Context, Pattern};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{CliConfig, Config, PatternKind, TauriConfig},
@@ -43,7 +49,7 @@ pub fn noop_assets() -> NoopAsset {
 
 /// Creates a new [`crate::Context`] for testing.
 pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
-  crate::Context {
+  Context {
     config: Config {
       schema: None,
       package: Default::default(),
@@ -88,11 +94,28 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
   }
 }
 
-/// Creates a new [`crate::App`] for testing.
-pub fn mock_app() -> crate::App<MockRuntime> {
-  crate::Builder::<MockRuntime>::new()
-    .build(mock_context(noop_assets()))
-    .unwrap()
+/// Creates a new [`Builder`] using the [`MockRuntime`].
+///
+/// To use a dummy [`Context`], see [`mock_app`].
+///
+/// # Examples
+///
+/// ```rust
+/// //#[cfg(test)]
+/// fn do_something() {
+///   let app = tauri::test::mock_builder()
+///     // remove the string argument to use your app's config file
+///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///     .unwrap();
+/// }
+/// ```
+pub fn mock_builder() -> Builder<MockRuntime> {
+  Builder::<MockRuntime>::new()
+}
+
+/// Creates a new [`App`] for testing using the [`mock_context`] with a [`noop_assets`].
+pub fn mock_app() -> App<MockRuntime> {
+  mock_builder().build(mock_context(noop_assets())).unwrap()
 }
 
 #[cfg(test)]

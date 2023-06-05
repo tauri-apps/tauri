@@ -24,11 +24,12 @@ pub use self::{
     Settings, SettingsBuilder, UpdaterSettings,
   },
 };
+#[cfg(target_os = "macos")]
 use anyhow::Context;
 use log::{info, warn};
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
-use std::{fmt::Write, fs, path::PathBuf};
+use std::{fmt::Write, path::PathBuf};
 
 /// Generated bundle metadata.
 #[derive(Debug)]
@@ -118,8 +119,8 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
         for app_bundle_path in &app_bundle_paths {
           info!(action = "Cleaning"; "{}", app_bundle_path.display());
           match app_bundle_path.is_dir() {
-            true => fs::remove_dir_all(app_bundle_path),
-            false => fs::remove_file(app_bundle_path),
+            true => std::fs::remove_dir_all(app_bundle_path),
+            false => std::fs::remove_file(app_bundle_path),
           }
           .with_context(|| {
             format!(

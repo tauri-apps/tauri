@@ -19,20 +19,23 @@ use std::{
   process::{Command, Stdio},
 };
 
+pub struct Bundled {
+  pub dmg: Vec<PathBuf>,
+  pub app: Vec<PathBuf>,
+}
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
-pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
-  let mut app_bundle_paths = vec![];
-
+pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Bundled> {
   // generate the .app bundle if needed
-  if bundles
+  let app_bundle_paths = if !bundles
     .iter()
-    .filter(|bundle| bundle.package_type == PackageType::MacOsBundle)
-    .count()
-    == 0
+    .any(|bundle| bundle.package_type == PackageType::MacOsBundle)
   {
-    app_bundle_paths = app::bundle_project(settings)?;
-  }
+    app::bundle_project(settings)?
+  } else {
+    Vec::new()
+  };
 
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
@@ -153,21 +156,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     super::sign::sign(dmg_path.clone(), identity, settings, false)?;
   }
 
-  // Clean up .app if only .dmg
-  if bundles
-    .iter()
-    .filter(|bundle| bundle.package_type == PackageType::Updater)
-    .count()
-    == 0
-  {
-    for app_bundle_path in app_bundle_paths {
-      info!(action = "Cleaning"; "{}", app_bundle_path.display());
-      match app_bundle_path.is_dir() {
-        true => fs::remove_dir_all(&app_bundle_path),
-        false => fs::remove_file(&app_bundle_path),
-      }
-      .with_context(|| format!("Failed to cleaning the {}", app_bundle_path.display()))?
-    }
-  }
-  Ok(vec![dmg_path])
+  Ok(Bundled {
+    dmg: vec![dmg_path],
+    app: app_bundle_paths,
+  })
 }

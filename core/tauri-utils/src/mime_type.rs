@@ -48,7 +48,7 @@ impl std::fmt::Display for MimeType {
 impl MimeType {
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType.
   pub fn parse_from_uri(uri: &str) -> MimeType {
-    Self::parse_from_uri_with_fallback(uri, Self::Html)
+    Self::parse_from_uri_with_fallback(uri, Self::Txt)
   }
 
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType with specified fallback for unknown file extensions.
@@ -68,7 +68,7 @@ impl MimeType {
       Some("rtf") => Self::Rtf,
       Some("svg") => Self::Svg,
       Some("txt") => Self::Txt,
-      // Assume HTML when a TLD is found for eg. `wry:://tauri.app` | `wry://hello.com`
+      // use fallback on unknown suffixes
       Some(_) => fallback,
       // using octet stream according to this:
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
@@ -78,7 +78,7 @@ impl MimeType {
 
   /// infer mimetype from content (or) URI if needed.
   pub fn parse(content: &[u8], uri: &str) -> String {
-    Self::parse_with_fallback(content, uri, Self::Html)
+    Self::parse_with_fallback(content, uri, Self::Txt)
   }
   /// infer mimetype from content (or) URI if needed with specified fallback for unknown file extensions.
   pub fn parse_with_fallback(content: &[u8], uri: &str, fallback: MimeType) -> String {

@@ -7,6 +7,38 @@
 //! # Stability
 //!
 //! This module is unstable.
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! #[tauri::command]
+//! fn my_cmd() {}
+//!
+//! fn create_app<R: tauri::Runtime>(mut builder: tauri::Builder<R>) -> tauri::App<R> {
+//!   builder
+//!     .setup(|app| {
+//!       // do something
+//!       Ok(())
+//!     })
+//!     .invoke_handler(tauri::generate_handler![my_cmd])
+//!     // remove the string argument on your app
+//!     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!     .expect("failed to build app")
+//! }
+//!
+//! fn main() {
+//!   let app = create_app(tauri::Builder::default());
+//!   app.run(|_handle, _event| {});
+//! }
+//!
+//! #[cfg(test)]
+//! mod tests {
+//!   #[cfg(test)]
+//!   fn something() {
+//!     let app = super::create_app(tauri::test::mock_builder());
+//!     // do something with the app
+//!   }
+//! }
 
 #![allow(unused_variables)]
 
@@ -101,7 +133,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
 /// # Examples
 ///
 /// ```rust
-/// //#[cfg(test)]
+/// #[cfg(test)]
 /// fn do_something() {
 ///   let app = tauri::test::mock_builder()
 ///     // remove the string argument to use your app's config file

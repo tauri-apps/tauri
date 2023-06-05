@@ -86,7 +86,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   type Runtime = MockRuntime;
 
   fn create_proxy(&self) -> EventProxy {
-    unimplemented!()
+    EventProxy {}
   }
 
   /// Create a new webview window.
@@ -99,6 +99,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
       dispatcher: MockDispatcher {
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
+        url: pending.url,
       },
       menu_ids: Default::default(),
       js_event_listeners: Default::default(),
@@ -116,11 +117,24 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     &self,
     system_tray: SystemTray,
   ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler> {
-    unimplemented!()
+    Ok(MockTrayHandler {
+      context: self.context.clone(),
+    })
   }
 
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-    unimplemented!()
+    #[cfg(target_os = "linux")]
+    return raw_window_handle::RawDisplayHandle::Xlib(raw_window_handle::XlibDisplayHandle::empty());
+    #[cfg(target_os = "macos")]
+    return raw_window_handle::RawDisplayHandle::AppKit(
+      raw_window_handle::AppKitDisplayHandle::empty(),
+    );
+    #[cfg(windows)]
+    return raw_window_handle::RawDisplayHandle::Windows(
+      raw_window_handle::WindowsDisplayHandle::empty(),
+    );
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    return unimplemented!();
   }
 
   /// Shows the application, but does not automatically focus it.
@@ -139,6 +153,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 #[derive(Debug, Clone)]
 pub struct MockDispatcher {
   context: RuntimeContext,
+  url: String,
   last_evaluated_script: Arc<Mutex<Option<String>>>,
 }
 
@@ -381,7 +396,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn url(&self) -> Result<url::Url> {
-    todo!()
+    self.url.parse().map_err(|_| Error::FailedToReceiveMessage)
   }
 
   fn scale_factor(&self) -> Result<f64> {
@@ -486,7 +501,20 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
-    unimplemented!()
+    #[cfg(target_os = "linux")]
+    return Ok(raw_window_handle::RawWindowHandle::Xlib(
+      raw_window_handle::XlibWindowHandle::empty(),
+    ));
+    #[cfg(target_os = "macos")]
+    return Ok(raw_window_handle::RawWindowHandle::AppKit(
+      raw_window_handle::AppKitWindowHandle::empty(),
+    ));
+    #[cfg(windows)]
+    return Ok(raw_window_handle::RawWindowHandle::Win32(
+      raw_window_handle::Win32WindowHandle::empty(),
+    ));
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    return unimplemented!();
   }
 
   fn center(&self) -> Result<()> {
@@ -510,6 +538,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
       dispatcher: MockDispatcher {
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
+        url: pending.url,
       },
       menu_ids: Default::default(),
       js_event_listeners: Default::default(),
@@ -763,7 +792,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   fn create_proxy(&self) -> EventProxy {
-    unimplemented!()
+    EventProxy {}
   }
 
   fn handle(&self) -> Self::Handle {
@@ -788,6 +817,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
       dispatcher: MockDispatcher {
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
+        url: pending.url,
       },
       menu_ids: Default::default(),
       js_event_listeners: Default::default(),

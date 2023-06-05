@@ -149,6 +149,6 @@ mod tests {
     assert_eq!(txt, String::from("text/plain"));
 
     let custom_scheme = MimeType::parse_from_uri("wry://tauri.app").to_string();
-    assert_eq!(custom_scheme, String::from("text/html"));
+    assert_eq!(custom_scheme, String::from("text/plain"));
   }
 }

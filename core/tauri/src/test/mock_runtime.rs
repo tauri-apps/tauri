@@ -13,8 +13,8 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  DeviceEventFilter, Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle,
-  UserAttentionType, UserEvent,
+  DeviceEventFilter, Dispatch, Error, EventLoopProxy, Icon, Result, RunEvent, Runtime,
+  RuntimeHandle, UserAttentionType, UserEvent,
 };
 #[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{
@@ -32,15 +32,41 @@ use windows::Win32::Foundation::HWND;
 use std::{
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    mpsc::{sync_channel, Receiver, SyncSender},
+    Arc, Mutex,
+  },
 };
 
 type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
 
+enum Message {
+  Task(Box<dyn FnOnce() + Send>),
+}
+
 #[derive(Clone)]
 pub struct RuntimeContext {
+  is_running: Arc<AtomicBool>,
   shortcuts: Arc<Mutex<ShortcutMap>>,
   clipboard: Arc<Mutex<Option<String>>>,
+  run_tx: SyncSender<Message>,
+}
+
+impl RuntimeContext {
+  fn send_message(&self, message: Message) -> Result<()> {
+    if self.is_running.load(Ordering::Relaxed) {
+      self
+        .run_tx
+        .send(message)
+        .map_err(|_| Error::FailedToSendMessage)
+    } else {
+      match message {
+        Message::Task(task) => task(),
+      }
+      Ok(())
+    }
+  }
 }
 
 impl fmt::Debug for RuntimeContext {
@@ -81,7 +107,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
-    unimplemented!()
+    self.context.send_message(Message::Task(Box::new(f)))
   }
 
   #[cfg(all(desktop, feature = "system-tray"))]
@@ -332,7 +358,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   type WindowBuilder = MockWindowBuilder;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
-    Ok(())
+    self.context.send_message(Message::Task(Box::new(f)))
   }
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
@@ -667,6 +693,7 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy {
 
 #[derive(Debug)]
 pub struct MockRuntime {
+  is_running: Arc<AtomicBool>,
   pub context: RuntimeContext,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: MockGlobalShortcutManager,
@@ -674,15 +701,21 @@ pub struct MockRuntime {
   clipboard_manager: MockClipboardManager,
   #[cfg(all(desktop, feature = "system-tray"))]
   tray_handler: MockTrayHandler,
+  run_rx: Receiver<Message>,
 }
 
 impl MockRuntime {
   fn init() -> Self {
+    let is_running = Arc::new(AtomicBool::new(false));
+    let (tx, rx) = sync_channel(1);
     let context = RuntimeContext {
+      is_running: is_running.clone(),
       shortcuts: Default::default(),
       clipboard: Default::default(),
+      run_tx: tx,
     };
     Self {
+      is_running,
       #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager: MockGlobalShortcutManager {
         context: context.clone(),
@@ -696,6 +729,7 @@ impl MockRuntime {
         context: context.clone(),
       },
       context,
+      run_rx: rx,
     }
   }
 }
@@ -793,7 +827,13 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
+    self.is_running.store(true, Ordering::Relaxed);
     loop {
+      if let Ok(m) = self.run_rx.try_recv() {
+        match m {
+          Message::Task(p) => p(),
+        }
+      }
       std::thread::sleep(std::time::Duration::from_secs(1));
     }
   }

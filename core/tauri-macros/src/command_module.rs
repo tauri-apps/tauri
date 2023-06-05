@@ -272,12 +272,12 @@ pub fn command_handler(attributes: HandlerAttributes, function: ItemFn) -> Token
 pub fn command_test(attributes: HandlerTestAttributes, function: ItemFn) -> TokenStream2 {
   let allowlist = attributes.allowlist;
   let error_message = attributes.error_message.as_str();
-  let signature = function.sig.clone();
+  let signature = &function.sig;
 
   let enum_variant_name = function.sig.ident.to_string().to_lower_camel_case();
   let response = match attributes.allowlist_check_kind {
     AllowlistCheckKind::Runtime => {
-      let test_name = function.sig.ident.clone();
+      let test_name = &signature.ident;
       quote!(super::Cmd::#test_name(crate::test::mock_invoke_context()))
     }
     AllowlistCheckKind::Serde => quote! {

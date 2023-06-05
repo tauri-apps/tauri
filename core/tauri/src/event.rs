@@ -282,14 +282,13 @@ mod test {
 
     // check to see if on_event properly grabs the stored function from listen.
     #[test]
-    fn check_on_event(e in "[a-z]+", d in "[a-z]+") {
+    fn check_on_event(key in "[a-z]+", d in "[a-z]+") {
       let listeners: Listeners = Default::default();
-      // clone e as the key
-      let key = e.clone();
+
       // call listen with e and the event_fn dummy func
-      listeners.listen(e.clone(), None, event_fn);
+      listeners.listen(key.clone(), None, event_fn);
       // call on event with e and d.
-      listeners.trigger(&e, None, Some(d));
+      listeners.trigger(&key, None, Some(d));
 
       // lock the mutex
       let l = listeners.inner.handlers.lock().unwrap();

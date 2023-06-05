@@ -118,8 +118,8 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
         for app_bundle_path in &app_bundle_paths {
           info!(action = "Cleaning"; "{}", app_bundle_path.display());
           match app_bundle_path.is_dir() {
-            true => fs::remove_dir_all(&app_bundle_path),
-            false => fs::remove_file(&app_bundle_path),
+            true => fs::remove_dir_all(app_bundle_path),
+            false => fs::remove_file(app_bundle_path),
           }
           .with_context(|| {
             format!(

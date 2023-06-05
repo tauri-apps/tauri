@@ -24,6 +24,8 @@ pub use self::{
     Settings, SettingsBuilder, UpdaterSettings,
   },
 };
+#[cfg(target_os = "macos")]
+use anyhow::Context;
 use log::{info, warn};
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
@@ -41,7 +43,7 @@ pub struct Bundle {
 /// Bundles the project.
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
-  let mut bundles = Vec::new();
+  let mut bundles: Vec<Bundle> = Vec::new();
   let package_types = settings.package_types()?;
 
   let target_os = settings
@@ -56,6 +58,11 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
   }
 
   for package_type in &package_types {
+    // bundle was already built! e.g. DMG already built .app
+    if bundles.iter().any(|b| b.package_type == *package_type) {
+      continue;
+    }
+
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]
       PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
@@ -63,7 +70,16 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
       // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
       #[cfg(target_os = "macos")]
-      PackageType::Dmg => macos::dmg::bundle_project(&settings, &bundles)?,
+      PackageType::Dmg => {
+        let bundled = macos::dmg::bundle_project(&settings, &bundles)?;
+        if !bundled.app.is_empty() {
+          bundles.push(Bundle {
+            package_type: PackageType::MacOsBundle,
+            bundle_paths: bundled.app,
+          });
+        }
+        bundled.dmg
+      }
 
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => windows::msi::bundle_project(&settings, false)?,
@@ -88,6 +104,33 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       package_type: package_type.to_owned(),
       bundle_paths,
     });
+  }
+
+  #[cfg(target_os = "macos")]
+  {
+    // Clean up .app if only building dmg or updater
+    if !package_types.contains(&PackageType::MacOsBundle) {
+      if let Some(app_bundle_paths) = bundles
+        .iter()
+        .position(|b| b.package_type == PackageType::MacOsBundle)
+        .map(|i| bundles.remove(i))
+        .map(|b| b.bundle_paths)
+      {
+        for app_bundle_path in &app_bundle_paths {
+          info!(action = "Cleaning"; "{}", app_bundle_path.display());
+          match app_bundle_path.is_dir() {
+            true => std::fs::remove_dir_all(app_bundle_path),
+            false => std::fs::remove_file(app_bundle_path),
+          }
+          .with_context(|| {
+            format!(
+              "Failed to clean the app bundle at {}",
+              app_bundle_path.display()
+            )
+          })?
+        }
+      }
+    }
   }
 
   let pluralised = if bundles.len() == 1 {

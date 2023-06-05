@@ -10,7 +10,7 @@ use crate::helpers::{
 use anyhow::Context;
 use itertools::Itertools;
 use log::info;
-use toml_edit::{Array, Document, InlineTable, Item, Table, Value};
+use toml_edit::{Array, Document, InlineTable, Item, Table, TableLike, Value};
 
 use std::{
   collections::{HashMap, HashSet},
@@ -127,53 +127,12 @@ fn write_features(
   }
 
   if let Some(dep) = item.as_table_mut() {
-    let manifest_features = dep.entry("features").or_insert(Item::None);
-    if let Item::Value(Value::Array(f)) = &manifest_features {
-      for feat in f.iter() {
-        if let Value::String(feature) = feat {
-          if !all_features.contains(&feature.value().as_str()) {
-            features.insert(feature.value().to_string());
-          }
-        }
-      }
-    }
-    if let Some(features_array) = manifest_features.as_array_mut() {
-      // add features that aren't in the manifest
-      for feature in features.iter() {
-        if !features_array.iter().any(|f| f.as_str() == Some(feature)) {
-          features_array.insert(0, feature.as_str());
-        }
-      }
-
-      // remove features that shouldn't be in the manifest anymore
-      let mut i = features_array.len();
-      while i != 0 {
-        let index = i - 1;
-        if let Some(f) = features_array.get(index).and_then(|f| f.as_str()) {
-          if !features.contains(f) {
-            features_array.remove(index);
-          }
-        }
-        i -= 1;
-      }
-    } else {
-      *manifest_features = Item::Value(Value::Array(toml_array(features)));
-    }
+    inject_features_table(dep, &all_features, features);
     Ok(true)
   } else if let Some(dep) = item.as_value_mut() {
     match dep {
       Value::InlineTable(table) => {
-        let manifest_features = table.get_or_insert("features", Value::Array(Default::default()));
-        if let Value::Array(f) = &manifest_features {
-          for feat in f.iter() {
-            if let Value::String(feature) = feat {
-              if !all_features.contains(&feature.value().as_str()) {
-                features.insert(feature.value().to_string());
-              }
-            }
-          }
-        }
-        *manifest_features = Value::Array(toml_array(features));
+        inject_features_table(table, &all_features, features);
       }
       Value::String(version) => {
         let mut def = InlineTable::default();
@@ -191,6 +150,45 @@ fn write_features(
     Ok(true)
   } else {
     Ok(false)
+  }
+}
+
+fn inject_features_table<D: TableLike>(
+  dep: &mut D,
+  all_features: &[&str],
+  features: &mut HashSet<String>,
+) {
+  let manifest_features = dep.entry("features").or_insert(Item::None);
+  if let Item::Value(Value::Array(f)) = &manifest_features {
+    for feat in f.iter() {
+      if let Value::String(feature) = feat {
+        if !all_features.contains(&feature.value().as_str()) {
+          features.insert(feature.value().to_string());
+        }
+      }
+    }
+  }
+  if let Some(features_array) = manifest_features.as_array_mut() {
+    // add features that aren't in the manifest
+    for feature in features.iter() {
+      if !features_array.iter().any(|f| f.as_str() == Some(feature)) {
+        features_array.insert(0, feature.as_str());
+      }
+    }
+
+    // remove features that shouldn't be in the manifest anymore
+    let mut i = features_array.len();
+    while i != 0 {
+      let index = i - 1;
+      if let Some(f) = features_array.get(index).and_then(|f| f.as_str()) {
+        if !features.contains(f) {
+          features_array.remove(index);
+        }
+      }
+      i -= 1;
+    }
+  } else {
+    *manifest_features = Item::Value(Value::Array(toml_array(features)));
   }
 }
 
@@ -246,6 +244,7 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
           .replace("]}", "] }")
           .replace("={", "= {")
           .replace("=[", "= [")
+          .replace(r#"",""#, r#"", ""#)
           .as_bytes(),
       )?;
       manifest_file.flush()?;

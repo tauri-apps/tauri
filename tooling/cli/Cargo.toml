@@ -107,7 +107,6 @@ lto = true
 
 [features]
 default = [ "rustls" ]
-openssl-vendored = [ "tauri-mobile/openssl-vendored" ]
 native-tls = [ "tauri-bundler/native-tls", "ureq/native-tls" ]
 # ureq doesn't have a vendored mode but atto's feature should hopefully take care of it.
 native-tls-vendored = [ "tauri-bundler/native-tls-vendored", "ureq/native-tls" ]

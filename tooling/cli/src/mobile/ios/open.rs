@@ -5,7 +5,6 @@
 use super::{ensure_init, env, get_app, get_config, MobileTarget};
 use crate::{helpers::config::get as get_tauri_config, Result};
 
-use anyhow::Context;
 use tauri_mobile::os;
 
 pub fn command() -> Result<()> {

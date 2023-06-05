@@ -18,5 +18,4 @@ napi-build = "2.0"
 
 [features]
 default = ["tauri-cli/default"]
-openssl-vendored = ["tauri-cli/openssl-vendored"]
 native-tls-vendored = ["tauri-cli/native-tls-vendored"]

@@ -532,7 +532,7 @@ async function appLogDir(): Promise<string> {
  * const temp = await tempDir();
  * ```
  *
- * @since 1.0.0
+ * @since 2.0.0
  */
 async function tempDir(path: string): Promise<string> {
   return invoke('plugin:path|resolve_directory', {

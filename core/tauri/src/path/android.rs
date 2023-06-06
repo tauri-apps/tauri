@@ -112,4 +112,9 @@ impl<R: Runtime> PathResolver<R> {
       .call_resolve("getConfigDir")
       .map(|dir| dir.join("logs"))
   }
+
+  /// Returns a temporary directory
+  pub fn temp_dir(&self) -> Result<PathBuf> {
+    self.call_resolve("getTempDir")
+  }
 }

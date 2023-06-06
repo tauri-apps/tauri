@@ -254,4 +254,9 @@ impl<R: Runtime> PathResolver<R> {
 
     path
   }
+
+  /// A temporary directory. Resolves to [`temp_dir`].
+  pub fn temp_dir(&self) -> Result<PathBuf> {
+    Ok(std::env::temp_dir())
+  }
 }

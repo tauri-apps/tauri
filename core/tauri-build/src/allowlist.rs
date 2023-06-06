@@ -55,15 +55,15 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
 
   for metadata in dependencies {
     let mut name = metadata.name.clone();
-    let mut dep = find_dependency(manifest, &metadata.name, metadata.kind);
-    if dep.is_none() {
+    let mut deps = find_dependency(manifest, &metadata.name, metadata.kind);
+    if deps.is_empty() {
       if let Some(alias) = &metadata.alias {
-        dep = find_dependency(manifest, alias, metadata.kind);
+        deps = find_dependency(manifest, alias, metadata.kind);
         name = alias.clone();
       }
     }
 
-    if let Some(dep) = dep {
+    for dep in deps {
       let error_message = check_features(dep, &metadata);
 
       if !error_message.is_empty() {
@@ -78,30 +78,26 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
   Ok(())
 }
 
-fn find_dependency(
-  manifest: &mut Manifest,
-  name: &str,
-  kind: DependencyKind,
-) -> Option<Dependency> {
+fn find_dependency(manifest: &mut Manifest, name: &str, kind: DependencyKind) -> Vec<Dependency> {
   let dep = match kind {
     DependencyKind::Build => manifest.build_dependencies.remove(name),
     DependencyKind::Normal => manifest.dependencies.remove(name),
   };
 
   if let Some(dep) = dep {
-    return Some(dep);
+    vec![dep]
   } else {
+    let mut deps = Vec::new();
     for target in manifest.target.values_mut() {
       if let Some(dep) = match kind {
         DependencyKind::Build => target.build_dependencies.remove(name),
         DependencyKind::Normal => target.dependencies.remove(name),
       } {
-        return Some(dep);
+        deps.push(dep);
       }
     }
+    deps
   }
-
-  None
 }
 
 fn features_diff(current: &[String], expected: &[String]) -> Diff {

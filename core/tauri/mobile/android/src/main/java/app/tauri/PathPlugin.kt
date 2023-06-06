@@ -75,9 +75,4 @@ class PathPlugin(private val activity: Activity): Plugin(activity) {
     fun getCacheDir(invoke: Invoke) {
         resolvePath(invoke, activity.cacheDir.absolutePath)
     }
-
-    @Command
-    fun getTempDir(invoke: Invoke) {
-        resolvePath(invoke, activity.cacheDir.absolutePath)
-    }
 }

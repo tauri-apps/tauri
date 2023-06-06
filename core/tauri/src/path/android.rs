@@ -113,8 +113,8 @@ impl<R: Runtime> PathResolver<R> {
       .map(|dir| dir.join("logs"))
   }
 
-  /// Returns a temporary directory
+  /// A temporary directory. Resolves to [`std::env::temp_dir`].
   pub fn temp_dir(&self) -> Result<PathBuf> {
-    self.call_resolve("getTempDir")
+    Ok(std::env::temp_dir())
   }
 }

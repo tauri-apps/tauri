@@ -64,13 +64,11 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
     }
 
     for dep in deps {
-      let error_message = check_features(dep, &metadata);
-
-      if !error_message.is_empty() {
+      if let Err(error) = check_features(dep, &metadata) {
         return Err(anyhow!("
       The `{}` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
       Please run `tauri dev` or `tauri build` or {}.
-    ", name, error_message));
+    ", name, error));
       }
     }
   }
@@ -118,7 +116,7 @@ fn features_diff(current: &[String], expected: &[String]) -> Diff {
   Diff { remove, add }
 }
 
-fn check_features(dependency: Dependency, metadata: &AllowlistedDependency) -> String {
+fn check_features(dependency: Dependency, metadata: &AllowlistedDependency) -> Result<(), String> {
   let features = match dependency {
     Dependency::Simple(_) => Vec::new(),
     Dependency::Detailed(dep) => dep.features,
@@ -166,7 +164,11 @@ fn check_features(dependency: Dependency, metadata: &AllowlistedDependency) -> S
     });
   }
 
-  error_message
+  if error_message.is_empty() {
+    Ok(())
+  } else {
+    Err(error_message)
+  }
 }
 
 #[cfg(test)]

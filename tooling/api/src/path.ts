@@ -525,6 +525,22 @@ async function appLogDir(): Promise<string> {
 }
 
 /**
+ * Returns a temporary directory.
+ * @example
+ * ```typescript
+ * import { tempDir } from '@tauri-apps/api/path';
+ * const temp = await tempDir();
+ * ```
+ *
+ * @since 2.0.0
+ */
+async function tempDir(path: string): Promise<string> {
+  return invoke('plugin:path|resolve_directory', {
+    directory: BaseDirectory.Temp
+  })
+}
+
+/**
  * Provides the platform-specific path segment separator:
  * - `\` on Windows
  * - `/` on POSIX
@@ -683,5 +699,6 @@ export {
   dirname,
   extname,
   basename,
-  isAbsolute
+  isAbsolute,
+  tempDir
 }

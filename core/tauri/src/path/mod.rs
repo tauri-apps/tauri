@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  env::temp_dir,
-  path::{Component, Display, Path, PathBuf},
-};
+use std::path::{Component, Display, Path, PathBuf};
 
 use crate::{
   plugin::{Builder, TauriPlugin},
@@ -26,9 +23,9 @@ mod android;
 mod desktop;
 
 #[cfg(target_os = "android")]
-pub(crate) use android::PathResolver;
+pub use android::PathResolver;
 #[cfg(not(target_os = "android"))]
-pub(crate) use desktop::PathResolver;
+pub use desktop::PathResolver;
 
 /// A wrapper for [`PathBuf`] that prevents path traversal.
 #[derive(Clone, Debug)]
@@ -100,8 +97,7 @@ pub enum BaseDirectory {
   Video,
   /// The Resource directory.
   Resource,
-  /// A temporary directory.
-  /// Resolves to [`temp_dir`].
+  /// A temporary directory. Resolves to [`std::env::temp_dir`].
   Temp,
   /// The default app config directory.
   /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
@@ -293,7 +289,7 @@ fn resolve_path<R: Runtime>(
     BaseDirectory::Public => resolver.public_dir(),
     BaseDirectory::Video => resolver.video_dir(),
     BaseDirectory::Resource => resolver.resource_dir(),
-    BaseDirectory::Temp => Ok(temp_dir()),
+    BaseDirectory::Temp => resolver.temp_dir(),
     BaseDirectory::AppConfig => resolver.app_config_dir(),
     BaseDirectory::AppData => resolver.app_data_dir(),
     BaseDirectory::AppLocalData => resolver.app_local_data_dir(),

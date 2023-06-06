@@ -559,7 +559,6 @@ impl<R: Runtime> Update<R> {
       .and_then(|value| value.parse().ok());
 
     let mut buffer = Vec::new();
-    #[cfg(feature = "reqwest-client")]
     {
       use futures_util::StreamExt;
       let mut stream = response.bytes_stream();
@@ -568,25 +567,6 @@ impl<R: Runtime> Update<R> {
         let bytes = chunk.as_ref().to_vec();
         on_chunk(bytes.len(), content_length);
         buffer.extend(bytes);
-      }
-    }
-    #[cfg(not(feature = "reqwest-client"))]
-    {
-      let mut reader = response.reader();
-      let mut buf = [0; 16384];
-      loop {
-        match reader.read(&mut buf) {
-          Ok(b) => {
-            if b == 0 {
-              break;
-            } else {
-              let bytes = buf[0..b].to_vec();
-              on_chunk(bytes.len(), content_length);
-              buffer.extend(bytes);
-            }
-          }
-          Err(e) => return Err(e.into()),
-        }
       }
     }
 

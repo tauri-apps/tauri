@@ -514,6 +514,11 @@
               "type": "null"
             }
           ]
+        },
+        "incognito": {
+          "description": "Whether or not the webview should be launched in incognito  mode.\n\n## Platform-specific:\n\n- **Android**: Unsupported.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

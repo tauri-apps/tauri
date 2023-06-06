@@ -30,11 +30,13 @@ pub struct WebviewAttributes {
   pub accept_first_mouse: bool,
   pub additional_browser_args: Option<String>,
   pub window_effects: Option<WindowEffectsConfig>,
+  pub incognito: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
   fn from(config: &WindowConfig) -> Self {
     let mut builder = Self::new(config.url.clone());
+    builder = builder.incognito(config.incognito);
     builder = builder.accept_first_mouse(config.accept_first_mouse);
     if !config.file_drop_enabled {
       builder = builder.disable_file_drop_handler();
@@ -65,6 +67,7 @@ impl WebviewAttributes {
       accept_first_mouse: false,
       additional_browser_args: None,
       window_effects: None,
+      incognito: false,
     }
   }
 
@@ -124,6 +127,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn window_effects(mut self, effects: WindowEffectsConfig) -> Self {
     self.window_effects = Some(effects);
+    self
+  }
+
+  /// Enable or disable incognito mode for the WebView.
+  #[must_use]
+  pub fn incognito(mut self, incognito: bool) -> Self {
+    self.incognito = incognito;
     self
   }
 }

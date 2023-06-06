@@ -184,10 +184,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .tauri
       .security
       .dev_csp
-      .clone()
-      .or_else(|| config.tauri.security.csp.clone())
+      .as_ref()
+      .or(config.tauri.security.csp.as_ref())
   } else {
-    config.tauri.security.csp.clone()
+    config.tauri.security.csp.as_ref()
   };
   if csp.is_some() {
     options = options.with_csp();

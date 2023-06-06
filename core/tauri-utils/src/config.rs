@@ -938,6 +938,13 @@ pub struct WindowConfig {
   /// - **Linux**: Unsupported
   #[serde(default, alias = "window-effects")]
   pub window_effects: Option<WindowEffectsConfig>,
+  /// Whether or not the webview should be launched in incognito  mode.
+  ///
+  ///  ## Platform-specific:
+  ///
+  ///  - **Android**: Unsupported.
+  #[serde(default)]
+  pub incognito: bool,
 }
 
 impl Default for WindowConfig {
@@ -978,6 +985,7 @@ impl Default for WindowConfig {
       additional_browser_args: None,
       shadow: true,
       window_effects: None,
+      incognito: false,
     }
   }
 }
@@ -2161,6 +2169,7 @@ mod build {
       let additional_browser_args = opt_str_lit(self.additional_browser_args.as_ref());
       let shadow = self.shadow;
       let window_effects = opt_lit(self.window_effects.as_ref());
+      let incognito = self.incognito;
 
       literal_struct!(
         tokens,
@@ -2199,7 +2208,8 @@ mod build {
         tabbing_identifier,
         additional_browser_args,
         shadow,
-        window_effects
+        window_effects,
+        incognito
       );
     }
   }

@@ -281,3 +281,25 @@ pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRunti
     package_info: app.package_info().clone(),
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::Manager;
+  use std::time::Duration;
+
+  use super::mock_app;
+
+  #[test]
+  fn run_app() {
+    let app = mock_app();
+    let w = app.get_window("main").unwrap();
+    std::thread::spawn(move || {
+      std::thread::sleep(Duration::from_secs(1));
+      w.close().unwrap();
+    });
+
+    app.run(|_app, event| {
+      println!("{:?}", event);
+    });
+  }
+}

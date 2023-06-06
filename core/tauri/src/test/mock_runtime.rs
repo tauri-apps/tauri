@@ -13,8 +13,8 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  DeviceEventFilter, Dispatch, Error, EventLoopProxy, Icon, Result, RunEvent, Runtime,
-  RuntimeHandle, UserAttentionType, UserEvent,
+  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
+  RunEvent, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
 };
 #[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{
@@ -30,28 +30,42 @@ use uuid::Uuid;
 use windows::Win32::Foundation::HWND;
 
 use std::{
+  cell::RefCell,
   collections::HashMap,
   fmt,
   sync::{
     atomic::{AtomicBool, Ordering},
-    mpsc::{sync_channel, Receiver, SyncSender},
+    mpsc::{channel, sync_channel, Receiver, SyncSender},
     Arc, Mutex,
   },
 };
 
 type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
+type WindowId = usize;
 
 enum Message {
   Task(Box<dyn FnOnce() + Send>),
+  CloseWindow(WindowId),
 }
+
+struct Window;
 
 #[derive(Clone)]
 pub struct RuntimeContext {
   is_running: Arc<AtomicBool>,
+  windows: Arc<RefCell<HashMap<WindowId, Window>>>,
   shortcuts: Arc<Mutex<ShortcutMap>>,
   clipboard: Arc<Mutex<Option<String>>>,
   run_tx: SyncSender<Message>,
 }
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for RuntimeContext {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for RuntimeContext {}
 
 impl RuntimeContext {
   fn send_message(&self, message: Message) -> Result<()> {
@@ -63,6 +77,9 @@ impl RuntimeContext {
     } else {
       match message {
         Message::Task(task) => task(),
+        Message::CloseWindow(id) => {
+          self.windows.borrow_mut().remove(&id);
+        }
       }
       Ok(())
     }
@@ -94,9 +111,12 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     &self,
     pending: PendingWindow<T, Self::Runtime>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
+    let id = rand::random();
+    self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {
       label: pending.label,
       dispatcher: MockDispatcher {
+        id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
         url: pending.url,
@@ -152,6 +172,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 
 #[derive(Debug, Clone)]
 pub struct MockDispatcher {
+  id: WindowId,
   context: RuntimeContext,
   url: String,
   last_evaluated_script: Arc<Mutex<Option<String>>>,
@@ -533,9 +554,12 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
+    let id = rand::random();
+    self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {
       label: pending.label,
       dispatcher: MockDispatcher {
+        id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
         url: pending.url,
@@ -598,6 +622,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn close(&self) -> Result<()> {
+    self.context.send_message(Message::CloseWindow(self.id))?;
     Ok(())
   }
 
@@ -747,6 +772,7 @@ impl MockRuntime {
     let (tx, rx) = sync_channel(1);
     let context = RuntimeContext {
       is_running: is_running.clone(),
+      windows: Default::default(),
       shortcuts: Default::default(),
       clipboard: Default::default(),
       run_tx: tx,
@@ -812,9 +838,12 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
+    let id = rand::random();
+    self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {
       label: pending.label,
       dispatcher: MockDispatcher {
+        id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
         url: pending.url,
@@ -864,15 +893,39 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     Default::default()
   }
 
-  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
     self.is_running.store(true, Ordering::Relaxed);
+    callback(RunEvent::Ready);
+
     loop {
       if let Ok(m) = self.run_rx.try_recv() {
         match m {
           Message::Task(p) => p(),
+          Message::CloseWindow(id) => {
+            let removed = self.context.windows.borrow_mut().remove(&id).is_some();
+            if removed {
+              let is_empty = self.context.windows.borrow().is_empty();
+              if is_empty {
+                let (tx, rx) = channel();
+                callback(RunEvent::ExitRequested { tx });
+
+                let recv = rx.try_recv();
+                let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+                if !should_prevent {
+                  break;
+                }
+              }
+            }
+          }
         }
       }
+
+      callback(RunEvent::MainEventsCleared);
+
       std::thread::sleep(std::time::Duration::from_secs(1));
     }
+
+    callback(RunEvent::Exit);
   }
 }

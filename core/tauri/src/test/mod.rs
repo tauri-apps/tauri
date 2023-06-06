@@ -60,18 +60,42 @@
 mod mock_runtime;
 pub use mock_runtime::*;
 use serde::Serialize;
+use serde_json::Value as JsonValue;
 
-#[cfg(shell_scope)]
-use std::collections::HashMap;
-use std::{borrow::Cow, sync::Arc};
+use std::{
+  borrow::Cow,
+  collections::HashMap,
+  fmt::Debug,
+  hash::{Hash, Hasher},
+  sync::{
+    mpsc::{channel, Sender},
+    Arc, Mutex,
+  },
+};
 
+use crate::hooks::window_invoke_responder;
 #[cfg(shell_scope)]
 use crate::ShellScopeConfig;
-use crate::{App, Builder, Context, InvokePayload, Pattern, Window};
+use crate::{api::ipc::CallbackFn, App, Builder, Context, InvokePayload, Manager, Pattern, Window};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{CliConfig, Config, PatternKind, TauriConfig},
 };
+
+#[derive(Eq, PartialEq)]
+struct IpcKey {
+  callback: CallbackFn,
+  error: CallbackFn,
+}
+
+impl Hash for IpcKey {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.callback.0.hash(state);
+    self.error.0.hash(state);
+  }
+}
+
+struct Ipc(Mutex<HashMap<IpcKey, Sender<std::result::Result<JsonValue, JsonValue>>>>);
 
 /// An empty [`Assets`] implementation.
 pub struct NoopAsset {
@@ -158,7 +182,20 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
 /// }
 /// ```
 pub fn mock_builder() -> Builder<MockRuntime> {
-  Builder::<MockRuntime>::new()
+  let mut builder = Builder::<MockRuntime>::new().manage(Ipc(Default::default()));
+
+  builder.invoke_responder = Arc::new(|window, response, callback, error| {
+    let window_ = window.clone();
+    let ipc = window_.state::<Ipc>();
+    let mut ipc_ = ipc.0.lock().unwrap();
+    if let Some(tx) = ipc_.remove(&IpcKey { callback, error }) {
+      tx.send(response.into_result()).unwrap();
+    } else {
+      window_invoke_responder(window, response, callback, error)
+    }
+  });
+
+  builder
 }
 
 /// Creates a new [`App`] for testing using the [`mock_context`] with a [`noop_assets`].
@@ -215,47 +252,28 @@ pub fn mock_app() -> App<MockRuntime> {
 ///   }
 /// }
 /// ```
-pub fn assert_ipc_response<T: Serialize>(
+pub fn assert_ipc_response<T: Serialize + Debug>(
   window: &Window<MockRuntime>,
   payload: InvokePayload,
   expected: Result<T, T>,
 ) {
   let callback = payload.callback;
   let error = payload.error;
+  let ipc = window.state::<Ipc>();
+  let (tx, rx) = channel();
+  ipc.0.lock().unwrap().insert(IpcKey { callback, error }, tx);
   window.clone().on_message(payload).unwrap();
 
-  let mut num_tries = 0;
-  let evaluated_script = loop {
-    std::thread::sleep(std::time::Duration::from_millis(50));
-    let evaluated_script = window.dispatcher().last_evaluated_script();
-    if let Some(s) = evaluated_script {
-      break s;
-    }
-    num_tries += 1;
-    if num_tries == 20 {
-      panic!("Response script not evaluated");
-    }
-  };
-  let (expected_response, fn_name) = match expected {
-    Ok(payload) => (payload, callback),
-    Err(payload) => (payload, error),
-  };
-  let expected = format!(
-    "window[\"_{}\"]({})",
-    fn_name.0,
-    crate::api::ipc::serialize_js(&expected_response).unwrap()
+  assert_eq!(
+    rx.recv().unwrap(),
+    expected
+      .map(|e| serde_json::to_value(e).unwrap())
+      .map_err(|e| serde_json::to_value(e).unwrap())
   );
-
-  println!("Last evaluated script:");
-  println!("{evaluated_script}");
-  println!("Expected:");
-  println!("{expected}");
-  assert!(evaluated_script.contains(&expected));
 }
 
 #[cfg(test)]
 pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRuntime> {
-  use crate::Manager;
   let app = mock_app();
   crate::endpoints::InvokeContext {
     window: app.get_window("main").unwrap(),

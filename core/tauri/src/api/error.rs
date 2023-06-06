@@ -22,7 +22,7 @@ pub enum Error {
   #[error("user cancelled the dialog")]
   DialogCancelled,
   /// The network error.
-  #[cfg(all(feature = "http-api"))]
+  #[cfg(feature = "http-api")]
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),
   /// HTTP method error.

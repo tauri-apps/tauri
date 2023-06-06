@@ -9,7 +9,6 @@ use crate::{
   Result,
 };
 
-use anyhow::Context;
 use clap::Parser;
 use tauri_mobile::{apple::target::Target, opts::Profile};
 

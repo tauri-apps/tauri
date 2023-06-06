@@ -32,12 +32,13 @@ tempfile = "3.5.0"
 log = { version = "0.4.17", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 os_pipe = "1"
-ureq = "2.5"
+ureq = { version = "2.5", default-features = false }
+native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
 sha1 = "0.10"
 sha2 = "0.10"
-zip = "0.6"
+zip = { version = "0.6", default-features = false }
 dunce = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
@@ -62,3 +63,9 @@ md5 = "0.7.0"
 [lib]
 name = "tauri_bundler"
 path = "src/lib.rs"
+
+[features]
+default = ["rustls"]
+native-tls = [ "ureq/native-tls" ]
+native-tls-vendored = [ "native-tls", "native-tls/vendored" ]
+rustls = [ "ureq/tls" ]

@@ -34,7 +34,7 @@ fn get_env_var<R: FnOnce(String) -> String>(
 
 pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
   let function = parse_macro_input!(item as ItemFn);
-  let function_name = function.sig.ident.clone();
+  let function_name = &function.sig.ident;
 
   let mut error = None;
   let domain = get_env_var("TAURI_ANDROID_PACKAGE_PREFIX", |r| r, &mut error, &function);

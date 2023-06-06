@@ -741,6 +741,17 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self.webview_attributes.clipboard = true;
     self
   }
+
+  /// Enable or disable incognito mode for the WebView..
+  ///
+  ///  ## Platform-specific:
+  ///
+  ///  **Android**: Unsupported.
+  #[must_use]
+  pub fn incognito(mut self, incognito: bool) -> Self {
+    self.webview_attributes.incognito = incognito;
+    self
+  }
 }
 
 /// Key for a JS event listener.

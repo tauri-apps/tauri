@@ -3133,6 +3133,10 @@ fn create_webview<T: UserEvent>(
     webview_builder.webview.clipboard = true;
   }
 
+  if webview_attributes.incognito {
+    webview_builder.webview.incognito = true;
+  }
+
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
     webview_builder = webview_builder.with_devtools(true);

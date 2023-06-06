@@ -781,7 +781,7 @@ pub struct WindowEffectsConfig {
   pub state: Option<WindowEffectState>,
   /// Window effect corner radius **macOS Only**
   pub radius: Option<f64>,
-  /// Window effect color. Affects [`WindowEffects::Blur`] and [`WindowEffects::Acrylic`] only
+  /// Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
   /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
   pub color: Option<Color>,
 }

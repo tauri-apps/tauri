@@ -616,7 +616,7 @@
           "format": "double"
         },
         "color": {
-          "description": "Window effect color. Affects [`WindowEffects::Blur`] and [`WindowEffects::Acrylic`] only on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.",
+          "description": "Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.",
           "anyOf": [
             {
               "$ref": "#/definitions/Color"

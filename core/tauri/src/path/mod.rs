@@ -23,9 +23,9 @@ mod android;
 mod desktop;
 
 #[cfg(target_os = "android")]
-pub(crate) use android::PathResolver;
+pub use android::PathResolver;
 #[cfg(not(target_os = "android"))]
-pub(crate) use desktop::PathResolver;
+pub use desktop::PathResolver;
 
 /// A wrapper for [`PathBuf`] that prevents path traversal.
 #[derive(Clone, Debug)]

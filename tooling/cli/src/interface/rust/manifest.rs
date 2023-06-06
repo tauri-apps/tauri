@@ -10,7 +10,7 @@ use crate::helpers::{
 use anyhow::Context;
 use itertools::Itertools;
 use log::info;
-use toml_edit::{Array, Document, InlineTable, Item, Table, TableLike, Value};
+use toml_edit::{Array, Document, InlineTable, Item, TableLike, Value};
 
 use std::{
   collections::{HashMap, HashSet},
@@ -108,31 +108,53 @@ fn toml_array(features: &HashSet<String>) -> Array {
   f
 }
 
-fn write_features(
-  dependencies: &mut Table,
-  dependency_name: &str,
-  all_features: Vec<&str>,
-  features: &mut HashSet<String>,
-) -> crate::Result<bool> {
-  let item = dependencies.entry(dependency_name).or_insert(Item::None);
+fn find_dependency<'a>(
+  manifest: &'a mut Document,
+  name: &'a str,
+  kind: DependencyKind,
+) -> Option<&'a mut Item> {
+  let table = match kind {
+    DependencyKind::Build => "build-dependencies",
+    DependencyKind::Normal => "dependencies",
+  };
 
-  // do not rewrite if dependency uses workspace inheritance
-  if item
-    .get("workspace")
-    .and_then(|v| v.as_bool())
-    .unwrap_or_default()
-  {
-    info!("`{dependency_name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]", features.iter().join(", "));
-    return Ok(false);
+  let m = manifest.as_table_mut();
+  for (k, v) in m.iter_mut() {
+    if let Some(t) = v.as_table_mut() {
+      if k == table {
+        if let Some(item) = t.get_mut(name) {
+          return Some(item);
+        }
+      } else if k == "target" {
+        for (_, target_value) in t.iter_mut() {
+          if let Some(target_table) = target_value.as_table_mut() {
+            if let Some(deps) = target_table.get_mut(table) {
+              if let Some(item) = deps.as_table_mut().and_then(|t| t.get_mut(name)) {
+                return Some(item);
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
+  None
+}
+
+fn write_features<F: Fn(&str) -> bool>(
+  dependency_name: &str,
+  item: &mut Item,
+  is_managed_feature: F,
+  features: &mut HashSet<String>,
+) -> crate::Result<bool> {
   if let Some(dep) = item.as_table_mut() {
-    inject_features_table(dep, &all_features, features);
+    inject_features_table(dep, is_managed_feature, features);
     Ok(true)
   } else if let Some(dep) = item.as_value_mut() {
     match dep {
       Value::InlineTable(table) => {
-        inject_features_table(table, &all_features, features);
+        inject_features_table(table, is_managed_feature, features);
       }
       Value::String(version) => {
         let mut def = InlineTable::default();
@@ -153,16 +175,30 @@ fn write_features(
   }
 }
 
-fn inject_features_table<D: TableLike>(
+#[derive(Debug, Clone, Copy)]
+enum DependencyKind {
+  Build,
+  Normal,
+}
+
+#[derive(Debug)]
+struct DependencyAllowlist {
+  name: String,
+  kind: DependencyKind,
+  all_cli_managed_features: Option<Vec<&'static str>>,
+  features: HashSet<String>,
+}
+
+fn inject_features_table<D: TableLike, F: Fn(&str) -> bool>(
   dep: &mut D,
-  all_features: &[&str],
+  is_managed_feature: F,
   features: &mut HashSet<String>,
 ) {
   let manifest_features = dep.entry("features").or_insert(Item::None);
   if let Item::Value(Value::Array(f)) = &manifest_features {
     for feat in f.iter() {
       if let Value::String(feature) = feat {
-        if !all_features.contains(&feature.value().as_str()) {
+        if !is_managed_feature(feature.value().as_str()) {
           features.insert(feature.value().to_string());
         }
       }
@@ -192,71 +228,268 @@ fn inject_features_table<D: TableLike>(
   }
 }
 
+fn inject_features(
+  manifest: &mut Document,
+  dependencies: &mut Vec<DependencyAllowlist>,
+) -> crate::Result<bool> {
+  let mut persist = false;
+  for dependency in dependencies {
+    let name = dependency.name.clone();
+    let item = find_dependency(manifest, &dependency.name, dependency.kind);
+
+    if let Some(item) = item {
+      // do not rewrite if dependency uses workspace inheritance
+      if item
+        .get("workspace")
+        .and_then(|v| v.as_bool())
+        .unwrap_or_default()
+      {
+        info!("`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]", dependency.features.iter().join(", "));
+      } else {
+        let is_managed_feature: Box<dyn Fn(&str) -> bool> =
+          if let Some(all_features) = &dependency.all_cli_managed_features {
+            Box::new(move |feature| all_features.contains(&feature))
+          } else {
+            Box::new(|f| f.starts_with("allow-"))
+          };
+
+        let should_write =
+          write_features(&name, item, is_managed_feature, &mut dependency.features)?;
+
+        if !persist {
+          persist = should_write;
+        }
+      }
+    }
+  }
+
+  Ok(persist)
+}
+
 pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
   let manifest_path = tauri_dir().join("Cargo.toml");
   let mut manifest = read_manifest(&manifest_path)?;
 
+  let mut dependencies = Vec::new();
+
+  // tauri-build
   let mut tauri_build_features = HashSet::new();
   if let PatternKind::Isolation { .. } = config.tauri.pattern {
     tauri_build_features.insert("isolation".to_string());
   }
-  let resp = write_features(
-    manifest
-      .as_table_mut()
-      .entry("build-dependencies")
-      .or_insert(Item::Table(Table::new()))
-      .as_table_mut()
-      .expect("manifest build-dependencies isn't a table"),
-    "tauri-build",
-    vec!["isolation"],
-    &mut tauri_build_features,
-  )?;
+  dependencies.push(DependencyAllowlist {
+    name: "tauri-build".into(),
+    kind: DependencyKind::Build,
+    all_cli_managed_features: Some(vec!["isolation"]),
+    features: tauri_build_features,
+  });
 
-  let mut tauri_features =
+  // tauri
+  let tauri_features =
     HashSet::from_iter(config.tauri.features().into_iter().map(|f| f.to_string()));
-  let cli_managed_tauri_features = crate::helpers::config::TauriConfig::all_features();
-  let res = match write_features(
-    manifest
-      .as_table_mut()
-      .entry("dependencies")
-      .or_insert(Item::Table(Table::new()))
-      .as_table_mut()
-      .expect("manifest dependencies isn't a table"),
-    "tauri",
-    cli_managed_tauri_features,
-    &mut tauri_features,
-  ) {
-    Err(e) => Err(e),
-    Ok(t) if !resp => Ok(t),
-    _ => Ok(true),
-  };
+  dependencies.push(DependencyAllowlist {
+    name: "tauri".into(),
+    kind: DependencyKind::Normal,
+    all_cli_managed_features: Some(crate::helpers::config::TauriConfig::all_features()),
+    features: tauri_features,
+  });
 
-  match res {
-    Ok(true) => {
-      let mut manifest_file =
-        File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
-      manifest_file.write_all(
-        manifest
-          .to_string()
-          // apply some formatting fixes
-          .replace(r#"" ,features =["#, r#"", features = ["#)
-          .replace(r#"" , features"#, r#"", features"#)
-          .replace("]}", "] }")
-          .replace("={", "= {")
-          .replace("=[", "= [")
-          .replace(r#"",""#, r#"", ""#)
-          .as_bytes(),
-      )?;
-      manifest_file.flush()?;
-      Ok(Manifest {
-        inner: manifest,
-        tauri_features,
-      })
-    }
-    Ok(false) => Ok(Manifest {
+  let persist = inject_features(&mut manifest, &mut dependencies)?;
+
+  let tauri_features = dependencies
+    .into_iter()
+    .find(|d| d.name == "tauri")
+    .unwrap()
+    .features;
+
+  if persist {
+    let mut manifest_file =
+      File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
+    manifest_file.write_all(
+      manifest
+        .to_string()
+        // apply some formatting fixes
+        .replace(r#"" ,features =["#, r#"", features = ["#)
+        .replace(r#"" , features"#, r#"", features"#)
+        .replace("]}", "] }")
+        .replace("={", "= {")
+        .replace("=[", "= [")
+        .replace(r#"",""#, r#"", ""#)
+        .as_bytes(),
+    )?;
+    manifest_file.flush()?;
+    Ok(Manifest {
       inner: manifest,
       tauri_features,
-    }),
-    Err(e) => Err(e),
+    })
+  } else {
+    Ok(Manifest {
+      inner: manifest,
+      tauri_features,
+    })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{DependencyAllowlist, DependencyKind};
+  use std::collections::{HashMap, HashSet};
+
+  fn inject_features(toml: &str, mut dependencies: Vec<DependencyAllowlist>) {
+    let mut manifest = toml.parse::<toml_edit::Document>().expect("invalid toml");
+
+    let mut expected = HashMap::new();
+    for dep in &dependencies {
+      let mut features = dep.features.clone();
+      if let Some(item) = super::find_dependency(&mut manifest, &dep.name, dep.kind) {
+        let item_table = if let Some(table) = item.as_table() {
+          Some(table.clone())
+        } else if let Some(toml_edit::Value::InlineTable(table)) = item.as_value() {
+          Some(table.clone().into_table())
+        } else {
+          None
+        };
+        if let Some(f) = item_table
+          .and_then(|t| t.get("features").cloned())
+          .and_then(|f| f.as_array().cloned())
+        {
+          for feature in f.iter() {
+            features.insert(feature.as_str().expect("feature is not a string").into());
+          }
+        }
+      }
+      expected.insert(dep.name.clone(), features);
+    }
+
+    super::inject_features(&mut manifest, &mut dependencies).expect("failed to migrate manifest");
+
+    for dep in dependencies {
+      let expected_features = expected.get(&dep.name).unwrap();
+      let item = super::find_dependency(&mut manifest, &dep.name, dep.kind)
+        .expect("dependency is not part of the manifest");
+      let item_table = if let Some(table) = item.as_table() {
+        table.clone()
+      } else if let Some(toml_edit::Value::InlineTable(table)) = item.as_value() {
+        table.clone().into_table()
+      } else {
+        panic!("unexpected TOML item kind for {}", dep.name);
+      };
+
+      let features = item_table
+        .get("features")
+        .expect("missing features")
+        .as_array()
+        .expect("features must be an array")
+        .clone();
+      for feature in features.iter() {
+        let feature = feature.as_str().expect("feature must be a string");
+        assert!(
+          expected_features.contains(feature),
+          "feature {feature} should have been injected"
+        );
+      }
+    }
+  }
+
+  fn tauri_dependency(features: HashSet<String>) -> DependencyAllowlist {
+    DependencyAllowlist {
+      name: "tauri".into(),
+      kind: DependencyKind::Normal,
+      all_cli_managed_features: Some(vec!["isolation"]),
+      features,
+    }
+  }
+
+  fn tauri_build_dependency(features: HashSet<String>) -> DependencyAllowlist {
+    DependencyAllowlist {
+      name: "tauri-build".into(),
+      kind: DependencyKind::Build,
+      all_cli_managed_features: Some(crate::helpers::config::TauriConfig::all_features()),
+      features,
+    }
+  }
+
+  #[test]
+  fn inject_features_table() {
+    inject_features(
+      r#"
+    [dependencies]
+    tauri = { version = "1", features = ["dummy"] }
+
+    [build-dependencies]
+    tauri-build = { version = "1" }
+"#,
+      vec![
+        tauri_dependency(HashSet::from_iter(
+          crate::helpers::config::TauriConfig::all_features()
+            .iter()
+            .map(|f| f.to_string()),
+        )),
+        tauri_build_dependency(HashSet::from_iter(vec!["isolation".into()])),
+      ],
+    );
+  }
+
+  #[test]
+  fn inject_features_target() {
+    inject_features(
+      r#"
+    [target."cfg(windows)".dependencies]
+    tauri = { version = "1", features = ["dummy"] }
+
+    [target."cfg(target_os = \"macos\")".build-dependencies]
+    tauri-build = { version = "1" }
+"#,
+      vec![
+        tauri_dependency(HashSet::from_iter(
+          crate::helpers::config::TauriConfig::all_features()
+            .iter()
+            .map(|f| f.to_string()),
+        )),
+        tauri_build_dependency(HashSet::from_iter(vec!["isolation".into()])),
+      ],
+    );
+  }
+
+  #[test]
+  fn inject_features_inline_table() {
+    inject_features(
+      r#"
+    [dependencies.tauri]
+    version = "1"
+    features = ["test"]
+
+    [build-dependencies.tauri-build]
+    version = "1"
+    features = ["config-toml", "codegen", "isolation"]
+"#,
+      vec![
+        tauri_dependency(HashSet::from_iter(vec![
+          "isolation".into(),
+          "native-tls-vendored".into(),
+        ])),
+        tauri_build_dependency(HashSet::from_iter(vec!["isolation".into()])),
+      ],
+    );
+  }
+
+  #[test]
+  fn inject_features_string() {
+    inject_features(
+      r#"
+    [dependencies]
+    tauri = "1"
+
+    [build-dependencies]
+    tauri-build = "1"
+"#,
+      vec![
+        tauri_dependency(HashSet::from_iter(vec![
+          "isolation".into(),
+          "native-tls-vendored".into(),
+        ])),
+        tauri_build_dependency(HashSet::from_iter(vec!["isolation".into()])),
+      ],
+    );
   }
 }

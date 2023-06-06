@@ -449,6 +449,7 @@ impl Response {
   // # Ok(())
   // # }
   // ```
+  #[allow(dead_code)]
   pub(crate) fn bytes_stream(
     self,
   ) -> impl futures_util::Stream<Item = crate::api::Result<bytes::Bytes>> {

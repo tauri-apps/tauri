@@ -37,7 +37,7 @@ targets = [
 ]
 
 [package.metadata.cargo-udeps.ignore]
-normal = [ "attohttpc", "reqwest" ]
+normal = [ "reqwest" ]
 
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
@@ -69,7 +69,6 @@ base64 = { version = "0.21", optional = true }
 clap = { version = "3", optional = true }
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
-attohttpc = { version = "0.22", features = [ "compress", "json", "form" ], optional = true }
 open = { version = "3.2", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
@@ -141,14 +140,14 @@ updater = [
   "dialog-ask",
   "fs-extract-api"
 ]
-http-api = [ "attohttpc" ]
-http-multipart = [ "attohttpc/multipart-form", "reqwest/multipart" ]
+http-api = [ "reqwest", "bytes" ]
+http-multipart = [ "reqwest/multipart" ]
 os-api = [ "sys-locale" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
-reqwest-client = [ "reqwest", "bytes" ]
-reqwest-native-tls-vendored = [ "reqwest-client", "reqwest/native-tls-vendored" ]
-native-tls-vendored = [ "attohttpc/tls-vendored" ]
+reqwest-client = [ "http-api" ]
+reqwest-native-tls-vendored = [ "native-tls-vendored" ]
+native-tls-vendored = [ "reqwest/native-tls-vendored" ]
 process-command-api = [ "shared_child", "os_pipe" ]
 global-shortcut = [
   "tauri-runtime/global-shortcut",

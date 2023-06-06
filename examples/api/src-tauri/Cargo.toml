@@ -29,7 +29,6 @@ features = [
   "isolation",
   "macos-private-api",
   "windows7-compat",
-  "reqwest-client",
   "system-tray",
   "updater"
 ]

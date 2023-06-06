@@ -2434,7 +2434,6 @@ pub struct TauriConfig {
 
 impl TauriConfig {
   /// Returns all Cargo features.
-  #[allow(dead_code)]
   pub fn all_features() -> Vec<&'static str> {
     let mut features = AllowlistConfig::all_features();
     features.extend(vec![
@@ -2448,7 +2447,6 @@ impl TauriConfig {
   }
 
   /// Returns the enabled Cargo features.
-  #[allow(dead_code)]
   pub fn features(&self) -> Vec<&str> {
     let mut features = self.allowlist.to_features();
     if self.cli.is_some() {

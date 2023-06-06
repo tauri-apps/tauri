@@ -5,7 +5,7 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
-use cargo_toml::{Dependency, Manifest};
+use cargo_toml::Manifest;
 use heck::AsShoutySnakeCase;
 
 use tauri_utils::{
@@ -15,6 +15,7 @@ use tauri_utils::{
 
 use std::path::{Path, PathBuf};
 
+mod allowlist;
 #[cfg(feature = "codegen")]
 mod codegen;
 mod static_vcruntime;
@@ -320,27 +321,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
   }
 
-  if let Some(tauri_build) = manifest.build_dependencies.remove("tauri-build") {
-    let error_message = check_features(&config, tauri_build, true);
-
-    if !error_message.is_empty() {
-      return Err(anyhow!("
-      The `tauri-build` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
-      Please run `tauri dev` or `tauri build` or {}.
-    ", error_message));
-    }
-  }
-
-  if let Some(tauri) = manifest.dependencies.remove("tauri") {
-    let error_message = check_features(&config, tauri, false);
-
-    if !error_message.is_empty() {
-      return Err(anyhow!("
-      The `tauri` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
-      Please run `tauri dev` or `tauri build` or {}.
-    ", error_message));
-    }
-  }
+  allowlist::check(&config, &mut manifest)?;
 
   let target_triple = std::env::var("TARGET").unwrap();
   let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
@@ -487,93 +468,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   Ok(())
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
-struct Diff {
-  remove: Vec<String>,
-  add: Vec<String>,
-}
-
-fn features_diff(current: &[String], expected: &[String]) -> Diff {
-  let mut remove = Vec::new();
-  let mut add = Vec::new();
-  for feature in current {
-    if !expected.contains(feature) {
-      remove.push(feature.clone());
-    }
-  }
-
-  for feature in expected {
-    if !current.contains(feature) {
-      add.push(feature.clone());
-    }
-  }
-
-  Diff { remove, add }
-}
-
-fn check_features(config: &Config, dependency: Dependency, is_tauri_build: bool) -> String {
-  use tauri_utils::config::{PatternKind, TauriConfig};
-
-  let features = match dependency {
-    Dependency::Simple(_) => Vec::new(),
-    Dependency::Detailed(dep) => dep.features,
-    Dependency::Inherited(dep) => dep.features,
-  };
-
-  let all_cli_managed_features = if is_tauri_build {
-    vec!["isolation"]
-  } else {
-    TauriConfig::all_features()
-  };
-
-  let expected = if is_tauri_build {
-    match config.tauri.pattern {
-      PatternKind::Isolation { .. } => vec!["isolation".to_string()],
-      _ => vec![],
-    }
-  } else {
-    config
-      .tauri
-      .features()
-      .into_iter()
-      .map(|f| f.to_string())
-      .collect::<Vec<String>>()
-  };
-
-  let diff = features_diff(
-    &features
-      .into_iter()
-      .filter(|f| all_cli_managed_features.contains(&f.as_str()))
-      .collect::<Vec<String>>(),
-    &expected,
-  );
-
-  let mut error_message = String::new();
-  if !diff.remove.is_empty() {
-    error_message.push_str("remove the `");
-    error_message.push_str(&diff.remove.join(", "));
-    error_message.push_str(if diff.remove.len() == 1 {
-      "` feature"
-    } else {
-      "` features"
-    });
-    if !diff.add.is_empty() {
-      error_message.push_str(" and ");
-    }
-  }
-  if !diff.add.is_empty() {
-    error_message.push_str("add the `");
-    error_message.push_str(&diff.add.join(", "));
-    error_message.push_str(if diff.add.len() == 1 {
-      "` feature"
-    } else {
-      "` features"
-    });
-  }
-
-  error_message
-}
-
 #[derive(serde::Deserialize)]
 struct CargoMetadata {
   workspace_root: PathBuf,
@@ -592,43 +486,4 @@ fn get_workspace_dir() -> Result<PathBuf> {
   }
 
   Ok(serde_json::from_slice::<CargoMetadata>(&output.stdout)?.workspace_root)
-}
-
-#[cfg(test)]
-mod tests {
-  use super::Diff;
-
-  #[test]
-  fn array_diff() {
-    for (current, expected, result) in [
-      (vec![], vec![], Default::default()),
-      (
-        vec!["a".into()],
-        vec![],
-        Diff {
-          remove: vec!["a".into()],
-          add: vec![],
-        },
-      ),
-      (vec!["a".into()], vec!["a".into()], Default::default()),
-      (
-        vec!["a".into(), "b".into()],
-        vec!["a".into()],
-        Diff {
-          remove: vec!["b".into()],
-          add: vec![],
-        },
-      ),
-      (
-        vec!["a".into(), "b".into()],
-        vec!["a".into(), "c".into()],
-        Diff {
-          remove: vec!["b".into()],
-          add: vec!["c".into()],
-        },
-      ),
-    ] {
-      assert_eq!(super::features_diff(&current, &expected), result);
-    }
-  }
 }

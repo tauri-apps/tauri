@@ -23,4 +23,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: ./.scripts/ci/check-change-tags.sh
+      - run: node ./.scripts/ci/check-change-tags.js

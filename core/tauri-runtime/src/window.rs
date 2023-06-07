@@ -231,7 +231,7 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 
   /// A HashMap mapping JS event names with associated listener ids.
-  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
+  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u32>>>>,
 
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
@@ -362,7 +362,7 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 
   /// A HashMap mapping JS event names with associated listener ids.
-  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
+  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u32>>>>,
 }
 
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {

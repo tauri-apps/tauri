@@ -3308,7 +3308,7 @@ fn create_ipc_handler<T: UserEvent>(
   context: Context<T>,
   label: String,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
-  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
+  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u32>>>>,
   handler: WebviewIpcHandler<T, Wry<T>>,
 ) -> Box<IpcHandler> {
   Box::new(move |window, request| {

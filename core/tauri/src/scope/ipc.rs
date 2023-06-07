@@ -171,12 +171,16 @@ impl Scope {
 #[cfg(test)]
 mod tests {
   use super::RemoteDomainAccessScope;
-  use crate::{api::ipc::CallbackFn, test::MockRuntime, App, InvokePayload, Manager, Window};
+  use crate::{
+    api::ipc::CallbackFn,
+    test::{assert_ipc_response, mock_app, MockRuntime},
+    App, InvokePayload, Manager, Window,
+  };
 
   const PLUGIN_NAME: &str = "test";
 
   fn test_context(scopes: Vec<RemoteDomainAccessScope>) -> (App<MockRuntime>, Window<MockRuntime>) {
-    let app = crate::test::mock_app();
+    let app = mock_app();
     let window = app.get_window("main").unwrap();
 
     for scope in scopes {
@@ -184,44 +188,6 @@ mod tests {
     }
 
     (app, window)
-  }
-
-  fn assert_ipc_response(
-    window: &Window<MockRuntime>,
-    payload: InvokePayload,
-    expected: Result<&str, &str>,
-  ) {
-    let callback = payload.callback;
-    let error = payload.error;
-    window.clone().on_message(payload).unwrap();
-
-    let mut num_tries = 0;
-    let evaluated_script = loop {
-      std::thread::sleep(std::time::Duration::from_millis(50));
-      let evaluated_script = window.dispatcher().last_evaluated_script();
-      if let Some(s) = evaluated_script {
-        break s;
-      }
-      num_tries += 1;
-      if num_tries == 20 {
-        panic!("Response script not evaluated");
-      }
-    };
-    let (expected_response, fn_name) = match expected {
-      Ok(payload) => (payload, callback),
-      Err(payload) => (payload, error),
-    };
-    let expected = format!(
-      "window[\"_{}\"]({})",
-      fn_name.0,
-      crate::api::ipc::serialize_js(&expected_response).unwrap()
-    );
-
-    println!("Last evaluated script:");
-    println!("{evaluated_script}");
-    println!("Expected:");
-    println!("{expected}");
-    assert!(evaluated_script.contains(&expected));
   }
 
   fn app_version_payload() -> InvokePayload {

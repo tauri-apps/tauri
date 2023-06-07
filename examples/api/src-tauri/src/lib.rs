@@ -8,7 +8,7 @@ mod tray;
 use serde::Serialize;
 use tauri::{
   api::dialog::{ask, message},
-  GlobalShortcutManager, Manager, RunEvent, WindowBuilder, WindowEvent, WindowUrl,
+  App, GlobalShortcutManager, Manager, RunEvent, Runtime, WindowBuilder, WindowEvent, WindowUrl,
 };
 
 #[derive(Clone, Serialize)]
@@ -18,8 +18,15 @@ struct Reply {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  run_app(tauri::Builder::default(), |_app| {})
+}
+
+pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
+  builder: tauri::Builder<R>,
+  setup: F,
+) {
   #[allow(unused_mut)]
-  let mut builder = tauri::Builder::default()
+  let mut builder = builder
     .setup(move |app| {
       tray::create_tray(app)?;
 
@@ -70,6 +77,8 @@ pub fn run() {
         }
       });
 
+      setup(app);
+
       Ok(())
     })
     .on_page_load(|window, _| {
@@ -103,7 +112,6 @@ pub fn run() {
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
-  #[allow(unused_variables)]
   app.run(move |app_handle, e| {
     match e {
       // Application is ready (triggered only once)
@@ -152,6 +160,7 @@ pub fn run() {
           );
         }
       }
+      #[cfg(not(test))]
       RunEvent::ExitRequested { api, .. } => {
         // Keep the event loop running even if all windows are closed
         // This allow us to catch system tray events when there is no window
@@ -160,4 +169,20 @@ pub fn run() {
       _ => (),
     }
   })
+}
+
+#[cfg(test)]
+mod tests {
+  use tauri::Manager;
+
+  #[test]
+  fn run_app() {
+    super::run_app(tauri::test::mock_builder(), |app| {
+      let window = app.get_window("main").unwrap();
+      std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        window.close().unwrap();
+      });
+    })
+  }
 }

@@ -18,4 +18,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: node ./.scripts/ci/check-change-tags.js
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          list-files: shell
+          filters: |
+            changes:
+              - '.changes/*.md'
+
+      - name: check
+        run: node ./.scripts/ci/check-change-tags.js ${{ steps.filter.outputs.changes_files }}
+        if: ${{ steps.filter.outputs.changes == 'true' }}

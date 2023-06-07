@@ -355,8 +355,8 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   let (sep, delimiter) = ("\\", ";");
   #[cfg(not(windows))]
   let (sep, delimiter) = ("/", ":");
-  init_script.push(format!("window.__TAURI_PATH__.DELIMITER = '{}'"));
-  init_script.push(format!("window.__TAURI_PATH__.SEP = '{}'"));
+  init_script.push_str(&format!("window.__TAURI_PATH__.DELIMITER = '{delimiter}'"));
+  init_script.push_str(&format!("window.__TAURI_PATH__.SEP = '{sep}'"));
 
   builder
     .js_init_script(init_script)

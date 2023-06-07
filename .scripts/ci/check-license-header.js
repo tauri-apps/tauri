@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
@@ -9,13 +11,22 @@ const readline = require('readline')
 const header = `Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 SPDX-License-Identifier: Apache-2.0
 SPDX-License-Identifier: MIT`
-const bundlerLicense = '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
+const bundlerLicense =
+  '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
 
 const extensions = ['.rs', '.js', '.ts', '.yml']
-const ignore = ['target', 'templates', 'node_modules', 'gen', 'dist', 'bundle.js', 'bundle.global.js']
+const ignore = [
+  'target',
+  'templates',
+  'node_modules',
+  'gen',
+  'dist',
+  'bundle.js',
+  'bundle.global.js'
+]
 
 async function checkFile(file) {
-  if (extensions.some(e => file.endsWith(e))) {
+  if (extensions.some((e) => file.endsWith(e))) {
     const fileStream = fs.createReadStream(file)
     const rl = readline.createInterface({
       input: fileStream,
@@ -26,7 +37,11 @@ async function checkFile(file) {
     let i = 0
     for await (let line of rl) {
       // ignore empty lines, allow shebang and bundler license
-      if (line.length === 0 || line.startsWith("#!") || line === bundlerLicense) {
+      if (
+        line.length === 0 ||
+        line.startsWith('#!') ||
+        line === bundlerLicense
+      ) {
         continue
       }
 
@@ -93,7 +108,7 @@ if (files.length > 0) {
 
   run()
 } else {
-  check('.').then(missing => {
+  check('.').then((missing) => {
     if (missing.length > 0) {
       console.log(missing.join('\n'))
       process.exit(1)

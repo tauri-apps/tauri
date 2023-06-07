@@ -36,9 +36,9 @@ for (const file of changeFiles) {
     }
   }
 }
-
-if (Object.keys(missingTagsFiles).length !== 0) {
-  for (const [file, packages] of Object.entries(missingTagsFiles)) {
+const entries = Object.entries(missingTagsFiles)
+if (entries.length > 0) {
+  for (const [file, packages] of entries) {
     for (const package of packages) {
       console.error(
         `Package \`${package}\` is missing a change tag in ${path.join(

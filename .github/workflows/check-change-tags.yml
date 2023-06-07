@@ -8,11 +8,6 @@ on:
   pull_request:
     paths:
       - '.changes/*.md'
-  push:
-    branches:
-      - dev
-    paths:
-      - '.changes/*.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

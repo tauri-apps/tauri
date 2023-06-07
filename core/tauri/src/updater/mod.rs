@@ -423,8 +423,10 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(handle: AppHandle<R>) {
       Ok(updater) => {
         let pubkey = updater_config.pubkey.clone();
 
-        // if dialog enabled only
-        if updater.should_update && updater_config.dialog {
+        if !updater.should_update {
+          send_status_update(&handle, UpdaterEvent::AlreadyUpToDate);
+        } else if updater_config.dialog {
+          // if dialog enabled only
           let body = updater.body.clone().unwrap_or_else(|| String::from(""));
           let dialog =
             prompt_for_install(&updater.clone(), &package_info.name, &body.clone(), pubkey).await;
@@ -591,22 +593,41 @@ Release Notes:
   );
 
   if should_install {
+    let handle = update.app.clone();
+    let handle_ = handle.clone();
+
     // Launch updater download process
     // macOS we display the `Ready to restart dialog` asking to restart
     // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
     // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
-    update
-      .download_and_install(pubkey.clone(), |_, _| (), || ())
-      .await?;
+    let update_result = update
+      .download_and_install(
+        pubkey.clone(),
+        move |chunk_length, content_length| {
+          send_download_progress_event(&handle, chunk_length, content_length);
+        },
+        move || {
+          send_status_update(&handle_, UpdaterEvent::Downloaded);
+        },
+      )
+      .await;
 
-    // Ask user if we need to restart the application
-    let should_exit = ask(
-      parent_window,
-      "Ready to Restart",
-      "The installation was successful, do you want to restart the application now?",
-    );
-    if should_exit {
-      update.app.restart();
+    if let Err(err) = &update_result {
+      // emit {"status": "ERROR", "error": "The error message"}
+      send_status_update(&update.app, UpdaterEvent::Error(err.to_string()));
+    } else {
+      // emit {"status": "DONE"}
+      send_status_update(&update.app, UpdaterEvent::Updated);
+
+      // Ask user if we need to restart the application
+      let should_exit = ask(
+        parent_window,
+        "Ready to Restart",
+        "The installation was successful, do you want to restart the application now?",
+      );
+      if should_exit {
+        update.app.restart();
+      }
     }
   }
 

@@ -45,9 +45,11 @@ enum BaseDirectory {
 
 declare global {
   interface Window {
-    __TAURI_PATH__: {
-      SEP: string
-      DELIMITER: string
+    __TAURI__: {
+      path: {
+        __sep: string
+        __delimiter: string
+      }
     }
   }
 }
@@ -556,7 +558,7 @@ async function tempDir(path: string): Promise<string> {
  * @since 2.0.0
  */
 function sep(): string {
-  return window.__TAURI_PATH__.SEP
+  return window.__TAURI__.path.__sep
 }
 
 /**
@@ -567,7 +569,7 @@ function sep(): string {
  * @since 2.0.0
  */
 function delimiter(): string {
-  return window.__TAURI_PATH__.DELIMITER
+  return window.__TAURI__.path.__delimiter
 }
 /**
  * Resolves a sequence of `paths` or `path` segments into an absolute path.

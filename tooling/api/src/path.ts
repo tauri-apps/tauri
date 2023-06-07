@@ -555,7 +555,7 @@ async function tempDir(path: string): Promise<string> {
  *
  * @since 2.0.0
  */
-function sep() {
+function sep(): string {
   return window.__TAURI_PATH__.SEP
 }
 
@@ -566,7 +566,7 @@ function sep() {
  *
  * @since 2.0.0
  */
-function delimiter() {
+function delimiter(): string {
   return window.__TAURI_PATH__.DELIMITER
 }
 /**

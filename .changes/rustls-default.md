@@ -1,6 +1,6 @@
 ---
-'tauri-cli': patch
-'@tauri-apps/cli': patch
+'tauri-cli': patch:enhance
+'@tauri-apps/cli': patch:enhance
 ---
 
 Add `rustls` as default Cargo feature.

@@ -350,7 +350,16 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     ]);
   }
 
+  let mut init_script = String::new();
+  #[cfg(windows)]
+  let (sep, delimiter) = ("\\", ";");
+  #[cfg(not(windows))]
+  let (sep, delimiter) = ("/", ":");
+  init_script.push(format!("window.__TAURI_PATH__.DELIMITER = '{}'"));
+  init_script.push(format!("window.__TAURI_PATH__.SEP = '{}'"));
+
   builder
+    .js_init_script(init_script)
     .setup(|app, _api| {
       #[cfg(target_os = "android")]
       {

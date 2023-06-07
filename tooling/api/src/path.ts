@@ -12,7 +12,6 @@
  */
 
 import { invoke } from './tauri'
-import { isWindows } from './helpers/os-check'
 
 /**
  * @since 2.0.0
@@ -42,6 +41,15 @@ enum BaseDirectory {
   Home,
   Runtime,
   Template
+}
+
+declare global {
+  interface Window {
+    __TAURI_PATH__: {
+      SEP: string
+      DELIMITER: string
+    }
+  }
 }
 
 /**
@@ -541,23 +549,26 @@ async function tempDir(path: string): Promise<string> {
 }
 
 /**
- * Provides the platform-specific path segment separator:
+ * Returns the platform-specific path segment separator:
  * - `\` on Windows
  * - `/` on POSIX
  *
- * @since 1.0.0
+ * @since 2.0.0
  */
-const sep = isWindows() ? '\\' : '/'
+function sep() {
+  return window.__TAURI_PATH__.SEP
+}
 
 /**
- * Provides the platform-specific path segment delimiter:
+ * Returns the platform-specific path segment delimiter:
  * - `;` on Windows
  * - `:` on POSIX
  *
- * @since 1.0.0
+ * @since 2.0.0
  */
-const delimiter = isWindows() ? ';' : ':'
-
+function delimiter() {
+  return window.__TAURI_PATH__.DELIMITER
+}
 /**
  * Resolves a sequence of `paths` or `path` segments into an absolute path.
  * @example

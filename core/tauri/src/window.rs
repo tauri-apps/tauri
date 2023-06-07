@@ -1594,7 +1594,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.eval_script(js).map_err(Into::into)
   }
 
-  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u64) {
+  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u32) {
     self
       .window
       .js_event_listeners
@@ -1608,7 +1608,7 @@ impl<R: Runtime> Window<R> {
       .insert(id);
   }
 
-  pub(crate) fn unregister_js_listener(&self, id: u64) {
+  pub(crate) fn unregister_js_listener(&self, id: u32) {
     let mut empty = None;
     let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
     let iter = js_listeners.iter_mut();

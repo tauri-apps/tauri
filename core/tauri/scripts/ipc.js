@@ -35,8 +35,8 @@
   function isIsolationMessage(event) {
     return (
       typeof event.data === 'object' &&
-      'nonce' in event.data.payload &&
-      'payload' in event.data.payload
+      typeof event.data.payload === 'object' &&
+      Object.keys(event.data.payload).every((key) => key === 'nonce' || key === 'payload')
     )
   }
 
@@ -47,7 +47,12 @@
    * @return {boolean} - if the data is able to transform into an isolation payload
    */
   function isIsolationPayload(data) {
-    return typeof data === 'object' && 'callback' in data && 'error' in data
+    return (
+      typeof data === 'object' &&
+      'callback' in data &&
+      'error' in data &&
+      !isIsolationMessage(data)
+    )
   }
 
   /**

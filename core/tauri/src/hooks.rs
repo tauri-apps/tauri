@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  api::ipc::{format_callback, format_callback_result, CallbackFn},
+  api::ipc::CallbackFn,
   app::App,
-  Runtime, StateManager, Window,
+  window::{IpcKey, IpcStore},
+  Manager, Runtime, StateManager, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -65,6 +66,18 @@ pub enum InvokePayloadValue {
   Raw(Vec<u8>),
 }
 
+impl From<JsonValue> for InvokePayloadValue {
+  fn from(value: JsonValue) -> Self {
+    Self::Json(value)
+  }
+}
+
+impl From<Vec<u8>> for InvokePayloadValue {
+  fn from(value: Vec<u8>) -> Self {
+    Self::Raw(value)
+  }
+}
+
 /// The payload used on the IPC invoke.
 #[derive(Debug)]
 pub struct InvokePayload {
@@ -91,7 +104,7 @@ pub struct Invoke<R: Runtime> {
 
 /// Error response from an [`InvokeMessage`].
 #[derive(Debug)]
-pub struct InvokeError(JsonValue);
+pub struct InvokeError(pub JsonValue);
 
 impl InvokeError {
   /// Create an [`InvokeError`] as a string of the [`serde_json::Error`] message.
@@ -119,7 +132,7 @@ impl<T: Serialize> From<T> for InvokeError {
 impl From<crate::Error> for InvokeError {
   #[inline(always)]
   fn from(error: crate::Error) -> Self {
-    Self(JsonValue::String(error.to_string()))
+    Self(JsonValue::String(error.to_string()).into())
   }
 }
 
@@ -127,20 +140,9 @@ impl From<crate::Error> for InvokeError {
 #[derive(Debug)]
 pub enum InvokeResponse {
   /// Resolve the promise.
-  Ok(JsonValue),
+  Ok(InvokePayloadValue),
   /// Reject the promise.
   Err(InvokeError),
-}
-
-impl InvokeResponse {
-  /// Turn a [`InvokeResponse`] back into a serializable result.
-  #[inline(always)]
-  pub fn into_result(self) -> Result<JsonValue, JsonValue> {
-    match self {
-      Self::Ok(v) => Ok(v),
-      Self::Err(e) => Err(e.0),
-    }
-  }
 }
 
 impl<T: Serialize> From<Result<T, InvokeError>> for InvokeResponse {
@@ -148,7 +150,7 @@ impl<T: Serialize> From<Result<T, InvokeError>> for InvokeResponse {
   fn from(result: Result<T, InvokeError>) -> Self {
     match result {
       Ok(ok) => match serde_json::to_value(ok) {
-        Ok(value) => Self::Ok(value),
+        Ok(value) => Self::Ok(value.into()),
         Err(err) => Self::Err(InvokeError::from_serde_json(err)),
       },
       Err(err) => Self::Err(err),
@@ -208,7 +210,7 @@ impl<R: Runtime> InvokeResolver<R> {
   {
     crate::async_runtime::spawn(async move {
       let response = match task.await {
-        Ok(ok) => InvokeResponse::Ok(ok),
+        Ok(ok) => InvokeResponse::Ok(ok.into()),
         Err(err) => InvokeResponse::Err(err),
       };
       Self::return_result(self.window, response, self.callback, self.error)
@@ -280,17 +282,18 @@ impl<R: Runtime> InvokeResolver<R> {
 pub fn window_invoke_responder<R: Runtime>(
   window: Window<R>,
   response: InvokeResponse,
-  success_callback: CallbackFn,
-  error_callback: CallbackFn,
+  callback: CallbackFn,
+  error: CallbackFn,
 ) {
-  let callback_string =
-    match format_callback_result(response.into_result(), success_callback, error_callback) {
-      Ok(callback_string) => callback_string,
-      Err(e) => format_callback(error_callback, &e.to_string())
-        .expect("unable to serialize response string to json"),
-    };
-
-  let _ = window.eval(&callback_string);
+  if let Some(tx) = window
+    .state::<IpcStore>()
+    .0
+    .lock()
+    .unwrap()
+    .remove(&IpcKey { callback, error })
+  {
+    tx.send(response).unwrap();
+  }
 }
 
 /// An invoke message.

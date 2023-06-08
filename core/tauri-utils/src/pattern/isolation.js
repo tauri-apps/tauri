@@ -56,16 +56,32 @@
   }
 
   /**
+   * Detects if a message event is a valid isolation message.
+   *
+   * @param {MessageEvent<object>} event - a message event that is expected to be an isolation message
+   * @return {boolean} - if the event was a valid isolation message
+   */
+  function isIsolationMessage(data) {
+    return (
+      typeof data === 'object' &&
+      typeof data.payload === 'object' &&
+      Object.keys(data.payload).every((key) => key === 'nonce' || key === 'payload')
+    )
+  }
+
+  /**
    * Detect if a message event is a valid isolation payload.
    *
    * @param {MessageEvent<object>} event - a message event that is expected to be an isolation payload
    * @return boolean
    */
-  function isIsolationPayload(event) {
+  function isIsolationPayload(data) {
     return (
-      typeof event.data === 'object' &&
-      'callback' in event.data &&
-      'error' in event.data
+      typeof data === 'object' &&
+      typeof data.payload === 'object' &&
+      'callback' in data &&
+      'error' in data &&
+      !isIsolationMessage(data)
     )
   }
 
@@ -74,7 +90,7 @@
    * @param {MessageEvent<any>} event
    */
   async function payloadHandler(event) {
-    if (!isIsolationPayload(event)) {
+    if (!isIsolationPayload(event.data)) {
       return
     }
 

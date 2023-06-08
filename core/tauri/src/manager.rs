@@ -10,6 +10,10 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
+use http::{
+  header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
+  HeaderValue, StatusCode,
+};
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
@@ -26,7 +30,6 @@ use tauri_utils::{
 
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
-use crate::pattern::PatternJavascript;
 use crate::{api::ipc::CallbackFn, hooks::IpcJavascript};
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
@@ -53,6 +56,7 @@ use crate::{
   app::{GlobalMenuEventListener, WindowMenuEvent},
   hooks::InvokePayloadValue,
 };
+use crate::{pattern::PatternJavascript, InvokeResponse};
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::path::BaseDirectory;
@@ -580,8 +584,36 @@ impl<R: Runtime> WindowManager<R> {
   {
     let manager = self.clone();
     Box::new(move |request| {
-      let data = handle_ipc_request(request, &manager, &label)?;
-      Ok(HttpResponse::new(data.into()))
+      let (mut response, content_type) = match handle_ipc_request(request, &manager, &label) {
+        Ok(data) => match data {
+          InvokeResponse::Ok(InvokePayloadValue::Json(v)) => (
+            HttpResponse::new(serde_json::to_vec(&v)?.into()),
+            "application/json",
+          ),
+          InvokeResponse::Ok(InvokePayloadValue::Raw(v)) => {
+            (HttpResponse::new(v.into()), "application/octet-stream")
+          }
+          InvokeResponse::Err(e) => {
+            let mut response = HttpResponse::new(serde_json::to_vec(&e.0)?.into());
+            response.set_status(StatusCode::BAD_REQUEST);
+            (response, "text/plain")
+          }
+        },
+        Err(e) => {
+          let mut response = HttpResponse::new(e.as_bytes().to_vec().into());
+          response.set_status(StatusCode::BAD_REQUEST);
+          (response, "text/plain")
+        }
+      };
+
+      response
+        .headers_mut()
+        .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+      response
+        .headers_mut()
+        .insert(CONTENT_TYPE, HeaderValue::from_static(content_type));
+
+      Ok(response)
     })
   }
 
@@ -1407,19 +1439,22 @@ fn handle_ipc_request<R: Runtime>(
   request: &HttpRequest,
   manager: &WindowManager<R>,
   label: &str,
-) -> std::result::Result<Vec<u8>, String> {
+) -> std::result::Result<InvokeResponse, String> {
   if let Some(window) = manager.get_window(&label) {
     // TODO: consume instead
     let mut body = request.body().clone();
 
     let cmd = request
       .uri()
-      .strip_prefix("ipc://localhost")
+      .strip_prefix("ipc://localhost/")
       .map(|c| c.to_string())
       // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
       // where `$P` is not `localhost/*`
       // in this case the IPC call is considered invalid
       .unwrap_or_else(|| "".to_string());
+    let cmd = percent_encoding::percent_decode(cmd.as_bytes())
+      .decode_utf8_lossy()
+      .to_string();
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
@@ -1458,10 +1493,10 @@ fn handle_ipc_request<R: Runtime>(
       .and_then(|h| h.to_str().ok())
       .unwrap_or("application/octet-stream");
     let data = match content_type {
-      "application/octet-stream" => InvokePayloadValue::Raw(body),
-      "application/json" => {
-        InvokePayloadValue::Json(serde_json::from_slice(&body).map_err(|e| e.to_string())?)
-      }
+      "application/octet-stream" => body.into(),
+      "application/json" => serde_json::from_slice::<serde_json::Value>(&body)
+        .map_err(|e| e.to_string())?
+        .into(),
       _ => return Err(format!("unknown content type {content_type}")),
     };
 

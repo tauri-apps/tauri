@@ -32,8 +32,8 @@ use crate::{
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
-  EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
-  Runtime, Theme, WindowEvent,
+  EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, InvokeResponse, Manager,
+  PageLoadPayload, Runtime, Theme, WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
@@ -67,8 +67,8 @@ pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
 
 #[derive(Eq, PartialEq)]
 pub(crate) struct IpcKey {
-  callback: CallbackFn,
-  error: CallbackFn,
+  pub callback: CallbackFn,
+  pub error: CallbackFn,
 }
 
 impl Hash for IpcKey {
@@ -79,7 +79,7 @@ impl Hash for IpcKey {
 }
 
 #[derive(Default)]
-pub(crate) struct IpcStore(Mutex<HashMap<IpcKey, Sender<Vec<u8>>>>);
+pub(crate) struct IpcStore(pub(crate) Mutex<HashMap<IpcKey, Sender<InvokeResponse>>>);
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -1672,8 +1672,8 @@ impl<R: Runtime> Window<R> {
     self.current_url = url;
   }
 
-  /// Handles this window receiving an [`InvokeMessage`] and returns the response.
-  pub fn on_message(self, payload: InvokePayload) -> Result<Vec<u8>, String> {
+  /// Handles this window receiving an [`InvokeMessage`] and returns the [`InvokeResponse`].
+  pub fn on_message(self, payload: InvokePayload) -> Result<InvokeResponse, String> {
     let manager = self.manager.clone();
     let current_url = self.url();
     let config_url = manager.get_url();
@@ -1704,7 +1704,7 @@ impl<R: Runtime> Window<R> {
           InvokePayloadValue::Raw(v) => serde_json::from_slice(&v).map_err(|e| e.to_string())?,
         };
         manager.run_on_page_load(self, payload);
-        Ok(Vec::new())
+        Ok(InvokeResponse::Ok(Vec::new().into()))
       }
       _ => {
         let message = InvokeMessage::new(
@@ -1858,7 +1858,8 @@ impl<R: Runtime> Window<R> {
           }
         }
 
-        Ok(rx.recv().unwrap())
+        let response = rx.recv().unwrap();
+        Ok(response)
       }
     }
   }

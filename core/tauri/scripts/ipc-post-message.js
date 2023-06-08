@@ -15,6 +15,18 @@ Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {
         'Tauri-Callback': callback,
         'Tauri-Error': error,
       }
+    }).then((response) => {
+      const cb = response.ok ? callback : error
+      switch (response.headers.get('content-type')) {
+        case 'application/json':
+          return response.json().then((r) => [cb, r])
+        case 'text/plain':
+          return response.text().then((r) => [cb, r])
+        default:
+          return response.arrayBuffer().then((r) => [cb, r])
+      }
+    }).then(([cb, data]) => {
+      window[`_${cb}`](data)
     })
   }})
 })()

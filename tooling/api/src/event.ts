@@ -39,7 +39,8 @@ export enum TauriEvent {
 }
 
 /**
- * Listen to an event from the backend.
+ * Listen to an event. The event can be either global or window-specific.
+ * See {@link Event.windowLabel} to check the event source.
  *
  * @example
  * ```typescript
@@ -67,7 +68,7 @@ async function listen<T>(
 }
 
 /**
- * Listen to an one-off event from the backend.
+ * Listen to an one-off event. See {@link listen} for more information.
  *
  * @example
  * ```typescript
@@ -98,7 +99,7 @@ async function once<T>(
 }
 
 /**
- * Emits an event to the backend.
+ * Emits an event to the backend and all Tauri windows.
  * @example
  * ```typescript
  * import { emit } from '@tauri-apps/api/event';

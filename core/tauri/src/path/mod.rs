@@ -12,7 +12,6 @@ use crate::{
 use serde::{de::Error as DeError, Deserialize, Deserializer};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-#[cfg(any(path_all, test))]
 mod commands;
 mod error;
 pub use error::*;
@@ -333,12 +332,8 @@ fn resolve_path<R: Runtime>(
 
 /// Initializes the plugin.
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
-  #[allow(unused_mut)]
-  let mut builder = Builder::new("path");
-
-  #[cfg(any(path_all, test))]
-  {
-    builder = builder.invoke_handler(crate::generate_handler![
+  Builder::new("path")
+    .invoke_handler(crate::generate_handler![
       commands::resolve_directory,
       commands::resolve,
       commands::normalize,
@@ -347,10 +342,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::extname,
       commands::basename,
       commands::is_absolute
-    ]);
-  }
-
-  builder
+    ])
     .setup(|app, _api| {
       #[cfg(target_os = "android")]
       {

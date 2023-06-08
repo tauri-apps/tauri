@@ -595,33 +595,31 @@ fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStr
       ShellAllowedArgs::Flag(false) => {
         // args are disallowed by default on ShellScopeAllowedCommandBuilder
       }
-      ShellAllowedArgs::List(list) => {
-        let args = list.iter().map(|arg| match arg {
-          ShellAllowedArg::Fixed(fixed) => {
-            quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
-          }
-          ShellAllowedArg::Var { validator } => {
-            let validator = match regex::Regex::new(validator) {
-              Ok(regex) => {
-                let regex = regex.as_str();
-                quote!(#root::regex::Regex::new(#regex).unwrap())
-              }
-              Err(error) => {
-                let error = error.to_string();
-                quote!({
-                  compile_error!(#error);
-                  #root::regex::Regex::new(#validator).unwrap()
-                })
-              }
-            };
-
-            quote!(#root::scope::ShellScopeAllowedArg::Var { validator: #validator })
-          }
-          _ => panic!("unknown shell scope arg, unable to prepare"),
-        });
-
+      ShellAllowedArgs::List(args) => {
         for arg in args {
-          code.append_all(quote!(.arg(#arg)));
+          match arg {
+            ShellAllowedArg::Fixed(fixed) => {
+              code.append_all(quote!(.arg(#fixed)));
+            }
+            ShellAllowedArg::Var { validator } => {
+              let validator = match regex::Regex::new(validator) {
+                Ok(regex) => {
+                  let regex = regex.as_str();
+                  quote!(#root::regex::Regex::new(#regex).unwrap())
+                }
+                Err(error) => {
+                  let error = error.to_string();
+                  quote!({
+                    compile_error!(#error);
+                    #root::regex::Regex::new(#validator).unwrap()
+                  })
+                }
+              };
+
+              code.append_all(quote!(.validated_arg(#validator)));
+            }
+            _ => panic!("unknown shell scope arg, unable to prepare"),
+          }
         }
       }
       _ => panic!("unknown shell scope command, unable to prepare"),

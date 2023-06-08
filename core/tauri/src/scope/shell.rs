@@ -179,9 +179,39 @@ impl ScopeAllowedCommandBuilder {
     self
   }
 
-  /// Appends an argument to the command.
-  pub fn arg(mut self, arg: ScopeAllowedArg) -> Self {
-    self.0.args.get_or_insert_with(Default::default).push(arg);
+  /// Appends a fixed argument to the command.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// tauri::scope::ShellScopeAllowedCommandBuilder::new("cargo")
+  ///   .arg("build")
+  ///   .build();
+  /// ```
+  pub fn arg(mut self, arg: impl Into<String>) -> Self {
+    self
+      .0
+      .args
+      .get_or_insert_with(Default::default)
+      .push(ScopeAllowedArg::Fixed(arg.into()));
+    self
+  }
+
+  /// Appends a validated argument to the command.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// tauri::scope::ShellScopeAllowedCommandBuilder::new("cargo")
+  ///   .validated_arg("\\S+".parse().expect("invalid regex"))
+  ///   .build();
+  /// ```
+  pub fn validated_arg(mut self, validator: Regex) -> Self {
+    self
+      .0
+      .args
+      .get_or_insert_with(Default::default)
+      .push(ScopeAllowedArg::Var { validator });
     self
   }
 
@@ -322,7 +352,7 @@ impl Scope {
   /// use tauri::{Manager, scope::ShellScopeAllowedCommandBuilder};
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     app.shell_scope().allow("java", ShellScopeAllowedCommandBuilder::new("java").build());
+  ///     app.shell_scope().allow("cargo", ShellScopeAllowedCommandBuilder::new("cargo").arg("build").build());
   ///     app.shell_scope().allow("server-sidecar", ShellScopeAllowedCommandBuilder::sidecar("server").build());
   ///     Ok(())
   ///   });

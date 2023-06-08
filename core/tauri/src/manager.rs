@@ -1112,15 +1112,11 @@ impl<R: Runtime> WindowManager<R> {
     F: Fn(&Window<R>) -> bool,
   {
     assert_event_name_is_valid(event);
-    println!("emit {event}");
     self
       .windows_lock()
       .values()
       .filter(|&w| filter(w))
-      .try_for_each(|window| {
-        println!("trigger!!");
-        window.emit_internal(event, source_window_label, payload.clone())
-      })
+      .try_for_each(|window| window.emit_internal(event, source_window_label, payload.clone()))
   }
 
   pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {

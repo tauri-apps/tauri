@@ -96,16 +96,14 @@ impl Keys {
   }
 
   /// Decrypts a message using the generated keys.
-  pub fn decrypt(&self, raw: RawIsolationPayload<'_>) -> Result<String, Error> {
+  pub fn decrypt(&self, raw: RawIsolationPayload<'_>) -> Result<Vec<u8>, Error> {
     let RawIsolationPayload { nonce, payload } = raw;
     let nonce: [u8; 12] = nonce.as_ref().try_into()?;
-    let bytes = self
+    self
       .aes_gcm
       .key
       .decrypt(Nonce::from_slice(&nonce), payload.as_ref())
-      .map_err(|_| self::Error::Aes)?;
-
-    String::from_utf8(bytes).map_err(Into::into)
+      .map_err(|_| self::Error::Aes)
   }
 }
 
@@ -116,11 +114,11 @@ pub struct RawIsolationPayload<'a> {
   payload: Cow<'a, [u8]>,
 }
 
-impl<'a> TryFrom<&'a str> for RawIsolationPayload<'a> {
+impl<'a> TryFrom<&'a Vec<u8>> for RawIsolationPayload<'a> {
   type Error = Error;
 
-  fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-    serde_json::from_str(value).map_err(Into::into)
+  fn try_from(value: &'a Vec<u8>) -> Result<Self, Self::Error> {
+    serde_json::from_slice(value).map_err(Into::into)
   }
 }
 
@@ -141,9 +139,9 @@ pub struct IsolationJavascriptCodegen {
 pub struct IsolationJavascriptRuntime<'a> {
   /// The key used on the Rust backend and the Isolation Javascript
   pub runtime_aes_gcm_key: &'a [u8; 32],
-  /// The function that stringifies a IPC message.
+  /// The function that processes the IPC message.
   #[raw]
-  pub stringify_ipc_message_fn: &'a str,
+  pub process_ipc_message_fn: &'a str,
 }
 
 #[cfg(test)]

@@ -11,7 +11,6 @@ use std::{
 };
 
 use serde::Serialize;
-use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
 
@@ -25,11 +24,10 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
-use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
 use crate::pattern::PatternJavascript;
+use crate::{api::ipc::CallbackFn, hooks::IpcJavascript};
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
@@ -40,7 +38,7 @@ use crate::{
       MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
-    webview::{WebviewIpcHandler, WindowBuilder},
+    webview::WindowBuilder,
     window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow},
   },
   utils::{
@@ -50,6 +48,10 @@ use crate::{
   },
   Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
+};
+use crate::{
+  app::{GlobalMenuEventListener, WindowMenuEvent},
+  hooks::InvokePayloadValue,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -70,8 +72,8 @@ const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
-pub(crate) const STRINGIFY_IPC_MESSAGE_FN: &str =
-  include_str!("../scripts/stringify-ipc-message-fn.js");
+pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
+  include_str!("../scripts/process-ipc-message-fn.js");
 
 // we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
 // and we do not get a secure context without the custom protocol that proxies to the dev server
@@ -502,6 +504,14 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push("tauri".into());
     }
 
+    if !registered_scheme_protocols.contains(&"ipc".into()) {
+      pending.register_uri_scheme_protocol(
+        "ipc",
+        self.prepare_ipc_scheme_protocol(pending.label.clone()),
+      );
+      registered_scheme_protocols.push("ipc".into());
+    }
+
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
@@ -534,7 +544,7 @@ impl<R: Runtime> WindowManager<R> {
               let asset = String::from_utf8_lossy(asset.as_ref());
               let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
                 runtime_aes_gcm_key: &aes_gcm_key,
-                stringify_ipc_message_fn: STRINGIFY_IPC_MESSAGE_FN,
+                process_ipc_message_fn: PROCESS_IPC_MESSAGE_FN,
               };
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponseBuilder::new()
@@ -563,40 +573,15 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  fn prepare_ipc_handler(&self) -> WebviewIpcHandler<EventLoopMessage, R> {
+  fn prepare_ipc_scheme_protocol(
+    &self,
+    label: String,
+  ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
+  {
     let manager = self.clone();
-    Box::new(move |window, #[allow(unused_mut)] mut request| {
-      if let Some(window) = manager.get_window(&window.label) {
-        #[cfg(feature = "isolation")]
-        if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-          match RawIsolationPayload::try_from(request.as_str())
-            .and_then(|raw| crypto_keys.decrypt(raw))
-          {
-            Ok(json) => request = json,
-            Err(e) => {
-              let error: crate::Error = e.into();
-              let _ = window.eval(&format!(
-                r#"console.error({})"#,
-                JsonValue::String(error.to_string())
-              ));
-              return;
-            }
-          }
-        }
-
-        match serde_json::from_str::<InvokePayload>(&request) {
-          Ok(message) => {
-            let _ = window.on_message(message);
-          }
-          Err(e) => {
-            let error: crate::Error = e.into();
-            let _ = window.eval(&format!(
-              r#"console.error({})"#,
-              JsonValue::String(error.to_string())
-            ));
-          }
-        }
-      }
+    Box::new(move |request| {
+      let data = handle_ipc_request(request, &manager, &label)?;
+      Ok(HttpResponse::new(data.into()))
     })
   }
 
@@ -1082,7 +1067,6 @@ impl<R: Runtime> WindowManager<R> {
       #[allow(clippy::redundant_clone)]
       app_handle.clone(),
     )?;
-    pending.ipc_handler = Some(self.prepare_ipc_handler());
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
@@ -1416,6 +1400,81 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
   } else {
     // skip leading `/`
     path.chars().skip(1).collect()
+  }
+}
+
+fn handle_ipc_request<R: Runtime>(
+  request: &HttpRequest,
+  manager: &WindowManager<R>,
+  label: &str,
+) -> std::result::Result<Vec<u8>, String> {
+  if let Some(window) = manager.get_window(&label) {
+    // TODO: consume instead
+    let mut body = request.body().clone();
+
+    let cmd = request
+      .uri()
+      .strip_prefix("ipc://localhost")
+      .map(|c| c.to_string())
+      // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
+      // where `$P` is not `localhost/*`
+      // in this case the IPC call is considered invalid
+      .unwrap_or_else(|| "".to_string());
+
+    #[cfg(feature = "isolation")]
+    if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+      match RawIsolationPayload::try_from(&body).and_then(|raw| crypto_keys.decrypt(raw)) {
+        Ok(data) => body = data,
+        Err(e) => {
+          return Err(e.to_string());
+        }
+      }
+    }
+
+    let callback = CallbackFn(
+      request
+        .headers()
+        .get("Tauri-Callback")
+        .ok_or("missing Tauri-Callback header")?
+        .to_str()
+        .map_err(|_| "Tauri-Callback header value must be a string")?
+        .parse()
+        .map_err(|_| "Tauri-Callback header value must be a numeric string")?,
+    );
+    let error = CallbackFn(
+      request
+        .headers()
+        .get("Tauri-Error")
+        .ok_or("missing Tauri-Error header")?
+        .to_str()
+        .map_err(|_| "Tauri-Error header value must be a string")?
+        .parse()
+        .map_err(|_| "Tauri-Error header value must be a numeric string")?,
+    );
+
+    let content_type = request
+      .headers()
+      .get(reqwest::header::CONTENT_TYPE)
+      .and_then(|h| h.to_str().ok())
+      .unwrap_or("application/octet-stream");
+    let data = match content_type {
+      "application/octet-stream" => InvokePayloadValue::Raw(body),
+      "application/json" => {
+        InvokePayloadValue::Json(serde_json::from_slice(&body).map_err(|e| e.to_string())?)
+      }
+      _ => return Err(format!("unknown content type {content_type}")),
+    };
+
+    let payload = InvokePayload {
+      cmd,
+      callback,
+      error,
+      inner: data,
+    };
+
+    window.on_message(payload).map_err(|e| e.to_string())
+  } else {
+    Err("window not found".into())
   }
 }
 

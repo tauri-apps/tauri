@@ -35,8 +35,8 @@
   function isIsolationMessage(event) {
     return (
       typeof event.data === 'object' &&
-      'nonce' in event.data &&
-      'payload' in event.data
+      'nonce' in event.data.payload &&
+      'payload' in event.data.payload
     )
   }
 

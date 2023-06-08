@@ -48,7 +48,7 @@
     }
   }
 
-  window.__TAURI_INVOKE__ = function invoke(cmd, args = {}) {
+  window.__TAURI_INVOKE__ = function invoke(cmd, payload = {}) {
     return new Promise(function (resolve, reject) {
       var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r)
@@ -59,19 +59,12 @@
         delete window[`_${callback}`]
       }, true)
 
-      if (typeof cmd === 'string') {
-        args.cmd = cmd
-      } else if (typeof cmd === 'object') {
-        args = cmd
-      } else {
-        return reject(new Error('Invalid argument type.'))
-      }
-
       const action = () => {
         window.__TAURI_IPC__({
-          ...args,
+          cmd,
           callback,
-          error: error
+          error,
+          payload
         })
       }
       if (window.__TAURI_IPC__) {

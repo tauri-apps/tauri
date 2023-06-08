@@ -23,6 +23,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
+  window::IpcStore,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
   Runtime, Scopes, StateManager, Theme, Window,
 };
@@ -31,6 +32,7 @@ use crate::{
 use crate::scope::FsScope;
 
 use raw_window_handle::HasRawDisplayHandle;
+use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
 use tauri_runtime::window::{
   dpi::{PhysicalPosition, PhysicalSize},
@@ -812,6 +814,14 @@ pub struct Builder<R: Runtime> {
   device_event_filter: DeviceEventFilter,
 }
 
+#[derive(Template)]
+#[default_template("../scripts/ipc-post-message.js")]
+struct InvokeInitializationScript<'a> {
+  /// The function that processes the IPC message.
+  #[raw]
+  process_ipc_message_fn: &'a str,
+}
+
 impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
@@ -821,8 +831,12 @@ impl<R: Runtime> Builder<R> {
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| false),
       invoke_responder: Arc::new(window_invoke_responder),
-      invoke_initialization_script:
-        format!("Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {{ value: (message) => window.ipc.postMessage({}(message)) }})", crate::manager::STRINGIFY_IPC_MESSAGE_FN),
+      invoke_initialization_script: InvokeInitializationScript {
+        process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
+      }
+      .render_default(&Default::default())
+      .unwrap()
+      .into_string(),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -1331,6 +1345,8 @@ impl<R: Runtime> Builder<R> {
       #[cfg(feature = "protocol-asset")]
       asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
     });
+
+    app.manage(IpcStore::default());
 
     #[cfg(windows)]
     {

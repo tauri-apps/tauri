@@ -7,11 +7,13 @@
 //! You usually don't need to create these items yourself. These are created from [command](../attr.command.html)
 //! attribute macro along the way and used by [`crate::generate_handler`] macro.
 
-use crate::hooks::InvokeError;
+use crate::hooks::{InvokeError, InvokePayloadValue};
 use crate::InvokeMessage;
 use crate::Runtime;
-use serde::de::Visitor;
-use serde::{Deserialize, Deserializer};
+use serde::{
+  de::{Error, Visitor},
+  Deserialize, Deserializer,
+};
 
 /// Represents a custom command.
 pub struct CommandItem<'a, R: Runtime> {
@@ -62,8 +64,6 @@ impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
 macro_rules! pass {
   ($fn:ident, $($arg:ident: $argt:ty),+) => {
     fn $fn<V: Visitor<'de>>(self, $($arg: $argt),*) -> Result<V::Value, Self::Error> {
-      use serde::de::Error;
-
       if self.key.is_empty() {
         return Err(serde_json::Error::custom(format!(
             "command {} has an argument with no name with a non-optional value",
@@ -71,13 +71,23 @@ macro_rules! pass {
           )))
       }
 
-      match self.message.payload.get(self.key) {
-        Some(value) => value.$fn($($arg),*),
-        None => {
+      match &self.message.payload {
+        InvokePayloadValue::Raw(_body) => {
           Err(serde_json::Error::custom(format!(
-            "command {} missing required key {}",
+            "command {} expected a value for key {} but the IPC call used a bytes payload",
             self.name, self.key
           )))
+        }
+        InvokePayloadValue::Json(v) => {
+          match v.get(self.key) {
+            Some(value) => value.$fn($($arg),*),
+            None => {
+              Err(serde_json::Error::custom(format!(
+                "command {} missing required key {}",
+                self.name, self.key
+              )))
+            }
+          }
         }
       }
     }
@@ -111,9 +121,15 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
   pass!(deserialize_byte_buf, visitor: V);
 
   fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-    match self.message.payload.get(self.key) {
-      Some(value) => value.deserialize_option(visitor),
-      None => visitor.visit_none(),
+    match &self.message.payload {
+      InvokePayloadValue::Raw(_body) => Err(serde_json::Error::custom(format!(
+        "command {} expected a value for key {} but the IPC call used a bytes payload",
+        self.name, self.key
+      ))),
+      InvokePayloadValue::Json(v) => match v.get(self.key) {
+        Some(value) => value.deserialize_option(visitor),
+        None => visitor.visit_none(),
+      },
     }
   }
 

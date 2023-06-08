@@ -56,8 +56,17 @@ impl PageLoadPayload {
   }
 }
 
+/// Possible values of an IPC payload.
+#[derive(Debug, Clone)]
+pub enum InvokePayloadValue {
+  /// Json payload.
+  Json(JsonValue),
+  /// Bytes payload.
+  Raw(Vec<u8>),
+}
+
 /// The payload used on the IPC invoke.
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct InvokePayload {
   /// The invoke command.
   pub cmd: String,
@@ -66,8 +75,7 @@ pub struct InvokePayload {
   /// The error callback.
   pub error: CallbackFn,
   /// The payload of the message.
-  #[serde(flatten)]
-  pub inner: JsonValue,
+  pub inner: InvokePayloadValue,
 }
 
 /// The message and resolver given to a custom command.
@@ -296,7 +304,7 @@ pub struct InvokeMessage<R: Runtime> {
   /// The IPC command.
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
-  pub(crate) payload: JsonValue,
+  pub(crate) payload: InvokePayloadValue,
 }
 
 impl<R: Runtime> Clone for InvokeMessage<R> {
@@ -316,7 +324,7 @@ impl<R: Runtime> InvokeMessage<R> {
     window: Window<R>,
     state: Arc<StateManager>,
     command: String,
-    payload: JsonValue,
+    payload: InvokePayloadValue,
   ) -> Self {
     Self {
       window,
@@ -346,7 +354,7 @@ impl<R: Runtime> InvokeMessage<R> {
 
   /// A reference to the payload the invoke received.
   #[inline(always)]
-  pub fn payload(&self) -> &JsonValue {
+  pub fn payload(&self) -> &InvokePayloadValue {
     &self.payload
   }
 

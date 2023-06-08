@@ -38,17 +38,17 @@
    * @return {Promise<{nonce: number[], payload: number[]}>}
    */
   async function encrypt(data) {
-    let algorithm = Object.create(null)
+    const algorithm = Object.create(null)
     algorithm.name = 'AES-GCM'
     algorithm.iv = window.crypto.getRandomValues(new Uint8Array(12))
 
-    let encoder = new TextEncoder()
-    let payloadRaw = encoder.encode(__RAW_stringify_ipc_message_fn__(data))
+    const encoder = new TextEncoder()
+    const encoded = encoder.encode(__RAW_process_ipc_message_fn__(data).data)
 
     return window.crypto.subtle
-      .encrypt(algorithm, aesGcmKey, payloadRaw)
+      .encrypt(algorithm, aesGcmKey, encoded)
       .then((payload) => {
-        let result = Object.create(null)
+        const result = Object.create(null)
         result.nonce = Array.from(new Uint8Array(algorithm.iv))
         result.payload = Array.from(new Uint8Array(payload))
         return result
@@ -85,8 +85,10 @@
       data = await window.__TAURI_ISOLATION_HOOK__(data)
     }
 
-    const encrypted = await encrypt(data)
-    sendMessage(encrypted)
+    const { cmd, callback, error, payload } = data
+
+    const encrypted = await encrypt(payload)
+    sendMessage({ cmd, callback, error, payload: encrypted })
   }
 
   window.addEventListener('message', payloadHandler, false)

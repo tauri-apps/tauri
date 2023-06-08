@@ -17,7 +17,7 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
-  hooks::{InvokePayload, InvokeResponder},
+  hooks::{InvokePayload, InvokePayloadValue, InvokeResponder},
   manager::WindowManager,
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
@@ -56,11 +56,30 @@ use std::{
   fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{Arc, Mutex},
+  sync::{
+    mpsc::{channel, Sender},
+    Arc, Mutex,
+  },
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
+
+#[derive(Eq, PartialEq)]
+pub(crate) struct IpcKey {
+  callback: CallbackFn,
+  error: CallbackFn,
+}
+
+impl Hash for IpcKey {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.callback.hash(state);
+    self.error.hash(state);
+  }
+}
+
+#[derive(Default)]
+pub(crate) struct IpcStore(Mutex<HashMap<IpcKey, Sender<Vec<u8>>>>);
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -1653,8 +1672,8 @@ impl<R: Runtime> Window<R> {
     self.current_url = url;
   }
 
-  /// Handles this window receiving an [`InvokeMessage`].
-  pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
+  /// Handles this window receiving an [`InvokeMessage`] and returns the response.
+  pub fn on_message(self, payload: InvokePayload) -> Result<Vec<u8>, String> {
     let manager = self.manager.clone();
     let current_url = self.url();
     let config_url = manager.get_url();
@@ -1680,8 +1699,12 @@ impl<R: Runtime> Window<R> {
     };
     match payload.cmd.as_str() {
       "__initialized" => {
-        let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
+        let payload: PageLoadPayload = match payload.inner {
+          InvokePayloadValue::Json(v) => serde_json::from_value(v).map_err(|e| e.to_string())?,
+          InvokePayloadValue::Raw(v) => serde_json::from_slice(&v).map_err(|e| e.to_string())?,
+        };
         manager.run_on_page_load(self, payload);
+        Ok(Vec::new())
       }
       _ => {
         let message = InvokeMessage::new(
@@ -1690,13 +1713,21 @@ impl<R: Runtime> Window<R> {
           payload.cmd.to_string(),
           payload.inner,
         );
-        #[allow(clippy::redundant_clone)]
         let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
 
         let mut invoke = Invoke { message, resolver };
+
+        let (tx, rx) = channel();
+        self.state::<IpcStore>().0.lock().unwrap().insert(
+          IpcKey {
+            callback: payload.callback,
+            error: payload.error,
+          },
+          tx,
+        );
+
         if !is_local && scope.is_none() {
-          invoke.resolver.reject(scope_not_found_error_message);
-          return Ok(());
+          return Err(scope_not_found_error_message);
         }
 
         if payload.cmd.starts_with("plugin:") {
@@ -1707,8 +1738,7 @@ impl<R: Runtime> Window<R> {
               .map(|s| s.plugins().contains(&plugin_name))
               .unwrap_or(true)
             {
-              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-              return Ok(());
+              return Err(IPC_SCOPE_DOES_NOT_ALLOW.into());
             }
           }
           let command = invoke.message.command.replace("plugin:", "");
@@ -1721,9 +1751,8 @@ impl<R: Runtime> Window<R> {
             .unwrap_or_else(String::new);
 
           let command = invoke.message.command.clone();
-          let resolver = invoke.resolver.clone();
           #[cfg(mobile)]
-          let message = invoke.message.clone();
+          let (resolver, message) = (invoke.resolver.clone(), invoke.message.clone());
 
           #[allow(unused_mut)]
           let mut handled = manager.extend_api(plugin, invoke);
@@ -1819,20 +1848,19 @@ impl<R: Runtime> Window<R> {
           }
 
           if !handled {
-            resolver.reject(format!("Command {command} not found"));
+            return Err(format!("Command {command} not found"));
           }
         } else {
           let command = invoke.message.command.clone();
-          let resolver = invoke.resolver.clone();
           let handled = manager.run_invoke_handler(invoke);
           if !handled {
-            resolver.reject(format!("Command {command} not found"));
+            return Err(format!("Command {command} not found"));
           }
         }
+
+        Ok(rx.recv().unwrap())
       }
     }
-
-    Ok(())
   }
 
   /// Evaluates JavaScript on this window.

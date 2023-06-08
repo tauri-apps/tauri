@@ -7,9 +7,9 @@
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
   http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
-  menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
+  menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuItem, MenuUpdate},
   monitor::Monitor,
-  webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
+  webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, WindowEvent,
@@ -105,7 +105,6 @@ use std::{
 };
 
 pub type WebviewId = u64;
-type IpcHandler = dyn Fn(&Window, String) + 'static;
 type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 #[cfg(all(desktop, feature = "system-tray"))]
 pub use tauri_runtime::TrayId;
@@ -3001,10 +3000,8 @@ fn create_webview<T: UserEvent>(
     webview_attributes,
     uri_scheme_protocols,
     mut window_builder,
-    ipc_handler,
     label,
     url,
-    menu_ids,
     #[cfg(target_os = "android")]
     on_webview_created,
     ..
@@ -3084,14 +3081,6 @@ fn create_webview<T: UserEvent>(
     });
   }
 
-  if let Some(handler) = ipc_handler {
-    webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
-      context,
-      label.clone(),
-      menu_ids,
-      handler,
-    ));
-  }
   for (scheme, protocol) in uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |wry_request| {
       protocol(&HttpRequestWrapper::from(wry_request).0)
@@ -3207,29 +3196,6 @@ fn create_webview<T: UserEvent>(
     menu_items,
     window_event_listeners,
     menu_event_listeners: Default::default(),
-  })
-}
-
-/// Create a wry ipc handler from a tauri ipc handler.
-fn create_ipc_handler<T: UserEvent>(
-  context: Context<T>,
-  label: String,
-  menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
-  handler: WebviewIpcHandler<T, Wry<T>>,
-) -> Box<IpcHandler> {
-  Box::new(move |window, request| {
-    let window_id = context.webview_id_map.get(&window.id()).unwrap();
-    handler(
-      DetachedWindow {
-        dispatcher: WryDispatcher {
-          window_id,
-          context: context.clone(),
-        },
-        label: label.clone(),
-        menu_ids: menu_ids.clone(),
-      },
-      request,
-    );
   })
 }
 

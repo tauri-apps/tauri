@@ -575,75 +575,71 @@ fn find_icon<F: Fn(&&String) -> bool>(
 
 #[cfg(feature = "shell-scope")]
 fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStream {
-  let commands = scope
-    .0
-    .iter()
-    .map(|scope| {
-      let sidecar = &scope.sidecar;
+  use quote::TokenStreamExt;
 
-      let name = &scope.name;
-      let name = quote!(#name.into());
+  let commands = scope.0.iter().map(|scope| {
+    let name = &scope.name;
+    let name = quote!(#name.into());
 
-      let command = scope.command.to_string_lossy();
-      let command = quote!(::std::path::PathBuf::from(#command));
+    let command = scope.command.to_string_lossy();
+    let mut code = if scope.sidecar {
+      quote!(#root::scope::ShellScopeAllowedCommandBuilder::sidecar(#command))
+    } else {
+      quote!(#root::scope::ShellScopeAllowedCommandBuilder::new(#command))
+    };
 
-      let args = match &scope.args {
-        ShellAllowedArgs::Flag(true) => quote!(::std::option::Option::None),
-        ShellAllowedArgs::Flag(false) => quote!(::std::option::Option::Some(::std::vec![])),
-        ShellAllowedArgs::List(list) => {
-          let list = list.iter().map(|arg| match arg {
-            ShellAllowedArg::Fixed(fixed) => {
-              quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
-            }
-            ShellAllowedArg::Var { validator } => {
-              let validator = match regex::Regex::new(validator) {
-                Ok(regex) => {
-                  let regex = regex.as_str();
-                  quote!(#root::regex::Regex::new(#regex).unwrap())
-                }
-                Err(error) => {
-                  let error = error.to_string();
-                  quote!({
-                    compile_error!(#error);
-                    #root::regex::Regex::new(#validator).unwrap()
-                  })
-                }
-              };
-
-              quote!(#root::scope::ShellScopeAllowedArg::Var { validator: #validator })
-            }
-            _ => panic!("unknown shell scope arg, unable to prepare"),
-          });
-
-          quote!(::std::option::Option::Some(::std::vec![#(#list),*]))
-        }
-        _ => panic!("unknown shell scope command, unable to prepare"),
-      };
-
-      (
-        quote!(#name),
-        quote!(
-          #root::scope::ShellScopeAllowedCommand {
-            command: #command,
-            args: #args,
-            sidecar: #sidecar,
+    match &scope.args {
+      ShellAllowedArgs::Flag(true) => {
+        code.append_all(quote!(.allow_any_args()));
+      }
+      ShellAllowedArgs::Flag(false) => {
+        // args are disallowed by default on ShellScopeAllowedCommandBuilder
+      }
+      ShellAllowedArgs::List(list) => {
+        let args = list.iter().map(|arg| match arg {
+          ShellAllowedArg::Fixed(fixed) => {
+            quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
           }
-        ),
-      )
-    })
-    .collect::<Vec<_>>();
+          ShellAllowedArg::Var { validator } => {
+            let validator = match regex::Regex::new(validator) {
+              Ok(regex) => {
+                let regex = regex.as_str();
+                quote!(#root::regex::Regex::new(#regex).unwrap())
+              }
+              Err(error) => {
+                let error = error.to_string();
+                quote!({
+                  compile_error!(#error);
+                  #root::regex::Regex::new(#validator).unwrap()
+                })
+              }
+            };
 
-  if commands.is_empty() {
-    quote!(::std::collections::HashMap::new())
-  } else {
-    let insertions = commands
-      .iter()
-      .map(|(name, value)| quote!(hashmap.insert(#name, #value);));
+            quote!(#root::scope::ShellScopeAllowedArg::Var { validator: #validator })
+          }
+          _ => panic!("unknown shell scope arg, unable to prepare"),
+        });
 
-    quote!({
-      let mut hashmap = ::std::collections::HashMap::new();
-      #(#insertions)*
-      hashmap
-    })
-  }
+        for arg in args {
+          code.append_all(quote!(.arg(#arg)));
+        }
+      }
+      _ => panic!("unknown shell scope command, unable to prepare"),
+    }
+
+    (
+      quote!(#name),
+      quote!(
+        #code.build()
+      ),
+    )
+  });
+
+  let insertions = commands.map(|(name, value)| quote!(hashmap.insert(#name, #value);));
+
+  quote!({
+    let mut hashmap = ::std::collections::HashMap::new();
+    #(#insertions)*
+    hashmap
+  })
 }

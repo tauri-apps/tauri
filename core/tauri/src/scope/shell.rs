@@ -9,8 +9,27 @@ use crate::api::shell::Program;
 
 use regex::Regex;
 use tauri_utils::{config::Config, Env, PackageInfo};
+use uuid::Uuid;
 
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  path::{Path, PathBuf},
+  sync::{Arc, Mutex},
+};
+
+/// Scope change event.
+#[derive(Debug, Clone)]
+pub enum Event {
+  /// A command has been allowed.
+  CommandAllowed {
+    /// The command key.
+    name: String,
+    /// The command scope definition.
+    scope: ScopeAllowedCommand,
+  },
+}
+
+type EventListener = Box<dyn Fn(&Event) + Send>;
 
 /// Allowed representation of `Execute` command arguments.
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -71,13 +90,35 @@ pub struct ScopeConfig {
 #[derive(Debug, Clone)]
 pub struct ScopeAllowedCommand {
   /// The shell command to be called.
-  pub command: std::path::PathBuf,
+  command: PathBuf,
 
   /// The arguments the command is allowed to be called with.
-  pub args: Option<Vec<ScopeAllowedArg>>,
+  args: Option<Vec<ScopeAllowedArg>>,
 
   /// If this command is a sidecar command.
-  pub sidecar: bool,
+  sidecar: bool,
+}
+
+impl ScopeAllowedCommand {
+  /// The command of this scope.
+  pub fn command(&self) -> &Path {
+    &self.command
+  }
+
+  /// Whether the command is a sidecar or not.
+  pub fn sidecar(&self) -> bool {
+    self.sidecar
+  }
+
+  /// Whether this scope allows any CLI argument list or not.
+  pub fn allows_any_args(&self) -> bool {
+    self.args.is_none()
+  }
+
+  /// The CLI argument validation of this scope.
+  pub fn args(&self) -> Option<&[ScopeAllowedArg]> {
+    self.args.as_deref()
+  }
 }
 
 /// A configured argument to a scoped shell command.
@@ -105,9 +146,57 @@ impl ScopeAllowedArg {
   }
 }
 
-/// Scope for filesystem access.
+/// A builder for [`ScopeAllowedCommand`].
+#[derive(Debug)]
+pub struct ScopeAllowedCommandBuilder(ScopeAllowedCommand);
+
+impl ScopeAllowedCommandBuilder {
+  /// Prepares a new command to allow on the shell scope.
+  ///
+  /// By default CLI arguments are not allowed. Use [`Self::arg`] or [`Self::allow_any_args`] if you are going to use them.
+  pub fn new<P: AsRef<Path>>(command: P) -> Self {
+    Self(ScopeAllowedCommand {
+      command: command.as_ref().to_path_buf(),
+      args: Some(Vec::new()),
+      sidecar: false,
+    })
+  }
+
+  /// Prepares a new sidecar to allow on the shell scope.
+  ///
+  /// By default CLI arguments are not allowed. Use [`Self::arg`] or [`Self::allow_any_args`] if you are going to use them.
+  pub fn sidecar<P: AsRef<Path>>(command: P) -> Self {
+    Self(ScopeAllowedCommand {
+      command: command.as_ref().to_path_buf(),
+      args: Some(Vec::new()),
+      sidecar: true,
+    })
+  }
+
+  /// Disable CLI argument validation. If possible, prefer [`Self::arg`] for security.
+  pub fn allow_any_args(mut self) -> Self {
+    self.0.args = None;
+    self
+  }
+
+  /// Appends an argument to the command.
+  pub fn arg(mut self, arg: ScopeAllowedArg) -> Self {
+    self.0.args.get_or_insert_with(Default::default).push(arg);
+    self
+  }
+
+  /// Builds the [`ScopeAllowedCommand`] to use on [`Scope::allow`].
+  pub fn build(self) -> ScopeAllowedCommand {
+    self.0
+  }
+}
+
+/// Scope for shell access.
 #[derive(Clone)]
-pub struct Scope(ScopeConfig);
+pub struct Scope {
+  config: Arc<Mutex<ScopeConfig>>,
+  event_listeners: Arc<Mutex<HashMap<Uuid, EventListener>>>,
+}
 
 /// All errors that can happen while validating a scoped command.
 #[derive(Debug, thiserror::Error)]
@@ -205,7 +294,52 @@ impl Scope {
         cmd.command = path;
       }
     }
-    Self(scope)
+    Self {
+      config: Arc::new(Mutex::new(scope)),
+      event_listeners: Default::default(),
+    }
+  }
+
+  /// Listen to an event on this scope.
+  pub fn listen<F: Fn(&Event) + Send + 'static>(&self, f: F) -> Uuid {
+    let id = Uuid::new_v4();
+    self.event_listeners.lock().unwrap().insert(id, Box::new(f));
+    id
+  }
+
+  fn trigger(&self, event: Event) {
+    let listeners = self.event_listeners.lock().unwrap();
+    let handlers = listeners.values();
+    for listener in handlers {
+      listener(&event);
+    }
+  }
+
+  /// Allow a command to be executed.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{Manager, scope::ShellScopeAllowedCommandBuilder};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     app.shell_scope().allow("java", ShellScopeAllowedCommandBuilder::new("java").build());
+  ///     app.shell_scope().allow("server-sidecar", ShellScopeAllowedCommandBuilder::sidecar("server").build());
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn allow<S: Into<String>>(&self, name: S, command: ScopeAllowedCommand) {
+    let name = name.into();
+    self
+      .config
+      .lock()
+      .unwrap()
+      .scopes
+      .insert(name.clone(), command.clone());
+
+    self.trigger(Event::CommandAllowed {
+      name,
+      scope: command,
+    });
   }
 
   /// Validates argument inputs and creates a Tauri sidecar [`Command`].
@@ -233,7 +367,8 @@ impl Scope {
     args: ExecuteArgs,
     sidecar: Option<&str>,
   ) -> Result<Command, ScopeError> {
-    let command = match self.0.scopes.get(command_name) {
+    let scope = self.config.lock().unwrap();
+    let command = match scope.scopes.get(command_name) {
       Some(command) => command,
       None => return Err(ScopeError::NotFound(command_name.into())),
     };
@@ -305,7 +440,7 @@ impl Scope {
   #[cfg(feature = "shell-open-api")]
   pub fn open(&self, path: &str, with: Option<Program>) -> Result<(), ScopeError> {
     // ensure we pass validation if the configuration has one
-    if let Some(regex) = &self.0.open {
+    if let Some(regex) = &self.config.lock().unwrap().open {
       if !regex.is_match(path) {
         return Err(ScopeError::Validation {
           index: 0,

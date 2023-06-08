@@ -174,7 +174,7 @@ pub use {
     WindowEvent,
   },
   self::hooks::{
-    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokePayload, InvokeResolver,
+    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeRequest, InvokeResolver,
     InvokeResponder, InvokeResponse, OnPageLoad, PageLoadPayload, SetupHook,
   },
   self::manager::Asset,

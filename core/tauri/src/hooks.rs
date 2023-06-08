@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  api::ipc::CallbackFn,
+  api::ipc::{CallbackFn, IpcResponse},
   app::App,
   window::{IpcKey, IpcStore},
   Manager, Runtime, StateManager, Window,
@@ -59,36 +59,36 @@ impl PageLoadPayload {
 
 /// Possible values of an IPC payload.
 #[derive(Debug, Clone)]
-pub enum InvokePayloadValue {
+pub enum InvokeBody {
   /// Json payload.
   Json(JsonValue),
   /// Bytes payload.
   Raw(Vec<u8>),
 }
 
-impl From<JsonValue> for InvokePayloadValue {
+impl From<JsonValue> for InvokeBody {
   fn from(value: JsonValue) -> Self {
     Self::Json(value)
   }
 }
 
-impl From<Vec<u8>> for InvokePayloadValue {
+impl From<Vec<u8>> for InvokeBody {
   fn from(value: Vec<u8>) -> Self {
     Self::Raw(value)
   }
 }
 
-/// The payload used on the IPC invoke.
+/// The IPC invoke request.
 #[derive(Debug)]
-pub struct InvokePayload {
+pub struct InvokeRequest {
   /// The invoke command.
   pub cmd: String,
   /// The success callback.
   pub callback: CallbackFn,
   /// The error callback.
   pub error: CallbackFn,
-  /// The payload of the message.
-  pub inner: InvokePayloadValue,
+  /// The body of the request.
+  pub body: InvokeBody,
 }
 
 /// The message and resolver given to a custom command.
@@ -107,9 +107,9 @@ pub struct Invoke<R: Runtime> {
 pub struct InvokeError(pub JsonValue);
 
 impl InvokeError {
-  /// Create an [`InvokeError`] as a string of the [`serde_json::Error`] message.
+  /// Create an [`InvokeError`] as a string of the [`std::error::Error`] message.
   #[inline(always)]
-  pub fn from_serde_json(error: serde_json::Error) -> Self {
+  pub fn from_error<E: std::error::Error>(error: E) -> Self {
     Self(JsonValue::String(error.to_string()))
   }
 
@@ -125,7 +125,7 @@ impl<T: Serialize> From<T> for InvokeError {
   fn from(value: T) -> Self {
     serde_json::to_value(value)
       .map(Self)
-      .unwrap_or_else(Self::from_serde_json)
+      .unwrap_or_else(Self::from_error)
   }
 }
 
@@ -140,18 +140,18 @@ impl From<crate::Error> for InvokeError {
 #[derive(Debug)]
 pub enum InvokeResponse {
   /// Resolve the promise.
-  Ok(InvokePayloadValue),
+  Ok(InvokeBody),
   /// Reject the promise.
   Err(InvokeError),
 }
 
-impl<T: Serialize> From<Result<T, InvokeError>> for InvokeResponse {
+impl<T: IpcResponse> From<Result<T, InvokeError>> for InvokeResponse {
   #[inline]
   fn from(result: Result<T, InvokeError>) -> Self {
     match result {
-      Ok(ok) => match serde_json::to_value(ok) {
+      Ok(ok) => match ok.body() {
         Ok(value) => Self::Ok(value.into()),
-        Err(err) => Self::Err(InvokeError::from_serde_json(err)),
+        Err(err) => Self::Err(InvokeError::from_error(err)),
       },
       Err(err) => Self::Err(err),
     }
@@ -195,7 +195,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// Reply to the invoke promise with an async task.
   pub fn respond_async<T, F>(self, task: F)
   where
-    T: Serialize,
+    T: IpcResponse,
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
@@ -206,7 +206,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// Reply to the invoke promise with an async task which is already serialized.
   pub fn respond_async_serialized<F>(self, task: F)
   where
-    F: Future<Output = Result<JsonValue, InvokeError>> + Send + 'static,
+    F: Future<Output = Result<InvokeBody, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
       let response = match task.await {
@@ -218,13 +218,13 @@ impl<R: Runtime> InvokeResolver<R> {
   }
 
   /// Reply to the invoke promise with a serializable value.
-  pub fn respond<T: Serialize>(self, value: Result<T, InvokeError>) {
+  pub fn respond<T: IpcResponse>(self, value: Result<T, InvokeError>) {
     Self::return_result(self.window, value.into(), self.callback, self.error)
   }
 
   /// Resolve the invoke promise with a value.
-  pub fn resolve<T: Serialize>(self, value: T) {
-    Self::return_result(self.window, Ok(value).into(), self.callback, self.error)
+  pub fn resolve<T: IpcResponse>(self, value: T) {
+    self.respond(Ok(value))
   }
 
   /// Reject the invoke promise with a value.
@@ -253,14 +253,14 @@ impl<R: Runtime> InvokeResolver<R> {
     success_callback: CallbackFn,
     error_callback: CallbackFn,
   ) where
-    T: Serialize,
+    T: IpcResponse,
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
     let result = task.await;
     Self::return_closure(window, || result, success_callback, error_callback)
   }
 
-  pub(crate) fn return_closure<T: Serialize, F: FnOnce() -> Result<T, InvokeError>>(
+  pub(crate) fn return_closure<T: IpcResponse, F: FnOnce() -> Result<T, InvokeError>>(
     window: Window<R>,
     f: F,
     success_callback: CallbackFn,
@@ -307,7 +307,7 @@ pub struct InvokeMessage<R: Runtime> {
   /// The IPC command.
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
-  pub(crate) payload: InvokePayloadValue,
+  pub(crate) payload: InvokeBody,
 }
 
 impl<R: Runtime> Clone for InvokeMessage<R> {
@@ -327,7 +327,7 @@ impl<R: Runtime> InvokeMessage<R> {
     window: Window<R>,
     state: Arc<StateManager>,
     command: String,
-    payload: InvokePayloadValue,
+    payload: InvokeBody,
   ) -> Self {
     Self {
       window,
@@ -357,7 +357,7 @@ impl<R: Runtime> InvokeMessage<R> {
 
   /// A reference to the payload the invoke received.
   #[inline(always)]
-  pub fn payload(&self) -> &InvokePayloadValue {
+  pub fn payload(&self) -> &InvokeBody {
     &self.payload
   }
 

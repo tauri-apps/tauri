@@ -34,7 +34,7 @@ use crate::{api::ipc::CallbackFn, hooks::IpcJavascript};
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
-  hooks::{InvokeHandler, InvokePayload, InvokeResponder, OnPageLoad, PageLoadPayload},
+  hooks::{InvokeHandler, InvokeRequest, InvokeResponder, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
     http::{
@@ -54,7 +54,7 @@ use crate::{
 };
 use crate::{
   app::{GlobalMenuEventListener, WindowMenuEvent},
-  hooks::InvokePayloadValue,
+  hooks::InvokeBody,
 };
 use crate::{pattern::PatternJavascript, InvokeResponse};
 
@@ -586,11 +586,11 @@ impl<R: Runtime> WindowManager<R> {
     Box::new(move |request| {
       let (mut response, content_type) = match handle_ipc_request(request, &manager, &label) {
         Ok(data) => match data {
-          InvokeResponse::Ok(InvokePayloadValue::Json(v)) => (
+          InvokeResponse::Ok(InvokeBody::Json(v)) => (
             HttpResponse::new(serde_json::to_vec(&v)?.into()),
             "application/json",
           ),
-          InvokeResponse::Ok(InvokePayloadValue::Raw(v)) => {
+          InvokeResponse::Ok(InvokeBody::Raw(v)) => {
             (HttpResponse::new(v.into()), "application/octet-stream")
           }
           InvokeResponse::Err(e) => {
@@ -1442,6 +1442,7 @@ fn handle_ipc_request<R: Runtime>(
 ) -> std::result::Result<InvokeResponse, String> {
   if let Some(window) = manager.get_window(&label) {
     // TODO: consume instead
+    #[allow(unused_mut)]
     let mut body = request.body().clone();
 
     let cmd = request
@@ -1492,7 +1493,7 @@ fn handle_ipc_request<R: Runtime>(
       .get(reqwest::header::CONTENT_TYPE)
       .and_then(|h| h.to_str().ok())
       .unwrap_or("application/octet-stream");
-    let data = match content_type {
+    let body = match content_type {
       "application/octet-stream" => body.into(),
       "application/json" => serde_json::from_slice::<serde_json::Value>(&body)
         .map_err(|e| e.to_string())?
@@ -1500,11 +1501,11 @@ fn handle_ipc_request<R: Runtime>(
       _ => return Err(format!("unknown content type {content_type}")),
     };
 
-    let payload = InvokePayload {
+    let payload = InvokeRequest {
       cmd,
       callback,
       error,
-      inner: data,
+      body,
     };
 
     window.on_message(payload).map_err(|e| e.to_string())

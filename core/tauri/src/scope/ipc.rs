@@ -169,7 +169,7 @@ mod tests {
   use serde::Serialize;
 
   use super::RemoteDomainAccessScope;
-  use crate::{api::ipc::CallbackFn, test::MockRuntime, App, InvokePayload, Manager, Window};
+  use crate::{api::ipc::CallbackFn, test::MockRuntime, App, InvokeRequest, Manager, Window};
 
   const PLUGIN_NAME: &str = "test";
 
@@ -186,7 +186,7 @@ mod tests {
 
   fn assert_ipc_response<R: Serialize>(
     window: &Window<MockRuntime>,
-    payload: InvokePayload,
+    payload: InvokeRequest,
     expected: Result<R, &str>,
   ) {
     let callback = payload.callback;
@@ -222,7 +222,7 @@ mod tests {
     assert!(evaluated_script.contains(&expected));
   }
 
-  fn path_is_absolute_payload() -> InvokePayload {
+  fn path_is_absolute_payload() -> InvokeRequest {
     let callback = CallbackFn(0);
     let error = CallbackFn(1);
 
@@ -232,7 +232,7 @@ mod tests {
       serde_json::Value::String(std::env::current_dir().unwrap().display().to_string()),
     );
 
-    InvokePayload {
+    InvokeRequest {
       cmd: "plugin:path|is_absolute".into(),
       callback,
       error,
@@ -240,11 +240,11 @@ mod tests {
     }
   }
 
-  fn plugin_test_payload() -> InvokePayload {
+  fn plugin_test_request() -> InvokeRequest {
     let callback = CallbackFn(0);
     let error = CallbackFn(1);
 
-    InvokePayload {
+    InvokeRequest {
       cmd: format!("plugin:{PLUGIN_NAME}|doSomething"),
       callback,
       error,
@@ -370,7 +370,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response::<()>(
       &window,
-      plugin_test_payload(),
+      plugin_test_request(),
       Err(&format!("plugin {PLUGIN_NAME} not found")),
     );
   }
@@ -384,7 +384,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response::<()>(
       &window,
-      plugin_test_payload(),
+      plugin_test_request(),
       Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }

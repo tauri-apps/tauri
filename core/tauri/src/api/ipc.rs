@@ -14,6 +14,7 @@ use tauri_macros::default_runtime;
 
 use crate::{
   command::{CommandArg, CommandItem},
+  hooks::InvokeBody,
   InvokeError, Runtime, Window,
 };
 
@@ -63,6 +64,60 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
     Err(InvokeError::from_anyhow(anyhow::anyhow!(
       "invalid channel value `{value}`, expected a string in the `{CHANNEL_PREFIX}ID` format"
     )))
+  }
+}
+
+/// The IPC request.
+#[derive(Debug)]
+pub struct Request<'a> {
+  body: &'a InvokeBody,
+}
+
+impl<'a> Request<'a> {
+  /// The request body.
+  pub fn body(&self) -> &InvokeBody {
+    &self.body
+  }
+}
+
+impl<'a, R: Runtime> CommandArg<'a, R> for Request<'a> {
+  /// Returns the invoke [`Request`].
+  fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
+    Ok(Self {
+      body: &command.message.payload,
+    })
+  }
+}
+
+/// Marks a type as a response to an IPC call.
+pub trait IpcResponse {
+  /// Resolve the IPC response body.
+  fn body(self) -> crate::Result<InvokeBody>;
+}
+
+impl<T: Serialize> IpcResponse for T {
+  fn body(self) -> crate::Result<InvokeBody> {
+    serde_json::to_value(self)
+      .map(Into::into)
+      .map_err(Into::into)
+  }
+}
+
+/// The IPC request.
+pub struct Response {
+  body: InvokeBody,
+}
+
+impl IpcResponse for Response {
+  fn body(self) -> crate::Result<InvokeBody> {
+    Ok(self.body)
+  }
+}
+
+impl Response {
+  /// Defines a response with the given body.
+  pub fn new(body: impl Into<InvokeBody>) -> Self {
+    Self { body: body.into() }
   }
 }
 

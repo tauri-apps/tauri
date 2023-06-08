@@ -17,7 +17,7 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
-  hooks::{InvokePayload, InvokePayloadValue, InvokeResponder},
+  hooks::{InvokeBody, InvokeRequest, InvokeResponder},
   manager::WindowManager,
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
@@ -1673,7 +1673,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Handles this window receiving an [`InvokeMessage`] and returns the [`InvokeResponse`].
-  pub fn on_message(self, payload: InvokePayload) -> Result<InvokeResponse, String> {
+  pub fn on_message(self, request: InvokeRequest) -> Result<InvokeResponse, String> {
     let manager = self.manager.clone();
     let current_url = self.url();
     let config_url = manager.get_url();
@@ -1697,11 +1697,11 @@ impl<R: Runtime> Window<R> {
         }
       }
     };
-    match payload.cmd.as_str() {
+    match request.cmd.as_str() {
       "__initialized" => {
-        let payload: PageLoadPayload = match payload.inner {
-          InvokePayloadValue::Json(v) => serde_json::from_value(v).map_err(|e| e.to_string())?,
-          InvokePayloadValue::Raw(v) => serde_json::from_slice(&v).map_err(|e| e.to_string())?,
+        let payload: PageLoadPayload = match request.body {
+          InvokeBody::Json(v) => serde_json::from_value(v).map_err(|e| e.to_string())?,
+          InvokeBody::Raw(v) => serde_json::from_slice(&v).map_err(|e| e.to_string())?,
         };
         manager.run_on_page_load(self, payload);
         Ok(InvokeResponse::Ok(Vec::new().into()))
@@ -1710,18 +1710,18 @@ impl<R: Runtime> Window<R> {
         let message = InvokeMessage::new(
           self.clone(),
           manager.state(),
-          payload.cmd.to_string(),
-          payload.inner,
+          request.cmd.to_string(),
+          request.body,
         );
-        let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
+        let resolver = InvokeResolver::new(self.clone(), request.callback, request.error);
 
         let mut invoke = Invoke { message, resolver };
 
         let (tx, rx) = channel();
         self.state::<IpcStore>().0.lock().unwrap().insert(
           IpcKey {
-            callback: payload.callback,
-            error: payload.error,
+            callback: request.callback,
+            error: request.error,
           },
           tx,
         );
@@ -1730,7 +1730,7 @@ impl<R: Runtime> Window<R> {
           return Err(scope_not_found_error_message);
         }
 
-        if payload.cmd.starts_with("plugin:") {
+        if request.cmd.starts_with("plugin:") {
           if !is_local {
             let command = invoke.message.command.replace("plugin:", "");
             let plugin_name = command.split('|').next().unwrap().to_string();

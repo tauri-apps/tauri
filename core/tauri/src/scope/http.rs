@@ -19,18 +19,9 @@ impl Scope {
       allowed_urls: scope
         .0
         .iter()
-        .flat_map(|url| {
-          [
-            glob::Pattern::new(url.as_str())
-              .unwrap_or_else(|_| panic!("scoped URL is not a valid glob pattern: `{url}`")),
-            glob::Pattern::new(
-              url
-                .as_str()
-                .strip_suffix('/')
-                .unwrap_or_else(|| url.as_str()),
-            )
-            .unwrap_or_else(|_| panic!("scoped URL is not a valid glob pattern: `{url}`")),
-          ]
+        .map(|url| {
+          glob::Pattern::new(url)
+            .unwrap_or_else(|_| panic!("scoped URL is not a valid glob pattern: `{url}`"))
         })
         .collect(),
     }
@@ -38,10 +29,10 @@ impl Scope {
 
   /// Determines if the given URL is allowed on this scope.
   pub fn is_allowed(&self, url: &url::Url) -> bool {
-    self
-      .allowed_urls
-      .iter()
-      .any(|allowed| allowed.matches(url.as_str()))
+    self.allowed_urls.iter().any(|allowed| {
+      allowed.matches(url.as_str())
+        || allowed.matches(url.as_str().strip_suffix('/').unwrap_or_default())
+    })
   }
 }
 

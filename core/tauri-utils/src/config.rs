@@ -1924,15 +1924,13 @@ impl Allowlist for DialogAllowlistConfig {
 /// The scoped URL is matched against the request URL using a glob pattern.
 ///
 /// Examples:
-/// - "https://*": allows all HTTPS urls
+/// - "https://*" or "https://**": allows all HTTPS urls
 /// - "https://*.github.com/tauri-apps/tauri": allows any subdomain of "github.com" with the "tauri-apps/api" path
 /// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
 #[allow(rustdoc::bare_urls)]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-// TODO: in v2, parse into a String or a custom type that perserves the
-// glob string because Url type will add a trailing slash
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct HttpAllowlistScope(pub Vec<Url>);
+pub struct HttpAllowlistScope(pub Vec<String>);
 
 /// Allowlist for the HTTP APIs.
 ///
@@ -3758,7 +3756,7 @@ mod build {
 
   impl ToTokens for HttpAllowlistScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let allowed_urls = vec_lit(&self.0, url_lit);
+      let allowed_urls = vec_lit(&self.0, str_lit);
       tokens.append_all(quote! { ::tauri::utils::config::HttpAllowlistScope(#allowed_urls) })
     }
   }

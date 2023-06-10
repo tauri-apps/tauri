@@ -29,7 +29,7 @@ pub struct Channel<R: Runtime> {
 impl<R: Runtime> Clone for Channel<R> {
   fn clone(&self) -> Self {
     Self {
-      id: self.id.clone(),
+      id: self.id,
       window: self.window.clone(),
     }
   }

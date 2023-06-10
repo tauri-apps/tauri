@@ -248,7 +248,7 @@ impl<R: Runtime> PluginHandle<R> {
   ) -> Result<T, PluginInvokeError> {
     let (tx, rx) = channel();
     run_command(
-      &self.name,
+      self.name,
       &self.handle,
       command,
       serde_json::to_value(payload)
@@ -321,7 +321,7 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
       id,
       &name.into(),
       &command.as_ref().into(),
-      crate::ios::json_to_dictionary(&payload.to_json()) as _,
+      crate::ios::json_to_dictionary(&payload.into_json()) as _,
       crate::ios::PluginMessageCallback(plugin_command_response_handler),
     );
   }
@@ -386,7 +386,7 @@ pub(crate) fn run_command<
   let id: i32 = rand::random();
   let plugin_name = name.to_string();
   let command = command.as_ref().to_string();
-  let payload = payload.to_json();
+  let payload = payload.into_json();
   let handle_ = handle.clone();
 
   PENDING_PLUGIN_CALLS

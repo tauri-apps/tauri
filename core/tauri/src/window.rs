@@ -1766,7 +1766,7 @@ impl<R: Runtime> Window<R> {
             if !handled {
               handled = true;
               crate::plugin::mobile::run_command(
-                &plugin,
+                plugin,
                 &self.app_handle,
                 message.command,
                 message.payload,

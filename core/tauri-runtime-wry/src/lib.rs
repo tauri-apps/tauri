@@ -3006,9 +3006,6 @@ fn create_webview<T: UserEvent>(
     on_webview_created,
     ..
   } = pending;
-  let webview_id_map = context.webview_id_map.clone();
-  #[cfg(windows)]
-  let proxy = context.proxy.clone();
 
   let window_event_listeners = WindowEventListeners::default();
 
@@ -3043,7 +3040,7 @@ fn create_webview<T: UserEvent>(
   };
   let window = window_builder.inner.build(event_loop).unwrap();
 
-  webview_id_map.insert(window.id(), window_id);
+  context.webview_id_map.insert(window.id(), window_id);
 
   if window_builder.center {
     let _ = center_window(&window, window.inner_size());
@@ -3152,7 +3149,7 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   {
     let controller = webview.controller();
-    let proxy_ = proxy.clone();
+    let proxy_ = context.proxy.clone();
     let mut token = EventRegistrationToken::default();
     unsafe {
       controller.add_GotFocus(

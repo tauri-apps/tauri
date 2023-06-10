@@ -86,15 +86,6 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun postIpcMessage(webView: WebView, pluginId: String, command: String, data: JSObject, callback: Long, error: Long) {
-    val invoke = Invoke(callback, command, callback, error, { fn, result ->
-      webView.evaluateJavascript("window['_$fn']($result)", null)
-    }, data)
-
-    dispatchPluginMessage(invoke, pluginId)
-  }
-
-  @JniMethod
   fun runCommand(id: Int, pluginId: String, command: String, data: JSObject) {
     val successId = 0L
     val errorId = 1L

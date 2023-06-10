@@ -64,6 +64,8 @@ use std::{
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
+pub(crate) type UriSchemeProtocolHandler =
+  Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>;
 
 #[derive(Eq, PartialEq)]
 pub(crate) struct IpcKey {
@@ -1672,13 +1674,14 @@ impl<R: Runtime> Window<R> {
     self.current_url = url;
   }
 
-  /// Handles this window receiving an [`InvokeMessage`] and returns the [`InvokeResponse`].
+  /// Handles this window receiving an [`InvokeRequest`] and returns the [`InvokeResponse`].
   pub fn on_message(self, request: InvokeRequest) -> Result<InvokeResponse, String> {
     let manager = self.manager.clone();
     let current_url = self.url();
     let config_url = manager.get_url();
-    let is_local =
-      config_url.make_relative(&current_url).is_some() || current_url.scheme() == "tauri";
+    let is_local = config_url.make_relative(&current_url).is_some()
+      || current_url.scheme() == "tauri"
+      || (cfg!(dev) && current_url.domain() == Some("tauri.localhost"));
 
     let mut scope_not_found_error_message =
       ipc_scope_not_found_error_message(&self.window.label, current_url.as_str());
@@ -1723,7 +1726,8 @@ impl<R: Runtime> Window<R> {
             callback: request.callback,
             error: request.error,
           },
-          tx,
+          #[allow(clippy::redundant_clone)]
+          tx.clone(),
         );
 
         if !is_local && scope.is_none() {
@@ -1752,98 +1756,25 @@ impl<R: Runtime> Window<R> {
 
           let command = invoke.message.command.clone();
           #[cfg(mobile)]
-          let (resolver, message) = (invoke.resolver.clone(), invoke.message.clone());
+          let message = invoke.message.clone();
 
           #[allow(unused_mut)]
           let mut handled = manager.extend_api(plugin, invoke);
 
-          #[cfg(target_os = "ios")]
+          #[cfg(mobile)]
           {
             if !handled {
               handled = true;
-              let plugin = plugin.to_string();
-              let (callback, error) = (resolver.callback, resolver.error);
-              self.with_webview(move |webview| {
-                unsafe {
-                  crate::ios::post_ipc_message(
-                    webview.inner() as _,
-                    &plugin.as_str().into(),
-                    &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
-                      .as_str()
-                      .into(),
-                    crate::ios::json_to_dictionary(&message.payload) as _,
-                    callback.0,
-                    error.0,
-                  )
-                };
-              })?;
-            }
-          }
-
-          #[cfg(target_os = "android")]
-          {
-            if !handled {
-              handled = true;
-              let resolver_ = resolver.clone();
-              let runtime_handle = self.app_handle.runtime_handle.clone();
-              let plugin = plugin.to_string();
-              self.with_webview(move |webview| {
-                webview.jni_handle().exec(move |env, activity, webview| {
-                  use jni::{
-                    errors::Error as JniError,
-                    objects::JObject,
-                    JNIEnv,
-                  };
-
-                  fn handle_message<R: Runtime>(
-                    plugin: &str,
-                    runtime_handle: &R::Handle,
-                    message: InvokeMessage<R>,
-                    (callback, error): (CallbackFn, CallbackFn),
-                    env: JNIEnv<'_>,
-                    activity: JObject<'_>,
-                    webview: JObject<'_>,
-                  ) -> Result<(), JniError> {
-                    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, &message.payload)?;
-                    let plugin_manager = env
-                      .call_method(
-                        activity,
-                        "getPluginManager",
-                        "()Lapp/tauri/plugin/PluginManager;",
-                        &[],
-                      )?
-                      .l()?;
-
-                    env.call_method(
-                      plugin_manager,
-                      "postIpcMessage",
-                      "(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;JJ)V",
-                      &[
-                        webview.into(),
-                        env.new_string(plugin)?.into(),
-                        env.new_string(&heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str()))?.into(),
-                        data,
-                        (callback.0 as i64).into(),
-                        (error.0 as i64).into(),
-                      ],
-                    )?;
-
-                    Ok(())
-                  }
-
-                  if let Err(e) = handle_message(
-                    &plugin,
-                    &runtime_handle,
-                    message,
-                    (resolver_.callback, resolver_.error),
-                    env,
-                    activity,
-                    webview,
-                  ) {
-                    resolver_.reject(format!("failed to reach Android layer: {e}"));
-                  }
-                });
-              })?;
+              crate::plugin::mobile::run_command(
+                &plugin,
+                &self.app_handle,
+                message.command,
+                message.payload,
+                move |response| {
+                  tx.send(response.into()).unwrap();
+                },
+              )
+              .map_err(|e| e.to_string())?;
             }
           }
 

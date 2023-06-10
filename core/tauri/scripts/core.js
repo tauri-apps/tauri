@@ -13,6 +13,13 @@
     })
   }
 
+  window.__TAURI__.convertFileSrc = function convertFileSrc(filePath, protocol = 'asset') {
+    const path = encodeURIComponent(filePath)
+    return navigator.userAgent.includes('Windows') || navigator.userAgent.includes('Android')
+      ? `https://${protocol}.localhost/${path}`
+      : `${protocol}://localhost/${path}`
+  }
+
   window.__TAURI__.transformCallback = function transformCallback(
     callback,
     once

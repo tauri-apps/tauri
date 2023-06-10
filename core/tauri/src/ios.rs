@@ -23,15 +23,7 @@ impl<'a> SwiftArg<'a> for PluginMessageCallback {
   }
 }
 
-swift!(pub fn post_ipc_message(
-  webview: *const c_void,
-  name: &SRString,
-  method: &SRString,
-  data: *const c_void,
-  callback: usize,
-  error: usize
-));
-swift!(pub fn run_plugin_method(
+swift!(pub fn run_plugin_command(
   id: i32,
   name: &SRString,
   method: &SRString,

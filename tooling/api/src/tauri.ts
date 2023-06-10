@@ -190,7 +190,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  */
 function convertFileSrc(filePath: string, protocol = 'asset'): string {
   const path = encodeURIComponent(filePath)
-  return navigator.userAgent.includes('Windows')
+  return navigator.userAgent.includes('Windows') || navigator.userAgent.includes('Android')
     ? `https://${protocol}.localhost/${path}`
     : `${protocol}://localhost/${path}`
 }

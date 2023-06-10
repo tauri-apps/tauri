@@ -108,21 +108,7 @@ func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
 	PluginManager.shared.onWebviewCreated(webview)
 }
 
-@_cdecl("post_ipc_message")
-func postIpcMessage(webview: WKWebView, name: SRString, command: SRString, data: NSDictionary, callback: UInt64, error: UInt64) {
-	let invoke = Invoke(command: command.toString(), callback: callback, error: error, sendResponse: { (fn: UInt64, payload: JsonValue?) -> Void in
-		var payloadJson: String
-		do {
-			try payloadJson = payload == nil ? "null" : payload!.jsonRepresentation() ?? "`Failed to serialize payload`"
-		} catch {
-			payloadJson = "`\(error)`"
-		}
-		webview.evaluateJavaScript("window['_\(fn)'](\(payloadJson))")
-	}, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
-	PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
-}
-
-@_cdecl("run_plugin_method")
+@_cdecl("run_plugin_command")
 func runCommand(
 	id: Int,
 	name: SRString,

@@ -15,7 +15,7 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-wry = { version = "0.28.3", default-features = false, features = [ "file-drop", "protocol", "linux-headers" ] }
+wry = { git = "https://github.com/tauri-apps/wry", branch = "feat/android-protocol-req-body", default-features = false, features = [ "file-drop", "protocol", "linux-headers" ] }
 tauri-runtime = { version = "0.13.0-alpha.5", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-alpha.5", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }

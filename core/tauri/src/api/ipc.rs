@@ -76,7 +76,7 @@ pub struct Request<'a> {
 impl<'a> Request<'a> {
   /// The request body.
   pub fn body(&self) -> &InvokeBody {
-    &self.body
+    self.body
   }
 }
 

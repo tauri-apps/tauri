@@ -78,6 +78,18 @@ impl From<Vec<u8>> for InvokeBody {
   }
 }
 
+impl InvokeBody {
+  #[cfg(mobile)]
+  pub(crate) fn to_json(self) -> JsonValue {
+    match self {
+      Self::Json(v) => v,
+      Self::Raw(v) => {
+        JsonValue::Array(v.into_iter().map(|n| JsonValue::Number(n.into())).collect())
+      }
+    }
+  }
+}
+
 /// The IPC invoke request.
 #[derive(Debug)]
 pub struct InvokeRequest {
@@ -132,7 +144,7 @@ impl<T: Serialize> From<T> for InvokeError {
 impl From<crate::Error> for InvokeError {
   #[inline(always)]
   fn from(error: crate::Error) -> Self {
-    Self(JsonValue::String(error.to_string()).into())
+    Self(JsonValue::String(error.to_string()))
   }
 }
 
@@ -145,15 +157,15 @@ pub enum InvokeResponse {
   Err(InvokeError),
 }
 
-impl<T: IpcResponse> From<Result<T, InvokeError>> for InvokeResponse {
+impl<T: IpcResponse, E: Into<InvokeError>> From<Result<T, E>> for InvokeResponse {
   #[inline]
-  fn from(result: Result<T, InvokeError>) -> Self {
+  fn from(result: Result<T, E>) -> Self {
     match result {
       Ok(ok) => match ok.body() {
-        Ok(value) => Self::Ok(value.into()),
+        Ok(value) => Self::Ok(value),
         Err(err) => Self::Err(InvokeError::from_error(err)),
       },
-      Err(err) => Self::Err(err),
+      Err(err) => Self::Err(err.into()),
     }
   }
 }
@@ -210,7 +222,7 @@ impl<R: Runtime> InvokeResolver<R> {
   {
     crate::async_runtime::spawn(async move {
       let response = match task.await {
-        Ok(ok) => InvokeResponse::Ok(ok.into()),
+        Ok(ok) => InvokeResponse::Ok(ok),
         Err(err) => InvokeResponse::Err(err),
       };
       Self::return_result(self.window, response, self.callback, self.error)
@@ -231,7 +243,7 @@ impl<R: Runtime> InvokeResolver<R> {
   pub fn reject<T: Serialize>(self, value: T) {
     Self::return_result(
       self.window,
-      Result::<(), _>::Err(value.into()).into(),
+      Result::<(), _>::Err(value).into(),
       self.callback,
       self.error,
     )

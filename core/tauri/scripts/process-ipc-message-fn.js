@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 (function (message) {
-  if (message instanceof ArrayBuffer || Array.isArray(message)) {
+  // on Android we must send the body as a string
+  if (
+    !navigator.appVersion.includes("Android") &&
+    (message instanceof ArrayBuffer || ArrayBuffer.isView(message) || Array.isArray(message))
+  ) {
     return {
       contentType: 'application/octet-stream',
       data: message

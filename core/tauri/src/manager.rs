@@ -11,8 +11,8 @@ use std::{
 };
 
 use http::{
-  header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
-  HeaderValue, StatusCode,
+  header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN},
+  HeaderValue, Method, StatusCode,
 };
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
@@ -30,7 +30,11 @@ use tauri_utils::{
 
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
-use crate::{api::ipc::CallbackFn, hooks::IpcJavascript};
+use crate::{
+  api::ipc::CallbackFn,
+  hooks::IpcJavascript,
+  window::{UriSchemeProtocolHandler, WebResourceRequestHandler},
+};
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
@@ -383,9 +387,9 @@ impl<R: Runtime> WindowManager<R> {
   pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
-      #[cfg(windows)]
+      #[cfg(any(windows, target_os = "android"))]
       _ => Cow::Owned(Url::parse("https://tauri.localhost").unwrap()),
-      #[cfg(not(windows))]
+      #[cfg(not(any(windows, target_os = "android")))]
       _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
     }
   }
@@ -577,41 +581,63 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  fn prepare_ipc_scheme_protocol(
-    &self,
-    label: String,
-  ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
-  {
+  fn prepare_ipc_scheme_protocol(&self, label: String) -> UriSchemeProtocolHandler {
     let manager = self.clone();
     Box::new(move |request| {
-      let (mut response, content_type) = match handle_ipc_request(request, &manager, &label) {
-        Ok(data) => match data {
-          InvokeResponse::Ok(InvokeBody::Json(v)) => (
-            HttpResponse::new(serde_json::to_vec(&v)?.into()),
-            "application/json",
-          ),
-          InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-            (HttpResponse::new(v.into()), "application/octet-stream")
-          }
-          InvokeResponse::Err(e) => {
-            let mut response = HttpResponse::new(serde_json::to_vec(&e.0)?.into());
-            response.set_status(StatusCode::BAD_REQUEST);
-            (response, "text/plain")
-          }
-        },
-        Err(e) => {
-          let mut response = HttpResponse::new(e.as_bytes().to_vec().into());
-          response.set_status(StatusCode::BAD_REQUEST);
-          (response, "text/plain")
+      let mut response = match *request.method() {
+        Method::POST => {
+          let (mut response, content_type) = match handle_ipc_request(request, &manager, &label) {
+            Ok(data) => match data {
+              InvokeResponse::Ok(InvokeBody::Json(v)) => (
+                HttpResponse::new(serde_json::to_vec(&v)?.into()),
+                "application/json",
+              ),
+              InvokeResponse::Ok(InvokeBody::Raw(v)) => {
+                (HttpResponse::new(v.into()), "application/octet-stream")
+              }
+              InvokeResponse::Err(e) => {
+                let mut response = HttpResponse::new(serde_json::to_vec(&e.0)?.into());
+                response.set_status(StatusCode::BAD_REQUEST);
+                (response, "text/plain")
+              }
+            },
+            Err(e) => {
+              let mut response = HttpResponse::new(e.as_bytes().to_vec().into());
+              response.set_status(StatusCode::BAD_REQUEST);
+              (response, "text/plain")
+            }
+          };
+
+          response.set_mimetype(Some(content_type.into()));
+
+          response
+        }
+
+        Method::OPTIONS => {
+          let mut r = HttpResponse::new(Vec::new().into());
+          r.headers_mut().insert(
+            ACCESS_CONTROL_ALLOW_HEADERS,
+            HeaderValue::from_static("Content-Type, Tauri-Callback, Tauri-Error"),
+          );
+          r
+        }
+
+        _ => {
+          let mut r = HttpResponse::new(
+            "only POST and OPTIONS are allowed"
+              .as_bytes()
+              .to_vec()
+              .into(),
+          );
+          r.set_status(StatusCode::METHOD_NOT_ALLOWED);
+          r.set_mimetype(Some("text/plain".into()));
+          r
         }
       };
 
       response
         .headers_mut()
         .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
-      response
-        .headers_mut()
-        .insert(CONTENT_TYPE, HeaderValue::from_static(content_type));
 
       Ok(response)
     })
@@ -700,15 +726,11 @@ impl<R: Runtime> WindowManager<R> {
     }
   }
 
-  #[allow(clippy::type_complexity)]
   fn prepare_uri_scheme_protocol(
     &self,
     window_origin: &str,
-    web_resource_request_handler: Option<
-      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
-    >,
-  ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
-  {
+    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+  ) -> UriSchemeProtocolHandler {
     #[cfg(all(dev, mobile))]
     let url = {
       let mut url = self.get_url().as_str().to_string();
@@ -753,7 +775,6 @@ impl<R: Runtime> WindowManager<R> {
 
       #[cfg(all(dev, mobile))]
       let mut response = {
-        use reqwest::StatusCode;
         let decoded_path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
@@ -1440,7 +1461,7 @@ fn handle_ipc_request<R: Runtime>(
   manager: &WindowManager<R>,
   label: &str,
 ) -> std::result::Result<InvokeResponse, String> {
-  if let Some(window) = manager.get_window(&label) {
+  if let Some(window) = manager.get_window(label) {
     // TODO: consume instead
     #[allow(unused_mut)]
     let mut body = request.body().clone();
@@ -1508,7 +1529,7 @@ fn handle_ipc_request<R: Runtime>(
       body,
     };
 
-    window.on_message(payload).map_err(|e| e.to_string())
+    window.on_message(payload)
   } else {
     Err("window not found".into())
   }

@@ -236,7 +236,7 @@ mod tests {
       cmd: "plugin:path|is_absolute".into(),
       callback,
       error,
-      inner: serde_json::Value::Object(payload),
+      body: serde_json::Value::Object(payload).into(),
     }
   }
 
@@ -248,7 +248,7 @@ mod tests {
       cmd: format!("plugin:{PLUGIN_NAME}|doSomething"),
       callback,
       error,
-      inner: Default::default(),
+      body: Default::default(),
     }
   }
 

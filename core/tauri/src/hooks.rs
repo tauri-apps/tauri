@@ -66,6 +66,12 @@ pub enum InvokeBody {
   Raw(Vec<u8>),
 }
 
+impl Default for InvokeBody {
+  fn default() -> Self {
+    Self::Json(Default::default())
+  }
+}
+
 impl From<JsonValue> for InvokeBody {
   fn from(value: JsonValue) -> Self {
     Self::Json(value)

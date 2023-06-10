@@ -100,7 +100,7 @@ unsafe fn add_json_value_to_array(array: id, value: &JsonValue) {
       let () = msg_send![array, addObject: number];
     }
     JsonValue::String(val) => {
-      let () = msg_send![array, addObject: NSString::new(&val)];
+      let () = msg_send![array, addObject: NSString::new(val)];
     }
     JsonValue::Array(val) => {
       let nsarray: id = msg_send![class!(NSMutableArray), alloc];
@@ -122,7 +122,7 @@ unsafe fn add_json_value_to_array(array: id, value: &JsonValue) {
 }
 
 unsafe fn add_json_entry_to_dictionary(data: id, key: &str, value: &JsonValue) {
-  let key = NSString::new(&key);
+  let key = NSString::new(key);
   match value {
     JsonValue::Null => {
       let null: id = msg_send![class!(NSNull), null];
@@ -146,7 +146,7 @@ unsafe fn add_json_entry_to_dictionary(data: id, key: &str, value: &JsonValue) {
       let () = msg_send![data, setObject:number forKey: key];
     }
     JsonValue::String(val) => {
-      let () = msg_send![data, setObject:NSString::new(&val) forKey: key];
+      let () = msg_send![data, setObject:NSString::new(val) forKey: key];
     }
     JsonValue::Array(val) => {
       let nsarray: id = msg_send![class!(NSMutableArray), alloc];

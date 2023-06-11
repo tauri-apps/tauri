@@ -612,18 +612,17 @@ Release Notes:
       )
       .await?;
 
-      // emit {"status": "DONE"}
-      send_status_update(&update.app, UpdaterEvent::Updated);
+    // emit {"status": "DONE"}
+    send_status_update(&update.app, UpdaterEvent::Updated);
 
-      // Ask user if we need to restart the application
-      let should_exit = ask(
-        parent_window,
-        "Ready to Restart",
-        "The installation was successful, do you want to restart the application now?",
-      );
-      if should_exit {
-        update.app.restart();
-      }
+    // Ask user if we need to restart the application
+    let should_exit = ask(
+      parent_window,
+      "Ready to Restart",
+      "The installation was successful, do you want to restart the application now?",
+    );
+    if should_exit {
+      update.app.restart();
     }
   }
 

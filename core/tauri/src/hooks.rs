@@ -7,7 +7,7 @@ use crate::{
   app::App,
   Runtime, StateManager, Window,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, Template};
 use std::{future::Future, sync::Arc};
@@ -59,8 +59,7 @@ impl PageLoadPayload {
 }
 
 /// Possible values of an IPC payload.
-#[derive(Debug, Clone, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
 pub enum InvokeBody {
   /// Json payload.
   Json(JsonValue),
@@ -86,14 +85,26 @@ impl From<Vec<u8>> for InvokeBody {
   }
 }
 
+impl IpcResponse for InvokeBody {
+  fn body(self) -> crate::Result<InvokeBody> {
+    Ok(self)
+  }
+}
+
 impl InvokeBody {
-  #[cfg(any(mobile, test))]
   pub(crate) fn into_json(self) -> JsonValue {
     match self {
       Self::Json(v) => v,
       Self::Raw(v) => {
         JsonValue::Array(v.into_iter().map(|n| JsonValue::Number(n.into())).collect())
       }
+    }
+  }
+
+  pub fn deserialize<T: DeserializeOwned>(self) -> serde_json::Result<T> {
+    match self {
+      InvokeBody::Json(v) => serde_json::from_value(v),
+      InvokeBody::Raw(v) => serde_json::from_slice(&v),
     }
   }
 }

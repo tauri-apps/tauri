@@ -6,6 +6,8 @@
 //!
 //! This module includes utilities to send messages to the JS layer of the webview.
 
+use std::{collections::HashMap, sync::Mutex};
+
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
@@ -15,10 +17,14 @@ use tauri_macros::default_runtime;
 use crate::{
   command::{CommandArg, CommandItem},
   hooks::InvokeBody,
-  InvokeError, Runtime, Window,
+  InvokeError, Manager, Runtime, Window,
 };
 
 const CHANNEL_PREFIX: &str = "__CHANNEL__:";
+pub(crate) const FETCH_CHANNEL_DATA_COMMAND: &str = "__tauriFetchChannelData__";
+
+#[derive(Default)]
+pub(crate) struct ChannelDataCache(pub(crate) Mutex<HashMap<u32, InvokeBody>>);
 
 /// An IPC channel.
 #[default_runtime(crate::Wry, wry)]
@@ -38,9 +44,28 @@ impl Serialize for Channel {
 
 impl<R: Runtime> Channel<R> {
   /// Sends the given data through the channel.
-  pub fn send<S: Serialize>(&self, data: &S) -> crate::Result<()> {
-    let js = format_callback(self.id, data)?;
-    self.window.eval(&js)
+  pub fn send<T: IpcResponse>(&self, data: T) -> crate::Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+      let js = format_callback(self.id, data.body()?.into_json())?;
+      self.window.eval(&js)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+      let body = data.body()?;
+      let data_id = rand::random();
+      self
+        .window
+        .state::<ChannelDataCache>()
+        .0
+        .lock()
+        .unwrap()
+        .insert(data_id, body);
+      self.window.eval(&format!(
+        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', {{ id: {data_id} }}).then(window['_' + {}])",
+        self.id.0
+      ))
+    }
   }
 }
 

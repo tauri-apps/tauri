@@ -13,11 +13,11 @@ use url::Url;
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
 use crate::{
-  api::ipc::CallbackFn,
+  api::ipc::{CallbackFn, ChannelDataCache, FETCH_CHANNEL_DATA_COMMAND},
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
-  hooks::{InvokeBody, InvokeRequest},
+  hooks::InvokeRequest,
   manager::WindowManager,
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
@@ -45,7 +45,7 @@ use crate::{
   CursorIcon, Icon,
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
@@ -1724,15 +1724,32 @@ impl<R: Runtime> Window<R> {
     );
 
     match request.cmd.as_str() {
-      "__initialized" => {
-        let parsed_payload = match request.body {
-          InvokeBody::Json(v) => serde_json::from_value(v),
-          InvokeBody::Raw(v) => serde_json::from_slice(&v),
-        };
-        match parsed_payload {
+      "__initialized" => match request.body.deserialize() {
+        Ok(payload) => {
+          manager.run_on_page_load(self, payload);
+          resolver.resolve(());
+        }
+        Err(e) => resolver.reject(e.to_string()),
+      },
+      FETCH_CHANNEL_DATA_COMMAND => {
+        #[derive(Deserialize)]
+        struct FetchChannelDataPayload {
+          id: u32,
+        }
+
+        match request.body.deserialize::<FetchChannelDataPayload>() {
           Ok(payload) => {
-            manager.run_on_page_load(self, payload);
-            resolver.resolve(());
+            if let Some(data) = self
+              .state::<ChannelDataCache>()
+              .0
+              .lock()
+              .unwrap()
+              .remove(&payload.id)
+            {
+              resolver.resolve(data);
+            } else {
+              resolver.reject("Data not found");
+            }
           }
           Err(e) => resolver.reject(e.to_string()),
         }

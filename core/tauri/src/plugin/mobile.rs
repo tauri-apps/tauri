@@ -4,7 +4,7 @@
 
 use super::{PluginApi, PluginHandle};
 
-use crate::{hooks::InvokeBody, AppHandle, Runtime};
+use crate::{ipc::InvokeBody, AppHandle, Runtime};
 #[cfg(target_os = "android")]
 use crate::{
   runtime::RuntimeHandle,

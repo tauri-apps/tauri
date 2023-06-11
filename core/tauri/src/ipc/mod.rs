@@ -19,7 +19,7 @@ use tauri_macros::default_runtime;
 
 use crate::{
   command::{CommandArg, CommandItem},
-  Manager, Runtime, StateManager, Window,
+  Runtime, StateManager, Window,
 };
 
 #[cfg(target_os = "linux")]
@@ -75,6 +75,8 @@ impl<R: Runtime> Channel<R> {
     }
     #[cfg(not(target_os = "linux"))]
     {
+      use crate::Manager;
+
       let body = data.body()?;
       let data_id = rand::random();
       self

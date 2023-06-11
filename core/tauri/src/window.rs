@@ -1682,6 +1682,8 @@ impl<R: Runtime> Window<R> {
     };
 
     let (tx, rx) = sync_channel(1);
+    #[cfg(mobile)]
+    let tx_ = tx.clone();
 
     let custom_responder = self.manager.invoke_responder();
 
@@ -1736,6 +1738,9 @@ impl<R: Runtime> Window<R> {
         }
       }
       _ => {
+        #[cfg(mobile)]
+        let app_handle = self.app_handle.clone();
+
         let message =
           InvokeMessage::new(self, manager.state(), request.cmd.to_string(), request.body);
 
@@ -1781,14 +1786,15 @@ impl<R: Runtime> Window<R> {
               handled = true;
               if let Err(e) = crate::plugin::mobile::run_command(
                 plugin,
-                &self.app_handle,
+                &app_handle,
                 message.command,
                 message.payload,
                 move |response| {
-                  tx.send(response.into()).unwrap();
+                  tx_.send(response.into()).unwrap();
                 },
               ) {
-                resolver.reject(e);
+                resolver.reject(e.to_string());
+                return rx;
               }
             }
           }

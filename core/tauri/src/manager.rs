@@ -45,7 +45,7 @@ use crate::{
       MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
-    webview::{WebviewIpcHandler, WindowBuilder},
+    webview::WindowBuilder,
     window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow},
   },
   utils::{
@@ -582,7 +582,9 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   #[cfg(target_os = "linux")]
-  fn prepare_ipc_message_handler(&self) -> WebviewIpcHandler<EventLoopMessage, R> {
+  fn prepare_ipc_message_handler(
+    &self,
+  ) -> crate::runtime::webview::WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, request| handle_ipc_message(request, &manager, &window.label))
   }

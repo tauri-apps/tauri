@@ -1466,8 +1466,8 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
   }
 }
 
-#[allow(unused_mut)]
-fn handle_ipc_message<R: Runtime>(mut message: String, manager: &WindowManager<R>, label: &str) {
+#[cfg(target_os = "linux")]
+fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, label: &str) {
   if let Some(window) = manager.get_window(label) {
     #[derive(serde::Deserialize)]
     struct Message {
@@ -1478,47 +1478,33 @@ fn handle_ipc_message<R: Runtime>(mut message: String, manager: &WindowManager<R
       payload: serde_json::Value,
     }
 
+    #[allow(unused_mut)]
     let mut invoke_message: Option<crate::Result<Message>> = None;
 
     #[cfg(feature = "isolation")]
     {
-      #[cfg(target_os = "linux")]
-      {
-        #[derive(serde::Deserialize)]
-        struct IsolationMessage<'a> {
-          cmd: String,
-          callback: CallbackFn,
-          error: CallbackFn,
-          #[serde(flatten)]
-          payload: RawIsolationPayload<'a>,
-        }
-
-        if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-          invoke_message.replace(
-            serde_json::from_str::<IsolationMessage<'_>>(&message)
-              .map_err(Into::into)
-              .and_then(|message| {
-                Ok(Message {
-                  cmd: message.cmd,
-                  callback: message.callback,
-                  error: message.error,
-                  payload: serde_json::from_slice(&crypto_keys.decrypt(message.payload)?)?,
-                })
-              }),
-          );
-        }
+      #[derive(serde::Deserialize)]
+      struct IsolationMessage<'a> {
+        cmd: String,
+        callback: CallbackFn,
+        error: CallbackFn,
+        #[serde(flatten)]
+        payload: RawIsolationPayload<'a>,
       }
 
-      #[cfg(not(target_os = "linux"))]
-      {
-        if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-          invoke_message.replace(
-            RawIsolationPayload::try_from(message.as_str())
-              .map_err(crate::Error::from)
-              .and_then(|raw| crypto_keys.decrypt(raw).map_err(Into::into))
-              .and_then(|v| serde_json::from_slice(&v).map_err(Into::into)),
-          );
-        }
+      if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+        invoke_message.replace(
+          serde_json::from_str::<IsolationMessage<'_>>(&message)
+            .map_err(Into::into)
+            .and_then(|message| {
+              Ok(Message {
+                cmd: message.cmd,
+                callback: message.callback,
+                error: message.error,
+                payload: serde_json::from_slice(&crypto_keys.decrypt(message.payload)?)?,
+              })
+            }),
+        );
       }
     }
 

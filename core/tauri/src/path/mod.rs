@@ -13,7 +13,6 @@ use serde::{de::Error as DeError, Deserialize, Deserializer};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 
-#[cfg(any(path_all, test))]
 mod commands;
 mod error;
 pub use error::*;
@@ -341,23 +340,6 @@ struct InitJavascript {
 
 /// Initializes the plugin.
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
-  #[allow(unused_mut)]
-  let mut builder = Builder::new("path");
-
-  #[cfg(any(path_all, test))]
-  {
-    builder = builder.invoke_handler(crate::generate_handler![
-      commands::resolve_directory,
-      commands::resolve,
-      commands::normalize,
-      commands::join,
-      commands::dirname,
-      commands::extname,
-      commands::basename,
-      commands::is_absolute
-    ]);
-  }
-
   #[cfg(windows)]
   let (sep, delimiter) = ("\\", ";");
   #[cfg(not(windows))]
@@ -368,7 +350,17 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     // this will never fail with the above sep and delimiter values
     .unwrap();
 
-  builder
+  Builder::new("path")
+    .invoke_handler(crate::generate_handler![
+      commands::resolve_directory,
+      commands::resolve,
+      commands::normalize,
+      commands::join,
+      commands::dirname,
+      commands::extname,
+      commands::basename,
+      commands::is_absolute
+    ])
     .js_init_script(init_js.to_string())
     .setup(|app, _api| {
       #[cfg(target_os = "android")]

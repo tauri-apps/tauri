@@ -47,6 +47,15 @@ pub struct Channel<R: Runtime> {
   window: Window<R>,
 }
 
+impl<R: Runtime> Clone for Channel<R> {
+  fn clone(&self) -> Self {
+    Self {
+      id: self.id,
+      window: self.window.clone(),
+    }
+  }
+}
+
 impl Serialize for Channel {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where

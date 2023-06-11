@@ -48,7 +48,7 @@ impl<R: Runtime> Channel<R> {
   pub fn send<T: IpcResponse>(&self, data: T) -> crate::Result<()> {
     #[cfg(target_os = "linux")]
     {
-      let js = format_callback::format(self.id, data.body()?.into_json())?;
+      let js = format_callback::format(self.id, &data.body()?.into_json())?;
       self.window.eval(&js)
     }
     #[cfg(not(target_os = "linux"))]

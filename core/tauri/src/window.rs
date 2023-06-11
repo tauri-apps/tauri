@@ -1697,7 +1697,7 @@ impl<R: Runtime> Window<R> {
             if custom_responder.is_none() {
               let response_js = match crate::api::ipc::format_callback::format_result(
                 match &response {
-                  InvokeResponse::Ok(v) => Ok(v),
+                  InvokeResponse::Ok(v) => Ok(v.into_json()),
                   InvokeResponse::Err(e) => Err(&e.0),
                 },
                 callback,

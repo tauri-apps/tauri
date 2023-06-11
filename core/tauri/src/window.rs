@@ -17,7 +17,7 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
-  hooks::{InvokeBody, InvokeRequest, InvokeResponder},
+  hooks::{InvokeBody, InvokeRequest},
   manager::WindowManager,
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
@@ -33,7 +33,7 @@ use crate::{
   sealed::RuntimeOrDispatch,
   utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
   EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, InvokeResponse, Manager,
-  PageLoadPayload, Runtime, Theme, WindowEvent,
+  Runtime, Theme, WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
@@ -57,7 +57,7 @@ use std::{
   hash::{Hash, Hasher},
   path::PathBuf,
   sync::{
-    mpsc::{channel, Sender},
+    mpsc::{sync_channel, Receiver},
     Arc, Mutex,
   },
 };
@@ -66,22 +66,6 @@ pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpRespon
 pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>;
-
-#[derive(Eq, PartialEq)]
-pub(crate) struct IpcKey {
-  pub callback: CallbackFn,
-  pub error: CallbackFn,
-}
-
-impl Hash for IpcKey {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.callback.hash(state);
-    self.error.hash(state);
-  }
-}
-
-#[derive(Default)]
-pub(crate) struct IpcStore(pub(crate) Mutex<HashMap<IpcKey, Sender<InvokeResponse>>>);
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -986,10 +970,6 @@ impl<R: Runtime> Window<R> {
     WindowBuilder::<'a, R>::new(manager, label.into(), url)
   }
 
-  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
-    self.manager.invoke_responder()
-  }
-
   /// The current window's dispatcher.
   pub(crate) fn dispatcher(&self) -> R::Dispatcher {
     self.window.dispatcher.clone()
@@ -1675,7 +1655,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Handles this window receiving an [`InvokeRequest`] and returns the [`InvokeResponse`].
-  pub fn on_message(self, request: InvokeRequest) -> Result<InvokeResponse, String> {
+  pub fn on_message(self, request: InvokeRequest) -> Receiver<InvokeResponse> {
     let manager = self.manager.clone();
     let current_url = self.url();
     let config_url = manager.get_url();
@@ -1700,41 +1680,73 @@ impl<R: Runtime> Window<R> {
         }
       }
     };
+
+    let (tx, rx) = sync_channel(1);
+
+    let custom_responder = self.manager.invoke_responder();
+
+    let resolver = InvokeResolver::new(
+      self.clone(),
+      Arc::new(
+        #[allow(unused_variables)]
+        move |window, response, callback, error| {
+          #[cfg(target_os = "linux")]
+          {
+            if custom_responder.is_none() {
+              let response_js = match crate::api::ipc::format_callback_result(
+                match &response {
+                  InvokeResponse::Ok(v) => Ok(v),
+                  InvokeResponse::Err(e) => Err(&e.0),
+                },
+                callback,
+                error,
+              ) {
+                Ok(response_js) => response_js,
+                Err(e) => crate::api::ipc::format_callback(error, &e.to_string())
+                  .expect("unable to serialize response error string to json"),
+              };
+
+              let _ = window.eval(&response_js);
+            }
+          }
+
+          if let Some(responder) = &custom_responder {
+            (responder)(window, &response, callback, error);
+          }
+
+          tx.send(response).unwrap();
+        },
+      ),
+      request.callback,
+      request.error,
+    );
+
     match request.cmd.as_str() {
       "__initialized" => {
-        let payload: PageLoadPayload = match request.body {
-          InvokeBody::Json(v) => serde_json::from_value(v).map_err(|e| e.to_string())?,
-          InvokeBody::Raw(v) => serde_json::from_slice(&v).map_err(|e| e.to_string())?,
+        let parsed_payload = match request.body {
+          InvokeBody::Json(v) => serde_json::from_value(v),
+          InvokeBody::Raw(v) => serde_json::from_slice(&v),
         };
-        manager.run_on_page_load(self, payload);
-        Ok(InvokeResponse::Ok(Vec::new().into()))
+        match parsed_payload {
+          Ok(payload) => {
+            manager.run_on_page_load(self, payload);
+            resolver.resolve(());
+          }
+          Err(e) => resolver.reject(e.to_string()),
+        }
       }
       _ => {
-        let message = InvokeMessage::new(
-          self.clone(),
-          manager.state(),
-          request.cmd.to_string(),
-          request.body,
-        );
-        let resolver = InvokeResolver::new(self.clone(), request.callback, request.error);
+        let message =
+          InvokeMessage::new(self, manager.state(), request.cmd.to_string(), request.body);
 
-        let mut invoke = Invoke { message, resolver };
-
-        let (tx, rx) = channel();
-        self.state::<IpcStore>().0.lock().unwrap().insert(
-          IpcKey {
-            callback: request.callback,
-            error: request.error,
-          },
-          #[allow(clippy::redundant_clone)]
-          tx.clone(),
-        );
+        let mut invoke = Invoke {
+          message,
+          resolver: resolver.clone(),
+        };
 
         if !is_local && scope.is_none() {
-          return Err(scope_not_found_error_message);
-        }
-
-        if request.cmd.starts_with("plugin:") {
+          invoke.resolver.reject(scope_not_found_error_message);
+        } else if request.cmd.starts_with("plugin:") {
           if !is_local {
             let command = invoke.message.command.replace("plugin:", "");
             let plugin_name = command.split('|').next().unwrap().to_string();
@@ -1742,7 +1754,8 @@ impl<R: Runtime> Window<R> {
               .map(|s| s.plugins().contains(&plugin_name))
               .unwrap_or(true)
             {
-              return Err(IPC_SCOPE_DOES_NOT_ALLOW.into());
+              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+              return rx;
             }
           }
           let command = invoke.message.command.replace("plugin:", "");
@@ -1755,6 +1768,7 @@ impl<R: Runtime> Window<R> {
             .unwrap_or_else(String::new);
 
           let command = invoke.message.command.clone();
+
           #[cfg(mobile)]
           let message = invoke.message.clone();
 
@@ -1765,7 +1779,7 @@ impl<R: Runtime> Window<R> {
           {
             if !handled {
               handled = true;
-              crate::plugin::mobile::run_command(
+              if let Err(e) = crate::plugin::mobile::run_command(
                 plugin,
                 &self.app_handle,
                 message.command,
@@ -1773,26 +1787,26 @@ impl<R: Runtime> Window<R> {
                 move |response| {
                   tx.send(response.into()).unwrap();
                 },
-              )
-              .map_err(|e| e.to_string())?;
+              ) {
+                resolver.reject(e);
+              }
             }
           }
 
           if !handled {
-            return Err(format!("Command {command} not found"));
+            resolver.reject(format!("Command {command} not found"));
           }
         } else {
           let command = invoke.message.command.clone();
           let handled = manager.run_invoke_handler(invoke);
           if !handled {
-            return Err(format!("Command {command} not found"));
+            resolver.reject(format!("Command {command} not found"));
           }
         }
-
-        let response = rx.recv().unwrap();
-        Ok(response)
       }
     }
+
+    rx
   }
 
   /// Evaluates JavaScript on this window.

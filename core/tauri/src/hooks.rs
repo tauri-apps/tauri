@@ -5,8 +5,7 @@
 use crate::{
   api::ipc::{CallbackFn, IpcResponse},
   app::App,
-  window::{IpcKey, IpcStore},
-  Manager, Runtime, StateManager, Window,
+  Runtime, StateManager, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -24,6 +23,8 @@ pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
 pub type InvokeResponder<R> =
+  dyn Fn(Window<R>, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
+type OwnedInvokeResponder<R> =
   dyn Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
 
 /// A closure that is run once every time a window is created and loaded.
@@ -58,7 +59,8 @@ impl PageLoadPayload {
 }
 
 /// Possible values of an IPC payload.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
 pub enum InvokeBody {
   /// Json payload.
   Json(JsonValue),
@@ -85,7 +87,7 @@ impl From<Vec<u8>> for InvokeBody {
 }
 
 impl InvokeBody {
-  #[cfg(mobile)]
+  #[cfg(any(mobile, test))]
   pub(crate) fn into_json(self) -> JsonValue {
     match self {
       Self::Json(v) => v,
@@ -111,7 +113,6 @@ pub struct InvokeRequest {
 
 /// The message and resolver given to a custom command.
 #[default_runtime(crate::Wry, wry)]
-#[derive(Debug)]
 pub struct Invoke<R: Runtime> {
   /// The message passed.
   pub message: InvokeMessage<R>,
@@ -184,9 +185,9 @@ impl From<InvokeError> for InvokeResponse {
 
 /// Resolver of a invoke message.
 #[default_runtime(crate::Wry, wry)]
-#[derive(Debug)]
 pub struct InvokeResolver<R: Runtime> {
   window: Window<R>,
+  responder: Arc<OwnedInvokeResponder<R>>,
   pub(crate) callback: CallbackFn,
   pub(crate) error: CallbackFn,
 }
@@ -195,6 +196,7 @@ impl<R: Runtime> Clone for InvokeResolver<R> {
   fn clone(&self) -> Self {
     Self {
       window: self.window.clone(),
+      responder: self.responder.clone(),
       callback: self.callback,
       error: self.error,
     }
@@ -202,9 +204,15 @@ impl<R: Runtime> Clone for InvokeResolver<R> {
 }
 
 impl<R: Runtime> InvokeResolver<R> {
-  pub(crate) fn new(window: Window<R>, callback: CallbackFn, error: CallbackFn) -> Self {
+  pub(crate) fn new(
+    window: Window<R>,
+    responder: Arc<OwnedInvokeResponder<R>>,
+    callback: CallbackFn,
+    error: CallbackFn,
+  ) -> Self {
     Self {
       window,
+      responder,
       callback,
       error,
     }
@@ -217,7 +225,7 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
-      Self::return_task(self.window, task, self.callback, self.error).await;
+      Self::return_task(self.window, self.responder, task, self.callback, self.error).await;
     });
   }
 
@@ -231,13 +239,25 @@ impl<R: Runtime> InvokeResolver<R> {
         Ok(ok) => InvokeResponse::Ok(ok),
         Err(err) => InvokeResponse::Err(err),
       };
-      Self::return_result(self.window, response, self.callback, self.error)
+      Self::return_result(
+        self.window,
+        self.responder,
+        response,
+        self.callback,
+        self.error,
+      )
     });
   }
 
   /// Reply to the invoke promise with a serializable value.
   pub fn respond<T: IpcResponse>(self, value: Result<T, InvokeError>) {
-    Self::return_result(self.window, value.into(), self.callback, self.error)
+    Self::return_result(
+      self.window,
+      self.responder,
+      value.into(),
+      self.callback,
+      self.error,
+    )
   }
 
   /// Resolve the invoke promise with a value.
@@ -249,6 +269,7 @@ impl<R: Runtime> InvokeResolver<R> {
   pub fn reject<T: Serialize>(self, value: T) {
     Self::return_result(
       self.window,
+      self.responder,
       Result::<(), _>::Err(value).into(),
       self.callback,
       self.error,
@@ -257,7 +278,13 @@ impl<R: Runtime> InvokeResolver<R> {
 
   /// Reject the invoke promise with an [`InvokeError`].
   pub fn invoke_error(self, error: InvokeError) {
-    Self::return_result(self.window, error.into(), self.callback, self.error)
+    Self::return_result(
+      self.window,
+      self.responder,
+      error.into(),
+      self.callback,
+      self.error,
+    )
   }
 
   /// Asynchronously executes the given task
@@ -267,6 +294,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
   pub async fn return_task<T, F>(
     window: Window<R>,
+    responder: Arc<OwnedInvokeResponder<R>>,
     task: F,
     success_callback: CallbackFn,
     error_callback: CallbackFn,
@@ -275,42 +303,39 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
     let result = task.await;
-    Self::return_closure(window, || result, success_callback, error_callback)
+    Self::return_closure(
+      window,
+      responder,
+      || result,
+      success_callback,
+      error_callback,
+    )
   }
 
   pub(crate) fn return_closure<T: IpcResponse, F: FnOnce() -> Result<T, InvokeError>>(
     window: Window<R>,
+    responder: Arc<OwnedInvokeResponder<R>>,
     f: F,
     success_callback: CallbackFn,
     error_callback: CallbackFn,
   ) {
-    Self::return_result(window, f().into(), success_callback, error_callback)
+    Self::return_result(
+      window,
+      responder,
+      f().into(),
+      success_callback,
+      error_callback,
+    )
   }
 
   pub(crate) fn return_result(
     window: Window<R>,
+    responder: Arc<OwnedInvokeResponder<R>>,
     response: InvokeResponse,
     success_callback: CallbackFn,
     error_callback: CallbackFn,
   ) {
-    (window.invoke_responder())(window, response, success_callback, error_callback);
-  }
-}
-
-pub fn window_invoke_responder<R: Runtime>(
-  window: Window<R>,
-  response: InvokeResponse,
-  callback: CallbackFn,
-  error: CallbackFn,
-) {
-  if let Some(tx) = window
-    .state::<IpcStore>()
-    .0
-    .lock()
-    .unwrap()
-    .remove(&IpcKey { callback, error })
-  {
-    tx.send(response).unwrap();
+    (responder)(window, response, success_callback, error_callback);
   }
 }
 

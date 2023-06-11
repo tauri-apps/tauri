@@ -45,7 +45,7 @@ use crate::{
       MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
-    webview::WindowBuilder,
+    webview::{WebviewIpcHandler, WindowBuilder},
     window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow},
   },
   utils::{
@@ -239,7 +239,7 @@ pub struct InnerWindowManager<R: Runtime> {
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
   /// Responder for invoke calls.
-  invoke_responder: Arc<InvokeResponder<R>>,
+  invoke_responder: Option<Arc<InvokeResponder<R>>>,
   /// The script that initializes the invoke system.
   invoke_initialization_script: String,
   /// Application pattern.
@@ -312,7 +312,7 @@ impl<R: Runtime> WindowManager<R> {
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
-    (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
+    (invoke_responder, invoke_initialization_script): (Option<Arc<InvokeResponder<R>>>, String),
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
@@ -363,7 +363,7 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   /// The invoke responder.
-  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
+  pub(crate) fn invoke_responder(&self) -> Option<Arc<InvokeResponder<R>>> {
     self.inner.invoke_responder.clone()
   }
 
@@ -581,6 +581,12 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
+  #[cfg(target_os = "linux")]
+  fn prepare_ipc_message_handler(&self) -> WebviewIpcHandler<EventLoopMessage, R> {
+    let manager = self.clone();
+    Box::new(move |window, request| handle_ipc_message(request, &manager, &window.label))
+  }
+
   fn prepare_ipc_scheme_protocol(&self, label: String) -> UriSchemeProtocolHandler {
     let manager = self.clone();
     Box::new(move |request| {
@@ -664,7 +670,7 @@ impl<R: Runtime> WindowManager<R> {
     let asset_response = assets
       .get(&path.as_str().into())
       .or_else(|| {
-        eprintln!("Asset `{path}` not found; fallback to {path}.html");
+        debug_eprintln!("Asset `{path}` not found; fallback to {path}.html");
         let fallback = format!("{}.html", path.as_str()).into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -954,7 +960,7 @@ mod test {
       StateManager::new(),
       Default::default(),
       Default::default(),
-      (std::sync::Arc::new(|_, _, _, _| ()), "".into()),
+      (None, "".into()),
     );
 
     #[cfg(custom_protocol)]
@@ -1120,6 +1126,10 @@ impl<R: Runtime> WindowManager<R> {
       #[allow(clippy::redundant_clone)]
       app_handle.clone(),
     )?;
+    #[cfg(target_os = "linux")]
+    {
+      pending.ipc_handler = Some(self.prepare_ipc_message_handler());
+    }
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
@@ -1456,6 +1466,83 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
   }
 }
 
+#[allow(unused_mut)]
+fn handle_ipc_message<R: Runtime>(mut message: String, manager: &WindowManager<R>, label: &str) {
+  if let Some(window) = manager.get_window(label) {
+    #[derive(serde::Deserialize)]
+    struct Message {
+      cmd: String,
+      callback: CallbackFn,
+      error: CallbackFn,
+      #[serde(flatten)]
+      payload: serde_json::Value,
+    }
+
+    let mut invoke_message: Option<crate::Result<Message>> = None;
+
+    #[cfg(feature = "isolation")]
+    {
+      #[cfg(target_os = "linux")]
+      {
+        #[derive(serde::Deserialize)]
+        struct IsolationMessage<'a> {
+          cmd: String,
+          callback: CallbackFn,
+          error: CallbackFn,
+          #[serde(flatten)]
+          payload: RawIsolationPayload<'a>,
+        }
+
+        if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+          invoke_message.replace(
+            serde_json::from_str::<IsolationMessage<'_>>(&message)
+              .map_err(Into::into)
+              .and_then(|message| {
+                Ok(Message {
+                  cmd: message.cmd,
+                  callback: message.callback,
+                  error: message.error,
+                  payload: serde_json::from_slice(&crypto_keys.decrypt(message.payload)?)?,
+                })
+              }),
+          );
+        }
+      }
+
+      #[cfg(not(target_os = "linux"))]
+      {
+        if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+          invoke_message.replace(
+            RawIsolationPayload::try_from(message.as_str())
+              .map_err(crate::Error::from)
+              .and_then(|raw| crypto_keys.decrypt(raw).map_err(Into::into))
+              .and_then(|v| serde_json::from_slice(&v).map_err(Into::into)),
+          );
+        }
+      }
+    }
+
+    match invoke_message
+      .unwrap_or_else(|| serde_json::from_str::<Message>(&message).map_err(Into::into))
+    {
+      Ok(message) => {
+        let _ = window.on_message(InvokeRequest {
+          cmd: message.cmd,
+          callback: message.callback,
+          error: message.error,
+          body: message.payload.into(),
+        });
+      }
+      Err(e) => {
+        let _ = window.eval(&format!(
+          r#"console.error({})"#,
+          serde_json::Value::String(e.to_string())
+        ));
+      }
+    }
+  }
+}
+
 fn handle_ipc_request<R: Runtime>(
   request: &HttpRequest,
   manager: &WindowManager<R>,
@@ -1529,7 +1616,8 @@ fn handle_ipc_request<R: Runtime>(
       body,
     };
 
-    window.on_message(payload)
+    let rx = window.on_message(payload);
+    Ok(rx.recv().unwrap())
   } else {
     Err("window not found".into())
   }

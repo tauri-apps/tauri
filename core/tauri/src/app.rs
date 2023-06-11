@@ -8,9 +8,7 @@ pub(crate) mod tray;
 use crate::{
   api::ipc::CallbackFn,
   command::{CommandArg, CommandItem},
-  hooks::{
-    window_invoke_responder, InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook,
-  },
+  hooks::{InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook},
   manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
@@ -23,7 +21,6 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
-  window::IpcStore,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
   Runtime, Scopes, StateManager, Theme, Window,
 };
@@ -766,7 +763,7 @@ pub struct Builder<R: Runtime> {
   invoke_handler: Box<InvokeHandler<R>>,
 
   /// The JS message responder.
-  invoke_responder: Arc<InvokeResponder<R>>,
+  invoke_responder: Option<Arc<InvokeResponder<R>>>,
 
   /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
   invoke_initialization_script: String,
@@ -815,8 +812,16 @@ pub struct Builder<R: Runtime> {
 }
 
 #[derive(Template)]
+#[default_template("../scripts/ipc-protocol.js")]
+struct ProtocolInvokeInitializationScript<'a> {
+  /// The function that processes the IPC message.
+  #[raw]
+  process_ipc_message_fn: &'a str,
+}
+
+#[derive(Template)]
 #[default_template("../scripts/ipc-post-message.js")]
-struct InvokeInitializationScript<'a> {
+struct PostMessageInvokeInitializationScript<'a> {
   /// The function that processes the IPC message.
   #[raw]
   process_ipc_message_fn: &'a str,
@@ -830,8 +835,16 @@ impl<R: Runtime> Builder<R> {
       runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| false),
-      invoke_responder: Arc::new(window_invoke_responder),
-      invoke_initialization_script: InvokeInitializationScript {
+      invoke_responder: None,
+      #[cfg(target_os = "linux")]
+      invoke_initialization_script: PostMessageInvokeInitializationScript {
+        process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
+      }
+      .render_default(&Default::default())
+      .unwrap()
+      .into_string(),
+      #[cfg(not(target_os = "linux"))]
+      invoke_initialization_script: ProtocolInvokeInitializationScript {
         process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
       }
       .render_default(&Default::default())
@@ -899,10 +912,10 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
-    F: Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
+    F: Fn(Window<R>, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
     self.invoke_initialization_script = initialization_script;
-    self.invoke_responder = Arc::new(responder);
+    self.invoke_responder.replace(Arc::new(responder));
     self
   }
 
@@ -1345,8 +1358,6 @@ impl<R: Runtime> Builder<R> {
       #[cfg(feature = "protocol-asset")]
       asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
     });
-
-    app.manage(IpcStore::default());
 
     #[cfg(windows)]
     {

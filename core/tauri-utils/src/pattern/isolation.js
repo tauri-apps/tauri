@@ -102,9 +102,7 @@
     }
 
     const { cmd, callback, error, payload } = data
-
-    const encrypted = await encrypt(payload)
-    sendMessage({ cmd, callback, error, payload: encrypted })
+    sendMessage({ cmd, callback, error, payload: await encrypt(payload) })
   }
 
   window.addEventListener('message', payloadHandler, false)

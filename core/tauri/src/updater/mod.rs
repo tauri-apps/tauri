@@ -600,7 +600,7 @@ Release Notes:
     // macOS we display the `Ready to restart dialog` asking to restart
     // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
     // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
-    let update_result = update
+    update
       .download_and_install(
         pubkey.clone(),
         move |chunk_length, content_length| {
@@ -610,12 +610,8 @@ Release Notes:
           send_status_update(&handle_, UpdaterEvent::Downloaded);
         },
       )
-      .await;
+      .await?;
 
-    if let Err(err) = &update_result {
-      // emit {"status": "ERROR", "error": "The error message"}
-      send_status_update(&update.app, UpdaterEvent::Error(err.to_string()));
-    } else {
       // emit {"status": "DONE"}
       send_status_update(&update.app, UpdaterEvent::Updated);
 

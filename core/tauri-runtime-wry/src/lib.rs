@@ -3021,6 +3021,8 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(windows)]
   let window_theme = window_builder.inner.window.preferred_theme;
+  #[cfg(windows)]
+  let proxy = context.proxy.clone();
 
   #[cfg(target_os = "macos")]
   {
@@ -3068,17 +3070,18 @@ fn create_webview<T: UserEvent>(
   }
 
   #[cfg(windows)]
-  if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
-    webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
-  }
+  {
+    if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
+      webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
+    }
 
-  #[cfg(windows)]
-  if let Some(theme) = window_theme {
-    webview_builder = webview_builder.with_theme(match theme {
-      WryTheme::Dark => wry::webview::Theme::Dark,
-      WryTheme::Light => wry::webview::Theme::Light,
-      _ => wry::webview::Theme::Light,
-    });
+    if let Some(theme) = window_theme {
+      webview_builder = webview_builder.with_theme(match theme {
+        WryTheme::Dark => wry::webview::Theme::Dark,
+        WryTheme::Light => wry::webview::Theme::Light,
+        _ => wry::webview::Theme::Light,
+      });
+    }
   }
 
   if let Some(handler) = ipc_handler {
@@ -3161,12 +3164,12 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   {
     let controller = webview.controller();
-    let proxy_ = context.proxy.clone();
+    let proxy_ = proxy.clone();
     let mut token = EventRegistrationToken::default();
     unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy_.send_event(Message::Webview(
+          let _ = proxy.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
           ));
@@ -3179,7 +3182,7 @@ fn create_webview<T: UserEvent>(
     unsafe {
       controller.add_LostFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy.send_event(Message::Webview(
+          let _ = proxy_.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
           ));

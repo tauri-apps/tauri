@@ -1695,7 +1695,7 @@ impl<R: Runtime> Window<R> {
           #[cfg(target_os = "linux")]
           {
             if custom_responder.is_none() {
-              let response_js = match crate::api::ipc::format_callback_result(
+              let response_js = match crate::api::ipc::format_callback::format_result(
                 match &response {
                   InvokeResponse::Ok(v) => Ok(v),
                   InvokeResponse::Err(e) => Err(&e.0),
@@ -1704,7 +1704,7 @@ impl<R: Runtime> Window<R> {
                 error,
               ) {
                 Ok(response_js) => response_js,
-                Err(e) => crate::api::ipc::format_callback(error, &e.to_string())
+                Err(e) => crate::api::ipc::format_callback::format(error, &e.to_string())
                   .expect("unable to serialize response error string to json"),
               };
 

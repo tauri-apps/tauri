@@ -92,6 +92,7 @@ impl IpcResponse for InvokeBody {
 }
 
 impl InvokeBody {
+  #[allow(dead_code)]
   pub(crate) fn into_json(self) -> JsonValue {
     match self {
       Self::Json(v) => v,

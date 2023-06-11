@@ -170,7 +170,10 @@ mod tests {
 
   use super::RemoteDomainAccessScope;
   use crate::{
-    api::ipc::CallbackFn, test::MockRuntime, App, InvokeRequest, InvokeResponse, Manager, Window,
+    ipc::{CallbackFn, InvokeResponse},
+    test::MockRuntime,
+    window::InvokeRequest,
+    App, Manager, Window,
   };
 
   const PLUGIN_NAME: &str = "test";

@@ -7,9 +7,10 @@
 //! You usually don't need to create these items yourself. These are created from [command](../attr.command.html)
 //! attribute macro along the way and used by [`crate::generate_handler`] macro.
 
-use crate::hooks::{InvokeBody, InvokeError};
-use crate::InvokeMessage;
-use crate::Runtime;
+use crate::{
+  ipc::{InvokeBody, InvokeError, InvokeMessage},
+  Runtime,
+};
 use serde::{
   de::{Error, Visitor},
   Deserialize, Deserializer,
@@ -171,7 +172,10 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
 /// Nothing in this module is considered stable.
 #[doc(hidden)]
 pub mod private {
-  use crate::{api::ipc::IpcResponse, hooks::InvokeBody, InvokeError, InvokeResolver, Runtime};
+  use crate::{
+    ipc::{InvokeBody, InvokeError, InvokeResolver, IpcResponse},
+    Runtime,
+  };
   use futures_util::{FutureExt, TryFutureExt};
   use std::future::Future;
 

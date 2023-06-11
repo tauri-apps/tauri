@@ -28,17 +28,14 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-#[cfg(feature = "isolation")]
-use crate::hooks::IsolationJavascript;
 use crate::{
-  api::ipc::CallbackFn,
-  hooks::IpcJavascript,
-  window::{UriSchemeProtocolHandler, WebResourceRequestHandler},
-};
-use crate::{
-  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
+  app::{
+    AppHandle, GlobalMenuEventListener, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad,
+    PageLoadPayload, WindowMenuEvent,
+  },
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
-  hooks::{InvokeHandler, InvokeRequest, InvokeResponder, OnPageLoad, PageLoadPayload},
+  ipc::{CallbackFn, Invoke, InvokeBody, InvokeHandler, InvokeResponder, InvokeResponse},
+  pattern::PatternJavascript,
   plugin::PluginStore,
   runtime::{
     http::{
@@ -53,14 +50,10 @@ use crate::{
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
+  window::{InvokeRequest, UriSchemeProtocolHandler, WebResourceRequestHandler},
+  Context, EventLoopMessage, Icon, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
 };
-use crate::{
-  app::{GlobalMenuEventListener, WindowMenuEvent},
-  hooks::InvokeBody,
-};
-use crate::{pattern::PatternJavascript, InvokeResponse};
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::path::BaseDirectory;
@@ -88,6 +81,20 @@ pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
 // additionally, we need the custom protocol to inject the initialization scripts on Android
 // must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
 const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
+
+#[cfg(feature = "isolation")]
+#[derive(Template)]
+#[default_template("../scripts/isolation.js")]
+pub(crate) struct IsolationJavascript<'a> {
+  pub(crate) isolation_src: &'a str,
+  pub(crate) style: &'a str,
+}
+
+#[derive(Template)]
+#[default_template("../scripts/ipc.js")]
+pub(crate) struct IpcJavascript<'a> {
+  pub(crate) isolation_origin: &'a str,
+}
 
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.

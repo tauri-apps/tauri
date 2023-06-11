@@ -6,9 +6,11 @@
 pub(crate) mod tray;
 
 use crate::{
-  api::ipc::{CallbackFn, ChannelDataCache},
   command::{CommandArg, CommandItem},
-  hooks::{InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook},
+  ipc::{
+    CallbackFn, ChannelDataCache, Invoke, InvokeError, InvokeHandler, InvokeResponder,
+    InvokeResponse,
+  },
   manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
@@ -21,14 +23,15 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
-  Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
-  Runtime, Scopes, StateManager, Theme, Window,
+  Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Runtime, Scopes, StateManager,
+  Theme, Window,
 };
 
 #[cfg(feature = "protocol-asset")]
 use crate::scope::FsScope;
 
 use raw_window_handle::HasRawDisplayHandle;
+use serde::Deserialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
 use tauri_runtime::window::{
@@ -54,6 +57,24 @@ pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Se
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
 #[cfg(all(desktop, feature = "system-tray"))]
 type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
+/// A closure that is run when the Tauri application is setting up.
+pub type SetupHook<R> =
+  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
+/// A closure that is run once every time a window is created and loaded.
+pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
+
+/// The payload for the [`OnPageLoad`] hook.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PageLoadPayload {
+  url: String,
+}
+
+impl PageLoadPayload {
+  /// The page URL.
+  pub fn url(&self) -> &str {
+    &self.url
+  }
+}
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]

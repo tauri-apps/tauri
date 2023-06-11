@@ -2,21 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  api::ipc::{CallbackFn, IpcResponse},
-  app::App,
-  Runtime, StateManager, Window,
+//! Types and functions related to Inter Procedure Call(IPC).
+//!
+//! This module includes utilities to send messages to the JS layer of the webview.
+
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
 };
+
+use futures_util::Future;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use serialize_to_javascript::{default_template, Template};
-use std::{future::Future, sync::Arc};
-
+pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_macros::default_runtime;
 
-/// A closure that is run when the Tauri application is setting up.
-pub type SetupHook<R> =
-  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
+use crate::{
+  command::{CommandArg, CommandItem},
+  Manager, Runtime, StateManager, Window,
+};
+
+#[cfg(target_os = "linux")]
+pub(crate) mod format_callback;
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
@@ -27,34 +34,75 @@ pub type InvokeResponder<R> =
 type OwnedInvokeResponder<R> =
   dyn Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
 
-/// A closure that is run once every time a window is created and loaded.
-pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
+const CHANNEL_PREFIX: &str = "__CHANNEL__:";
+pub(crate) const FETCH_CHANNEL_DATA_COMMAND: &str = "__tauriFetchChannelData__";
 
-// todo: why is this derive broken but the output works manually?
-#[derive(Template)]
-#[default_template("../scripts/ipc.js")]
-pub(crate) struct IpcJavascript<'a> {
-  pub(crate) isolation_origin: &'a str,
+#[derive(Default)]
+pub(crate) struct ChannelDataCache(pub(crate) Mutex<HashMap<u32, InvokeBody>>);
+
+/// An IPC channel.
+#[default_runtime(crate::Wry, wry)]
+pub struct Channel<R: Runtime> {
+  id: CallbackFn,
+  window: Window<R>,
 }
 
-#[cfg(feature = "isolation")]
-#[derive(Template)]
-#[default_template("../scripts/isolation.js")]
-pub(crate) struct IsolationJavascript<'a> {
-  pub(crate) isolation_src: &'a str,
-  pub(crate) style: &'a str,
+impl Serialize for Channel {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_str(&format!("{CHANNEL_PREFIX}{}", self.id.0))
+  }
 }
 
-/// The payload for the [`OnPageLoad`] hook.
-#[derive(Debug, Clone, Deserialize)]
-pub struct PageLoadPayload {
-  url: String,
+impl<R: Runtime> Channel<R> {
+  /// Sends the given data through the  channel.
+  pub fn send<T: IpcResponse>(&self, data: T) -> crate::Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+      let js = format_callback::format(self.id, &data.body()?.into_json())?;
+      self.window.eval(&js)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+      let body = data.body()?;
+      let data_id = rand::random();
+      self
+        .window
+        .state::<ChannelDataCache>()
+        .0
+        .lock()
+        .unwrap()
+        .insert(data_id, body);
+      self.window.eval(&format!(
+        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', {{ id: {data_id} }}).then(window['_' + {}])",
+        self.id.0
+      ))
+    }
+  }
 }
 
-impl PageLoadPayload {
-  /// The page URL.
-  pub fn url(&self) -> &str {
-    &self.url
+impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
+  /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`Channel`].
+  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
+    let name = command.name;
+    let arg = command.key;
+    let window = command.message.window();
+    let value: String =
+      Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
+    if let Some(callback_id) = value
+      .split_once(CHANNEL_PREFIX)
+      .and_then(|(_prefix, id)| id.parse().ok())
+    {
+      return Ok(Channel {
+        id: CallbackFn(callback_id),
+        window,
+      });
+    }
+    Err(InvokeError::from_anyhow(anyhow::anyhow!(
+      "invalid channel value `{value}`, expected a string in the `{CHANNEL_PREFIX}ID` format"
+    )))
   }
 }
 
@@ -102,6 +150,7 @@ impl InvokeBody {
     }
   }
 
+  /// Attempts to deserialize the invoke body.
   pub fn deserialize<T: DeserializeOwned>(self) -> serde_json::Result<T> {
     match self {
       InvokeBody::Json(v) => serde_json::from_value(v),
@@ -110,17 +159,58 @@ impl InvokeBody {
   }
 }
 
-/// The IPC invoke request.
+/// The IPC request.
 #[derive(Debug)]
-pub struct InvokeRequest {
-  /// The invoke command.
-  pub cmd: String,
-  /// The success callback.
-  pub callback: CallbackFn,
-  /// The error callback.
-  pub error: CallbackFn,
-  /// The body of the request.
-  pub body: InvokeBody,
+pub struct Request<'a> {
+  body: &'a InvokeBody,
+}
+
+impl<'a> Request<'a> {
+  /// The request body.
+  pub fn body(&self) -> &InvokeBody {
+    self.body
+  }
+}
+
+impl<'a, R: Runtime> CommandArg<'a, R> for Request<'a> {
+  /// Returns the invoke [`Request`].
+  fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
+    Ok(Self {
+      body: &command.message.payload,
+    })
+  }
+}
+
+/// Marks a type as a response to an IPC call.
+pub trait IpcResponse {
+  /// Resolve the IPC response body.
+  fn body(self) -> crate::Result<InvokeBody>;
+}
+
+impl<T: Serialize> IpcResponse for T {
+  fn body(self) -> crate::Result<InvokeBody> {
+    serde_json::to_value(self)
+      .map(Into::into)
+      .map_err(Into::into)
+  }
+}
+
+/// The IPC request.
+pub struct Response {
+  body: InvokeBody,
+}
+
+impl IpcResponse for Response {
+  fn body(self) -> crate::Result<InvokeBody> {
+    Ok(self.body)
+  }
+}
+
+impl Response {
+  /// Defines a response with the given body.
+  pub fn new(body: impl Into<InvokeBody>) -> Self {
+    Self { body: body.into() }
+  }
 }
 
 /// The message and resolver given to a custom command.
@@ -428,3 +518,7 @@ impl<R: Runtime> InvokeMessage<R> {
     &self.state
   }
 }
+
+/// The `Callback` type is the return value of the `transformCallback` JavaScript function.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct CallbackFn(pub usize);

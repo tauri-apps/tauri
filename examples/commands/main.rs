@@ -10,8 +10,9 @@ use commands::{cmd, invoke, message, resolver};
 
 use serde::Deserialize;
 use tauri::{
-  api::ipc::{Request, Response},
-  command, State, Window,
+  command,
+  ipc::{Request, Response},
+  State, Window,
 };
 
 #[derive(Debug)]

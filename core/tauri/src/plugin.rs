@@ -5,8 +5,10 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler, PageLoadPayload, RunEvent,
-  Runtime, Window,
+  app::PageLoadPayload,
+  ipc::{Invoke, InvokeHandler},
+  utils::config::PluginConfig,
+  AppHandle, RunEvent, Runtime, Window,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;

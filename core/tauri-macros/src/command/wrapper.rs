@@ -211,7 +211,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           use #root::command::private::*;
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
-          let #root::Invoke { message: #message, resolver: #resolver } = $invoke;
+          let #root::ipc::Invoke { message: #message, resolver: #resolver } = $invoke;
 
           #body
       }};

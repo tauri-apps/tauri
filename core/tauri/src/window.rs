@@ -13,11 +13,13 @@ use url::Url;
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
 use crate::{
-  api::ipc::{CallbackFn, ChannelDataCache, FETCH_CHANNEL_DATA_COMMAND},
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
-  hooks::InvokeRequest,
+  ipc::{
+    CallbackFn, ChannelDataCache, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
+    InvokeResponse, FETCH_CHANNEL_DATA_COMMAND,
+  },
   manager::WindowManager,
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
@@ -32,8 +34,7 @@ use crate::{
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
-  EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, InvokeResponse, Manager,
-  Runtime, Theme, WindowEvent,
+  EventLoopMessage, Manager, Runtime, Theme, WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
@@ -766,6 +767,19 @@ struct JsEventListenerKey {
   pub window_label: Option<String>,
   /// The event name.
   pub event: String,
+}
+
+/// The IPC invoke request.
+#[derive(Debug)]
+pub struct InvokeRequest {
+  /// The invoke command.
+  pub cmd: String,
+  /// The success callback.
+  pub callback: CallbackFn,
+  /// The error callback.
+  pub error: CallbackFn,
+  /// The body of the request.
+  pub body: InvokeBody,
 }
 
 // TODO: expand these docs since this is a pretty important type
@@ -1695,7 +1709,7 @@ impl<R: Runtime> Window<R> {
           #[cfg(target_os = "linux")]
           {
             if custom_responder.is_none() {
-              let response_js = match crate::api::ipc::format_callback::format_result(
+              let response_js = match crate::ipc::format_callback::format_result(
                 match &response {
                   InvokeResponse::Ok(v) => Ok(v.into_json()),
                   InvokeResponse::Err(e) => Err(&e.0),
@@ -1704,7 +1718,7 @@ impl<R: Runtime> Window<R> {
                 error,
               ) {
                 Ok(response_js) => response_js,
-                Err(e) => crate::api::ipc::format_callback::format(error, &e.to_string())
+                Err(e) => crate::ipc::format_callback::format(error, &e.to_string())
                   .expect("unable to serialize response error string to json"),
               };
 

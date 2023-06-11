@@ -6,7 +6,6 @@
 
 pub mod dir;
 pub mod file;
-pub mod ipc;
 pub mod version;
 
 mod error;

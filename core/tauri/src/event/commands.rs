@@ -1,4 +1,4 @@
-use crate::{api::ipc::CallbackFn, command, Manager, Result, Runtime, Window};
+use crate::{ipc::CallbackFn, command, Manager, Result, Runtime, Window};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value as JsonValue;
 use tauri_runtime::window::is_label_valid;

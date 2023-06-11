@@ -74,7 +74,7 @@ pub mod async_runtime;
 pub mod command;
 mod error;
 mod event;
-mod hooks;
+pub mod ipc;
 mod manager;
 mod pattern;
 pub mod plugin;
@@ -172,10 +172,6 @@ pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
     WindowEvent,
-  },
-  self::hooks::{
-    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeRequest, InvokeResolver,
-    InvokeResponder, InvokeResponse, OnPageLoad, PageLoadPayload, SetupHook,
   },
   self::manager::Asset,
   self::runtime::{

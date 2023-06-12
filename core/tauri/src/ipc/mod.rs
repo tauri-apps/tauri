@@ -22,7 +22,7 @@ use crate::{
   Runtime, StateManager, Window,
 };
 
-#[cfg(target_os = "linux")]
+#[cfg(not(ipc_custom_protocol))]
 pub(crate) mod format_callback;
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
@@ -30,12 +30,12 @@ pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
 pub type InvokeResponder<R> =
-  dyn Fn(Window<R>, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
+  dyn Fn(Window<R>, String, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
 type OwnedInvokeResponder<R> =
-  dyn Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
+  dyn Fn(Window<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
 
 const CHANNEL_PREFIX: &str = "__CHANNEL__:";
-pub(crate) const FETCH_CHANNEL_DATA_COMMAND: &str = "__tauriFetchChannelData__";
+pub(crate) const FETCH_CHANNEL_DATA_COMMAND_PREFIX: &str = "__tauriFetchChannelData__:";
 
 #[derive(Default)]
 pub(crate) struct ChannelDataCache(pub(crate) Mutex<HashMap<u32, InvokeBody>>);
@@ -66,31 +66,27 @@ impl Serialize for Channel {
 }
 
 impl<R: Runtime> Channel<R> {
+  pub(crate) fn new(window: Window<R>, id: CallbackFn) -> Self {
+    Self { window, id }
+  }
+
   /// Sends the given data through the  channel.
   pub fn send<T: IpcResponse>(&self, data: T) -> crate::Result<()> {
-    #[cfg(target_os = "linux")]
-    {
-      let js = format_callback::format(self.id, &data.body()?.into_json())?;
-      self.window.eval(&js)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-      use crate::Manager;
+    use crate::Manager;
 
-      let body = data.body()?;
-      let data_id = rand::random();
-      self
-        .window
-        .state::<ChannelDataCache>()
-        .0
-        .lock()
-        .unwrap()
-        .insert(data_id, body);
-      self.window.eval(&format!(
-        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', {{ id: {data_id} }}).then(window['_' + {}])",
-        self.id.0
-      ))
-    }
+    let body = data.body()?;
+    let data_id = rand::random();
+    self
+      .window
+      .state::<ChannelDataCache>()
+      .0
+      .lock()
+      .unwrap()
+      .insert(data_id, body);
+    self.window.eval(&format!(
+      "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND_PREFIX}{data_id}').then(window['_' + {}])",
+      self.id.0
+    ))
   }
 }
 
@@ -106,14 +102,12 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
       .split_once(CHANNEL_PREFIX)
       .and_then(|(_prefix, id)| id.parse().ok())
     {
-      return Ok(Channel {
-        id: CallbackFn(callback_id),
-        window,
-      });
+      Ok(Channel::new(window, CallbackFn(callback_id)))
+    } else {
+      Err(InvokeError::from_anyhow(anyhow::anyhow!(
+        "invalid channel value `{value}`, expected a string in the `{CHANNEL_PREFIX}ID` format"
+      )))
     }
-    Err(InvokeError::from_anyhow(anyhow::anyhow!(
-      "invalid channel value `{value}`, expected a string in the `{CHANNEL_PREFIX}ID` format"
-    )))
   }
 }
 
@@ -301,6 +295,7 @@ impl From<InvokeError> for InvokeResponse {
 pub struct InvokeResolver<R: Runtime> {
   window: Window<R>,
   responder: Arc<OwnedInvokeResponder<R>>,
+  cmd: String,
   pub(crate) callback: CallbackFn,
   pub(crate) error: CallbackFn,
 }
@@ -310,6 +305,7 @@ impl<R: Runtime> Clone for InvokeResolver<R> {
     Self {
       window: self.window.clone(),
       responder: self.responder.clone(),
+      cmd: self.cmd.clone(),
       callback: self.callback,
       error: self.error,
     }
@@ -320,12 +316,14 @@ impl<R: Runtime> InvokeResolver<R> {
   pub(crate) fn new(
     window: Window<R>,
     responder: Arc<OwnedInvokeResponder<R>>,
+    cmd: String,
     callback: CallbackFn,
     error: CallbackFn,
   ) -> Self {
     Self {
       window,
       responder,
+      cmd,
       callback,
       error,
     }
@@ -338,7 +336,15 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
-      Self::return_task(self.window, self.responder, task, self.callback, self.error).await;
+      Self::return_task(
+        self.window,
+        self.responder,
+        task,
+        self.cmd,
+        self.callback,
+        self.error,
+      )
+      .await;
     });
   }
 
@@ -356,6 +362,7 @@ impl<R: Runtime> InvokeResolver<R> {
         self.window,
         self.responder,
         response,
+        self.cmd,
         self.callback,
         self.error,
       )
@@ -368,6 +375,7 @@ impl<R: Runtime> InvokeResolver<R> {
       self.window,
       self.responder,
       value.into(),
+      self.cmd,
       self.callback,
       self.error,
     )
@@ -384,6 +392,7 @@ impl<R: Runtime> InvokeResolver<R> {
       self.window,
       self.responder,
       Result::<(), _>::Err(value).into(),
+      self.cmd,
       self.callback,
       self.error,
     )
@@ -395,6 +404,7 @@ impl<R: Runtime> InvokeResolver<R> {
       self.window,
       self.responder,
       error.into(),
+      self.cmd,
       self.callback,
       self.error,
     )
@@ -409,6 +419,7 @@ impl<R: Runtime> InvokeResolver<R> {
     window: Window<R>,
     responder: Arc<OwnedInvokeResponder<R>>,
     task: F,
+    cmd: String,
     success_callback: CallbackFn,
     error_callback: CallbackFn,
   ) where
@@ -420,6 +431,7 @@ impl<R: Runtime> InvokeResolver<R> {
       window,
       responder,
       || result,
+      cmd,
       success_callback,
       error_callback,
     )
@@ -429,6 +441,7 @@ impl<R: Runtime> InvokeResolver<R> {
     window: Window<R>,
     responder: Arc<OwnedInvokeResponder<R>>,
     f: F,
+    cmd: String,
     success_callback: CallbackFn,
     error_callback: CallbackFn,
   ) {
@@ -436,6 +449,7 @@ impl<R: Runtime> InvokeResolver<R> {
       window,
       responder,
       f().into(),
+      cmd,
       success_callback,
       error_callback,
     )
@@ -445,10 +459,11 @@ impl<R: Runtime> InvokeResolver<R> {
     window: Window<R>,
     responder: Arc<OwnedInvokeResponder<R>>,
     response: InvokeResponse,
+    cmd: String,
     success_callback: CallbackFn,
     error_callback: CallbackFn,
   ) {
-    (responder)(window, response, success_callback, error_callback);
+    (responder)(window, cmd, response, success_callback, error_callback);
   }
 }
 

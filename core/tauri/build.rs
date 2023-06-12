@@ -50,6 +50,11 @@ fn main() {
   alias("desktop", !mobile);
   alias("mobile", mobile);
 
+  alias(
+    "ipc_custom_protocol",
+    target_os != "linux" || has_feature("linux-protocol-body"),
+  );
+
   let checked_features_out_path = Path::new(&var("OUT_DIR").unwrap()).join("checked_features");
   std::fs::write(
     checked_features_out_path,

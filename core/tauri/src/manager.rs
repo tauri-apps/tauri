@@ -588,7 +588,7 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  #[cfg(target_os = "linux")]
+  #[cfg(not(ipc_custom_protocol))]
   fn prepare_ipc_message_handler(
     &self,
   ) -> crate::runtime::webview::WebviewIpcHandler<EventLoopMessage, R> {
@@ -1135,7 +1135,7 @@ impl<R: Runtime> WindowManager<R> {
       #[allow(clippy::redundant_clone)]
       app_handle.clone(),
     )?;
-    #[cfg(target_os = "linux")]
+    #[cfg(not(ipc_custom_protocol))]
     {
       pending.ipc_handler = Some(self.prepare_ipc_message_handler());
     }
@@ -1475,7 +1475,7 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
   }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(ipc_custom_protocol))]
 fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, label: &str) {
   if let Some(window) = manager.get_window(label) {
     #[derive(serde::Deserialize)]
@@ -1560,7 +1560,8 @@ fn handle_ipc_request<R: Runtime>(
       .decode_utf8_lossy()
       .to_string();
 
-    #[cfg(feature = "isolation")]
+    // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
+    #[cfg(all(feature = "isolation", ipc_custom_protocol))]
     if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
       match RawIsolationPayload::try_from(&body).and_then(|raw| crypto_keys.decrypt(raw)) {
         Ok(data) => body = data,
@@ -1598,6 +1599,10 @@ fn handle_ipc_request<R: Runtime>(
       .unwrap_or("application/octet-stream");
     let body = match content_type {
       "application/octet-stream" => body.into(),
+      // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
+      #[cfg(not(ipc_custom_protocol))]
+      "application/json" => serde_json::Value::Object(Default::default()).into(),
+      #[cfg(ipc_custom_protocol)]
       "application/json" => serde_json::from_slice::<serde_json::Value>(&body)
         .map_err(|e| e.to_string())?
         .into(),

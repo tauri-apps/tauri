@@ -834,15 +834,7 @@ pub struct Builder<R: Runtime> {
 
 #[derive(Template)]
 #[default_template("../scripts/ipc-protocol.js")]
-struct ProtocolInvokeInitializationScript<'a> {
-  /// The function that processes the IPC message.
-  #[raw]
-  process_ipc_message_fn: &'a str,
-}
-
-#[derive(Template)]
-#[default_template("../scripts/ipc-post-message.js")]
-struct PostMessageInvokeInitializationScript<'a> {
+struct InvokeInitializationScript<'a> {
   /// The function that processes the IPC message.
   #[raw]
   process_ipc_message_fn: &'a str,
@@ -857,15 +849,7 @@ impl<R: Runtime> Builder<R> {
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| false),
       invoke_responder: None,
-      #[cfg(target_os = "linux")]
-      invoke_initialization_script: PostMessageInvokeInitializationScript {
-        process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
-      }
-      .render_default(&Default::default())
-      .unwrap()
-      .into_string(),
-      #[cfg(not(target_os = "linux"))]
-      invoke_initialization_script: ProtocolInvokeInitializationScript {
+      invoke_initialization_script: InvokeInitializationScript {
         process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
       }
       .render_default(&Default::default())
@@ -933,7 +917,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
-    F: Fn(Window<R>, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
+    F: Fn(Window<R>, String, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
     self.invoke_initialization_script = initialization_script;
     self.invoke_responder.replace(Arc::new(responder));

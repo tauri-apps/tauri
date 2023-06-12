@@ -18,7 +18,7 @@ use crate::{
   event::{Event, EventHandler},
   ipc::{
     CallbackFn, ChannelDataCache, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
-    InvokeResponse, FETCH_CHANNEL_DATA_COMMAND,
+    InvokeResponse, FETCH_CHANNEL_DATA_COMMAND_PREFIX,
   },
   manager::WindowManager,
   runtime::{
@@ -46,7 +46,7 @@ use crate::{
   CursorIcon, Icon,
 };
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
@@ -1705,42 +1705,65 @@ impl<R: Runtime> Window<R> {
       self.clone(),
       Arc::new(
         #[allow(unused_variables)]
-        move |window, response, callback, error| {
-          #[cfg(target_os = "linux")]
+        move |window: Window<R>, cmd, response, callback, error| {
+          #[cfg(not(ipc_custom_protocol))]
           {
-            use crate::ipc::format_callback::{
-              format as format_callback, format_result as format_callback_result,
+            use crate::ipc::{
+              format_callback::{
+                format as format_callback, format_result as format_callback_result,
+              },
+              Channel,
             };
-            if custom_responder.is_none() {
-              let formatted_js = match &response {
+            use serde_json::Value as JsonValue;
+
+            // the channel data command is the only command that uses a custom protocol on Linux
+            if custom_responder.is_none() && !cmd.starts_with(FETCH_CHANNEL_DATA_COMMAND_PREFIX) {
+              fn responder_eval<R: Runtime>(
+                window: &Window<R>,
+                js: crate::api::Result<String>,
+                error: CallbackFn,
+              ) {
+                let eval_js = match js {
+                  Ok(js) => js,
+                  Err(e) => format_callback(error, &e.to_string())
+                    .expect("unable to serialize response error string to json"),
+                };
+
+                let _ = window.eval(&eval_js);
+              }
+
+              match &response {
                 InvokeResponse::Ok(InvokeBody::Json(v)) => {
-                  format_callback_result(Result::<_, ()>::Ok(v), callback, error)
+                  if matches!(v, JsonValue::Object(_) | JsonValue::Array(_)) {
+                    let _ = Channel::new(window.clone(), callback).send(v);
+                  } else {
+                    responder_eval(
+                      &window,
+                      format_callback_result(Result::<_, ()>::Ok(v), callback, error),
+                      error,
+                    )
+                  }
                 }
                 InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                  format_callback_result(Result::<_, ()>::Ok(v), callback, error)
+                  let _ = Channel::new(window.clone(), callback).send(InvokeBody::Raw(v.clone()));
                 }
-                InvokeResponse::Err(e) => {
-                  format_callback_result(Result::<(), _>::Err(&e.0), callback, error)
-                }
-              };
-
-              let response_js = match formatted_js {
-                Ok(response_js) => response_js,
-                Err(e) => format_callback(error, &e.to_string())
-                  .expect("unable to serialize response error string to json"),
-              };
-
-              let _ = window.eval(&response_js);
+                InvokeResponse::Err(e) => responder_eval(
+                  &window,
+                  format_callback_result(Result::<(), _>::Err(&e.0), callback, error),
+                  error,
+                ),
+              }
             }
           }
 
           if let Some(responder) = &custom_responder {
-            (responder)(window, &response, callback, error);
+            (responder)(window, cmd, &response, callback, error);
           }
 
           tx.send(response).unwrap();
         },
       ),
+      request.cmd.clone(),
       request.callback,
       request.error,
     );
@@ -1753,30 +1776,28 @@ impl<R: Runtime> Window<R> {
         }
         Err(e) => resolver.reject(e.to_string()),
       },
-      FETCH_CHANNEL_DATA_COMMAND => {
-        #[derive(Deserialize)]
-        struct FetchChannelDataPayload {
-          id: u32,
+      _ => {
+        // send channel data
+        if let Some(id) = request
+          .cmd
+          .split_once(FETCH_CHANNEL_DATA_COMMAND_PREFIX)
+          .and_then(|(_, id)| id.parse().ok())
+        {
+          if let Some(data) = self
+            .state::<ChannelDataCache>()
+            .0
+            .lock()
+            .unwrap()
+            .remove(&id)
+          {
+            resolver.resolve(data);
+          } else {
+            resolver.reject("Data not found");
+          }
+
+          return rx;
         }
 
-        match request.body.deserialize::<FetchChannelDataPayload>() {
-          Ok(payload) => {
-            if let Some(data) = self
-              .state::<ChannelDataCache>()
-              .0
-              .lock()
-              .unwrap()
-              .remove(&payload.id)
-            {
-              resolver.resolve(data);
-            } else {
-              resolver.reject("Data not found");
-            }
-          }
-          Err(e) => resolver.reject(e.to_string()),
-        }
-      }
-      _ => {
         #[cfg(mobile)]
         let app_handle = self.app_handle.clone();
 

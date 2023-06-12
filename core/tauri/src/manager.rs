@@ -732,7 +732,7 @@ impl<R: Runtime> WindowManager<R> {
           Ok(r) => {
             let mut response_cache_ = response_cache.lock().unwrap();
             let mut response = None;
-            if r.status() == StatusCode::NOT_MODIFIED {
+            if r.status() == http::StatusCode::NOT_MODIFIED {
               response = response_cache_.get(&url);
             }
             let response = if let Some(r) = response {

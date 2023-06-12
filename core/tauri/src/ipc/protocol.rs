@@ -107,10 +107,10 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
         callback: CallbackFn,
         error: CallbackFn,
         #[serde(flatten)]
-        payload: RawIsolationPayload<'a>,
+        payload: crate::utils::pattern::isolation::RawIsolationPayload<'a>,
       }
 
-      if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+      if let crate::Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
         invoke_message.replace(
           serde_json::from_str::<IsolationMessage<'_>>(&message)
             .map_err(Into::into)

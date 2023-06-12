@@ -15,7 +15,7 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-wry = { git = "https://github.com/tauri-apps/wry", branch = "linux-body", default-features = false, features = [ "file-drop", "protocol", "linux-body" ] }
+wry = { git = "https://github.com/tauri-apps/wry", branch = "feat/android-protocol-req-body", default-features = false, features = [ "file-drop", "protocol", "linux-headers" ] }
 tauri-runtime = { version = "0.13.0-alpha.5", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-alpha.5", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
@@ -31,7 +31,7 @@ webview2-com = "0.25"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.16", features = [ "v3_24" ] }
-webkit2gtk = { version = "1.1", features = [ "v2_40" ] }
+webkit2gtk = { version = "0.19.1", features = [ "v2_38" ] }
 percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]

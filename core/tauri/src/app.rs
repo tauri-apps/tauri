@@ -840,6 +840,14 @@ struct ProtocolInvokeInitializationScript<'a> {
   process_ipc_message_fn: &'a str,
 }
 
+#[derive(Template)]
+#[default_template("../scripts/ipc-post-message.js")]
+struct PostMessageInvokeInitializationScript<'a> {
+  /// The function that processes the IPC message.
+  #[raw]
+  process_ipc_message_fn: &'a str,
+}
+
 impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
@@ -849,6 +857,14 @@ impl<R: Runtime> Builder<R> {
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| false),
       invoke_responder: None,
+      #[cfg(target_os = "linux")]
+      invoke_initialization_script: PostMessageInvokeInitializationScript {
+        process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
+      }
+      .render_default(&Default::default())
+      .unwrap()
+      .into_string(),
+      #[cfg(not(target_os = "linux"))]
       invoke_initialization_script: ProtocolInvokeInitializationScript {
         process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
       }

@@ -33,11 +33,14 @@
    * @return {boolean} - if the event was a valid isolation message
    */
   function isIsolationMessage(event) {
-    return (
-      typeof event.data === 'object' &&
-      typeof event.data.payload === 'object' &&
-      Object.keys(event.data.payload).every((key) => key === 'nonce' || key === 'payload')
-    )
+    if (typeof event.data === 'object' && typeof event.data.payload === 'object') {
+      const keys = Object.keys(event.data.payload)
+      return (
+        keys.length > 0 &&
+        keys.every((key) => key === 'nonce' || key === 'payload')
+      )
+    }
+    return false
   }
 
   /**

@@ -8,7 +8,7 @@
   Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {
     value: (message) => {
       const { cmd, callback, error, payload } = message
-      if (navigator.appVersion.includes('Linux') && !cmd.startsWith('__tauriFetchChannelData__:')) {
+      if (__RAW_use_post_message_condition__) {
         const { data } = processIpcMessage({ cmd, callback, error, ...payload })
         window.ipc.postMessage(data)
       } else {

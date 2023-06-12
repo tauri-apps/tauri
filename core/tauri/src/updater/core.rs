@@ -42,8 +42,12 @@ use crate::api::file::Compression;
 #[cfg(target_os = "windows")]
 use std::{
   fs::read_dir,
+  os::windows::process::CommandExt,
   process::{exit, Command},
 };
+
+#[cfg(target_os = "windows")]
+use windows::Win32::System::Threading::DETACHED_PROCESS;
 
 type ShouldInstall = dyn FnOnce(&Version, &RemoteRelease) -> bool + Send;
 
@@ -715,9 +719,11 @@ fn copy_files_and_run<R: Read + Seek>(
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
-      Command::new(found_path)
+      Command::new("cmd")
+        .args(&["/C", "start", "", found_path.as_os_str().to_str().unwrap()])
         .args(config.tauri.updater.windows.install_mode.nsis_args())
         .args(&config.tauri.updater.windows.installer_args)
+        .creation_flags(DETACHED_PROCESS.0)
         .spawn()
         .expect("installer failed to start");
 

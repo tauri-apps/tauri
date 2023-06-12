@@ -588,14 +588,6 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  #[cfg(target_os = "linux")]
-  fn prepare_ipc_message_handler(
-    &self,
-  ) -> crate::runtime::webview::WebviewIpcHandler<EventLoopMessage, R> {
-    let manager = self.clone();
-    Box::new(move |window, request| handle_ipc_message(request, &manager, &window.label))
-  }
-
   fn prepare_ipc_scheme_protocol(&self, label: String) -> UriSchemeProtocolHandler {
     let manager = self.clone();
     Box::new(move |request| {
@@ -1135,10 +1127,6 @@ impl<R: Runtime> WindowManager<R> {
       #[allow(clippy::redundant_clone)]
       app_handle.clone(),
     )?;
-    #[cfg(target_os = "linux")]
-    {
-      pending.ipc_handler = Some(self.prepare_ipc_message_handler());
-    }
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
@@ -1472,69 +1460,6 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
   } else {
     // skip leading `/`
     path.chars().skip(1).collect()
-  }
-}
-
-#[cfg(target_os = "linux")]
-fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, label: &str) {
-  if let Some(window) = manager.get_window(label) {
-    #[derive(serde::Deserialize)]
-    struct Message {
-      cmd: String,
-      callback: CallbackFn,
-      error: CallbackFn,
-      #[serde(flatten)]
-      payload: serde_json::Value,
-    }
-
-    #[allow(unused_mut)]
-    let mut invoke_message: Option<crate::Result<Message>> = None;
-
-    #[cfg(feature = "isolation")]
-    {
-      #[derive(serde::Deserialize)]
-      struct IsolationMessage<'a> {
-        cmd: String,
-        callback: CallbackFn,
-        error: CallbackFn,
-        #[serde(flatten)]
-        payload: RawIsolationPayload<'a>,
-      }
-
-      if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-        invoke_message.replace(
-          serde_json::from_str::<IsolationMessage<'_>>(&message)
-            .map_err(Into::into)
-            .and_then(|message| {
-              Ok(Message {
-                cmd: message.cmd,
-                callback: message.callback,
-                error: message.error,
-                payload: serde_json::from_slice(&crypto_keys.decrypt(message.payload)?)?,
-              })
-            }),
-        );
-      }
-    }
-
-    match invoke_message
-      .unwrap_or_else(|| serde_json::from_str::<Message>(&message).map_err(Into::into))
-    {
-      Ok(message) => {
-        let _ = window.on_message(InvokeRequest {
-          cmd: message.cmd,
-          callback: message.callback,
-          error: message.error,
-          body: message.payload.into(),
-        });
-      }
-      Err(e) => {
-        let _ = window.eval(&format!(
-          r#"console.error({})"#,
-          serde_json::Value::String(e.to_string())
-        ));
-      }
-    }
   }
 }
 

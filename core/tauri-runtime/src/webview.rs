@@ -4,7 +4,7 @@
 
 //! Items specific to the [`Runtime`](crate::Runtime)'s webview.
 
-use crate::{menu::Menu, window::DetachedWindow, Icon};
+use crate::{menu::Menu, Icon};
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
@@ -331,6 +331,3 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Gets the window menu.
   fn get_menu(&self) -> Option<&Menu>;
 }
-
-/// IPC handler.
-pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWindow<T, R>, String) + Send>;

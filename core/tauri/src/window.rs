@@ -1706,34 +1706,6 @@ impl<R: Runtime> Window<R> {
       Arc::new(
         #[allow(unused_variables)]
         move |window, response, callback, error| {
-          #[cfg(target_os = "linux")]
-          {
-            use crate::ipc::format_callback::{
-              format as format_callback, format_result as format_callback_result,
-            };
-            if custom_responder.is_none() {
-              let formatted_js = match &response {
-                InvokeResponse::Ok(InvokeBody::Json(v)) => {
-                  format_callback_result(Result::<_, ()>::Ok(v), callback, error)
-                }
-                InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                  format_callback_result(Result::<_, ()>::Ok(v), callback, error)
-                }
-                InvokeResponse::Err(e) => {
-                  format_callback_result(Result::<(), _>::Err(&e.0), callback, error)
-                }
-              };
-
-              let response_js = match formatted_js {
-                Ok(response_js) => response_js,
-                Err(e) => format_callback(error, &e.to_string())
-                  .expect("unable to serialize response error string to json"),
-              };
-
-              let _ = window.eval(&response_js);
-            }
-          }
-
           if let Some(responder) = &custom_responder {
             (responder)(window, &response, callback, error);
           }

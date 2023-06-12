@@ -7,7 +7,7 @@
 use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
   menu::{Menu, MenuEntry, MenuHash, MenuId},
-  webview::{WebviewAttributes, WebviewIpcHandler},
+  webview::WebviewAttributes,
   Dispatch, Runtime, UserEvent, WindowBuilder,
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -226,9 +226,6 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
 
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 
-  /// How to handle IPC calls on the webview window.
-  pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
-
   /// Maps runtime id to a string menu id.
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 
@@ -279,7 +276,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         webview_attributes,
         uri_scheme_protocols: Default::default(),
         label,
-        ipc_handler: None,
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         navigation_handler: Default::default(),
         url: "tauri://localhost".to_string(),
@@ -311,7 +307,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         webview_attributes,
         uri_scheme_protocols: Default::default(),
         label,
-        ipc_handler: None,
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         navigation_handler: Default::default(),
         url: "tauri://localhost".to_string(),

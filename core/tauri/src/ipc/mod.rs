@@ -22,9 +22,6 @@ use crate::{
   Runtime, StateManager, Window,
 };
 
-#[cfg(target_os = "linux")]
-pub(crate) mod format_callback;
-
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
 
@@ -68,29 +65,21 @@ impl Serialize for Channel {
 impl<R: Runtime> Channel<R> {
   /// Sends the given data through the  channel.
   pub fn send<T: IpcResponse>(&self, data: T) -> crate::Result<()> {
-    #[cfg(target_os = "linux")]
-    {
-      let js = format_callback::format(self.id, &data.body()?.into_json())?;
-      self.window.eval(&js)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-      use crate::Manager;
+    use crate::Manager;
 
-      let body = data.body()?;
-      let data_id = rand::random();
-      self
-        .window
-        .state::<ChannelDataCache>()
-        .0
-        .lock()
-        .unwrap()
-        .insert(data_id, body);
-      self.window.eval(&format!(
+    let body = data.body()?;
+    let data_id = rand::random();
+    self
+      .window
+      .state::<ChannelDataCache>()
+      .0
+      .lock()
+      .unwrap()
+      .insert(data_id, body);
+    self.window.eval(&format!(
         "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', {{ id: {data_id} }}).then(window['_' + {}])",
         self.id.0
       ))
-    }
   }
 }
 

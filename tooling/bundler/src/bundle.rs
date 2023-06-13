@@ -43,8 +43,27 @@ pub struct Bundle {
 /// Bundles the project.
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
-  let mut bundles: Vec<Bundle> = Vec::new();
   let package_types = settings.package_types()?;
+  if package_types.is_empty() {
+    return Ok(Vec::new());
+  }
+
+  if package_types.contains(&PackageType::Updater)
+    && !package_types.iter().any(|p| {
+      matches!(
+        p,
+        PackageType::AppImage
+          | PackageType::MacOsBundle
+          | PackageType::Nsis
+          | PackageType::WindowsMsi
+      )
+    })
+  {
+    warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
+    return Ok(Vec::new());
+  }
+
+  let mut bundles: Vec<Bundle> = Vec::new();
 
   let target_os = settings
     .target()
@@ -133,7 +152,11 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
-  let pluralised = if bundles.len() == 1 {
+  let bundles_wo_updater = bundles
+    .iter()
+    .filter(|b| b.package_type != PackageType::Updater)
+    .collect::<Vec<_>>();
+  let pluralised = if bundles_wo_updater.len() == 1 {
     "bundle"
   } else {
     "bundles"
@@ -150,7 +173,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
-  info!(action = "Finished"; "{} {} at:\n{}", bundles.len(), pluralised, printable_paths);
+  info!(action = "Finished"; "{} {} at:\n{}", bundles_wo_updater.len(), pluralised, printable_paths);
 
   Ok(bundles)
 }

@@ -326,7 +326,10 @@ class WebviewWindowHandle {
   }
 
   /**
-   * Listen to an event emitted by the backend that is tied to the webview window.
+   * Listen to an event emitted by the backend or webview.
+   * The event must either be a global event or an event targetting this window.
+   *
+   * See {@link WebviewWindow.emit | `emit`} for more information.
    *
    * @example
    * ```typescript
@@ -339,10 +342,11 @@ class WebviewWindowHandle {
    * unlisten();
    * ```
    *
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async listen<T>(
     event: EventName,
@@ -359,7 +363,8 @@ class WebviewWindowHandle {
   }
 
   /**
-   * Listen to an one-off event emitted by the backend that is tied to the webview window.
+   * Listen to an one-off event.
+   * See {@link WebviewWindow.listen | `listen`} for more information.
    *
    * @example
    * ```typescript
@@ -372,10 +377,11 @@ class WebviewWindowHandle {
    * unlisten();
    * ```
    *
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
@@ -389,11 +395,33 @@ class WebviewWindowHandle {
   }
 
   /**
-   * Emits an event to the backend, tied to the webview window.
+   * Emits an event to the backend and all Tauri windows.
+   * The event will have this window's {@link WebviewWindow.label | label} as {@link Event.windowLabel | source window label}.
+   *
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
    * await appWindow.emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   *
+   * This function can also be used to communicate between windows:
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.listen('sync-data', (event) => { });
+   *
+   * // on another window...
+   * import { WebviewWindow } from '@tauri-apps/api/window';
+   * const otherWindow = WebviewWindow.getByLabel('other')
+   * await otherWindow.emit('sync-data');
+   * ```
+   *
+   * Global listeners are also triggered:
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * import { listen } from '@tauri-apps/api/event';
+   * await listen('ping', (event) => { });
+   *
+   * await appWindow.emit('ping');
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.

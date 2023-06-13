@@ -13,7 +13,6 @@
         window.ipc.postMessage(data)
       } else {
         const { contentType, data } = processIpcMessage(payload)
-        let i = new Date()
         fetch(window.__TAURI__.convertFileSrc(cmd, 'ipc'), {
           method: 'POST',
           body: data,
@@ -23,7 +22,6 @@
             'Tauri-Error': error,
           }
         }).then((response) => {
-          i = new Date()
           const cb = response.ok ? callback : error
           // we need to split here because on Android the content-type gets duplicated
           switch ((response.headers.get('content-type') || '').split(',')[0]) {

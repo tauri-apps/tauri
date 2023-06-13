@@ -5,12 +5,6 @@
 
 use super::common;
 
-#[cfg(target_os = "macos")]
-use super::macos::app;
-
-#[cfg(target_os = "linux")]
-use super::linux::appimage;
-
 use crate::{
   bundle::{
     windows::{
@@ -47,9 +41,9 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   }
 
   #[cfg(target_os = "macos")]
-  return bundle_update_macos(settings, bundles);
+  return bundle_update_macos(bundles);
   #[cfg(target_os = "linux")]
-  return bundle_update_linux(settings, bundles);
+  return bundle_update_linux(bundles);
 
   #[cfg(not(any(target_os = "macos", target_os = "linux")))]
   {
@@ -61,11 +55,11 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 // Create simple update-macos.tar.gz
 // This is the Mac OS App packaged
 #[cfg(target_os = "macos")]
-fn bundle_update_macos(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update_macos(bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use std::ffi::OsStr;
 
   // find our .app or rebuild our bundle
-  let bundle_path = match bundles
+  if let Some(source_path) = bundles
     .iter()
     .filter(|bundle| bundle.package_type == crate::PackageType::MacOsBundle)
     .find_map(|bundle| {
@@ -73,30 +67,23 @@ fn bundle_update_macos(settings: &Settings, bundles: &[Bundle]) -> crate::Result
         .bundle_paths
         .iter()
         .find(|path| path.extension() == Some(OsStr::new("app")))
-    }) {
-    Some(path) => vec![path.clone()],
-    None => app::bundle_project(settings)?,
-  };
+    })
+  {
+    // add .tar.gz to our path
+    let osx_archived = format!("{}.tar.gz", source_path.display());
+    let osx_archived_path = PathBuf::from(&osx_archived);
 
-  // we expect our .app to be on bundle_path[0]
-  if bundle_path.is_empty() {
-    return Err(crate::Error::UnableToFindProject);
+    // Create our gzip file (need to send parent)
+    // as we walk the source directory (source isnt added)
+    create_tar(source_path, &osx_archived_path)
+      .with_context(|| "Failed to tar.gz update directory")?;
+
+    info!(action = "Bundling"; "{} ({})", osx_archived, display_path(&osx_archived_path));
+
+    Ok(vec![osx_archived_path])
+  } else {
+    Err(crate::Error::UnableToFindProject)
   }
-
-  let source_path = &bundle_path[0];
-
-  // add .tar.gz to our path
-  let osx_archived = format!("{}.tar.gz", source_path.display());
-  let osx_archived_path = PathBuf::from(&osx_archived);
-
-  // Create our gzip file (need to send parent)
-  // as we walk the source directory (source isnt added)
-  create_tar(source_path, &osx_archived_path)
-    .with_context(|| "Failed to tar.gz update directory")?;
-
-  info!(action = "Bundling"; "{} ({})", osx_archived, display_path(&osx_archived_path));
-
-  Ok(vec![osx_archived_path])
 }
 
 // Create simple update-linux_<arch>.tar.gz
@@ -104,11 +91,11 @@ fn bundle_update_macos(settings: &Settings, bundles: &[Bundle]) -> crate::Result
 // Right now in linux we hot replace the bin and request a restart
 // No assets are replaced
 #[cfg(target_os = "linux")]
-fn bundle_update_linux(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+fn bundle_update_linux(bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use std::ffi::OsStr;
 
   // build our app actually we support only appimage on linux
-  let bundle_path = match bundles
+  if let Some(source_path) = bundles
     .iter()
     .filter(|bundle| bundle.package_type == crate::PackageType::AppImage)
     .find_map(|bundle| {
@@ -116,29 +103,22 @@ fn bundle_update_linux(settings: &Settings, bundles: &[Bundle]) -> crate::Result
         .bundle_paths
         .iter()
         .find(|path| path.extension() == Some(OsStr::new("AppImage")))
-    }) {
-    Some(path) => vec![path.clone()],
-    None => appimage::bundle_project(settings)?,
-  };
+    })
+  {
+    // add .tar.gz to our path
+    let appimage_archived = format!("{}.tar.gz", source_path.display());
+    let appimage_archived_path = PathBuf::from(&appimage_archived);
 
-  // we expect our .app to be on bundle[0]
-  if bundle_path.is_empty() {
-    return Err(crate::Error::UnableToFindProject);
+    // Create our gzip file
+    create_tar(source_path, &appimage_archived_path)
+      .with_context(|| "Failed to tar.gz update directory")?;
+
+    info!(action = "Bundling"; "{} ({})", appimage_archived, display_path(&appimage_archived_path));
+
+    Ok(vec![appimage_archived_path])
+  } else {
+    Err(crate::Error::UnableToFindProject)
   }
-
-  let source_path = &bundle_path[0];
-
-  // add .tar.gz to our path
-  let appimage_archived = format!("{}.tar.gz", source_path.display());
-  let appimage_archived_path = PathBuf::from(&appimage_archived);
-
-  // Create our gzip file
-  create_tar(source_path, &appimage_archived_path)
-    .with_context(|| "Failed to tar.gz update directory")?;
-
-  info!(action = "Bundling"; "{} ({})", appimage_archived, display_path(&appimage_archived_path));
-
-  Ok(vec![appimage_archived_path])
 }
 
 // Create simple update-win_<arch>.zip

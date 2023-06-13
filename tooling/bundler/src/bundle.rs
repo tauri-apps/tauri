@@ -43,8 +43,12 @@ pub struct Bundle {
 /// Bundles the project.
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
-  let mut bundles: Vec<Bundle> = Vec::new();
   let package_types = settings.package_types()?;
+  if package_types.is_empty() {
+    return Ok(Vec::new());
+  }
+
+  let mut bundles: Vec<Bundle> = Vec::new();
 
   let target_os = settings
     .target()
@@ -93,9 +97,23 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
 
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
-      PackageType::Updater => updater_bundle::bundle_project(&settings, &bundles)?,
+      PackageType::Updater => {
+        if !package_types.iter().any(|p| {
+          matches!(
+            p,
+            PackageType::AppImage
+              | PackageType::MacOsBundle
+              | PackageType::Nsis
+              | PackageType::WindowsMsi
+          )
+        }) {
+          warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
+          continue;
+        }
+        updater_bundle::bundle_project(&settings, &bundles)?
+      }
       _ => {
-        warn!("ignoring {:?}", package_type);
+        warn!("ignoring {}", package_type.short_name());
         continue;
       }
     };
@@ -133,26 +151,34 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
-  let pluralised = if bundles.len() == 1 {
-    "bundle"
-  } else {
-    "bundles"
-  };
+  if !bundles.is_empty() {
+    let bundles_wo_updater = bundles
+      .iter()
+      .filter(|b| b.package_type != PackageType::Updater)
+      .collect::<Vec<_>>();
+    let pluralised = if bundles_wo_updater.len() == 1 {
+      "bundle"
+    } else {
+      "bundles"
+    };
 
-  let mut printable_paths = String::new();
-  for bundle in &bundles {
-    for path in &bundle.bundle_paths {
-      let mut note = "";
-      if bundle.package_type == crate::PackageType::Updater {
-        note = " (updater)";
+    let mut printable_paths = String::new();
+    for bundle in &bundles {
+      for path in &bundle.bundle_paths {
+        let mut note = "";
+        if bundle.package_type == crate::PackageType::Updater {
+          note = " (updater)";
+        }
+        writeln!(printable_paths, "        {}{}", display_path(path), note).unwrap();
       }
-      writeln!(printable_paths, "        {}{}", display_path(path), note).unwrap();
     }
+
+    info!(action = "Finished"; "{} {} at:\n{}", bundles_wo_updater.len(), pluralised, printable_paths);
+
+    Ok(bundles)
+  } else {
+    Err(anyhow::anyhow!("No bundles were built").into())
   }
-
-  info!(action = "Finished"; "{} {} at:\n{}", bundles.len(), pluralised, printable_paths);
-
-  Ok(bundles)
 }
 
 /// Check to see if there are icons in the settings struct

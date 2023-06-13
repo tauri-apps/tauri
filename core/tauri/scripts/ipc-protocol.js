@@ -4,11 +4,13 @@
 
 (function () {
   const processIpcMessage = __RAW_process_ipc_message_fn__
+  const osName = __TEMPLATE_os_name__
+  const fetchChannelDataCommandPrefix = __TEMPLATE_fetch_channel_data_command_prefix__
 
   Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {
     value: (message) => {
       const { cmd, callback, error, payload } = message
-      if (__RAW_use_post_message_condition__) {
+      if ((osName === 'linux' || osName === 'android') && !cmd.startsWith(fetchChannelDataCommandPrefix)) {
         const { data } = processIpcMessage({ cmd, callback, error, ...payload })
         window.ipc.postMessage(data)
       } else {

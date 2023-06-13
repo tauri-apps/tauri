@@ -838,8 +838,8 @@ struct InvokeInitializationScript<'a> {
   /// The function that processes the IPC message.
   #[raw]
   process_ipc_message_fn: &'a str,
-  #[raw]
-  use_post_message_condition: &'a str,
+  os_name: &'a str,
+  fetch_channel_data_command_prefix: &'a str,
 }
 
 impl<R: Runtime> Builder<R> {
@@ -853,13 +853,8 @@ impl<R: Runtime> Builder<R> {
       invoke_responder: None,
       invoke_initialization_script: InvokeInitializationScript {
         process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
-        #[cfg(ipc_custom_protocol)]
-        use_post_message_condition: "false",
-        #[cfg(not(ipc_custom_protocol))]
-        use_post_message_condition: &format!(
-          "(navigator.appVersion.includes('Linux') || navigator.appVersion.includes('Android')) && !cmd.startsWith('{}')",
-          crate::ipc::FETCH_CHANNEL_DATA_COMMAND_PREFIX
-        ),
+        os_name: std::env::consts::OS,
+        fetch_channel_data_command_prefix: crate::ipc::FETCH_CHANNEL_DATA_COMMAND_PREFIX,
       }
       .render_default(&Default::default())
       .unwrap()

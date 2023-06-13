@@ -3966,7 +3966,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.28.3"
-source = "git+https://github.com/tauri-apps/wry?branch=linux-body#1ca7a808d188e7f9b9b11c9ae55fa81cb7c95fdc"
+source = "git+https://github.com/tauri-apps/wry?branch=dev#d2c1819f81a7b03288348f1c3b195407400dfbde"
 dependencies = [
  "base64",
  "block",

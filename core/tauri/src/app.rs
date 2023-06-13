@@ -857,7 +857,7 @@ impl<R: Runtime> Builder<R> {
         use_post_message_condition: "false",
         #[cfg(not(ipc_custom_protocol))]
         use_post_message_condition: &format!(
-          "navigator.appVersion.includes('Linux') && !cmd.startsWith('{}')",
+          "(navigator.appVersion.includes('Linux') || navigator.appVersion.includes('Android')) && !cmd.startsWith('{}')",
           crate::ipc::FETCH_CHANNEL_DATA_COMMAND_PREFIX
         ),
       }

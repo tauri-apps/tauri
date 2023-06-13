@@ -1760,7 +1760,7 @@ impl<R: Runtime> Window<R> {
             (responder)(window, cmd, &response, callback, error);
           }
 
-          tx.send(response).unwrap();
+          let _ = tx.send(response);
         },
       ),
       request.cmd.clone(),

@@ -52,7 +52,7 @@ fn main() {
 
   alias(
     "ipc_custom_protocol",
-    target_os != "linux" || has_feature("linux-ipc-protocol"),
+    target_os != "android" && (target_os != "linux" || has_feature("linux-ipc-protocol")),
   );
 
   let checked_features_out_path = Path::new(&var("OUT_DIR").unwrap()).join("checked_features");

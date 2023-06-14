@@ -1,7 +1,7 @@
 ---
 'tauri': patch:enhance
-'tauri-build': patch:enhance
-'tauri-codegen': patch:enhance
+'tauri-build': minor:enhance
+'tauri-codegen': minor:enhance
 'tauri-runtime': patch:enhance
 'tauri-runtime-wry': patch:enhance
 ---

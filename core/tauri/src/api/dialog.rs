@@ -14,7 +14,7 @@ pub use nonblocking::*;
 macro_rules! run_dialog {
   ($e:expr, $h: ident) => {{
     std::thread::spawn(move || {
-      let response = $e;
+      let response = crate::async_runtime::block_on($e);
       $h(response);
     });
   }};
@@ -126,8 +126,13 @@ macro_rules! file_dialog_builder {
 
 macro_rules! message_dialog_builder {
   () => {
+    #[cfg(target_os = "linux")]
+    type MessageDialog = rfd::MessageDialog;
+    #[cfg(not(target_os = "linux"))]
+    type MessageDialog = rfd::AsyncMessageDialog;
+
     /// A builder for message dialogs.
-    pub struct MessageDialogBuilder(rfd::MessageDialog);
+    pub struct MessageDialogBuilder(MessageDialog);
 
     impl MessageDialogBuilder {
       /// Creates a new message dialog builder.
@@ -135,7 +140,7 @@ macro_rules! message_dialog_builder {
         let title = title.as_ref().to_string();
         let message = message.as_ref().to_string();
         Self(
-          rfd::MessageDialog::new()
+          MessageDialog::new()
             .set_title(&title)
             .set_description(&message),
         )
@@ -712,10 +717,15 @@ mod nonblocking {
     level: MessageDialogKind,
     f: F,
   ) {
+    #[cfg(target_os = "linux")]
+    type MessageDialog = rfd::MessageDialog;
+    #[cfg(not(target_os = "linux"))]
+    type MessageDialog = rfd::AsyncMessageDialog;
+
     let title = title.as_ref().to_string();
     let message = message.as_ref().to_string();
     #[allow(unused_mut)]
-    let mut builder = rfd::MessageDialog::new()
+    let mut builder = MessageDialog::new()
       .set_title(&title)
       .set_description(&message)
       .set_buttons(buttons)

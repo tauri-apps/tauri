@@ -29,7 +29,7 @@ tar = "0.4.38"
 walkdir = "2"
 handlebars = "4.3"
 tempfile = "3.6.0"
-log = { version = "0.4.18", features = [ "kv_unstable" ] }
+log = { version = "0.4.19", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 os_pipe = "1"
 ureq = { version = "2.6", default-features = false }

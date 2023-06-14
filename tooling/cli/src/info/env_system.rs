@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use super::SectionItem;
-use super::Status;
-use colored::Colorize;
 #[cfg(windows)]
 use serde::Deserialize;
 use std::process::Command;
@@ -245,7 +243,7 @@ pub fn items() -> Vec<SectionItem> {
                 ),
                 Status::Error,
               )
-            }).into(),
+            }).into()
       },
     ),
     #[cfg(any(
@@ -267,7 +265,7 @@ pub fn items() -> Vec<SectionItem> {
                 ),
                 Status::Error,
               )
-            }).into(),
+            }).into()
       },
     ),
     #[cfg(target_os = "macos")]

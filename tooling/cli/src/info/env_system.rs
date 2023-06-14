@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::SectionItem;
+use super::{SectionItem, Status};
+use colored::Colorize;
 #[cfg(windows)]
 use serde::Deserialize;
 use std::process::Command;

@@ -1654,7 +1654,7 @@ impl<R: Runtime> Window<R> {
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
-    self.manager.get_url().make_relative(&current_url).is_some() || {
+    self.manager.get_url().make_relative(current_url).is_some() || {
       let protocol_url = self.manager.protocol_url();
       current_url.scheme() == protocol_url.scheme() && current_url.domain() == protocol_url.domain()
     }

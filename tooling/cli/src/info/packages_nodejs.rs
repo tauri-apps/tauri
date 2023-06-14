@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::SectionItem;
 use super::{cross_command, VersionMetadata};
-use super::{SectionItem, Status};
 use colored::Colorize;
 use serde::Deserialize;
 use std::fmt::Display;
@@ -238,46 +238,40 @@ pub fn items(
       ("@tauri-apps/cli", Some(metadata.js_cli.version.clone())),
     ] {
       let app_dir = app_dir.clone();
-      let item = SectionItem::new(
-        move || {
-          let version = version.clone().unwrap_or_else(|| {
-            npm_package_version(&package_manager, package, &app_dir)
-              .unwrap_or_default()
-              .unwrap_or_default()
-          });
-          let latest_ver = npm_latest_version(&package_manager, package)
+      let item = SectionItem::new().action(move || {
+        let version = version.clone().unwrap_or_else(|| {
+          npm_package_version(&package_manager, package, &app_dir)
             .unwrap_or_default()
-            .unwrap_or_default();
+            .unwrap_or_default()
+        });
+        let latest_ver = npm_latest_version(&package_manager, package)
+          .unwrap_or_default()
+          .unwrap_or_default();
 
-          Some((
-            if version.is_empty() {
-              format!("{} {}: not installed!", package, "[NPM]".dimmed())
+        if version.is_empty() {
+          format!("{} {}: not installed!", package, "".green())
+        } else {
+          format!(
+            "{} {}: {}{}",
+            package,
+            "".green(),
+            version,
+            if !(version.is_empty() || latest_ver.is_empty()) {
+              let version = semver::Version::parse(version.as_str()).unwrap();
+              let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
+
+              if version < target_version {
+                format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
+              } else {
+                "".into()
+              }
             } else {
-              format!(
-                "{} {}: {}{}",
-                package,
-                "[NPM]".dimmed(),
-                version,
-                if !(version.is_empty() || latest_ver.is_empty()) {
-                  let version = semver::Version::parse(version.as_str()).unwrap();
-                  let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
-
-                  if version < target_version {
-                    format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
-                  } else {
-                    "".into()
-                  }
-                } else {
-                  "".into()
-                }
-              )
-            },
-            Status::Neutral,
-          ))
-        },
-        || None,
-        false,
-      );
+              "".into()
+            }
+          )
+        }
+        .into()
+      });
 
       items.push(item);
     }

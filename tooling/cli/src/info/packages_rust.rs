@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{SectionItem, Status};
+use super::SectionItem;
 use crate::interface::rust::get_workspace_dir;
 use colored::Colorize;
 use serde::Deserialize;
@@ -211,26 +211,16 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<Secti
       for dep in ["tauri", "tauri-build", "wry", "tao"] {
         let (version_string, version_suffix) =
           crate_version(&tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
-        let dep = dep.to_string();
-        let item = SectionItem::new(
-          move || {
-            Some((
-              format!(
-                "{} {}: {}{}",
-                dep,
-                "[RUST]".dimmed(),
-                version_string,
-                version_suffix
-                  .clone()
-                  .map(|s| format!(",{s}"))
-                  .unwrap_or_else(|| "".into())
-              ),
-              Status::Neutral,
-            ))
-          },
-          || None,
-          false,
-        );
+        let item = SectionItem::new().description(format!(
+          "{} {}: {}{}",
+          dep,
+          "🦀",
+          version_string,
+          version_suffix
+            .clone()
+            .map(|s| format!(",{s}"))
+            .unwrap_or_else(|| "".into())
+        ));
         items.push(item);
       }
     }

@@ -3318,7 +3318,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "1.2.1"
+version = "1.3.0"
 dependencies = [
  "anyhow",
  "ar",
@@ -3358,7 +3358,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -3431,7 +3431,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.3.0"
+version = "1.4.0"
 dependencies = [
  "aes-gcm",
  "ctor 0.1.26",

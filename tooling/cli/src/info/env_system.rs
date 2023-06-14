@@ -234,7 +234,6 @@ pub fn items() -> Vec<SectionItem> {
       target_os = "netbsd"
     ))]
     SectionItem::new().action(|| {
-        Some(
           webkit2gtk_ver()
             .map(|v| (format!("webkit2gtk-4.0: {v}"), Status::Success))
             .unwrap_or_else(|| {
@@ -246,8 +245,7 @@ pub fn items() -> Vec<SectionItem> {
                 ),
                 Status::Error,
               )
-            }),
-        )
+            }).into(),
       },
     ),
     #[cfg(any(
@@ -258,7 +256,6 @@ pub fn items() -> Vec<SectionItem> {
       target_os = "netbsd"
     ))]
     SectionItem::new().action(|| {
-        Some(
           rsvg2_ver()
             .map(|v| (format!("rsvg2: {v}"), Status::Success))
             .unwrap_or_else(|| {
@@ -270,13 +267,12 @@ pub fn items() -> Vec<SectionItem> {
                 ),
                 Status::Error,
               )
-            }),
-        )
+            }).into(),
       },
     ),
     #[cfg(target_os = "macos")]
     SectionItem::new().action(|| {
-        Some(if is_xcode_command_line_tools_installed() {
+        if is_xcode_command_line_tools_installed() {
           (
             "Xcode Command Line Tools: installed".into(),
             Status::Success,
@@ -290,7 +286,7 @@ pub fn items() -> Vec<SectionItem> {
             ),
             Status::Error,
           )
-        })
+        }.into()
       },
     ),
   ]

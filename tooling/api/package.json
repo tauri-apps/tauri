@@ -41,8 +41,8 @@
     "yarn": ">= 1.19.1"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "5.59.9",
-    "@typescript-eslint/parser": "5.59.9",
+    "@typescript-eslint/eslint-plugin": "5.59.11",
+    "@typescript-eslint/parser": "5.59.11",
     "eslint": "8.42.0",
     "eslint-config-prettier": "8.8.0",
     "eslint-config-standard-with-typescript": "34.0.1",

@@ -1,5 +1,5 @@
 ---
-"tauri-macros": 'patch:enhance'
+"tauri-macros": 'minor:enhance'
 ---
 
 Improve compiler error message when generating an async command that has a reference input and don't return a Result.

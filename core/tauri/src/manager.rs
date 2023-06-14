@@ -377,11 +377,15 @@ impl<R: Runtime> WindowManager<R> {
   pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
-      #[cfg(windows)]
-      _ => Cow::Owned(Url::parse("https://tauri.localhost").unwrap()),
-      #[cfg(not(windows))]
-      _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
+      _ => self.protocol_url(),
     }
+  }
+
+  pub(crate) fn protocol_url(&self) -> Cow<'_, Url> {
+    #[cfg(any(window, target_os = "android"))]
+    return Cow::Owned(Url::parse("https://tauri.localhost").unwrap());
+    #[cfg(not(any(window, target_os = "android")))]
+    Cow::Owned(Url::parse("tauri://localhost").unwrap())
   }
 
   fn csp(&self) -> Option<Csp> {

@@ -1653,13 +1653,18 @@ impl<R: Runtime> Window<R> {
     self.current_url = url;
   }
 
+  fn is_local_url(&self, current_url: &Url) -> bool {
+    self.manager.get_url().make_relative(current_url).is_some() || {
+      let protocol_url = self.manager.protocol_url();
+      current_url.scheme() == protocol_url.scheme() && current_url.domain() == protocol_url.domain()
+    }
+  }
+
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
     let current_url = self.url();
-    let config_url = manager.get_url();
-    let is_local =
-      config_url.make_relative(&current_url).is_some() || current_url.scheme() == "tauri";
+    let is_local = self.is_local_url(&current_url);
 
     let mut scope_not_found_error_message =
       ipc_scope_not_found_error_message(&self.window.label, current_url.as_str());

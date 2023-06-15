@@ -1,5 +1,5 @@
 ---
-'@tauri-apps/api': 'patch'
+'@tauri-apps/api': 'patch:enhance'
 ---
 
 Add `tempDir` function to `path` module

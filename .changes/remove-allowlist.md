@@ -1,8 +1,8 @@
 ---
-"tauri": patch
-"tauri-utils": patch
-"tauri-cli": patch
-"@tauri-apps/cli": patch
+"tauri": 'patch:enhance'
+"tauri-utils": 'patch:enhance'
+"tauri-cli": 'patch:enhance'
+"@tauri-apps/cli": 'patch:enhance'
 ---
 
 Removed the allowlist configuration.

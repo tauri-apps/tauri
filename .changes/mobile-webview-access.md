@@ -1,6 +1,6 @@
 ---
-"tauri-runtime-wry": minor
-"tauri": minor
+"tauri-runtime-wry": 'minor:feat'
+"tauri": 'minor:feat'
 ---
 
-Support `with_webview` for Android platform alowing execution of JNI code in context. 
+Support `with_webview` for Android platform alowing execution of JNI code in context.

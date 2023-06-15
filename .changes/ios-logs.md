@@ -1,7 +1,7 @@
 ---
-"tauri-cli": patch
-"@tauri-apps/cli": patch
-"tauri": patch
+"tauri-cli": 'patch:enhance'
+"@tauri-apps/cli": 'patch:enhance'
+"tauri": 'patch:enhance'
 ---
 
 Show all application logs on iOS.

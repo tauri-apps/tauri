@@ -1,6 +1,6 @@
 ---
-"tauri-build": patch
-"tauri-macros": patch
+"tauri-build": 'patch:enhance'
+"tauri-macros": 'patch:enhance'
 ---
 
 Refactor mobile environment variables.

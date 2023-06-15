@@ -1348,7 +1348,6 @@ pub struct TauriConfig {
 
 impl TauriConfig {
   /// Returns all Cargo features.
-  #[allow(dead_code)]
   pub fn all_features() -> Vec<&'static str> {
     vec![
       "system-tray",
@@ -1359,7 +1358,6 @@ impl TauriConfig {
   }
 
   /// Returns the enabled Cargo features.
-  #[allow(dead_code)]
   pub fn features(&self) -> Vec<&str> {
     let mut features = Vec::new();
     if self.system_tray.is_some() {

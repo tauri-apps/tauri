@@ -1,5 +1,5 @@
 ---
-"tauri": patch
+"tauri": 'patch:enhance'
 ---
 
 Fixes ProGuard rules.

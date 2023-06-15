@@ -24,6 +24,7 @@ features = [
   "devtools",
   "icon-png",
   "protocol-asset",
+  "test",
   "dox"
 ]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
@@ -117,6 +118,7 @@ cargo_toml = "0.15"
 
 [features]
 default = [ "wry", "compression", "objc-exception" ]
+test = [ ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]

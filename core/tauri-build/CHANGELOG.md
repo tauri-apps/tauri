@@ -39,6 +39,14 @@
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
 
+## \[1.4.0]
+
+### Enhancements
+
+- [`52474e47`](https://www.github.com/tauri-apps/tauri/commit/52474e479d695865299d8c8d868fb98b99731020)([#7141](https://www.github.com/tauri-apps/tauri/pull/7141)) Enhance Cargo features check.
+- [`af937290`](https://www.github.com/tauri-apps/tauri/commit/af93729031565a69d1fde6cf16bea3b9b6e43a65)([#6676](https://www.github.com/tauri-apps/tauri/pull/6676)) On Windows, set `LegalCopyright` and `FileDescription` file properties on the executable from `tauri.bundle.copyright` and `tauri.bundle.shortDescription`,
+- [`d2710e9d`](https://www.github.com/tauri-apps/tauri/commit/d2710e9d2e8fd93975ef6494512370faa8cb3b7e)([#6944](https://www.github.com/tauri-apps/tauri/pull/6944)) Unpin `time`, `ignore`, and `winnow` crate versions. Developers now have to pin crates if needed themselves. A list of crates that need pinning to adhere to Tauri's MSRV will be visible in Tauri's GitHub workflow: https://github.com/tauri-apps/tauri/blob/dev/.github/workflows/test-core.yml#L85.
+
 ## \[1.3.0]
 
 - Bump minimum supported Rust version to 1.60.

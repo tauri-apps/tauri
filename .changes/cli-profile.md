@@ -1,5 +1,5 @@
 ---
-'tauri-cli': patch:bug
+'tauri-cli': 'patch:bug'
 ---
 
 Fix building with a custom cargo profile

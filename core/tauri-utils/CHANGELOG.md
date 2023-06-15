@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-alpha.6]
+
+### New Features
+
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Add option to configure `require_literal_leading_dot` on `fs` and `asset` protcol scopes.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Added the `maximizable`, `minimizable` and `closable` options to the window configuration.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Allow specifying custom language files of Tauri's custom messages for the NSIS installer
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Add `nsis > template` option to specify custom NSIS installer template.
+- [`e0f0dce2`](https://www.github.com/tauri-apps/tauri/commit/e0f0dce220730e2822fc202463aedf0166145de7)([#6442](https://www.github.com/tauri-apps/tauri/pull/6442)) Added the `window_effects` option to the window configuration.
+
+### Enhancements
+
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Added the `desktop_template` option on `tauri.conf.json > tauri > bundle > deb`.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Add `MimeType::parse_with_fallback` and `MimeType::parse_from_uri_with_fallback`
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Add `WindowsUpdateInstallMode::nsis_args`
+
 ## \[2.0.0-alpha.5]
 
 - [`9a79dc08`](https://www.github.com/tauri-apps/tauri/commit/9a79dc085870e0c1a5df13481ff271b8c6cc3b78)([#6947](https://www.github.com/tauri-apps/tauri/pull/6947)) Remove `enable_tauri_api` from the IPC scope.

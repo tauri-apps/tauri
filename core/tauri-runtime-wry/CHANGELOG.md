@@ -1,5 +1,18 @@
 # Changelog
 
+## \[0.13.0-alpha.6]
+
+### New Features
+
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Added the `maximizable`, `minimizable` and `closable` methods to `WindowBuilder`.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Added `set_maximizable`, `set_minimizable`, `set_closable`, `is_maximizable`, `is_minimizable` and `is_closable` methods to the `Dispatch` trait.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Add `Window::is_focused` getter.
+- [`e0f0dce2`](https://www.github.com/tauri-apps/tauri/commit/e0f0dce220730e2822fc202463aedf0166145de7)([#6442](https://www.github.com/tauri-apps/tauri/pull/6442)) Added the `window_effects` option when creating a window and `Window::set_effects` to change it at runtime.
+
+### Enhancements
+
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Unpin `time`, `ignore`, `winnow`, and `ignore` crate versions. Developers now have to pin crates if needed themselves. A list of crates that need pinning to adhere to Tauri's MSRV will be visible in Tauri's GitHub workflow: https://github.com/tauri-apps/tauri/blob/dev/.github/workflows/test-core.yml#L85.
+
 ## \[0.13.0-alpha.5]
 
 - [`39f1b04f`](https://www.github.com/tauri-apps/tauri/commit/39f1b04f7be4966488484829cd54c8ce72a04200)([#6943](https://www.github.com/tauri-apps/tauri/pull/6943)) Moved the `event` JS APIs to a plugin.

@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-alpha.6]
+
+### Enhancements
+
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Early panic if the PNG icon is not RGBA.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Unpin `time`, `ignore`, `winnow`, and `ignore` crate versions. Developers now have to pin crates if needed themselves. A list of crates that need pinning to adhere to Tauri's MSRV will be visible in Tauri's GitHub workflow: https://github.com/tauri-apps/tauri/blob/dev/.github/workflows/test-core.yml#L85.
+
 ## \[2.0.0-alpha.5]
 
 - [`96639ca2`](https://www.github.com/tauri-apps/tauri/commit/96639ca239c9e4f75142fc07868ac46822111cff)([#6749](https://www.github.com/tauri-apps/tauri/pull/6749)) Moved the `shell` functionality to its own plugin in the plugins-workspace repository.

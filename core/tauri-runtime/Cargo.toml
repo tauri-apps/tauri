@@ -1,11 +1,9 @@
 [package]
 name = "tauri-runtime"
-version = "0.13.0-alpha.5"
+version = "0.13.0-alpha.6"
 description = "Runtime for Tauri applications"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
-
-# workspace defined package items
 authors = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
@@ -28,7 +26,7 @@ targets = [
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "2.0.0-alpha.5", path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-alpha.6", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 http = "0.2.4"
 http-range = "0.1.4"

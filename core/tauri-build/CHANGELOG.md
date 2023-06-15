@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-alpha.6]
+
+### Enhancements
+
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) On Windows, set `LegalCopyright` and `FileDescription` file properties on the executable from `tauri.bundle.copyright` and `tauri.bundle.shortDescription`,
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Unpin `time`, `ignore`, `winnow`, and `ignore` crate versions. Developers now have to pin crates if needed themselves. A list of crates that need pinning to adhere to Tauri's MSRV will be visible in Tauri's GitHub workflow: https://github.com/tauri-apps/tauri/blob/dev/.github/workflows/test-core.yml#L85.
+
+### Bug Fixes
+
+- [`3256a372`](https://www.github.com/tauri-apps/tauri/commit/3256a37263f60eafdf5a8321458b868bff26c1b8)([#7016](https://www.github.com/tauri-apps/tauri/pull/7016)) Fixes injection of the proguard rules on the Android project.
+
 ## \[2.0.0-alpha.5]
 
 - [`3188f376`](https://www.github.com/tauri-apps/tauri/commit/3188f3764978c6d1452ee31d5a91469691e95094)([#6883](https://www.github.com/tauri-apps/tauri/pull/6883)) Bump the MSRV to 1.65.

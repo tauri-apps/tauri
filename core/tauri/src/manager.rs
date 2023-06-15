@@ -481,21 +481,21 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
-    let window_origin =
-      if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-        format!("https://{}.localhost", window_url.scheme())
-      } else {
-        format!(
-          "{}://{}{}",
-          window_url.scheme(),
-          window_url.host().unwrap(),
-          if let Some(port) = window_url.port() {
-            format!(":{port}")
-          } else {
-            "".into()
-          }
-        )
-      };
+    let window_origin = if window_url.scheme() == "data" {
+      "null".into()
+    } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
+      format!("https://{}.localhost", window_url.scheme())
+    } else {
+      format!(
+        "{}://{}{}",
+        window_url.scheme(),
+        window_url.host().unwrap(),
+        window_url
+          .port()
+          .map(|p| format!(":{p}"))
+          .unwrap_or_default()
+      )
+    };
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
@@ -891,7 +891,7 @@ impl<R: Runtime> WindowManager<R> {
 
           for (let i = listeners.length - 1; i >= 0; i--) {{
             const listener = listeners[i]
-            if (listener.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
+            if (listener.windowLabel === null || eventData.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
               eventData.id = listener.id
               listener.handler(eventData)
             }}

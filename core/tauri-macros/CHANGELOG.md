@@ -43,6 +43,12 @@
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
 
+## \[1.4.0]
+
+### Enhancements
+
+- [`d68a25e3`](https://www.github.com/tauri-apps/tauri/commit/d68a25e32e012e57a9e5225b589b9ecbea70a887)([#6124](https://www.github.com/tauri-apps/tauri/pull/6124)) Improve compiler error message when generating an async command that has a reference input and don't return a Result.
+
 ## \[1.3.0]
 
 - Bump minimum supported Rust version to 1.60.

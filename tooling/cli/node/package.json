@@ -32,12 +32,13 @@
         "aarch64-unknown-linux-musl",
         "armv7-unknown-linux-gnueabihf",
         "x86_64-unknown-linux-musl",
-        "i686-pc-windows-msvc"
+        "i686-pc-windows-msvc",
+        "aarch64-pc-windows-msvc"
       ]
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.15.2",
+    "@napi-rs/cli": "2.16.1",
     "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
     "fs-extra": "11.1.1",

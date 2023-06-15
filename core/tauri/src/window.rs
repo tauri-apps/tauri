@@ -2013,6 +2013,24 @@ impl<R: Runtime> Window<R> {
 /// Event system APIs.
 impl<R: Runtime> Window<R> {
   /// Emits an event to both the JavaScript and the Rust listeners.
+  ///
+  /// This API is a combination of [`Self::trigger`] and [`Self::emit`].
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::Window) {
+  ///   window.emit_and_trigger("download-started", ());
+  ///
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners
+  ///     window.emit_and_trigger("download-progress", i);
+  ///   }
+  /// }
+  /// ```
   pub fn emit_and_trigger<S: Serialize + Clone>(
     &self,
     event: &str,
@@ -2038,9 +2056,21 @@ impl<R: Runtime> Window<R> {
     Ok(())
   }
 
-  /// Emits an event to the JavaScript listeners on the current window.
+  /// Emits an event to the JavaScript listeners on the current window or globally.
   ///
-  /// The event is only delivered to listeners that used the `WebviewWindow#listen` method on the @tauri-apps/api `window` module.
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::Window) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners registed in the webview
+  ///     window.emit("download-progress", i);
+  ///   }
+  /// }
+  /// ```
   pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager
@@ -2055,6 +2085,21 @@ impl<R: Runtime> Window<R> {
   /// This listener only receives events that are triggered using the
   /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
   /// the `appWindow.emit` function from the @tauri-apps/api `window` module.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = app.get_window("main").unwrap();
+  ///     window.listen("component-loaded", move |event| {
+  ///       println!("window just loaded a component");
+  ///     });
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -2064,11 +2109,37 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Unlisten to an event on this window.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = app.get_window("main").unwrap();
+  ///     let window_ = window.clone();
+  ///     let handler = window.listen("component-loaded", move |event| {
+  ///       println!("window just loaded a component");
+  ///
+  ///       // we no longer need to listen to the event
+  ///       // we also could have used `window.once` instead
+  ///       window_.unlisten(event.id());
+  ///     });
+  ///
+  ///     // stop listening to the event when you do not need it anymore
+  ///     window.unlisten(handler);
+  ///
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn unlisten(&self, handler_id: EventHandler) {
     self.manager.unlisten(handler_id)
   }
 
   /// Listen to an event on this window a single time.
+  ///
+  /// See [`Self::listen`] for more information.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: FnOnce(Event) + Send + 'static,
@@ -2077,9 +2148,21 @@ impl<R: Runtime> Window<R> {
     self.manager.once(event.into(), Some(label), handler)
   }
 
-  /// Triggers an event to the Rust listeners on this window.
+  /// Triggers an event to the Rust listeners on this window or global listeners.
   ///
-  /// The event is only delivered to listeners that used the [`listen`](Window#method.listen) method.
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::Window) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners registed on `window` in Rust
+  ///     window.trigger("download-progress", Some(i.to_string()));
+  ///   }
+  /// }
+  /// ```
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)

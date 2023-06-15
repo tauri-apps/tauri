@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-; (function () {
+;(function () {
   function uid() {
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
@@ -132,28 +132,117 @@
   }
 
   // drag region
-  document.addEventListener('mousedown', (e) => {
-    if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
-      // prevents text cursor
-      e.preventDefault()
-      // fix #2549: double click on drag region edge causes content to maximize without window sizing change
-      // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
-      e.stopImmediatePropagation()
+  /**
+   * @param {boolean} isClick
+   * @param {MouseEvent} event
+   */
+  function handleDrag(isClick, event) {
+    /**
+     * @typedef {Object} DragInfo
+     * @property {boolean} drag
+     * @property {boolean} container
+     * @property {boolean} titlebar
+     */
 
-      // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
-      window.__TAURI_INVOKE__('tauri', {
-        __tauriModule: 'Window',
-        message: {
-          cmd: 'manage',
-          data: {
-            cmd: {
-              type: e.detail === 2 ? '__toggleMaximize' : 'startDragging'
-            }
-          }
-        }
-      })
+    /**
+     * @param {HTMLElement} element
+     * @return {DragInfo|null}
+     */
+    function elementDragInfo(element) {
+      const dragAttr = element.getAttribute("data-tauri-drag-region");
+      const containerAttr = element.getAttribute("data-tauri-drag-region-container");
+      const titlebarAttr = element.getAttribute("data-tauri-drag-region-titlebar");
+      const excludeAttr = element.getAttribute("data-tauri-drag-region-exclude");
+
+      // return drag false if exclude
+      if (excludeAttr && excludeAttr !== "false") return {drag: false, container: false, titlebar: false};
+
+      // return null if unset
+      if (!dragAttr && !containerAttr) return null;
+
+      // enable titlebar if titlebarAttr not set or titlebarAttr is set and not equal to "false"
+      if (dragAttr) return {
+        drag: dragAttr !== "false",
+        container: false,
+        titlebar: titlebarAttr ? titlebarAttr !== "false" : true
+      };
+
+      // enable titlebar only if titlebarAttr is set and not equal to "false"
+      if (containerAttr) return {
+        drag: containerAttr !== "false",
+        container: containerAttr !== "false",
+        titlebar: titlebarAttr ? titlebarAttr !== "false" : false
+      };
+
+      // above code should handle all the conditions
+      return {drag: false, container: false, titlebar: false};
     }
-  })
+
+    /**
+     * @param {HTMLElement} element
+     * @return {DragInfo}
+     */
+    function parentsDragInfo(element) {
+      let current = element.parentElement;
+
+      while (current) {
+        const info = elementDragInfo(current);
+        if (info && info.container) return info;
+        current = current.parentElement;
+      }
+
+      return {container: false, titlebar: false, drag: false};
+    }
+
+    if (!event.target) return;
+    if (event.buttons !== 1 && !isClick) return;
+
+    /**
+     * @type {HTMLElement}
+     */
+    const element = event.target;
+
+    let info = elementDragInfo(element);
+    // get parent info if current is unset
+    if (info == null) info = parentsDragInfo(element);
+    // if all unset then directly return
+    if (info == null) return;
+    // if drag disabled then directly return
+    if (!info.drag) return;
+
+    if (isClick) {
+      // prevents click
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    } else {
+      if (info.drag) {
+        // prevents text cursor
+        event.preventDefault();
+        // fix #2549: double-click on drag region edge causes content to maximize without window sizing change
+        // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
+        event.stopImmediatePropagation();
+
+        // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
+        window.__TAURI_INVOKE__("tauri", {
+          __tauriModule: "Window",
+          message: {
+            cmd: "manage",
+            data: {
+              cmd: {
+                type:
+                  info.titlebar && event.detail === 2
+                    ? "__toggleMaximize"
+                    : "startDragging",
+              },
+            },
+          },
+        });
+      }
+    }
+  }
+
+  document.addEventListener("mousedown", handleDrag.bind(null, false));
+  document.addEventListener("click", handleDrag.bind(null, true), true);
 
   let permissionSettable = false
   let permissionValue = 'default'

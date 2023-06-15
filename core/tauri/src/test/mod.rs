@@ -265,12 +265,14 @@ mod tests {
   #[test]
   fn run_app() {
     let app = mock_app();
-    let window = WindowBuilder::new(&app, "main", Default::default())
+
+    let w = WindowBuilder::new(&app, "main", Default::default())
       .build()
       .unwrap();
+
     std::thread::spawn(move || {
       std::thread::sleep(Duration::from_secs(1));
-      window.close().unwrap();
+      w.close().unwrap();
     });
 
     app.run(|_app, event| {

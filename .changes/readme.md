@@ -33,7 +33,7 @@ Additionally you could specify a tag for the change file to group it with other 
 
 ```md
 ---
-'package-a': 'patch:enhance':bug
+'package-a': 'patch:enhance'
 ---
 
 Change summary goes here

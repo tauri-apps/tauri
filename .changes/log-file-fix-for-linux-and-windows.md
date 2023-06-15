@@ -1,5 +1,5 @@
 ---
-'tauri': 'minor:feat':bug
+'tauri': 'minor:bug'
 ---
 
 Fix default log path for linux and windows

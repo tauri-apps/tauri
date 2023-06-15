@@ -1,5 +1,5 @@
 ---
-'tauri-bundler': 'patch:enhance':bug
+'tauri-bundler': 'patch:bug'
 ---
 
 - Updated the AppImage bundler to follow symlinks for `/usr/lib*`.

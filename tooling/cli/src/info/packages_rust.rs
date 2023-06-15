@@ -214,7 +214,7 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<Secti
         let item = SectionItem::new().description(format!(
           "{} {}: {}{}",
           dep,
-          "🦀",
+          "[RUST]".dimmed(),
           version_string,
           version_suffix
             .clone()

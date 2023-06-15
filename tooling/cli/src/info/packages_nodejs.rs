@@ -254,7 +254,7 @@ pub fn items(
           format!(
             "{} {}: {}{}",
             package,
-            "".green(),
+            "[NPM]".dimmed(),
             version,
             if !(version.is_empty() || latest_ver.is_empty()) {
               let version = semver::Version::parse(version.as_str()).unwrap();

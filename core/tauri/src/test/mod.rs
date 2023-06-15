@@ -44,7 +44,6 @@
 //!       &window,
 //!       tauri::InvokePayload {
 //!         cmd: "my_cmd".into(),
-//!         tauri_module: None,
 //!         callback: tauri::api::ipc::CallbackFn(0),
 //!         error: tauri::api::ipc::CallbackFn(1),
 //!         inner: serde_json::Value::Null,
@@ -225,7 +224,6 @@ pub fn mock_app() -> App<MockRuntime> {
 ///       &window,
 ///       tauri::InvokePayload {
 ///         cmd: "ping".into(),
-///         tauri_module: None,
 ///         callback: tauri::api::ipc::CallbackFn(0),
 ///         error: tauri::api::ipc::CallbackFn(1),
 ///         inner: serde_json::Value::Null,

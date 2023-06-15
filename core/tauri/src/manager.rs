@@ -751,7 +751,10 @@ impl<R: Runtime> WindowManager<R> {
         {
           client_builder = client_builder.danger_accept_invalid_certs(true);
         }
-        let mut proxy_builder = client_builder.build().unwrap().get(&url);
+        let mut proxy_builder = client_builder
+          .build()
+          .unwrap()
+          .request(request.method().clone(), &url);
         for (name, value) in request.headers() {
           proxy_builder = proxy_builder.header(name, value);
         }

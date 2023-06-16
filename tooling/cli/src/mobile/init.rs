@@ -139,7 +139,7 @@ pub fn exec(
       } else {
         manager_stem
       };
-      if !build_args.is_empty() && !is_npx {
+      if !(build_args.is_empty() || is_npx) {
         // remove script path, we'll use `npm_lifecycle_event` instead
         build_args.remove(0);
       }

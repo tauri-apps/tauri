@@ -53,7 +53,6 @@ impl From<&WindowConfig> for WebviewAttributes {
     builder
   }
 }
-
 impl WebviewAttributes {
   /// Initializes the default attributes for a webview.
   pub fn new(url: WindowUrl) -> Self {

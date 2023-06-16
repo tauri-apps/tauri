@@ -130,20 +130,26 @@ pub fn exec(
   if r.is_match(&bin_stem) {
     if let Some(npm_execpath) = var_os("npm_execpath").map(PathBuf::from) {
       let manager_stem = npm_execpath.file_stem().unwrap().to_os_string();
-      binary = if manager_stem == "npm-cli" {
+      let is_npm = manager_stem == "npm-cli";
+      let is_npx = manager_stem == "npx-cli";
+      binary = if is_npm {
         "npm".into()
+      } else if is_npx {
+        "npx".into()
       } else {
         manager_stem
       };
-      if !build_args.is_empty() {
+      if !(build_args.is_empty() || is_npx) {
         // remove script path, we'll use `npm_lifecycle_event` instead
         build_args.remove(0);
       }
-      if binary == "npm" {
+      if is_npm {
         build_args.insert(0, "--".into());
       }
-      build_args.insert(0, var("npm_lifecycle_event").unwrap());
-      if binary == "npm" {
+      if !is_npx {
+        build_args.insert(0, var("npm_lifecycle_event").unwrap());
+      }
+      if is_npm {
         build_args.insert(0, "run".into());
       }
     }

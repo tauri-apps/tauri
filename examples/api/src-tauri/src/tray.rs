@@ -4,10 +4,11 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
-  CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+  CustomMenuItem, Manager, Runtime, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
+  WindowUrl,
 };
 
-pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
+pub fn create_tray<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
   let mut tray_menu1 = SystemTrayMenu::new()
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
     .add_item(CustomMenuItem::new("new", "New window"))

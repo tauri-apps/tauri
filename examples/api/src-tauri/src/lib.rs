@@ -12,7 +12,7 @@ mod cmd;
 mod tray;
 
 use serde::Serialize;
-use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, WindowUrl};
+use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, Runtime, WindowUrl};
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
 #[derive(Clone, Serialize)]
@@ -25,8 +25,15 @@ pub type OnEvent = Box<dyn FnMut(&AppHandle, RunEvent)>;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  run_app(tauri::Builder::default(), |_app| {})
+}
+
+pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
+  builder: tauri::Builder<R>,
+  setup: F,
+) {
   #[allow(unused_mut)]
-  let mut builder = tauri::Builder::default()
+  let mut builder = builder
     .plugin(
       tauri_plugin_log::Builder::default()
         .level(log::LevelFilter::Info)
@@ -90,6 +97,8 @@ pub fn run() {
         }
       });
 
+      setup(app);
+
       Ok(())
     })
     .on_page_load(|window, _| {
@@ -124,11 +133,27 @@ pub fn run() {
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
   app.run(move |_app_handle, _event| {
-    #[cfg(desktop)]
+    #[cfg(all(desktop, not(test)))]
     if let RunEvent::ExitRequested { api, .. } = &_event {
       // Keep the event loop running even if all windows are closed
       // This allow us to catch system tray events when there is no window
       api.prevent_exit();
     }
   })
+}
+
+#[cfg(test)]
+mod tests {
+  use tauri::Manager;
+
+  #[test]
+  fn run_app() {
+    super::run_app(tauri::test::mock_builder(), |app| {
+      let window = app.get_window("main").unwrap();
+      std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        window.close().unwrap();
+      });
+    })
+  }
 }

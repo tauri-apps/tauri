@@ -1,6 +1,6 @@
 ---
 'tauri-bundler': 'minor:feat'
-'tauri-utils': 'minor'
+'tauri-utils': 'minor:feat'
 'tauri-cli': 'minor:feat'
 ---
 

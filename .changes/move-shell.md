@@ -1,8 +1,8 @@
 ---
-"api": patch
-"tauri": patch
-"tauri-codegen": patch
-"tauri-macros": patch
+"api": 'patch:enhance'
+"tauri": 'patch:enhance'
+"tauri-codegen": 'patch:enhance'
+"tauri-macros": 'patch:enhance'
 ---
 
 Moved the `shell` functionality to its own plugin in the plugins-workspace repository.

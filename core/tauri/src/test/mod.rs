@@ -2,19 +2,95 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Utilities for unit testing on Tauri applications.
+//!
+//! # Stability
+//!
+//! This module is unstable.
+//!
+//! # Examples
+//!
+//! ```rust
+//! #[tauri::command]
+//! fn my_cmd() {}
+//!
+//! fn create_app<R: tauri::Runtime>(mut builder: tauri::Builder<R>) -> tauri::App<R> {
+//!   builder
+//!     .setup(|app| {
+//!       // do something
+//!       Ok(())
+//!     })
+//!     .invoke_handler(tauri::generate_handler![my_cmd])
+//!     // remove the string argument on your app
+//!     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!     .expect("failed to build app")
+//! }
+//!
+//! fn main() {
+//!   let app = create_app(tauri::Builder::default());
+//!   // app.run(|_handle, _event| {});
+//! }
+//!
+//! //#[cfg(test)]
+//! mod tests {
+//!   use tauri::Manager;
+//!   //#[cfg(test)]
+//!   fn something() {
+//!     let app = super::create_app(tauri::test::mock_builder());
+//!     let window = app.get_window("main").unwrap();
+//!     // do something with the app and window
+//!     // in this case we'll run the my_cmd command with no arguments
+//!     tauri::test::assert_ipc_response(
+//!       &window,
+//!       tauri::window::InvokeRequest {
+//!         cmd: "my_cmd".into(),
+//!         callback: tauri::ipc::CallbackFn(0),
+//!         error: tauri::ipc::CallbackFn(1),
+//!         body: serde_json::Value::Null.into(),
+//!       },
+//!       Ok(())
+//!     );
+//!   }
+//! }
+//! ```
+
 #![allow(unused_variables)]
 
 mod mock_runtime;
 pub use mock_runtime::*;
+use serde::Serialize;
 
-use std::{borrow::Cow, sync::Arc};
-
-use crate::{Pattern, WindowBuilder};
-use tauri_utils::{
-  assets::{AssetKey, Assets, CspHash},
-  config::{Config, PatternKind, TauriConfig, WindowUrl},
+use std::{
+  borrow::Cow,
+  fmt::Debug,
+  hash::{Hash, Hasher},
+  sync::Arc,
 };
 
+use crate::{
+  ipc::{CallbackFn, InvokeResponse},
+  window::InvokeRequest,
+  App, Builder, Context, Pattern, Window,
+};
+use tauri_utils::{
+  assets::{AssetKey, Assets, CspHash},
+  config::{Config, PatternKind, TauriConfig},
+};
+
+#[derive(Eq, PartialEq)]
+struct IpcKey {
+  callback: CallbackFn,
+  error: CallbackFn,
+}
+
+impl Hash for IpcKey {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.callback.0.hash(state);
+    self.error.0.hash(state);
+  }
+}
+
+/// An empty [`Assets`] implementation.
 pub struct NoopAsset {
   csp_hashes: Vec<CspHash<'static>>,
 }
@@ -29,14 +105,16 @@ impl Assets for NoopAsset {
   }
 }
 
+/// Creates a new empty [`Assets`] implementation.
 pub fn noop_assets() -> NoopAsset {
   NoopAsset {
     csp_hashes: Default::default(),
   }
 }
 
+/// Creates a new [`crate::Context`] for testing.
 pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
-  crate::Context {
+  Context {
     config: Config {
       schema: None,
       package: Default::default(),
@@ -68,14 +146,119 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
   }
 }
 
-pub fn mock_app() -> crate::App<MockRuntime> {
-  let app = crate::Builder::<MockRuntime>::new()
-    .build(mock_context(noop_assets()))
-    .unwrap();
+/// Creates a new [`Builder`] using the [`MockRuntime`].
+///
+/// To use a dummy [`Context`], see [`mock_app`].
+///
+/// # Examples
+///
+/// ```rust
+/// #[cfg(test)]
+/// fn do_something() {
+///   let app = tauri::test::mock_builder()
+///     // remove the string argument to use your app's config file
+///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///     .unwrap();
+/// }
+/// ```
+pub fn mock_builder() -> Builder<MockRuntime> {
+  Builder::<MockRuntime>::new()
+}
 
-  WindowBuilder::new(&app, "main", WindowUrl::App("index.html".into()))
-    .build()
-    .unwrap();
+/// Creates a new [`App`] for testing using the [`mock_context`] with a [`noop_assets`].
+pub fn mock_app() -> App<MockRuntime> {
+  mock_builder().build(mock_context(noop_assets())).unwrap()
+}
 
-  app
+/// Executes the given IPC message and assert the response matches the expected value.
+///
+/// # Examples
+///
+/// ```rust
+/// #[tauri::command]
+/// fn ping() -> &'static str {
+///   "pong"
+/// }
+///
+/// fn create_app<R: tauri::Runtime>(mut builder: tauri::Builder<R>) -> tauri::App<R> {
+///   builder
+///     .invoke_handler(tauri::generate_handler![ping])
+///     // remove the string argument on your app
+///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///     .expect("failed to build app")
+/// }
+///
+/// fn main() {
+///   let app = create_app(tauri::Builder::default());
+///   // app.run(|_handle, _event| {});}
+/// }
+///
+/// //#[cfg(test)]
+/// mod tests {
+///   use tauri::Manager;
+///
+///   //#[cfg(test)]
+///   fn something() {
+///     let app = super::create_app(tauri::test::mock_builder());
+///     let window = app.get_window("main").unwrap();
+///
+///     // run the `ping` command and assert it returns `pong`
+///     tauri::test::assert_ipc_response(
+///       &window,
+///       tauri::window::InvokeRequest {
+///         cmd: "ping".into(),
+///         callback: tauri::ipc::CallbackFn(0),
+///         error: tauri::ipc::CallbackFn(1),
+///         body: serde_json::Value::Null.into(),
+///       },
+///       // the expected response is a success with the "pong" payload
+///       // we could also use Err("error message") here to ensure the command failed
+///       Ok("pong")
+///     );
+///   }
+/// }
+/// ```
+pub fn assert_ipc_response<T: Serialize + Debug>(
+  window: &Window<MockRuntime>,
+  request: InvokeRequest,
+  expected: Result<T, T>,
+) {
+  let rx = window.clone().on_message(request);
+  let response = rx.recv().unwrap();
+
+  assert_eq!(
+    match response {
+      InvokeResponse::Ok(b) => Ok(b.into_json()),
+      InvokeResponse::Err(e) => Err(e.0),
+    },
+    expected
+      .map(|e| serde_json::to_value(e).unwrap())
+      .map_err(|e| serde_json::to_value(e).unwrap())
+  );
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::WindowBuilder;
+  use std::time::Duration;
+
+  use super::mock_app;
+
+  #[test]
+  fn run_app() {
+    let app = mock_app();
+
+    let w = WindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    std::thread::spawn(move || {
+      std::thread::sleep(Duration::from_secs(1));
+      w.close().unwrap();
+    });
+
+    app.run(|_app, event| {
+      println!("{:?}", event);
+    });
+  }
 }

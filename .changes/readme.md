@@ -10,8 +10,8 @@ Use the following format:
 
 ```md
 ---
-'package-a': patch
-'package-b': patch
+'package-a': 'patch:enhance'
+'package-b': 'patch:enhance'
 ---
 
 Change summary goes here
@@ -33,7 +33,7 @@ Additionally you could specify a tag for the change file to group it with other 
 
 ```md
 ---
-'package-a': patch:bug
+'package-a': 'patch:enhance'
 ---
 
 Change summary goes here

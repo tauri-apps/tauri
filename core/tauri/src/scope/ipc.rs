@@ -166,21 +166,21 @@ impl Scope {
 
 #[cfg(test)]
 mod tests {
-  use serde::Serialize;
-
   use super::RemoteDomainAccessScope;
   use crate::{
-    ipc::{CallbackFn, InvokeResponse},
-    test::MockRuntime,
+    ipc::CallbackFn,
+    test::{assert_ipc_response, mock_app, MockRuntime},
     window::InvokeRequest,
-    App, Manager, Window,
+    App, Manager, Window, WindowBuilder,
   };
 
   const PLUGIN_NAME: &str = "test";
 
   fn test_context(scopes: Vec<RemoteDomainAccessScope>) -> (App<MockRuntime>, Window<MockRuntime>) {
-    let app = crate::test::mock_app();
-    let window = app.get_window("main").unwrap();
+    let app = mock_app();
+    let window = WindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
 
     for scope in scopes {
       app.ipc_scope().configure_remote_access(scope);
@@ -189,25 +189,7 @@ mod tests {
     (app, window)
   }
 
-  fn assert_ipc_response<R: Serialize>(
-    window: &Window<MockRuntime>,
-    payload: InvokeRequest,
-    expected: Result<R, R>,
-  ) {
-    let rx = window.clone().on_message(payload);
-    let response = rx.recv().unwrap();
-    assert_eq!(
-      match response {
-        InvokeResponse::Ok(b) => Ok(b.into_json()),
-        InvokeResponse::Err(e) => Err(e.0),
-      },
-      expected
-        .map(|e| serde_json::to_value(e).unwrap())
-        .map_err(|e| serde_json::to_value(e).unwrap())
-    );
-  }
-
-  fn path_is_absolute_payload() -> InvokeRequest {
+  fn path_is_absolute_request() -> InvokeRequest {
     let callback = CallbackFn(0);
     let error = CallbackFn(1);
 
@@ -246,7 +228,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_not_found_error_message(
         "main",
         "https://tauri.app/",
@@ -263,7 +245,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_window_error_message("main")),
     );
   }
@@ -277,7 +259,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_domain_error_message(
         "https://tauri.app/",
       )),
@@ -296,25 +278,25 @@ mod tests {
     ]);
 
     window.navigate("https://tauri.app".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_payload(), Ok(true));
+    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
 
     window.navigate("https://blog.tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_domain_error_message(
         "https://blog.tauri.app/",
       )),
     );
 
     window.navigate("https://sub.tauri.app".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_payload(), Ok(true));
+    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
 
     window.window.label = "test".into();
     window.navigate("https://dev.tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_not_found_error_message(
         "test",
         "https://dev.tauri.app/",
@@ -329,7 +311,7 @@ mod tests {
       .add_plugin("path")]);
 
     window.navigate("https://tauri.app/inner/path".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_payload(), Ok(true));
+    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
   }
 
   #[test]
@@ -341,7 +323,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }

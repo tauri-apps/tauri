@@ -81,7 +81,6 @@
   function isIsolationPayload(data) {
     return (
       typeof data === 'object' &&
-      typeof data.payload === 'object' &&
       'callback' in data &&
       'error' in data &&
       !isIsolationMessage(data)

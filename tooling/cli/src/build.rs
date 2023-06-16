@@ -269,7 +269,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
     error!(
-      "The bundle identifier \"{}\" set in `{} > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).",
+      "The bundle identifier \"{}\" set in `{} > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
       config_.tauri.bundle.identifier,
       bundle_identifier_source
     );

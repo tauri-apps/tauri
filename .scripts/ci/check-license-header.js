@@ -14,7 +14,7 @@ SPDX-License-Identifier: MIT`
 const bundlerLicense =
   '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
 
-const extensions = ['.rs', '.js', '.ts', '.yml']
+const extensions = ['.rs', '.js', '.ts', '.yml', '.swift', '.kt']
 const ignore = [
   'target',
   'templates',
@@ -26,7 +26,7 @@ const ignore = [
 ]
 
 async function checkFile(file) {
-  if (extensions.some((e) => file.endsWith(e))) {
+  if (extensions.some((e) => file.endsWith(e)) && !ignore.some((i) => file.includes(`/${i}/`))) {
     const fileStream = fs.createReadStream(file)
     const rl = readline.createInterface({
       input: fileStream,
@@ -40,6 +40,7 @@ async function checkFile(file) {
       if (
         line.length === 0 ||
         line.startsWith('#!') ||
+        line.startsWith('// swift-tools-version:') ||
         line === bundlerLicense
       ) {
         continue

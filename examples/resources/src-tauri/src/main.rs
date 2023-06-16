@@ -6,7 +6,7 @@
 
 fn main() {
   use tauri::{
-    api::process::{Command, CommandEvent},
+    process::{Command, CommandEvent},
     Manager,
   };
 

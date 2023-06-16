@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "1.4.0",
+  "version": "2.0.0-alpha.4",
   "description": "Tauri API definitions",
   "type": "module",
   "funding": {
@@ -13,7 +13,7 @@
   "scripts": {
     "build": "yarn tsup && node ./scripts/after-build.cjs && yarn generate-docs",
     "npm-pack": "yarn build && cd ./dist && npm pack",
-    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
+    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path ../../.prettierignore",

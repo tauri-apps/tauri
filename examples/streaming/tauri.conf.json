@@ -37,12 +37,6 @@
         "exceptionDomain": ""
       }
     },
-    "allowlist": {
-      "all": false,
-      "protocol": {
-        "assetScope": ["**/test_video.mp4"]
-      }
-    },
     "windows": [
       {
         "title": "Welcome to Tauri!",
@@ -53,10 +47,10 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; media-src stream: https://stream.localhost asset: https://asset.localhost"
-    },
-    "updater": {
-      "active": false
+      "csp": "default-src 'self'; media-src stream: https://stream.localhost asset: https://asset.localhost",
+      "assetProtocol": {
+        "scope": ["**/test_video.mp4"]
+      }
     }
   }
 }

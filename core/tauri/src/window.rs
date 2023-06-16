@@ -7,11 +7,13 @@
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
+pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
 use crate::{
+  api::ipc::CallbackFn,
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
@@ -19,20 +21,28 @@ use crate::{
   manager::WindowManager,
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
-    menu::Menu,
     monitor::Monitor as RuntimeMonitor,
     webview::{WebviewAttributes, WindowBuilder as _},
     window::{
-      dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, JsEventListenerKey, PendingWindow,
+      dpi::{PhysicalPosition, PhysicalSize},
+      DetachedWindow, PendingWindow,
     },
-    Dispatch, RuntimeHandle, UserAttentionType,
+    Dispatch, RuntimeHandle,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::{WindowConfig, WindowUrl},
-  CursorIcon, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
-  PageLoadPayload, Runtime, Theme, WindowEvent,
+  utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
+  EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
+  Runtime, Theme, WindowEvent,
+};
+#[cfg(desktop)]
+use crate::{
+  runtime::{
+    menu::Menu,
+    window::dpi::{Position, Size},
+    UserAttentionType,
+  },
+  CursorIcon, Icon,
 };
 
 use serde::Serialize;
@@ -42,10 +52,11 @@ use windows::Win32::Foundation::HWND;
 use tauri_macros::default_runtime;
 
 use std::{
+  collections::{HashMap, HashSet},
   fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::Arc,
+  sync::{Arc, Mutex},
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
@@ -314,7 +325,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let pending = self
       .manager
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
-
+    let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
@@ -322,6 +333,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     }
     .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
 
+    if let Some(effects) = window_effects {
+      crate::vibrancy::set_window_effects(&window, Some(effects))?;
+    }
     self.manager.eval_script_all(format!(
       "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
       window_labels_array = serde_json::to_string(&self.manager.labels())?,
@@ -338,9 +352,11 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
     Ok(window)
   }
+}
 
-  // --------------------------------------------- Window builder ---------------------------------------------
-
+/// Desktop APIs.
+#[cfg(desktop)]
+impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Sets the menu for the window.
   #[must_use]
   pub fn menu(mut self, menu: Menu) -> Self {
@@ -536,6 +552,21 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Sets whether or not the window has shadow.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:**
+  ///   - `false` has no effect on decorated window, shadows are always ON.
+  ///   - `true` will make ndecorated window have a 1px white border,
+  /// and on Windows 11, it will have a rounded corners.
+  /// - **Linux:** Unsupported.
+  #[must_use]
+  pub fn shadow(mut self, enable: bool) -> Self {
+    self.window_builder = self.window_builder.shadow(enable);
+    self
+  }
+
   /// Sets a parent to the window to be created.
   ///
   /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
@@ -600,8 +631,29 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  // ------------------------------------------- Webview attributes -------------------------------------------
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[must_use]
+  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self.webview_attributes.accept_first_mouse = accept;
+    self
+  }
 
+  /// Sets window effects.
+  ///
+  /// Requires the window to be transparent.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Linux**: Unsupported
+  pub fn effects(mut self, effects: WindowEffectsConfig) -> Self {
+    self.webview_attributes = self.webview_attributes.window_effects(effects);
+    self
+  }
+}
+
+/// Webview attributes.
+impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
   /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
   ///
@@ -690,12 +742,25 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Sets whether clicking an inactive window also clicks through to the webview.
+  /// Enable or disable incognito mode for the WebView..
+  ///
+  ///  ## Platform-specific:
+  ///
+  ///  **Android**: Unsupported.
   #[must_use]
-  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
-    self.webview_attributes.accept_first_mouse = accept;
+  pub fn incognito(mut self, incognito: bool) -> Self {
+    self.webview_attributes.incognito = incognito;
     self
   }
+}
+
+/// Key for a JS event listener.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct JsEventListenerKey {
+  /// The associated window label.
+  pub window_label: Option<String>,
+  /// The event name.
+  pub event: String,
 }
 
 // TODO: expand these docs since this is a pretty important type
@@ -711,6 +776,7 @@ pub struct Window<R: Runtime> {
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
+  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
 
   #[cfg(test)]
   pub(crate) current_url: url::Url,
@@ -728,6 +794,7 @@ impl<R: Runtime> Clone for Window<R> {
       window: self.window.clone(),
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
+      js_event_listeners: self.js_event_listeners.clone(),
       #[cfg(test)]
       current_url: self.current_url.clone(),
     }
@@ -789,11 +856,11 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 }
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
-#[cfg(all(desktop, feature = "wry"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "wry"))))]
+#[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
-#[cfg(all(desktop, feature = "wry"))]
+#[cfg(feature = "wry")]
 impl PlatformWebview {
   /// Returns [`webkit2gtk::WebView`] handle.
   #[cfg(any(
@@ -829,8 +896,8 @@ impl PlatformWebview {
   /// Returns the [WKWebView] handle.
   ///
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
-  #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn inner(&self) -> cocoa::base::id {
     self.0.webview
   }
@@ -838,8 +905,8 @@ impl PlatformWebview {
   /// Returns WKWebView [controller] handle.
   ///
   /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
-  #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn controller(&self) -> cocoa::base::id {
     self.0.manager
   }
@@ -852,65 +919,20 @@ impl PlatformWebview {
   pub fn ns_window(&self) -> cocoa::base::id {
     self.0.ns_window
   }
-}
 
-/// APIs specific to the wry runtime.
-#[cfg(feature = "wry")]
-impl Window<crate::Wry> {
-  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
+  /// Returns [UIViewController] used by the WKWebView webview NSWindow.
   ///
-  /// The closure is executed on the main thread.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,no_run
-  /// #[cfg(target_os = "macos")]
-  /// #[macro_use]
-  /// extern crate objc;
-  /// use tauri::Manager;
-  ///
-  /// fn main() {
-  ///   tauri::Builder::default()
-  ///     .setup(|app| {
-  ///       let main_window = app.get_window("main").unwrap();
-  ///       main_window.with_webview(|webview| {
-  ///         #[cfg(target_os = "linux")]
-  ///         {
-  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
-  ///           use webkit2gtk::traits::WebViewExt;
-  ///           webview.inner().set_zoom_level(4.);
-  ///         }
-  ///
-  ///         #[cfg(windows)]
-  ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
-  ///           webview.controller().SetZoomFactor(4.).unwrap();
-  ///         }
-  ///
-  ///         #[cfg(target_os = "macos")]
-  ///         unsafe {
-  ///           let () = msg_send![webview.inner(), setPageZoom: 4.];
-  ///           let () = msg_send![webview.controller(), removeAllUserScripts];
-  ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
-  ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
-  ///         }
-  ///       });
-  ///       Ok(())
-  ///   });
-  /// }
-  /// ```
-  #[cfg(desktop)]
-  #[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", desktop))))]
-  pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
-    &self,
-    f: F,
-  ) -> crate::Result<()> {
-    self
-      .window
-      .dispatcher
-      .with_webview(|w| f(PlatformWebview(w)))
-      .map_err(Into::into)
+  /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
+  #[cfg(target_os = "ios")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "ios")))]
+  pub fn view_controller(&self) -> cocoa::base::id {
+    self.0.view_controller
+  }
+
+  /// Returns handle for JNI execution.
+  #[cfg(target_os = "android")]
+  pub fn jni_handle(&self) -> tauri_runtime_wry::wry::webview::JniHandle {
+    self.0
   }
 }
 
@@ -926,6 +948,7 @@ impl<R: Runtime> Window<R> {
       window,
       manager,
       app_handle,
+      js_event_listeners: Default::default(),
       #[cfg(test)]
       current_url: "http://tauri.app".parse().unwrap(),
     }
@@ -985,6 +1008,70 @@ impl<R: Runtime> Window<R> {
         .clone();
       f(MenuEvent { menu_item_id: id })
     })
+  }
+
+  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
+  ///
+  /// The closure is executed on the main thread.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// #[cfg(target_os = "macos")]
+  /// #[macro_use]
+  /// extern crate objc;
+  /// use tauri::Manager;
+  ///
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let main_window = app.get_window("main").unwrap();
+  ///       main_window.with_webview(|webview| {
+  ///         #[cfg(target_os = "linux")]
+  ///         {
+  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
+  ///           use webkit2gtk::traits::WebViewExt;
+  ///           webview.inner().set_zoom_level(4.);
+  ///         }
+  ///
+  ///         #[cfg(windows)]
+  ///         unsafe {
+  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           webview.controller().SetZoomFactor(4.).unwrap();
+  ///         }
+  ///
+  ///         #[cfg(target_os = "macos")]
+  ///         unsafe {
+  ///           let () = msg_send![webview.inner(), setPageZoom: 4.];
+  ///           let () = msg_send![webview.controller(), removeAllUserScripts];
+  ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
+  ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
+  ///         }
+  ///
+  ///         #[cfg(target_os = "android")]
+  ///         {
+  ///           use jni::objects::JValue;
+  ///           webview.jni_handle().exec(|env, _, webview| {
+  ///             env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
+  ///           })
+  ///         }
+  ///       });
+  ///       Ok(())
+  ///   });
+  /// }
+  /// ```
+  #[cfg(all(feature = "wry"))]
+  #[cfg_attr(doc_cfg, doc(all(feature = "wry")))]
+  pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .with_webview(|w| f(PlatformWebview(*w.downcast().unwrap())))
+      .map_err(Into::into)
   }
 }
 
@@ -1186,7 +1273,8 @@ impl<R: Runtime> Window<R> {
   }
 }
 
-/// Window setters and actions.
+/// Desktop window setters and actions.
+#[cfg(desktop)]
 impl<R: Runtime> Window<R> {
   /// Centers the window.
   pub fn center(&self) -> crate::Result<()> {
@@ -1334,6 +1422,59 @@ impl<R: Runtime> Window<R> {
       .dispatcher
       .set_decorations(decorations)
       .map_err(Into::into)
+  }
+
+  /// Determines if this window should have shadow.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:**
+  ///   - `false` has no effect on decorated window, shadow are always ON.
+  ///   - `true` will make ndecorated window have a 1px white border,
+  /// and on Windows 11, it will have a rounded corners.
+  /// - **Linux:** Unsupported.
+  pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_shadow(enable)
+      .map_err(Into::into)
+  }
+
+  /// Sets window effects, pass [`None`] to clear any effects applied if possible.
+  ///
+  /// Requires the window to be transparent.
+  ///
+  /// See [`EffectsBuilder`] for a convenient builder for [`WindowEffectsConfig`].
+  ///
+  ///
+  /// ```rust,no_run
+  /// use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = app.get_window("main").unwrap();
+  ///     window.set_effects(
+  ///       EffectsBuilder::new()
+  ///         .effect(Effect::Popover)
+  ///         .state(EffectState::Active)
+  ///         .radius(5.)
+  ///         .color(Color(0, 0, 0, 255))
+  ///         .build(),
+  ///     )?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Linux**: Unsupported
+  pub fn set_effects<E: Into<Option<WindowEffectsConfig>>>(&self, effects: E) -> crate::Result<()> {
+    let effects = effects.into();
+    let window = self.clone();
+    self.run_on_main_thread(move || {
+      let _ = crate::vibrancy::set_window_effects(&window, effects);
+    })
   }
 
   /// Determines if this window should always be on top of other windows.
@@ -1512,12 +1653,18 @@ impl<R: Runtime> Window<R> {
     self.current_url = url;
   }
 
+  fn is_local_url(&self, current_url: &Url) -> bool {
+    self.manager.get_url().make_relative(current_url).is_some() || {
+      let protocol_url = self.manager.protocol_url();
+      current_url.scheme() == protocol_url.scheme() && current_url.domain() == protocol_url.domain()
+    }
+  }
+
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
     let current_url = self.url();
-    let config_url = manager.get_url();
-    let is_local = config_url.make_relative(&current_url).is_some();
+    let is_local = self.is_local_url(&current_url);
 
     let mut scope_not_found_error_message =
       ipc_scope_not_found_error_message(&self.window.label, current_url.as_str());
@@ -1548,26 +1695,16 @@ impl<R: Runtime> Window<R> {
           payload.cmd.to_string(),
           payload.inner,
         );
-        let resolver = InvokeResolver::new(self, payload.callback, payload.error);
-        let invoke = Invoke { message, resolver };
+        #[allow(clippy::redundant_clone)]
+        let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
 
+        let mut invoke = Invoke { message, resolver };
         if !is_local && scope.is_none() {
           invoke.resolver.reject(scope_not_found_error_message);
           return Ok(());
         }
 
-        if let Some(module) = &payload.tauri_module {
-          if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
-            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-            return Ok(());
-          }
-          crate::endpoints::handle(
-            module.to_string(),
-            invoke,
-            manager.config(),
-            manager.package_info(),
-          );
-        } else if payload.cmd.starts_with("plugin:") {
+        if payload.cmd.starts_with("plugin:") {
           if !is_local {
             let command = invoke.message.command.replace("plugin:", "");
             let plugin_name = command.split('|').next().unwrap().to_string();
@@ -1579,9 +1716,123 @@ impl<R: Runtime> Window<R> {
               return Ok(());
             }
           }
-          manager.extend_api(invoke);
+          let command = invoke.message.command.replace("plugin:", "");
+          let mut tokens = command.split('|');
+          // safe to unwrap: split always has a least one item
+          let plugin = tokens.next().unwrap();
+          invoke.message.command = tokens
+            .next()
+            .map(|c| c.to_string())
+            .unwrap_or_else(String::new);
+
+          let command = invoke.message.command.clone();
+          let resolver = invoke.resolver.clone();
+          #[cfg(mobile)]
+          let message = invoke.message.clone();
+
+          #[allow(unused_mut)]
+          let mut handled = manager.extend_api(plugin, invoke);
+
+          #[cfg(target_os = "ios")]
+          {
+            if !handled {
+              handled = true;
+              let plugin = plugin.to_string();
+              let (callback, error) = (resolver.callback, resolver.error);
+              self.with_webview(move |webview| {
+                unsafe {
+                  crate::ios::post_ipc_message(
+                    webview.inner() as _,
+                    &plugin.as_str().into(),
+                    &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
+                      .as_str()
+                      .into(),
+                    crate::ios::json_to_dictionary(&message.payload) as _,
+                    callback.0,
+                    error.0,
+                  )
+                };
+              })?;
+            }
+          }
+
+          #[cfg(target_os = "android")]
+          {
+            if !handled {
+              handled = true;
+              let resolver_ = resolver.clone();
+              let runtime_handle = self.app_handle.runtime_handle.clone();
+              let plugin = plugin.to_string();
+              self.with_webview(move |webview| {
+                webview.jni_handle().exec(move |env, activity, webview| {
+                  use jni::{
+                    errors::Error as JniError,
+                    objects::JObject,
+                    JNIEnv,
+                  };
+
+                  fn handle_message<R: Runtime>(
+                    plugin: &str,
+                    runtime_handle: &R::Handle,
+                    message: InvokeMessage<R>,
+                    (callback, error): (CallbackFn, CallbackFn),
+                    env: JNIEnv<'_>,
+                    activity: JObject<'_>,
+                    webview: JObject<'_>,
+                  ) -> Result<(), JniError> {
+                    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, &message.payload)?;
+                    let plugin_manager = env
+                      .call_method(
+                        activity,
+                        "getPluginManager",
+                        "()Lapp/tauri/plugin/PluginManager;",
+                        &[],
+                      )?
+                      .l()?;
+
+                    env.call_method(
+                      plugin_manager,
+                      "postIpcMessage",
+                      "(Landroid/webkit/WebView;Ljava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;JJ)V",
+                      &[
+                        webview.into(),
+                        env.new_string(plugin)?.into(),
+                        env.new_string(&heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str()))?.into(),
+                        data,
+                        (callback.0 as i64).into(),
+                        (error.0 as i64).into(),
+                      ],
+                    )?;
+
+                    Ok(())
+                  }
+
+                  if let Err(e) = handle_message(
+                    &plugin,
+                    &runtime_handle,
+                    message,
+                    (resolver_.callback, resolver_.error),
+                    env,
+                    activity,
+                    webview,
+                  ) {
+                    resolver_.reject(format!("failed to reach Android layer: {e}"));
+                  }
+                });
+              })?;
+            }
+          }
+
+          if !handled {
+            resolver.reject(format!("Command {command} not found"));
+          }
         } else {
-          manager.run_invoke_handler(invoke);
+          let command = invoke.message.command.clone();
+          let resolver = invoke.resolver.clone();
+          let handled = manager.run_invoke_handler(invoke);
+          if !handled {
+            resolver.reject(format!("Command {command} not found"));
+          }
         }
       }
     }
@@ -1594,9 +1845,24 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.eval_script(js).map_err(Into::into)
   }
 
-  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u32) {
+  /// Register a JS event listener and return its identifier.
+  pub(crate) fn listen_js(
+    &self,
+    window_label: Option<String>,
+    event: String,
+    handler: CallbackFn,
+  ) -> crate::Result<usize> {
+    let event_id = rand::random();
+
+    self.eval(&crate::event::listen_js(
+      self.manager().event_listeners_object_name(),
+      format!("'{}'", event),
+      event_id,
+      window_label.clone(),
+      format!("window['_{}']", handler.0),
+    ))?;
+
     self
-      .window
       .js_event_listeners
       .lock()
       .unwrap()
@@ -1605,12 +1871,21 @@ impl<R: Runtime> Window<R> {
         event,
       })
       .or_insert_with(Default::default)
-      .insert(id);
+      .insert(event_id);
+
+    Ok(event_id)
   }
 
-  pub(crate) fn unregister_js_listener(&self, id: u32) {
+  /// Unregister a JS event listener.
+  pub(crate) fn unlisten_js(&self, event: String, id: usize) -> crate::Result<()> {
+    self.eval(&crate::event::unlisten_js(
+      self.manager().event_listeners_object_name(),
+      event,
+      id,
+    ))?;
+
     let mut empty = None;
-    let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
+    let mut js_listeners = self.js_event_listeners.lock().unwrap();
     let iter = js_listeners.iter_mut();
     for (key, ids) in iter {
       if ids.contains(&id) {
@@ -1625,12 +1900,13 @@ impl<R: Runtime> Window<R> {
     if let Some(key) = empty {
       js_listeners.remove(&key);
     }
+
+    Ok(())
   }
 
   /// Whether this window registered a listener to an event from the given window and event name.
   pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
     self
-      .window
       .js_event_listeners
       .lock()
       .unwrap()
@@ -1890,6 +2166,61 @@ impl<R: Runtime> Window<R> {
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
+  }
+}
+
+/// The [`WindowEffectsConfig`] object builder
+#[derive(Default)]
+pub struct EffectsBuilder(WindowEffectsConfig);
+impl EffectsBuilder {
+  /// Create a new [`WindowEffectsConfig`] builder
+  pub fn new() -> Self {
+    Self(WindowEffectsConfig::default())
+  }
+
+  /// Adds effect to the [`WindowEffectsConfig`] `effects` field
+  pub fn effect(mut self, effect: Effect) -> Self {
+    self.0.effects.push(effect);
+    self
+  }
+
+  /// Adds effects to the [`WindowEffectsConfig`] `effects` field
+  pub fn effects<I: IntoIterator<Item = Effect>>(mut self, effects: I) -> Self {
+    self.0.effects.extend(effects);
+    self
+  }
+
+  /// Clears the [`WindowEffectsConfig`] `effects` field
+  pub fn clear_effects(mut self) -> Self {
+    self.0.effects.clear();
+    self
+  }
+
+  /// Sets `state` field for the [`WindowEffectsConfig`] **macOS Only**
+  pub fn state(mut self, state: EffectState) -> Self {
+    self.0.state = Some(state);
+    self
+  }
+  /// Sets `radius` field fo the [`WindowEffectsConfig`] **macOS Only**
+  pub fn radius(mut self, radius: f64) -> Self {
+    self.0.radius = Some(radius);
+    self
+  }
+  /// Sets `color` field fo the [`WindowEffectsConfig`] **Windows Only**
+  pub fn color(mut self, color: Color) -> Self {
+    self.0.color = Some(color);
+    self
+  }
+
+  /// Builds a [`WindowEffectsConfig`]
+  pub fn build(self) -> WindowEffectsConfig {
+    self.0
+  }
+}
+
+impl From<WindowEffectsConfig> for EffectsBuilder {
+  fn from(value: WindowEffectsConfig) -> Self {
+    Self(value)
   }
 }
 

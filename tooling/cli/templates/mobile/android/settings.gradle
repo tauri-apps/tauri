@@ -1,0 +1,5 @@
+include ':app'
+{{~#each asset-packs}}
+include ':{{this}}'{{/each}}
+
+apply from: 'tauri.settings.gradle'

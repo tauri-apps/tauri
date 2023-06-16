@@ -12,7 +12,7 @@ pub use tauri_utils::config::*;
 
 use std::{
   collections::HashMap,
-  env::{set_var, var_os},
+  env::{current_dir, set_current_dir, set_var, var_os},
   ffi::OsStr,
   process::exit,
   sync::{Arc, Mutex},
@@ -167,7 +167,13 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     }
   }
 
+  // the `Config` deserializer for `package > version` can resolve the version from a path relative to the config path
+  // so we actually need to change the current working directory here
+  let current_dir = current_dir()?;
+  set_current_dir(config_path.parent().unwrap())?;
   let config: Config = serde_json::from_value(config)?;
+  // revert to previous working directory
+  set_current_dir(current_dir)?;
 
   *config_handle().lock().unwrap() = Some(ConfigMetadata {
     inner: config,

@@ -1,0 +1,14 @@
+[package]
+name = "tauri-plugin-sample"
+version = "0.1.0"
+edition = "2021"
+links = "tauri-plugin-sample"
+
+[dependencies]
+tauri = { path = "../../../../core/tauri" }
+log = "0.4"
+serde = "1"
+thiserror = "1"
+
+[build-dependencies]
+tauri-build = { path = "../../../../core/tauri-build/" }

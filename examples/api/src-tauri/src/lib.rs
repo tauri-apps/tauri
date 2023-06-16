@@ -2,19 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![cfg_attr(
+  all(not(debug_assertions), target_os = "windows"),
+  windows_subsystem = "windows"
+)]
+
 mod cmd;
+#[cfg(desktop)]
 mod tray;
 
 use serde::Serialize;
-use tauri::{
-  api::dialog::{ask, message},
-  App, GlobalShortcutManager, Manager, RunEvent, Runtime, WindowBuilder, WindowEvent, WindowUrl,
-};
+use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, Runtime, WindowUrl};
+use tauri_plugin_sample::{PingRequest, SampleExt};
 
 #[derive(Clone, Serialize)]
 struct Reply {
   data: String,
 }
+
+pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
+pub type OnEvent = Box<dyn FnMut(&AppHandle, RunEvent)>;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -27,32 +34,45 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 ) {
   #[allow(unused_mut)]
   let mut builder = builder
+    .plugin(
+      tauri_plugin_log::Builder::default()
+        .level(log::LevelFilter::Info)
+        .build(),
+    )
+    .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
-      tray::create_tray(app)?;
-
-      #[allow(unused_mut)]
-      let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default())
-        .user_agent("Tauri API")
-        .title("Tauri API Validation")
-        .inner_size(1000., 800.)
-        .min_inner_size(600., 400.)
-        .content_protected(true);
-
-      #[cfg(target_os = "windows")]
+      #[cfg(desktop)]
       {
-        window_builder = window_builder.transparent(true).decorations(false);
+        tray::create_tray(app)?;
+
+        app.handle().plugin(tauri_plugin_cli::init())?;
+      }
+
+      let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());
+      #[cfg(desktop)]
+      {
+        window_builder = window_builder
+          .title("Tauri API Validation")
+          .inner_size(1000., 800.)
+          .min_inner_size(600., 400.)
+          .content_protected(true);
       }
 
       let window = window_builder.build().unwrap();
 
-      #[cfg(target_os = "windows")]
-      {
-        let _ = window_shadows::set_shadow(&window, true);
-      }
-
       #[cfg(debug_assertions)]
       window.open_devtools();
 
+      let value = Some("test".to_string());
+      let response = app.sample().ping(PingRequest {
+        value: value.clone(),
+      });
+      log::info!("got response: {:?}", response);
+      if let Ok(res) = response {
+        assert_eq!(res.value, value);
+      }
+
+      #[cfg(desktop)]
       std::thread::spawn(|| {
         let server = match tiny_http::Server::http("localhost:3003") {
           Ok(s) => s,
@@ -112,61 +132,12 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
-  app.run(move |app_handle, e| {
-    match e {
-      // Application is ready (triggered only once)
-      RunEvent::Ready => {
-        let app_handle = app_handle.clone();
-        app_handle
-          .global_shortcut_manager()
-          .register("CmdOrCtrl+1", move || {
-            let app_handle = app_handle.clone();
-            if let Some(window) = app_handle.get_window("main") {
-              message(
-                Some(&window),
-                "Tauri API",
-                "CmdOrCtrl+1 global shortcut triggered",
-              );
-            }
-          })
-          .unwrap();
-      }
-
-      // Triggered when a window is trying to close
-      RunEvent::WindowEvent {
-        label,
-        event: WindowEvent::CloseRequested { api, .. },
-        ..
-      } => {
-        // for other windows, we handle it in JS
-        if label == "main" {
-          let app_handle = app_handle.clone();
-          let window = app_handle.get_window(&label).unwrap();
-          // use the exposed close api, and prevent the event loop to close
-          api.prevent_close();
-          // ask the user if he wants to quit
-          ask(
-            Some(&window),
-            "Tauri API",
-            "Are you sure that you want to close this window?",
-            move |answer| {
-              if answer {
-                // .close() cannot be called on the main thread
-                std::thread::spawn(move || {
-                  app_handle.get_window(&label).unwrap().close().unwrap();
-                });
-              }
-            },
-          );
-        }
-      }
-      #[cfg(not(test))]
-      RunEvent::ExitRequested { api, .. } => {
-        // Keep the event loop running even if all windows are closed
-        // This allow us to catch system tray events when there is no window
-        api.prevent_exit();
-      }
-      _ => (),
+  app.run(move |_app_handle, _event| {
+    #[cfg(all(desktop, not(test)))]
+    if let RunEvent::ExitRequested { api, .. } = &_event {
+      // Keep the event loop running even if all windows are closed
+      // This allow us to catch system tray events when there is no window
+      api.prevent_exit();
     }
   })
 }

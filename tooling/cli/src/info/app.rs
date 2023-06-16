@@ -4,9 +4,12 @@
 
 use super::{SectionItem, Status};
 use crate::helpers::framework;
-use std::{fs::read_to_string, path::PathBuf};
+use std::{
+  fs::read_to_string,
+  path::{Path, PathBuf},
+};
 
-pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<SectionItem> {
+pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
   let mut items = Vec::new();
   if tauri_dir.is_some() {
     if let Ok(config) = crate::helpers::config::get(None) {

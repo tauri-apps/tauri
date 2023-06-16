@@ -10,9 +10,73 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use serialize_to_javascript::Serialized;
+use tauri_macros::default_runtime;
+
+use crate::{
+  command::{CommandArg, CommandItem},
+  InvokeError, Runtime, Window,
+};
+
+const CHANNEL_PREFIX: &str = "__CHANNEL__:";
+
+/// An IPC channel.
+#[default_runtime(crate::Wry, wry)]
+pub struct Channel<R: Runtime> {
+  id: CallbackFn,
+  window: Window<R>,
+}
+
+impl<R: Runtime> Clone for Channel<R> {
+  fn clone(&self) -> Self {
+    Self {
+      id: self.id,
+      window: self.window.clone(),
+    }
+  }
+}
+
+impl Serialize for Channel {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_str(&format!("{CHANNEL_PREFIX}{}", self.id.0))
+  }
+}
+
+impl<R: Runtime> Channel<R> {
+  /// Sends the given data through the channel.
+  pub fn send<S: Serialize>(&self, data: &S) -> crate::Result<()> {
+    let js = format_callback(self.id, data)?;
+    self.window.eval(&js)
+  }
+}
+
+impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
+  /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`Channel`].
+  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
+    let name = command.name;
+    let arg = command.key;
+    let window = command.message.window();
+    let value: String =
+      Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
+    if let Some(callback_id) = value
+      .split_once(CHANNEL_PREFIX)
+      .and_then(|(_prefix, id)| id.parse().ok())
+    {
+      return Ok(Channel {
+        id: CallbackFn(callback_id),
+        window,
+      });
+    }
+    Err(InvokeError::from_anyhow(anyhow::anyhow!(
+      "invalid channel value `{value}`, expected a string in the `{CHANNEL_PREFIX}ID` format"
+    )))
+  }
+}
 
 /// The `Callback` type is the return value of the `transformCallback` JavaScript function.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct CallbackFn(pub usize);
 
 /// The information about this is quite limited. On Chrome/Edge and Firefox, [the maximum string size is approximately 1 GB](https://stackoverflow.com/a/34958490).

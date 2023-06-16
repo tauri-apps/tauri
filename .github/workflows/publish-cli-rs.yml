@@ -37,11 +37,10 @@ jobs:
           - os: windows-latest
             rust_target: aarch64-pc-windows-msvc
             ext: '.exe'
-            args: '--no-default-features --features native-tls,native-tls-vendored'
+            args: '--no-default-features --features native-tls-vendored'
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: 'Setup Rust'
         uses: dtolnay/rust-toolchain@stable

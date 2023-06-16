@@ -12,12 +12,11 @@
   "defaultChangeTag": "changes",
   "pkgManagers": {
     "rust": {
-      "errorOnVersionRange": "^2.0.0-0",
       "version": true,
       "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js cargo ${ pkgFile.pkg.package.name } ${ pkgFile.pkg.package.version }",
       "prepublish": [
         "sudo apt-get update",
-        "sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev",
+        "sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev",
         "cargo install cargo-audit --features=fix",
         {
           "command": "cargo generate-lockfile",
@@ -77,7 +76,6 @@
       ]
     },
     "javascript": {
-      "errorOnVersionRange": "^2.0.0-0",
       "version": true,
       "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "prepublish": [
@@ -114,7 +112,7 @@
           "pipe": true
         },
         {
-          "command": "yarn publish --access public --loglevel silly",
+          "command": "yarn publish --access public --loglevel silly --tag next",
           "dryRunCommand": "npm publish --dry-run --access public",
           "pipe": true
         },
@@ -236,7 +234,8 @@
         "tauri-macros",
         "tauri-utils",
         "tauri-runtime",
-        "tauri-runtime-wry"
+        "tauri-runtime-wry",
+        "tauri-build"
       ],
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },

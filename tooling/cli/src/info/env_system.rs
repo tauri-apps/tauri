@@ -153,7 +153,7 @@ fn pkg_conf_version(package: &str) -> Option<String> {
   target_os = "netbsd"
 ))]
 fn webkit2gtk_ver() -> Option<String> {
-  pkg_conf_version("webkit2gtk-4.0")
+  pkg_conf_version("webkit2gtk-4.1")
 }
 #[cfg(any(
   target_os = "linux",
@@ -256,11 +256,11 @@ pub fn items() -> Vec<SectionItem> {
       || {
         Some(
           webkit2gtk_ver()
-            .map(|v| (format!("webkit2gtk-4.0: {v}"), Status::Success))
+            .map(|v| (format!("webkit2gtk-4.1: {v}"), Status::Success))
             .unwrap_or_else(|| {
               (
                 format!(
-                  "webkit2gtk-4.0: {}\nVisit {} to learn more about tauri prerequisites",
+                  "webkit2gtk-4.1: {}\nVisit {} to learn more about tauri prerequisites",
                   "not installed".red(),
                   "https://tauri.app/v1/guides/getting-started/prerequisites".cyan()
                 ),

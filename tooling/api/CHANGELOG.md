@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.0.0-alpha.5]
+
+### New Features
+
+- [`e0f0dce2`](https://www.github.com/tauri-apps/tauri/commit/e0f0dce220730e2822fc202463aedf0166145de7)([#6442](https://www.github.com/tauri-apps/tauri/pull/6442)) Added the `windowEffects` option when creating a window and `setWindowEffects` method to change it at runtime.
+
+### Enhancements
+
+- [`9e3a18e0`](https://www.github.com/tauri-apps/tauri/commit/9e3a18e04672edad15d0ec654bd8632544871967)([#7132](https://www.github.com/tauri-apps/tauri/pull/7132)) Expose the window target option on event APIs.
+- [`6d3f3138`](https://www.github.com/tauri-apps/tauri/commit/6d3f3138b9e2f41cda712c7d9caba0f0e65dfd3c)([#7160](https://www.github.com/tauri-apps/tauri/pull/7160)) Changed `sep` and `delimiter` from `path` module into functions to fix import in frameworks like `next.js`
+- [`4652c446`](https://www.github.com/tauri-apps/tauri/commit/4652c446b361a801252bcf45e9da39813bf85482)([#7144](https://www.github.com/tauri-apps/tauri/pull/7144)) Add `tempDir` function to `path` module
+
 ## \[2.0.0-alpha.4]
 
 - [`0ab5f40d`](https://www.github.com/tauri-apps/tauri/commit/0ab5f40d3a4207f20e4440587b41c4e78f91d233)([#6813](https://www.github.com/tauri-apps/tauri/pull/6813)) Add channel API for sending data across the IPC.

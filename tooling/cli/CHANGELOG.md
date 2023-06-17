@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.0.0-alpha.10]
+
+### New Features
+
+- [`7e5905ae`](https://www.github.com/tauri-apps/tauri/commit/7e5905ae1d56b920de0e821be28036cbbe302518)([#7023](https://www.github.com/tauri-apps/tauri/pull/7023)) Added `tauri plugin add` command to add a plugin to the Tauri project.
+- [`b0f94775`](https://www.github.com/tauri-apps/tauri/commit/b0f947752a315b7b89c5979de50157f997f1dd6e)([#7008](https://www.github.com/tauri-apps/tauri/pull/7008)) Added `migrate` command.
+
+### Enhancements
+
+- [`aa6c9164`](https://www.github.com/tauri-apps/tauri/commit/aa6c9164e63b5316d690f25b1c118f1b12310570)([#7007](https://www.github.com/tauri-apps/tauri/pull/7007)) Don't build library files when building desktop targets.
+- [`a28fdf7e`](https://www.github.com/tauri-apps/tauri/commit/a28fdf7ec71bf6db2498569004de83318b6d25ac)([#7044](https://www.github.com/tauri-apps/tauri/pull/7044)) Skip Rust target installation if they are already installed.
+- [`735db1ce`](https://www.github.com/tauri-apps/tauri/commit/735db1ce839a16ba998c9e6786c441e3bf6c90b3)([#7044](https://www.github.com/tauri-apps/tauri/pull/7044)) Add `--skip-targets-install` flag for `tauri android init` and `tauri ios init` to skip installing needed rust targets vie rustup.
+
+### Bug Fixes
+
+- [`3f4c4ce8`](https://www.github.com/tauri-apps/tauri/commit/3f4c4ce88b071e4e59f03887beb4dfe76f66e11b)([#7028](https://www.github.com/tauri-apps/tauri/pull/7028)) Fix `--split-per-abi` not building any targets unless specified by `--target` flag.
+- [`1ed2600d`](https://www.github.com/tauri-apps/tauri/commit/1ed2600da67715908af857255305eaeb293d8791)([#6771](https://www.github.com/tauri-apps/tauri/pull/6771)) Set current directory to tauri directory before reading config file.
+- [`4847b87b`](https://www.github.com/tauri-apps/tauri/commit/4847b87b1067dd8c6e73986059f51e6eee1f1121)([#7209](https://www.github.com/tauri-apps/tauri/pull/7209)) Fix `tauri (android|ios) (dev|build)` failing when using `npx tauri`
+- [`655c714e`](https://www.github.com/tauri-apps/tauri/commit/655c714e4100f69d4265c5ea3f08f5bc11709446)([#7240](https://www.github.com/tauri-apps/tauri/pull/7240)) Fixes panic when exiting the `ios dev` command with Ctrl + C.
+- [`6252380f`](https://www.github.com/tauri-apps/tauri/commit/6252380f4447c66913b0f06611e5949005b1eec2)([#7241](https://www.github.com/tauri-apps/tauri/pull/7241)) Exit `beforeDevCommand` process if the android or iOS `dev` command fails.
+
 ## \[2.0.0-alpha.9]
 
 - [`19cd0e49`](https://www.github.com/tauri-apps/tauri/commit/19cd0e49603ad3500cd2180bfa16e1649e3a771a)([#6811](https://www.github.com/tauri-apps/tauri/pull/6811)) Add `key.properties` file to android's `.gitignore`.

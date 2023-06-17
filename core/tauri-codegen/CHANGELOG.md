@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.6]
+
+### Dependencies
+
+- Updated to latest `tauri-utils`
+
 ## \[2.0.0-alpha.5]
 
 - [`96639ca2`](https://www.github.com/tauri-apps/tauri/commit/96639ca239c9e4f75142fc07868ac46822111cff)([#6749](https://www.github.com/tauri-apps/tauri/pull/6749)) Moved the `shell` functionality to its own plugin in the plugins-workspace repository.

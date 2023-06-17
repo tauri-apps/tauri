@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.6]
+
+### Bug Fixes
+
+- [`3256a372`](https://www.github.com/tauri-apps/tauri/commit/3256a37263f60eafdf5a8321458b868bff26c1b8)([#7016](https://www.github.com/tauri-apps/tauri/pull/7016)) Fixes injection of the proguard rules on the Android project.
+
 ## \[2.0.0-alpha.5]
 
 - [`3188f376`](https://www.github.com/tauri-apps/tauri/commit/3188f3764978c6d1452ee31d5a91469691e95094)([#6883](https://www.github.com/tauri-apps/tauri/pull/6883)) Bump the MSRV to 1.65.

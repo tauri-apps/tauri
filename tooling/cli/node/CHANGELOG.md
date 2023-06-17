@@ -1,5 +1,31 @@
 # Changelog
 
+## \[2.0.0-alpha.10]
+
+### New Features
+
+- [`7e5905ae`](https://www.github.com/tauri-apps/tauri/commit/7e5905ae1d56b920de0e821be28036cbbe302518)([#7023](https://www.github.com/tauri-apps/tauri/pull/7023)) Added `tauri plugin add` command to add a plugin to the Tauri project.
+- [`3480047e`](https://www.github.com/tauri-apps/tauri/commit/3480047ec13b7c68dae931c2daa8ba962fb51ca8)([#7015](https://www.github.com/tauri-apps/tauri/pull/7015)) Provide prebuilt CLIs for Windows ARM64 targets.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Added `tauri completions` to generate shell completions scripts.
+- [`b0f94775`](https://www.github.com/tauri-apps/tauri/commit/b0f947752a315b7b89c5979de50157f997f1dd6e)([#7008](https://www.github.com/tauri-apps/tauri/pull/7008)) Added `migrate` command.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Add `nsis > template` option to specify custom NSIS installer template.
+
+### Enhancements
+
+- [`aa6c9164`](https://www.github.com/tauri-apps/tauri/commit/aa6c9164e63b5316d690f25b1c118f1b12310570)([#7007](https://www.github.com/tauri-apps/tauri/pull/7007)) Don't build library files when building desktop targets.
+- [`a28fdf7e`](https://www.github.com/tauri-apps/tauri/commit/a28fdf7ec71bf6db2498569004de83318b6d25ac)([#7044](https://www.github.com/tauri-apps/tauri/pull/7044)) Skip Rust target installation if they are already installed.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Added the `desktop_template` option on `tauri.conf.json > tauri > bundle > deb`.
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Add `rustls` as default Cargo feature.
+- [`735db1ce`](https://www.github.com/tauri-apps/tauri/commit/735db1ce839a16ba998c9e6786c441e3bf6c90b3)([#7044](https://www.github.com/tauri-apps/tauri/pull/7044)) Add `--skip-targets-install` flag for `tauri android init` and `tauri ios init` to skip installing needed rust targets vie rustup.
+
+### Bug Fixes
+
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Fix built-in devserver adding hot-reload code to non-html files.
+- [`1ed2600d`](https://www.github.com/tauri-apps/tauri/commit/1ed2600da67715908af857255305eaeb293d8791)([#6771](https://www.github.com/tauri-apps/tauri/pull/6771)) Set current directory to tauri directory before reading config file.
+- [`4847b87b`](https://www.github.com/tauri-apps/tauri/commit/4847b87b1067dd8c6e73986059f51e6eee1f1121)([#7209](https://www.github.com/tauri-apps/tauri/pull/7209)) Fix `tauri (android|ios) (dev|build)` failing when using `npx tauri`
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Fix nodejs binary regex when `0` is in the version name, for example `node-20`
+- [`a50f24b2`](https://www.github.com/tauri-apps/tauri/commit/a50f24b2bd93864cacd9047b6fcd152f71a38c45)([#7067](https://www.github.com/tauri-apps/tauri/pull/7067)) Fixes Cargo.toml feature rewriting.
+
 ## \[2.0.0-alpha.9]
 
 - [`19cd0e49`](https://www.github.com/tauri-apps/tauri/commit/19cd0e49603ad3500cd2180bfa16e1649e3a771a)([#6811](https://www.github.com/tauri-apps/tauri/pull/6811)) Add `key.properties` file to android's `.gitignore`.

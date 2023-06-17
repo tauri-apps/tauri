@@ -25,7 +25,7 @@ jobs:
           list-files: shell
           filters: |
             changes:
-              - '.changes/*.md'
+              - added|modified: '.changes/*.md'
 
       - name: check
         run: node ./.scripts/ci/check-change-tags.js ${{ steps.filter.outputs.changes_files }}

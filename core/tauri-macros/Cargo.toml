@@ -1,11 +1,9 @@
 [package]
 name = "tauri-macros"
-version = "2.0.0-alpha.5"
+version = "2.0.0-alpha.6"
 description = "Macros for the tauri crate."
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
-
-# workspace defined package items
 authors = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
@@ -22,8 +20,8 @@ proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = [ "full" ] }
 heck = "0.4"
-tauri-codegen = { version = "2.0.0-alpha.5", default-features = false, path = "../tauri-codegen" }
-tauri-utils = { version = "2.0.0-alpha.5", path = "../tauri-utils" }
+tauri-codegen = { version = "2.0.0-alpha.6", default-features = false, path = "../tauri-codegen" }
+tauri-utils = { version = "2.0.0-alpha.6", path = "../tauri-utils" }
 
 [features]
 custom-protocol = [ ]

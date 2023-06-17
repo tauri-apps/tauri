@@ -65,7 +65,7 @@ name = "tauri_bundler"
 path = "src/lib.rs"
 
 [features]
-default = ["rustls"]
+default = [ "rustls" ]
 native-tls = [ "ureq/native-tls" ]
 native-tls-vendored = [ "native-tls", "native-tls/vendored" ]
 rustls = [ "ureq/tls" ]

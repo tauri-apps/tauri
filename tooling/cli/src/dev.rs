@@ -444,10 +444,11 @@ fn check_for_updates() -> Result<()> {
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     let child = child.lock().unwrap();
-    KILL_BEFORE_DEV_FLAG
-      .get()
-      .unwrap()
-      .store(true, Ordering::Relaxed);
+    let kill_before_dev_flag = KILL_BEFORE_DEV_FLAG.get().unwrap();
+    if kill_before_dev_flag.load(Ordering::Relaxed) {
+      return;
+    }
+    kill_before_dev_flag.store(true, Ordering::Relaxed);
     #[cfg(windows)]
     {
       let powershell_path = std::env::var("SYSTEMROOT").map_or_else(

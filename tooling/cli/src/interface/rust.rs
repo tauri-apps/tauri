@@ -8,7 +8,7 @@ use std::{
   fs::{File, FileType},
   io::{BufRead, Read, Write},
   path::{Path, PathBuf},
-  process::{Command, ExitStatus},
+  process::Command,
   str::FromStr,
   sync::{mpsc::sync_channel, Arc, Mutex},
   time::{Duration, Instant},
@@ -160,7 +160,7 @@ impl Interface for Rust {
     Ok(())
   }
 
-  fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+  fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     mut options: Options,
     on_exit: F,
@@ -426,7 +426,7 @@ impl Rust {
     shared_options(mobile, args, features, &self.app_settings);
   }
 
-  fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+  fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
     run_args: Vec<String>,

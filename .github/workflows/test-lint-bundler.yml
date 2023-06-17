@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - dev
-      - next
+      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-bundler.yml'

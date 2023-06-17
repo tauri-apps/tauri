@@ -1101,6 +1101,7 @@ pub enum WindowMessage {
   SetMinimizable(bool),
   SetClosable(bool),
   SetTitle(String),
+  Navigate(Url),
   Maximize,
   Unmaximize,
   Minimize,
@@ -1446,6 +1447,13 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetTitle(title.into())),
+    )
+  }
+
+  fn navigate(&self, url: Url) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::Navigate(url)),
     )
   }
 
@@ -2422,6 +2430,11 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::SetMinimizable(minimizable) => window.set_minimizable(minimizable),
             WindowMessage::SetClosable(closable) => window.set_closable(closable),
             WindowMessage::SetTitle(title) => window.set_title(&title),
+            WindowMessage::Navigate(url) => {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
+                w.load_url(url.as_str())
+              }
+            }
             WindowMessage::Maximize => window.set_maximized(true),
             WindowMessage::Unmaximize => window.set_maximized(false),
             WindowMessage::Minimize => window.set_minimized(true),

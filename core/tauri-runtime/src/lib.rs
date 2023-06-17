@@ -670,6 +670,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the window title.
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()>;
 
+  /// Naviagte to the given URL.
+  fn navigate(&self, url: Url) -> Result<()>;
+
   /// Maximizes the window.
   fn maximize(&self) -> Result<()>;
 

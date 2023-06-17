@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.4.1]
+
+### Bug Fixes
+
+- [`6afd3472`](https://www.github.com/tauri-apps/tauri/commit/6afd34727f153b32dbc568d169dbb17fb8dc3539)([#6680](https://www.github.com/tauri-apps/tauri/pull/6680)) Revert [#6680](https://github.com/tauri-apps/tauri/pull/6680) which added a default sound for notifications on Windows. This introduced inconsistency with other platforms that has silent notifications by default. In the upcoming releases, we will add support for modifying the notification sound across all platforms.
+
+### Security fixes
+
+- [`066c09a6`](https://www.github.com/tauri-apps/tauri/commit/066c09a6ea06f42f550d090715e06beb65cd5564)([#7227](https://www.github.com/tauri-apps/tauri/pull/7227)) Fix regression in `1.4` where the default behavior of the file system scope was changed to allow reading hidden files and directories by default.
+
 ## \[1.4.0]
 
 ### New Features

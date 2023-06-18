@@ -54,7 +54,7 @@ tauri-runtime-wry = { version = "0.13.0-alpha.6", path = "../tauri-runtime-wry",
 rand = "0.8"
 semver = { version = "1.0", features = [ "serde" ] }
 serde_repr = "0.1"
-state = "0.5"
+state = "0.6"
 tempfile = "3"
 http = "0.2"
 dirs-next = "2.0"

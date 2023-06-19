@@ -4,7 +4,7 @@
 
 //! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
 //!
-//! This is common code that is reused in many places and offers useful utilities like parsing configuration files, detecting platform triples, injecting the CSP, and managing assets.
+//! This crate contains common code that is reused in many places and offers useful utilities like parsing configuration files, detecting platform triples, injecting the CSP, and managing assets.
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",

@@ -161,7 +161,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
 /**
  * Convert a device file path to an URL that can be loaded by the webview.
  * Note that `asset:` and `https://asset.localhost` must be added to [`tauri.security.csp`](https://tauri.app/v1/api/config/#securityconfig.csp) in `tauri.conf.json`.
- * Example CSP value: `"csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"` to use the asset protocol on image sources.
+ * Example CSP value: `"csp": "default-src 'self' ipc:; img-src 'self' asset: https://asset.localhost"` to use the asset protocol on image sources.
  *
  * Additionally, `asset` must be added to [`tauri.allowlist.protocol`](https://tauri.app/v1/api/config/#allowlistconfig.protocol)
  * in `tauri.conf.json` and its access scope must be defined on the `assetScope` array on the same `protocol` object.

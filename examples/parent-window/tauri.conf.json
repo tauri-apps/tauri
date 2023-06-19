@@ -27,7 +27,7 @@
       "category": "DeveloperTool"
     },
     "security": {
-      "csp": "default-src 'self'"
+      "csp": "default-src 'self' ipc:"
     }
   }
 }

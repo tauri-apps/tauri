@@ -1329,7 +1329,7 @@ pub enum FsAllowlistScope {
     /// conventionally considered hidden on Unix systems and it might be
     /// desirable to skip them when listing files.
     ///
-    /// Defaults to `false` on Unix systems and `true` on Windows
+    /// Defaults to `true` on Unix systems and `false` on Windows
     // dotfiles are not supposed to be exposed by default on unix
     #[serde(alias = "require-literal-leading-dot")]
     require_literal_leading_dot: Option<bool>,

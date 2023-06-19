@@ -7,6 +7,7 @@
     "bug": "Bug Fixes",
     "pref": "Performance Improvements",
     "changes": "What's Changed",
+    "sec": "Security fixes",
     "deps": "Dependencies"
   },
   "defaultChangeTag": "changes",

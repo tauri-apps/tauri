@@ -839,7 +839,7 @@ impl<R: Runtime> WindowManager<R> {
 
           for (let i = listeners.length - 1; i >= 0; i--) {{
             const listener = listeners[i]
-            if (listener.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
+            if (listener.windowLabel === null || eventData.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
               eventData.id = listener.id
               listener.handler(eventData)
             }}

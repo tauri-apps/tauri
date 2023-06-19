@@ -171,7 +171,7 @@ async function tempdir(): Promise<string> {
  * }
  * ```
  *
- * @since 1.3.0
+ * @since 1.4.0
  */
 async function locale(): Promise<string | null> {
   return invokeTauriCommand<string>({

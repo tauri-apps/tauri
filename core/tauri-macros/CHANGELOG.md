@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.4.0]
+
+### Enhancements
+
+- [`d68a25e3`](https://www.github.com/tauri-apps/tauri/commit/d68a25e32e012e57a9e5225b589b9ecbea70a887)([#6124](https://www.github.com/tauri-apps/tauri/pull/6124)) Improve compiler error message when generating an async command that has a reference input and don't return a Result.
+
 ## \[1.3.0]
 
 - Bump minimum supported Rust version to 1.60.

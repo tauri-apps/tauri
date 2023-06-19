@@ -121,7 +121,7 @@ impl Default for BundleTarget {
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     return Self::App;
     #[cfg(target_os = "linux")]
-    return Self::App;
+    return Self::AppImage;
     #[cfg(windows)]
     return Self::Nsis;
   }

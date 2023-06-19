@@ -4,7 +4,7 @@
 
 //! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
 //!
-//! Create macros for the context, handler, and commands by leveraging the `tauri-codegen` crate.
+//! Create macros for `tauri::Context`, invoke handler and commands leveraging the `tauri-codegen` crate.
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",

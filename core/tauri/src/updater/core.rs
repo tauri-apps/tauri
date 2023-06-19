@@ -42,12 +42,8 @@ use crate::api::file::Compression;
 #[cfg(target_os = "windows")]
 use std::{
   fs::read_dir,
-  os::windows::process::CommandExt,
   process::{exit, Command},
 };
-
-#[cfg(target_os = "windows")]
-use windows::Win32::System::Threading::DETACHED_PROCESS;
 
 type ShouldInstall = dyn FnOnce(&Version, &RemoteRelease) -> bool + Send;
 
@@ -713,17 +709,45 @@ fn copy_files_and_run<R: Read + Seek>(
 
   let paths = read_dir(&tmp_dir)?;
 
+  let system_root = std::env::var("SYSTEMROOT");
+  let powershell_path = system_root.as_ref().map_or_else(
+    |_| "powershell.exe".to_string(),
+    |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+  );
+
   for path in paths {
     let found_path = path?.path();
     // we support 2 type of files exe & msi for now
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
+      // we need to wrap the installer path in quotes for Start-Process
+      let mut installer_arg = std::ffi::OsString::new();
+      installer_arg.push("\"");
+      installer_arg.push(&found_path);
+      installer_arg.push("\"");
+
       // Run the EXE
-      Command::new("cmd")
-        .args(&["/C", "start", "", found_path.as_os_str().to_str().unwrap()])
-        .args(config.tauri.updater.windows.install_mode.nsis_args())
-        .args(&config.tauri.updater.windows.installer_args)
-        .creation_flags(DETACHED_PROCESS.0)
+      Command::new(powershell_path)
+        .args(["-NoProfile", "-WindowStyle", "Hidden"])
+        .args(["Start-Process"])
+        .arg(found_path)
+        .arg("-ArgumentList")
+        .arg(
+          [
+            config.tauri.updater.windows.install_mode.nsis_args(),
+            config
+              .tauri
+              .updater
+              .windows
+              .installer_args
+              .iter()
+              .map(AsRef::as_ref)
+              .collect::<Vec<_>>()
+              .as_slice(),
+          ]
+          .concat()
+          .join(", "),
+        )
         .spawn()
         .expect("installer failed to start");
 
@@ -791,13 +815,8 @@ fn copy_files_and_run<R: Read + Seek>(
       msiexec_args.extend(config.tauri.updater.windows.installer_args.clone());
 
       // run the installer and relaunch the application
-      let system_root = std::env::var("SYSTEMROOT");
-      let powershell_path = system_root.as_ref().map_or_else(
-        |_| "powershell.exe".to_string(),
-        |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
-      );
       let powershell_install_res = Command::new(powershell_path)
-        .args(["-NoProfile", "-windowstyle", "hidden"])
+        .args(["-NoProfile", "-WindowStyle", "Hidden"])
         .args([
           "Start-Process",
           "-Wait",

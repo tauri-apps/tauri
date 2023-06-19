@@ -5,7 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::fs::read;
-use tauri::{command, path::BaseDirectory, AppHandle, Manager, Runtime};
+use tauri::{command, ipc::Response, path::BaseDirectory, AppHandle, Manager, Runtime};
 
 #[command]
 fn app_should_close(exit_code: i32) {
@@ -13,13 +13,13 @@ fn app_should_close(exit_code: i32) {
 }
 
 #[command]
-async fn read_file<R: Runtime>(app: AppHandle<R>) -> Result<Vec<u8>, String> {
+async fn read_file<R: Runtime>(app: AppHandle<R>) -> Result<Response, String> {
   let path = app
     .path()
     .resolve(".tauri_3mb.json", BaseDirectory::Home)
     .map_err(|e| e.to_string())?;
   let contents = read(&path).map_err(|e| e.to_string())?;
-  Ok(contents)
+  Ok(Response::new(contents))
 }
 
 fn main() {

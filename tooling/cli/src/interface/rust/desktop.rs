@@ -66,7 +66,7 @@ impl DevProcess for DevChild {
   }
 }
 
-pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   options: Options,
   run_args: Vec<String>,
   available_targets: &mut Option<Vec<Target>>,
@@ -93,7 +93,7 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     available_targets,
     config_features,
     move |status, reason| {
-      if status.success() {
+      if status == Some(0) {
         let bin_path =
           rename_app(target_os, &bin_path, product_name.as_deref()).expect("failed to rename app");
         let mut app = Command::new(bin_path);
@@ -192,7 +192,7 @@ pub fn build(
   Ok(())
 }
 
-fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
+fn build_dev_app<F: FnOnce(Option<i32>, ExitReason) + Send + 'static>(
   options: Options,
   available_targets: &mut Option<Vec<Target>>,
   config_features: Vec<String>,
@@ -259,10 +259,10 @@ fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
 
   let build_child_ = build_child.clone();
   std::thread::spawn(move || {
-    let status = build_child_.wait().expect("failed to wait on build");
+    let status = build_child_.wait().expect("failed to build app");
 
     if status.success() {
-      on_exit(status, ExitReason::NormalExit);
+      on_exit(status.code(), ExitReason::NormalExit);
     } else {
       let is_cargo_compile_error = stderr_lines
         .lock()
@@ -273,7 +273,7 @@ fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
       stderr_lines.lock().unwrap().clear();
 
       on_exit(
-        status,
+        status.code(),
         if status.code() == Some(101) && is_cargo_compile_error {
           ExitReason::CompilationFailed
         } else {

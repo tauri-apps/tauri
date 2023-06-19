@@ -108,9 +108,9 @@ impl Scope {
       } => *require,
       // dotfiles are not supposed to be exposed by default on unix
       #[cfg(unix)]
-      _ => false,
-      #[cfg(windows)]
       _ => true,
+      #[cfg(windows)]
+      _ => false,
     };
 
     Ok(Self {
@@ -281,9 +281,9 @@ mod tests {
         require_literal_separator: true,
         // dotfiles are not supposed to be exposed by default on unix
         #[cfg(unix)]
-        require_literal_leading_dot: false,
-        #[cfg(windows)]
         require_literal_leading_dot: true,
+        #[cfg(windows)]
+        require_literal_leading_dot: false,
         ..Default::default()
       },
     }

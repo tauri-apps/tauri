@@ -83,7 +83,15 @@ impl From<Options> for DevOptions {
   }
 }
 
-pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  let result = run_command(options, noise_level);
+  if result.is_err() {
+    crate::dev::kill_before_dev_process();
+  }
+  result
+}
+
+fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   if var_os(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME).is_none() {
     if let Ok(teams) = find_development_teams() {
       let index = match teams.len() {

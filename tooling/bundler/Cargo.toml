@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "2.0.0-alpha.5"
+version = "2.0.0-alpha.6"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -17,7 +17,7 @@ rust-version = "1.65"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-alpha.5", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "2.0.0-alpha.6", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.6"
 libflate = "1.4"
 anyhow = "1.0"
@@ -65,7 +65,7 @@ name = "tauri_bundler"
 path = "src/lib.rs"
 
 [features]
-default = ["rustls"]
+default = [ "rustls" ]
 native-tls = [ "ureq/native-tls" ]
 native-tls-vendored = [ "native-tls", "native-tls/vendored" ]
 rustls = [ "ureq/tls" ]

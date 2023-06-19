@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - dev
+      - 1.x
 
 jobs:
   run-integration-tests:
@@ -99,8 +100,8 @@ jobs:
         uses: tauri-apps/create-pull-request@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: release/version-updates
-          title: Apply Version Updates From Current Changes
+          branch: release/version-updates-v1
+          title: Apply Version Updates From Current Changes (v1)
           commit-message: 'apply version updates'
           labels: 'version updates'
           body: ${{ steps.covector.outputs.change }}

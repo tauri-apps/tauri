@@ -22,7 +22,7 @@ use shared_child::SharedChild;
 use std::{
   env::set_current_dir,
   net::{IpAddr, Ipv4Addr},
-  process::{exit, Command, ExitStatus, Stdio},
+  process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -393,15 +393,19 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
 
 pub fn wait_dev_process<
   C: DevProcess + Send + 'static,
-  F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static,
+  F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static,
 >(
   child: C,
   on_exit: F,
 ) {
   std::thread::spawn(move || {
-    let status = child.wait().expect("failed to wait on app");
+    let code = child
+      .wait()
+      .ok()
+      .and_then(|status| status.code())
+      .or(Some(1));
     on_exit(
-      status,
+      code,
       if child.manually_killed_process() {
         ExitReason::TriggeredKill
       } else {
@@ -411,7 +415,7 @@ pub fn wait_dev_process<
   });
 }
 
-pub fn on_app_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {
+pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {
   if no_watch
     || (!matches!(reason, ExitReason::TriggeredKill)
       && (exit_on_panic || matches!(reason, ExitReason::NormalExit)))
@@ -419,7 +423,7 @@ pub fn on_app_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, 
     kill_before_dev_process();
     #[cfg(not(debug_assertions))]
     let _ = check_for_updates();
-    exit(status.code().unwrap_or(0));
+    exit(code.unwrap_or(0));
   }
 }
 
@@ -444,10 +448,11 @@ fn check_for_updates() -> Result<()> {
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     let child = child.lock().unwrap();
-    KILL_BEFORE_DEV_FLAG
-      .get()
-      .unwrap()
-      .store(true, Ordering::Relaxed);
+    let kill_before_dev_flag = KILL_BEFORE_DEV_FLAG.get().unwrap();
+    if kill_before_dev_flag.load(Ordering::Relaxed) {
+      return;
+    }
+    kill_before_dev_flag.store(true, Ordering::Relaxed);
     #[cfg(windows)]
     {
       let powershell_path = std::env::var("SYSTEMROOT").map_or_else(

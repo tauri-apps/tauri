@@ -1,5 +1,24 @@
 # Changelog
 
+## \[2.0.0-alpha.10]
+
+### New Features
+
+- [`f2d68cf7`](https://www.github.com/tauri-apps/tauri/commit/f2d68cf7d4e53443b2d53d2ae841e56c16a92514)([#6767](https://www.github.com/tauri-apps/tauri/pull/6767)) Add `incognito` option to the window configuration object.
+- [`f2d68cf7`](https://www.github.com/tauri-apps/tauri/commit/f2d68cf7d4e53443b2d53d2ae841e56c16a92514)([#6767](https://www.github.com/tauri-apps/tauri/pull/6767)) Add `WindowBuilder::incognito`
+- [`e0f0dce2`](https://www.github.com/tauri-apps/tauri/commit/e0f0dce220730e2822fc202463aedf0166145de7)([#6442](https://www.github.com/tauri-apps/tauri/pull/6442)) Added the `window_effects` option when creating a window and `Window::set_effects` to change it at runtime.
+
+### Enhancements
+
+- [`2d2fd6ab`](https://www.github.com/tauri-apps/tauri/commit/2d2fd6abe291ddf645fa2fdecc08111d2c0e258e)([#7191](https://www.github.com/tauri-apps/tauri/pull/7191)) Use correct HTTP method when making requests to the proxied server on mobile.
+- [`b66e7d60`](https://www.github.com/tauri-apps/tauri/commit/b66e7d60f27d9a7973eae48d54cb72e30a710cca)([#7174](https://www.github.com/tauri-apps/tauri/pull/7174)) Implement `Clone` for `Channel`
+- [`8124145d`](https://www.github.com/tauri-apps/tauri/commit/8124145d6c6a629809c138d2c34082e1feb4fdbf)([#7171](https://www.github.com/tauri-apps/tauri/pull/7171)) Fixes path commands not being added.
+- [`4652c446`](https://www.github.com/tauri-apps/tauri/commit/4652c446b361a801252bcf45e9da39813bf85482)([#7144](https://www.github.com/tauri-apps/tauri/pull/7144)) Add `temp_dir` method to `PathResolver`
+
+### Bug Fixes
+
+- [`8e855765`](https://www.github.com/tauri-apps/tauri/commit/8e85576506f5dea066d7e9317dbcab3681baff73)([#6809](https://www.github.com/tauri-apps/tauri/pull/6809)) Fix default log path for linux and windows
+
 ## \[2.0.0-alpha.9]
 
 - [`256c30c7`](https://www.github.com/tauri-apps/tauri/commit/256c30c72b737e49ced0d6a6483910dc779fc185)([#6863](https://www.github.com/tauri-apps/tauri/pull/6863)) Enhance parsing of annotated Android plugin methods to support private functions.
@@ -139,6 +158,16 @@
   - [b4622ea4](https://www.github.com/tauri-apps/tauri/commit/b4622ea4d32720bc3bb2a8c740bb70cfe32fed93) refactor(app): run setup and window creation when event loop is ready ([#4914](https://www.github.com/tauri-apps/tauri/pull/4914)) on 2022-08-11
 - Export types required by the `mobile_entry_point` macro.
   - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
+
+## \[1.4.1]
+
+### Bug Fixes
+
+- [`6afd3472`](https://www.github.com/tauri-apps/tauri/commit/6afd34727f153b32dbc568d169dbb17fb8dc3539)([#6680](https://www.github.com/tauri-apps/tauri/pull/6680)) Revert [#6680](https://github.com/tauri-apps/tauri/pull/6680) which added a default sound for notifications on Windows. This introduced inconsistency with other platforms that has silent notifications by default. In the upcoming releases, we will add support for modifying the notification sound across all platforms.
+
+### Security fixes
+
+- [`066c09a6`](https://www.github.com/tauri-apps/tauri/commit/066c09a6ea06f42f550d090715e06beb65cd5564)([#7227](https://www.github.com/tauri-apps/tauri/pull/7227)) Fix regression in `1.4` where the default behavior of the file system scope was changed to allow reading hidden files and directories by default.
 
 ## \[1.4.0]
 

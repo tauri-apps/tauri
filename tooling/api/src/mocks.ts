@@ -125,21 +125,13 @@ export function mockIPC(
  * mockWindows("main", "second", "third");
  *
  * mockIPC((cmd, args) => {
- *  if (cmd === "tauri") {
- *    if (
- *      args?.__tauriModule === "Window" &&
- *      args?.message?.cmd === "manage" &&
- *      args?.message?.data?.cmd?.type === "close"
- *    ) {
- *      console.log('closing window!');
- *    }
+ *  if (cmd === "plugin:event|emit") {
+ *    console.log('emit event', args?.event, args?.payload);
  *  }
  * });
  *
- * const { getCurrent } = await import("@tauri-apps/api/window");
- *
- * const win = getCurrent();
- * await win.close(); // this will cause the mocked IPC handler to log to the console.
+ * const { emit } = await import("@tauri-apps/api/path");
+ * await emit('loaded'); // this will cause the mocked IPC handler to log to the console.
  * ```
  *
  * @param current Label of window this JavaScript context is running in.

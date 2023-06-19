@@ -2,4 +2,4 @@
 'tauri': 'patch:bug'
 ---
 
-Fix installers requiring administrator rights not being launchable by updater.
+On Windows, fix NSIS installers requiring administrator rights failing to be launched by updater.

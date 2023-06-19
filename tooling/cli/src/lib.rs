@@ -2,6 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
+//! This rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
+
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
+
 pub use anyhow::Result;
 
 mod build;

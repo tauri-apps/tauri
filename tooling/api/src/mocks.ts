@@ -130,7 +130,7 @@ export function mockIPC(
  *  }
  * });
  *
- * const { emit } = await import("@tauri-apps/api/path");
+ * const { emit } = await import("@tauri-apps/api/event");
  * await emit('loaded'); // this will cause the mocked IPC handler to log to the console.
  * ```
  *

@@ -2,8 +2,8 @@
   "entryPoints": [
     "src/event.ts",
     "src/mocks.ts",
-    "src/tauri.ts",
-    "src/window.ts"
+    "src/path.ts",
+    "src/tauri.ts"
   ],
   "githubPages": false,
   "readme": "none",

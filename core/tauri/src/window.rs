@@ -2084,7 +2084,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// This listener only receives events that are triggered using the
   /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
-  /// the `appWindow.emit` function from the @tauri-apps/api `window` module.
+  /// the `emit` function from the window plugin (`@tauri-apps/plugin-window` package).
   ///
   /// # Examples
   /// ```

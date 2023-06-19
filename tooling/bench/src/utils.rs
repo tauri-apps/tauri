@@ -37,7 +37,11 @@ pub struct StraceOutput {
 
 pub fn get_target() -> &'static str {
   #[cfg(target_os = "macos")]
-  return "x86_64-apple-darwin";
+  return if cfg!(target_arch = "aarch64") {
+    "aarch64-apple-darwin"
+  } else {
+    "x86_64-apple-darwin"
+  };
   #[cfg(target_os = "linux")]
   return "x86_64-unknown-linux-gnu";
   #[cfg(target_os = "windows")]

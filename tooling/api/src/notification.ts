@@ -49,7 +49,7 @@ interface Options {
    * - **Windows**: can be one of the sounds listed in {@link https://learn.microsoft.com/en-us/uwp/schemas/tiles/toastschema/element-audio}
    *   but without the prefix, for example, if `ms-winsoundevent:Notification.Default` you would use `Default` and
    *   if `ms-winsoundevent:Notification.Looping.Alarm2`, you would use `Alarm2`.
-   *   Windows 7 is not supproted, if a sound is provided, it will play the default sound, otherwise it will be silent.
+   *   Windows 7 is not supported, if a sound is provided, it will play the default sound, otherwise it will be silent.
    * - **macOS**: you can specify the name of the sound you'd like to play when the notification is shown
    * or use `NSUserNotificationDefaultSoundName` to play the default sound.
    * Any of the default sounds (under System Preferences > Sound) can be used, in addition to custom sound files.

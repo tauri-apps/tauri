@@ -155,6 +155,7 @@
     ".changes/shadows-default-on.md",
     ".changes/simplify-ios-plugin-init-fn.md",
     ".changes/skip-target-install-arg.md",
+    ".changes/state-0.6.md",
     ".changes/target-dir-detection.md",
     ".changes/tauri-build-mobile.md",
     ".changes/tauri-mobile-entry-point.md",

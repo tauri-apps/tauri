@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.11]
+
+### Dependencies
+
+- [`d1a6e2f3`](https://www.github.com/tauri-apps/tauri/commit/d1a6e2f33326161a78a9a72bd9320dcb1b1f9710)([#7252](https://www.github.com/tauri-apps/tauri/pull/7252)) Update `state` to v0.6.
+
 ## \[2.0.0-alpha.10]
 
 ### New Features

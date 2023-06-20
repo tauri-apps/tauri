@@ -26,6 +26,8 @@ pub struct NotificationOptions {
   pub body: Option<String>,
   /// The notification icon.
   pub icon: Option<String>,
+  /// The notification sound.
+  pub sound: Option<String>,
 }
 
 /// The API descriptor.
@@ -55,6 +57,9 @@ impl Cmd {
     }
     if let Some(icon) = options.icon {
       notification = notification.icon(icon);
+    }
+    if let Some(sound) = options.sound {
+      notification = notification.sound(sound);
     }
     #[cfg(feature = "windows7-compat")]
     {
@@ -94,6 +99,7 @@ mod tests {
         title: String::arbitrary(g),
         body: Option::arbitrary(g),
         icon: Option::arbitrary(g),
+        sound: Option::arbitrary(g),
       }
     }
   }

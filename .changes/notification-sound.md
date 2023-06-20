@@ -1,6 +1,6 @@
 ---
-'tauri': 'minor'
-'@tauri-apps/api': 'minor'
+'tauri': 'minor:feat'
+'@tauri-apps/api': 'minor:feat'
 ---
 
 Add option to specify notification sound.

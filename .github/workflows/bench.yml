@@ -27,7 +27,7 @@ jobs:
       matrix:
         rust: [nightly]
         platform:
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-20.04 }
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
 
     runs-on: ${{ matrix.platform.os }}
 

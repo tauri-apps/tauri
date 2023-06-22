@@ -114,6 +114,13 @@ macro_rules! android_binding {
       handlePluginResponse,
       [i32, JString, JString],
     );
+    ::tauri::wry::application::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      sendChannelData,
+      [i64, JString],
+    );
 
     #[allow(non_snake_case)]
     pub unsafe fn handlePluginResponse(
@@ -125,12 +132,17 @@ macro_rules! android_binding {
     ) {
       ::tauri::handle_android_plugin_response(env, id, success, error);
     }
+
+    #[allow(non_snake_case)]
+    pub unsafe fn sendChannelData(env: JNIEnv, _: JClass, id: i64, data: JString) {
+      ::tauri::send_channel_data(env, id, data);
+    }
   };
 }
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
-pub use plugin::mobile::handle_android_plugin_response;
+pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;

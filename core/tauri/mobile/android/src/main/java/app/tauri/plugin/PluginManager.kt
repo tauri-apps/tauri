@@ -98,6 +98,8 @@ class PluginManager(val activity: AppCompatActivity) {
         error = result
       }
       handlePluginResponse(id, success?.toString(), error?.toString())
+    }, { channelId, payload ->
+      sendChannelData(channelId, payload.toString())
     }, data)
 
     dispatchPluginMessage(invoke, pluginId)
@@ -131,4 +133,5 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   private external fun handlePluginResponse(id: Int, success: String?, error: String?)
+  private external fun sendChannelData(id: Long, data: String)
 }

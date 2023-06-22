@@ -57,7 +57,7 @@ impl<R: Runtime> Clone for Channel<R> {
   }
 }
 
-impl Serialize for Channel {
+impl<R: Runtime> Serialize for Channel<R> {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
@@ -68,7 +68,26 @@ impl Serialize for Channel {
 
 impl<R: Runtime> Channel<R> {
   pub(crate) fn new(window: Window<R>, id: CallbackFn) -> Self {
-    Self { window, id }
+    #[allow(clippy::let_and_return)]
+    let channel = Self { window, id };
+
+    #[cfg(mobile)]
+    {
+      let channel_ = channel.clone();
+      crate::plugin::mobile::on_channel_data(
+        channel.id,
+        Box::new(move |data| {
+          let _ = channel_.send(data);
+        }),
+      );
+    }
+
+    channel
+  }
+
+  /// The channel identifier.
+  pub fn id(&self) -> CallbackFn {
+    self.id
   }
 
   /// Sends the given data through the  channel.

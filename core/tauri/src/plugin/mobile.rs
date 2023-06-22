@@ -4,7 +4,10 @@
 
 use super::{PluginApi, PluginHandle};
 
-use crate::{ipc::InvokeBody, AppHandle, Runtime};
+use crate::{
+  ipc::{CallbackFn, InvokeBody},
+  AppHandle, Runtime,
+};
 #[cfg(target_os = "android")]
 use crate::{
   runtime::RuntimeHandle,
@@ -23,9 +26,11 @@ use std::{
 type PluginResponse = Result<serde_json::Value, serde_json::Value>;
 
 type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>;
+type ChannelDataHandler = Box<dyn Fn(serde_json::Value) + Send + 'static>;
 
 static PENDING_PLUGIN_CALLS: OnceCell<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
   OnceCell::new();
+static CHANNELS: OnceCell<Mutex<HashMap<usize, ChannelDataHandler>>> = OnceCell::new();
 
 /// Possible errors when invoking a plugin.
 #[derive(Debug, thiserror::Error)]
@@ -46,6 +51,14 @@ pub enum PluginInvokeError {
   /// Failed to serialize request payload.
   #[error("failed to serialize payload: {0}")]
   CannotSerializePayload(serde_json::Error),
+}
+
+pub(crate) fn on_channel_data(id: CallbackFn, handler: ChannelDataHandler) {
+  CHANNELS
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .insert(id.0, handler);
 }
 
 /// Glue between Rust and the Kotlin code that sends the plugin response back.
@@ -87,6 +100,26 @@ pub fn handle_android_plugin_response(
     .remove(&id)
   {
     handler(if is_ok { Ok(payload) } else { Err(payload) });
+  }
+}
+
+/// Glue between Rust and the Kotlin code that sends the channel data.
+#[cfg(target_os = "android")]
+pub fn send_channel_data(
+  env: jni::JNIEnv<'_>,
+  channel_id: i64,
+  data_str: jni::objects::JString<'_>,
+) {
+  let data: serde_json::Value =
+    serde_json::from_str(env.get_string(data_str).unwrap().to_str().unwrap()).unwrap();
+
+  if let Some(handler) = CHANNELS
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .get(&(channel_id as usize))
+  {
+    handler(data);
   }
 }
 

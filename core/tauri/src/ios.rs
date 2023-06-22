@@ -9,7 +9,7 @@ use swift_rs::{swift, SRString, SwiftArg};
 
 use std::{
   ffi::c_void,
-  os::raw::{c_char, c_int},
+  os::raw::{c_char, c_int, c_ulonglong},
 };
 
 type PluginMessageCallbackFn = unsafe extern "C" fn(c_int, c_int, *const c_char);
@@ -23,12 +23,24 @@ impl<'a> SwiftArg<'a> for PluginMessageCallback {
   }
 }
 
+type ChannelSendDataCallbackFn = unsafe extern "C" fn(c_ulonglong, *const c_char);
+pub struct ChannelSendDataCallback(pub ChannelSendDataCallbackFn);
+
+impl<'a> SwiftArg<'a> for ChannelSendDataCallback {
+  type ArgType = ChannelSendDataCallbackFn;
+
+  unsafe fn as_arg(&'a self) -> Self::ArgType {
+    self.0
+  }
+}
+
 swift!(pub fn run_plugin_command(
   id: i32,
   name: &SRString,
   method: &SRString,
   data: *const c_void,
-  callback: PluginMessageCallback
+  callback: PluginMessageCallback,
+  send_channel_data_callback: ChannelSendDataCallback
 ));
 swift!(pub fn register_plugin(
   name: &SRString,

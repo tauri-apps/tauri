@@ -30,7 +30,7 @@ type ChannelDataHandler = Box<dyn Fn(serde_json::Value) + Send + 'static>;
 
 static PENDING_PLUGIN_CALLS: OnceCell<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
   OnceCell::new();
-static CHANNELS: OnceCell<Mutex<HashMap<usize, ChannelDataHandler>>> = OnceCell::new();
+static CHANNELS: OnceCell<Mutex<HashMap<u64, ChannelDataHandler>>> = OnceCell::new();
 
 /// Possible errors when invoking a plugin.
 #[derive(Debug, thiserror::Error)]
@@ -58,7 +58,7 @@ pub(crate) fn on_channel_data(id: CallbackFn, handler: ChannelDataHandler) {
     .get_or_init(Default::default)
     .lock()
     .unwrap()
-    .insert(id.0, handler);
+    .insert(id.0 as u64, handler);
 }
 
 /// Glue between Rust and the Kotlin code that sends the plugin response back.
@@ -117,7 +117,7 @@ pub fn send_channel_data(
     .get_or_init(Default::default)
     .lock()
     .unwrap()
-    .get(&(channel_id as usize))
+    .get(&(channel_id as u64))
   {
     handler(data);
   }
@@ -314,7 +314,7 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
 ) -> Result<(), PluginInvokeError> {
   use std::{
     ffi::CStr,
-    os::raw::{c_char, c_int},
+    os::raw::{c_char, c_int, c_ulonglong},
   };
 
   let id: i32 = rand::random();
@@ -350,12 +350,30 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
       }
     }
 
+    extern "C" fn send_channel_data_handler(id: c_ulonglong, payload: *const c_char) {
+      let payload = unsafe {
+        assert!(!payload.is_null());
+        CStr::from_ptr(payload)
+      };
+
+      if let Some(handler) = CHANNELS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap()
+        .get(&id)
+      {
+        let payload = serde_json::from_str(payload.to_str().unwrap()).unwrap();
+        handler(payload);
+      }
+    }
+
     crate::ios::run_plugin_command(
       id,
       &name.into(),
       &command.as_ref().into(),
       crate::ios::json_to_dictionary(&payload.into_json()) as _,
       crate::ios::PluginMessageCallback(plugin_command_response_handler),
+      crate::ios::ChannelSendDataCallback(send_channel_data_handler),
     );
   }
 

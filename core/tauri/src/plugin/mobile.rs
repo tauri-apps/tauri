@@ -4,10 +4,7 @@
 
 use super::{PluginApi, PluginHandle};
 
-use crate::{
-  ipc::{CallbackFn, InvokeBody},
-  AppHandle, Runtime,
-};
+use crate::{ipc::CallbackFn, AppHandle, Runtime};
 #[cfg(target_os = "android")]
 use crate::{
   runtime::RuntimeHandle,
@@ -284,9 +281,7 @@ impl<R: Runtime> PluginHandle<R> {
       self.name,
       &self.handle,
       command,
-      serde_json::to_value(payload)
-        .map_err(PluginInvokeError::CannotSerializePayload)?
-        .into(),
+      serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
       move |response| {
         tx.send(response).unwrap();
       },
@@ -309,7 +304,7 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
   name: &str,
   _handle: &AppHandle<R>,
   command: C,
-  payload: InvokeBody,
+  payload: serde_json::Value,
   handler: F,
 ) -> Result<(), PluginInvokeError> {
   use std::{
@@ -371,7 +366,7 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
       id,
       &name.into(),
       &command.as_ref().into(),
-      crate::ios::json_to_dictionary(&payload.into_json()) as _,
+      crate::ios::json_to_dictionary(&payload) as _,
       crate::ios::PluginMessageCallback(plugin_command_response_handler),
       crate::ios::ChannelSendDataCallback(send_channel_data_handler),
     );
@@ -389,7 +384,7 @@ pub(crate) fn run_command<
   name: &str,
   handle: &AppHandle<R>,
   command: C,
-  payload: InvokeBody,
+  payload: serde_json::Value,
   handler: F,
 ) -> Result<(), PluginInvokeError> {
   use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
@@ -437,7 +432,6 @@ pub(crate) fn run_command<
   let id: i32 = rand::random();
   let plugin_name = name.to_string();
   let command = command.as_ref().to_string();
-  let payload = payload.into_json();
   let handle_ = handle.clone();
 
   PENDING_PLUGIN_CALLS

@@ -1849,12 +1849,29 @@ impl<R: Runtime> Window<R> {
           {
             if !handled {
               handled = true;
+
+              fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
+                if let serde_json::Value::Object(map) = payload {
+                  for v in map.values() {
+                    if let serde_json::Value::String(s) = v {
+                      if s.starts_with(crate::ipc::CHANNEL_PREFIX) {
+                        crate::ipc::Channel::load_from_ipc(window.clone(), s);
+                      }
+                    }
+                  }
+                }
+              }
+
+              let payload = message.payload.into_json();
+              // initialize channels
+              load_channels(&payload, &message.window);
+
               let resolver_ = resolver.clone();
               if let Err(e) = crate::plugin::mobile::run_command(
                 plugin,
                 &app_handle,
                 message.command,
-                message.payload,
+                payload,
                 move |response| match response {
                   Ok(r) => resolver_.resolve(r),
                   Err(e) => resolver_.reject(e),

@@ -35,7 +35,7 @@ pub type InvokeResponder<R> =
 type OwnedInvokeResponder<R> =
   dyn Fn(Window<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
 
-const CHANNEL_PREFIX: &str = "__CHANNEL__:";
+pub(crate) const CHANNEL_PREFIX: &str = "__CHANNEL__:";
 pub(crate) const FETCH_CHANNEL_DATA_COMMAND_PREFIX: &str = "__tauriFetchChannelData__:";
 
 #[derive(Default)]
@@ -68,21 +68,33 @@ impl<R: Runtime> Serialize for Channel<R> {
 
 impl<R: Runtime> Channel<R> {
   pub(crate) fn new(window: Window<R>, id: CallbackFn) -> Self {
-    #[allow(clippy::let_and_return)]
-    let channel = Self { window, id };
+    Self { window, id }
+  }
 
-    #[cfg(mobile)]
+  pub(crate) fn load_from_ipc(window: Window<R>, value: impl AsRef<str>) -> Option<Self> {
+    if let Some(callback_id) = value
+      .as_ref()
+      .split_once(CHANNEL_PREFIX)
+      .and_then(|(_prefix, id)| id.parse().ok())
     {
-      let channel_ = channel.clone();
-      crate::plugin::mobile::on_channel_data(
-        channel.id,
-        Box::new(move |data| {
-          let _ = channel_.send(data);
-        }),
-      );
-    }
+      #[allow(clippy::let_and_return)]
+      let channel = Channel::new(window, CallbackFn(callback_id));
 
-    channel
+      #[cfg(mobile)]
+      {
+        let channel_ = channel.clone();
+        crate::plugin::mobile::on_channel_data(
+          channel.id,
+          Box::new(move |data| {
+            let _ = channel_.send(data);
+          }),
+        );
+      }
+
+      Some(channel)
+    } else {
+      None
+    }
   }
 
   /// The channel identifier.
@@ -118,16 +130,11 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
     let window = command.message.window();
     let value: String =
       Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
-    if let Some(callback_id) = value
-      .split_once(CHANNEL_PREFIX)
-      .and_then(|(_prefix, id)| id.parse().ok())
-    {
-      Ok(Channel::new(window, CallbackFn(callback_id)))
-    } else {
-      Err(InvokeError::from_anyhow(anyhow::anyhow!(
+    Channel::load_from_ipc(window, &value).ok_or_else(|| {
+      InvokeError::from_anyhow(anyhow::anyhow!(
         "invalid channel value `{value}`, expected a string in the `{CHANNEL_PREFIX}ID` format"
-      )))
-    }
+      ))
+    })
   }
 }
 

@@ -83,7 +83,11 @@ let CHANNEL_PREFIX = "__CHANNEL__:"
 
   public func getChannel(_ key: String) -> Channel? {
     let channelDef = getString(key, "")
-    guard let channelId = UInt64(channelDef.components(separatedBy: CHANNEL_PREFIX)[1]) else {
+    let components = channelDef.components(separatedBy: CHANNEL_PREFIX)
+    if components.count < 2 {
+      return nil
+    }
+    guard let channelId = UInt64(components[1]) else {
       return nil
     }
     return Channel(

@@ -1740,7 +1740,7 @@ impl<R: Runtime> Window<R> {
               match &response {
                 InvokeResponse::Ok(InvokeBody::Json(v)) => {
                   if matches!(v, JsonValue::Object(_) | JsonValue::Array(_)) {
-                    let _ = Channel::new(window.clone(), callback).send(v);
+                    let _ = Channel::from_ipc(window.clone(), callback).send(v);
                   } else {
                     responder_eval(
                       &window,
@@ -1750,7 +1750,8 @@ impl<R: Runtime> Window<R> {
                   }
                 }
                 InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                  let _ = Channel::new(window.clone(), callback).send(InvokeBody::Raw(v.clone()));
+                  let _ =
+                    Channel::from_ipc(window.clone(), callback).send(InvokeBody::Raw(v.clone()));
                 }
                 InvokeResponse::Err(e) => responder_eval(
                   &window,

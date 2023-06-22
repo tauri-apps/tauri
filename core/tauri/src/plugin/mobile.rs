@@ -4,7 +4,7 @@
 
 use super::{PluginApi, PluginHandle};
 
-use crate::{ipc::CallbackFn, AppHandle, Runtime};
+use crate::{ipc::Channel, AppHandle, Runtime};
 #[cfg(target_os = "android")]
 use crate::{
   runtime::RuntimeHandle,
@@ -23,11 +23,10 @@ use std::{
 type PluginResponse = Result<serde_json::Value, serde_json::Value>;
 
 type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>;
-type ChannelDataHandler = Box<dyn Fn(serde_json::Value) + Send + 'static>;
 
 static PENDING_PLUGIN_CALLS: OnceCell<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
   OnceCell::new();
-static CHANNELS: OnceCell<Mutex<HashMap<u64, ChannelDataHandler>>> = OnceCell::new();
+static CHANNELS: OnceCell<Mutex<HashMap<usize, Channel>>> = OnceCell::new();
 
 /// Possible errors when invoking a plugin.
 #[derive(Debug, thiserror::Error)]
@@ -50,12 +49,12 @@ pub enum PluginInvokeError {
   CannotSerializePayload(serde_json::Error),
 }
 
-pub(crate) fn on_channel_data(id: CallbackFn, handler: ChannelDataHandler) {
+pub(crate) fn register_channel(channel: Channel) {
   CHANNELS
     .get_or_init(Default::default)
     .lock()
     .unwrap()
-    .insert(id.0 as u64, handler);
+    .insert(channel.id(), channel);
 }
 
 /// Glue between Rust and the Kotlin code that sends the plugin response back.
@@ -110,13 +109,13 @@ pub fn send_channel_data(
   let data: serde_json::Value =
     serde_json::from_str(env.get_string(data_str).unwrap().to_str().unwrap()).unwrap();
 
-  if let Some(handler) = CHANNELS
+  if let Some(channel) = CHANNELS
     .get_or_init(Default::default)
     .lock()
     .unwrap()
-    .get(&(channel_id as u64))
+    .get(&(channel_id as usize))
   {
-    handler(data);
+    let _ = channel.send(data);
   }
 }
 
@@ -351,14 +350,14 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
         CStr::from_ptr(payload)
       };
 
-      if let Some(handler) = CHANNELS
+      if let Some(channel) = CHANNELS
         .get_or_init(Default::default)
         .lock()
         .unwrap()
-        .get(&id)
+        .get(&(id as usize))
       {
-        let payload = serde_json::from_str(payload.to_str().unwrap()).unwrap();
-        handler(payload);
+        let payload: serde_json::Value = serde_json::from_str(payload.to_str().unwrap()).unwrap();
+        let _ = channel.send(payload);
       }
     }
 

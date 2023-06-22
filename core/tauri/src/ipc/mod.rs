@@ -19,7 +19,7 @@ use tauri_macros::default_runtime;
 
 use crate::{
   command::{CommandArg, CommandItem},
-  Runtime, StateManager, Window,
+  Manager, Runtime, StateManager, Window,
 };
 
 #[cfg(not(ipc_custom_protocol))]
@@ -42,87 +42,85 @@ pub(crate) const FETCH_CHANNEL_DATA_COMMAND_PREFIX: &str = "__tauriFetchChannelD
 pub(crate) struct ChannelDataCache(pub(crate) Mutex<HashMap<u32, InvokeBody>>);
 
 /// An IPC channel.
-#[default_runtime(crate::Wry, wry)]
-pub struct Channel<R: Runtime> {
-  id: CallbackFn,
-  window: Window<R>,
+#[derive(Clone)]
+pub struct Channel {
+  id: usize,
+  on_message: Arc<dyn Fn(InvokeBody) -> crate::Result<()> + Send + Sync>,
 }
 
-impl<R: Runtime> Clone for Channel<R> {
-  fn clone(&self) -> Self {
-    Self {
-      id: self.id,
-      window: self.window.clone(),
-    }
-  }
-}
-
-impl<R: Runtime> Serialize for Channel<R> {
+impl Serialize for Channel {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
   {
-    serializer.serialize_str(&format!("{CHANNEL_PREFIX}{}", self.id.0))
+    serializer.serialize_str(&format!("{CHANNEL_PREFIX}{}", self.id))
   }
 }
 
-impl<R: Runtime> Channel<R> {
-  pub(crate) fn new(window: Window<R>, id: CallbackFn) -> Self {
-    Self { window, id }
+impl Channel {
+  /// Creates a new channel with the given message handler.
+  pub fn new<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
+    on_message: F,
+  ) -> Self {
+    Self::_new(rand::random(), on_message)
   }
 
-  pub(crate) fn load_from_ipc(window: Window<R>, value: impl AsRef<str>) -> Option<Self> {
-    if let Some(callback_id) = value
+  pub(crate) fn _new<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
+    id: usize,
+    on_message: F,
+  ) -> Self {
+    #[allow(clippy::let_and_return)]
+    let channel = Self {
+      id,
+      on_message: Arc::new(on_message),
+    };
+
+    #[cfg(mobile)]
+    crate::plugin::mobile::register_channel(channel.clone());
+
+    channel
+  }
+
+  pub(crate) fn from_ipc<R: Runtime>(window: Window<R>, callback: CallbackFn) -> Self {
+    Channel::_new(callback.0, move |body| {
+      let data_id = rand::random();
+      window
+        .state::<ChannelDataCache>()
+        .0
+        .lock()
+        .unwrap()
+        .insert(data_id, body);
+      window.eval(&format!(
+        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND_PREFIX}{data_id}').then(window['_' + {}])",
+        callback.0
+      ))
+    })
+  }
+
+  pub(crate) fn load_from_ipc<R: Runtime>(
+    window: Window<R>,
+    value: impl AsRef<str>,
+  ) -> Option<Self> {
+    value
       .as_ref()
       .split_once(CHANNEL_PREFIX)
       .and_then(|(_prefix, id)| id.parse().ok())
-    {
-      #[allow(clippy::let_and_return)]
-      let channel = Channel::new(window, CallbackFn(callback_id));
-
-      #[cfg(mobile)]
-      {
-        let channel_ = channel.clone();
-        crate::plugin::mobile::on_channel_data(
-          channel.id,
-          Box::new(move |data| {
-            let _ = channel_.send(data);
-          }),
-        );
-      }
-
-      Some(channel)
-    } else {
-      None
-    }
+      .map(|callback_id| Self::from_ipc(window, CallbackFn(callback_id)))
   }
 
   /// The channel identifier.
-  pub fn id(&self) -> CallbackFn {
+  pub fn id(&self) -> usize {
     self.id
   }
 
   /// Sends the given data through the  channel.
   pub fn send<T: IpcResponse>(&self, data: T) -> crate::Result<()> {
-    use crate::Manager;
-
     let body = data.body()?;
-    let data_id = rand::random();
-    self
-      .window
-      .state::<ChannelDataCache>()
-      .0
-      .lock()
-      .unwrap()
-      .insert(data_id, body);
-    self.window.eval(&format!(
-      "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND_PREFIX}{data_id}').then(window['_' + {}])",
-      self.id.0
-    ))
+    (self.on_message)(body)
   }
 }
 
-impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
+impl<'de, R: Runtime> CommandArg<'de, R> for Channel {
   /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`Channel`].
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let name = command.name;

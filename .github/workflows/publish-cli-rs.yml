@@ -87,7 +87,7 @@ jobs:
         run: ./.scripts/ci/pack-cli.sh
 
       - name: Get CLI version
-        run: echo "CLI_VERSION=$(cat tooling/cli/metadata.json | jq '."@tauri-apps/cli".version' -r)" >> $GITHUB_ENV
+        run: echo "CLI_VERSION=$(cat tooling/cli/metadata-v2.json | jq '."@tauri-apps/cli".version' -r)" >> $GITHUB_ENV
 
       - name: Publish release
         uses: softprops/action-gh-release@50195ba7f6f93d1ac97ba8332a178e008ad176aa

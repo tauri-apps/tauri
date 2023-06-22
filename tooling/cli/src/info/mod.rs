@@ -35,7 +35,8 @@ pub struct VersionMetadata {
 }
 
 fn version_metadata() -> Result<VersionMetadata> {
-  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json")).map_err(Into::into)
+  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
+    .map_err(Into::into)
 }
 
 #[cfg(not(debug_assertions))]
@@ -46,7 +47,7 @@ pub(crate) fn cli_current_version() -> Result<String> {
 #[cfg(not(debug_assertions))]
 pub(crate) fn cli_upstream_version() -> Result<String> {
   let upstream_metadata = match ureq::get(
-    "https://raw.githubusercontent.com/tauri-apps/tauri/dev/tooling/cli/metadata.json",
+    "https://raw.githubusercontent.com/tauri-apps/tauri/dev/tooling/cli/metadata-v2.json",
   )
   .timeout(std::time::Duration::from_secs(3))
   .call()

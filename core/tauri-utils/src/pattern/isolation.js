@@ -63,7 +63,7 @@
    */
   function isIsolationMessage(data) {
     if (typeof data === 'object' && typeof data.payload === 'object') {
-      const keys = Object.keys(data.payload)
+      const keys = data.payload ? Object.keys(data.payload) : []
       return (
         keys.length > 0 &&
         keys.every((key) => key === 'nonce' || key === 'payload')

@@ -141,6 +141,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
         error: CallbackFn,
         #[serde(flatten)]
         payload: crate::utils::pattern::isolation::RawIsolationPayload<'a>,
+        options: Option<RequestOptions>,
       }
 
       if let crate::Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
@@ -153,6 +154,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
                 callback: message.callback,
                 error: message.error,
                 payload: serde_json::from_slice(&crypto_keys.decrypt(message.payload)?)?,
+                options: message.options,
               })
             }),
         );

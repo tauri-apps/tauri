@@ -47,6 +47,7 @@
 //!         callback: tauri::ipc::CallbackFn(0),
 //!         error: tauri::ipc::CallbackFn(1),
 //!         body: serde_json::Value::Null.into(),
+//!         headers: Default::default(),
 //!       },
 //!       Ok(())
 //!     );
@@ -210,6 +211,7 @@ pub fn mock_app() -> App<MockRuntime> {
 ///         callback: tauri::ipc::CallbackFn(0),
 ///         error: tauri::ipc::CallbackFn(1),
 ///         body: serde_json::Value::Null.into(),
+///         headers: Default::default(),
 ///       },
 ///       // the expected response is a success with the "pong" payload
 ///       // we could also use Err("error message") here to ensure the command failed

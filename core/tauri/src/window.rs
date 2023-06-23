@@ -17,8 +17,8 @@ use crate::{
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   ipc::{
-    CallbackFn, ChannelDataCache, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
-    InvokeResponse, FETCH_CHANNEL_DATA_COMMAND_PREFIX,
+    channel::FETCH_CHANNEL_DATA_COMMAND_PREFIX, CallbackFn, Invoke, InvokeBody, InvokeError,
+    InvokeMessage, InvokeResolver, InvokeResponse,
   },
   manager::WindowManager,
   runtime::{
@@ -1783,27 +1783,6 @@ impl<R: Runtime> Window<R> {
         Err(e) => resolver.reject(e.to_string()),
       },
       _ => {
-        // send channel data
-        if let Some(id) = request
-          .cmd
-          .split_once(FETCH_CHANNEL_DATA_COMMAND_PREFIX)
-          .and_then(|(_, id)| id.parse().ok())
-        {
-          if let Some(data) = self
-            .state::<ChannelDataCache>()
-            .0
-            .lock()
-            .unwrap()
-            .remove(&id)
-          {
-            resolver.resolve(data);
-          } else {
-            resolver.reject("Data not found");
-          }
-
-          return rx;
-        }
-
         #[cfg(mobile)]
         let app_handle = self.app_handle.clone();
 
@@ -1855,7 +1834,7 @@ impl<R: Runtime> Window<R> {
                 if let serde_json::Value::Object(map) = payload {
                   for v in map.values() {
                     if let serde_json::Value::String(s) = v {
-                      if s.starts_with(crate::ipc::CHANNEL_PREFIX) {
+                      if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
                         crate::ipc::Channel::load_from_ipc(window.clone(), s);
                       }
                     }

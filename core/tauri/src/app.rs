@@ -8,7 +8,7 @@ pub(crate) mod tray;
 use crate::{
   command::{CommandArg, CommandItem},
   ipc::{
-    CallbackFn, ChannelDataCache, Invoke, InvokeError, InvokeHandler, InvokeResponder,
+    channel::ChannelDataCache, CallbackFn, Invoke, InvokeError, InvokeHandler, InvokeResponder,
     InvokeResponse,
   },
   manager::{Asset, CustomProtocol, WindowManager},
@@ -854,7 +854,7 @@ impl<R: Runtime> Builder<R> {
       invoke_initialization_script: InvokeInitializationScript {
         process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
         os_name: std::env::consts::OS,
-        fetch_channel_data_command_prefix: crate::ipc::FETCH_CHANNEL_DATA_COMMAND_PREFIX,
+        fetch_channel_data_command_prefix: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND_PREFIX,
       }
       .render_default(&Default::default())
       .unwrap()
@@ -1368,7 +1368,9 @@ impl<R: Runtime> Builder<R> {
       asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
     });
 
-    app.manage(ChannelDataCache::default());
+    let cache = ChannelDataCache::default();
+    app.manage(cache.clone());
+    app.handle.plugin(crate::ipc::channel::plugin(cache))?;
 
     #[cfg(windows)]
     {

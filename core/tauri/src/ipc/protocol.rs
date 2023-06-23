@@ -87,13 +87,46 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
 #[cfg(not(ipc_custom_protocol))]
 fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, label: &str) {
   if let Some(window) = manager.get_window(label) {
-    #[derive(serde::Deserialize)]
+    use serde::{Deserialize, Deserializer};
+
+    pub(crate) struct HeaderMap(http::HeaderMap);
+
+    impl<'de> Deserialize<'de> for HeaderMap {
+      fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+      where
+        D: Deserializer<'de>,
+      {
+        let map = std::collections::HashMap::<String, String>::deserialize(deserializer)?;
+        let mut headers = http::HeaderMap::default();
+        for (key, value) in map {
+          if let (Ok(key), Ok(value)) = (
+            http::HeaderName::from_bytes(key.as_bytes()),
+            http::HeaderValue::from_str(&value),
+          ) {
+            headers.insert(key, value);
+          } else {
+            return Err(serde::de::Error::custom(format!(
+              "invalid header `{key}` `{value}`"
+            )));
+          }
+        }
+        Ok(Self(headers))
+      }
+    }
+
+    #[derive(Deserialize)]
+    struct RequestOptions {
+      headers: HeaderMap,
+    }
+
+    #[derive(Deserialize)]
     struct Message {
       cmd: String,
       callback: CallbackFn,
       error: CallbackFn,
       #[serde(flatten)]
       payload: serde_json::Value,
+      options: Option<RequestOptions>,
     }
 
     #[allow(unused_mut)]
@@ -135,7 +168,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
           callback: message.callback,
           error: message.error,
           body: message.payload.into(),
-          headers: Default::default(),
+          headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
         });
       }
       Err(e) => {

@@ -55,7 +55,7 @@
     }
   }
 
-  window.__TAURI_INVOKE__ = function invoke(cmd, payload = {}) {
+  window.__TAURI_INVOKE__ = function invoke(cmd, payload = {}, options) {
     return new Promise(function (resolve, reject) {
       var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r)
@@ -71,7 +71,8 @@
           cmd,
           callback,
           error,
-          payload
+          payload,
+          options
         })
       }
       if (window.__TAURI_IPC__) {

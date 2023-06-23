@@ -6,18 +6,18 @@ use std::{
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{
+  command,
   command::{CommandArg, CommandItem},
   plugin::{Builder as PluginBuilder, TauriPlugin},
-  Manager, Runtime, Window,
+  Manager, Runtime, State, Window,
 };
 
-use super::{CallbackFn, InvokeBody, InvokeError, IpcResponse};
+use super::{CallbackFn, InvokeBody, InvokeError, IpcResponse, Request, Response};
 
 pub(crate) const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
 const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
-const PLUGIN_FETCH_COMMAND_PREFIX: &str = "fetch?";
-// TODO: ideally this const references CHANNEL_PLUGIN_NAME and PLUGIN_FETCH_COMMAND_PREFIX
-pub(crate) const FETCH_CHANNEL_DATA_COMMAND_PREFIX: &str = "plugin:__TAURI_CHANNEL__|fetch?";
+// TODO: ideally this const references CHANNEL_PLUGIN_NAME
+pub(crate) const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
 
 #[derive(Default, Clone)]
 pub struct ChannelDataCache(pub(crate) Arc<Mutex<HashMap<u32, InvokeBody>>>);
@@ -72,7 +72,7 @@ impl Channel {
         .unwrap()
         .insert(data_id, body);
       window.eval(&format!(
-        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND_PREFIX}{data_id}').then(window['_' + {}])",
+        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ 'Tauri-Channel-Id': {data_id} }} }}).then(window['_' + {}])",
         callback.0
       ))
     })
@@ -117,25 +117,30 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel {
   }
 }
 
-pub fn plugin<R: Runtime>(cache: ChannelDataCache) -> TauriPlugin<R> {
+#[command(root = "crate")]
+fn fetch(
+  request: Request<'_>,
+  cache: State<'_, ChannelDataCache>,
+) -> Result<Response, &'static str> {
+  println!("fetch {:?}", request);
+  if let Some(id) = request
+    .headers()
+    .get("Tauri-Channel-Id")
+    .and_then(|v| v.to_str().ok())
+    .and_then(|id| id.parse().ok())
+  {
+    if let Some(data) = cache.0.lock().unwrap().remove(&id) {
+      Ok(Response::new(data))
+    } else {
+      Err("data not found")
+    }
+  } else {
+    Err("missing Tauri-Channel-Id header")
+  }
+}
+
+pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
   PluginBuilder::new(CHANNEL_PLUGIN_NAME)
-    .invoke_handler(move |invoke| {
-      // send channel data
-      if let Some(id) = invoke
-        .message
-        .command
-        .split_once(PLUGIN_FETCH_COMMAND_PREFIX)
-        .and_then(|(_, id)| id.parse().ok())
-      {
-        if let Some(data) = cache.0.lock().unwrap().remove(&id) {
-          invoke.resolver.resolve(data);
-        } else {
-          invoke.resolver.reject("Data not found");
-        }
-        true
-      } else {
-        false
-      }
-    })
+    .invoke_handler(crate::generate_handler![fetch])
     .build()
 }

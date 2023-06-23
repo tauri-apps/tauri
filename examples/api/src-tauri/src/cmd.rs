@@ -17,8 +17,15 @@ pub fn log_operation(event: String, payload: Option<String>) {
   log::info!("{} {:?}", event, payload);
 }
 
+#[derive(serde::Serialize)]
+pub struct R {
+  x: String,
+}
+
 #[command]
-pub fn perform_request(endpoint: String, body: RequestBody) -> String {
+pub fn perform_request(endpoint: String, body: RequestBody) -> R {
   println!("{} {:?}", endpoint, body);
-  "message response".into()
+  R {
+    x: "message response".into(),
+  }
 }

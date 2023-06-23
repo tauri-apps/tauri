@@ -9,6 +9,7 @@
 use std::sync::Arc;
 
 use futures_util::Future;
+use http::HeaderMap;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
@@ -27,7 +28,7 @@ pub(crate) mod protocol;
 pub use channel::Channel;
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
-pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
+pub type InvokeHandler<R> = dyn Fn(Invoke<'_, R>) -> bool + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
 pub type InvokeResponder<R> =
@@ -92,6 +93,7 @@ impl InvokeBody {
 #[derive(Debug)]
 pub struct Request<'a> {
   body: &'a InvokeBody,
+  headers: &'a HeaderMap,
 }
 
 impl<'a> Request<'a> {
@@ -99,13 +101,19 @@ impl<'a> Request<'a> {
   pub fn body(&self) -> &InvokeBody {
     self.body
   }
+
+  /// Thr request headers.
+  pub fn headers(&self) -> &HeaderMap {
+    self.headers
+  }
 }
 
 impl<'a, R: Runtime> CommandArg<'a, R> for Request<'a> {
   /// Returns the invoke [`Request`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     Ok(Self {
-      body: &command.message.payload,
+      body: command.message.payload(),
+      headers: command.message.headers(),
     })
   }
 }
@@ -144,9 +152,9 @@ impl Response {
 
 /// The message and resolver given to a custom command.
 #[default_runtime(crate::Wry, wry)]
-pub struct Invoke<R: Runtime> {
+pub struct Invoke<'a, R: Runtime> {
   /// The message passed.
-  pub message: InvokeMessage<R>,
+  pub message: InvokeMessage<'a, R>,
 
   /// The resolver of the message.
   pub resolver: InvokeResolver<R>,
@@ -394,7 +402,7 @@ impl<R: Runtime> InvokeResolver<R> {
 /// An invoke message.
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
-pub struct InvokeMessage<R: Runtime> {
+pub struct InvokeMessage<'a, R: Runtime> {
   /// The window that received the invoke message.
   pub(crate) window: Window<R>,
   /// Application managed state.
@@ -403,32 +411,37 @@ pub struct InvokeMessage<R: Runtime> {
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
   pub(crate) payload: InvokeBody,
+  /// The request headers.
+  pub(crate) headers: &'a HeaderMap,
 }
 
-impl<R: Runtime> Clone for InvokeMessage<R> {
+impl<'a, R: Runtime> Clone for InvokeMessage<'a, R> {
   fn clone(&self) -> Self {
     Self {
       window: self.window.clone(),
       state: self.state.clone(),
       command: self.command.clone(),
       payload: self.payload.clone(),
+      headers: self.headers,
     }
   }
 }
 
-impl<R: Runtime> InvokeMessage<R> {
+impl<'a, R: Runtime> InvokeMessage<'a, R> {
   /// Create an new [`InvokeMessage`] from a payload send to a window.
   pub(crate) fn new(
     window: Window<R>,
     state: Arc<StateManager>,
     command: String,
     payload: InvokeBody,
+    headers: &'a HeaderMap,
   ) -> Self {
     Self {
       window,
       state,
       command,
       payload,
+      headers,
     }
   }
 
@@ -466,6 +479,12 @@ impl<R: Runtime> InvokeMessage<R> {
   #[inline(always)]
   pub fn state_ref(&self) -> &StateManager {
     &self.state
+  }
+
+  /// The request headers.
+  #[inline(always)]
+  pub fn headers(&self) -> &HeaderMap {
+    &self.headers
   }
 }
 

@@ -58,7 +58,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
         let mut r = HttpResponse::new(Vec::new().into());
         r.headers_mut().insert(
           ACCESS_CONTROL_ALLOW_HEADERS,
-          HeaderValue::from_static("Content-Type, Tauri-Callback, Tauri-Error"),
+          HeaderValue::from_static("Content-Type, Tauri-Callback, Tauri-Error, Tauri-Channel-Id"),
         );
         r
       }
@@ -130,11 +130,13 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
       .unwrap_or_else(|| serde_json::from_str::<Message>(&message).map_err(Into::into))
     {
       Ok(message) => {
+        let headers = Default::default();
         let _ = window.on_message(InvokeRequest {
           cmd: message.cmd,
           callback: message.callback,
           error: message.error,
           body: message.payload.into(),
+          headers: &headers,
         });
       }
       Err(e) => {
@@ -225,6 +227,7 @@ fn handle_ipc_request<R: Runtime>(
       callback,
       error,
       body,
+      headers: request.headers(),
     };
 
     let rx = window.on_message(payload);

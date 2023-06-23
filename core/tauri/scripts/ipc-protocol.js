@@ -5,12 +5,12 @@
 (function () {
   const processIpcMessage = __RAW_process_ipc_message_fn__
   const osName = __TEMPLATE_os_name__
-  const fetchChannelDataCommandPrefix = __TEMPLATE_fetch_channel_data_command_prefix__
+  const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
 
   Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {
     value: (message) => {
-      const { cmd, callback, error, payload } = message
-      if ((osName === 'linux' || osName === 'android') && !cmd.startsWith(fetchChannelDataCommandPrefix)) {
+      const { cmd, callback, error, payload, options } = message
+      if ((osName === 'linux' || osName === 'android') && cmd != fetchChannelDataCommand) {
         const { data } = processIpcMessage({ cmd, callback, error, ...payload })
         window.ipc.postMessage(data)
       } else {
@@ -22,6 +22,7 @@
             'Content-Type': contentType,
             'Tauri-Callback': callback,
             'Tauri-Error': error,
+            ...options?.headers
           }
         }).then((response) => {
           const cb = response.ok ? callback : error

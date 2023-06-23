@@ -6,6 +6,7 @@
 
 pub(crate) mod menu;
 
+use http::HeaderMap;
 pub use menu::{MenuEvent, MenuHandle};
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
@@ -17,8 +18,7 @@ use crate::{
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   ipc::{
-    channel::FETCH_CHANNEL_DATA_COMMAND_PREFIX, CallbackFn, Invoke, InvokeBody, InvokeError,
-    InvokeMessage, InvokeResolver, InvokeResponse,
+    CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver, InvokeResponse,
   },
   manager::WindowManager,
   runtime::{
@@ -771,7 +771,7 @@ struct JsEventListenerKey {
 
 /// The IPC invoke request.
 #[derive(Debug)]
-pub struct InvokeRequest {
+pub struct InvokeRequest<'a> {
   /// The invoke command.
   pub cmd: String,
   /// The success callback.
@@ -780,6 +780,8 @@ pub struct InvokeRequest {
   pub error: CallbackFn,
   /// The body of the request.
   pub body: InvokeBody,
+  /// The request headers.
+  pub headers: &'a HeaderMap,
 }
 
 // TODO: expand these docs since this is a pretty important type
@@ -1679,7 +1681,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Handles this window receiving an [`InvokeRequest`].
-  pub fn on_message(self, request: InvokeRequest) -> Receiver<InvokeResponse> {
+  pub fn on_message(self, request: InvokeRequest<'_>) -> Receiver<InvokeResponse> {
     let manager = self.manager.clone();
     let current_url = self.url();
     let is_local = self.is_local_url(&current_url);
@@ -1722,7 +1724,8 @@ impl<R: Runtime> Window<R> {
             use serde_json::Value as JsonValue;
 
             // the channel data command is the only command that uses a custom protocol on Linux
-            if custom_responder.is_none() && !cmd.starts_with(FETCH_CHANNEL_DATA_COMMAND_PREFIX) {
+            if custom_responder.is_none() && cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+            {
               fn responder_eval<R: Runtime>(
                 window: &Window<R>,
                 js: crate::api::Result<String>,
@@ -1786,8 +1789,13 @@ impl<R: Runtime> Window<R> {
         #[cfg(mobile)]
         let app_handle = self.app_handle.clone();
 
-        let message =
-          InvokeMessage::new(self, manager.state(), request.cmd.to_string(), request.body);
+        let message = InvokeMessage::new(
+          self,
+          manager.state(),
+          request.cmd.to_string(),
+          request.body,
+          request.headers,
+        );
 
         let mut invoke = Invoke {
           message,

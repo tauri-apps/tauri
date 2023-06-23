@@ -839,7 +839,7 @@ struct InvokeInitializationScript<'a> {
   #[raw]
   process_ipc_message_fn: &'a str,
   os_name: &'a str,
-  fetch_channel_data_command_prefix: &'a str,
+  fetch_channel_data_command: &'a str,
 }
 
 impl<R: Runtime> Builder<R> {
@@ -854,7 +854,7 @@ impl<R: Runtime> Builder<R> {
       invoke_initialization_script: InvokeInitializationScript {
         process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
         os_name: std::env::consts::OS,
-        fetch_channel_data_command_prefix: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND_PREFIX,
+        fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
       }
       .render_default(&Default::default())
       .unwrap()
@@ -906,7 +906,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(Invoke<R>) -> bool + Send + Sync + 'static,
+    F: Fn(Invoke<'_, R>) -> bool + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self
@@ -917,7 +917,7 @@ impl<R: Runtime> Builder<R> {
   /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
   ///
   /// The `initialization_script` is a script that initializes `window.__TAURI_POST_MESSAGE__`.
-  /// That function must take the `message: object` argument and send it to the backend.
+  /// That function must take the `(message: object, options: object)` arguments and send it to the backend.
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
@@ -1368,9 +1368,8 @@ impl<R: Runtime> Builder<R> {
       asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
     });
 
-    let cache = ChannelDataCache::default();
-    app.manage(cache.clone());
-    app.handle.plugin(crate::ipc::channel::plugin(cache))?;
+    app.manage(ChannelDataCache::default());
+    app.handle.plugin(crate::ipc::channel::plugin())?;
 
     #[cfg(windows)]
     {

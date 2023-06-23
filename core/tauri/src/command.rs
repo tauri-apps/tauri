@@ -25,7 +25,7 @@ pub struct CommandItem<'a, R: Runtime> {
   pub key: &'static str,
 
   /// The [`InvokeMessage`] that was passed to this command.
-  pub message: &'a InvokeMessage<R>,
+  pub message: &'a InvokeMessage<'a, R>,
 }
 
 /// Trait implemented by command arguments to derive a value from a [`CommandItem`].

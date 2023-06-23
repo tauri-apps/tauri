@@ -921,7 +921,7 @@ mod test {
 }
 
 impl<R: Runtime> WindowManager<R> {
-  pub fn run_invoke_handler(&self, invoke: Invoke<'_, R>) -> bool {
+  pub fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
     (self.inner.invoke_handler)(invoke)
   }
 
@@ -935,7 +935,7 @@ impl<R: Runtime> WindowManager<R> {
       .on_page_load(window, payload);
   }
 
-  pub fn extend_api(&self, plugin: &str, invoke: Invoke<'_, R>) -> bool {
+  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .inner
       .plugins

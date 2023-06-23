@@ -130,13 +130,12 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
       .unwrap_or_else(|| serde_json::from_str::<Message>(&message).map_err(Into::into))
     {
       Ok(message) => {
-        let headers = Default::default();
         let _ = window.on_message(InvokeRequest {
           cmd: message.cmd,
           callback: message.callback,
           error: message.error,
           body: message.payload.into(),
-          headers: &headers,
+          headers: Default::default(),
         });
       }
       Err(e) => {
@@ -227,7 +226,7 @@ fn handle_ipc_request<R: Runtime>(
       callback,
       error,
       body,
-      headers: request.headers(),
+      headers: request.headers().clone(),
     };
 
     let rx = window.on_message(payload);

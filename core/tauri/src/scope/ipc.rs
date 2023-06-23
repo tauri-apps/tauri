@@ -204,6 +204,7 @@ mod tests {
       callback,
       error,
       body: serde_json::Value::Object(payload).into(),
+      headers: Default::default(),
     }
   }
 
@@ -216,6 +217,7 @@ mod tests {
       callback,
       error,
       body: Default::default(),
+      headers: Default::default(),
     }
   }
 

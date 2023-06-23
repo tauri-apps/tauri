@@ -771,7 +771,7 @@ struct JsEventListenerKey {
 
 /// The IPC invoke request.
 #[derive(Debug)]
-pub struct InvokeRequest<'a> {
+pub struct InvokeRequest {
   /// The invoke command.
   pub cmd: String,
   /// The success callback.
@@ -781,7 +781,7 @@ pub struct InvokeRequest<'a> {
   /// The body of the request.
   pub body: InvokeBody,
   /// The request headers.
-  pub headers: &'a HeaderMap,
+  pub headers: HeaderMap,
 }
 
 // TODO: expand these docs since this is a pretty important type
@@ -1681,7 +1681,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Handles this window receiving an [`InvokeRequest`].
-  pub fn on_message(self, request: InvokeRequest<'_>) -> Receiver<InvokeResponse> {
+  pub fn on_message(self, request: InvokeRequest) -> Receiver<InvokeResponse> {
     let manager = self.manager.clone();
     let current_url = self.url();
     let is_local = self.is_local_url(&current_url);

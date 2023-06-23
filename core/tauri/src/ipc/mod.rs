@@ -28,7 +28,7 @@ pub(crate) mod protocol;
 pub use channel::Channel;
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
-pub type InvokeHandler<R> = dyn Fn(Invoke<'_, R>) -> bool + Send + Sync + 'static;
+pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
 pub type InvokeResponder<R> =
@@ -152,9 +152,9 @@ impl Response {
 
 /// The message and resolver given to a custom command.
 #[default_runtime(crate::Wry, wry)]
-pub struct Invoke<'a, R: Runtime> {
+pub struct Invoke<R: Runtime> {
   /// The message passed.
-  pub message: InvokeMessage<'a, R>,
+  pub message: InvokeMessage<R>,
 
   /// The resolver of the message.
   pub resolver: InvokeResolver<R>,
@@ -402,7 +402,7 @@ impl<R: Runtime> InvokeResolver<R> {
 /// An invoke message.
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
-pub struct InvokeMessage<'a, R: Runtime> {
+pub struct InvokeMessage<R: Runtime> {
   /// The window that received the invoke message.
   pub(crate) window: Window<R>,
   /// Application managed state.
@@ -412,29 +412,29 @@ pub struct InvokeMessage<'a, R: Runtime> {
   /// The JSON argument passed on the invoke message.
   pub(crate) payload: InvokeBody,
   /// The request headers.
-  pub(crate) headers: &'a HeaderMap,
+  pub(crate) headers: HeaderMap,
 }
 
-impl<'a, R: Runtime> Clone for InvokeMessage<'a, R> {
+impl<R: Runtime> Clone for InvokeMessage<R> {
   fn clone(&self) -> Self {
     Self {
       window: self.window.clone(),
       state: self.state.clone(),
       command: self.command.clone(),
       payload: self.payload.clone(),
-      headers: self.headers,
+      headers: self.headers.clone(),
     }
   }
 }
 
-impl<'a, R: Runtime> InvokeMessage<'a, R> {
+impl<R: Runtime> InvokeMessage<R> {
   /// Create an new [`InvokeMessage`] from a payload send to a window.
   pub(crate) fn new(
     window: Window<R>,
     state: Arc<StateManager>,
     command: String,
     payload: InvokeBody,
-    headers: &'a HeaderMap,
+    headers: HeaderMap,
   ) -> Self {
     Self {
       window,

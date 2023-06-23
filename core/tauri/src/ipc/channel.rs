@@ -122,7 +122,6 @@ fn fetch(
   request: Request<'_>,
   cache: State<'_, ChannelDataCache>,
 ) -> Result<Response, &'static str> {
-  println!("fetch {:?}", request);
   if let Some(id) = request
     .headers()
     .get("Tauri-Channel-Id")

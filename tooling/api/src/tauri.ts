@@ -122,7 +122,7 @@ async function addPluginListener<T>(
  *
  * @since 1.0.0
  */
-type InvokeArgs = Record<string, unknown>
+type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array
 
 /**
  * Sends a message to the backend.

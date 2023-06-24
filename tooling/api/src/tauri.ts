@@ -127,7 +127,9 @@ type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array
 /**
  * @since 2.0.0
  */
-interface InvokeOptions { headers: Headers | Record<string, string> }
+interface InvokeOptions {
+  headers: Headers | Record<string, string>
+}
 
 /**
  * Sends a message to the backend.
@@ -144,7 +146,11 @@ interface InvokeOptions { headers: Headers | Record<string, string> }
  *
  * @since 1.0.0
  */
-async function invoke<T>(cmd: string, args: InvokeArgs = {}, options?: InvokeOptions): Promise<T> {
+async function invoke<T>(
+  cmd: string,
+  args: InvokeArgs = {},
+  options?: InvokeOptions
+): Promise<T> {
   return new Promise((resolve, reject) => {
     const callback = transformCallback((e: T) => {
       resolve(e)

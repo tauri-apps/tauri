@@ -1805,17 +1805,6 @@ impl<R: Runtime> Window<R> {
         if !is_local && scope.is_none() {
           invoke.resolver.reject(scope_not_found_error_message);
         } else if request.cmd.starts_with("plugin:") {
-          if !is_local {
-            let command = invoke.message.command.replace("plugin:", "");
-            let plugin_name = command.split('|').next().unwrap().to_string();
-            if !scope
-              .map(|s| s.plugins().contains(&plugin_name))
-              .unwrap_or(true)
-            {
-              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-              return rx;
-            }
-          }
           let command = invoke.message.command.replace("plugin:", "");
           let mut tokens = command.split('|');
           // safe to unwrap: split always has a least one item
@@ -1824,6 +1813,16 @@ impl<R: Runtime> Window<R> {
             .next()
             .map(|c| c.to_string())
             .unwrap_or_else(String::new);
+
+          if !(is_local
+            || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
+            || scope
+              .map(|s| s.plugins().contains(&plugin.into()))
+              .unwrap_or(true))
+          {
+            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+            return rx;
+          }
 
           let command = invoke.message.command.clone();
 

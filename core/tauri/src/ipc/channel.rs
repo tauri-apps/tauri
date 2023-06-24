@@ -14,10 +14,10 @@ use crate::{
 
 use super::{CallbackFn, InvokeBody, InvokeError, IpcResponse, Request, Response};
 
-pub(crate) const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
-const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
+pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
+pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
 // TODO: ideally this const references CHANNEL_PLUGIN_NAME
-pub(crate) const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
+pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
 
 #[derive(Default, Clone)]
 pub struct ChannelDataCache(pub(crate) Arc<Mutex<HashMap<u32, InvokeBody>>>);
@@ -72,7 +72,7 @@ impl Channel {
         .unwrap()
         .insert(data_id, body);
       window.eval(&format!(
-        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ 'Tauri-Channel-Id': {data_id} }} }}).then(window['_' + {}])",
+        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ 'Tauri-Channel-Id': {data_id} }} }}).then(window['_' + {}]).catch(console.error)",
         callback.0
       ))
     })

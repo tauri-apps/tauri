@@ -87,7 +87,8 @@
     "windows": [],
     "security": {
       "csp": {
-        "default-src": "'self' customprotocol: asset: ipc:",
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc:",
         "font-src": ["https://fonts.gstatic.com"],
         "img-src": "'self' asset: https://asset.localhost blob: data:",
         "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"

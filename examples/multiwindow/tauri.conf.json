@@ -1,8 +1,12 @@
 {
   "$schema": "../../core/tauri-config-schema/schema.json",
   "build": {
-    "distDir": ["index.html"],
-    "devPath": ["index.html"],
+    "distDir": [
+      "index.html"
+    ],
+    "devPath": [
+      "index.html"
+    ],
     "withGlobalTauri": true
   },
   "package": {
@@ -43,7 +47,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc:"
+      "csp": "default-src 'self'; connect-src ipc:"
     }
   }
 }

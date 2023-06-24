@@ -2,4 +2,4 @@
 'tauri-cli': 'patch:bug'
 ---
 
-Fix `tauri info` failing for all iOS apps
+Fix `tauri info` failing when there is no available iOS code signing certificate.

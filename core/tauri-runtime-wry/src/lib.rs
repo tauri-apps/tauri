@@ -3027,6 +3027,7 @@ fn create_webview<T: UserEvent>(
     menu_ids,
     #[cfg(target_os = "android")]
     on_webview_created,
+    on_page_load_handler,
     ..
   } = pending;
   let webview_id_map = context.webview_id_map.clone();
@@ -3173,6 +3174,11 @@ fn create_webview<T: UserEvent>(
         })
       });
     }
+  }
+
+  if let Some(on_page_load_handler) = on_page_load_handler {
+    webview_builder =
+      webview_builder.with_on_load_handler(move |_, url| on_page_load_handler(todo!(), url));
   }
 
   let webview = webview_builder

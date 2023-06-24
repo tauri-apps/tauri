@@ -320,6 +320,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     )?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
+    let manager = self.manager.clone();
+    pending.page_load_handler = Some(Box::new(move |window, url| {
+      let payload = PageLoadPayload {
+        url: url.to_string(),
+      };
+      manager.run_on_page_load(window, payload);
+    }));
 
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
     let pending = self
@@ -1670,87 +1677,82 @@ impl<R: Runtime> Window<R> {
         }
       }
     };
-    match payload.cmd.as_str() {
-      "__initialized" => {
-        let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
-        manager.run_on_page_load(self, payload);
-      }
-      _ => {
-        let message = InvokeMessage::new(
-          self.clone(),
-          manager.state(),
-          payload.cmd.to_string(),
-          payload.inner,
-        );
-        #[allow(clippy::redundant_clone)]
-        let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
 
-        let mut invoke = Invoke { message, resolver };
-        if !is_local && scope.is_none() {
-          invoke.resolver.reject(scope_not_found_error_message);
+    let message = InvokeMessage::new(
+      self.clone(),
+      manager.state(),
+      payload.cmd.to_string(),
+      payload.inner,
+    );
+    #[allow(clippy::redundant_clone)]
+    let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
+
+    let mut invoke = Invoke { message, resolver };
+    if !is_local && scope.is_none() {
+      invoke.resolver.reject(scope_not_found_error_message);
+      return Ok(());
+    }
+
+    if payload.cmd.starts_with("plugin:") {
+      if !is_local {
+        let command = invoke.message.command.replace("plugin:", "");
+        let plugin_name = command.split('|').next().unwrap().to_string();
+        if !scope
+          .map(|s| s.plugins().contains(&plugin_name))
+          .unwrap_or(true)
+        {
+          invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
           return Ok(());
         }
+      }
+      let command = invoke.message.command.replace("plugin:", "");
+      let mut tokens = command.split('|');
+      // safe to unwrap: split always has a least one item
+      let plugin = tokens.next().unwrap();
+      invoke.message.command = tokens
+        .next()
+        .map(|c| c.to_string())
+        .unwrap_or_else(String::new);
 
-        if payload.cmd.starts_with("plugin:") {
-          if !is_local {
-            let command = invoke.message.command.replace("plugin:", "");
-            let plugin_name = command.split('|').next().unwrap().to_string();
-            if !scope
-              .map(|s| s.plugins().contains(&plugin_name))
-              .unwrap_or(true)
-            {
-              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-              return Ok(());
-            }
-          }
-          let command = invoke.message.command.replace("plugin:", "");
-          let mut tokens = command.split('|');
-          // safe to unwrap: split always has a least one item
-          let plugin = tokens.next().unwrap();
-          invoke.message.command = tokens
-            .next()
-            .map(|c| c.to_string())
-            .unwrap_or_else(String::new);
+      let command = invoke.message.command.clone();
+      let resolver = invoke.resolver.clone();
+      #[cfg(mobile)]
+      let message = invoke.message.clone();
 
-          let command = invoke.message.command.clone();
-          let resolver = invoke.resolver.clone();
-          #[cfg(mobile)]
-          let message = invoke.message.clone();
+      #[allow(unused_mut)]
+      let mut handled = manager.extend_api(plugin, invoke);
 
-          #[allow(unused_mut)]
-          let mut handled = manager.extend_api(plugin, invoke);
+      #[cfg(target_os = "ios")]
+      {
+        if !handled {
+          handled = true;
+          let plugin = plugin.to_string();
+          let (callback, error) = (resolver.callback, resolver.error);
+          self.with_webview(move |webview| {
+            unsafe {
+              crate::ios::post_ipc_message(
+                webview.inner() as _,
+                &plugin.as_str().into(),
+                &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
+                  .as_str()
+                  .into(),
+                crate::ios::json_to_dictionary(&message.payload) as _,
+                callback.0,
+                error.0,
+              )
+            };
+          })?;
+        }
+      }
 
-          #[cfg(target_os = "ios")]
-          {
-            if !handled {
-              handled = true;
-              let plugin = plugin.to_string();
-              let (callback, error) = (resolver.callback, resolver.error);
-              self.with_webview(move |webview| {
-                unsafe {
-                  crate::ios::post_ipc_message(
-                    webview.inner() as _,
-                    &plugin.as_str().into(),
-                    &heck::ToLowerCamelCase::to_lower_camel_case(message.command.as_str())
-                      .as_str()
-                      .into(),
-                    crate::ios::json_to_dictionary(&message.payload) as _,
-                    callback.0,
-                    error.0,
-                  )
-                };
-              })?;
-            }
-          }
-
-          #[cfg(target_os = "android")]
-          {
-            if !handled {
-              handled = true;
-              let resolver_ = resolver.clone();
-              let runtime_handle = self.app_handle.runtime_handle.clone();
-              let plugin = plugin.to_string();
-              self.with_webview(move |webview| {
+      #[cfg(target_os = "android")]
+      {
+        if !handled {
+          handled = true;
+          let resolver_ = resolver.clone();
+          let runtime_handle = self.app_handle.runtime_handle.clone();
+          let plugin = plugin.to_string();
+          self.with_webview(move |webview| {
                 webview.jni_handle().exec(move |env, activity, webview| {
                   use jni::{
                     errors::Error as JniError,
@@ -1807,20 +1809,18 @@ impl<R: Runtime> Window<R> {
                   }
                 });
               })?;
-            }
-          }
-
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
-          }
-        } else {
-          let command = invoke.message.command.clone();
-          let resolver = invoke.resolver.clone();
-          let handled = manager.run_invoke_handler(invoke);
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
-          }
         }
+      }
+
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
+      }
+    } else {
+      let command = invoke.message.command.clone();
+      let resolver = invoke.resolver.clone();
+      let handled = manager.run_invoke_handler(invoke);
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
       }
     }
 

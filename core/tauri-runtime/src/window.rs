@@ -25,6 +25,7 @@ type UriSchemeProtocol =
   dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
 
 type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+type PageLoadHandler = dyn Fn(&Window, Url) + Send + Sync;
 
 /// UI scaling utilities.
 pub mod dpi;
@@ -244,6 +245,8 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
     Option<Box<dyn Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send>>,
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+
+  pub page_load_handler: Option<Box<PageLoadHandler>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -286,6 +289,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         #[cfg(target_os = "android")]
         on_webview_created: None,
         web_resource_request_handler: Default::default(),
+        page_load_handler: None,
       })
     }
   }
@@ -318,6 +322,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         #[cfg(target_os = "android")]
         on_webview_created: None,
         web_resource_request_handler: Default::default(),
+        page_load_handler: None,
       })
     }
   }

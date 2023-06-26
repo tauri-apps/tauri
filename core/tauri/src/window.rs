@@ -320,13 +320,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     )?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
-    let manager = self.manager.clone();
-    pending.page_load_handler = Some(Box::new(move |window, url| {
-      let payload = PageLoadPayload {
-        url: url.to_string(),
-      };
-      manager.run_on_page_load(window, payload);
-    }));
 
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
     let pending = self

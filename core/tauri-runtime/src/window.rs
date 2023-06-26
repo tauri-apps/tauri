@@ -25,7 +25,7 @@ type UriSchemeProtocol =
   dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
 
 type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
-type PageLoadHandler = dyn Fn(&Window, Url) + Send + Sync;
+type PageLoadHandler = dyn Fn(&str, Url) + Send + Sync;
 
 /// UI scaling utilities.
 pub mod dpi;

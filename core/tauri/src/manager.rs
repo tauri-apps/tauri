@@ -1111,6 +1111,15 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
+    let manager = app_handle.manager;
+    pending.page_load_handler = Some(Box::new(move |label, url| {
+      let payload = PageLoadPayload {
+        url: url.to_string(),
+      };
+      let window = manager.get_window(label).expect("label should exists");
+      manager.run_on_page_load(window, payload);
+    }));
+
     #[cfg(feature = "isolation")]
     let pattern = self.pattern().clone();
     let navigation_handler = pending.navigation_handler.take();

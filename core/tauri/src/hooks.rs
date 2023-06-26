@@ -46,7 +46,7 @@ pub(crate) struct IsolationJavascript<'a> {
 /// The payload for the [`OnPageLoad`] hook.
 #[derive(Debug, Clone, Deserialize)]
 pub struct PageLoadPayload {
-  url: String,
+  pub(crate) url: String,
 }
 
 impl PageLoadPayload {

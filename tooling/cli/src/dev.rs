@@ -74,8 +74,6 @@ pub fn command(options: Options) -> Result<()> {
   let r = command_internal(options);
   if r.is_err() {
     kill_before_dev_process();
-    #[cfg(not(debug_assertions))]
-    let _ = check_for_updates();
   }
   r
 }
@@ -185,8 +183,6 @@ fn command_internal(mut options: Options) -> Result<()> {
 
         let _ = ctrlc::set_handler(move || {
           kill_before_dev_process();
-          #[cfg(not(debug_assertions))]
-          let _ = check_for_updates();
           exit(130);
         });
       }
@@ -319,28 +315,8 @@ fn on_dev_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_w
       && (exit_on_panic || matches!(reason, ExitReason::NormalExit)))
   {
     kill_before_dev_process();
-    #[cfg(not(debug_assertions))]
-    let _ = check_for_updates();
     exit(status.code().unwrap_or(0));
   }
-}
-
-#[cfg(not(debug_assertions))]
-fn check_for_updates() -> Result<()> {
-  if std::env::var_os("TAURI_SKIP_UPDATE_CHECK") != Some("true".into()) {
-    let current_version = crate::info::cli_current_version()?;
-    let current = semver::Version::parse(&current_version)?;
-
-    let upstream_version = crate::info::cli_upstream_version()?;
-    let upstream = semver::Version::parse(&upstream_version)?;
-    if current < upstream {
-      println!(
-        "🚀 A new version of Tauri CLI is available! [{}]",
-        upstream.to_string()
-      );
-    };
-  }
-  Ok(())
 }
 
 fn kill_before_dev_process() {

@@ -27,9 +27,11 @@ fn main() {
       tauri::async_runtime::spawn(async move {
         match handle.updater().check().await {
           Ok(update) => {
-            if let Err(e) = update.download_and_install().await {
-              println!("{e}");
-              std::process::exit(1);
+            if update.is_update_available() {
+              if let Err(e) = update.download_and_install().await {
+                println!("{e}");
+                std::process::exit(1);
+              }
             }
             std::process::exit(0);
           }

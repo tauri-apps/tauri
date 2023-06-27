@@ -40,6 +40,10 @@ jobs:
             build: yarn build:release --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
             architecture: x64
+          - host: windows-latest
+            architecture: x64
+            target: aarch64-pc-windows-msvc
+            build: yarn build:release --target aarch64-pc-windows-msvc --features native-tls,native-tls-vendored --cargo-flags="--no-default-features"
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
@@ -84,10 +88,6 @@ jobs:
               rustup target add aarch64-unknown-linux-musl
               yarn build:release --target aarch64-unknown-linux-musl
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
-          #- host: windows-latest
-          #  architecture: x64
-          #  target: aarch64-pc-windows-msvc
-          #  build: yarn build:release --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:

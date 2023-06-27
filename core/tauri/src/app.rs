@@ -990,7 +990,7 @@ pub struct Builder<R: Runtime> {
   invoke_handler: Box<InvokeHandler<R>>,
 
   /// The JS message responder.
-  invoke_responder: Arc<InvokeResponder<R>>,
+  pub(crate) invoke_responder: Arc<InvokeResponder<R>>,
 
   /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
   invoke_initialization_script: String,
@@ -1214,6 +1214,7 @@ impl<R: Runtime> Builder<R> {
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
+  /// Additionally, [`state`](crate::Manager#method.state) can be used to retrieve the value manually.
   ///
   /// # Panics
   ///
@@ -1565,20 +1566,8 @@ impl<R: Runtime> Builder<R> {
 
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
-      let url = config.url.clone();
       let label = config.label.clone();
-
-      let mut webview_attributes =
-        WebviewAttributes::new(url).accept_first_mouse(config.accept_first_mouse);
-      if let Some(ua) = &config.user_agent {
-        webview_attributes = webview_attributes.user_agent(ua);
-      }
-      if let Some(args) = &config.additional_browser_args {
-        webview_attributes = webview_attributes.additional_browser_args(args);
-      }
-      if !config.file_drop_enabled {
-        webview_attributes = webview_attributes.disable_file_drop_handler();
-      }
+      let webview_attributes = WebviewAttributes::from(&config);
 
       self.pending_windows.push(PendingWindow::with_config(
         config,

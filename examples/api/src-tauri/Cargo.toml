@@ -29,10 +29,13 @@ features = [
   "isolation",
   "macos-private-api",
   "windows7-compat",
-  "reqwest-client",
   "system-tray",
   "updater"
 ]
+
+[dev-dependencies.tauri]
+path = "../../../core/tauri"
+features = ["test"]
 
 [target."cfg(target_os = \"windows\")".dependencies]
 window-shadows= "0.2"

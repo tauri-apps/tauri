@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - dev
-      - next
+      - 1.x
   pull_request:
     paths:
       - '.github/workflows/lint-core.yml'
@@ -50,7 +50,7 @@ jobs:
         clippy:
           - { args: '', key: 'empty' }
           - {
-              args: '--features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart',
+              args: '--features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test',
               key: 'all'
             }
           - { args: '--features custom-protocol', key: 'custom-protocol' }

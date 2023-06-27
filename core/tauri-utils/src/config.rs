@@ -276,6 +276,10 @@ pub struct DebConfig {
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -947,9 +951,34 @@ pub struct WindowConfig {
   /// The max window height.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
-  /// Whether the window is resizable or not.
+  /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_true")]
   pub resizable: bool,
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub maximizable: bool,
+  /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub minimizable: bool,
+  /// Whether the window's native close button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub closable: bool,
   /// The window title.
   #[serde(default = "default_title")]
   pub title: String,
@@ -1025,6 +1054,9 @@ impl Default for WindowConfig {
       max_width: None,
       max_height: None,
       resizable: true,
+      maximizable: true,
+      minimizable: true,
+      closable: true,
       title: default_title(),
       fullscreen: false,
       focus: false,
@@ -1322,7 +1354,7 @@ pub enum FsAllowlistScope {
     /// conventionally considered hidden on Unix systems and it might be
     /// desirable to skip them when listing files.
     ///
-    /// Defaults to `false` on Unix systems and `true` on Windows
+    /// Defaults to `true` on Unix systems and `false` on Windows
     // dotfiles are not supposed to be exposed by default on unix
     #[serde(alias = "require-literal-leading-dot")]
     require_literal_leading_dot: Option<bool>,
@@ -1456,6 +1488,15 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the resizable flag of the window.
   #[serde(default, alias = "set-resizable")]
   pub set_resizable: bool,
+  /// Allows setting whether the window's native maximize button is enabled or not.
+  #[serde(default, alias = "set-maximizable")]
+  pub set_maximizable: bool,
+  /// Allows setting whether the window's native minimize button is enabled or not.
+  #[serde(default, alias = "set-minimizable")]
+  pub set_minimizable: bool,
+  /// Allows setting whether the window's native close button is enabled or not.
+  #[serde(default, alias = "set-closable")]
+  pub set_closable: bool,
   /// Allows changing the window title.
   #[serde(default, alias = "set-title")]
   pub set_title: bool,
@@ -1544,6 +1585,9 @@ impl Allowlist for WindowAllowlistConfig {
       center: true,
       request_user_attention: true,
       set_resizable: true,
+      set_maximizable: true,
+      set_minimizable: true,
+      set_closable: true,
       set_title: true,
       maximize: true,
       unmaximize: true,
@@ -1590,6 +1634,9 @@ impl Allowlist for WindowAllowlistConfig {
         "window-request-user-attention"
       );
       check_feature!(self, features, set_resizable, "window-set-resizable");
+      check_feature!(self, features, set_maximizable, "window-set-maximizable");
+      check_feature!(self, features, set_minimizable, "window-set-minimizable");
+      check_feature!(self, features, set_closable, "window-set-closable");
       check_feature!(self, features, set_title, "window-set-title");
       check_feature!(self, features, maximize, "window-maximize");
       check_feature!(self, features, unmaximize, "window-unmaximize");
@@ -2412,7 +2459,6 @@ pub struct TauriConfig {
 
 impl TauriConfig {
   /// Returns all Cargo features.
-  #[allow(dead_code)]
   pub fn all_features() -> Vec<&'static str> {
     let mut features = AllowlistConfig::all_features();
     features.extend(vec![
@@ -2426,7 +2472,6 @@ impl TauriConfig {
   }
 
   /// Returns the enabled Cargo features.
-  #[allow(dead_code)]
   pub fn features(&self) -> Vec<&str> {
     let mut features = self.allowlist.to_features();
     if self.cli.is_some() {
@@ -2491,7 +2536,7 @@ pub enum WindowsUpdateInstallMode {
   /// The quiet mode means there's no user interaction required.
   /// Requires admin privileges if the installer does.
   Quiet,
-  /// Specifies unattended mode, which means the installation only shows a progress bar. **msi (Wix) Only**
+  /// Specifies unattended mode, which means the installation only shows a progress bar.
   Passive,
   // to add more modes, we need to check if the updater relaunch makes sense
   // i.e. for a full UI mode, the user can also mark the installer to start the app
@@ -2510,6 +2555,7 @@ impl WindowsUpdateInstallMode {
   /// Returns the associated nsis arguments.
   pub fn nsis_args(&self) -> &'static [&'static str] {
     match self {
+      Self::Passive => &["/P", "/R"],
       Self::Quiet => &["/S", "/R"],
       _ => &[],
     }
@@ -3242,6 +3288,9 @@ mod build {
       let max_width = opt_lit(self.max_width.as_ref());
       let max_height = opt_lit(self.max_height.as_ref());
       let resizable = self.resizable;
+      let maximizable = self.maximizable;
+      let minimizable = self.minimizable;
+      let closable = self.closable;
       let title = str_lit(&self.title);
       let fullscreen = self.fullscreen;
       let focus = self.focus;
@@ -3276,6 +3325,9 @@ mod build {
         max_width,
         max_height,
         resizable,
+        maximizable,
+        minimizable,
+        closable,
         title,
         fullscreen,
         focus,

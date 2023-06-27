@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.4.0]
+
+### New Features
+
+- [`359058ce`](https://www.github.com/tauri-apps/tauri/commit/359058cecca44a9c30b65140c44a8bb3a6dd3be8)([#5939](https://www.github.com/tauri-apps/tauri/pull/5939)) Add `locale` function in the `os` module to get the system locale.
+- [`c4d6fb4b`](https://www.github.com/tauri-apps/tauri/commit/c4d6fb4b1ea8acf02707a9fe5dcab47c1c5bae7b)([#2353](https://www.github.com/tauri-apps/tauri/pull/2353)) Added the `maximizable`, `minimizable` and `closable` fields on `WindowOptions`.
+- [`c4d6fb4b`](https://www.github.com/tauri-apps/tauri/commit/c4d6fb4b1ea8acf02707a9fe5dcab47c1c5bae7b)([#2353](https://www.github.com/tauri-apps/tauri/pull/2353)) Added the `setMaximizable`, `setMinimizable`, `setClosable`, `isMaximizable`, `isMinimizable` and `isClosable` methods.
+- [`000104bc`](https://www.github.com/tauri-apps/tauri/commit/000104bc3bc0c9ff3d20558ab9cf2080f126e9e0)([#6472](https://www.github.com/tauri-apps/tauri/pull/6472)) Add `WebviewWindow.is_focused` and `WebviewWindow.getFocusedWindow` getters.
+
 ## \[1.3.0]
 
 - Return correct type for ` event.payload  ` in `onResized` and `onMoved` window event handlers.

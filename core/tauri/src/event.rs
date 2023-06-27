@@ -282,14 +282,13 @@ mod test {
 
     // check to see if on_event properly grabs the stored function from listen.
     #[test]
-    fn check_on_event(e in "[a-z]+", d in "[a-z]+") {
+    fn check_on_event(key in "[a-z]+", d in "[a-z]+") {
       let listeners: Listeners = Default::default();
-      // clone e as the key
-      let key = e.clone();
+
       // call listen with e and the event_fn dummy func
-      listeners.listen(e.clone(), None, event_fn);
+      listeners.listen(key.clone(), None, event_fn);
       // call on event with e and d.
-      listeners.trigger(&e, None, Some(d));
+      listeners.trigger(&key, None, Some(d));
 
       // lock the mutex
       let l = listeners.inner.handlers.lock().unwrap();
@@ -300,7 +299,7 @@ mod test {
   }
 }
 
-pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: u64) -> String {
+pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: u32) -> String {
   format!(
     "
       (function () {{
@@ -319,7 +318,7 @@ pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: 
 pub fn listen_js(
   listeners_object_name: String,
   event: String,
-  event_id: u64,
+  event_id: u32,
   window_label: Option<String>,
   handler: String,
 ) -> String {

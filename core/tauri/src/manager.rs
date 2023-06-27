@@ -823,6 +823,12 @@ impl<R: Runtime> WindowManager<R> {
       freeze_prototype: &'a str,
     }
 
+    #[derive(Template)]
+    #[default_template("../scripts/core.js")]
+    struct CoreJavascript<'a> {
+      os_name: &'a str,
+    }
+
     let bundle_script = if with_global_tauri {
       include_str!("../scripts/bundle.global.js")
     } else {
@@ -849,7 +855,11 @@ impl<R: Runtime> WindowManager<R> {
           "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
         )
       ),
-      core_script: include_str!("../scripts/core.js"),
+      core_script: &CoreJavascript {
+        os_name: std::env::consts::OS,
+      }
+      .render_default(&Default::default())?
+      .into_string(),
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,

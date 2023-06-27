@@ -10,14 +10,6 @@
  */
 
 /** @ignore */
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface Window {
-    __TAURI_IPC__: (message: any) => void
-  }
-}
-
-/** @ignore */
 function uid(): number {
   return window.crypto.getRandomValues(new Uint32Array(1))[0]
 }
@@ -202,11 +194,7 @@ async function invoke<T>(
  * @since 1.0.0
  */
 function convertFileSrc(filePath: string, protocol = 'asset'): string {
-  const path = encodeURIComponent(filePath)
-  return navigator.userAgent.includes('Windows') ||
-    navigator.userAgent.includes('Android')
-    ? `https://${protocol}.localhost/${path}`
-    : `${protocol}://localhost/${path}`
+  return window.__TAURI__.convertFileSrc(filePath, protocol)
 }
 
 export type { InvokeArgs }

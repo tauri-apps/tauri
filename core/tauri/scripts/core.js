@@ -13,9 +13,11 @@
     })
   }
 
+  const osName = __TEMPLATE_os_name__
+
   window.__TAURI__.convertFileSrc = function convertFileSrc(filePath, protocol = 'asset') {
     const path = encodeURIComponent(filePath)
-    return navigator.userAgent.includes('Windows') || navigator.userAgent.includes('Android')
+    return osName === 'windows' || osName === 'android'
       ? `https://${protocol}.localhost/${path}`
       : `${protocol}://localhost/${path}`
   }

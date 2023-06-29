@@ -3178,8 +3178,8 @@ fn create_webview<T: UserEvent>(
 
   let label_c = label.clone();
   if let Some(on_page_load_handler) = page_load_handler {
-    webview_builder =
-      webview_builder.with_on_load_handler(move |_, url| on_page_load_handler(&label_c, url));
+    webview_builder = webview_builder
+      .with_on_page_loaded_handler(move |url| on_page_load_handler(&label_c, url.parse().unwrap()));
   }
 
   let webview = webview_builder

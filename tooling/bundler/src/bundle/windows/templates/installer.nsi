@@ -242,8 +242,8 @@ Function PageLeaveReinstall
 
   reinst_uninstall:
     HideWindow
-    ClearErrors
     ExecWait '$R1 /P _?=$4' $0
+    ClearErrors
 
     ${If} $R5 == "wix"
       ReadRegStr $R1 HKLM "$R6" "UninstallString"

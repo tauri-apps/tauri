@@ -32,8 +32,8 @@ use crate::{
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
-  EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
-  Runtime, Theme, WindowEvent,
+  EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, Runtime, Theme,
+  WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{

@@ -2555,7 +2555,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.20.0"
-source = "git+https://github.com/meowtec/tao/?branch=feat-open-file#a58525b292b3d7e8abe9a8aadb443e4b798ea428"
+source = "git+https://github.com/meowtec/tao/?branch=feat-open-file#cfc768f14af8dcd148bff2e5de83f4fdfa57f7d9"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -2602,7 +2602,7 @@ dependencies = [
 [[package]]
 name = "tao-macros"
 version = "0.1.1"
-source = "git+https://github.com/meowtec/tao/?branch=feat-open-file#a58525b292b3d7e8abe9a8aadb443e4b798ea428"
+source = "git+https://github.com/meowtec/tao/?branch=feat-open-file#cfc768f14af8dcd148bff2e5de83f4fdfa57f7d9"
 dependencies = [
  "proc-macro2",
  "quote",

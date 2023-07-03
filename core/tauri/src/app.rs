@@ -180,8 +180,8 @@ pub enum RunEvent {
   /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(target_os = "macos")]
   Opened {
-    /// The resource that is being open.
-    event: tauri_runtime::OpenEvent,
+    /// The URL of the resources that is being open.
+    urls: Vec<url::Url>,
   },
 }
 
@@ -1495,9 +1495,9 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => t.into(),
     #[cfg(target_os = "macos")]
-    RuntimeRunEvent::Opened { event } => {
-      app_handle.trigger_global("opened", Some(serde_json::to_string(&event).unwrap()));
-      RunEvent::Opened { event }
+    RuntimeRunEvent::Opened { urls } => {
+      app_handle.trigger_global("opened", Some(serde_json::to_string(&urls).unwrap()));
+      RunEvent::Opened { urls }
     }
     _ => unimplemented!(),
   };

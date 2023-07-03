@@ -96,6 +96,7 @@ jobs:
           cargo update -p cargo_toml:0.15.3 --precise 0.15.2
           cargo update -p zbus --precise 3.13.1
           cargo update -p zvariant --precise 3.10.0
+          cargo update -p zbus_names --precise 2.5.1
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

@@ -13,8 +13,8 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 use raw_window_handle::RawDisplayHandle;
-use serde::Deserialize;
-use std::{fmt::Debug, sync::mpsc::Sender};
+use serde::{Deserialize, Serialize};
+use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use url::Url;
 use uuid::Uuid;
@@ -314,11 +314,22 @@ pub enum RunEvent<T: UserEvent> {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
-  /// Emitted when the user wants to open the specified URLs with the app.
+  /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(target_os = "macos")]
-  OpenURLs(Vec<url::Url>),
+  Opened { event: OpenEvent },
   /// A custom event defined by the user.
   UserEvent(T),
+}
+
+/// Event containing the resource that was requested to be opened with the app.
+#[cfg(target_os = "macos")]
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", content = "data")]
+pub enum OpenEvent {
+  /// List of URLs to open.
+  Url(Vec<Url>),
+  /// List of files to open.
+  File(Vec<PathBuf>),
 }
 
 /// Action to take when the event loop is about to exit

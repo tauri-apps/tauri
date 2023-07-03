@@ -159,7 +159,7 @@ pub use tauri_runtime_wry::webview_version;
 
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-pub use runtime::{menu::NativeImage, ActivationPolicy};
+pub use runtime::{menu::NativeImage, ActivationPolicy, OpenEvent};
 
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;

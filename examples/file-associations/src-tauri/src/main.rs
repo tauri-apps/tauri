@@ -8,56 +8,62 @@
 )]
 
 use std::env;
-use tauri::api::dialog::MessageDialogBuilder;
+use tauri::{Manager, Runtime};
 
-fn handle_open_files(files: &[String]) {
-  MessageDialogBuilder::new(
-    "Files open",
-    format!(
-      "You opened: {:?}",
-      files
-        .iter()
-        .map(|f| percent_encoding::percent_decode(f.as_bytes())
-          .decode_utf8_lossy()
-          .into_owned())
-        .collect::<Vec<String>>()
-    ),
-  )
-  .show(|_| {});
+fn create_window<R: Runtime, M: Manager<R>>(app: &M, files: impl AsRef<str>) {
+  if app.get_window("main").is_none() {
+    tauri::WindowBuilder::new(app, "main", Default::default())
+      .initialization_script(&format!("window.openedFile = `{}`", files.as_ref()))
+      .build()
+      .unwrap();
+  }
 }
 
 fn main() {
   tauri::Builder::default()
-    .setup(|_app| {
-      #[cfg(any(windows, target_os = "linux"))]
-      {
+    .setup(|app| {
+      if cfg!(any(windows, target_os = "linux")) {
         // Windows and Linux
         let argv = env::args().collect::<Vec<_>>();
-        if argv.len() > 1 {
-          // NOTICE: `argv` may include URL protocol (`your-app-protocol://`) or arguments (`--`) if app supports them.
-          handle_open_files(&argv[1..]);
-        }
+        create_window(
+          app,
+          if argv.len() > 1 {
+            // NOTICE: `argv` may include URL protocol (`your-app-protocol://`) or arguments (`--`) if app supports them.
+            format!("{}", argv[1..].join(","))
+          } else {
+            "".into()
+          },
+        );
+      } else {
+        create_window(app, "");
       }
+      #[cfg(any(windows, target_os = "linux"))]
+      {}
+
       Ok(())
     })
     .build(tauri::generate_context!())
     .expect("error while running tauri application")
-    .run(|_app, event| {
+    .run(|app, event| {
       #[cfg(target_os = "macos")]
-      if let tauri::RunEvent::OpenURLs(urls) = event {
-        // filter out non-file:// urls, you may need to handle them by another method
-        let file_paths: Vec<_> = urls
+      if let tauri::RunEvent::Opened {
+        event: tauri::OpenEvent::File(paths),
+      } = event
+      {
+        let files = paths
           .iter()
-          .filter_map(|url| {
-            if url.scheme() == "file" {
-              Some(url.path().into())
-            } else {
-              None
-            }
+          .map(|f| {
+            percent_encoding::percent_decode(f.to_string_lossy().as_bytes())
+              .decode_utf8_lossy()
+              .into_owned()
           })
-          .collect();
-
-        handle_open_files(&file_paths);
+          .collect::<Vec<String>>()
+          .join(",");
+        if let Some(w) = app.get_window("main") {
+          let _ = w.eval(&format!("window.onFileOpen(`{}`)", files));
+        } else {
+          create_window(app, files);
+        }
       }
     });
 }

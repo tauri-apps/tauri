@@ -33,9 +33,12 @@ use crate::scope::FsScope;
 use raw_window_handle::HasRawDisplayHandle;
 use serde_json::to_string;
 use tauri_macros::default_runtime;
-use tauri_runtime::window::{
-  dpi::{PhysicalPosition, PhysicalSize},
-  FileDropEvent,
+use tauri_runtime::{
+  window::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    FileDropEvent,
+  },
+  OpenEvent,
 };
 use tauri_utils::PackageInfo;
 
@@ -178,9 +181,12 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
-  /// Emitted when the user wants to open the specified URLs with the app.
+  /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(target_os = "macos")]
-  OpenURLs(Vec<url::Url>),
+  Opened {
+    /// The resource that is being open.
+    event: OpenEvent,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -1493,9 +1499,9 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => t.into(),
     #[cfg(target_os = "macos")]
-    RuntimeRunEvent::OpenURLs(urls) => {
-      app_handle.trigger_global("open-urls", Some(to_string(&urls).unwrap()));
-      RunEvent::OpenURLs(urls)
+    RuntimeRunEvent::Opened { event } => {
+      app_handle.trigger_global("opened", Some(to_string(&event).unwrap()));
+      RunEvent::Opened { event }
     }
     _ => unimplemented!(),
   };

@@ -2915,8 +2915,13 @@ fn handle_event_loop<T: UserEvent>(
       }
     },
     #[cfg(target_os = "macos")]
-    Event::OpenURLs(urls) => {
-      callback(RunEvent::OpenURLs(urls));
+    Event::Opened { event } => {
+      callback(RunEvent::Opened {
+        event: match event {
+          wry::application::event::OpenEvent::Url(u) => tauri_runtime::OpenEvent::Url(u),
+          wry::application::event::OpenEvent::File(p) => tauri_runtime::OpenEvent::File(p),
+        },
+      });
     }
     _ => (),
   }

@@ -38,18 +38,7 @@
         "exceptionDomain": ""
       }
     },
-    "allowlist": {
-      "all": false
-    },
-    "windows": [
-      {
-        "title": "Welcome to Tauri!",
-        "width": 800,
-        "height": 600,
-        "resizable": true,
-        "fullscreen": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": "default-src 'self'"
     }

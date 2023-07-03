@@ -29,7 +29,7 @@ fn main() {
           app,
           if argv.len() > 1 {
             // NOTICE: `argv` may include URL protocol (`your-app-protocol://`) or arguments (`--`) if app supports them.
-            format!("{}", argv[1..].join(","))
+            argv[1..].join(",")
           } else {
             "".into()
           },
@@ -56,7 +56,7 @@ fn main() {
         if let Some(w) = app.get_window("main") {
           let _ = w.eval(&format!("window.onFileOpen(`{urls}`)"));
         } else {
-          create_window(app, format!("{urls}"));
+          create_window(app, urls);
         }
       }
     });

@@ -33,12 +33,9 @@ use crate::scope::FsScope;
 use raw_window_handle::HasRawDisplayHandle;
 use serde_json::to_string;
 use tauri_macros::default_runtime;
-use tauri_runtime::{
-  window::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    FileDropEvent,
-  },
-  OpenEvent,
+use tauri_runtime::window::{
+  dpi::{PhysicalPosition, PhysicalSize},
+  FileDropEvent,
 };
 use tauri_utils::PackageInfo;
 
@@ -185,7 +182,7 @@ pub enum RunEvent {
   #[cfg(target_os = "macos")]
   Opened {
     /// The resource that is being open.
-    event: OpenEvent,
+    event: tauri_runtime::OpenEvent,
   },
 }
 

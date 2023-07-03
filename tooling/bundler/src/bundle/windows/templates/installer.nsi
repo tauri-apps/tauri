@@ -242,7 +242,6 @@ Function PageLeaveReinstall
 
   reinst_uninstall:
     HideWindow
-    ExecWait '$R1 /P _?=$4' $0
     ClearErrors
 
     ${If} $R5 == "wix"
@@ -251,7 +250,7 @@ Function PageLeaveReinstall
     ${Else}
       ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
       ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-      ExecWait '$R1 _?=$4' $0
+      ExecWait '$R1 /P _?=$4' $0
     ${EndIf}
 
     BringToFront

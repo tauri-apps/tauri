@@ -31,7 +31,6 @@ use crate::{
 use crate::scope::FsScope;
 
 use raw_window_handle::HasRawDisplayHandle;
-use serde_json::to_string;
 use tauri_macros::default_runtime;
 use tauri_runtime::window::{
   dpi::{PhysicalPosition, PhysicalSize},
@@ -1497,7 +1496,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::UserEvent(t) => t.into(),
     #[cfg(target_os = "macos")]
     RuntimeRunEvent::Opened { event } => {
-      app_handle.trigger_global("opened", Some(to_string(&event).unwrap()));
+      app_handle.trigger_global("opened", Some(serde_json::to_string(&event).unwrap()));
       RunEvent::Opened { event }
     }
     _ => unimplemented!(),

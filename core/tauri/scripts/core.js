@@ -93,7 +93,6 @@
       function (e) {
         let target = e.target
         const baseTarget = document.querySelector('head base')?.target
-
         while (target != null) {
           if (target.matches('a')) {
             if (

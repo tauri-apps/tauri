@@ -21,7 +21,7 @@ rand = "0.8"
 raw-window-handle = "0.5"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.22"
+webview2-com = "0.25"
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.48"

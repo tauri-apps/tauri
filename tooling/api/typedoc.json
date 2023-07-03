@@ -1,22 +1,9 @@
 {
   "entryPoints": [
-    "src/app.ts",
-    "src/cli.ts",
-    "src/clipboard.ts",
-    "src/dialog.ts",
     "src/event.ts",
-    "src/fs.ts",
-    "src/globalShortcut.ts",
-    "src/http.ts",
     "src/mocks.ts",
-    "src/notification.ts",
-    "src/os.ts",
     "src/path.ts",
-    "src/process.ts",
-    "src/shell.ts",
-    "src/tauri.ts",
-    "src/updater.ts",
-    "src/window.ts"
+    "src/tauri.ts"
   ],
   "githubPages": false,
   "readme": "none",

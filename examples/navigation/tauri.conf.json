@@ -37,11 +37,6 @@
         "exceptionDomain": ""
       }
     },
-    "allowlist": {
-      "window": {
-        "create": true
-      }
-    },
     "windows": [
       {
         "title": "Welcome to Tauri!",
@@ -53,9 +48,6 @@
     ],
     "security": {
       "csp": "default-src 'self'"
-    },
-    "updater": {
-      "active": false
     }
   }
 }

@@ -26,12 +26,8 @@
       "copyright": "",
       "category": "DeveloperTool"
     },
-    "allowlist": {},
     "security": {
       "csp": "default-src 'self'"
-    },
-    "updater": {
-      "active": false
     }
   }
 }

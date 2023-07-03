@@ -44,7 +44,6 @@
 //!       &window,
 //!       tauri::InvokePayload {
 //!         cmd: "my_cmd".into(),
-//!         tauri_module: None,
 //!         callback: tauri::api::ipc::CallbackFn(0),
 //!         error: tauri::api::ipc::CallbackFn(1),
 //!         inner: serde_json::Value::Null,
@@ -74,12 +73,10 @@ use std::{
 };
 
 use crate::hooks::window_invoke_responder;
-#[cfg(shell_scope)]
-use crate::ShellScopeConfig;
 use crate::{api::ipc::CallbackFn, App, Builder, Context, InvokePayload, Manager, Pattern, Window};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
-  config::{CliConfig, Config, PatternKind, TauriConfig},
+  config::{Config, PatternKind, TauriConfig},
 };
 
 #[derive(Eq, PartialEq)]
@@ -127,19 +124,9 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       package: Default::default(),
       tauri: TauriConfig {
         pattern: PatternKind::Brownfield,
-        windows: vec![Default::default()],
-        cli: Some(CliConfig {
-          description: None,
-          long_description: None,
-          before_help: None,
-          after_help: None,
-          args: None,
-          subcommands: None,
-        }),
+        windows: Vec::new(),
         bundle: Default::default(),
-        allowlist: Default::default(),
         security: Default::default(),
-        updater: Default::default(),
         system_tray: None,
         macos_private_api: false,
       },
@@ -149,20 +136,17 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     assets: Arc::new(assets),
     default_window_icon: None,
     app_icon: None,
+    #[cfg(desktop)]
     system_tray_icon: None,
     package_info: crate::PackageInfo {
       name: "test".into(),
       version: "0.1.0".parse().unwrap(),
       authors: "Tauri",
       description: "Tauri test",
+      crate_name: "test",
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
-    #[cfg(shell_scope)]
-    shell_scope: ShellScopeConfig {
-      open: None,
-      scopes: HashMap::new(),
-    },
   }
 }
 
@@ -240,7 +224,6 @@ pub fn mock_app() -> App<MockRuntime> {
 ///       &window,
 ///       tauri::InvokePayload {
 ///         cmd: "ping".into(),
-///         tauri_module: None,
 ///         callback: tauri::api::ipc::CallbackFn(0),
 ///         error: tauri::api::ipc::CallbackFn(1),
 ///         inner: serde_json::Value::Null,
@@ -273,18 +256,8 @@ pub fn assert_ipc_response<T: Serialize + Debug>(
 }
 
 #[cfg(test)]
-pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRuntime> {
-  let app = mock_app();
-  crate::endpoints::InvokeContext {
-    window: app.get_window("main").unwrap(),
-    config: app.config(),
-    package_info: app.package_info().clone(),
-  }
-}
-
-#[cfg(test)]
 mod tests {
-  use crate::Manager;
+  use crate::WindowBuilder;
   use std::time::Duration;
 
   use super::mock_app;
@@ -292,7 +265,11 @@ mod tests {
   #[test]
   fn run_app() {
     let app = mock_app();
-    let w = app.get_window("main").unwrap();
+
+    let w = WindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
     std::thread::spawn(move || {
       std::thread::sleep(Duration::from_secs(1));
       w.close().unwrap();

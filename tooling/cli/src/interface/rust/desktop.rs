@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{get_profile, AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
+use super::{get_profile, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, Target};
 use crate::CommandExt;
 use tauri_utils::display_path;
 
@@ -20,7 +20,53 @@ use std::{
   },
 };
 
-pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+pub struct DevChild {
+  manually_killed_app: Arc<AtomicBool>,
+  build_child: Option<Arc<SharedChild>>,
+  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
+}
+
+impl DevProcess for DevChild {
+  fn kill(&self) -> std::io::Result<()> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.kill()?;
+    } else if let Some(child) = &self.build_child {
+      child.kill()?;
+    }
+    self.manually_killed_app.store(true, Ordering::Relaxed);
+    Ok(())
+  }
+
+  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.try_wait()
+    } else if let Some(child) = &self.build_child {
+      child.try_wait()
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn wait(&self) -> std::io::Result<ExitStatus> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.wait()
+    } else if let Some(child) = &self.build_child {
+      child.wait()
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn manually_killed_process(&self) -> bool {
+    self.manually_killed_app.load(Ordering::Relaxed)
+  }
+
+  fn is_building_app(&self) -> bool {
+    self.app_child.lock().unwrap().is_none()
+  }
+}
+
+pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   options: Options,
   run_args: Vec<String>,
   available_targets: &mut Option<Vec<Target>>,
@@ -28,7 +74,7 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
   app_settings: &RustAppSettings,
   product_name: Option<String>,
   on_exit: F,
-) -> crate::Result<DevChild> {
+) -> crate::Result<impl DevProcess> {
   let bin_path = app_settings.app_binary_path(&options)?;
   let target_os = options
     .target
@@ -47,7 +93,7 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     available_targets,
     config_features,
     move |status, reason| {
-      if status.success() {
+      if status == Some(0) {
         let bin_path =
           rename_app(target_os, &bin_path, product_name.as_deref()).expect("failed to rename app");
         let mut app = Command::new(bin_path);
@@ -55,18 +101,14 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
         app.stderr(os_pipe::dup_stderr().unwrap());
         app.args(run_args);
         let app_child = Arc::new(SharedChild::spawn(&mut app).unwrap());
-        let app_child_t = app_child.clone();
-        std::thread::spawn(move || {
-          let status = app_child_t.wait().expect("failed to wait on app");
-          on_exit(
-            status,
-            if manually_killed_app_.load(Ordering::Relaxed) {
-              ExitReason::TriggeredKill
-            } else {
-              ExitReason::NormalExit
-            },
-          );
-        });
+        crate::dev::wait_dev_process(
+          DevChild {
+            manually_killed_app: manually_killed_app_,
+            build_child: None,
+            app_child: Arc::new(Mutex::new(Some(app_child.clone()))),
+          },
+          on_exit,
+        );
 
         app_child_.lock().unwrap().replace(app_child);
       } else {
@@ -84,7 +126,7 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
 
   Ok(DevChild {
     manually_killed_app,
-    build_child,
+    build_child: Some(build_child),
     app_child,
   })
 }
@@ -150,7 +192,7 @@ pub fn build(
   Ok(())
 }
 
-fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
+fn build_dev_app<F: FnOnce(Option<i32>, ExitReason) + Send + 'static>(
   options: Options,
   available_targets: &mut Option<Vec<Target>>,
   config_features: Vec<String>,
@@ -217,10 +259,10 @@ fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
 
   let build_child_ = build_child.clone();
   std::thread::spawn(move || {
-    let status = build_child_.wait().expect("failed to wait on build");
+    let status = build_child_.wait().expect("failed to build app");
 
     if status.success() {
-      on_exit(status, ExitReason::NormalExit);
+      on_exit(status.code(), ExitReason::NormalExit);
     } else {
       let is_cargo_compile_error = stderr_lines
         .lock()
@@ -231,7 +273,7 @@ fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
       stderr_lines.lock().unwrap().clear();
 
       on_exit(
-        status,
+        status.code(),
         if status.code() == Some(101) && is_cargo_compile_error {
           ExitReason::CompilationFailed
         } else {

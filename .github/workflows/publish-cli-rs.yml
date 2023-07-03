@@ -37,11 +37,10 @@ jobs:
           - os: windows-latest
             rust_target: aarch64-pc-windows-msvc
             ext: '.exe'
-            args: '--no-default-features --features native-tls,native-tls-vendored'
+            args: '--no-default-features --features native-tls-vendored'
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: 'Setup Rust'
         uses: dtolnay/rust-toolchain@stable
@@ -88,7 +87,7 @@ jobs:
         run: ./.scripts/ci/pack-cli.sh
 
       - name: Get CLI version
-        run: echo "CLI_VERSION=$(cat tooling/cli/metadata.json | jq '."cli.js".version' -r)" >> $GITHUB_ENV
+        run: echo "CLI_VERSION=$(cat tooling/cli/metadata-v2.json | jq '."@tauri-apps/cli".version' -r)" >> $GITHUB_ENV
 
       - name: Publish release
         uses: softprops/action-gh-release@50195ba7f6f93d1ac97ba8332a178e008ad176aa

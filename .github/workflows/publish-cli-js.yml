@@ -43,7 +43,7 @@ jobs:
           - host: windows-latest
             architecture: x64
             target: aarch64-pc-windows-msvc
-            build: yarn build:release --target aarch64-pc-windows-msvc --features native-tls,native-tls-vendored --cargo-flags="--no-default-features"
+            build: yarn build:release --target aarch64-pc-windows-msvc --features native-tls-vendored --cargo-flags="--no-default-features"
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
@@ -61,7 +61,7 @@ jobs:
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
-              yarn build:release --target=aarch64-apple-darwin
+              yarn build:release --features native-tls-vendored --target=aarch64-apple-darwin
               strip -x *.node
           - host: ubuntu-20.04
             target: aarch64-unknown-linux-gnu
@@ -261,7 +261,7 @@ jobs:
       - name: install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
       - name: Test bindings
         run: yarn test
   test-linux-x64-musl-binding:
@@ -355,7 +355,7 @@ jobs:
             set -e
             export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
             apt-get update
-            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip webkit2gtk-4.0 libayatana-appindicator3-dev
+            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip libayatana-appindicator3-dev
             bash
             curl https://sh.rustup.rs -sSf | bash -s -- -y
             curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell
@@ -397,8 +397,8 @@ jobs:
       - name: Publish
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          npm publish
+          npm publish --tag next
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
-          RELEASE_ID: ${{ github.event.client_payload.releaseId || github.event.inputs.releaseId }}
+          RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}

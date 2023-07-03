@@ -2,6 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
+//! This Rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
+
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
+
 pub use anyhow::Result;
 
 mod build;
@@ -12,10 +21,12 @@ mod icon;
 mod info;
 mod init;
 mod interface;
+mod migrate;
+mod mobile;
 mod plugin;
 mod signer;
 
-use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
 use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
@@ -24,8 +35,32 @@ use std::io::{BufReader, Write};
 use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
   ffi::OsString,
+  fmt::Display,
   sync::{Arc, Mutex},
 };
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum RunMode {
+  Desktop,
+  #[cfg(target_os = "macos")]
+  Ios,
+  Android,
+}
+
+impl Display for RunMode {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Desktop => "desktop",
+        #[cfg(target_os = "macos")]
+        Self::Ios => "iOS",
+        Self::Android => "android",
+      }
+    )
+  }
+}
 
 #[derive(Deserialize)]
 pub struct VersionMetadata {
@@ -70,6 +105,11 @@ enum Commands {
   Plugin(plugin::Cli),
   Signer(signer::Cli),
   Completions(completions::Options),
+  Android(mobile::android::Cli),
+  #[cfg(target_os = "macos")]
+  Ios(mobile::ios::Cli),
+  /// Migrate from v1 to v2
+  Migrate,
 }
 
 fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
@@ -171,6 +211,10 @@ where
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
     Commands::Completions(options) => completions::command(options, cli_)?,
+    Commands::Android(c) => mobile::android::command(c, cli.verbose)?,
+    #[cfg(target_os = "macos")]
+    Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,
+    Commands::Migrate => migrate::command()?,
   }
 
   Ok(())

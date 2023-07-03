@@ -2,8 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
 //! Internal runtime between Tauri and the underlying webview runtime.
 
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 use raw_window_handle::RawDisplayHandle;
@@ -248,10 +254,6 @@ pub enum Error {
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
-  /// Global shortcut error.
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  #[error(transparent)]
-  GlobalShortcut(Box<dyn std::error::Error + Send + Sync>),
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
@@ -398,31 +400,25 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn hide(&self) -> Result<()>;
-}
 
-/// A global shortcut manager.
-#[cfg(all(desktop, feature = "global-shortcut"))]
-pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
-  /// Whether the application has registered the given `accelerator`.
-  fn is_registered(&self, accelerator: &str) -> Result<bool>;
+  /// Finds an Android class in the project scope.
+  #[cfg(target_os = "android")]
+  fn find_class<'a>(
+    &'a self,
+    env: jni::JNIEnv<'a>,
+    activity: jni::objects::JObject<'a>,
+    name: impl Into<String>,
+  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error>;
 
-  /// Register a global shortcut of `accelerator`.
-  fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()>;
-
-  /// Unregister all accelerators registered by the manager instance.
-  fn unregister_all(&mut self) -> Result<()>;
-
-  /// Unregister the provided `accelerator`.
-  fn unregister(&mut self, accelerator: &str) -> Result<()>;
-}
-
-/// Clipboard manager.
-#[cfg(feature = "clipboard")]
-pub trait ClipboardManager: Debug + Clone + Send + Sync {
-  /// Writes the text into the clipboard as plain text.
-  fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
-  /// Read the content in the clipboard as plain text.
-  fn read_text(&self) -> Result<Option<String>>;
+  /// Dispatch a closure to run on the Android context.
+  ///
+  /// The closure takes the JNI env, the Android activity instance and the possibly null webview.
+  #[cfg(target_os = "android")]
+  fn run_on_android_context<F>(&self, f: F)
+  where
+    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
+      + Send
+      + 'static;
 }
 
 pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
@@ -435,12 +431,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   type Dispatcher: Dispatch<T, Runtime = Self>;
   /// The runtime handle type.
   type Handle: RuntimeHandle<T, Runtime = Self>;
-  /// The global shortcut manager type.
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  type GlobalShortcutManager: GlobalShortcutManager;
-  /// The clipboard manager type.
-  #[cfg(feature = "clipboard")]
-  type ClipboardManager: ClipboardManager;
   /// The tray handler type.
   #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler: menu::TrayHandle;
@@ -460,14 +450,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
-
-  /// Gets the global shortcut manager.
-  #[cfg(all(desktop, feature = "global-shortcut"))]
-  fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
-
-  /// Gets the clipboard manager.
-  #[cfg(feature = "clipboard")]
-  fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Create a new webview window.
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>>;
@@ -534,6 +516,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Registers a window event handler.
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
+
+  /// Runs a closure with the platform webview object as argument.
+  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
 
   /// Open the web inspector which is usually called devtools.
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -695,6 +680,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the window title.
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()>;
 
+  /// Naviagte to the given URL.
+  fn navigate(&self, url: Url) -> Result<()>;
+
   /// Maximizes the window.
   fn maximize(&self) -> Result<()>;
 
@@ -722,8 +710,11 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Closes the window.
   fn close(&self) -> Result<()>;
 
-  /// Updates the hasDecorations flag.
+  /// Updates the decorations flag.
   fn set_decorations(&self, decorations: bool) -> Result<()>;
+
+  /// Updates the shadow flag.
+  fn set_shadow(&self, enable: bool) -> Result<()>;
 
   /// Updates the window alwaysOnTop flag.
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()>;

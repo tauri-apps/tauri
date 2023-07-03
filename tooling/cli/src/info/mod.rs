@@ -10,13 +10,14 @@ use serde::Deserialize;
 use std::{
   fmt::{self, Display, Formatter},
   panic,
-  process::Command,
 };
 
 mod app;
 mod env_nodejs;
 mod env_rust;
 mod env_system;
+#[cfg(target_os = "macos")]
+mod ios;
 mod packages_nodejs;
 mod packages_rust;
 
@@ -34,7 +35,8 @@ pub struct VersionMetadata {
 }
 
 fn version_metadata() -> Result<VersionMetadata> {
-  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json")).map_err(Into::into)
+  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
+    .map_err(Into::into)
 }
 
 #[cfg(not(debug_assertions))]
@@ -45,7 +47,7 @@ pub(crate) fn cli_current_version() -> Result<String> {
 #[cfg(not(debug_assertions))]
 pub(crate) fn cli_upstream_version() -> Result<String> {
   let upstream_metadata = match ureq::get(
-    "https://raw.githubusercontent.com/tauri-apps/tauri/dev/tooling/cli/metadata.json",
+    "https://raw.githubusercontent.com/tauri-apps/tauri/dev/tooling/cli/metadata-v2.json",
   )
   .timeout(std::time::Duration::from_secs(3))
   .call()
@@ -69,18 +71,6 @@ pub(crate) fn cli_upstream_version() -> Result<String> {
     .and_then(|meta_str| Ok(serde_json::from_str::<VersionMetadata>(&meta_str)))
     .and_then(|json| Ok(json.unwrap().js_cli.version))
     .map_err(|e| anyhow::Error::new(e))
-}
-
-pub fn cross_command(bin: &str) -> Command {
-  #[cfg(target_os = "windows")]
-  let cmd = {
-    let mut cmd = Command::new("cmd");
-    cmd.arg("/c").arg(bin);
-    cmd
-  };
-  #[cfg(not(target_os = "windows"))]
-  let cmd = Command::new(bin);
-  cmd
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -249,7 +239,7 @@ pub fn command(options: Options) -> Result<()> {
   };
   packages
     .items
-    .extend(packages_rust::items(app_dir, tauri_dir.clone()));
+    .extend(packages_rust::items(app_dir, tauri_dir.as_deref()));
   packages
     .items
     .extend(packages_nodejs::items(app_dir, &metadata, yarn_version));
@@ -259,10 +249,27 @@ pub fn command(options: Options) -> Result<()> {
     interactive,
     items: Vec::new(),
   };
-  app.items.extend(app::items(app_dir, tauri_dir));
+  app.items.extend(app::items(app_dir, tauri_dir.as_deref()));
 
   environment.display();
   packages.display();
   app.display();
+
+  // iOS
+  #[cfg(target_os = "macos")]
+  {
+    if let Some(p) = &tauri_dir {
+      if p.join("gen/apple").exists() {
+        let mut ios = Section {
+          label: "iOS",
+          interactive,
+          items: Vec::new(),
+        };
+        ios.items.extend(ios::items());
+        ios.display();
+      }
+    }
+  }
+
   Ok(())
 }

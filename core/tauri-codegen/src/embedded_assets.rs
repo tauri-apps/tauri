@@ -433,7 +433,7 @@ impl ToTokens for EmbeddedAssets {
 
     // we expect phf related items to be in path when generating the path code
     tokens.append_all(quote! {{
-        #[allow(unused)]
+        #[allow(unused_imports)]
         use ::tauri::utils::assets::{CspHash, EmbeddedAssets, phf, phf::phf_map};
         EmbeddedAssets::new(phf_map! { #assets }, &[#global_hashes], phf_map! { #html_hashes })
     }});

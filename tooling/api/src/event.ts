@@ -9,15 +9,41 @@
  * @module
  */
 
-import * as eventApi from './helpers/event'
-import type { EventCallback, UnlistenFn, Event } from './helpers/event'
+import { invoke, transformCallback } from './tauri'
 
-export type EventName = `${TauriEvent}` | (string & Record<never, never>)
+interface Event<T> {
+  /** Event name */
+  event: EventName
+  /** The label of the window that emitted this event. */
+  windowLabel: string
+  /** Event identifier used to unlisten */
+  id: number
+  /** Event payload */
+  payload: T
+}
+
+type EventCallback<T> = (event: Event<T>) => void
+
+type UnlistenFn = () => void
+
+type EventName = `${TauriEvent}` | (string & Record<never, never>)
+
+interface Options {
+  /**
+   * Label of the window the function targets.
+   *
+   * When listening to events and using this value,
+   * only events triggered by the window with the given label are received.
+   *
+   * When emitting events, only the window with the given label will receive it.
+   */
+  target?: string
+}
 
 /**
  * @since 1.1.0
  */
-export enum TauriEvent {
+enum TauriEvent {
   WINDOW_RESIZED = 'tauri://resize',
   WINDOW_MOVED = 'tauri://move',
   WINDOW_CLOSE_REQUESTED = 'tauri://close-requested',
@@ -30,12 +56,22 @@ export enum TauriEvent {
   WINDOW_FILE_DROP = 'tauri://file-drop',
   WINDOW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
   WINDOW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
-  MENU = 'tauri://menu',
-  CHECK_UPDATE = 'tauri://update',
-  UPDATE_AVAILABLE = 'tauri://update-available',
-  INSTALL_UPDATE = 'tauri://update-install',
-  STATUS_UPDATE = 'tauri://update-status',
-  DOWNLOAD_PROGRESS = 'tauri://update-download-progress'
+  MENU = 'tauri://menu'
+}
+
+/**
+ * Unregister the event listener associated with the given name and id.
+ *
+ * @ignore
+ * @param event The event name
+ * @param eventId Event identifier
+ * @returns
+ */
+async function _unlisten(event: string, eventId: number): Promise<void> {
+  await invoke('plugin:event|unlisten', {
+    event,
+    eventId
+  })
 }
 
 /**
@@ -62,9 +98,16 @@ export enum TauriEvent {
  */
 async function listen<T>(
   event: EventName,
-  handler: EventCallback<T>
+  handler: EventCallback<T>,
+  options?: Options
 ): Promise<UnlistenFn> {
-  return eventApi.listen(event, null, handler)
+  return invoke<number>('plugin:event|listen', {
+    event,
+    windowLabel: options?.target,
+    handler: transformCallback(handler)
+  }).then((eventId) => {
+    return async () => _unlisten(event, eventId)
+  })
 }
 
 /**
@@ -93,9 +136,17 @@ async function listen<T>(
  */
 async function once<T>(
   event: EventName,
-  handler: EventCallback<T>
+  handler: EventCallback<T>,
+  options?: Options
 ): Promise<UnlistenFn> {
-  return eventApi.once(event, null, handler)
+  return listen<T>(
+    event,
+    (eventData) => {
+      handler(eventData)
+      _unlisten(event, eventData.id).catch(() => {})
+    },
+    options
+  )
 }
 
 /**
@@ -110,10 +161,18 @@ async function once<T>(
  *
  * @since 1.0.0
  */
-async function emit(event: string, payload?: unknown): Promise<void> {
-  return eventApi.emit(event, undefined, payload)
+async function emit(
+  event: string,
+  payload?: unknown,
+  options?: Options
+): Promise<void> {
+  await invoke('plugin:event|emit', {
+    event,
+    windowLabel: options?.target,
+    payload
+  })
 }
 
-export type { Event, EventCallback, UnlistenFn }
+export type { Event, EventCallback, UnlistenFn, EventName, Options }
 
-export { listen, once, emit }
+export { listen, once, emit, TauriEvent }

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-declare -a examples=("api" "sidecar" "updater" "resources" "tauri-dynamic-lib" "workspace")
+declare -a examples=("api" "sidecar" "resources" "tauri-dynamic-lib" "workspace")
 declare -a tooling=("bench" "cli" "webdriver")
 
 for example in "${examples[@]}"

@@ -5,7 +5,7 @@
 // taken from https://github.com/thedodd/trunk/blob/5c799dc35f1f1d8f8d3d30c8723cbb761a9b6a08/src/autoreload.js
 
 ;(function () {
-  var url = 'ws:' + '//' + window.location.host + '/_tauri-cli/ws'
+  var url = '{{reload_url}}'
   var poll_interval = 5000
   var reload_upon_connect = () => {
     window.setTimeout(() => {

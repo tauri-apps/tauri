@@ -95,6 +95,7 @@ jobs:
           cargo update -p raw-window-handle --precise 0.5.0
           cargo update -p cargo_toml:0.15.3 --precise 0.15.2
           cargo update -p zbus --precise 3.13.1
+          cargo update -p zvariant_derive --precise 3.14.0
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -64,6 +64,7 @@ pub struct SystemTray {
   icon_as_template_set: bool,
   #[cfg(target_os = "macos")]
   title: Option<String>,
+  tooltip: Option<String>,
 }
 
 impl fmt::Debug for SystemTray {
@@ -98,6 +99,7 @@ impl Default for SystemTray {
       menu_on_left_click_set: false,
       #[cfg(target_os = "macos")]
       title: None,
+      tooltip: None,
     }
   }
 }
@@ -257,6 +259,29 @@ impl SystemTray {
     self
   }
 
+  /// Sets the tray icon tooltip.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::SystemTray;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let tray_handle = SystemTray::new().with_tooltip("My App").build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn with_tooltip(mut self, tooltip: &str) -> Self {
+    self.tooltip = Some(tooltip.to_owned());
+    self
+  }
+
   /// Sets the event listener for this system tray.
   ///
   /// # Examples
@@ -412,6 +437,10 @@ impl SystemTray {
       if let Some(title) = self.title {
         runtime_tray = runtime_tray.with_title(&title);
       }
+    }
+
+    if let Some(tooltip) = self.tooltip {
+      runtime_tray = runtime_tray.with_tooltip(&tooltip);
     }
 
     let id = runtime_tray.id;
@@ -581,6 +610,19 @@ impl<R: Runtime> SystemTrayHandle<R> {
     panic!("item id not found")
   }
 
+  /// Attempts to get a handle to the menu item that has the specified `id`, return an error if `id` is not found.
+  pub fn try_get_item(&self, id: MenuIdRef<'_>) -> Option<SystemTrayMenuItemHandle<R>> {
+    self
+      .ids
+      .lock()
+      .unwrap()
+      .iter()
+      .find(|i| i.1 == id)
+      .map(|i| SystemTrayMenuItemHandle {
+        id: *i.0,
+        tray_handler: self.inner.clone(),
+      })
+  }
   /// Updates the tray icon.
   pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self.inner.set_icon(icon.try_into()?).map_err(Into::into)
@@ -608,6 +650,15 @@ impl<R: Runtime> SystemTrayHandle<R> {
   #[cfg(target_os = "macos")]
   pub fn set_title(&self, title: &str) -> crate::Result<()> {
     self.inner.set_title(title).map_err(Into::into)
+  }
+
+  /// Set the tooltip for this tray icon.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported
+  pub fn set_tooltip(&self, tooltip: &str) -> crate::Result<()> {
+    self.inner.set_tooltip(tooltip).map_err(Into::into)
   }
 
   /// Destroys this system tray.
@@ -641,6 +692,7 @@ impl<R: Runtime> SystemTrayMenuItemHandle<R> {
       .map_err(Into::into)
   }
 
+  /// Sets the native image for this item.
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn set_native_image(&self, image: crate::NativeImage) -> crate::Result<()> {

@@ -1,9 +1,10 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
 use json_patch::merge;
+use log::error;
 use once_cell::sync::Lazy;
 use serde_json::Value as JsonValue;
 
@@ -96,6 +97,20 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   }
 }
 
+pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
+  tauri_bundler::NsisSettings {
+    template: config.template,
+    license: config.license,
+    header_image: config.header_image,
+    sidebar_image: config.sidebar_image,
+    installer_icon: config.installer_icon,
+    install_mode: config.install_mode,
+    languages: config.languages,
+    custom_language_files: config.custom_language_files,
+    display_language_selector: config.display_language_selector,
+  }
+}
+
 fn config_handle() -> &'static ConfigHandle {
   static CONFING_HANDLE: Lazy<ConfigHandle> = Lazy::new(Default::default);
   &CONFING_HANDLE
@@ -141,12 +156,14 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
       for error in errors {
         let path = error.instance_path.clone().into_vec().join(" > ");
         if path.is_empty() {
-          eprintln!("`{config_file_name}` error: {}", error);
+          error!("`{}` error: {}", config_file_name, error);
         } else {
-          eprintln!("`{config_file_name}` error on `{}`: {}", path, error);
+          error!("`{}` error on `{}`: {}", config_file_name, path, error);
         }
       }
-      exit(1);
+      if !reload {
+        exit(1);
+      }
     }
   }
 

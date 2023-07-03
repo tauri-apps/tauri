@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -56,7 +56,7 @@ impl Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options.load();
-  let template_target_path = PathBuf::from(options.directory).join(&format!(
+  let template_target_path = PathBuf::from(options.directory).join(format!(
     "tauri-plugin-{}",
     AsKebabCase(&options.plugin_name)
   ));
@@ -72,7 +72,7 @@ pub fn command(mut options: Options) -> Result<()> {
             resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
-            r#"{{  path = {:?}, features = [ "api-all" ] }}"#,
+            r#"{{  path = {:?} }}"#,
             resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
@@ -83,16 +83,14 @@ pub fn command(mut options: Options) -> Result<()> {
       } else {
         (
           format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(
-            r#"{{ version = "{}", features = [ "api-all" ] }}"#,
-            metadata.tauri
-          ),
+          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
           format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
         )
       };
 
     let _ = remove_dir_all(&template_target_path);
-    let handlebars = Handlebars::new();
+    let mut handlebars = Handlebars::new();
+    handlebars.register_escape_fn(handlebars::no_escape);
 
     let mut data = BTreeMap::new();
     data.insert("plugin_name_original", to_json(&options.plugin_name));
@@ -110,7 +108,7 @@ pub fn command(mut options: Options) -> Result<()> {
       data.insert(
         "license_header",
         to_json(
-          "// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+          "// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
              // SPDX-License-Identifier: Apache-2.0
              // SPDX-License-Identifier: MIT\n\n"
             .replace("  ", "")

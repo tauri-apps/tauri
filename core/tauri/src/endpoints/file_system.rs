@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -386,7 +386,7 @@ fn resolve_path<R: Runtime>(
       }
     }
     Err(e) => super::Result::<SafePathBuf>::Err(e.into())
-      .with_context(|| format!("path: {}, base dir: {:?}", path.display(), dir)),
+      .with_context(|| format!("path: {}, base dir: {dir:?}", path.display())),
   }
 }
 

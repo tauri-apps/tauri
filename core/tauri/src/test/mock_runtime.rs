@@ -1,8 +1,9 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 #![allow(dead_code)]
+#![allow(missing_docs)]
 
 use tauri_runtime::{
   menu::{Menu, MenuUpdate},
@@ -12,8 +13,8 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle, UserAttentionType,
-  UserEvent,
+  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
+  RunEvent, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
 };
 #[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{
@@ -29,17 +30,60 @@ use uuid::Uuid;
 use windows::Win32::Foundation::HWND;
 
 use std::{
+  cell::RefCell,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    mpsc::{channel, sync_channel, Receiver, SyncSender},
+    Arc, Mutex,
+  },
 };
 
 type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
+type WindowId = usize;
+
+enum Message {
+  Task(Box<dyn FnOnce() + Send>),
+  CloseWindow(WindowId),
+}
+
+struct Window;
 
 #[derive(Clone)]
 pub struct RuntimeContext {
+  is_running: Arc<AtomicBool>,
+  windows: Arc<RefCell<HashMap<WindowId, Window>>>,
   shortcuts: Arc<Mutex<ShortcutMap>>,
   clipboard: Arc<Mutex<Option<String>>>,
+  run_tx: SyncSender<Message>,
+}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for RuntimeContext {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for RuntimeContext {}
+
+impl RuntimeContext {
+  fn send_message(&self, message: Message) -> Result<()> {
+    if self.is_running.load(Ordering::Relaxed) {
+      self
+        .run_tx
+        .send(message)
+        .map_err(|_| Error::FailedToSendMessage)
+    } else {
+      match message {
+        Message::Task(task) => task(),
+        Message::CloseWindow(id) => {
+          self.windows.borrow_mut().remove(&id);
+        }
+      }
+      Ok(())
+    }
+  }
 }
 
 impl fmt::Debug for RuntimeContext {
@@ -59,7 +103,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   type Runtime = MockRuntime;
 
   fn create_proxy(&self) -> EventProxy {
-    unimplemented!()
+    EventProxy {}
   }
 
   /// Create a new webview window.
@@ -67,10 +111,15 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     &self,
     pending: PendingWindow<T, Self::Runtime>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
+    let id = rand::random();
+    self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {
       label: pending.label,
       dispatcher: MockDispatcher {
+        id,
         context: self.context.clone(),
+        last_evaluated_script: Default::default(),
+        url: pending.url,
       },
       menu_ids: Default::default(),
       js_event_listeners: Default::default(),
@@ -79,7 +128,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
-    unimplemented!()
+    self.context.send_message(Message::Task(Box::new(f)))
   }
 
   #[cfg(all(desktop, feature = "system-tray"))]
@@ -88,11 +137,24 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     &self,
     system_tray: SystemTray,
   ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler> {
-    unimplemented!()
+    Ok(MockTrayHandler {
+      context: self.context.clone(),
+    })
   }
 
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-    unimplemented!()
+    #[cfg(target_os = "linux")]
+    return raw_window_handle::RawDisplayHandle::Xlib(raw_window_handle::XlibDisplayHandle::empty());
+    #[cfg(target_os = "macos")]
+    return raw_window_handle::RawDisplayHandle::AppKit(
+      raw_window_handle::AppKitDisplayHandle::empty(),
+    );
+    #[cfg(windows)]
+    return raw_window_handle::RawDisplayHandle::Windows(
+      raw_window_handle::WindowsDisplayHandle::empty(),
+    );
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    return unimplemented!();
   }
 
   /// Shows the application, but does not automatically focus it.
@@ -110,7 +172,16 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 
 #[derive(Debug, Clone)]
 pub struct MockDispatcher {
+  id: WindowId,
   context: RuntimeContext,
+  url: String,
+  last_evaluated_script: Arc<Mutex<Option<String>>>,
+}
+
+impl MockDispatcher {
+  pub fn last_evaluated_script(&self) -> Option<String> {
+    self.last_evaluated_script.lock().unwrap().clone()
+  }
 }
 
 #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -213,6 +284,18 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn maximizable(self, resizable: bool) -> Self {
+    self
+  }
+
+  fn minimizable(self, resizable: bool) -> Self {
+    self
+  }
+
+  fn closable(self, resizable: bool) -> Self {
+    self
+  }
+
   fn title<S: Into<String>>(self, title: S) -> Self {
     self
   }
@@ -221,7 +304,7 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
-  fn focus(self) -> Self {
+  fn focused(self, focused: bool) -> Self {
     self
   }
 
@@ -247,6 +330,10 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   fn always_on_top(self, always_on_top: bool) -> Self {
+    self
+  }
+
+  fn content_protected(self, protected: bool) -> Self {
     self
   }
 
@@ -283,6 +370,11 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn tabbing_identifier(self, identifier: &str) -> Self {
+    self
+  }
+
   fn theme(self, theme: Option<Theme>) -> Self {
     self
   }
@@ -302,7 +394,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   type WindowBuilder = MockWindowBuilder;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
-    Ok(())
+    self.context.send_message(Message::Task(Box::new(f)))
   }
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
@@ -322,6 +414,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn is_devtools_open(&self) -> Result<bool> {
     Ok(false)
+  }
+
+  fn url(&self) -> Result<url::Url> {
+    self.url.parse().map_err(|_| Error::FailedToReceiveMessage)
   }
 
   fn scale_factor(&self) -> Result<f64> {
@@ -354,7 +450,15 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn is_minimized(&self) -> Result<bool> {
+    Ok(false)
+  }
+
   fn is_maximized(&self) -> Result<bool> {
+    Ok(false)
+  }
+
+  fn is_focused(&self) -> Result<bool> {
     Ok(false)
   }
 
@@ -366,8 +470,24 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn is_maximizable(&self) -> Result<bool> {
+    Ok(true)
+  }
+
+  fn is_minimizable(&self) -> Result<bool> {
+    Ok(true)
+  }
+
+  fn is_closable(&self) -> Result<bool> {
+    Ok(true)
+  }
+
   fn is_visible(&self) -> Result<bool> {
     Ok(true)
+  }
+
+  fn title(&self) -> Result<String> {
+    Ok(String::new())
   }
 
   fn is_menu_visible(&self) -> Result<bool> {
@@ -402,7 +522,20 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
-    unimplemented!()
+    #[cfg(target_os = "linux")]
+    return Ok(raw_window_handle::RawWindowHandle::Xlib(
+      raw_window_handle::XlibWindowHandle::empty(),
+    ));
+    #[cfg(target_os = "macos")]
+    return Ok(raw_window_handle::RawWindowHandle::AppKit(
+      raw_window_handle::AppKitWindowHandle::empty(),
+    ));
+    #[cfg(windows)]
+    return Ok(raw_window_handle::RawWindowHandle::Win32(
+      raw_window_handle::Win32WindowHandle::empty(),
+    ));
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    return unimplemented!();
   }
 
   fn center(&self) -> Result<()> {
@@ -421,10 +554,34 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    unimplemented!()
+    let id = rand::random();
+    self.context.windows.borrow_mut().insert(id, Window);
+    Ok(DetachedWindow {
+      label: pending.label,
+      dispatcher: MockDispatcher {
+        id,
+        context: self.context.clone(),
+        last_evaluated_script: Default::default(),
+        url: pending.url,
+      },
+      menu_ids: Default::default(),
+      js_event_listeners: Default::default(),
+    })
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_maximizable(&self, maximizable: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_minimizable(&self, minimizable: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_closable(&self, closable: bool) -> Result<()> {
     Ok(())
   }
 
@@ -465,6 +622,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn close(&self) -> Result<()> {
+    self.context.send_message(Message::CloseWindow(self.id))?;
     Ok(())
   }
 
@@ -473,6 +631,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_content_protected(&self, protected: bool) -> Result<()> {
     Ok(())
   }
 
@@ -533,6 +695,11 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    self
+      .last_evaluated_script
+      .lock()
+      .unwrap()
+      .replace(script.into());
     Ok(())
   }
 
@@ -568,6 +735,10 @@ impl TrayHandle for MockTrayHandler {
     Ok(())
   }
 
+  fn set_tooltip(&self, tooltip: &str) -> Result<()> {
+    Ok(())
+  }
+
   fn destroy(&self) -> Result<()> {
     Ok(())
   }
@@ -584,6 +755,7 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy {
 
 #[derive(Debug)]
 pub struct MockRuntime {
+  is_running: Arc<AtomicBool>,
   pub context: RuntimeContext,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: MockGlobalShortcutManager,
@@ -591,15 +763,22 @@ pub struct MockRuntime {
   clipboard_manager: MockClipboardManager,
   #[cfg(all(desktop, feature = "system-tray"))]
   tray_handler: MockTrayHandler,
+  run_rx: Receiver<Message>,
 }
 
 impl MockRuntime {
   fn init() -> Self {
+    let is_running = Arc::new(AtomicBool::new(false));
+    let (tx, rx) = sync_channel(1);
     let context = RuntimeContext {
+      is_running: is_running.clone(),
+      windows: Default::default(),
       shortcuts: Default::default(),
       clipboard: Default::default(),
+      run_tx: tx,
     };
     Self {
+      is_running,
       #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager: MockGlobalShortcutManager {
         context: context.clone(),
@@ -613,6 +792,7 @@ impl MockRuntime {
         context: context.clone(),
       },
       context,
+      run_rx: rx,
     }
   }
 }
@@ -638,7 +818,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   fn create_proxy(&self) -> EventProxy {
-    unimplemented!()
+    EventProxy {}
   }
 
   fn handle(&self) -> Self::Handle {
@@ -658,10 +838,15 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
+    let id = rand::random();
+    self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {
       label: pending.label,
       dispatcher: MockDispatcher {
+        id,
         context: self.context.clone(),
+        last_evaluated_script: Default::default(),
+        url: pending.url,
       },
       menu_ids: Default::default(),
       js_event_listeners: Default::default(),
@@ -690,6 +875,8 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn hide(&self) {}
 
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}
+
   #[cfg(any(
     target_os = "macos",
     windows,
@@ -706,9 +893,39 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     Default::default()
   }
 
-  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
+    self.is_running.store(true, Ordering::Relaxed);
+    callback(RunEvent::Ready);
+
     loop {
+      if let Ok(m) = self.run_rx.try_recv() {
+        match m {
+          Message::Task(p) => p(),
+          Message::CloseWindow(id) => {
+            let removed = self.context.windows.borrow_mut().remove(&id).is_some();
+            if removed {
+              let is_empty = self.context.windows.borrow().is_empty();
+              if is_empty {
+                let (tx, rx) = channel();
+                callback(RunEvent::ExitRequested { tx });
+
+                let recv = rx.try_recv();
+                let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+                if !should_prevent {
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      callback(RunEvent::MainEventsCleared);
+
       std::thread::sleep(std::time::Duration::from_secs(1));
     }
+
+    callback(RunEvent::Exit);
   }
 }

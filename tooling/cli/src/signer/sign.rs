@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -9,16 +9,18 @@ use crate::{
   Result,
 };
 use anyhow::Context;
+use base64::Engine;
 use clap::Parser;
+use tauri_utils::display_path;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Sign a file")]
 pub struct Options {
   /// Load the private key from a file
-  #[clap(short = 'k', long, conflicts_with("private-key-path"))]
+  #[clap(short = 'k', long, conflicts_with("private_key_path"))]
   private_key: Option<String>,
   /// Load the private key from a string
-  #[clap(short = 'f', long, conflicts_with("private-key"))]
+  #[clap(short = 'f', long, conflicts_with("private_key"))]
   private_key_path: Option<PathBuf>,
   /// Set private key password when signing
   #[clap(short, long)]
@@ -51,8 +53,8 @@ pub fn command(mut options: Options) -> Result<()> {
 
   println!(
            "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
-           manifest_dir.display(),
-           base64::encode(signature.to_string())
+           display_path(manifest_dir),
+           base64::engine::general_purpose::STANDARD.encode(signature.to_string())
          );
 
   Ok(())

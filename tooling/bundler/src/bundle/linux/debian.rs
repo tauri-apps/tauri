@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -26,16 +26,18 @@
 use super::super::common;
 use crate::Settings;
 use anyhow::Context;
+use handlebars::Handlebars;
 use heck::AsKebabCase;
 use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use libflate::gzip;
 use log::info;
+use serde::Serialize;
 use walkdir::WalkDir;
 
 use std::{
   collections::BTreeSet,
   ffi::OsStr,
-  fs::{self, File},
+  fs::{self, read_to_string, File},
   io::{self, Write},
   path::{Path, PathBuf},
 };
@@ -117,7 +119,7 @@ pub fn generate_data(
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    common::copy_file(&bin_path, &bin_dir.join(bin.name()))
+    common::copy_file(&bin_path, bin_dir.join(bin.name()))
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
   }
 
@@ -141,33 +143,65 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   let desktop_file_path = data_dir
     .join("usr/share/applications")
     .join(desktop_file_name);
-  let file = &mut common::create_file(&desktop_file_path)?;
+
   // For more information about the format of this file, see
   // https://developer.gnome.org/integration-guide/stable/desktop-files.html.en
-  writeln!(file, "[Desktop Entry]")?;
-  if let Some(category) = settings.app_category() {
-    writeln!(file, "Categories={}", category.gnome_desktop_categories())?;
-  } else {
-    writeln!(file, "Categories=")?;
-  }
-  if !settings.short_description().is_empty() {
-    writeln!(file, "Comment={}", settings.short_description())?;
-  }
-  writeln!(file, "Exec={} %U", bin_name)?;
-  writeln!(file, "Icon={}", bin_name)?;
-  writeln!(file, "Name={}", settings.product_name())?;
-  writeln!(file, "Terminal=false")?;
-  writeln!(file, "Type=Application")?;
+  let file = &mut common::create_file(&desktop_file_path)?;
 
-  if let Some(associations) = settings.file_associations() {
+  let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(handlebars::no_escape);
+  if let Some(template) = &settings.deb().desktop_template {
+    handlebars
+      .register_template_string("main.desktop", read_to_string(template)?)
+      .with_context(|| "Failed to setup custom handlebar template")?;
+  } else {
+    handlebars
+      .register_template_string("main.desktop", include_str!("./templates/main.desktop"))
+      .with_context(|| "Failed to setup custom handlebar template")?;
+  }
+
+  #[derive(Serialize)]
+  struct DesktopTemplateParams<'a> {
+    categories: &'a str,
+    comment: Option<&'a str>,
+    exec: &'a str,
+    icon: &'a str,
+    name: &'a str,
+    mime_type: Option<String>,
+  }
+
+  let mime_type = if let Some(associations) = settings.file_associations() {
     let mime_types: Vec<&str> = associations
       .iter()
       .filter_map(|association| association.mime_type.as_ref())
       .flatten()
       .map(|s| s.as_str())
       .collect();
-    writeln!(file, "MimeType={}", mime_types.join(";"))?;
-  }
+    Some(mime_types.join(";"))
+  } else {
+    None
+  };
+
+  handlebars.render_to_write(
+    "main.desktop",
+    &DesktopTemplateParams {
+      categories: settings
+        .app_category()
+        .map(|app_category| app_category.gnome_desktop_categories())
+        .unwrap_or(""),
+      comment: if !settings.short_description().is_empty() {
+        Some(settings.short_description())
+      } else {
+        None
+      },
+      exec: bin_name,
+      icon: bin_name,
+      name: settings.product_name(),
+      mime_type,
+    },
+    file,
+  )?;
+
   Ok(())
 }
 
@@ -264,10 +298,10 @@ fn copy_custom_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> 
       common::copy_file(path, data_dir.join(deb_path))?;
     } else {
       let out_dir = data_dir.join(deb_path);
-      for entry in walkdir::WalkDir::new(&path) {
+      for entry in walkdir::WalkDir::new(path) {
         let entry_path = entry?.into_path();
         if entry_path.is_file() {
-          let without_prefix = entry_path.strip_prefix(&path).unwrap();
+          let without_prefix = entry_path.strip_prefix(path).unwrap();
           common::copy_file(&entry_path, out_dir.join(without_prefix))?;
         }
       }
@@ -329,7 +363,7 @@ fn create_file_with_data<P: AsRef<Path>>(path: P, data: &str) -> crate::Result<(
 /// contents.
 fn total_dir_size(dir: &Path) -> crate::Result<u64> {
   let mut total: u64 = 0;
-  for entry in WalkDir::new(&dir) {
+  for entry in WalkDir::new(dir) {
     total += entry?.metadata()?.len();
   }
   Ok(total)
@@ -339,13 +373,13 @@ fn total_dir_size(dir: &Path) -> crate::Result<u64> {
 fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
   let src_dir = src_dir.as_ref();
   let mut tar_builder = tar::Builder::new(dest_file);
-  for entry in WalkDir::new(&src_dir) {
+  for entry in WalkDir::new(src_dir) {
     let entry = entry?;
     let src_path = entry.path();
     if src_path == src_dir {
       continue;
     }
-    let dest_path = src_path.strip_prefix(&src_dir)?;
+    let dest_path = src_path.strip_prefix(src_dir)?;
     if entry.file_type().is_dir() {
       tar_builder.append_dir(dest_path, src_path)?;
     } else {

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,6 +7,7 @@
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
+use url::Url;
 
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
@@ -29,7 +30,7 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::WindowUrl,
+  utils::config::{WindowConfig, WindowUrl},
   CursorIcon, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
   PageLoadPayload, Runtime, Theme, WindowEvent,
 };
@@ -48,6 +49,7 @@ use std::{
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -108,6 +110,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+  navigation_handler: Option<Box<NavigationHandler>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
@@ -124,6 +127,11 @@ impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
 
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
   ///
   /// # Examples
   ///
@@ -164,11 +172,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// }
   /// ```
   ///
-  /// # Known issues
-  ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
-  ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
     let runtime = manager.runtime();
@@ -181,7 +184,48 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
+      navigation_handler: None,
     }
+  }
+
+  /// Initializes a webview window builder from a window config from tauri.conf.json.
+  /// Keep in mind that you can't create 2 windows with the same `label` so make sure
+  /// that the initial window was closed or change the label of the new `WindowBuilder`.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
+  ///
+  /// # Examples
+  ///
+  /// - Create a window in a command:
+  ///
+  /// ```
+  /// #[tauri::command]
+  /// async fn reopen_window(app: tauri::AppHandle) {
+  ///   let window = tauri::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
+    let builder = Self {
+      manager: manager.manager().clone(),
+      runtime: manager.runtime(),
+      app_handle: manager.app_handle(),
+      label: config.label.clone(),
+      webview_attributes: WebviewAttributes::from(&config),
+      window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
+        config,
+      ),
+      web_resource_request_handler: None,
+      navigation_handler: None,
+    };
+
+    builder
   }
 
   /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.
@@ -229,27 +273,59 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Defines a closure to be executed when the webview navigates to a URL. Returning `false` cancels the navigation.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   http::header::HeaderValue,
+  ///   window::WindowBuilder,
+  /// };
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
+  ///       .on_navigation(|url| {
+  ///         // allow the production URL or localhost on dev
+  ///         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_navigation<F: Fn(Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.navigation_handler.replace(Box::new(f));
+    self
+  }
+
   /// Creates a new webview window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
-    let web_resource_request_handler = self.web_resource_request_handler.take();
-    let pending = PendingWindow::new(
+    let mut pending = PendingWindow::new(
       self.window_builder.clone(),
       self.webview_attributes.clone(),
       self.label.clone(),
     )?;
+    pending.navigation_handler = self.navigation_handler.take();
+    pending.web_resource_request_handler = self.web_resource_request_handler.take();
+
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    let pending = self.manager.prepare_window(
-      self.app_handle.clone(),
-      pending,
-      &labels,
-      web_resource_request_handler,
-    )?;
+    let pending = self
+      .manager
+      .prepare_window(self.app_handle.clone(), pending, &labels)?;
+
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending),
     }
     .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
+
+    self.manager.eval_script_all(format!(
+      "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+      window_labels_array = serde_json::to_string(&self.manager.labels())?,
+    ))?;
 
     self.manager.emit_filter(
       "tauri://window-created",
@@ -308,9 +384,47 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   }
 
   /// Whether the window is resizable or not.
+  /// When resizable is set to false, native window's maximize button is automatically disabled.
   #[must_use]
   pub fn resizable(mut self, resizable: bool) -> Self {
     self.window_builder = self.window_builder.resizable(resizable);
+    self
+  }
+
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn maximizable(mut self, maximizable: bool) -> Self {
+    self.window_builder = self.window_builder.maximizable(maximizable);
+    self
+  }
+
+  /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn minimizable(mut self, minimizable: bool) -> Self {
+    self.window_builder = self.window_builder.minimizable(minimizable);
+    self
+  }
+
+  /// Whether the window's native close button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn closable(mut self, closable: bool) -> Self {
+    self.window_builder = self.window_builder.closable(closable);
     self
   }
 
@@ -328,10 +442,21 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Whether the window will be initially hidden or focused.
+  /// Sets the window to be initially focused.
   #[must_use]
+  #[deprecated(
+    since = "1.2.0",
+    note = "The window is automatically focused by default. This function Will be removed in 2.0.0. Use `focused` instead."
+  )]
   pub fn focus(mut self) -> Self {
-    self.window_builder = self.window_builder.focus();
+    self.window_builder = self.window_builder.focused(true);
+    self
+  }
+
+  /// Whether the window will be initially focused or not.
+  #[must_use]
+  pub fn focused(mut self, focused: bool) -> Self {
+    self.window_builder = self.window_builder.focused(focused);
     self
   }
 
@@ -387,13 +512,24 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Prevents the window contents from being captured by other apps.
+  #[must_use]
+  pub fn content_protected(mut self, protected: bool) -> Self {
+    self.window_builder = self.window_builder.content_protected(protected);
+    self
+  }
+
   /// Sets the window icon.
   pub fn icon(mut self, icon: Icon) -> crate::Result<Self> {
     self.window_builder = self.window_builder.icon(icon.try_into()?)?;
     Ok(self)
   }
 
-  /// Sets whether or not the window icon should be added to the taskbar.
+  /// Sets whether or not the window icon should be hidden from the taskbar.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Unsupported.
   #[must_use]
   pub fn skip_taskbar(mut self, skip: bool) -> Self {
     self.window_builder = self.window_builder.skip_taskbar(skip);
@@ -451,6 +587,19 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Defines the window [tabbing identifier] for macOS.
+  ///
+  /// Windows with matching tabbing identifiers will be grouped together.
+  /// If the tabbing identifier is not set, automatic tabbing will be disabled.
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn tabbing_identifier(mut self, identifier: &str) -> Self {
+    self.window_builder = self.window_builder.tabbing_identifier(identifier);
+    self
+  }
+
   // ------------------------------------------- Webview attributes -------------------------------------------
 
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
@@ -498,6 +647,22 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Set additional arguments for the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux / Android / iOS**: Unsupported.
+  ///
+  /// ## Warning
+  ///
+  /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you use this method, you also need to disable these components by yourself if you want.
+  #[must_use]
+  pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
+    self.webview_attributes.additional_browser_args = Some(additional_args.to_string());
+    self
+  }
+
   /// Data directory for the webview.
   #[must_use]
   pub fn data_directory(mut self, data_directory: PathBuf) -> Self {
@@ -524,6 +689,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self.webview_attributes.clipboard = true;
     self
   }
+
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[must_use]
+  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self.webview_attributes.accept_first_mouse = accept;
+    self
+  }
 }
 
 // TODO: expand these docs since this is a pretty important type
@@ -535,10 +707,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 #[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
-  window: DetachedWindow<EventLoopMessage, R>,
+  pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
+
+  #[cfg(test)]
+  pub(crate) current_url: url::Url,
 }
 
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
@@ -553,6 +728,8 @@ impl<R: Runtime> Clone for Window<R> {
       window: self.window.clone(),
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
+      #[cfg(test)]
+      current_url: self.current_url.clone(),
     }
   }
 }
@@ -680,9 +857,9 @@ impl PlatformWebview {
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl Window<crate::Wry> {
-  /// Executes the closure accessing the platform's webview handle.
+  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
-  /// The closure is executed in the main thread.
+  /// The closure is executed on the main thread.
   ///
   /// # Examples
   ///
@@ -699,15 +876,15 @@ impl Window<crate::Wry> {
   ///       main_window.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see https://docs.rs/webkit2gtk/latest/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/latest/webkit2gtk/trait.WebViewExt.html
+  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
   ///           use webkit2gtk::traits::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///
   ///         #[cfg(windows)]
   ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.17.0/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///
@@ -749,6 +926,8 @@ impl<R: Runtime> Window<R> {
       window,
       manager,
       app_handle,
+      #[cfg(test)]
+      current_url: "http://tauri.app".parse().unwrap(),
     }
   }
 
@@ -853,9 +1032,19 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_fullscreen().map_err(Into::into)
   }
 
+  /// Gets the window's current minimized state.
+  pub fn is_minimized(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_minimized().map_err(Into::into)
+  }
+
   /// Gets the window's current maximized state.
   pub fn is_maximized(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
+  }
+
+  /// Gets the window's current focus state.
+  pub fn is_focused(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_focused().map_err(Into::into)
   }
 
   /// Gets the window’s current decoration state.
@@ -868,9 +1057,41 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
+  /// Gets the window’s native maximize button state
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn is_maximizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_maximizable().map_err(Into::into)
+  }
+
+  /// Gets the window’s native minimize button state
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn is_minimizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_minimizable().map_err(Into::into)
+  }
+
+  /// Gets the window’s native close button state
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn is_closable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_closable().map_err(Into::into)
+  }
+
   /// Gets the window's current visibility state.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
+  }
+
+  /// Gets the window's current title.
+  pub fn title(&self) -> crate::Result<String> {
+    self.window.dispatcher.title().map_err(Into::into)
   }
 
   /// Returns the monitor on which the window currently resides.
@@ -1002,11 +1223,55 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Determines if this window should be resizable.
+  /// When resizable is set to false, native window's maximize button is automatically disabled.
   pub fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
     self
       .window
       .dispatcher
       .set_resizable(resizable)
+      .map_err(Into::into)
+  }
+
+  /// Determines if this window's native maximize button should be enabled.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn set_maximizable(&self, maximizable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_maximizable(maximizable)
+      .map_err(Into::into)
+  }
+
+  /// Determines if this window's native minize button should be enabled.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn set_minimizable(&self, minimizable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_minimizable(minimizable)
+      .map_err(Into::into)
+  }
+
+  /// Determines if this window's native close button should be enabled.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_closable(&self, closable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_closable(closable)
       .map_err(Into::into)
   }
 
@@ -1080,6 +1345,15 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
+  /// Prevents the window contents from being captured by other apps.
+  pub fn set_content_protected(&self, protected: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_content_protected(protected)
+      .map_err(Into::into)
+  }
+
   /// Resizes this window.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
     self
@@ -1139,7 +1413,11 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Whether to show the window icon in the task bar or not.
+  /// Whether to hide the window icon from the taskbar or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Unsupported.
   pub fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()> {
     self
       .window
@@ -1217,9 +1495,47 @@ impl<R: Runtime> Window<R> {
 
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
+  /// Returns the current url of the webview.
+  // TODO: in v2, change this type to Result
+  #[cfg(not(test))]
+  pub fn url(&self) -> Url {
+    self.window.dispatcher.url().unwrap()
+  }
+
+  #[cfg(test)]
+  pub fn url(&self) -> Url {
+    self.current_url.clone()
+  }
+
+  #[cfg(test)]
+  pub(crate) fn navigate(&mut self, url: Url) {
+    self.current_url = url;
+  }
+
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
+    let current_url = self.url();
+    let config_url = manager.get_url();
+    let is_local = config_url.make_relative(&current_url).is_some();
+
+    let mut scope_not_found_error_message =
+      ipc_scope_not_found_error_message(&self.window.label, current_url.as_str());
+    let scope = if is_local {
+      None
+    } else {
+      match self.ipc_scope().remote_access_for(&self, &current_url) {
+        Ok(scope) => Some(scope),
+        Err(e) => {
+          if e.matches_window {
+            scope_not_found_error_message = ipc_scope_domain_error_message(current_url.as_str());
+          } else if e.matches_domain {
+            scope_not_found_error_message = ipc_scope_window_error_message(&self.window.label);
+          }
+          None
+        }
+      }
+    };
     match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
@@ -1233,9 +1549,18 @@ impl<R: Runtime> Window<R> {
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
-
         let invoke = Invoke { message, resolver };
+
+        if !is_local && scope.is_none() {
+          invoke.resolver.reject(scope_not_found_error_message);
+          return Ok(());
+        }
+
         if let Some(module) = &payload.tauri_module {
+          if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
+            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+            return Ok(());
+          }
           crate::endpoints::handle(
             module.to_string(),
             invoke,
@@ -1243,6 +1568,17 @@ impl<R: Runtime> Window<R> {
             manager.package_info(),
           );
         } else if payload.cmd.starts_with("plugin:") {
+          if !is_local {
+            let command = invoke.message.command.replace("plugin:", "");
+            let plugin_name = command.split('|').next().unwrap().to_string();
+            if !scope
+              .map(|s| s.plugins().contains(&plugin_name))
+              .unwrap_or(true)
+            {
+              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+              return Ok(());
+            }
+          }
           manager.extend_api(invoke);
         } else {
           manager.run_invoke_handler(invoke);
@@ -1258,7 +1594,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.eval_script(js).map_err(Into::into)
   }
 
-  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u64) {
+  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u32) {
     self
       .window
       .js_event_listeners
@@ -1272,7 +1608,7 @@ impl<R: Runtime> Window<R> {
       .insert(id);
   }
 
-  pub(crate) fn unregister_js_listener(&self, id: u64) {
+  pub(crate) fn unregister_js_listener(&self, id: u32) {
     let mut empty = None;
     let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
     let iter = js_listeners.iter_mut();
@@ -1401,6 +1737,24 @@ impl<R: Runtime> Window<R> {
 /// Event system APIs.
 impl<R: Runtime> Window<R> {
   /// Emits an event to both the JavaScript and the Rust listeners.
+  ///
+  /// This API is a combination of [`Self::trigger`] and [`Self::emit`].
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::Window) {
+  ///   window.emit_and_trigger("download-started", ());
+  ///
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners
+  ///     window.emit_and_trigger("download-progress", i);
+  ///   }
+  /// }
+  /// ```
   pub fn emit_and_trigger<S: Serialize + Clone>(
     &self,
     event: &str,
@@ -1417,7 +1771,7 @@ impl<R: Runtime> Window<R> {
     payload: S,
   ) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
+      "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
       serde_json::to_string(&source_window_label)?,
@@ -1426,9 +1780,21 @@ impl<R: Runtime> Window<R> {
     Ok(())
   }
 
-  /// Emits an event to the JavaScript listeners on the current window.
+  /// Emits an event to the JavaScript listeners on the current window or globally.
   ///
-  /// The event is only delivered to listeners that used the `WebviewWindow#listen` method on the @tauri-apps/api `window` module.
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::Window) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners registed in the webview
+  ///     window.emit("download-progress", i);
+  ///   }
+  /// }
+  /// ```
   pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager
@@ -1443,6 +1809,21 @@ impl<R: Runtime> Window<R> {
   /// This listener only receives events that are triggered using the
   /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
   /// the `appWindow.emit` function from the @tauri-apps/api `window` module.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = app.get_window("main").unwrap();
+  ///     window.listen("component-loaded", move |event| {
+  ///       println!("window just loaded a component");
+  ///     });
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -1452,11 +1833,37 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Unlisten to an event on this window.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = app.get_window("main").unwrap();
+  ///     let window_ = window.clone();
+  ///     let handler = window.listen("component-loaded", move |event| {
+  ///       println!("window just loaded a component");
+  ///
+  ///       // we no longer need to listen to the event
+  ///       // we also could have used `window.once` instead
+  ///       window_.unlisten(event.id());
+  ///     });
+  ///
+  ///     // stop listening to the event when you do not need it anymore
+  ///     window.unlisten(handler);
+  ///
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn unlisten(&self, handler_id: EventHandler) {
     self.manager.unlisten(handler_id)
   }
 
   /// Listen to an event on this window a single time.
+  ///
+  /// See [`Self::listen`] for more information.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: FnOnce(Event) + Send + 'static,
@@ -1465,13 +1872,39 @@ impl<R: Runtime> Window<R> {
     self.manager.once(event.into(), Some(label), handler)
   }
 
-  /// Triggers an event to the Rust listeners on this window.
+  /// Triggers an event to the Rust listeners on this window or global listeners.
   ///
-  /// The event is only delivered to listeners that used the [`listen`](Window#method.listen) method.
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::Window) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners registed on `window` in Rust
+  ///     window.trigger("download-progress", Some(i.to_string()));
+  ///   }
+  /// }
+  /// ```
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
   }
+}
+
+pub(crate) const IPC_SCOPE_DOES_NOT_ALLOW: &str = "Not allowed by the scope";
+
+pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> String {
+  format!("Scope not defined for window `{label}` and URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
+}
+
+pub(crate) fn ipc_scope_window_error_message(label: &str) -> String {
+  format!("Scope not defined for window `{}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access", label)
+}
+
+pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
+  format!("Scope not defined for URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
 }
 
 #[cfg(test)]

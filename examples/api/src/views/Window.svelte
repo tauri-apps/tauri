@@ -63,9 +63,13 @@
 
   let urlValue = 'https://tauri.app'
   let resizable = true
+  let maximizable = true
+  let minimizable = true
+  let closable = true
   let maximized = false
   let decorations = true
   let alwaysOnTop = false
+  let contentProtected = true
   let fullscreen = false
   let width = null
   let height = null
@@ -177,11 +181,15 @@
     loadWindowSize()
   }
   $: windowMap[selectedWindow]?.setResizable(resizable)
+  $: windowMap[selectedWindow]?.setMaximizable(maximizable)
+  $: windowMap[selectedWindow]?.setMinimizable(minimizable)
+  $: windowMap[selectedWindow]?.setClosable(closable)
   $: maximized
     ? windowMap[selectedWindow]?.maximize()
     : windowMap[selectedWindow]?.unmaximize()
   $: windowMap[selectedWindow]?.setDecorations(decorations)
   $: windowMap[selectedWindow]?.setAlwaysOnTop(alwaysOnTop)
+  $: windowMap[selectedWindow]?.setContentProtected(contentProtected)
   $: windowMap[selectedWindow]?.setFullscreen(fullscreen)
 
   $: width &&
@@ -279,12 +287,28 @@
         <input type="checkbox" bind:checked={resizable} />
       </label>
       <label>
+        Maximizable
+        <input type="checkbox" bind:checked={maximizable} />
+      </label>
+      <label>
+        Minimizable
+        <input type="checkbox" bind:checked={minimizable} />
+      </label>
+      <label>
+        Closable
+        <input type="checkbox" bind:checked={closable} />
+      </label>
+      <label>
         Has decorations
         <input type="checkbox" bind:checked={decorations} />
       </label>
       <label>
         Always on top
         <input type="checkbox" bind:checked={alwaysOnTop} />
+      </label>
+      <label>
+        Content protected
+        <input type="checkbox" bind:checked={contentProtected} />
       </label>
       <label>
         Fullscreen

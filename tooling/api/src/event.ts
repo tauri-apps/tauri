@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -12,7 +12,7 @@
 import * as eventApi from './helpers/event'
 import type { EventCallback, UnlistenFn, Event } from './helpers/event'
 
-export type EventName = TauriEvent | string
+export type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
 /**
  * @since 1.1.0
@@ -39,13 +39,14 @@ export enum TauriEvent {
 }
 
 /**
- * Listen to an event from the backend.
+ * Listen to an event. The event can be either global or window-specific.
+ * See {@link Event.windowLabel} to check the event source.
  *
  * @example
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
  * const unlisten = await listen<string>('error', (event) => {
- *   console.log(`Got error in window ${event.windowLabel}, payload: ${payload}`);
+ *   console.log(`Got error in window ${event.windowLabel}, payload: ${event.payload}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
@@ -67,7 +68,7 @@ async function listen<T>(
 }
 
 /**
- * Listen to an one-off event from the backend.
+ * Listen to an one-off event. See {@link listen} for more information.
  *
  * @example
  * ```typescript
@@ -98,7 +99,7 @@ async function once<T>(
 }
 
 /**
- * Emits an event to the backend.
+ * Emits an event to the backend and all Tauri windows.
  * @example
  * ```typescript
  * import { emit } from '@tauri-apps/api/event';

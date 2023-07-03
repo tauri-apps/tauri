@@ -368,9 +368,7 @@
   <aside
     id="sidebar"
     class="lt-sm:h-screen lt-sm:shadow-lg lt-sm:shadow lt-sm:transition-transform lt-sm:absolute lt-sm:z-1999
-     {isWindows
-      ? 'bg-darkPrimaryLighter/60 lt-sm:bg-darkPrimaryLighter'
-      : 'bg-darkPrimaryLighter'} transition-colors-250 overflow-hidden grid select-none px-2"
+    bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid select-none px-2"
   >
     <img
       on:click={() => open('https://tauri.app/')}

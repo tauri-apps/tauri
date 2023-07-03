@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -81,6 +81,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // initialize shell script template.
   let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(handlebars::no_escape);
   handlebars
     .register_template_string("appimage", include_str!("templates/appimage"))
     .expect("Failed to register template for handlebars");

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -232,7 +232,7 @@ mod test {
 
   // dummy event handler function
   fn event_fn(s: Event) {
-    println!("{:?}", s);
+    println!("{s:?}");
   }
 
   proptest! {
@@ -282,14 +282,13 @@ mod test {
 
     // check to see if on_event properly grabs the stored function from listen.
     #[test]
-    fn check_on_event(e in "[a-z]+", d in "[a-z]+") {
+    fn check_on_event(key in "[a-z]+", d in "[a-z]+") {
       let listeners: Listeners = Default::default();
-      // clone e as the key
-      let key = e.clone();
+
       // call listen with e and the event_fn dummy func
-      listeners.listen(e.clone(), None, event_fn);
+      listeners.listen(key.clone(), None, event_fn);
       // call on event with e and d.
-      listeners.trigger(&e, None, Some(d));
+      listeners.trigger(&key, None, Some(d));
 
       // lock the mutex
       let l = listeners.inner.handlers.lock().unwrap();
@@ -300,54 +299,53 @@ mod test {
   }
 }
 
-pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: u64) -> String {
+pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: u32) -> String {
   format!(
     "
       (function () {{
-        const listeners = (window['{listeners}'] || {{}})['{event_name}']
+        const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
         if (listeners) {{
-          const index = window['{listeners}']['{event_name}'].findIndex(e => e.id === {event_id})
+          const index = window['{listeners_object_name}']['{event_name}'].findIndex(e => e.id === {event_id})
           if (index > -1) {{
-            window['{listeners}']['{event_name}'].splice(index, 1)
+            window['{listeners_object_name}']['{event_name}'].splice(index, 1)
           }}
         }}
       }})()
     ",
-    listeners = listeners_object_name,
-    event_name = event_name,
-    event_id = event_id,
   )
 }
 
 pub fn listen_js(
   listeners_object_name: String,
   event: String,
-  event_id: u64,
+  event_id: u32,
   window_label: Option<String>,
   handler: String,
 ) -> String {
   format!(
-    "if (window['{listeners}'] === void 0) {{
-      Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
-    }}
-    if (window['{listeners}'][{event}] === void 0) {{
-      Object.defineProperty(window['{listeners}'], {event}, {{ value: [] }});
-    }}
-    window['{listeners}'][{event}].push({{
-      id: {event_id},
-      windowLabel: {window_label},
-      handler: {handler}
-    }});
+    "
+    (function () {{
+      if (window['{listeners}'] === void 0) {{
+        Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
+      }}
+      if (window['{listeners}'][{event}] === void 0) {{
+        Object.defineProperty(window['{listeners}'], {event}, {{ value: [] }});
+      }}
+      const eventListeners = window['{listeners}'][{event}]
+      const listener = {{
+        id: {event_id},
+        windowLabel: {window_label},
+        handler: {handler}
+      }};
+      eventListeners.push(listener);
+    }})()
   ",
     listeners = listeners_object_name,
-    event = event,
-    event_id = event_id,
     window_label = if let Some(l) = window_label {
       crate::runtime::window::assert_label_is_valid(&l);
-      format!("'{}'", l)
+      format!("'{l}'")
     } else {
       "null".to_owned()
     },
-    handler = handler
   )
 }

@@ -1,9 +1,9 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
-use base64::{decode, encode};
+use base64::Engine;
 use minisign::{sign, KeyPair as KP, SecretKey, SecretKeyBox, SignatureBox};
 use std::{
   fs::{self, File, OpenOptions},
@@ -22,7 +22,7 @@ pub struct KeyPair {
 
 fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(&parent)?;
+    fs::create_dir_all(parent)?;
   }
   let file = File::create(path)?;
   Ok(BufWriter::new(file))
@@ -35,8 +35,8 @@ pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
   let pk_box_str = pk.to_box().unwrap().to_string();
   let sk_box_str = sk.to_box(None).unwrap().to_string();
 
-  let encoded_pk = encode(&pk_box_str);
-  let encoded_sk = encode(&sk_box_str);
+  let encoded_pk = base64::engine::general_purpose::STANDARD.encode(pk_box_str);
+  let encoded_sk = base64::engine::general_purpose::STANDARD.encode(sk_box_str);
 
   Ok(KeyPair {
     pk: encoded_pk,
@@ -46,7 +46,7 @@ pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
 
 /// Transform a base64 String to readable string for the main signer
 pub fn decode_key(base64_key: String) -> crate::Result<String> {
-  let decoded_str = &decode(&base64_key)?[..];
+  let decoded_str = &base64::engine::general_purpose::STANDARD.decode(base64_key)?[..];
   Ok(String::from(str::from_utf8(decoded_str)?))
 }
 
@@ -72,23 +72,23 @@ where
         sk_path.display()
       ));
     } else {
-      std::fs::remove_file(&sk_path)?;
+      std::fs::remove_file(sk_path)?;
     }
   }
 
   if pk_path.exists() {
-    std::fs::remove_file(&pk_path)?;
+    std::fs::remove_file(pk_path)?;
   }
 
   let mut sk_writer = create_file(sk_path)?;
-  write!(sk_writer, "{:}", key)?;
+  write!(sk_writer, "{key:}")?;
   sk_writer.flush()?;
 
   let mut pk_writer = create_file(pk_path)?;
-  write!(pk_writer, "{:}", pubkey)?;
+  write!(pk_writer, "{pubkey:}")?;
   pk_writer.flush()?;
 
-  Ok((fs::canonicalize(&sk_path)?, fs::canonicalize(&pk_path)?))
+  Ok((fs::canonicalize(sk_path)?, fs::canonicalize(pk_path)?))
 }
 
 /// Read key from file
@@ -128,7 +128,8 @@ where
     Some("signature from tauri secret key"),
   )?;
 
-  let encoded_signature = encode(&signature_box.to_string());
+  let encoded_signature =
+    base64::engine::general_purpose::STANDARD.encode(signature_box.to_string());
   signature_box_writer.write_all(encoded_signature.as_bytes())?;
   signature_box_writer.flush()?;
   Ok((fs::canonicalize(&signature_path)?, signature_box))

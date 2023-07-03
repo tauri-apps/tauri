@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -18,7 +18,7 @@ pub fn resolver(_argument: String) {}
 
 #[command]
 pub fn simple_command(the_argument: String) {
-  println!("{}", the_argument);
+  println!("{the_argument}");
 }
 
 #[command]

@@ -1,3 +1,7 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 name: docker
 
 on:
@@ -67,6 +71,7 @@ jobs:
         with:
           toolchain: stable
           override: true
+          default: true
           target: ${{ matrix.target.name }}
 
       - name: Setup node
@@ -110,7 +115,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
       - name: Test
         run: |

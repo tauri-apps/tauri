@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -57,11 +57,11 @@ interface Duration {
  * @since 1.0.0
  */
 interface ClientOptions {
-  maxRedirections?: number
   /**
    * Defines the maximum number of redirects the client should follow.
    * If set to 0, no redirects will be followed.
    */
+  maxRedirections?: number
   connectTimeout?: number | Duration
 }
 
@@ -111,7 +111,7 @@ class Body {
    * @example
    * ```typescript
    * import { Body } from "@tauri-apps/api/http"
-   * Body.form({
+   * const body = Body.form({
    *   key: 'value',
    *   image: {
    *     file: '/path/to/file', // either a path or an array buffer of the file contents
@@ -119,29 +119,50 @@ class Body {
    *     fileName: 'image.jpg' // optional
    *   }
    * });
+   *
+   * // alternatively, use a FormData:
+   * const form = new FormData();
+   * form.append('key', 'value');
+   * form.append('image', file, 'image.png');
+   * const formBody = Body.form(form);
    * ```
    *
    * @param data The body data.
    *
    * @returns The body object ready to be used on the POST and PUT requests.
    */
-  static form(data: Record<string, Part>): Body {
+  static form(data: Record<string, Part> | FormData): Body {
     const form: Record<string, string | number[] | FilePart<number[]>> = {}
-    for (const key in data) {
-      // eslint-disable-next-line security/detect-object-injection
-      const v = data[key]
-      let r
-      if (typeof v === 'string') {
-        r = v
-      } else if (v instanceof Uint8Array || Array.isArray(v)) {
-        r = Array.from(v)
-      } else if (typeof v.file === 'string') {
-        r = { file: v.file, mime: v.mime, fileName: v.fileName }
-      } else {
-        r = { file: Array.from(v.file), mime: v.mime, fileName: v.fileName }
+
+    const append = (
+      key: string,
+      v: string | Uint8Array | FilePart<Uint8Array> | File
+    ): void => {
+      if (v !== null) {
+        let r
+        if (typeof v === 'string') {
+          r = v
+        } else if (v instanceof Uint8Array || Array.isArray(v)) {
+          r = Array.from(v)
+        } else if (v instanceof File) {
+          r = { file: v.name, mime: v.type, fileName: v.name }
+        } else if (typeof v.file === 'string') {
+          r = { file: v.file, mime: v.mime, fileName: v.fileName }
+        } else {
+          r = { file: Array.from(v.file), mime: v.mime, fileName: v.fileName }
+        }
+        form[String(key)] = r
       }
-      // eslint-disable-next-line security/detect-object-injection
-      form[key] = r
+    }
+
+    if (data instanceof FormData) {
+      for (const [key, value] of data) {
+        append(key, value)
+      }
+    } else {
+      for (const [key, value] of Object.entries(data)) {
+        append(key, value)
+      }
     }
     return new Body('Form', form)
   }
@@ -337,8 +358,7 @@ class Client {
           response.data = JSON.parse(response.data as string)
         } catch (e) {
           if (response.ok && (response.data as unknown as string) === '') {
-            // @ts-expect-error
-            response.data = {}
+            response.data = {} as T
           } else if (response.ok) {
             throw Error(
               `Failed to parse response \`${response.data}\` as JSON: ${e};
@@ -532,4 +552,4 @@ export type {
   FetchOptions
 }
 
-export { getClient, fetch, Body, Client, Response, ResponseType, FilePart }
+export { getClient, fetch, Body, Client, Response, ResponseType, type FilePart }

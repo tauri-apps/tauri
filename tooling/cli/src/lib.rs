@@ -1,10 +1,11 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 pub use anyhow::Result;
 
 mod build;
+mod completions;
 mod dev;
 mod helpers;
 mod icon;
@@ -14,7 +15,7 @@ mod interface;
 mod plugin;
 mod signer;
 
-use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
+use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
 use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
@@ -51,10 +52,10 @@ pub struct PackageJson {
   propagate_version(true),
   no_binary_name(true)
 )]
-struct Cli {
+pub(crate) struct Cli {
   /// Enables verbose logging
-  #[clap(short, long, global = true, parse(from_occurrences))]
-  verbose: usize,
+  #[clap(short, long, global = true, action = ArgAction::Count)]
+  verbose: u8,
   #[clap(subcommand)]
   command: Commands,
 }
@@ -68,9 +69,10 @@ enum Commands {
   Init(init::Options),
   Plugin(plugin::Cli),
   Signer(signer::Cli),
+  Completions(completions::Options),
 }
 
-fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
+fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
   let mut app = I::command();
   err.format(&mut app)
 }
@@ -106,11 +108,12 @@ where
   I: IntoIterator<Item = A>,
   A: Into<OsString> + Clone,
 {
-  let matches = match bin_name {
+  let cli = match bin_name {
     Some(bin_name) => Cli::command().bin_name(bin_name),
     None => Cli::command(),
-  }
-  .get_matches_from(args);
+  };
+  let cli_ = cli.clone();
+  let matches = cli.get_matches_from(args);
 
   let res = Cli::from_arg_matches(&matches).map_err(format_error::<Cli>);
   let cli = match res {
@@ -121,7 +124,7 @@ where
   let mut builder = Builder::from_default_env();
   let init_res = builder
     .format_indent(Some(12))
-    .filter(None, level_from_usize(cli.verbose).to_level_filter())
+    .filter(None, verbosity_level(cli.verbose).to_level_filter())
     .format(|f, record| {
       let mut is_command_output = false;
       if let Some(action) = record.key_values().get("action".into()) {
@@ -156,29 +159,29 @@ where
     .try_init();
 
   if let Err(err) = init_res {
-    eprintln!("Failed to attach logger: {}", err);
+    eprintln!("Failed to attach logger: {err}");
   }
 
   match cli.command {
-    Commands::Build(options) => build::command(options)?,
+    Commands::Build(options) => build::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
     Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
+    Commands::Completions(options) => completions::command(options, cli_)?,
   }
 
   Ok(())
 }
 
 /// This maps the occurrence of `--verbose` flags to the correct log level
-fn level_from_usize(num: usize) -> Level {
+fn verbosity_level(num: u8) -> Level {
   match num {
     0 => Level::Info,
     1 => Level::Debug,
     2.. => Level::Trace,
-    _ => panic!(),
   }
 }
 
@@ -205,14 +208,14 @@ impl CommandExt for Command {
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
     let program = self.get_program().to_string_lossy().into_owned();
-    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
     self.status().map_err(Into::into)
   }
 
   fn output_ok(&mut self) -> crate::Result<Output> {
     let program = self.get_program().to_string_lossy().into_owned();
-    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
     self.stdout(Stdio::piped());
     self.stderr(Stdio::piped());

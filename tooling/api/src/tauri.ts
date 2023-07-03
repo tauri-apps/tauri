@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -60,9 +60,7 @@ function transformCallback(
  *
  * @since 1.0.0
  */
-interface InvokeArgs {
-  [key: string]: unknown
-}
+type InvokeArgs = Record<string, unknown>
 
 /**
  * Sends a message to the backend.
@@ -132,7 +130,7 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
   const path = encodeURIComponent(filePath)
   return navigator.userAgent.includes('Windows')
     ? `https://${protocol}.localhost/${path}`
-    : `${protocol}://${path}`
+    : `${protocol}://localhost/${path}`
 }
 
 export type { InvokeArgs }

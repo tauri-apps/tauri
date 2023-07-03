@@ -1,11 +1,11 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use heck::{ToLowerCamelCase, ToSnakeCase};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 use syn::{
   ext::IdentExt,
   parse::{Parse, ParseStream},
@@ -103,6 +103,63 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     resolver: format_ident!("__tauri_resolver__"),
   };
 
+  // Tauri currently doesn't support async commands that take a reference as input and don't return
+  // a result. See: https://github.com/tauri-apps/tauri/issues/2533
+  //
+  // For now, we provide an informative error message to the user in that case. Once #2533 is
+  // resolved, this check can be removed.
+  let mut async_command_check = TokenStream2::new();
+  if function.sig.asyncness.is_some() {
+    // This check won't catch all possible problems but it should catch the most common ones.
+    let mut ref_argument_span = None;
+
+    for arg in &function.sig.inputs {
+      if let syn::FnArg::Typed(pat) = arg {
+        match &*pat.ty {
+          syn::Type::Reference(_) => {
+            ref_argument_span = Some(pat.span());
+          }
+          syn::Type::Path(path) => {
+            // Check if the type contains a lifetime argument
+            let last = path.path.segments.last().unwrap();
+            if let syn::PathArguments::AngleBracketed(args) = &last.arguments {
+              if args
+                .args
+                .iter()
+                .any(|arg| matches!(arg, syn::GenericArgument::Lifetime(_)))
+              {
+                ref_argument_span = Some(pat.span());
+              }
+            }
+          }
+          _ => {}
+        }
+
+        if let Some(span) = ref_argument_span {
+          if let syn::ReturnType::Type(_, return_type) = &function.sig.output {
+            // To check if the return type is `Result` we require it to check a trait that is
+            // only implemented by `Result`. That way we don't exclude renamed result types
+            // which we wouldn't otherwise be able to detect purely from the token stream.
+            // The "error message" displayed to the user is simply the trait name.
+            async_command_check = quote_spanned! {return_type.span() =>
+              #[allow(unreachable_code, clippy::diverging_sub_expression)]
+              const _: () = if false {
+                trait AsyncCommandMustReturnResult {}
+                impl<A, B> AsyncCommandMustReturnResult for ::std::result::Result<A, B> {}
+                let _check: #return_type = unreachable!();
+                let _: &dyn AsyncCommandMustReturnResult = &_check;
+              };
+            };
+          } else {
+            return quote_spanned! {
+              span => compile_error!("async commands that contain references as inputs must return a `Result`");
+            }.into();
+          }
+        }
+      }
+    }
+  }
+
   // body to the command wrapper or a `compile_error!` of an error occurred while parsing it.
   let body = syn::parse::<WrapperAttributes>(attributes)
     .map(|mut attrs| {
@@ -121,6 +178,8 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
+    #async_command_check
+
     #function
 
     #maybe_macro_export

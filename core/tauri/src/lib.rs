@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -11,8 +11,10 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
+//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
@@ -21,9 +23,10 @@
 //! - **shell-open-api**: Enables the [`api::shell`] module.
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
-//! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
-//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
-//! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
+//! - **reqwest-client**: Alias for the `http-api` feature flag.
+//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
+//! - **reqwest-native-tls-vendored**: Alias for the `native-tls-vendored` feature flag.
+//! - **os-api**: Enables the [`api::os`] module.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **global-shortcut**: Enables the global shortcut APIs.
 //! - **clipboard**: Enables the clipboard APIs.
@@ -123,6 +126,9 @@
 //! - **window-center**: Enables the [`center` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#center).
 //! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#requestuserattention).
 //! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setresizable).
+//! - **window-set-maximizable**: Enables the [`setMaximizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaximizable).
+//! - **window-set-minimizable**: Enables the [`setMinimizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminimizable).
+//! - **window-set-closable**: Enables the [`setClosable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setclosable).
 //! - **window-set-title**: Enables the [`setTitle` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#settitle).
 //! - **window-maximize**: Enables the [`maximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#maximize).
 //! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unmaximize).
@@ -133,6 +139,7 @@
 //! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
 //! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
 //! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
+//! - **window-set-content-protected**: Enables the [`setContentProtected` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcontentprotected).
 //! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
 //! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
 //! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
@@ -182,13 +189,14 @@ mod pattern;
 pub mod plugin;
 pub mod window;
 use tauri_runtime as runtime;
+#[cfg(protocol_asset)]
+mod asset_protocol;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
 #[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
-
 pub use tauri_utils as utils;
 
 /// A Tauri [`Runtime`] wrapper around wry.
@@ -208,6 +216,10 @@ use std::{collections::HashMap, fmt, sync::Arc};
 // Export types likely to be used by the application.
 pub use runtime::http;
 
+#[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+pub use tauri_runtime_wry::webview_version;
+
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
 pub use runtime::{menu::NativeImage, ActivationPolicy};
@@ -217,7 +229,7 @@ pub use self::utils::TitleBarStyle;
 #[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle},
+  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
   self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {
@@ -242,7 +254,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    RunIteration, UserAttentionType,
+    DeviceEventFilter, RunIteration, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -261,6 +273,9 @@ pub use self::runtime::ClipboardManager;
 #[cfg(all(desktop, feature = "global-shortcut"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
+
+/// The Tauri version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Updater events.
 #[cfg(updater)]
@@ -374,7 +389,7 @@ pub enum Icon {
   Raw(Vec<u8>),
   /// Icon from raw RGBA bytes.
   Rgba {
-    /// RGBA byes of the icon image.
+    /// RGBA bytes of the icon image.
     rgba: Vec<u8>,
     /// Icon width.
     width: u32,
@@ -438,8 +453,7 @@ impl TryFrom<Icon> for runtime::Icon {
           })
         }
         _ => panic!(
-          "image `{}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags",
-          extension
+          "image `{extension}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags"
         ),
       }
       }
@@ -597,18 +611,66 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Emits a event to all windows.
+  ///
+  /// Only the webviews receives this event.
+  /// To trigger Rust listeners, use [`Self::trigger_global`], [`Window::trigger`] or [`Window::emit_and_trigger`].
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(app: tauri::AppHandle) {
+  ///   // emits the synchronized event to all windows
+  ///   app.emit_all("synchronized", ());
+  /// }
+  /// ```
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, None, payload, |_| true)
   }
 
-  /// Emits an event to a window with the specified label.
+  /// Emits an event to the window with the specified label.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(app: tauri::AppHandle) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to the updater window
+  ///     app.emit_to("updater", "download-progress", i);
+  ///   }
+  /// }
+  /// ```
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
       .emit_filter(event, None, payload, |w| label == w.label())
   }
 
-  /// Listen to a global event.
+  /// Listen to a event triggered on any window ([`Window::trigger`] or [`Window::emit_and_trigger`]) or with [`Self::trigger_global`].
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(window: tauri::Window) {
+  ///   // emits the synchronized event to all windows
+  ///   window.emit_and_trigger("synchronized", ());
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     app.listen_global("synchronized", |event| {
+  ///       println!("app is in sync");
+  ///     });
+  ///     Ok(())
+  ///   })
+  ///   .invoke_handler(tauri::generate_handler![synchronize]);
+  /// ```
   fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -617,6 +679,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Listen to a global event only once.
+  ///
+  /// See [`Self::listen_global`] for more information.
   fn once_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: FnOnce(Event) + Send + 'static,
@@ -624,12 +688,54 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().once(event.into(), None, handler)
   }
 
-  /// Trigger a global event.
+  /// Trigger a global event to Rust listeners.
+  /// To send the events to the webview, see [`Self::emit_all`] and [`Self::emit_to`].
+  /// To trigger listeners registed on an specific window, see [`Window::trigger`].
+  /// To trigger all listeners, see [`Window::emit_and_trigger`].
+  ///
+  /// A global event does not have a source or target window attached.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(app: tauri::AppHandle) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners registed in Rust
+  ///     app.trigger_global("download-progress", Some(i.to_string()));
+  ///   }
+  /// }
+  /// ```
   fn trigger_global(&self, event: &str, data: Option<String>) {
     self.manager().trigger(event, None, data)
   }
 
   /// Remove an event listener.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     let handler = app.listen_global("ready", move |event| {
+  ///       println!("app is ready");
+  ///
+  ///       // we no longer need to listen to the event
+  ///       // we also could have used `app.once_global` instead
+  ///       handle.unlisten(event.id());
+  ///     });
+  ///
+  ///     // stop listening to the event when you do not need it anymore
+  ///     app.unlisten(handler);
+  ///
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
   fn unlisten(&self, handler_id: EventHandler) {
     self.manager().unlisten(handler_id)
   }
@@ -637,6 +743,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Fetch a single window from the manager.
   fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
+  }
+  /// Fetch the focused window. Returns `None` if there is not any focused window.
+  fn get_focused_window(&self) -> Option<Window<R>> {
+    self.manager().get_focused_window()
   }
 
   /// Fetch all managed windows.
@@ -646,18 +756,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Add `state` to the state managed by the application.
   ///
-  /// This method can be called any number of times as long as each call
-  /// refers to a different `T`.
-  /// If a state for `T` is already managed, the function returns false and the value is ignored.
+  /// If the state for the `T` type has previously been set, the state is unchanged and false is returned. Otherwise true is returned.
   ///
   /// Managed state can be retrieved by any command handler via the
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
-  ///
-  /// # Panics
-  ///
-  /// Panics if state of type `T` is already being managed.
+  /// Additionally, [`state`](Self#method.state) can be used to retrieve the value manually.
   ///
   /// # Mutability
   ///
@@ -778,6 +883,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.state::<Scopes>().inner().fs.clone()
   }
 
+  /// Gets the scope for the IPC.
+  fn ipc_scope(&self) -> IpcScope {
+    self.state::<Scopes>().inner().ipc.clone()
+  }
+
   /// Gets the scope for the asset protocol.
   #[cfg(protocol_asset)]
   fn asset_protocol_scope(&self) -> FsScope {
@@ -817,8 +927,8 @@ pub(crate) mod sealed {
   }
 }
 
-/// Utilities for unit testing on Tauri applications.
-#[cfg(test)]
+#[cfg(any(test, feature = "test"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "test")))]
 pub mod test;
 
 #[cfg(test)]
@@ -843,8 +953,8 @@ mod tests {
     let lib_code = read_to_string(manifest_dir.join("src/lib.rs")).expect("failed to read lib.rs");
 
     for f in get_manifest().features.keys() {
-      if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{}**", f))) {
-        panic!("Feature {} is not documented", f);
+      if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{f}**"))) {
+        panic!("Feature {f} is not documented");
       }
     }
   }
@@ -856,8 +966,7 @@ mod tests {
     for checked_feature in checked_features {
       if !manifest.features.iter().any(|(f, _)| f == checked_feature) {
         panic!(
-          "Feature {} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml",
-          checked_feature
+          "Feature {checked_feature} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml"
         );
       }
     }
@@ -884,6 +993,7 @@ mod tests {
       "fs-extract-api",
       "http-api",
       "http-multipart",
+      "os-api",
       "process-command-api",
       "process-relaunch-dangerous-allow-symlink-macos",
       "window-data-url",
@@ -893,24 +1003,21 @@ mod tests {
       let module = module_all_feature.replace("-all", "");
       assert!(
         checked_features.contains(&module_all_feature.as_str()),
-        "`{}` is not aliased",
-        module
+        "`{module}` is not aliased"
       );
 
-      let module_prefix = format!("{}-", module);
+      let module_prefix = format!("{module}-");
       // we assume that module features are the ones that start with `<module>-`
       // though it's not 100% accurate, we have an allowed list to fix it
       let module_features = manifest
         .features
-        .iter()
-        .map(|(f, _)| f)
+        .keys()
         .filter(|f| f.starts_with(&module_prefix));
       for module_feature in module_features {
         assert!(
           allowed.contains(&module_feature.as_str())
             || checked_features.contains(&module_feature.as_str()),
-          "`{}` is not aliased",
-          module_feature
+          "`{module_feature}` is not aliased"
         );
       }
     }
@@ -938,7 +1045,7 @@ mod test_utils {
     fn check_spawn_task(task in "[a-z]+") {
       // create dummy task function
       let dummy_task = async move {
-        format!("{}-run-dummy-task", task);
+        format!("{task}-run-dummy-task");
       };
       // call spawn
       crate::async_runtime::spawn(dummy_task);

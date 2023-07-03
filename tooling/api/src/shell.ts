@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -32,7 +32,7 @@
  * ### Restricting access to the {@link open | `open`} API
  *
  * On the allowlist, `open: true` means that the {@link open} API can be used with any URL,
- * as the argument is validated with the `^https?://` regex.
+ * as the argument is validated with the `^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+` regex.
  * You can change that regex by changing the boolean value to a string, e.g. `open: ^https://github.com/`.
  *
  * ### Restricting access to the {@link Command | `Command`} APIs
@@ -57,11 +57,13 @@
  * Configuration:
  * ```json
  * {
- *   "scope": {
- *     "name": "run-git-commit",
- *     "cmd": "git",
- *     "args": ["commit", "-m", { "validator": "\\S+" }]
- *   }
+ *   "scope": [
+ *     {
+ *       "name": "run-git-commit",
+ *       "cmd": "git",
+ *       "args": ["commit", "-m", { "validator": "\\S+" }]
+ *     }
+ *   ]
  * }
  * ```
  * Usage:
@@ -85,7 +87,7 @@ interface SpawnOptions {
   /** Current working directory. */
   cwd?: string
   /** Environment variables. set to `null` to clear the process env. */
-  env?: { [name: string]: string }
+  env?: Record<string, string>
   /**
    * Character encoding for stdout/stderr
    *
@@ -553,7 +555,7 @@ type CommandEvent =
  *
  * @param path The path or URL to open.
  * This value is matched against the string regex defined on `tauri.conf.json > tauri > allowlist > shell > open`,
- * which defaults to `^https?://`.
+ * which defaults to `^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+`.
  * @param openWith The app to open the file or URL with.
  * Defaults to the system default application for the specified path type.
  *

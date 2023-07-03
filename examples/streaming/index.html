@@ -2,9 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
+      body {
+        margin: unset;
+        overflow: hidden;
+      }
       video {
         width: 100vw;
         height: 100vh;
@@ -17,13 +20,15 @@
       <source type="video/mp4" />
     </video>
     <script>
-      const { convertFileSrc } = window.__TAURI__.tauri
+      const { invoke, convertFileSrc } = window.__TAURI__.tauri
       const video = document.getElementById('video_source')
       const source = document.createElement('source')
-      source.type = 'video/mp4'
-      source.src = convertFileSrc('example/test_video.mp4', 'stream')
-      video.appendChild(source)
-      video.load()
+      invoke('video_uri').then(([scheme, path]) => {
+        source.type = 'video/mp4'
+        source.src = convertFileSrc(path, scheme)
+        video.appendChild(source)
+        video.load()
+      })
     </script>
   </body>
 </html>

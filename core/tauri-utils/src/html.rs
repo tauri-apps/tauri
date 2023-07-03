@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -37,7 +37,7 @@ fn serialize_node_ref_internal<S: Serializer>(
   traversal_scope: TraversalScope,
 ) -> crate::Result<()> {
   match (traversal_scope, node.data()) {
-    (ref scope, &NodeData::Element(ref element)) => {
+    (ref scope, NodeData::Element(element)) => {
       if *scope == TraversalScope::IncludeNode {
         let attrs = element.attributes.borrow();
 
@@ -82,16 +82,16 @@ fn serialize_node_ref_internal<S: Serializer>(
 
     (TraversalScope::ChildrenOnly(_), _) => Ok(()),
 
-    (TraversalScope::IncludeNode, &NodeData::Doctype(ref doctype)) => {
+    (TraversalScope::IncludeNode, NodeData::Doctype(doctype)) => {
       serializer.write_doctype(&doctype.name).map_err(Into::into)
     }
-    (TraversalScope::IncludeNode, &NodeData::Text(ref text)) => {
+    (TraversalScope::IncludeNode, NodeData::Text(text)) => {
       serializer.write_text(&text.borrow()).map_err(Into::into)
     }
-    (TraversalScope::IncludeNode, &NodeData::Comment(ref text)) => {
+    (TraversalScope::IncludeNode, NodeData::Comment(text)) => {
       serializer.write_comment(&text.borrow()).map_err(Into::into)
     }
-    (TraversalScope::IncludeNode, &NodeData::ProcessingInstruction(ref contents)) => {
+    (TraversalScope::IncludeNode, NodeData::ProcessingInstruction(contents)) => {
       let contents = contents.borrow();
       serializer
         .write_processing_instruction(&contents.0, &contents.1)
@@ -212,7 +212,6 @@ impl From<&PatternKind> for PatternObject {
   fn from(pattern_kind: &PatternKind) -> Self {
     match pattern_kind {
       PatternKind::Brownfield => Self::Brownfield,
-      #[cfg(feature = "isolation")]
       PatternKind::Isolation { .. } => Self::Isolation {
         side: IsolationSide::default(),
       },

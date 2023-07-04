@@ -2708,7 +2708,6 @@ dependencies = [
 name = "tauri-file-associations-demo"
 version = "0.1.0"
 dependencies = [
- "percent-encoding",
  "serde",
  "serde_json",
  "tauri",

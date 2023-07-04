@@ -298,11 +298,9 @@ macro_rules! debug_eprintln {
   };
 }
 
-/// Reconstructs a path from its components using the platform separator then converts it to String
+/// Reconstructs a path from its components using the platform separator then converts it to String and removes UNC prefixes on Windows if it exists.
 pub fn display_path<P: AsRef<Path>>(p: P) -> String {
-  p.as_ref()
-    .components()
-    .collect::<PathBuf>()
+  dunce::simplified(&p.as_ref().components().collect::<PathBuf>())
     .display()
     .to_string()
 }

@@ -7,9 +7,18 @@
 fn main() {
   let mut context = tauri::generate_context!();
   if std::env::var("TARGET").unwrap_or_default() == "nsis" {
+    // /D sets the default installation directory ($INSTDIR),
+    // overriding InstallDir and InstallDirRegKey.
+    // It must be the last parameter used in the command line and must not contain any quotes, even if the path contains spaces.
+    // Only absolute paths are supported.
+    // NOTE: we only need this because this is an integration test and we don't want to install the app in the programs folder
     context.config_mut().tauri.updater.windows.installer_args = vec![format!(
       "/D={}",
-      std::env::current_exe().unwrap().parent().unwrap().display()
+      tauri::utils::platform::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .display()
     )];
   }
   tauri::Builder::default()
@@ -18,9 +27,11 @@ fn main() {
       tauri::async_runtime::spawn(async move {
         match handle.updater().check().await {
           Ok(update) => {
-            if let Err(e) = update.download_and_install().await {
-              println!("{e}");
-              std::process::exit(1);
+            if update.is_update_available() {
+              if let Err(e) = update.download_and_install().await {
+                println!("{e}");
+                std::process::exit(1);
+              }
             }
             std::process::exit(0);
           }

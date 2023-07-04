@@ -5,7 +5,7 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
-use cargo_toml::{Dependency, Manifest};
+use cargo_toml::Manifest;
 use heck::AsShoutySnakeCase;
 
 use tauri_utils::{
@@ -15,6 +15,7 @@ use tauri_utils::{
 
 use std::path::{Path, PathBuf};
 
+mod allowlist;
 #[cfg(feature = "codegen")]
 mod codegen;
 mod static_vcruntime;
@@ -116,8 +117,26 @@ pub struct WindowsAttributes {
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
-  /// ```ignore
+  /// ```text
   #[doc = include_str!("window-app-manifest.xml")]
+  /// ```
+  ///
+  /// ## Warning
+  ///
+  /// if you are using tauri's dialog APIs, you need to specify a dependency on Common Control v6 by adding the following to your custom manifest:
+  /// ```text
+  ///  <dependency>
+  ///    <dependentAssembly>
+  ///      <assemblyIdentity
+  ///        type="win32"
+  ///        name="Microsoft.Windows.Common-Controls"
+  ///        version="6.0.0.0"
+  ///        processorArchitecture="*"
+  ///        publicKeyToken="6595b64144ccf1df"
+  ///        language="*"
+  ///      />
+  ///    </dependentAssembly>
+  ///  </dependency>
   /// ```
   ///
   /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
@@ -148,39 +167,57 @@ impl WindowsAttributes {
     self
   }
 
-  /// Sets the Windows app [manifest].
+  /// Sets the [application manifest] to be included with the application on Windows.
+  ///
+  /// Defaults to:
+  /// ```text
+  #[doc = include_str!("window-app-manifest.xml")]
+  /// ```
+  ///
+  /// ## Warning
+  ///
+  /// if you are using tauri's dialog APIs, you need to specify a dependency on Common Control v6 by adding the following to your custom manifest:
+  /// ```text
+  ///  <dependency>
+  ///    <dependentAssembly>
+  ///      <assemblyIdentity
+  ///        type="win32"
+  ///        name="Microsoft.Windows.Common-Controls"
+  ///        version="6.0.0.0"
+  ///        processorArchitecture="*"
+  ///        publicKeyToken="6595b64144ccf1df"
+  ///        language="*"
+  ///      />
+  ///    </dependentAssembly>
+  ///  </dependency>
+  /// ```
   ///
   /// # Example
   ///
   /// The following manifest will brand the exe as requesting administrator privileges.
   /// Thus, everytime it is executed, a Windows UAC dialog will appear.
   ///
-  /// Note that you can move the manifest contents to a separate file and use `include_str!("manifest.xml")`
-  /// instead of the inline string.
-  ///
   /// ```rust,no_run
   /// let mut windows = tauri_build::WindowsAttributes::new();
   /// windows = windows.app_manifest(r#"
   /// <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  /// <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
-  ///     <security>
-  ///         <requestedPrivileges>
-  ///             <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
-  ///         </requestedPrivileges>
-  ///     </security>
-  /// </trustInfo>
+  ///   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+  ///       <security>
+  ///           <requestedPrivileges>
+  ///               <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+  ///           </requestedPrivileges>
+  ///       </security>
+  ///   </trustInfo>
   /// </assembly>
   /// "#);
-  /// tauri_build::try_build(
-  ///   tauri_build::Attributes::new().windows_attributes(windows)
-  /// ).expect("failed to run build script");
+  /// let attrs =  tauri_build::Attributes::new().windows_attributes(windows);
+  /// tauri_build::try_build(attrs).expect("failed to run build script");
   /// ```
   ///
-  /// Defaults to:
-  /// ```ignore
-  #[doc = include_str!("window-app-manifest.xml")]
+  /// Note that you can move the manifest contents to a separate file and use `include_str!("manifest.xml")`
+  /// instead of the inline string.
+  ///
   /// [manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
-  /// ```
   #[must_use]
   pub fn app_manifest<S: AsRef<str>>(mut self, manifest: S) -> Self {
     self.app_manifest = Some(manifest.as_ref().to_string());
@@ -284,27 +321,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
   }
 
-  if let Some(tauri_build) = manifest.build_dependencies.remove("tauri-build") {
-    let error_message = check_features(&config, tauri_build, true);
-
-    if !error_message.is_empty() {
-      return Err(anyhow!("
-      The `tauri-build` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
-      Please run `tauri dev` or `tauri build` or {}.
-    ", error_message));
-    }
-  }
-
-  if let Some(tauri) = manifest.dependencies.remove("tauri") {
-    let error_message = check_features(&config, tauri, false);
-
-    if !error_message.is_empty() {
-      return Err(anyhow!("
-      The `tauri` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
-      Please run `tauri dev` or `tauri build` or {}.
-    ", error_message));
-    }
-  }
+  allowlist::check(&config, &mut manifest)?;
 
   let target_triple = std::env::var("TARGET").unwrap();
   let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
@@ -339,7 +356,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   if target_triple.contains("darwin") {
     if let Some(version) = &config.tauri.bundle.macos.minimum_system_version {
-      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={}", version);
+      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
     }
   }
 
@@ -383,18 +400,23 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           ));
         }
       }
-      if let Some(version) = &config.package.version {
-        if let Ok(v) = Version::parse(version) {
+      if let Some(version_str) = &config.package.version {
+        if let Ok(v) = Version::parse(version_str) {
           let version = v.major << 48 | v.minor << 32 | v.patch << 16;
           res.set_version_info(VersionInfo::FILEVERSION, version);
           res.set_version_info(VersionInfo::PRODUCTVERSION, version);
         }
-        res.set("FileVersion", version);
-        res.set("ProductVersion", version);
+        res.set("FileVersion", version_str);
+        res.set("ProductVersion", version_str);
       }
       if let Some(product_name) = &config.package.product_name {
         res.set("ProductName", product_name);
-        res.set("FileDescription", product_name);
+      }
+      if let Some(short_description) = &config.tauri.bundle.short_description {
+        res.set("FileDescription", short_description);
+      }
+      if let Some(copyright) = &config.tauri.bundle.copyright {
+        res.set("LegalCopyright", copyright);
       }
       res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
       res.compile().with_context(|| {
@@ -446,93 +468,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   Ok(())
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
-struct Diff {
-  remove: Vec<String>,
-  add: Vec<String>,
-}
-
-fn features_diff(current: &[String], expected: &[String]) -> Diff {
-  let mut remove = Vec::new();
-  let mut add = Vec::new();
-  for feature in current {
-    if !expected.contains(feature) {
-      remove.push(feature.clone());
-    }
-  }
-
-  for feature in expected {
-    if !current.contains(feature) {
-      add.push(feature.clone());
-    }
-  }
-
-  Diff { remove, add }
-}
-
-fn check_features(config: &Config, dependency: Dependency, is_tauri_build: bool) -> String {
-  use tauri_utils::config::{PatternKind, TauriConfig};
-
-  let features = match dependency {
-    Dependency::Simple(_) => Vec::new(),
-    Dependency::Detailed(dep) => dep.features,
-    Dependency::Inherited(dep) => dep.features,
-  };
-
-  let all_cli_managed_features = if is_tauri_build {
-    vec!["isolation"]
-  } else {
-    TauriConfig::all_features()
-  };
-
-  let expected = if is_tauri_build {
-    match config.tauri.pattern {
-      PatternKind::Isolation { .. } => vec!["isolation".to_string()],
-      _ => vec![],
-    }
-  } else {
-    config
-      .tauri
-      .features()
-      .into_iter()
-      .map(|f| f.to_string())
-      .collect::<Vec<String>>()
-  };
-
-  let diff = features_diff(
-    &features
-      .into_iter()
-      .filter(|f| all_cli_managed_features.contains(&f.as_str()))
-      .collect::<Vec<String>>(),
-    &expected,
-  );
-
-  let mut error_message = String::new();
-  if !diff.remove.is_empty() {
-    error_message.push_str("remove the `");
-    error_message.push_str(&diff.remove.join(", "));
-    error_message.push_str(if diff.remove.len() == 1 {
-      "` feature"
-    } else {
-      "` features"
-    });
-    if !diff.add.is_empty() {
-      error_message.push_str(" and ");
-    }
-  }
-  if !diff.add.is_empty() {
-    error_message.push_str("add the `");
-    error_message.push_str(&diff.add.join(", "));
-    error_message.push_str(if diff.add.len() == 1 {
-      "` feature"
-    } else {
-      "` features"
-    });
-  }
-
-  error_message
-}
-
 #[derive(serde::Deserialize)]
 struct CargoMetadata {
   workspace_root: PathBuf,
@@ -551,43 +486,4 @@ fn get_workspace_dir() -> Result<PathBuf> {
   }
 
   Ok(serde_json::from_slice::<CargoMetadata>(&output.stdout)?.workspace_root)
-}
-
-#[cfg(test)]
-mod tests {
-  use super::Diff;
-
-  #[test]
-  fn array_diff() {
-    for (current, expected, result) in [
-      (vec![], vec![], Default::default()),
-      (
-        vec!["a".into()],
-        vec![],
-        Diff {
-          remove: vec!["a".into()],
-          add: vec![],
-        },
-      ),
-      (vec!["a".into()], vec!["a".into()], Default::default()),
-      (
-        vec!["a".into(), "b".into()],
-        vec!["a".into()],
-        Diff {
-          remove: vec!["b".into()],
-          add: vec![],
-        },
-      ),
-      (
-        vec!["a".into(), "b".into()],
-        vec!["a".into(), "c".into()],
-        Diff {
-          remove: vec!["b".into()],
-          add: vec!["c".into()],
-        },
-      ),
-    ] {
-      assert_eq!(super::features_diff(&current, &expected), result);
-    }
-  }
 }

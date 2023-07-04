@@ -382,21 +382,22 @@ fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool
 }
 
 fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
-  let pluralised = if output_paths.len() == 1 {
-    "updater archive"
-  } else {
-    "updater archives"
-  };
-  let msg = format!("{} {} at:", output_paths.len(), pluralised);
-  info!("{}", msg);
-  for path in output_paths {
-    #[cfg(unix)]
-    info!("        {}", path.display());
-    #[cfg(windows)]
-    info!(
-      "        {}",
-      tauri_utils::display_path(path).replacen(r"\\?\", "", 1)
-    );
+  use std::fmt::Write;
+  if !output_paths.is_empty() {
+    let pluralised = if output_paths.len() == 1 {
+      "updater signature"
+    } else {
+      "updater signatures"
+    };
+    let mut printable_paths = String::new();
+    for path in output_paths {
+      writeln!(
+        printable_paths,
+        "        {}",
+        tauri_utils::display_path(path)
+      )?;
+    }
+    info!( action = "Finished"; "{} {} at:\n{}", output_paths.len(), pluralised, printable_paths);
   }
   Ok(())
 }

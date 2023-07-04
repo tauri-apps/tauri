@@ -4,10 +4,13 @@
 
 mod fs;
 mod http;
+/// IPC scope.
+pub mod ipc;
 #[cfg(shell_scope)]
 mod shell;
 
 pub use self::http::Scope as HttpScope;
+pub use self::ipc::Scope as IpcScope;
 pub use fs::{Event as FsScopeEvent, Pattern as GlobPattern, Scope as FsScope};
 #[cfg(shell_scope)]
 pub use shell::{
@@ -18,6 +21,7 @@ pub use shell::{
 use std::path::Path;
 
 pub(crate) struct Scopes {
+  pub ipc: IpcScope,
   pub fs: FsScope,
   #[cfg(protocol_asset)]
   pub asset_protocol: FsScope,

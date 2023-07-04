@@ -19,7 +19,7 @@ use crate::{
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
-  scope::FsScope,
+  scope::{FsScope, IpcScope},
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, resources::resource_relpath, Env},
@@ -990,7 +990,7 @@ pub struct Builder<R: Runtime> {
   invoke_handler: Box<InvokeHandler<R>>,
 
   /// The JS message responder.
-  invoke_responder: Arc<InvokeResponder<R>>,
+  pub(crate) invoke_responder: Arc<InvokeResponder<R>>,
 
   /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
   invoke_initialization_script: String,
@@ -1049,7 +1049,7 @@ impl<R: Runtime> Builder<R> {
       #[cfg(any(windows, target_os = "linux"))]
       runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
-      invoke_handler: Box::new(|_| ()),
+      invoke_handler: Box::new(|invoke| invoke.resolver.reject("not implemented")),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
         format!("Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {{ value: (message) => window.ipc.postMessage({}(message)) }})", crate::manager::STRINGIFY_IPC_MESSAGE_FN),
@@ -1214,6 +1214,7 @@ impl<R: Runtime> Builder<R> {
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
+  /// Additionally, [`state`](crate::Manager#method.state) can be used to retrieve the value manually.
   ///
   /// # Panics
   ///
@@ -1565,20 +1566,8 @@ impl<R: Runtime> Builder<R> {
 
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
-      let url = config.url.clone();
       let label = config.label.clone();
-
-      let mut webview_attributes =
-        WebviewAttributes::new(url).accept_first_mouse(config.accept_first_mouse);
-      if let Some(ua) = &config.user_agent {
-        webview_attributes = webview_attributes.user_agent(&ua.to_string());
-      }
-      if let Some(args) = &config.additional_browser_args {
-        webview_attributes = webview_attributes.additional_browser_args(&args.to_string());
-      }
-      if !config.file_drop_enabled {
-        webview_attributes = webview_attributes.disable_file_drop_handler();
-      }
+      let webview_attributes = WebviewAttributes::from(&config);
 
       self.pending_windows.push(PendingWindow::with_config(
         config,
@@ -1627,6 +1616,7 @@ impl<R: Runtime> Builder<R> {
 
     let env = Env::default();
     app.manage(Scopes {
+      ipc: IpcScope::new(&app.config()),
       fs: FsScope::for_fs_api(
         &app.manager.config(),
         app.package_info(),
@@ -1704,10 +1694,9 @@ impl<R: Runtime> Builder<R> {
       .collect::<Vec<_>>();
 
     for pending in self.pending_windows {
-      let pending =
-        app
-          .manager
-          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
+      let pending = app
+        .manager
+        .prepare_window(app.handle.clone(), pending, &window_labels)?;
       let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
       let _window = app.manager.attach_window(app.handle(), detached);
     }

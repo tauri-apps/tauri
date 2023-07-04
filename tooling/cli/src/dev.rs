@@ -74,8 +74,6 @@ pub fn command(options: Options) -> Result<()> {
   let r = command_internal(options);
   if r.is_err() {
     kill_before_dev_process();
-    #[cfg(not(debug_assertions))]
-    let _ = check_for_updates();
   }
   r
 }
@@ -185,8 +183,6 @@ fn command_internal(mut options: Options) -> Result<()> {
 
         let _ = ctrlc::set_handler(move || {
           kill_before_dev_process();
-          #[cfg(not(debug_assertions))]
-          let _ = check_for_updates();
           exit(130);
         });
       }
@@ -230,7 +226,7 @@ fn command_internal(mut options: Options) -> Result<()> {
       use crate::helpers::web_dev_server::start_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
-        let server_url = start_dev_server(path, options.port);
+        let server_url = start_dev_server(path, options.port)?;
         let server_url = format!("http://{server_url}");
         dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 
@@ -278,11 +274,15 @@ fn command_internal(mut options: Options) -> Result<()> {
       };
       let mut i = 0;
       let sleep_interval = std::time::Duration::from_secs(2);
+      let timeout_duration = std::time::Duration::from_secs(1);
       let max_attempts = 90;
-      loop {
-        if std::net::TcpStream::connect(addrs).is_ok() {
-          break;
+      'waiting: loop {
+        for addr in addrs.iter() {
+          if std::net::TcpStream::connect_timeout(addr, timeout_duration).is_ok() {
+            break 'waiting;
+          }
         }
+
         if i % 3 == 1 {
           warn!(
             "Waiting for your frontend dev server to start on {}...",
@@ -315,28 +315,8 @@ fn on_dev_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_w
       && (exit_on_panic || matches!(reason, ExitReason::NormalExit)))
   {
     kill_before_dev_process();
-    #[cfg(not(debug_assertions))]
-    let _ = check_for_updates();
     exit(status.code().unwrap_or(0));
   }
-}
-
-#[cfg(not(debug_assertions))]
-fn check_for_updates() -> Result<()> {
-  if std::env::var_os("TAURI_SKIP_UPDATE_CHECK") != Some("true".into()) {
-    let current_version = crate::info::cli_current_version()?;
-    let current = semver::Version::parse(&current_version)?;
-
-    let upstream_version = crate::info::cli_upstream_version()?;
-    let upstream = semver::Version::parse(&upstream_version)?;
-    if current < upstream {
-      println!(
-        "🚀 A new version of Tauri CLI is available! [{}]",
-        upstream.to_string()
-      );
-    };
-  }
-  Ok(())
 }
 
 fn kill_before_dev_process() {

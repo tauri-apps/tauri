@@ -18,10 +18,11 @@ pub enum MimeType {
   Js,
   Json,
   Jsonld,
+  Mp4,
   OctetStream,
   Rtf,
   Svg,
-  Mp4,
+  Txt,
 }
 
 impl std::fmt::Display for MimeType {
@@ -34,10 +35,11 @@ impl std::fmt::Display for MimeType {
       MimeType::Js => "text/javascript",
       MimeType::Json => "application/json",
       MimeType::Jsonld => "application/ld+json",
+      MimeType::Mp4 => "video/mp4",
       MimeType::OctetStream => "application/octet-stream",
       MimeType::Rtf => "application/rtf",
       MimeType::Svg => "image/svg+xml",
-      MimeType::Mp4 => "video/mp4",
+      MimeType::Txt => MIMETYPE_PLAIN,
     };
     write!(f, "{mime}")
   }
@@ -46,6 +48,11 @@ impl std::fmt::Display for MimeType {
 impl MimeType {
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType.
   pub fn parse_from_uri(uri: &str) -> MimeType {
+    Self::parse_from_uri_with_fallback(uri, Self::Html)
+  }
+
+  /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType with specified fallback for unknown file extensions.
+  pub fn parse_from_uri_with_fallback(uri: &str, fallback: MimeType) -> MimeType {
     let suffix = uri.split('.').last();
     match suffix {
       Some("bin") => Self::OctetStream,
@@ -57,19 +64,24 @@ impl MimeType {
       Some("json") => Self::Json,
       Some("jsonld") => Self::Jsonld,
       Some("mjs") => Self::Js,
+      Some("mp4") => Self::Mp4,
       Some("rtf") => Self::Rtf,
       Some("svg") => Self::Svg,
-      Some("mp4") => Self::Mp4,
+      Some("txt") => Self::Txt,
       // Assume HTML when a TLD is found for eg. `wry:://tauri.app` | `wry://hello.com`
-      Some(_) => Self::Html,
-      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
+      Some(_) => fallback,
       // using octet stream according to this:
+      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
       None => Self::OctetStream,
     }
   }
 
   /// infer mimetype from content (or) URI if needed.
   pub fn parse(content: &[u8], uri: &str) -> String {
+    Self::parse_with_fallback(content, uri, Self::Html)
+  }
+  /// infer mimetype from content (or) URI if needed with specified fallback for unknown file extensions.
+  pub fn parse_with_fallback(content: &[u8], uri: &str, fallback: MimeType) -> String {
     let mime = if uri.ends_with(".svg") {
       // when reading svg, we can't use `infer`
       None
@@ -78,8 +90,10 @@ impl MimeType {
     };
 
     match mime {
-      Some(mime) if mime == MIMETYPE_PLAIN => Self::parse_from_uri(uri).to_string(),
-      None => Self::parse_from_uri(uri).to_string(),
+      Some(mime) if mime == MIMETYPE_PLAIN => {
+        Self::parse_from_uri_with_fallback(uri, fallback).to_string()
+      }
+      None => Self::parse_from_uri_with_fallback(uri, fallback).to_string(),
       Some(mime) => mime.to_string(),
     }
   }
@@ -122,14 +136,17 @@ mod tests {
     let mjs: String = MimeType::parse_from_uri("https://example.com/bundled.mjs").to_string();
     assert_eq!(mjs, String::from("text/javascript"));
 
+    let mp4: String = MimeType::parse_from_uri("https://example.com/video.mp4").to_string();
+    assert_eq!(mp4, String::from("video/mp4"));
+
     let rtf: String = MimeType::parse_from_uri("https://example.com/document.rtf").to_string();
     assert_eq!(rtf, String::from("application/rtf"));
 
     let svg: String = MimeType::parse_from_uri("https://example.com/picture.svg").to_string();
     assert_eq!(svg, String::from("image/svg+xml"));
 
-    let mp4: String = MimeType::parse_from_uri("https://example.com/video.mp4").to_string();
-    assert_eq!(mp4, String::from("video/mp4"));
+    let txt: String = MimeType::parse_from_uri("https://example.com/file.txt").to_string();
+    assert_eq!(txt, String::from("text/plain"));
 
     let custom_scheme = MimeType::parse_from_uri("wry://tauri.app").to_string();
     assert_eq!(custom_scheme, String::from("text/html"));

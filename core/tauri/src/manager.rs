@@ -25,10 +25,11 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
+use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
-use crate::pattern::{format_real_schema, PatternJavascript};
+use crate::pattern::PatternJavascript;
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
@@ -49,10 +50,6 @@ use crate::{
   },
   Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
-};
-use crate::{
-  app::{GlobalMenuEventListener, WindowMenuEvent},
-  window::WebResourceRequestHandler,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -142,7 +139,7 @@ fn set_csp<R: Runtime>(
     let default_src = csp
       .entry("default-src".into())
       .or_insert_with(Default::default);
-    default_src.push(format_real_schema(schema));
+    default_src.push(crate::pattern::format_real_schema(schema));
   }
 
   Csp::DirectiveMap(csp).to_string()
@@ -234,7 +231,7 @@ pub struct InnerWindowManager<R: Runtime> {
   /// The script that initializes the invoke system.
   invoke_initialization_script: String,
   /// Application pattern.
-  pattern: Pattern,
+  pub(crate) pattern: Pattern,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -370,18 +367,13 @@ impl<R: Runtime> WindowManager<R> {
   /// Get the base URL to use for webview requests.
   ///
   /// In dev mode, this will be based on the `devPath` configuration value.
-  fn get_url(&self) -> Cow<'_, Url> {
+  pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
+      #[cfg(windows)]
+      _ => Cow::Owned(Url::parse("https://tauri.localhost").unwrap()),
+      #[cfg(not(windows))]
       _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
-    }
-  }
-
-  /// Get the origin as it will be seen in the webview.
-  fn get_browser_origin(&self) -> String {
-    match self.base_path() {
-      AppUrl::Url(WindowUrl::External(url)) => url.origin().ascii_serialization(),
-      _ => format_real_schema("tauri"),
     }
   }
 
@@ -406,7 +398,6 @@ impl<R: Runtime> WindowManager<R> {
     label: &str,
     window_labels: &[String],
     app_handle: AppHandle<R>,
-    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
@@ -458,7 +449,6 @@ impl<R: Runtime> WindowManager<R> {
     if let Pattern::Isolation { schema, .. } = self.pattern() {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
-          origin: self.get_browser_origin(),
           isolation_src: &crate::pattern::format_real_schema(schema),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
@@ -481,23 +471,24 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
-    let window_origin =
-      if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-        format!("https://{}.localhost", window_url.scheme())
-      } else {
-        format!(
-          "{}://{}{}",
-          window_url.scheme(),
-          window_url.host().unwrap(),
-          if let Some(port) = window_url.port() {
-            format!(":{port}")
-          } else {
-            "".into()
-          }
-        )
-      };
+    let window_origin = if window_url.scheme() == "data" {
+      "null".into()
+    } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
+      format!("https://{}.localhost", window_url.scheme())
+    } else {
+      format!(
+        "{}://{}{}",
+        window_url.scheme(),
+        window_url.host().unwrap(),
+        window_url
+          .port()
+          .map(|p| format!(":{p}"))
+          .unwrap_or_default()
+      )
+    };
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
+      let web_resource_request_handler = pending.web_resource_request_handler.take();
       pending.register_uri_scheme_protocol(
         "tauri",
         self.prepare_uri_scheme_protocol(&window_origin, web_resource_request_handler),
@@ -507,203 +498,13 @@ impl<R: Runtime> WindowManager<R> {
 
     #[cfg(protocol_asset)]
     if !registered_scheme_protocols.contains(&"asset".into()) {
-      use crate::api::file::SafePathBuf;
-      use tokio::io::{AsyncReadExt, AsyncSeekExt};
-      use url::Position;
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
       pending.register_uri_scheme_protocol("asset", move |request| {
-        let parsed_path = Url::parse(request.uri())?;
-        let filtered_path = &parsed_path[..Position::AfterPath];
-        let path = filtered_path
-          .strip_prefix("asset://localhost/")
-          // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
-          // where `$P` is not `localhost/*`
-          .unwrap_or("");
-        let path = percent_encoding::percent_decode(path.as_bytes())
-          .decode_utf8_lossy()
-          .to_string();
-
-        if let Err(e) = SafePathBuf::new(path.clone().into()) {
-          debug_eprintln!("asset protocol path \"{}\" is not valid: {}", path, e);
-          return HttpResponseBuilder::new().status(403).body(Vec::new());
-        }
-
-        if !asset_scope.is_allowed(&path) {
-          debug_eprintln!("asset protocol not configured to allow the path: {}", path);
-          return HttpResponseBuilder::new().status(403).body(Vec::new());
-        }
-
-        let path_ = path.clone();
-
-        let mut response =
-          HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
-
-        // handle 206 (partial range) http request
-        if let Some(range) = request
-          .headers()
-          .get("range")
-          .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
-        {
-          #[derive(Default)]
-          struct RangeMetadata {
-            file: Option<tokio::fs::File>,
-            range: Option<crate::runtime::http::HttpRange>,
-            metadata: Option<std::fs::Metadata>,
-            headers: HashMap<&'static str, String>,
-            status_code: u16,
-            body: Vec<u8>,
-          }
-
-          let mut range_metadata = crate::async_runtime::safe_block_on(async move {
-            let mut data = RangeMetadata::default();
-            // open the file
-            let mut file = match tokio::fs::File::open(path_.clone()).await {
-              Ok(file) => file,
-              Err(e) => {
-                debug_eprintln!("Failed to open asset: {}", e);
-                data.status_code = 404;
-                return data;
-              }
-            };
-            // Get the file size
-            let file_size = match file.metadata().await {
-              Ok(metadata) => {
-                let len = metadata.len();
-                data.metadata.replace(metadata);
-                len
-              }
-              Err(e) => {
-                debug_eprintln!("Failed to read asset metadata: {}", e);
-                data.file.replace(file);
-                data.status_code = 404;
-                return data;
-              }
-            };
-            // parse the range
-            let range = match crate::runtime::http::HttpRange::parse(
-              &if range.ends_with("-*") {
-                range.chars().take(range.len() - 1).collect::<String>()
-              } else {
-                range.clone()
-              },
-              file_size,
-            ) {
-              Ok(r) => r,
-              Err(e) => {
-                debug_eprintln!("Failed to parse range {}: {:?}", range, e);
-                data.file.replace(file);
-                data.status_code = 400;
-                return data;
-              }
-            };
-
-            // FIXME: Support multiple ranges
-            // let support only 1 range for now
-            if let Some(range) = range.first() {
-              data.range.replace(*range);
-              let mut real_length = range.length;
-              // prevent max_length;
-              // specially on webview2
-              if range.length > file_size / 3 {
-                // max size sent (400ko / request)
-                // as it's local file system we can afford to read more often
-                real_length = std::cmp::min(file_size - range.start, 1024 * 400);
-              }
-
-              // last byte we are reading, the length of the range include the last byte
-              // who should be skipped on the header
-              let last_byte = range.start + real_length - 1;
-
-              data.headers.insert("Connection", "Keep-Alive".into());
-              data.headers.insert("Accept-Ranges", "bytes".into());
-              data
-                .headers
-                .insert("Content-Length", real_length.to_string());
-              data.headers.insert(
-                "Content-Range",
-                format!("bytes {}-{last_byte}/{file_size}", range.start),
-              );
-
-              if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
-                debug_eprintln!("Failed to seek file to {}: {}", range.start, e);
-                data.file.replace(file);
-                data.status_code = 422;
-                return data;
-              }
-
-              let mut f = file.take(real_length);
-              let r = f.read_to_end(&mut data.body).await;
-              file = f.into_inner();
-              data.file.replace(file);
-
-              if let Err(e) = r {
-                debug_eprintln!("Failed read file: {}", e);
-                data.status_code = 422;
-                return data;
-              }
-              // partial content
-              data.status_code = 206;
-            } else {
-              data.status_code = 200;
-            }
-
-            data
-          });
-
-          for (k, v) in range_metadata.headers {
-            response = response.header(k, v);
-          }
-
-          let mime_type = if let (Some(mut file), Some(metadata), Some(range)) = (
-            range_metadata.file,
-            range_metadata.metadata,
-            range_metadata.range,
-          ) {
-            // if we're already reading the beginning of the file, we do not need to re-read it
-            if range.start == 0 {
-              MimeType::parse(&range_metadata.body, &path)
-            } else {
-              let (status, bytes) = crate::async_runtime::safe_block_on(async move {
-                let mut status = None;
-                if let Err(e) = file.rewind().await {
-                  debug_eprintln!("Failed to rewind file: {}", e);
-                  status.replace(422);
-                  (status, Vec::with_capacity(0))
-                } else {
-                  // taken from https://docs.rs/infer/0.9.0/src/infer/lib.rs.html#240-251
-                  let limit = std::cmp::min(metadata.len(), 8192) as usize + 1;
-                  let mut bytes = Vec::with_capacity(limit);
-                  if let Err(e) = file.take(8192).read_to_end(&mut bytes).await {
-                    debug_eprintln!("Failed read file: {}", e);
-                    status.replace(422);
-                  }
-                  (status, bytes)
-                }
-              });
-              if let Some(s) = status {
-                range_metadata.status_code = s;
-              }
-              MimeType::parse(&bytes, &path)
-            }
-          } else {
-            MimeType::parse(&range_metadata.body, &path)
-          };
-          response
-            .mimetype(&mime_type)
-            .status(range_metadata.status_code)
-            .body(range_metadata.body)
-        } else {
-          match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
-            Ok(data) => {
-              let mime_type = MimeType::parse(&data, &path);
-              response.mimetype(&mime_type).body(data)
-            }
-            Err(e) => {
-              debug_eprintln!("Failed to read file: {}", e);
-              response.status(404).body(Vec::new())
-            }
-          }
-        }
+        crate::asset_protocol::asset_protocol_handler(
+          request,
+          asset_scope.clone(),
+          window_origin.clone(),
+        )
       });
     }
 
@@ -943,7 +744,6 @@ impl<R: Runtime> WindowManager<R> {
     #[derive(Template)]
     #[default_template("../scripts/init.js")]
     struct InitJavascript<'a> {
-      origin: String,
       #[raw]
       pattern_script: &'a str,
       #[raw]
@@ -1006,7 +806,6 @@ impl<R: Runtime> WindowManager<R> {
     let hotkeys = "";
 
     InitJavascript {
-      origin: self.get_browser_origin(),
       pattern_script,
       ipc_script,
       bundle_script,
@@ -1040,7 +839,7 @@ impl<R: Runtime> WindowManager<R> {
 
           for (let i = listeners.length - 1; i >= 0; i--) {{
             const listener = listeners[i]
-            if (listener.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
+            if (listener.windowLabel === null || eventData.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
               eventData.id = listener.id
               listener.handler(eventData)
             }}
@@ -1076,7 +875,16 @@ mod test {
     );
 
     #[cfg(custom_protocol)]
-    assert_eq!(manager.get_url().to_string(), "tauri://localhost");
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) {
+          "https://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
 
     #[cfg(dev)]
     assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
@@ -1121,33 +929,26 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
     mut pending: PendingWindow<EventLoopMessage, R>,
     window_labels: &[String],
-    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
     #[allow(unused_mut)] // mut url only for the data-url parsing
-    let (is_local, mut url) = match &pending.webview_attributes.url {
+    let mut url = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
         let url = self.get_url();
-        (
-          true,
-          // ignore "index.html" just to simplify the url
-          if path.to_str() != Some("index.html") {
-            url
-              .join(&path.to_string_lossy())
-              .map_err(crate::Error::InvalidUrl)
-              // this will never fail
-              .unwrap()
-          } else {
-            url.into_owned()
-          },
-        )
+        // ignore "index.html" just to simplify the url
+        if path.to_str() != Some("index.html") {
+          url
+            .join(&path.to_string_lossy())
+            .map_err(crate::Error::InvalidUrl)
+            // this will never fail
+            .unwrap()
+        } else {
+          url.into_owned()
+        }
       }
-      WindowUrl::External(url) => {
-        let config_url = self.get_url();
-        (config_url.make_relative(url).is_some(), url.clone())
-      }
+      WindowUrl::External(url) => url.clone(),
       _ => unimplemented!(),
     };
 
@@ -1190,17 +991,9 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    if is_local {
-      let label = pending.label.clone();
-      pending = self.prepare_pending_window(
-        pending,
-        &label,
-        window_labels,
-        app_handle.clone(),
-        web_resource_request_handler,
-      )?;
-      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
-    }
+    let label = pending.label.clone();
+    pending = self.prepare_pending_window(pending, &label, window_labels, app_handle.clone())?;
+    pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
@@ -1224,6 +1017,26 @@ impl<R: Runtime> WindowManager<R> {
         create_dir_all(user_data_dir)?;
       }
     }
+
+    #[cfg(feature = "isolation")]
+    let pattern = self.pattern().clone();
+    let navigation_handler = pending.navigation_handler.take();
+    pending.navigation_handler = Some(Box::new(move |url| {
+      // always allow navigation events for the isolation iframe and do not emit them for consumers
+      #[cfg(feature = "isolation")]
+      if let Pattern::Isolation { schema, .. } = &pattern {
+        if url.scheme() == schema
+          && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
+        {
+          return true;
+        }
+      }
+      if let Some(handler) = &navigation_handler {
+        handler(url)
+      } else {
+        true
+      }
+    }));
 
     Ok(pending)
   }
@@ -1365,6 +1178,14 @@ impl<R: Runtime> WindowManager<R> {
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.windows_lock().get(label).cloned()
+  }
+
+  pub fn get_focused_window(&self) -> Option<Window<R>> {
+    self
+      .windows_lock()
+      .iter()
+      .find(|w| w.1.is_focused().unwrap_or(false))
+      .map(|w| w.1.clone())
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

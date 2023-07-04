@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: benches
+name: bench
 
 on:
   push:
     branches:
       - dev
-      - next
+      - 1.x
   workflow_dispatch:
 
 env:

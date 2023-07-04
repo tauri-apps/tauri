@@ -288,7 +288,7 @@ pub fn notarize(
     info!("notarization started; waiting for Apple response...");
 
     let uuid = uuid[1].to_string();
-    get_notarization_status(uuid, auth_args, settings)?;
+    get_notarization_status(uuid, auth_args)?;
     staple_app(app_bundle_path.clone())?;
   } else {
     return Err(
@@ -322,11 +322,7 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
   Ok(())
 }
 
-fn get_notarization_status(
-  uuid: String,
-  auth_args: Vec<String>,
-  settings: &Settings,
-) -> crate::Result<()> {
+fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Result<()> {
   std::thread::sleep(std::time::Duration::from_secs(10));
   let result = Command::new("xcrun")
     .args(vec!["altool", "--notarization-info", &uuid])
@@ -345,7 +341,7 @@ fn get_notarization_status(
     {
       let status = status[1].to_string();
       if status == "in progress" {
-        get_notarization_status(uuid, auth_args, settings)
+        get_notarization_status(uuid, auth_args)
       } else if status == "invalid" {
         Err(
           anyhow::anyhow!(format!(
@@ -366,10 +362,10 @@ fn get_notarization_status(
         Ok(())
       }
     } else {
-      get_notarization_status(uuid, auth_args, settings)
+      get_notarization_status(uuid, auth_args)
     }
   } else {
-    get_notarization_status(uuid, auth_args, settings)
+    get_notarization_status(uuid, auth_args)
   }
 }
 

@@ -383,18 +383,16 @@ impl<R: Runtime> UpdateBuilder<R> {
       // If we got a success, we stop the loop
       // and we set our remote_release variable
       if let Ok(res) = resp {
-        let res = res.read().await?;
+        let status = res.status();
         // got status code 2XX
-        if StatusCode::from_u16(res.status)
-          .map_err(|e| Error::Builder(e.to_string()))?
-          .is_success()
-        {
+        if status.is_success() {
           // if we got 204
-          if StatusCode::NO_CONTENT.as_u16() == res.status {
+          if status == StatusCode::NO_CONTENT {
             // return with `UpToDate` error
             // we should catch on the client
             return Err(Error::UpToDate);
           };
+          let res = res.read().await?;
           // Convert the remote result to our local struct
           let built_release = serde_json::from_value(res.data).map_err(Into::into);
           // make sure all went well and the remote data is compatible
@@ -561,7 +559,6 @@ impl<R: Runtime> Update<R> {
       .and_then(|value| value.parse().ok());
 
     let mut buffer = Vec::new();
-    #[cfg(feature = "reqwest-client")]
     {
       use futures_util::StreamExt;
       let mut stream = response.bytes_stream();
@@ -570,25 +567,6 @@ impl<R: Runtime> Update<R> {
         let bytes = chunk.as_ref().to_vec();
         on_chunk(bytes.len(), content_length);
         buffer.extend(bytes);
-      }
-    }
-    #[cfg(not(feature = "reqwest-client"))]
-    {
-      let mut reader = response.reader();
-      let mut buf = [0; 16384];
-      loop {
-        match reader.read(&mut buf) {
-          Ok(b) => {
-            if b == 0 {
-              break;
-            } else {
-              let bytes = buf[0..b].to_vec();
-              on_chunk(bytes.len(), content_length);
-              buffer.extend(bytes);
-            }
-          }
-          Err(e) => return Err(e.into()),
-        }
       }
     }
 
@@ -731,21 +709,47 @@ fn copy_files_and_run<R: Read + Seek>(
 
   let paths = read_dir(&tmp_dir)?;
 
+  let system_root = std::env::var("SYSTEMROOT");
+  let powershell_path = system_root.as_ref().map_or_else(
+    |_| "powershell.exe".to_string(),
+    |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+  );
+
   for path in paths {
     let found_path = path?.path();
     // we support 2 type of files exe & msi for now
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
-      // Run the EXE
-      let mut installer = Command::new(found_path);
-      if crate::utils::config::WindowsUpdateInstallMode::Quiet
-        == config.tauri.updater.windows.install_mode
-      {
-        installer.arg("/S");
-      }
-      installer.args(&config.tauri.updater.windows.installer_args);
+      // we need to wrap the installer path in quotes for Start-Process
+      let mut installer_arg = std::ffi::OsString::new();
+      installer_arg.push("\"");
+      installer_arg.push(&found_path);
+      installer_arg.push("\"");
 
-      installer.spawn().expect("installer failed to start");
+      // Run the EXE
+      Command::new(powershell_path)
+        .args(["-NoProfile", "-WindowStyle", "Hidden"])
+        .args(["Start-Process"])
+        .arg(found_path)
+        .arg("-ArgumentList")
+        .arg(
+          [
+            config.tauri.updater.windows.install_mode.nsis_args(),
+            config
+              .tauri
+              .updater
+              .windows
+              .installer_args
+              .iter()
+              .map(AsRef::as_ref)
+              .collect::<Vec<_>>()
+              .as_slice(),
+          ]
+          .concat()
+          .join(", "),
+        )
+        .spawn()
+        .expect("installer failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -804,7 +808,6 @@ fn copy_files_and_run<R: Read + Seek>(
         .updater
         .windows
         .install_mode
-        .clone()
         .msiexec_args()
         .iter()
         .map(|p| p.to_string())
@@ -812,13 +815,8 @@ fn copy_files_and_run<R: Read + Seek>(
       msiexec_args.extend(config.tauri.updater.windows.installer_args.clone());
 
       // run the installer and relaunch the application
-      let system_root = std::env::var("SYSTEMROOT");
-      let powershell_path = system_root.as_ref().map_or_else(
-        |_| "powershell.exe".to_string(),
-        |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
-      );
       let powershell_install_res = Command::new(powershell_path)
-        .args(["-NoProfile", "-windowstyle", "hidden"])
+        .args(["-NoProfile", "-WindowStyle", "Hidden"])
         .args([
           "Start-Process",
           "-Wait",

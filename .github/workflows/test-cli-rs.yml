@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: test cli.rs
+name: test `tauri-cli`
 
 on:
   push:
     branches:
       - dev
-      - next
+      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-cli-rs.yml'
@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-tauri-cli:
+  test:
     runs-on: ${{ matrix.platform }}
 
     strategy:

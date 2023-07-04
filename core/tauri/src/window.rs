@@ -212,26 +212,18 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
-    let runtime = manager.runtime();
-    let app_handle = manager.app_handle();
-    let url = config.url.clone();
-    let file_drop_enabled = config.file_drop_enabled;
-    let mut builder = Self {
+    let builder = Self {
       manager: manager.manager().clone(),
-      runtime,
-      app_handle,
+      runtime: manager.runtime(),
+      app_handle: manager.app_handle(),
       label: config.label.clone(),
+      webview_attributes: WebviewAttributes::from(&config),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
         config,
       ),
-      webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
     };
-
-    if !file_drop_enabled {
-      builder = builder.disable_file_drop_handler();
-    }
 
     builder
   }
@@ -310,20 +302,19 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
   /// Creates a new webview window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
-    let web_resource_request_handler = self.web_resource_request_handler.take();
-    let pending = PendingWindow::new(
+    let mut pending = PendingWindow::new(
       self.window_builder.clone(),
       self.webview_attributes.clone(),
       self.label.clone(),
     )?;
-    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    let mut pending = self.manager.prepare_window(
-      self.app_handle.clone(),
-      pending,
-      &labels,
-      web_resource_request_handler,
-    )?;
     pending.navigation_handler = self.navigation_handler.take();
+    pending.web_resource_request_handler = self.web_resource_request_handler.take();
+
+    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
+    let pending = self
+      .manager
+      .prepare_window(self.app_handle.clone(), pending, &labels)?;
+
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
@@ -393,9 +384,47 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   }
 
   /// Whether the window is resizable or not.
+  /// When resizable is set to false, native window's maximize button is automatically disabled.
   #[must_use]
   pub fn resizable(mut self, resizable: bool) -> Self {
     self.window_builder = self.window_builder.resizable(resizable);
+    self
+  }
+
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn maximizable(mut self, maximizable: bool) -> Self {
+    self.window_builder = self.window_builder.maximizable(maximizable);
+    self
+  }
+
+  /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn minimizable(mut self, minimizable: bool) -> Self {
+    self.window_builder = self.window_builder.minimizable(minimizable);
+    self
+  }
+
+  /// Whether the window's native close button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn closable(mut self, closable: bool) -> Self {
+    self.window_builder = self.window_builder.closable(closable);
     self
   }
 
@@ -483,7 +512,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Whether the window should always be on top of other windows.
+  /// Prevents the window contents from being captured by other apps.
   #[must_use]
   pub fn content_protected(mut self, protected: bool) -> Self {
     self.window_builder = self.window_builder.content_protected(protected);
@@ -678,10 +707,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 #[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
-  window: DetachedWindow<EventLoopMessage, R>,
+  pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
+
+  #[cfg(test)]
+  pub(crate) current_url: url::Url,
 }
 
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
@@ -696,6 +728,8 @@ impl<R: Runtime> Clone for Window<R> {
       window: self.window.clone(),
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
+      #[cfg(test)]
+      current_url: self.current_url.clone(),
     }
   }
 }
@@ -892,6 +926,8 @@ impl<R: Runtime> Window<R> {
       window,
       manager,
       app_handle,
+      #[cfg(test)]
+      current_url: "http://tauri.app".parse().unwrap(),
     }
   }
 
@@ -1006,6 +1042,11 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
   }
 
+  /// Gets the window's current focus state.
+  pub fn is_focused(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_focused().map_err(Into::into)
+  }
+
   /// Gets the window’s current decoration state.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_decorated().map_err(Into::into)
@@ -1014,6 +1055,33 @@ impl<R: Runtime> Window<R> {
   /// Gets the window’s current resizable state.
   pub fn is_resizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
+  }
+
+  /// Gets the window’s native maximize button state
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn is_maximizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_maximizable().map_err(Into::into)
+  }
+
+  /// Gets the window’s native minimize button state
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn is_minimizable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_minimizable().map_err(Into::into)
+  }
+
+  /// Gets the window’s native close button state
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn is_closable(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_closable().map_err(Into::into)
   }
 
   /// Gets the window's current visibility state.
@@ -1155,11 +1223,55 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Determines if this window should be resizable.
+  /// When resizable is set to false, native window's maximize button is automatically disabled.
   pub fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
     self
       .window
       .dispatcher
       .set_resizable(resizable)
+      .map_err(Into::into)
+  }
+
+  /// Determines if this window's native maximize button should be enabled.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn set_maximizable(&self, maximizable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_maximizable(maximizable)
+      .map_err(Into::into)
+  }
+
+  /// Determines if this window's native minize button should be enabled.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  pub fn set_minimizable(&self, minimizable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_minimizable(minimizable)
+      .map_err(Into::into)
+  }
+
+  /// Determines if this window's native close button should be enabled.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_closable(&self, closable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_closable(closable)
       .map_err(Into::into)
   }
 
@@ -1384,13 +1496,46 @@ impl<R: Runtime> Window<R> {
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
   /// Returns the current url of the webview.
-  pub fn url(&self) -> crate::Result<Url> {
-    self.window.dispatcher.url().map_err(Into::into)
+  // TODO: in v2, change this type to Result
+  #[cfg(not(test))]
+  pub fn url(&self) -> Url {
+    self.window.dispatcher.url().unwrap()
+  }
+
+  #[cfg(test)]
+  pub fn url(&self) -> Url {
+    self.current_url.clone()
+  }
+
+  #[cfg(test)]
+  pub(crate) fn navigate(&mut self, url: Url) {
+    self.current_url = url;
   }
 
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
+    let current_url = self.url();
+    let config_url = manager.get_url();
+    let is_local = config_url.make_relative(&current_url).is_some();
+
+    let mut scope_not_found_error_message =
+      ipc_scope_not_found_error_message(&self.window.label, current_url.as_str());
+    let scope = if is_local {
+      None
+    } else {
+      match self.ipc_scope().remote_access_for(&self, &current_url) {
+        Ok(scope) => Some(scope),
+        Err(e) => {
+          if e.matches_window {
+            scope_not_found_error_message = ipc_scope_domain_error_message(current_url.as_str());
+          } else if e.matches_domain {
+            scope_not_found_error_message = ipc_scope_window_error_message(&self.window.label);
+          }
+          None
+        }
+      }
+    };
     match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
@@ -1404,9 +1549,18 @@ impl<R: Runtime> Window<R> {
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
-
         let invoke = Invoke { message, resolver };
+
+        if !is_local && scope.is_none() {
+          invoke.resolver.reject(scope_not_found_error_message);
+          return Ok(());
+        }
+
         if let Some(module) = &payload.tauri_module {
+          if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
+            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+            return Ok(());
+          }
           crate::endpoints::handle(
             module.to_string(),
             invoke,
@@ -1414,6 +1568,17 @@ impl<R: Runtime> Window<R> {
             manager.package_info(),
           );
         } else if payload.cmd.starts_with("plugin:") {
+          if !is_local {
+            let command = invoke.message.command.replace("plugin:", "");
+            let plugin_name = command.split('|').next().unwrap().to_string();
+            if !scope
+              .map(|s| s.plugins().contains(&plugin_name))
+              .unwrap_or(true)
+            {
+              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+              return Ok(());
+            }
+          }
           manager.extend_api(invoke);
         } else {
           manager.run_invoke_handler(invoke);
@@ -1429,7 +1594,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.eval_script(js).map_err(Into::into)
   }
 
-  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u64) {
+  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u32) {
     self
       .window
       .js_event_listeners
@@ -1443,7 +1608,7 @@ impl<R: Runtime> Window<R> {
       .insert(id);
   }
 
-  pub(crate) fn unregister_js_listener(&self, id: u64) {
+  pub(crate) fn unregister_js_listener(&self, id: u32) {
     let mut empty = None;
     let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
     let iter = js_listeners.iter_mut();
@@ -1572,6 +1737,24 @@ impl<R: Runtime> Window<R> {
 /// Event system APIs.
 impl<R: Runtime> Window<R> {
   /// Emits an event to both the JavaScript and the Rust listeners.
+  ///
+  /// This API is a combination of [`Self::trigger`] and [`Self::emit`].
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::Window) {
+  ///   window.emit_and_trigger("download-started", ());
+  ///
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners
+  ///     window.emit_and_trigger("download-progress", i);
+  ///   }
+  /// }
+  /// ```
   pub fn emit_and_trigger<S: Serialize + Clone>(
     &self,
     event: &str,
@@ -1597,9 +1780,21 @@ impl<R: Runtime> Window<R> {
     Ok(())
   }
 
-  /// Emits an event to the JavaScript listeners on the current window.
+  /// Emits an event to the JavaScript listeners on the current window or globally.
   ///
-  /// The event is only delivered to listeners that used the `WebviewWindow#listen` method on the @tauri-apps/api `window` module.
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::Window) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners registed in the webview
+  ///     window.emit("download-progress", i);
+  ///   }
+  /// }
+  /// ```
   pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager
@@ -1614,6 +1809,21 @@ impl<R: Runtime> Window<R> {
   /// This listener only receives events that are triggered using the
   /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
   /// the `appWindow.emit` function from the @tauri-apps/api `window` module.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = app.get_window("main").unwrap();
+  ///     window.listen("component-loaded", move |event| {
+  ///       println!("window just loaded a component");
+  ///     });
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -1623,11 +1833,37 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Unlisten to an event on this window.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = app.get_window("main").unwrap();
+  ///     let window_ = window.clone();
+  ///     let handler = window.listen("component-loaded", move |event| {
+  ///       println!("window just loaded a component");
+  ///
+  ///       // we no longer need to listen to the event
+  ///       // we also could have used `window.once` instead
+  ///       window_.unlisten(event.id());
+  ///     });
+  ///
+  ///     // stop listening to the event when you do not need it anymore
+  ///     window.unlisten(handler);
+  ///
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn unlisten(&self, handler_id: EventHandler) {
     self.manager.unlisten(handler_id)
   }
 
   /// Listen to an event on this window a single time.
+  ///
+  /// See [`Self::listen`] for more information.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: FnOnce(Event) + Send + 'static,
@@ -1636,13 +1872,39 @@ impl<R: Runtime> Window<R> {
     self.manager.once(event.into(), Some(label), handler)
   }
 
-  /// Triggers an event to the Rust listeners on this window.
+  /// Triggers an event to the Rust listeners on this window or global listeners.
   ///
-  /// The event is only delivered to listeners that used the [`listen`](Window#method.listen) method.
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::Window) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners registed on `window` in Rust
+  ///     window.trigger("download-progress", Some(i.to_string()));
+  ///   }
+  /// }
+  /// ```
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
   }
+}
+
+pub(crate) const IPC_SCOPE_DOES_NOT_ALLOW: &str = "Not allowed by the scope";
+
+pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> String {
+  format!("Scope not defined for window `{label}` and URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
+}
+
+pub(crate) fn ipc_scope_window_error_message(label: &str) -> String {
+  format!("Scope not defined for window `{}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access", label)
+}
+
+pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
+  format!("Scope not defined for URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
 }
 
 #[cfg(test)]

@@ -5,7 +5,7 @@
 use std::{
   fs::{create_dir_all, File},
   io::{Cursor, Read, Write},
-  path::{Path, PathBuf},
+  path::Path,
 };
 
 use log::info;
@@ -27,8 +27,10 @@ pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);
-  let response = attohttpc::get(url).send()?;
-  response.bytes().map_err(Into::into)
+  let response = ureq::get(url).call().map_err(Box::new)?;
+  let mut bytes = Vec::new();
+  response.into_reader().read_to_end(&mut bytes)?;
+  Ok(bytes)
 }
 
 pub enum HashAlgorithm {
@@ -74,7 +76,7 @@ fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<
 }
 
 #[cfg(target_os = "windows")]
-pub fn try_sign(file_path: &PathBuf, settings: &Settings) -> crate::Result<()> {
+pub fn try_sign(file_path: &std::path::PathBuf, settings: &Settings) -> crate::Result<()> {
   use tauri_utils::display_path;
 
   if let Some(certificate_thumbprint) = settings.windows().certificate_thumbprint.as_ref() {
@@ -111,28 +113,26 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
   for i in 0..zipa.len() {
     let mut file = zipa.by_index(i)?;
 
-    let dest_path = path.join(file.name());
-    if file.is_dir() {
-      create_dir_all(&dest_path)?;
-      continue;
+    if let Some(name) = file.enclosed_name() {
+      let dest_path = path.join(name);
+      if file.is_dir() {
+        create_dir_all(&dest_path)?;
+        continue;
+      }
+
+      let parent = dest_path.parent().expect("Failed to get parent");
+
+      if !parent.exists() {
+        create_dir_all(parent)?;
+      }
+
+      let mut buff: Vec<u8> = Vec::new();
+      file.read_to_end(&mut buff)?;
+      let mut fileout = File::create(dest_path).expect("Failed to open file");
+
+      fileout.write_all(&buff)?;
     }
-
-    let parent = dest_path.parent().expect("Failed to get parent");
-
-    if !parent.exists() {
-      create_dir_all(parent)?;
-    }
-
-    let mut buff: Vec<u8> = Vec::new();
-    file.read_to_end(&mut buff)?;
-    let mut fileout = File::create(dest_path).expect("Failed to open file");
-
-    fileout.write_all(&buff)?;
   }
 
   Ok(())
-}
-
-pub fn remove_unc_lossy<P: AsRef<Path>>(p: P) -> PathBuf {
-  PathBuf::from(p.as_ref().to_string_lossy().replacen(r"\\?\", "", 1))
 }

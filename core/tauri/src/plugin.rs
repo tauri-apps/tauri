@@ -5,14 +5,16 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler, PageLoadPayload, RunEvent,
-  Runtime, Window,
+  http::{Request as HttpRequest, Response as HttpResponse},
+  manager::CustomProtocol,
+  utils::config::PluginConfig,
+  AppHandle, Invoke, InvokeHandler, PageLoadPayload, RunEvent, Runtime, Window,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 /// The result type of Tauri plugin module.
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -146,6 +148,7 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
 }
 
 impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
@@ -161,6 +164,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
       on_drop: None,
+      uri_scheme_protocols: Default::default(),
     }
   }
 
@@ -411,6 +415,39 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
+  /// Registers a URI scheme protocol available to all webviews.
+  /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
+  /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
+  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  ///
+  /// # Arguments
+  ///
+  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  #[must_use]
+  pub fn register_uri_scheme_protocol<
+    N: Into<String>,
+    H: Fn(
+        &AppHandle<R>,
+        &HttpRequest,
+      ) -> std::result::Result<HttpResponse, Box<dyn std::error::Error>>
+      + Send
+      + Sync
+      + 'static,
+  >(
+    mut self,
+    uri_scheme: N,
+    protocol: H,
+  ) -> Self {
+    self.uri_scheme_protocols.insert(
+      uri_scheme.into(),
+      Arc::new(CustomProtocol {
+        protocol: Box::new(protocol),
+      }),
+    );
+    self
+  }
+
   /// Builds the [TauriPlugin].
   pub fn build(self) -> TauriPlugin<R, C> {
     TauriPlugin {
@@ -424,6 +461,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
       on_drop: self.on_drop,
+      uri_scheme_protocols: self.uri_scheme_protocols,
     }
   }
 }
@@ -440,6 +478,7 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
 }
 
 impl<R: Runtime, C: DeserializeOwned> Drop for TauriPlugin<R, C> {
@@ -462,6 +501,14 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     }
     if let Some(s) = self.setup_with_config.take() {
       (s)(app, serde_json::from_value(config)?)?;
+    }
+    for (uri_scheme, protocol) in &self.uri_scheme_protocols {
+      self
+        .app
+        .as_mut()
+        .unwrap()
+        .manager
+        .register_uri_scheme_protocol(uri_scheme, protocol.clone())
     }
     Ok(())
   }

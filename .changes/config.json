@@ -8,7 +8,8 @@
     "pref": "Performance Improvements",
     "changes": "What's Changed",
     "sec": "Security fixes",
-    "deps": "Dependencies"
+    "deps": "Dependencies",
+    "breaking": "Breaking Changes"
   },
   "defaultChangeTag": "changes",
   "pkgManagers": {

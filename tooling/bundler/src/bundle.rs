@@ -43,10 +43,12 @@ pub struct Bundle {
 /// Bundles the project.
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
-  let package_types = settings.package_types()?;
+  let mut package_types = settings.package_types()?;
   if package_types.is_empty() {
     return Ok(Vec::new());
   }
+
+  package_types.sort_by_key(|a| a.priority());
 
   let mut bundles: Vec<Bundle> = Vec::new();
 

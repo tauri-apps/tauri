@@ -2,4 +2,4 @@
 'tauri-bundler': 'patch:bug'
 ---
 
-The previous version has actually been uninstalled, but there is still a prompt indicating that it unable to uninstall.
+On Windows, fix NSIS installer showing an error dialog even when the previous version was uninstalled sucessfully.

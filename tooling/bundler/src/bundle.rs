@@ -48,7 +48,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     return Ok(Vec::new());
   }
 
-  package_types.sort_by(|a, b| a.priority().cmp(&b.priority()));
+  package_types.sort_by_key(|a| a.priority())
 
   let mut bundles: Vec<Bundle> = Vec::new();
 

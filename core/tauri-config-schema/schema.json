@@ -771,10 +771,24 @@
           ]
         },
         {
-          "description": "*Windows 11 Only**",
+          "description": "Mica effect that matches the system dark perefence **Windows 11 Only**",
           "type": "string",
           "enum": [
             "mica"
+          ]
+        },
+        {
+          "description": "Mica effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "micaDark"
+          ]
+        },
+        {
+          "description": "Mica effect with light mode **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "micaLight"
           ]
         },
         {

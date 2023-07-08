@@ -62,8 +62,8 @@ pub(crate) fn read_dir_with_options<P: AsRef<Path>>(
   options: ReadDirOptions<'_>,
 ) -> crate::api::Result<Vec<DiskEntry>> {
   let mut files_and_dirs: Vec<DiskEntry> = vec![];
-  for entry in fs::read_dir(path)? {
-    let path = entry?.path();
+  for entry in fs::read_dir(path)?.flatten() {
+    let path = entry.path();
     let path_as_string = path.display().to_string();
 
     if let Ok(flag) = is_dir(&path_as_string) {
@@ -75,7 +75,10 @@ pub(crate) fn read_dir_with_options<P: AsRef<Path>>(
               && (!is_symlink(&path_as_string)?
                 || options.scope.map(|s| s.is_allowed(&path)).unwrap_or(true))
             {
-              read_dir_with_options(&path_as_string, true, options)?
+              match read_dir_with_options(&path_as_string, true, options) {
+                Err(_) if recursive => Vec::new(),
+                e => e?,
+              }
             } else {
               vec![]
             },
@@ -90,7 +93,7 @@ pub(crate) fn read_dir_with_options<P: AsRef<Path>>(
       });
     }
   }
-  Result::Ok(files_and_dirs)
+  Ok(files_and_dirs)
 }
 
 /// Runs a closure with a temporary directory argument.

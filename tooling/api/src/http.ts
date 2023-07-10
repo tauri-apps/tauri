@@ -100,8 +100,92 @@ class Body {
     this.payload = payload
   }
 
+  private static crateFormEntryFromValue(
+    v: string | Uint8Array | FilePart<Uint8Array> | File
+  ): string | number[] | FilePart<number[]> | null {
+    let r
+    if (typeof v === 'string') {
+      r = v
+    } else if (v instanceof Uint8Array || Array.isArray(v)) {
+      r = Array.from(v)
+    } else if (v instanceof File) {
+      r = null
+    } else if (typeof v.file === 'string') {
+      r = { file: v.file, mime: v.mime, fileName: v.fileName }
+    } else {
+      r = { file: Array.from(v.file), mime: v.mime, fileName: v.fileName }
+    }
+    return r
+  }
+
   /**
    * Creates a new form data body. The form data is an object where each key is the entry name,
+   * and the value is either a string or a file object.
+   *
+   * By default it sets the `application/x-www-form-urlencoded` Content-Type header,
+   * but you can set it to `multipart/form-data` if the Cargo feature `http-multipart` is enabled.
+   *
+   * Note that a file path must be allowed in the `fs` allowlist scope.
+   * @example
+   * ```typescript
+   * import { Body } from "@tauri-apps/api/http"
+   * const body = Body.form({
+   *   key: 'value',
+   *   image: {
+   *     file: '/path/to/file', // either a path or an array buffer of the file contents
+   *     mime: 'image/jpeg', // optional
+   *     fileName: 'image.jpg' // optional
+   *   }
+   * });
+   *
+   * // alternatively, use a FormData:
+   * const form = new FormData();
+   * form.append('key', 'value');
+   * form.append('image', file, 'image.png');
+   * const formBody = Body.form(form);
+   * ```
+   *
+   * @note if using {@link FormData} with a {@link Blob} (including subclasses such as {@link File}) consider
+   * using {@link Body.formAsync}
+   *
+   * @param data The body data.
+   *
+   * @returns The body object ready to be used on the POST and PUT requests.
+   */
+  static form(data: Record<string, Part> | FormData): Body {
+    const form: Record<string, string | number[] | FilePart<number[]>> = {}
+
+    const append = (
+      key: string,
+      v: string | Uint8Array | FilePart<Uint8Array> | File
+    ): void => {
+      if (v !== null) {
+        let entry = Body.crateFormEntryFromValue(v)
+        if (!entry && v instanceof File) {
+          entry = { file: v.name, mime: v.type, fileName: v.name }
+        }
+        if (entry) {
+          form[String(key)] = entry
+        }
+      }
+    }
+
+    if (data instanceof FormData) {
+      for (const [key, value] of data) {
+        append(key, value)
+      }
+    } else {
+      for (const [key, value] of Object.entries(data)) {
+        append(key, value)
+      }
+    }
+    return new Body('Form', form)
+  }
+
+  /**
+   * Creates a new form data body asynchronously which is suited for usage
+   * with {@link FormData} that contains a {@link Blob} (including subclasses such as {@link File}).
+   * The form data is an object where each key is the entry name,
    * and the value is either a string or a file object.
    *
    * By default it sets the `application/x-www-form-urlencoded` Content-Type header,
@@ -130,40 +214,41 @@ class Body {
    * @param data The body data.
    *
    * @returns The body object ready to be used on the POST and PUT requests.
+   *
+   * @since 1.5.0
    */
-  static form(data: Record<string, Part> | FormData): Body {
+  static async formAsync(data: Record<string, Part> | FormData): Promise<Body> {
     const form: Record<string, string | number[] | FilePart<number[]>> = {}
 
-    const append = (
+    const append = async (
       key: string,
       v: string | Uint8Array | FilePart<Uint8Array> | File
-    ): void => {
+    ): Promise<void> => {
       if (v !== null) {
-        let r
-        if (typeof v === 'string') {
-          r = v
-        } else if (v instanceof Uint8Array || Array.isArray(v)) {
-          r = Array.from(v)
-        } else if (v instanceof File) {
-          r = { file: v.name, mime: v.type, fileName: v.name }
-        } else if (typeof v.file === 'string') {
-          r = { file: v.file, mime: v.mime, fileName: v.fileName }
-        } else {
-          r = { file: Array.from(v.file), mime: v.mime, fileName: v.fileName }
+        let entry = Body.crateFormEntryFromValue(v)
+        if (!entry && v instanceof File) {
+          entry = {
+            file: Array.from(new Uint8Array(await v.arrayBuffer())),
+            mime: v.type,
+            fileName: v.name
+          }
         }
-        form[String(key)] = r
+        if (entry) {
+          form[String(key)] = entry
+        }
       }
     }
 
     if (data instanceof FormData) {
       for (const [key, value] of data) {
-        append(key, value)
+        await append(key, value)
       }
     } else {
       for (const [key, value] of Object.entries(data)) {
-        append(key, value)
+        await append(key, value)
       }
     }
+
     return new Body('Form', form)
   }
 

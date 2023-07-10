@@ -2111,6 +2111,8 @@ mod build {
         WindowEffect::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
         WindowEffect::UnderPageBackground => quote! { #prefix::UnderPageBackground},
         WindowEffect::Mica => quote! { #prefix::Mica},
+        WindowEffect::MicaDark => quote! { #prefix::MicaDark},
+        WindowEffect::MicaLight => quote! { #prefix::MicaLight},
         WindowEffect::Blur => quote! { #prefix::Blur},
         WindowEffect::Acrylic => quote! { #prefix::Acrylic},
       })

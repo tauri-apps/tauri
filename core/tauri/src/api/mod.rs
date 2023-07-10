@@ -4,41 +4,11 @@
 
 //! The Tauri API interface.
 
-#[cfg(all(desktop, feature = "dialog"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "dialog"))))]
-pub mod dialog;
-pub mod dir;
-pub mod file;
-#[cfg(feature = "http-api")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "http-api")))]
-pub mod http;
 pub mod ipc;
-pub mod path;
-pub mod process;
-#[cfg(feature = "shell-open-api")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "shell-open-api")))]
-pub mod shell;
-pub mod version;
-
-#[cfg(feature = "cli")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
-pub mod cli;
-
-#[cfg(feature = "cli")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
-pub use clap;
-
-#[cfg(all(desktop, feature = "notification"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "notification"))))]
-pub mod notification;
 
 mod error;
 
-/// The error type of Tauri API module.
-pub use error::Error;
-/// The result type of Tauri API module.
-pub type Result<T> = std::result::Result<T, Error>;
-
+pub use error::{Error, Result};
 // Not public API
 #[doc(hidden)]
 pub mod private {

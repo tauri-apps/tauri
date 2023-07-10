@@ -19,7 +19,7 @@ pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
-pub type InvokeHandler<R> = dyn Fn(Invoke<R>) + Send + Sync + 'static;
+pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
 pub type InvokeResponder<R> =
@@ -39,7 +39,6 @@ pub(crate) struct IpcJavascript<'a> {
 #[derive(Template)]
 #[default_template("../scripts/isolation.js")]
 pub(crate) struct IsolationJavascript<'a> {
-  pub(crate) origin: String,
   pub(crate) isolation_src: &'a str,
   pub(crate) style: &'a str,
 }
@@ -62,9 +61,6 @@ impl PageLoadPayload {
 pub struct InvokePayload {
   /// The invoke command.
   pub cmd: String,
-  #[serde(rename = "__tauriModule")]
-  #[doc(hidden)]
-  pub tauri_module: Option<String>,
   /// The success callback.
   pub callback: CallbackFn,
   /// The error callback.
@@ -165,6 +161,16 @@ pub struct InvokeResolver<R: Runtime> {
   window: Window<R>,
   pub(crate) callback: CallbackFn,
   pub(crate) error: CallbackFn,
+}
+
+impl<R: Runtime> Clone for InvokeResolver<R> {
+  fn clone(&self) -> Self {
+    Self {
+      window: self.window.clone(),
+      callback: self.callback,
+      error: self.error,
+    }
+  }
 }
 
 impl<R: Runtime> InvokeResolver<R> {
@@ -291,6 +297,17 @@ pub struct InvokeMessage<R: Runtime> {
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
   pub(crate) payload: JsonValue,
+}
+
+impl<R: Runtime> Clone for InvokeMessage<R> {
+  fn clone(&self) -> Self {
+    Self {
+      window: self.window.clone(),
+      state: self.state.clone(),
+      command: self.command.clone(),
+      payload: self.payload.clone(),
+    }
+  }
 }
 
 impl<R: Runtime> InvokeMessage<R> {

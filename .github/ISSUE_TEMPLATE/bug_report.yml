@@ -30,11 +30,10 @@ body:
     id: reproduction
     attributes:
       label: Reproduction
-      description: Steps to reproduce the behavior.
+      description: A link to a reproduction repo or steps to reproduce the behaviour.
       placeholder: |
-        1. Go to ...
-        2. Click on ...
-        3. See error
+        Please provide a minimal reproduction or steps to reproduce, see this guide https://stackoverflow.com/help/minimal-reproducible-example
+        Why reproduction is required? see this article https://antfu.me/posts/why-reproductions-are-required
 
   - type: textarea
     id: expected-behavior

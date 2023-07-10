@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - dev
-      - next
+      - 1.x
 
 env:
   RUST_BACKTRACE: 1
@@ -157,7 +157,7 @@ jobs:
       - name: Install required packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - uses: actions-rs/cargo@v1
         with:

@@ -4,26 +4,40 @@
 
 use quote::format_ident;
 use syn::{
-  parse::{Parse, ParseBuffer},
-  Ident, Path, Token,
+  parse::{Parse, ParseBuffer, ParseStream},
+  Attribute, Ident, Path, Token,
 };
+
+struct CommandDef {
+  path: Path,
+  attrs: Vec<Attribute>,
+}
+
+impl Parse for CommandDef {
+  fn parse(input: ParseStream) -> syn::Result<Self> {
+    let attrs = input.call(Attribute::parse_outer)?;
+    let path = input.parse()?;
+
+    Ok(CommandDef { path, attrs })
+  }
+}
 
 /// The items parsed from [`generate_handle!`](crate::generate_handle).
 pub struct Handler {
-  paths: Vec<Path>,
+  command_defs: Vec<CommandDef>,
   commands: Vec<Ident>,
   wrappers: Vec<Path>,
 }
 
 impl Parse for Handler {
   fn parse(input: &ParseBuffer<'_>) -> syn::Result<Self> {
-    let paths = input.parse_terminated::<Path, Token![,]>(Path::parse)?;
+    let command_defs = input.parse_terminated::<CommandDef, Token![,]>(CommandDef::parse)?;
 
     // parse the command names and wrappers from the passed paths
-    let (commands, wrappers) = paths
+    let (commands, wrappers) = command_defs
       .iter()
-      .map(|path| {
-        let mut wrapper = path.clone();
+      .map(|command_def| {
+        let mut wrapper = command_def.path.clone();
         let last = super::path_to_command(&mut wrapper);
 
         // the name of the actual command function
@@ -37,7 +51,7 @@ impl Parse for Handler {
       .unzip();
 
     Ok(Self {
-      paths: paths.into_iter().collect(), // remove punctuation separators
+      command_defs: command_defs.into_iter().collect(), // remove punctuation separators
       commands,
       wrappers,
     })
@@ -47,19 +61,23 @@ impl Parse for Handler {
 impl From<Handler> for proc_macro::TokenStream {
   fn from(
     Handler {
-      paths,
+      command_defs,
       commands,
       wrappers,
     }: Handler,
   ) -> Self {
     let cmd = format_ident!("__tauri_cmd__");
     let invoke = format_ident!("__tauri_invoke__");
+    let (paths, attrs): (Vec<Path>, Vec<Vec<Attribute>>) = command_defs
+      .into_iter()
+      .map(|def| (def.path, def.attrs))
+      .unzip();
     quote::quote!(move |#invoke| {
       let #cmd = #invoke.message.command();
       match #cmd {
-        #(stringify!(#commands) => #wrappers!(#paths, #invoke),)*
+        #(#(#attrs)* stringify!(#commands) => #wrappers!(#paths, #invoke),)*
         _ => {
-          #invoke.resolver.reject(format!("command {} not found", #cmd))
+          return false;
         },
       }
     })

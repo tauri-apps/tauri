@@ -4,14 +4,11 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
-  api::{
-    dialog::{MessageDialogBuilder, MessageDialogButtons},
-    shell,
-  },
-  CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+  CustomMenuItem, Manager, Runtime, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
+  WindowUrl,
 };
 
-pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
+pub fn create_tray<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
   let mut tray_menu1 = SystemTrayMenu::new()
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
     .add_item(CustomMenuItem::new("new", "New window"))
@@ -25,7 +22,6 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
 
   tray_menu1 = tray_menu1
     .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
-    .add_item(CustomMenuItem::new("about", "About"))
     .add_item(CustomMenuItem::new("exit_app", "Quit"))
     .add_item(CustomMenuItem::new("destroy", "Destroy"));
 
@@ -33,7 +29,6 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
     .add_item(CustomMenuItem::new("new", "New window"))
     .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
-    .add_item(CustomMenuItem::new("about", "About"))
     .add_item(CustomMenuItem::new("exit_app", "Quit"))
     .add_item(CustomMenuItem::new("destroy", "Destroy"));
   let is_menu1 = AtomicBool::new(true);
@@ -117,20 +112,6 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
               tray_handle.set_menu(menu).unwrap();
               tray_handle.set_tooltip(tooltip).unwrap();
               is_menu1.store(!flag, Ordering::Relaxed);
-            }
-            "about" => {
-              let window = handle.get_window("main").unwrap();
-              MessageDialogBuilder::new("About app", "Tauri demo app")
-                .parent(&window)
-                .buttons(MessageDialogButtons::OkCancelWithLabels(
-                  "Homepage".into(),
-                  "know it".into(),
-                ))
-                .show(move |ok| {
-                  if ok {
-                    shell::open(&window.shell_scope(), "https://tauri.app/", None).unwrap();
-                  }
-                });
             }
             _ => {}
           }

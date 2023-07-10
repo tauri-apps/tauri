@@ -85,6 +85,7 @@ jobs:
       - name: Downgrade crates with MSRV conflict
         # The --precise flag can only be used once per invocation.
         run: |
+          cargo update -p toml:0.7.6 --precise 0.7.3
           cargo update -p toml:0.7.5 --precise 0.7.3
           cargo update -p toml_edit --precise 0.19.8
           cargo update -p toml_datetime --precise 0.6.1
@@ -96,6 +97,8 @@ jobs:
           cargo update -p cargo_toml:0.15.3 --precise 0.15.2
           cargo update -p zbus --precise 3.13.0
           cargo update -p zbus_names --precise 2.5.0
+          cargo update -p is-terminal --precise 0.4.7
+          cargo update -p colored --precise 2.0.2
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

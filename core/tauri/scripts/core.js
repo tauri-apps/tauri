@@ -98,7 +98,7 @@
             if (
               target.href &&
               (['http://', 'https://', 'mailto:', 'tel:'].some(v => target.href.startsWith(v))) &&
-              target.target === '_blank' || (!target.target &&  baseTarget === "_blank")
+              (target.target === '_blank' || (!target.target &&  baseTarget === "_blank"))
             ) {
               window.__TAURI_INVOKE__('tauri', {
                 __tauriModule: 'Shell',

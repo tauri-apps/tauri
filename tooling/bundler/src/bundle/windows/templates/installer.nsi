@@ -22,6 +22,7 @@ ${StrLoc}
 !define MAINBINARYNAME "{{main_binary_name}}"
 !define MAINBINARYSRCPATH "{{main_binary_path}}"
 !define BUNDLEID "{{bundle_id}}"
+!define COPYRIGHT "{{copyright}}"
 !define OUTFILE "{{out_file}}"
 !define ARCH "{{arch}}"
 !define PLUGINSPATH "{{additional_plugins_path}}"
@@ -35,7 +36,7 @@ ${StrLoc}
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 
 Name "${PRODUCTNAME}"
-BrandingText "{{copyright}}"
+BrandingText "${COPYRIGHT}"
 OutFile "${OUTFILE}"
 
 VIProductVersion "${VERSIONWITHBUILD}"
@@ -344,16 +345,7 @@ FunctionEnd
   !include "{{this}}"
 {{/each}}
 
-Var PassiveMode
-Function .onInit
-  ${GetOptions} $CMDLINE "/P" $PassiveMode
-  IfErrors +2 0
-    StrCpy $PassiveMode 1
-
-  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
-    !insertmacro MUI_LANGDLL_DISPLAY
-  !endif
-
+!macro SetContext
   !if "${INSTALLMODE}" == "currentUser"
     SetShellVarContext current
   !else if "${INSTALLMODE}" == "perMachine"
@@ -369,6 +361,19 @@ Function .onInit
       SetRegView 32
     !endif
   ${EndIf}
+!macroend
+
+Var PassiveMode
+Function .onInit
+  ${GetOptions} $CMDLINE "/P" $PassiveMode
+  IfErrors +2 0
+    StrCpy $PassiveMode 1
+
+  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
+    !insertmacro MUI_LANGDLL_DISPLAY
+  !endif
+
+  !insertmacro SetContext
 
   ${If} $INSTDIR == ""
     ; Set default install location
@@ -595,15 +600,7 @@ Function .onInstSuccess
 FunctionEnd
 
 Function un.onInit
-  ${If} ${RunningX64}
-    !if "${ARCH}" == "x64"
-      SetRegView 64
-    !else if "${ARCH}" == "arm64"
-      SetRegView 64
-    !else
-      SetRegView 32
-    !endif
-  ${EndIf}
+  !insertmacro SetContext
 
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_UNINIT

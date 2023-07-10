@@ -124,6 +124,17 @@ pub enum WindowEvent {
   ThemeChanged(Theme),
 }
 
+/// Api exposed on the `ApplicationShouldHandleReopen` event.
+#[derive(Debug)]
+pub struct ApplicationShouldHandleReopenApi(Sender<bool>);
+
+impl ApplicationShouldHandleReopenApi {
+  /// Prevents the NSApplication to perform its default tasks
+  pub fn prevent_default(&self) {
+    self.0.send(false).unwrap();
+  }
+}
+
 impl From<RuntimeWindowEvent> for WindowEvent {
   fn from(event: RuntimeWindowEvent) -> Self {
     match event {
@@ -160,6 +171,13 @@ pub enum RunEvent {
   ExitRequested {
     /// Event API
     api: ExitRequestApi,
+  },
+  /// When user click dock icon.
+  ApplicationShouldHandleReopen {
+    /// The application has visible window exists or not
+    has_visible_windows: bool,
+    /// Event API
+    api: ApplicationShouldHandleReopenApi,
   },
   /// An event associated with a window.
   #[non_exhaustive]
@@ -1456,6 +1474,13 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::Exit => RunEvent::Exit,
     RuntimeRunEvent::ExitRequested { tx } => RunEvent::ExitRequested {
       api: ExitRequestApi(tx),
+    },
+    RuntimeRunEvent::ApplicationShouldHandleReopen {
+      has_visible_windows,
+      should_handle_tx,
+    } => RunEvent::ApplicationShouldHandleReopen {
+      has_visible_windows,
+      api: ApplicationShouldHandleReopenApi(should_handle_tx),
     },
     RuntimeRunEvent::WindowEvent { label, event } => RunEvent::WindowEvent {
       label,

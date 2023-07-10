@@ -298,6 +298,13 @@ pub enum RunEvent<T: UserEvent> {
   ExitRequested {
     tx: Sender<ExitRequestedEventAction>,
   },
+  /// User clicked the dock icon.
+  ApplicationShouldHandleReopen {
+    /// The application has visible window exists or not
+    has_visible_windows: bool,
+    /// Prevents the NSApplication to perform its default task by send false, only response to first send.
+    should_handle_tx: Sender<bool>,
+  },
   /// An event associated with a window.
   WindowEvent {
     /// The window label.

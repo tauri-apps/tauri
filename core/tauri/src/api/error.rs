@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/// The error types.
+/// The result type of Tauri API module.
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// The error type of Tauri API module.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
-  /// Semver error.
-  #[error(transparent)]
-  Semver(#[from] semver::Error),
   /// JSON error.
   #[error(transparent)]
   Json(#[from] serde_json::Error),
-  /// IO error.
-  #[error(transparent)]
-  Io(#[from] std::io::Error),
 }

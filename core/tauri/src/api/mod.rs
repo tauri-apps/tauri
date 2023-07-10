@@ -4,18 +4,11 @@
 
 //! The Tauri API interface.
 
-pub mod dir;
-pub mod file;
 pub mod ipc;
-pub mod version;
 
 mod error;
 
-/// The error type of Tauri API module.
-pub use error::Error;
-/// The result type of Tauri API module.
-pub type Result<T> = std::result::Result<T, Error>;
-
+pub use error::{Error, Result};
 // Not public API
 #[doc(hidden)]
 pub mod private {

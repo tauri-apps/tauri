@@ -17,6 +17,7 @@
 !define MAINBINARYNAME "{{main_binary_name}}"
 !define MAINBINARYSRCPATH "{{main_binary_path}}"
 !define BUNDLEID "{{bundle_id}}"
+!define COPYRIGHT "{{copyright}}"
 !define OUTFILE "{{out_file}}"
 !define ARCH "{{arch}}"
 !define PLUGINSPATH "{{additional_plugins_path}}"
@@ -30,7 +31,7 @@
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 
 Name "${PRODUCTNAME}"
-BrandingText "{{copyright}}"
+BrandingText "${COPYRIGHT}"
 OutFile "${OUTFILE}"
 Unicode true
 SetCompressor /SOLID lzma

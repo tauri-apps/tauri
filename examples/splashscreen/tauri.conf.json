@@ -44,7 +44,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src ipc:"
+      "csp": "default-src 'self'; connect-src ipc: https://ipc.localhost"
     }
   }
 }

@@ -81,20 +81,22 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
       match &mut csp {
         tauri_utils_v1::config::Csp::Policy(csp) => {
           if csp.contains("connect-src") {
-            *csp = csp.replace("connect-src", "connect-src ipc:");
+            *csp = csp.replace("connect-src", "connect-src ipc: https://ipc.localhost");
           } else {
-            *csp = format!("{csp}; connect-src ipc:");
+            *csp = format!("{csp}; connect-src ipc: https://ipc.localhost");
           }
         }
         tauri_utils_v1::config::Csp::DirectiveMap(csp) => {
           if let Some(connect_src) = csp.get_mut("connect-src") {
-            if !connect_src.contains("ipc:") {
-              connect_src.push("ipc:");
+            if !connect_src.contains("ipc: https://ipc.localhost") {
+              connect_src.push("ipc: https://ipc.localhost");
             }
           } else {
             csp.insert(
               "connect-src".into(),
-              tauri_utils_v1::config::CspDirectiveSources::List(vec!["ipc:".to_string()]),
+              tauri_utils_v1::config::CspDirectiveSources::List(vec![
+                "ipc: https://ipc.localhost".to_string()
+              ]),
             );
           }
         }
@@ -325,7 +327,7 @@ mod test {
     assert_eq!(
       migrated["tauri"]["security"]["csp"],
       format!(
-        "{}; connect-src ipc:",
+        "{}; connect-src ipc: https://ipc.localhost",
         original["tauri"]["security"]["csp"].as_str().unwrap()
       )
     );
@@ -352,7 +354,7 @@ mod test {
     assert!(migrated["tauri"]["security"]["csp"]["connect-src"]
       .as_array()
       .expect("connect-src isn't an array")
-      .contains(&"ipc:".into()));
+      .contains(&"ipc: https://ipc.localhost".into()));
   }
 
   #[test]
@@ -379,7 +381,7 @@ mod test {
         .as_str()
         .expect("connect-src isn't a string"),
       format!(
-        "{} ipc:",
+        "{} ipc: https://ipc.localhost",
         original["tauri"]["security"]["csp"]["connect-src"]
           .as_str()
           .unwrap()

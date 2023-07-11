@@ -84,7 +84,7 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 }
 
 impl Scope {
-  /// Gets allowed and forbidden patterns from a `FsScope` configuration
+  /// Gets allowed and forbidden patterns from a `FsAllowlistScope` configuration
   fn patterns(
     config: &Config,
     package_info: &PackageInfo,
@@ -110,7 +110,7 @@ impl Scope {
     Ok((allowed_patterns, forbidden_patterns))
   }
 
-  /// Creates a new scope from a `FsScope` configuration.
+  /// Creates a new scope from a `FsAllowlistScope` configuration.
   #[allow(unused)]
   pub(crate) fn for_fs_api(
     config: &Config,
@@ -273,7 +273,7 @@ impl Scope {
   }
 
   /// This removes any paths added to allowed and forbidden scope by resetting
-  /// to the scope state to the given FsScope config
+  /// to the scope state to the given FsAllowlistScope config
   pub fn reset<R: crate::Runtime>(
     &self,
     app: &App<R>,

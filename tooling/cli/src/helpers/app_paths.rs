@@ -69,10 +69,12 @@ fn get_tauri_dir() -> PathBuf {
     return cwd;
   }
 
-  if cwd.join("src-tauri/tauri.conf.json").exists()
-    || cwd.join("src-tauri/tauri.conf.json5").exists()
+  let src_tauri = cwd.join("src-tauri");
+  if src_tauri.join(ConfigFormat::Json.into_file_name()).exists()
+    || src_tauri.join(ConfigFormat::Json5.into_file_name()).exists()
+    || src_tauri.join(ConfigFormat::Toml.into_file_name()).exists()
   {
-    return cwd.join("src-tauri/");
+    return src_tauri;
   }
 
   lookup(&cwd, |path| folder_has_configuration_file(path) || is_configuration_file(path))

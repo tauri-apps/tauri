@@ -71,7 +71,9 @@ fn get_tauri_dir() -> PathBuf {
 
   let src_tauri = cwd.join("src-tauri");
   if src_tauri.join(ConfigFormat::Json.into_file_name()).exists()
-    || src_tauri.join(ConfigFormat::Json5.into_file_name()).exists()
+    || src_tauri
+      .join(ConfigFormat::Json5.into_file_name())
+      .exists()
     || src_tauri.join(ConfigFormat::Toml.into_file_name()).exists()
   {
     return src_tauri;
@@ -91,7 +93,7 @@ fn get_tauri_dir() -> PathBuf {
 fn get_app_dir() -> Option<PathBuf> {
   let cwd = current_dir().expect("failed to read cwd");
 
-  if cwd.join("package.json").exists(){
+  if cwd.join("package.json").exists() {
     return Some(cwd);
   }
 

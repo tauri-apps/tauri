@@ -3,14 +3,17 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(target_os = "windows")]
-use crate::bundle::windows::util::try_sign;
+use crate::bundle::windows::sign::try_sign;
 use crate::{
   bundle::{
     common::CommandExt,
-    windows::util::{
-      download, download_and_verify, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
-      NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
-      WEBVIEW2_X86_INSTALLER_GUID,
+    windows::{
+      sign,
+      util::{
+        download, download_and_verify, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
+        NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
+        WEBVIEW2_X86_INSTALLER_GUID,
+      },
     },
   },
   Settings,
@@ -160,6 +163,7 @@ fn build_nsis_app_installer(
 
   info!("Target: {}", arch);
 
+  // Code signing is currently only supported on Windows hosts
   #[cfg(target_os = "windows")]
   {
     let main_binary = settings
@@ -200,6 +204,18 @@ fn build_nsis_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("short_description", to_json(settings.short_description()));
   data.insert("copyright", to_json(settings.copyright_string()));
+
+  // Code signing is currently only supported on Windows hosts
+  #[cfg(target_os = "windows")]
+  if settings.can_sign() {
+    data.insert(
+      "uninstaller_sign_cmd",
+      to_json(format!(
+        "{:?}",
+        sign::sign_command("%1", &settings.sign_params())?.0
+      )),
+    );
+  }
 
   let version = settings.version_string();
   data.insert("version", to_json(version));

@@ -12,11 +12,6 @@ use log::info;
 use sha2::Digest;
 use zip::ZipArchive;
 
-#[cfg(target_os = "windows")]
-use crate::bundle::windows::sign::{sign, SignParams};
-#[cfg(target_os = "windows")]
-use crate::Settings;
-
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_X86_INSTALLER_GUID: &str = "a17bde80-b5ab-47b5-8bbb-1cbe93fc6ec9";
 pub const WEBVIEW2_X64_INSTALLER_GUID: &str = "aa5fd9b3-dc11-4cbc-8343-a50f57b311e1";
@@ -73,35 +68,6 @@ fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<
   } else {
     Err(crate::Error::HashError)
   }
-}
-
-#[cfg(target_os = "windows")]
-pub fn try_sign(file_path: &std::path::PathBuf, settings: &Settings) -> crate::Result<()> {
-  use tauri_utils::display_path;
-
-  if let Some(certificate_thumbprint) = settings.windows().certificate_thumbprint.as_ref() {
-    info!(action = "Signing"; "{}", display_path(file_path));
-    sign(
-      file_path,
-      &SignParams {
-        product_name: settings.product_name().into(),
-        digest_algorithm: settings
-          .windows()
-          .digest_algorithm
-          .as_ref()
-          .map(|algorithm| algorithm.to_string())
-          .unwrap_or_else(|| "sha256".to_string()),
-        certificate_thumbprint: certificate_thumbprint.to_string(),
-        timestamp_url: settings
-          .windows()
-          .timestamp_url
-          .as_ref()
-          .map(|url| url.to_string()),
-        tsp: settings.windows().tsp,
-      },
-    )?;
-  }
-  Ok(())
 }
 
 /// Extracts the zips from memory into a useable path.

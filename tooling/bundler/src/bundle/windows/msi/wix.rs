@@ -7,10 +7,13 @@ use crate::bundle::{
   common::CommandExt,
   path_utils::{copy_file, FileOpts},
   settings::Settings,
-  windows::util::{
-    download, download_and_verify, extract_zip, try_sign, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
-    WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID, WIX_OUTPUT_FOLDER_NAME,
-    WIX_UPDATER_OUTPUT_FOLDER_NAME,
+  windows::{
+    sign::try_sign,
+    util::{
+      download, download_and_verify, extract_zip, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
+      WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID, WIX_OUTPUT_FOLDER_NAME,
+      WIX_UPDATER_OUTPUT_FOLDER_NAME,
+    },
   },
 };
 use anyhow::{bail, Context};

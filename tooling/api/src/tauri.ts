@@ -10,6 +10,22 @@
  */
 
 /** @ignore */
+declare global {
+  interface Window {
+    __TAURI__: {
+      path: {
+        __sep: string
+        __delimiter: string
+      }
+
+      convertFileSrc: (src: string, protocol: string) => string
+    }
+
+    __TAURI_IPC__: (message: any) => void
+  }
+}
+
+/** @ignore */
 function uid(): number {
   return window.crypto.getRandomValues(new Uint32Array(1))[0]
 }

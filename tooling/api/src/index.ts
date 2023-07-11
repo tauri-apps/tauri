@@ -18,22 +18,6 @@ import * as tauri from './tauri'
 import * as path from './path'
 
 /** @ignore */
-declare global {
-  interface Window {
-    __TAURI__: {
-      path: {
-        __sep: string
-        __delimiter: string
-      }
-
-      convertFileSrc: (src: string, protocol: string) => string
-    }
-
-    __TAURI_IPC__: (message: any) => void
-  }
-}
-
-/** @ignore */
 const invoke = tauri.invoke
 
 export { invoke, event, path, tauri }

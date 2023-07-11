@@ -197,7 +197,7 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
   return window.__TAURI__.convertFileSrc(filePath, protocol)
 }
 
-export type { InvokeArgs }
+export type { InvokeArgs, InvokeOptions }
 
 export {
   transformCallback,

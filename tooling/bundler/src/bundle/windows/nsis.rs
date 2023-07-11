@@ -3,17 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(target_os = "windows")]
-use crate::bundle::windows::sign::try_sign;
+use crate::bundle::windows::sign::{sign_command, try_sign};
 use crate::{
   bundle::{
     common::CommandExt,
-    windows::{
-      sign,
-      util::{
-        download, download_and_verify, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
-        NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
-        WEBVIEW2_X86_INSTALLER_GUID,
-      },
+    windows::util::{
+      download, download_and_verify, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
+      NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
+      WEBVIEW2_X86_INSTALLER_GUID,
     },
   },
   Settings,
@@ -212,7 +209,7 @@ fn build_nsis_app_installer(
       "uninstaller_sign_cmd",
       to_json(format!(
         "{:?}",
-        sign::sign_command("%1", &settings.sign_params())?.0
+        sign_command("%1", &settings.sign_params())?.0
       )),
     );
   }

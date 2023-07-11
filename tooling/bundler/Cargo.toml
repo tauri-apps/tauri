@@ -32,13 +32,13 @@ tempfile = "3.6.0"
 log = { version = "0.4.19", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 os_pipe = "1"
-ureq = { version = "2.6", default-features = false }
+ureq = { version = "2.7", default-features = false }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
 sha1 = "0.10"
 sha2 = "0.10"
-zip = { version = "0.6", default-features = false }
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
 dunce = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]

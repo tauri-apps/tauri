@@ -24,6 +24,7 @@ use tauri_runtime::{
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, Theme};
+use url::Url;
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -116,7 +117,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
         id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
-        url: pending.url,
+        url: Arc::new(Mutex::new(pending.url)),
       },
       menu_ids: Default::default(),
     })
@@ -190,7 +191,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 pub struct MockDispatcher {
   id: WindowId,
   context: RuntimeContext,
-  url: String,
+  url: Arc<Mutex<String>>,
   last_evaluated_script: Arc<Mutex<Option<String>>>,
 }
 
@@ -383,7 +384,12 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn url(&self) -> Result<url::Url> {
-    self.url.parse().map_err(|_| Error::FailedToReceiveMessage)
+    self
+      .url
+      .lock()
+      .unwrap()
+      .parse()
+      .map_err(|_| Error::FailedToReceiveMessage)
   }
 
   fn scale_factor(&self) -> Result<f64> {
@@ -528,7 +534,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
         id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
-        url: pending.url,
+        url: Arc::new(Mutex::new(pending.url)),
       },
       menu_ids: Default::default(),
     })
@@ -551,6 +557,11 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
+    Ok(())
+  }
+
+  fn navigate(&self, url: Url) -> Result<()> {
+    *self.url.lock().unwrap() = url.to_string();
     Ok(())
   }
 
@@ -788,7 +799,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
         id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
-        url: pending.url,
+        url: Arc::new(Mutex::new(pending.url)),
       },
       menu_ids: Default::default(),
     })

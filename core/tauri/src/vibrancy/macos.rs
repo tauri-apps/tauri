@@ -283,7 +283,7 @@ impl From<crate::window::Effect> for NSVisualEffectMaterial {
       Effect::ContentBackground => NSVisualEffectMaterial::ContentBackground,
       Effect::UnderWindowBackground => NSVisualEffectMaterial::UnderWindowBackground,
       Effect::UnderPageBackground => NSVisualEffectMaterial::UnderPageBackground,
-      Effect::Mica | Effect::Blur | Effect::Acrylic => unreachable!(),
+      _ => unreachable!(),
     }
   }
 }

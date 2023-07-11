@@ -201,7 +201,8 @@ pub fn plugin_name_data(data: &mut BTreeMap<&'static str, serde_json::Value>, pl
 }
 
 pub fn crates_metadata() -> Result<VersionMetadata> {
-  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json")).map_err(Into::into)
+  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
+    .map_err(Into::into)
 }
 
 pub fn generate_android_out_file(

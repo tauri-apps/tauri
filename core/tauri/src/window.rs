@@ -798,9 +798,6 @@ pub struct Window<R: Runtime> {
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
-
-  #[cfg(test)]
-  pub(crate) current_url: url::Url,
 }
 
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
@@ -816,8 +813,6 @@ impl<R: Runtime> Clone for Window<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       js_event_listeners: self.js_event_listeners.clone(),
-      #[cfg(test)]
-      current_url: self.current_url.clone(),
     }
   }
 }
@@ -970,8 +965,6 @@ impl<R: Runtime> Window<R> {
       manager,
       app_handle,
       js_event_listeners: Default::default(),
-      #[cfg(test)]
-      current_url: "http://tauri.app".parse().unwrap(),
     }
   }
 
@@ -1655,19 +1648,13 @@ impl<R: Runtime> Window<R> {
 impl<R: Runtime> Window<R> {
   /// Returns the current url of the webview.
   // TODO: in v2, change this type to Result
-  #[cfg(not(test))]
   pub fn url(&self) -> Url {
     self.window.dispatcher.url().unwrap()
   }
 
-  #[cfg(test)]
-  pub fn url(&self) -> Url {
-    self.current_url.clone()
-  }
-
-  #[cfg(test)]
-  pub(crate) fn navigate(&mut self, url: Url) {
-    self.current_url = url;
+  /// Navigates the webview to the defined url.
+  pub fn navigate(&mut self, url: Url) {
+    self.window.dispatcher.navigate(url).unwrap();
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {

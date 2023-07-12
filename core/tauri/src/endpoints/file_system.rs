@@ -204,7 +204,6 @@ impl Cmd {
         scope: Some(&context.window.state::<Scopes>().fs),
       },
     )
-    .with_context(|| format!("path: {}", resolved_path.display()))
     .map_err(Into::into)
   }
 

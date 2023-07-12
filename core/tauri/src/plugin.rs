@@ -428,6 +428,20 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// * `uri_scheme` The URI scheme to register, such as `example`.
   /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("myplugin")
+  ///     .register_uri_scheme_protocol("myscheme", |app, req| {
+  ///       tauri::http::ResponseBuilder::new().body(Vec::new())
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,

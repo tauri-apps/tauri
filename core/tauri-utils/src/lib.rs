@@ -118,8 +118,12 @@ mod window_effects {
     UnderWindowBackground,
     /// **macOS 10.14+**
     UnderPageBackground,
-    /// **Windows 11 Only**
+    /// Mica effect that matches the system dark perefence **Windows 11 Only**
     Mica,
+    /// Mica effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
+    MicaDark,
+    /// Mica effect with light mode **Windows 11 Only**
+    MicaLight,
     /// **Windows 7/10/11(22H1) Only**
     ///
     /// ## Notes

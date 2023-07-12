@@ -86,8 +86,8 @@ env_logger = "0.9.1"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.24", default-features = false, features = [ "ico" ] }
 axum = { version = "0.5.16", features = [ "ws" ] }
-html5ever = "0.25"
-kuchiki = "0.8"
+html5ever = "0.26"
+kuchiki = { package = "kuchikiki", version = "0.8" }
 tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
 serde-value = "0.7.0"

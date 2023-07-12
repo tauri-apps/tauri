@@ -420,6 +420,10 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
   /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
   ///
+  /// # Known limitations
+  ///
+  /// URI scheme protocols are registered when the webview is created. Due to this limitation, if the plugin is registed after a webview has been created, this protocol won't be available.
+  ///
   /// # Arguments
   ///
   /// * `uri_scheme` The URI scheme to register, such as `example`.

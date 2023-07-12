@@ -279,8 +279,8 @@ impl Scope {
     }
   }
 
-  /// This removes any paths added to allowed and forbidden scope by resetting
-  /// to the scope state to it's initial/default configuration
+  /// This removes any allowed or forbidden paths by resetting
+  /// the scope to its initial state which matches the scope defined in the configuration file
   pub fn reset(&self) -> crate::Result<()> {
     *self.allowed_patterns.lock().as_deref_mut().unwrap() = self.default_allowed.clone();
     *self.forbidden_patterns.lock().as_deref_mut().unwrap() = self.default_forbidden.clone();

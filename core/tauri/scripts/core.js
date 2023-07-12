@@ -92,13 +92,13 @@
       'click',
       function (e) {
         let target = e.target
-
+        const baseTarget = document.querySelector('head base')?.target
         while (target != null) {
           if (target.matches('a')) {
             if (
               target.href &&
               (['http://', 'https://', 'mailto:', 'tel:'].some(v => target.href.startsWith(v))) &&
-              target.target === '_blank'
+              (target.target === '_blank' || (!target.target &&  baseTarget === "_blank"))
             ) {
               window.__TAURI_INVOKE__('tauri', {
                 __tauriModule: 'Shell',

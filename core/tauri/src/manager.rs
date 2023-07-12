@@ -792,30 +792,7 @@ impl<R: Runtime> WindowManager<R> {
     };
 
     #[cfg(any(debug_assertions, feature = "devtools"))]
-    let hotkeys = &format!(
-      "
-      {};
-      window.hotkeys('{}', () => {{
-        window.__TAURI_INVOKE__('tauri', {{
-          __tauriModule: 'Window',
-          message: {{
-            cmd: 'manage',
-            data: {{
-              cmd: {{
-                type: '__toggleDevtools'
-              }}
-            }}
-          }}
-        }});
-      }});
-    ",
-      include_str!("../scripts/hotkey.js"),
-      if cfg!(target_os = "macos") {
-        "command+option+i"
-      } else {
-        "ctrl+shift+i"
-      }
-    );
+    let hotkeys = include_str!("../scripts/toggle-devtools.js");
     #[cfg(not(any(debug_assertions, feature = "devtools")))]
     let hotkeys = "";
 

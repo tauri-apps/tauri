@@ -93,6 +93,26 @@ impl PackageType {
   pub fn all() -> &'static [PackageType] {
     ALL_PACKAGE_TYPES
   }
+
+  /// Gets a number representing priority which used to sort package types
+  /// in an order that guarantees that if a certain package type
+  /// depends on another (like Dmg depending on MacOsBundle), the dependency
+  /// will be built first
+  ///
+  /// The lower the number, the higher the priority
+  pub fn priority(&self) -> u32 {
+    match self {
+      PackageType::MacOsBundle => 0,
+      PackageType::IosBundle => 0,
+      PackageType::WindowsMsi => 0,
+      PackageType::Nsis => 0,
+      PackageType::Deb => 0,
+      PackageType::Rpm => 0,
+      PackageType::AppImage => 0,
+      PackageType::Dmg => 1,
+      PackageType::Updater => 2,
+    }
+  }
 }
 
 const ALL_PACKAGE_TYPES: &[PackageType] = &[

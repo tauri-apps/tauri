@@ -36,14 +36,8 @@ pub struct Scope {
   forbidden_patterns: Arc<Mutex<HashSet<Pattern>>>,
   event_listeners: Arc<Mutex<HashMap<Uuid, EventListener>>>,
   match_options: glob::MatchOptions,
-  original_scope: OriginalScope,
-}
-
-/// Original scope configuration used for resetting scope to initial state
-#[derive(Clone)]
-struct OriginalScope {
-  allowed_patterns: HashSet<Pattern>,
-  forbidden_patterns: HashSet<Pattern>,
+  default_allowed: HashSet<Pattern>,
+  default_forbidden: HashSet<Pattern>,
 }
 
 impl fmt::Debug for Scope {
@@ -140,7 +134,8 @@ impl Scope {
       _ => false,
     };
 
-    let original_scope = OriginalScope::new(&allowed_patterns, &forbidden_patterns);
+    let default_allowed = allowed_patterns.clone();
+    let default_forbidden = forbidden_patterns.clone();
 
     Ok(Self {
       allowed_patterns: Arc::new(Mutex::new(allowed_patterns)),
@@ -153,7 +148,8 @@ impl Scope {
         require_literal_leading_dot,
         ..Default::default()
       },
-      original_scope,
+      default_allowed,
+      default_forbidden,
     })
   }
 
@@ -284,23 +280,12 @@ impl Scope {
   }
 
   /// This removes any paths added to allowed and forbidden scope by resetting
-  /// to the scope state to it's original configuration
+  /// to the scope state to it's initial/default configuration
   pub fn reset(&self) -> crate::Result<()> {
-    *self.allowed_patterns.lock().as_deref_mut().unwrap() =
-      self.original_scope.allowed_patterns.clone();
-    *self.forbidden_patterns.lock().as_deref_mut().unwrap() =
-      self.original_scope.forbidden_patterns.clone();
+    *self.allowed_patterns.lock().as_deref_mut().unwrap() = self.default_allowed.clone();
+    *self.forbidden_patterns.lock().as_deref_mut().unwrap() = self.default_forbidden.clone();
 
     Ok(())
-  }
-}
-
-impl OriginalScope {
-  fn new(allowed_patterns: &HashSet<Pattern>, forbidden_patterns: &HashSet<Pattern>) -> Self {
-    Self {
-      allowed_patterns: allowed_patterns.clone(),
-      forbidden_patterns: forbidden_patterns.clone(),
-    }
   }
 }
 
@@ -320,7 +305,7 @@ fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternE
 mod tests {
   use std::path::PathBuf;
 
-  use super::{OriginalScope, Scope};
+  use super::Scope;
   use crate::{test::mock_app, App};
 
   use tauri_utils::{config::FsAllowlistScope, Env};
@@ -341,10 +326,8 @@ mod tests {
         require_literal_leading_dot: false,
         ..Default::default()
       },
-      original_scope: OriginalScope {
-        allowed_patterns: Default::default(),
-        forbidden_patterns: Default::default(),
-      },
+      default_allowed: Default::default(),
+      default_forbidden: Default::default(),
     }
   }
 

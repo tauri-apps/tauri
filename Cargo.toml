@@ -42,4 +42,4 @@ incremental = false
 opt-level = "s"
 
 [patch.crates-io]
-tao = { git = "https://github.com/meowtec/tao/", branch = "feat-open-file" }
+tao = { git = "https://github.com/tauri-apps/tao/", rev = "093d8fbc20954d51c96c94618479ff465ca55888" }

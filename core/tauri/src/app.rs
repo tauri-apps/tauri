@@ -24,7 +24,7 @@ use crate::{
   utils::config::Config,
   utils::{assets::Assets, Env},
   Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
-  Runtime, Scopes, StateManager, Theme, Window,
+  Monitor, Runtime, Scopes, StateManager, Theme, Window,
 };
 
 #[cfg(feature = "protocol-asset")]
@@ -570,6 +570,35 @@ macro_rules! shared_app_impl {
         }
       }
 
+      /// Returns the primary monitor of the system.
+      ///
+      /// Returns None if it can't identify any monitor as a primary one.
+      pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
+       Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h
+            .primary_monitor().map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) =>  h
+            .primary_monitor().map(Into::into),
+          _ => unreachable!()
+        })
+      }
+
+      /// Returns the list of all the monitors available on the system.
+      pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h
+            .available_monitors()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+          RuntimeOrDispatch::RuntimeHandle(h) => h
+            .available_monitors()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+          _ => unreachable!()
+        })
+      }
       /// Returns the default window icon.
       pub fn default_window_icon(&self) -> Option<&Icon> {
         self.manager.inner.default_window_icon.as_ref()

@@ -154,6 +154,14 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     return unimplemented!();
   }
 
+  fn primary_monitor(&self) -> Option<Monitor> {
+    unimplemented!()
+  }
+
+  fn available_monitors(&self) -> Vec<Monitor> {
+    unimplemented!()
+  }
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
@@ -814,6 +822,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F) {}
+
+  fn primary_monitor(&self) -> Option<Monitor> {
+    unimplemented!()
+  }
+
+  fn available_monitors(&self) -> Vec<Monitor> {
+    unimplemented!()
+  }
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]

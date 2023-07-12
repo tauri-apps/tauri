@@ -1927,7 +1927,6 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .main_thread
       .window_target
       .available_monitors()
-      .into_iter()
       .map(|m| MonitorHandleWrapper(m).into())
       .collect()
   }
@@ -2125,7 +2124,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .main_thread
       .window_target
       .available_monitors()
-      .into_iter()
       .map(|m| MonitorHandleWrapper(m).into())
       .collect()
   }

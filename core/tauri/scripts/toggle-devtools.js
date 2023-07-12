@@ -10,7 +10,17 @@
 
     document.addEventListener("keydown", (event) => {
       if (isHotkey(event)) {
-        window.__TAURI_INVOKE__("plugin:window|internal_toggle_devtools");
+        window.__TAURI_INVOKE__('tauri', {
+          __tauriModule: 'Window',
+          message: {
+            cmd: 'manage',
+            data: {
+              cmd: {
+                type: '__toggleDevtools'
+              }
+            }
+          }
+        });
       }
     });
   }

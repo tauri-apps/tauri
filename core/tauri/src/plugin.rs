@@ -507,10 +507,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
       (s)(app, serde_json::from_value(config)?)?;
     }
     for (uri_scheme, protocol) in &self.uri_scheme_protocols {
-      self
-        .app
-        .as_mut()
-        .unwrap()
+      app
         .manager
         .register_uri_scheme_protocol(uri_scheme, protocol.clone())
     }

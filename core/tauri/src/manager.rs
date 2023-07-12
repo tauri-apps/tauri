@@ -351,7 +351,7 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   pub(crate) fn register_uri_scheme_protocol<N: Into<String>>(
-    &mut self,
+    &self,
     uri_scheme: N,
     protocol: Arc<CustomProtocol<R>>,
   ) {

@@ -7,38 +7,45 @@
   windows_subsystem = "windows"
 )]
 
-use std::env;
-use tauri::{Manager, Runtime};
+use std::{env, sync::Mutex};
+use tauri::Manager;
 
-fn create_window<R: Runtime, M: Manager<R>>(app: &M, files: impl AsRef<str>) {
-  if app.get_window("main").is_none() {
-    tauri::WindowBuilder::new(app, "main", Default::default())
-      .initialization_script(&format!("window.openedFile = `{}`", files.as_ref()))
-      .build()
-      .unwrap();
-  }
-}
+struct OpenedUrls(Mutex<Option<Vec<url::Url>>>);
 
 fn main() {
   tauri::Builder::default()
+    .manage(OpenedUrls(Default::default()))
     .setup(|app| {
-      if cfg!(any(windows, target_os = "linux")) {
-        // Windows and Linux
-        let argv = env::args().collect::<Vec<_>>();
-        create_window(
-          app,
-          if argv.len() > 1 {
-            // NOTICE: `argv` may include URL protocol (`your-app-protocol://`) or arguments (`--`) if app supports them.
-            argv[1..].join(",")
-          } else {
-            "".into()
-          },
-        );
-      } else {
-        create_window(app, "");
-      }
       #[cfg(any(windows, target_os = "linux"))]
-      {}
+      {
+        // NOTICE: `args` may include URL protocol (`your-app-protocol://`) or arguments (`--`) if app supports them.
+        let mut urls = Vec::new();
+        for arg in env::args() {
+          if let Ok(url) = url::Url::parse(&arg) {
+            urls.push(url);
+          }
+        }
+
+        if !urls.is_empty() {
+          app.state::<OpenedUrls>().0.lock().unwrap().replace(urls);
+        }
+      }
+
+      let opened_urls = if let Some(urls) = &*app.state::<OpenedUrls>().0.lock().unwrap() {
+        urls
+          .iter()
+          .map(|u| u.as_str())
+          .collect::<Vec<_>>()
+          .join(", ")
+      } else {
+        "".into()
+      };
+
+      tauri::WindowBuilder::new(app, "main", Default::default())
+        .initialization_script(&format!("window.openedUrls = `{opened_urls}`"))
+        .initialization_script(&format!("console.log(`{opened_urls}`)"))
+        .build()
+        .unwrap();
 
       Ok(())
     })
@@ -47,17 +54,16 @@ fn main() {
     .run(|app, event| {
       #[cfg(target_os = "macos")]
       if let tauri::RunEvent::Opened { urls } = event {
-        let urls = urls
-          .iter()
-          .map(|u| u.as_str())
-          .collect::<Vec<_>>()
-          .join(",");
-
         if let Some(w) = app.get_window("main") {
+          let urls = urls
+            .iter()
+            .map(|u| u.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
           let _ = w.eval(&format!("window.onFileOpen(`{urls}`)"));
-        } else {
-          create_window(app, urls);
         }
+
+        app.state::<OpenedUrls>().0.lock().unwrap().replace(urls);
       }
     });
 }

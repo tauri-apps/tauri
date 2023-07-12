@@ -535,7 +535,7 @@ impl<R: Runtime> Update<R> {
       HeaderValue::from_str("tauri/updater").unwrap(),
     );
 
-    let client = ClientBuilder::new().build()?;
+    let client = ClientBuilder::new().max_redirections(5).build()?;
     // Create our request
     let mut req = HttpRequestBuilder::new("GET", self.download_url.as_str())?.headers(headers);
     if let Some(timeout) = self.timeout {

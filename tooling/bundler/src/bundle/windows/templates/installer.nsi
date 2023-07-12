@@ -34,6 +34,7 @@ ${StrLoc}
 !define WEBVIEW2INSTALLERPATH "{{webview2_installer_path}}"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
+!define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
 
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
@@ -49,6 +50,10 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; Plugins path, currently exists for linux only
 !if "${PLUGINSPATH}" != ""
     !addplugindir "${PLUGINSPATH}"
+!endif
+
+!if "${UNINSTALLERSIGNCOMMAND}" != ""
+  !uninstfinalize '${UNINSTALLERSIGNCOMMAND}'
 !endif
 
 ; Handle install mode, `perUser`, `perMachine` or `both`

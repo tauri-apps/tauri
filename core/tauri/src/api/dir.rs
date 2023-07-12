@@ -35,10 +35,10 @@ fn is_symlink<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
   let path = path.as_ref();
   // TODO: remove the different implementation once we raise tauri's MSRV to at least 1.58
   #[cfg(windows)]
-  let ret = symlink_metadata(&path).map(|md| md.is_symlink());
+  let ret = symlink_metadata(path).map(|md| md.is_symlink());
 
   #[cfg(not(windows))]
-  let ret = symlink_metadata(&path).map(|md| md.file_type().is_symlink());
+  let ret = symlink_metadata(path).map(|md| md.file_type().is_symlink());
 
   ret.map_err(|e| crate::api::Error::PathIo(e, path.to_path_buf()))
 }
@@ -60,7 +60,7 @@ pub(crate) fn read_dir_with_options<P: AsRef<Path>>(
 ) -> crate::api::Result<Vec<DiskEntry>> {
   let mut files_and_dirs: Vec<DiskEntry> = vec![];
   let path = path.as_ref();
-  for entry in fs::read_dir(&path).map_err(|e| crate::api::Error::PathIo(e, path.to_path_buf()))? {
+  for entry in fs::read_dir(path).map_err(|e| crate::api::Error::PathIo(e, path.to_path_buf()))? {
     let path = entry?.path();
 
     if let Ok(flag) = is_dir(&path) {

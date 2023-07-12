@@ -10,12 +10,12 @@
   let directory = false
 
   function arrayBufferToBase64(buffer, callback) {
-    var blob = new Blob([buffer], {
+    const blob = new Blob([buffer], {
       type: 'application/octet-binary'
     })
-    var reader = new FileReader()
+    const reader = new FileReader()
     reader.onload = function (evt) {
-      var dataurl = evt.target.result
+      const dataurl = evt.target.result
       callback(dataurl.substr(dataurl.indexOf(',') + 1))
     }
     reader.readAsDataURL(blob)
@@ -40,8 +40,8 @@
         if (Array.isArray(res)) {
           onMessage(res)
         } else {
-          var pathToRead = res
-          var isFile = pathToRead.match(/\S+\.\S+$/g)
+          const pathToRead = res
+          const isFile = pathToRead.match(/\S+\.\S+$/g)
           readBinaryFile(pathToRead)
             .then(function (response) {
               if (isFile) {
@@ -52,7 +52,7 @@
                   arrayBufferToBase64(
                     new Uint8Array(response),
                     function (base64) {
-                      var src = 'data:image/png;base64,' + base64
+                      const src = 'data:image/png;base64,' + base64
                       insecureRenderHtml('<img src="' + src + '"></img>')
                     }
                   )

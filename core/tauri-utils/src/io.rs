@@ -6,7 +6,7 @@
 
 use std::io::BufRead;
 
-/// Read all bytes until a newline (the `0xA` byte) is reached, and append them to the provided buffer.
+/// Read all bytes until a newline (the `0xA` byte) or a carriage return (`\r`) is reached, and append them to the provided buffer.
 ///
 /// Adapted from <https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_line>.
 pub fn read_line<R: BufRead + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> std::io::Result<usize> {

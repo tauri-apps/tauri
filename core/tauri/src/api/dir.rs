@@ -32,18 +32,10 @@ pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
 }
 
 fn is_symlink<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
-  // TODO: remove the different implementation once we raise tauri's MSRV to at least 1.58
-  #[cfg(windows)]
-  let ret = symlink_metadata(path)
+  let path = path.as_ref();
+  symlink_metadata(path)
     .map(|md| md.is_symlink())
-    .map_err(Into::into);
-
-  #[cfg(not(windows))]
-  let ret = symlink_metadata(path)
-    .map(|md| md.file_type().is_symlink())
-    .map_err(Into::into);
-
-  ret
+    .map_err(|e| crate::api::Error::PathIo(e, path.to_path_buf()))
 }
 
 /// Reads a directory. Can perform recursive operations.
@@ -62,20 +54,19 @@ pub(crate) fn read_dir_with_options<P: AsRef<Path>>(
   options: ReadDirOptions<'_>,
 ) -> crate::api::Result<Vec<DiskEntry>> {
   let mut files_and_dirs: Vec<DiskEntry> = vec![];
-  for entry in fs::read_dir(path)? {
+  let path = path.as_ref();
+  for entry in fs::read_dir(path).map_err(|e| crate::api::Error::PathIo(e, path.to_path_buf()))? {
     let path = entry?.path();
-    let path_as_string = path.display().to_string();
 
-    if let Ok(flag) = is_dir(&path_as_string) {
+    if let Ok(flag) = is_dir(&path) {
       files_and_dirs.push(DiskEntry {
         path: path.clone(),
         children: if flag {
           Some(
             if recursive
-              && (!is_symlink(&path_as_string)?
-                || options.scope.map(|s| s.is_allowed(&path)).unwrap_or(true))
+              && (!is_symlink(&path)? || options.scope.map(|s| s.is_allowed(&path)).unwrap_or(true))
             {
-              read_dir_with_options(&path_as_string, true, options)?
+              read_dir_with_options(&path, true, options)?
             } else {
               vec![]
             },

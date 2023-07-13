@@ -28,8 +28,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-use tauri_utils::display_path;
-use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
+use tauri_utils::{config::WebviewInstallMode, display_path};
 use uuid::Uuid;
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
@@ -90,7 +89,7 @@ struct ResourceFile {
   /// the id to use on the WIX XML.
   id: String,
   /// the file path.
-  path: String,
+  path: PathBuf,
 }
 
 /// A resource directory to bundle with WIX.
@@ -124,7 +123,7 @@ impl ResourceDirectory {
           r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{path}" /></Component>"#,
           id = file.id,
           guid = file.guid,
-          path = file.path
+          path = file.path.display()
         ).as_str()
       );
     }
@@ -913,15 +912,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
   let mut added_resources = Vec::new();
 
-  for src in settings.resource_files() {
-    let src = src?;
+  for resource in settings.resource_files().iter() {
+    let resource = resource?;
 
-    let resource_path = cwd
-      .join(src.clone())
-      .into_os_string()
-      .into_string()
-      .expect("failed to read resource path");
-
+    let src = cwd.join(resource.path());
+    let resource_path = dunce::simplified(&src).to_path_buf();
     // In some glob resource paths like `assets/**/*` a file might appear twice
     // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
     // when it finds one. So we must check it before processing the file.
@@ -934,11 +929,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let resource_entry = ResourceFile {
       id: format!("I{}", Uuid::new_v4().as_simple()),
       guid: Uuid::new_v4().to_string(),
-      path: resource_path,
+      path: resource_path.clone(),
     };
 
     // split the resource path directories
-    let target_path = resource_relpath(&src);
+    let target_path = resource.target();
     let components_count = target_path.components().count();
     let directories = target_path
       .components()
@@ -1003,7 +998,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let out_dir = settings.project_out_directory();
   for dll in glob::glob(out_dir.join("*.dll").to_string_lossy().to_string().as_str())? {
     let path = dll?;
-    let resource_path = path.to_string_lossy().into_owned();
+    let resource_path = dunce::simplified(&path);
     let relative_path = path
       .strip_prefix(out_dir)
       .unwrap()
@@ -1013,7 +1008,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       dlls.push(ResourceFile {
         id: format!("I{}", Uuid::new_v4().as_simple()),
         guid: Uuid::new_v4().to_string(),
-        path: resource_path,
+        path: resource_path.to_path_buf(),
       });
     }
   }

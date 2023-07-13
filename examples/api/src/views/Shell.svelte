@@ -13,6 +13,7 @@
   let encoding = ''
   let stdin = ''
   let child
+  let output = []
 
   function _getEnv() {
     return env.split(' ').reduce((env, clause) => {
@@ -26,10 +27,11 @@
 
   function spawn() {
     child = null
+    output = []
     const command = new Command(cmd, [...args, script], {
       cwd: cwd || null,
       env: _getEnv(),
-      encoding: encoding || null,
+      encoding: encoding || null
     })
 
     command.on('close', (data) => {
@@ -40,8 +42,23 @@
     })
     command.on('error', (error) => onMessage(`command error: "${error}"`))
 
-    command.stdout.on('data', (line) => onMessage(`command stdout: "${line}"`))
-    command.stderr.on('data', (line) => onMessage(`command stderr: "${line}"`))
+    function onOutput(line, kind) {
+      onMessage(`command ${kind}: "${line}"`)
+
+      if (line.endsWith('\n')) {
+        line = line.substring(0, line.length - 1)
+      }
+
+      const last = output[output.length - 1]
+      if (last && last.endsWith('\r')) {
+        output = [...output.slice(0, output.length - 1), line]
+      } else {
+        output = [...output, line]
+      }
+    }
+
+    command.stdout.on('data', (line) => onOutput(line, 'stdout'))
+    command.stderr.on('data', (line) => onOutput(line, 'stderr'))
 
     command
       .spawn()
@@ -90,11 +107,19 @@
   </div>
   <div class="flex children:grow gap-1">
     <button class="btn" on:click={spawn}>Run</button>
-    <button class="btn" on:click={kill}>Kill</button>
+    {#if child}
+      <button class="btn" on:click={kill}>Kill</button>
+    {/if}
   </div>
   {#if child}
     <br />
     <input class="input" placeholder="write to stdin" bind:value={stdin} />
     <button class="btn" on:click={writeToStdin}>Write</button>
   {/if}
+
+  <div>
+    {#each output as l}
+      <p>{l}</p>
+    {/each}
+  </div>
 </div>

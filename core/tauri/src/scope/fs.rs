@@ -371,9 +371,9 @@ fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternE
 
 #[cfg(test)]
 mod tests {
-  use std::path::PathBuf;
+  use std::{collections::HashSet, path::PathBuf};
 
-  use super::{escaped_pattern, escaped_pattern_with, Scope};
+  use super::{escaped_pattern, escaped_pattern_with, push_pattern, Scope};
   use crate::{test::mock_app, App};
 
   use tauri_utils::{config::FsAllowlistScope, Env};
@@ -449,6 +449,18 @@ mod tests {
     assert!(scope.is_allowed(home.join("anyfile")));
   }
 
+  fn patterns(path: PathBuf, directory: bool, recursive: bool) -> HashSet<glob::Pattern> {
+    let mut set = HashSet::new();
+    push_pattern(&mut set, &path, escaped_pattern).unwrap();
+    if directory {
+      push_pattern(&mut set, path, |p| {
+        escaped_pattern_with(p, if recursive { "**" } else { "*" })
+      })
+      .unwrap();
+    }
+    set
+  }
+
   #[test]
   fn reset() {
     let app = mock_app();
@@ -485,15 +497,7 @@ mod tests {
     assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
     let reset = scope.reset();
-    assert_eq!(
-      reset.allowed_patterns,
-      vec![
-        escaped_pattern(&home.to_string_lossy()).unwrap(),
-        escaped_pattern_with(&home.to_string_lossy(), "**").unwrap()
-      ]
-      .into_iter()
-      .collect()
-    );
+    assert_eq!(reset.allowed_patterns, patterns(home.clone(), true, true),);
     assert_eq!(reset.forbidden_patterns, vec![].into_iter().collect());
 
     assert!(!scope.is_allowed(home.join("inner").join("file")));
@@ -513,26 +517,12 @@ mod tests {
     assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
     let reset = scope.reset();
-    assert_eq!(
-      reset.allowed_patterns,
-      vec![
-        escaped_pattern(&home.join("allowed_file").to_string_lossy()).unwrap(),
-        escaped_pattern(&home.join("workspace").to_string_lossy()).unwrap(),
-        escaped_pattern_with(&home.join("workspace").to_string_lossy(), "**").unwrap()
-      ]
-      .into_iter()
-      .collect()
-    );
-    assert_eq!(
-      reset.forbidden_patterns,
-      vec![
-        escaped_pattern(&home.join("forbidden_file").to_string_lossy()).unwrap(),
-        escaped_pattern(&home.join("ignored").to_string_lossy()).unwrap(),
-        escaped_pattern_with(&home.join("ignored").to_string_lossy(), "**").unwrap()
-      ]
-      .into_iter()
-      .collect()
-    );
+    let mut new_allowed = patterns(home.join("allowed_file"), false, false);
+    new_allowed.extend(patterns(home.join("workspace"), true, true));
+    let mut new_forbidden = patterns(home.join("forbidden_file"), false, false);
+    new_forbidden.extend(patterns(home.join("ignored"), true, true));
+    assert_eq!(reset.allowed_patterns, new_allowed);
+    assert_eq!(reset.forbidden_patterns, new_forbidden);
 
     assert!(!scope.is_allowed(home.join("allowed_file")));
     assert!(!scope.is_allowed(home.join("workspace").join("inner").join("file")));
@@ -553,25 +543,11 @@ mod tests {
     let reset = scope.reset();
     assert_eq!(
       reset.allowed_patterns,
-      vec![
-        escaped_pattern(&home.join("forbidden").join("inner").to_string_lossy()).unwrap(),
-        escaped_pattern_with(
-          &home.join("forbidden").join("inner").to_string_lossy(),
-          "**"
-        )
-        .unwrap()
-      ]
-      .into_iter()
-      .collect()
+      patterns(home.join("forbidden").join("inner"), true, true)
     );
     assert_eq!(
       reset.forbidden_patterns,
-      vec![
-        escaped_pattern(&home.join("allowed").join("inner").to_string_lossy()).unwrap(),
-        escaped_pattern_with(&home.join("allowed").join("inner").to_string_lossy(), "**").unwrap()
-      ]
-      .into_iter()
-      .collect()
+      patterns(home.join("allowed").join("inner"), true, true)
     );
 
     assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));

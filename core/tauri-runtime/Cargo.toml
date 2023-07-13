@@ -33,9 +33,11 @@ http-range = "0.1.4"
 raw-window-handle = "0.5"
 rand = "0.8"
 url = { version = "2" }
+muda = { version = "0.6", path = "../../../muda" }
+tray-icon = { version = "0.6", path = "../../../tray-icon" }
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.44"
+version = "0.48"
 features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
@@ -46,5 +48,6 @@ jni = "0.20"
 
 [features]
 devtools = [ ]
-system-tray = [ ]
 macos-private-api = [ ]
+libxdo = ["tray-icon/libxdo", "muda/libxdo"]
+common-controls-v6 = ["tray-icon/common-controls-v6", "muda/common-controls-v6"]

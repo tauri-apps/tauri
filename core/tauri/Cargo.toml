@@ -18,7 +18,6 @@ no-default-features = true
 features = [
   "wry",
   "custom-protocol",
-  "system-tray",
   "devtools",
   "icon-png",
   "protocol-asset",
@@ -70,7 +69,7 @@ ico = { version = "0.2.0", optional = true }
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.16", features = [ "v3_24" ] }
 glib = "0.16"
-webkit2gtk = { version = "0.19.1", features = [ "v2_38" ] }
+webkit2gtk = { version = "1.1", features = [ "v2_38" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -78,11 +77,11 @@ cocoa = "0.24"
 objc = "0.2"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.22"
+webview2-com = "0.25"
 
-  [target."cfg(windows)".dependencies.windows]
-  version = "0.44"
-  features = [ "Win32_Foundation" ]
+[target."cfg(windows)".dependencies.windows]
+version = "0.48"
+features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"android\", target_os = \"ios\"))".dependencies]
 log = "0.4"
@@ -113,18 +112,18 @@ tokio = { version = "1", features = [ "full" ] }
 cargo_toml = "0.15"
 
 [features]
-default = [ "wry", "compression", "objc-exception" ]
+default = [ "wry", "compression", "objc-exception", "tauri-runtime/common-controls-v6" ]
 test = [ ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]
-linux-protocol-headers = [ "tauri-runtime-wry/linux-headers", "webkit2gtk/v2_36" ]
+linux-protocol-body = [ "tauri-runtime-wry/linux-body", "webkit2gtk/v2_40" ]
+linux-libxdo = [ "tauri-runtime/libxdo", ]
 isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 native-tls = [ "reqwest/native-tls" ]
 native-tls-vendored = [ "reqwest/native-tls-vendored" ]
 rustls-tls = [ "reqwest/rustls-tls" ]
-system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
 dox = [ "tauri-runtime-wry/dox" ]
 process-relaunch-dangerous-allow-symlink-macos = [ "tauri-utils/process-relaunch-dangerous-allow-symlink-macos" ]

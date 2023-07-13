@@ -16,7 +16,8 @@
 //! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
-//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
+//! - **linux-protocol-body**: Enables body support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
+//! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
@@ -25,7 +26,6 @@
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
-//! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
@@ -92,6 +92,7 @@ use tauri_runtime as runtime;
 mod ios;
 #[cfg(target_os = "android")]
 mod jni_helpers;
+pub mod menu;
 /// Path APIs.
 pub mod path;
 pub mod process;
@@ -99,6 +100,7 @@ pub mod process;
 pub mod scope;
 mod state;
 
+pub mod tray;
 pub use tauri_utils as utils;
 
 /// A Tauri [`Runtime`] wrapper around wry.
@@ -163,18 +165,8 @@ pub use runtime::{menu::NativeImage, ActivationPolicy};
 
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
-#[cfg(all(desktop, feature = "system-tray"))]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
-  self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
-};
-pub use {
-  self::app::WindowMenuEvent,
-  self::event::{Event, EventHandler},
-  self::runtime::menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu},
-  self::window::menu::MenuEvent,
-};
+
+pub use self::event::{Event, EventHandler};
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
@@ -385,7 +377,7 @@ pub struct Context<A: Assets> {
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(desktop)]
-  pub(crate) system_tray_icon: Option<Icon>,
+  pub(crate) tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
@@ -401,7 +393,7 @@ impl<A: Assets> fmt::Debug for Context<A> {
       .field("pattern", &self.pattern);
 
     #[cfg(desktop)]
-    d.field("system_tray_icon", &self.system_tray_icon);
+    d.field("tray_icon", &self.tray_icon);
 
     d.finish()
   }
@@ -447,15 +439,15 @@ impl<A: Assets> Context<A> {
   /// The icon to use on the system tray UI.
   #[cfg(desktop)]
   #[inline(always)]
-  pub fn system_tray_icon(&self) -> Option<&Icon> {
-    self.system_tray_icon.as_ref()
+  pub fn tray_icon(&self) -> Option<&Icon> {
+    self.tray_icon.as_ref()
   }
 
-  /// A mutable reference to the icon to use on the system tray UI.
+  /// A mutable reference to the icon to use on the tray icon.
   #[cfg(desktop)]
   #[inline(always)]
-  pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
-    &mut self.system_tray_icon
+  pub fn tray_icon_mut(&mut self) -> &mut Option<Icon> {
+    &mut self.tray_icon
   }
 
   /// Package information.
@@ -494,7 +486,7 @@ impl<A: Assets> Context<A> {
       default_window_icon,
       app_icon,
       #[cfg(desktop)]
-      system_tray_icon: None,
+      tray_icon: None,
       package_info,
       _info_plist: info_plist,
       pattern,
@@ -504,8 +496,8 @@ impl<A: Assets> Context<A> {
   /// Sets the app tray icon.
   #[cfg(desktop)]
   #[inline(always)]
-  pub fn set_system_tray_icon(&mut self, icon: Icon) {
-    self.system_tray_icon.replace(icon);
+  pub fn set_tray_icon(&mut self, icon: Icon) {
+    self.tray_icon.replace(icon);
   }
 
   /// Sets the app shell scope.

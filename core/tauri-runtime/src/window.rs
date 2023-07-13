@@ -6,11 +6,11 @@
 
 use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
-  menu::{Menu, MenuEntry, MenuHash, MenuId},
   webview::{WebviewAttributes, WebviewIpcHandler},
   Dispatch, Runtime, UserEvent, WindowBuilder,
 };
-use serde::{Deserialize, Deserializer, Serialize};
+use muda::Menu;
+use serde::{Deserialize, Deserializer};
 use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
 
@@ -18,7 +18,7 @@ use std::{
   collections::HashMap,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{mpsc::Sender, Arc, Mutex},
+  sync::mpsc::Sender,
 };
 
 type UriSchemeProtocol =
@@ -78,25 +78,6 @@ pub enum FileDropEvent {
   Dropped(Vec<PathBuf>),
   /// The file drop was aborted.
   Cancelled,
-}
-
-/// A menu event.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MenuEvent {
-  pub menu_item_id: u16,
-}
-
-fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
-  for item in &menu.items {
-    match item {
-      MenuEntry::CustomItem(c) => {
-        map.insert(c.id, c.id_str.clone());
-      }
-      MenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
-      _ => {}
-    }
-  }
 }
 
 /// Describes the appearance of the mouse cursor.
@@ -229,9 +210,6 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// How to handle IPC calls on the webview window.
   pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
 
-  /// Maps runtime id to a string menu id.
-  pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
-
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
 
@@ -244,6 +222,9 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
     Option<Box<dyn Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send>>,
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+
+  /// Whether the menu set in the builder is app-wide
+  pub has_app_wide_menu: bool,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -266,10 +247,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     webview_attributes: WebviewAttributes,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
-    let mut menu_ids = HashMap::new();
-    if let Some(menu) = window_builder.get_menu() {
-      get_menu_ids(&mut menu_ids, menu);
-    }
     let label = label.into();
     if !is_label_valid(&label) {
       Err(crate::Error::InvalidWindowLabel)
@@ -280,12 +257,12 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        menu_ids: Arc::new(Mutex::new(menu_ids)),
         navigation_handler: Default::default(),
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
         web_resource_request_handler: Default::default(),
+        has_app_wide_menu: false,
       })
     }
   }
@@ -298,10 +275,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
   ) -> crate::Result<Self> {
     let window_builder =
       <<R::Dispatcher as Dispatch<T>>::WindowBuilder>::with_config(window_config);
-    let mut menu_ids = HashMap::new();
-    if let Some(menu) = window_builder.get_menu() {
-      get_menu_ids(&mut menu_ids, menu);
-    }
+
     let label = label.into();
     if !is_label_valid(&label) {
       Err(crate::Error::InvalidWindowLabel)
@@ -312,23 +286,33 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        menu_ids: Arc::new(Mutex::new(menu_ids)),
         navigation_handler: Default::default(),
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
         web_resource_request_handler: Default::default(),
+        has_app_wide_menu: false,
       })
     }
   }
 
   #[must_use]
-  pub fn set_menu(mut self, menu: Menu) -> Self {
-    let mut menu_ids = HashMap::new();
-    get_menu_ids(&mut menu_ids, &menu);
-    *self.menu_ids.lock().unwrap() = menu_ids;
+  pub fn set_menu(mut self, menu: crate::menu::Menu) -> Self {
     self.window_builder = self.window_builder.menu(menu);
     self
+  }
+
+  #[must_use]
+  pub fn set_app_menu(mut self, menu: crate::menu::Menu) -> Self {
+    if !self.window_builder.has_menu() {
+      self.window_builder = self.window_builder.menu(menu);
+      self.has_app_wide_menu = true;
+    }
+    self
+  }
+
+  pub fn menu(&self) -> Option<&Menu> {
+    self.window_builder.get_menu()
   }
 
   pub fn register_uri_scheme_protocol<
@@ -365,9 +349,6 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
 
   /// The [`Dispatch`](crate::Dispatch) associated with the window.
   pub dispatcher: R::Dispatcher,
-
-  /// Maps runtime id to a string menu id.
-  pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 }
 
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
@@ -375,7 +356,6 @@ impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
     Self {
       label: self.label.clone(),
       dispatcher: self.dispatcher.clone(),
-      menu_ids: self.menu_ids.clone(),
     }
   }
 }

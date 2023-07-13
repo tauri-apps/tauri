@@ -143,7 +143,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     // set env vars used by the bundler
     #[cfg(target_os = "linux")]
     {
-      if config_.tauri.system_tray.is_some() {
+      if config_.tauri.tray_icon.is_some() {
         if let Ok(tray) = std::env::var("TAURI_TRAY") {
           std::env::set_var(
             "TRAY_LIBRARY_PATH",

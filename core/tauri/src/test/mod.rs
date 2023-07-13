@@ -127,7 +127,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
         windows: Vec::new(),
         bundle: Default::default(),
         security: Default::default(),
-        system_tray: None,
+        tray_icon: None,
         macos_private_api: false,
       },
       build: Default::default(),
@@ -137,7 +137,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     default_window_icon: None,
     app_icon: None,
     #[cfg(desktop)]
-    system_tray_icon: None,
+    tray_icon: None,
     package_info: crate::PackageInfo {
       name: "test".into(),
       version: "0.1.0".parse().unwrap(),

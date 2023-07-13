@@ -115,11 +115,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       });
     });
 
-  #[cfg(target_os = "macos")]
-  {
-    builder = builder.menu(tauri::Menu::os_default("Tauri API Validation"));
-  }
-
   #[allow(unused_mut)]
   let mut app = builder
     .invoke_handler(tauri::generate_handler![
@@ -136,7 +131,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     #[cfg(all(desktop, not(test)))]
     if let RunEvent::ExitRequested { api, .. } = &_event {
       // Keep the event loop running even if all windows are closed
-      // This allow us to catch system tray events when there is no window
+      // This allow us to catch tray icon events when there is no window
       api.prevent_exit();
     }
   })

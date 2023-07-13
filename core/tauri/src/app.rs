@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(all(desktop, feature = "system-tray"))]
-pub(crate) mod tray;
-
 use crate::{
   api::ipc::CallbackFn,
   command::{CommandArg, CommandItem},
@@ -32,9 +29,14 @@ use crate::scope::FsScope;
 
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
-use tauri_runtime::window::{
-  dpi::{PhysicalPosition, PhysicalSize},
-  FileDropEvent,
+use tauri_runtime::{
+  menu::{Menu, MenuEvent},
+  tray::{TrayIconBuilder, TrayIconEvent},
+  window::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    FileDropEvent,
+  },
+  RuntimeInitArgs,
 };
 use tauri_utils::PackageInfo;
 
@@ -44,17 +46,15 @@ use std::{
   sync::{mpsc::Sender, Arc, Weak},
 };
 
-use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
-
 use crate::runtime::RuntimeHandle;
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
 
-pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
+pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync>;
+pub(crate) type GlobalTrayIconEventListener<R> =
+  Box<dyn Fn(&AppHandle<R>, crate::tray::TrayIconEvent) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
-#[cfg(all(desktop, feature = "system-tray"))]
-type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -177,31 +177,15 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  MenuEvent(crate::menu::MenuEvent),
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  TrayIconEvent(crate::tray::TrayIconEvent),
 }
 
 impl From<EventLoopMessage> for RunEvent {
   fn from(event: EventLoopMessage) -> Self {
     match event {}
-  }
-}
-
-/// A menu event that was triggered on a window.
-#[default_runtime(crate::Wry, wry)]
-#[derive(Debug)]
-pub struct WindowMenuEvent<R: Runtime> {
-  pub(crate) menu_item_id: MenuId,
-  pub(crate) window: Window<R>,
-}
-
-impl<R: Runtime> WindowMenuEvent<R> {
-  /// The menu item id.
-  pub fn menu_item_id(&self) -> MenuIdRef<'_> {
-    &self.menu_item_id
-  }
-
-  /// The window that the menu belongs to.
-  pub fn window(&self) -> &Window<R> {
-    &self.window
   }
 }
 
@@ -399,12 +383,7 @@ impl<R: Runtime> AppHandle<R> {
 
   /// Runs necessary cleanup tasks before exiting the process
   fn cleanup_before_exit(&self) {
-    #[cfg(all(windows, feature = "system-tray"))]
-    {
-      for tray in self.manager().trays().values() {
-        let _ = tray.destroy();
-      }
-    }
+    self.manager.inner.tray_icons.lock().unwrap().clear()
   }
 }
 
@@ -485,73 +464,7 @@ impl App<crate::Wry> {
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
-      /// Gets a handle to the first system tray.
-      ///
-      /// Prefer [`Self::tray_handle_by_id`] when multiple system trays are created.
-      ///
-      /// # Examples
-      /// ```
-      /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
-      ///
-      /// tauri::Builder::default()
-      ///   .setup(|app| {
-      ///     let app_handle = app.handle();
-      ///     SystemTray::new()
-      ///       .with_menu(
-      ///         SystemTrayMenu::new()
-      ///           .add_item(CustomMenuItem::new("quit", "Quit"))
-      ///           .add_item(CustomMenuItem::new("open", "Open"))
-      ///       )
-      ///       .on_event(move |event| {
-      ///         let tray_handle = app_handle.tray_handle();
-      ///       })
-      ///       .build(app)?;
-      ///     Ok(())
-      ///   });
-      /// ```
-      #[cfg(all(desktop, feature = "system-tray"))]
-      #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-      pub fn tray_handle(&self) -> tray::SystemTrayHandle<R> {
-        self
-          .manager()
-          .trays()
-          .values()
-          .next()
-          .cloned()
-          .expect("tray not configured; use the `Builder#system_tray`, `App#system_tray` or `AppHandle#system_tray` APIs first.")
-      }
-
-
-      /// Gets a handle to a system tray by its id.
-      ///
-      /// ```
-      /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
-      ///
-      /// tauri::Builder::default()
-      ///   .setup(|app| {
-      ///     let app_handle = app.handle();
-      ///     let tray_id = "my-tray";
-      ///     SystemTray::new()
-      ///       .with_id(tray_id)
-      ///       .with_menu(
-      ///         SystemTrayMenu::new()
-      ///           .add_item(CustomMenuItem::new("quit", "Quit"))
-      ///           .add_item(CustomMenuItem::new("open", "Open"))
-      ///       )
-      ///       .on_event(move |event| {
-      ///         let tray_handle = app_handle.tray_handle_by_id(tray_id).unwrap();
-      ///       })
-      ///       .build(app)?;
-      ///     Ok(())
-      ///   });
-      /// ```
-      #[cfg(all(desktop, feature = "system-tray"))]
-      #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-      pub fn tray_handle_by_id(&self, id: &str) -> Option<tray::SystemTrayHandle<R>> {
-        self
-          .manager()
-          .get_tray(id)
-      }
+      // TODO(muda-migration): tray getter methods
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.
       pub fn config(&self) -> Arc<Config> {
@@ -573,6 +486,142 @@ macro_rules! shared_app_impl {
       /// Returns the default window icon.
       pub fn default_window_icon(&self) -> Option<&Icon> {
         self.manager.inner.default_window_icon.as_ref()
+      }
+
+      /// Returns the app-wide menu.
+      pub fn menu(&self) -> Option<Menu> {
+        self.manager.menu_lock().clone()
+      }
+
+      /// Sets the app-wide menu and returns the previous one.
+      pub fn set_menu(&self, menu: Menu) -> crate::Result<Option<Menu>> {
+        let prev_menu = self.remove_menu()?;
+
+        self.manager.insert_menu_into_stash(&menu);
+
+        self.manager.menu_lock().replace(menu.clone());
+
+        // set it on all windows that don't have one or previously had the app-wide menu
+        for window in self.manager.windows_lock().values() {
+          let mut window_menu = window.menu_lock();
+          if window_menu.as_ref().map(|m| m.0).unwrap_or(true) {
+            #[cfg(windows)]
+            {
+              let _ = menu.init_for_hwnd(window.hwnd().unwrap().0);
+            }
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            {
+              let _ = menu.init_for_gtk_windows(window.gtk_window().unwrap());
+            }
+            window_menu.replace((true, menu.clone()));
+          }
+        }
+
+        // set it app-wide for macos
+        #[cfg(target_os = "macos")]
+        menu.init_for_nsapp();
+
+        Ok(prev_menu)
+      }
+
+      /// Remove the app-wide menu and returns it.
+      pub fn remove_menu(&self) -> crate::Result<Option<Menu>> {
+        let mut current_menu = self.manager.menu_lock();
+
+        // remove from windows that have the app-wide menu
+        if let Some(menu) = &*current_menu {
+          for window in self.manager.windows_lock().values() {
+            if window.has_app_wide_menu() {
+              #[cfg(windows)]
+              {
+                let _ = menu.remove_for_hwnd(window.hwnd()?.0);
+              }
+              #[cfg(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+              ))]
+              {
+                let _ = menu.remove_for_gtk_windows(window.gtk_window()?);
+              }
+              *window.menu_lock() = None;
+            }
+          }
+
+          // remove app-wide for macos
+          #[cfg(target_os = "macos")]
+          menu.remove_for_nsapp();
+        }
+
+        let prev_menu = current_menu.take();
+
+        drop(current_menu);
+
+        self
+          .manager
+          .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
+
+        Ok(prev_menu)
+      }
+
+      /// Hides the app-wide menu from windows that have it.
+      pub fn hide_menu(&self) -> crate::Result<()> {
+        if let Some(menu) = &*self.manager.menu_lock() {
+          for window in self.manager.windows_lock().values() {
+            if window.has_app_wide_menu() {
+              #[cfg(windows)]
+              {
+                let _ = menu.hide_for_hwnd(window.hwnd()?.0);
+              }
+              #[cfg(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+              ))]
+              {
+                let _ = menu.hide_for_gtk_windows(window.gtk_window()?);
+              }
+            }
+          }
+        }
+
+        Ok(())
+      }
+
+      /// Shows the app-wide menu for windows that have it.
+      pub fn show_menu(&self) -> crate::Result<()> {
+        if let Some(menu) = &*self.manager.menu_lock() {
+          for window in self.manager.windows_lock().values() {
+            if window.has_app_wide_menu() {
+              #[cfg(windows)]
+              {
+                let _ = menu.show_for_hwnd(window.hwnd()?.0);
+              }
+              #[cfg(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+              ))]
+              {
+                let _ = menu.show_for_gtk_windows(window.gtk_window()?);
+              }
+            }
+          }
+        }
+
+        Ok(())
       }
 
       /// Shows the application, but does not automatically focus it.
@@ -715,7 +764,7 @@ impl<R: Runtime> App<R> {
   ///
   /// Note that when using this API, app cleanup is not automatically done.
   /// The cleanup calls [`crate::process::kill_children`] so you may want to call that function before exiting the application.
-  /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
+  /// Additionally, the cleanup calls [AppHandle#remove_tray_icon](`AppHandle#method.remove_tray_icon`) (Windows only).
   ///
   /// # Examples
   /// ```no_run
@@ -790,23 +839,24 @@ pub struct Builder<R: Runtime> {
   /// The menu set to all windows.
   menu: Option<Menu>,
 
+  /// A closure that returns the menu set to all windows.
+  menu_with: Option<Box<dyn FnOnce(&Config) -> Menu>>,
+
   /// Enable macOS default menu creation.
   #[allow(unused)]
   enable_macos_default_menu: bool,
 
-  /// Menu event handlers that listens to all windows.
-  menu_event_listeners: Vec<GlobalMenuEventListener<R>>,
+  /// Menu event handlers .
+  menu_event_listeners: Vec<GlobalMenuEventListener<AppHandle<R>>>,
 
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
 
-  /// The app system tray.
-  #[cfg(all(desktop, feature = "system-tray"))]
-  system_tray: Option<tray::SystemTray>,
+  /// Tray icon builder
+  tray_icons: Vec<TrayIconBuilder>,
 
-  /// System tray event handlers.
-  #[cfg(all(desktop, feature = "system-tray"))]
-  system_tray_event_listeners: Vec<SystemTrayEventListener<R>>,
+  /// Tray icon event handlers.
+  tray_event_listeners: Vec<GlobalTrayIconEventListener<R>>,
 
   /// The device event filter.
   device_event_filter: DeviceEventFilter,
@@ -829,13 +879,12 @@ impl<R: Runtime> Builder<R> {
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
       menu: None,
+      menu_with: None,
       enable_macos_default_menu: true,
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
-      #[cfg(all(desktop, feature = "system-tray"))]
-      system_tray: None,
-      #[cfg(all(desktop, feature = "system-tray"))]
-      system_tray_event_listeners: Vec::new(),
+      tray_icons: Vec::new(),
+      tray_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
     }
   }
@@ -1060,26 +1109,25 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Sets the given system tray to be built before the app runs.
+  /// Sets the given tray icon builder to be built before the app runs.
   ///
-  /// Prefer the [`SystemTray#method.build`](crate::SystemTray#method.build) method to create the tray at runtime instead.
+  /// Prefer the [`TrayIconBuilder#method.build`](crate::tray::TrayIconBuilder#method.build) method to create the tray at runtime instead.
   ///
   /// # Examples
   /// ```
-  /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
+  /// use tauri::{tray::TrayIconBuilder, menu::{Menu, MenuItem}};
   ///
   /// tauri::Builder::default()
-  ///   .system_tray(SystemTray::new().with_menu(
-  ///     SystemTrayMenu::new()
-  ///       .add_item(CustomMenuItem::new("quit", "Quit"))
-  ///       .add_item(CustomMenuItem::new("open", "Open"))
+  ///   .tray_icon(TrayIconBuilder::new().with_menu(
+  ///     Menu::with_items(&[
+  ///       &MenuItem::new("New window", true, None),
+  ///       &MenuItem::new("Quit", true, None),
+  ///     ])
   ///   ));
   /// ```
-  #[cfg(all(desktop, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[must_use]
-  pub fn system_tray(mut self, system_tray: tray::SystemTray) -> Self {
-    self.system_tray.replace(system_tray);
+  pub fn tray_icon(mut self, tray: TrayIconBuilder) -> Self {
+    self.tray_icons.push(tray);
     self
   }
 
@@ -1103,7 +1151,24 @@ impl<R: Runtime> Builder<R> {
   /// ```
   #[must_use]
   pub fn menu(mut self, menu: Menu) -> Self {
+    self.menu_with = None;
     self.menu.replace(menu);
+    self
+  }
+
+  /// Sets a closure to construct the menu to use on all windows.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
+  ///
+  /// tauri::Builder::default()
+  ///   .menu_with(tauri::menu::default);
+  /// ```
+  #[must_use]
+  pub fn menu_with<F: FnOnce(&Config) -> Menu + 'static>(mut self, f: F) -> Self {
+    self.menu_with.replace(Box::new(move |c| f(&c)));
+    self.menu = None;
     self
   }
 
@@ -1111,50 +1176,12 @@ impl<R: Runtime> Builder<R> {
   ///
   /// # Examples
   /// ```
-  /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
-  ///
   /// tauri::Builder::default()
   ///   .enable_macos_default_menu(false);
   /// ```
   #[must_use]
   pub fn enable_macos_default_menu(mut self, enable: bool) -> Self {
     self.enable_macos_default_menu = enable;
-    self
-  }
-
-  /// Registers a menu event handler for all windows.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::{Menu, MenuEntry, Submenu, CustomMenuItem, api, Manager};
-  /// tauri::Builder::default()
-  ///   .menu(Menu::with_items([
-  ///     MenuEntry::Submenu(Submenu::new(
-  ///       "File",
-  ///       Menu::with_items([
-  ///         CustomMenuItem::new("new", "New").into(),
-  ///         CustomMenuItem::new("learn-more", "Learn More").into(),
-  ///       ]),
-  ///     )),
-  ///   ]))
-  ///   .on_menu_event(|event| {
-  ///     match event.menu_item_id() {
-  ///       "learn-more" => {
-  ///         // open a link in the browser using tauri-plugin-shell
-  ///       }
-  ///       id => {
-  ///         // do something with other events
-  ///         println!("got menu event: {}", id);
-  ///       }
-  ///     }
-  ///   });
-  /// ```
-  #[must_use]
-  pub fn on_menu_event<F: Fn(WindowMenuEvent<R>) + Send + Sync + 'static>(
-    mut self,
-    handler: F,
-  ) -> Self {
-    self.menu_event_listeners.push(Box::new(handler));
     self
   }
 
@@ -1182,34 +1209,61 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Registers a system tray event handler.
-  ///
-  /// Prefer the [`SystemTray#method.on_event`](crate::SystemTray#method.on_event) method when creating a tray at runtime instead.
+  /// Registers a global menu event listener.
   ///
   /// # Examples
   /// ```
-  /// use tauri::{Manager, SystemTrayEvent};
+  /// let quit_menu_item =  &MenuItem::new("Quit", true, None);
+  /// let menu = Menu::with_items(&[
+  ///   &Submenu::with_items("File", true, &[
+  ///    &quit_menu_item,
+  ///   ]),
+  /// ]);
+  ///
   /// tauri::Builder::default()
-  ///   .on_system_tray_event(|app, event| match event {
-  ///     // show window with id "main" when the tray is left clicked
-  ///     SystemTrayEvent::LeftClick { .. } => {
-  ///       let window = app.get_window("main").unwrap();
-  ///       window.show().unwrap();
-  ///       window.set_focus().unwrap();
+  ///   .menu(menu)
+  ///   .on_menu_event(|app, event| {
+  ///     if event.id == quit_menu_item.id() {
+  ///       // quit app
+  ///       app.exit(0);
   ///     }
-  ///     _ => {}
   ///   });
   /// ```
-  #[cfg(all(desktop, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[must_use]
-  pub fn on_system_tray_event<
-    F: Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync + 'static,
-  >(
+  pub fn on_tray_icon_event<F: Fn(&AppHandle<R>, TrayIconEvent) + Send + Sync + 'static>(
     mut self,
     handler: F,
   ) -> Self {
-    self.system_tray_event_listeners.push(Box::new(handler));
+    self.tray_event_listeners.push(Box::new(handler));
+    self
+  }
+
+  /// Registers a global menu event listener.
+  ///
+  /// # Examples
+  /// ```
+  /// let quit_menu_item =  &MenuItem::new("Quit", true, None);
+  /// let menu = Menu::with_items(&[
+  ///   &Submenu::with_items("File", true, &[
+  ///    &quit_menu_item,
+  ///   ]),
+  /// ]);
+  ///
+  /// tauri::Builder::default()
+  ///   .menu(menu)
+  ///   .on_menu_event(|app, event| {
+  ///     if event.id == quit_menu_item.id() {
+  ///       // quit app
+  ///       app.exit(0);
+  ///     }
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    self.menu_event_listeners.push(Box::new(handler));
     self
   }
 
@@ -1269,9 +1323,16 @@ impl<R: Runtime> Builder<R> {
   #[allow(clippy::type_complexity)]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
-    if self.menu.is_none() && self.enable_macos_default_menu {
-      self.menu = Some(Menu::os_default(&context.package_info().name));
+    if self.menu.is_none() && self.menu_with.is_none() && self.enable_macos_default_menu {
+      self.menu = Some(crate::menu::default(context.config()));
     }
+
+    let menu = match (self.menu, self.menu_with) {
+      (None, Some(f)) => Some(f(context.config())),
+      (Some(m), None) => Some(m),
+      (None, None) => None,
+      _ => unreachable!(),
+    };
 
     let manager = WindowManager::with_handlers(
       context,
@@ -1281,7 +1342,8 @@ impl<R: Runtime> Builder<R> {
       self.uri_scheme_protocols,
       self.state,
       self.window_event_listeners,
-      (self.menu, self.menu_event_listeners),
+      (menu.clone(), self.menu_event_listeners, HashMap::new()),
+      self.tray_event_listeners,
       (self.invoke_responder, self.invoke_initialization_script),
     );
 
@@ -1296,14 +1358,49 @@ impl<R: Runtime> Builder<R> {
       )?);
     }
 
+    if let Some(menu) = &menu {
+      manager
+        .inner
+        .menus
+        .lock()
+        .unwrap()
+        .insert(menu.id(), menu.clone());
+    }
+
+    let runtime_args = RuntimeInitArgs {
+      #[cfg(windows)]
+      msg_hook: {
+        let menus = manager.inner.menus.clone();
+        Some(Box::new(move |msg| {
+          use windows::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, HACCEL, MSG};
+          unsafe {
+            let msg = msg as *const MSG;
+            for menu in menus.lock().unwrap().values() {
+              let translated = TranslateAcceleratorW((*msg).hwnd, HACCEL(menu.haccel()), msg);
+              if translated == 1 {
+                return true;
+              }
+            }
+
+            false
+          }
+        }))
+      },
+    };
+
     #[cfg(any(windows, target_os = "linux"))]
     let mut runtime = if self.runtime_any_thread {
-      R::new_any_thread()?
+      R::new_any_thread(runtime_args)?
     } else {
-      R::new()?
+      R::new(runtime_args)?
     };
     #[cfg(not(any(windows, target_os = "linux")))]
     let mut runtime = R::new()?;
+
+    #[cfg(target_os = "macos")]
+    if let Some(menu) = menu {
+      menu.init_for_nsapp();
+    }
 
     runtime.set_device_event_filter(self.device_event_filter);
 
@@ -1356,27 +1453,32 @@ impl<R: Runtime> Builder<R> {
       }
     }
 
-    #[cfg(all(desktop, feature = "system-tray"))]
+    // initialize tray icons
     {
-      if let Some(tray) = self.system_tray {
-        tray.build(&app)?;
+      let mut tray_stash = app.manager.inner.tray_icons.lock().unwrap();
+      let config = app.config();
+      if let Some(tray_config) = &config.tauri.tray_icon {
+        let mut tray = TrayIconBuilder::new()
+          .with_icon_as_template(tray_config.icon_as_template)
+          .with_menu_on_left_click(tray_config.menu_on_left_click);
+        if let Some(icon) = &app.manager.inner.tray_icon {
+          let icon: crate::runtime::Icon = icon.clone().try_into()?;
+          tray = tray.with_icon(icon.try_into()?);
+        }
+        if let Some(title) = &tray_config.title {
+          tray = tray.with_title(title);
+        }
+        if let Some(tooltip) = &tray_config.tooltip {
+          tray = tray.with_tooltip(tooltip);
+        }
+        tray_stash.push(tray.build().map_err(Into::<crate::runtime::Error>::into)?);
       }
-
-      for listener in self.system_tray_event_listeners {
-        let app_handle = app.handle();
-        let listener = Arc::new(std::sync::Mutex::new(listener));
-        app
-          .runtime
-          .as_mut()
-          .unwrap()
-          .on_system_tray_event(move |tray_id, event| {
-            if let Some((tray_id, tray)) = app_handle.manager().get_tray_by_runtime_id(tray_id) {
-              let app_handle = app_handle.clone();
-              let event = tray::SystemTrayEvent::from_runtime_event(event, tray_id, &tray.ids);
-              let listener = listener.clone();
-              listener.lock().unwrap()(&app_handle, event);
-            }
-          });
+      for tray_builder in self.tray_icons {
+        tray_stash.push(
+          tray_builder
+            .build()
+            .map_err(Into::<crate::runtime::Error>::into)?,
+        );
       }
     }
 
@@ -1416,6 +1518,10 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
       let pending = app
         .manager
         .prepare_window(app.handle.clone(), pending, &window_labels)?;
+      let menu = pending
+        .menu()
+        .cloned()
+        .map(|m| (pending.has_app_wide_menu, m));
       let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app.handle().runtime() {
         runtime.create_window(pending)?
@@ -1423,7 +1529,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
         unreachable!()
       };
-      let window = app.manager.attach_window(app.handle(), detached);
+      let window = app.manager.attach_window(app.handle(), detached, menu);
 
       if let Some(effects) = window_effects {
         crate::vibrancy::set_window_effects(&window, Some(effects))?;
@@ -1486,6 +1592,41 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     }
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
+    RuntimeRunEvent::MenuEvent(e) => {
+      for listener in &*app_handle
+        .manager
+        .inner
+        .menu_event_listeners
+        .lock()
+        .unwrap()
+      {
+        listener(&app_handle, e)
+      }
+      for (label, listener) in &*app_handle
+        .manager
+        .inner
+        .window_menu_event_listeners
+        .lock()
+        .unwrap()
+      {
+        if let Some(w) = app_handle.get_window(label) {
+          listener(&w, e)
+        }
+      }
+      RunEvent::MenuEvent(e)
+    }
+    RuntimeRunEvent::TrayIconEvent(e) => {
+      for listener in &*app_handle
+        .manager
+        .inner
+        .tray_event_listeners
+        .lock()
+        .unwrap()
+      {
+        listener(&app_handle, e)
+      }
+      RunEvent::TrayIconEvent(e)
+    }
     RuntimeRunEvent::UserEvent(t) => t.into(),
     _ => unimplemented!(),
   };

@@ -120,7 +120,7 @@ impl CodegenContext {
         config_parent.join(icon).display()
       );
     }
-    if let Some(tray_icon) = config.tauri.system_tray.as_ref().map(|t| &t.icon_path) {
+    if let Some(tray_icon) = config.tauri.tray_icon.as_ref().map(|t| &t.icon_path) {
       println!(
         "cargo:rerun-if-changed={}",
         config_parent.join(tray_icon).display()

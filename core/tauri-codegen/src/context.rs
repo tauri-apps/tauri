@@ -319,16 +319,16 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   );
 
-  let with_system_tray_icon_code = if target.is_desktop() {
-    if let Some(tray) = &config.tauri.system_tray {
-      let system_tray_icon_path = config_parent.join(&tray.icon_path);
-      let ext = system_tray_icon_path.extension();
+  let with_tray_icon_code = if target.is_desktop() {
+    if let Some(tray) = &config.tauri.tray_icon {
+      let tray_icon_icon_path = config_parent.join(&tray.icon_path);
+      let ext = tray_icon_icon_path.extension();
       if ext.map_or(false, |e| e == "ico") {
-        ico_icon(&root, &out_dir, system_tray_icon_path)
-          .map(|i| quote!(context.set_system_tray_icon(#i);))?
+        ico_icon(&root, &out_dir, tray_icon_icon_path)
+          .map(|i| quote!(context.set_tray_icon(#i);))?
       } else if ext.map_or(false, |e| e == "png") {
-        png_icon(&root, &out_dir, system_tray_icon_path)
-          .map(|i| quote!(context.set_system_tray_icon(#i);))?
+        png_icon(&root, &out_dir, tray_icon_icon_path)
+          .map(|i| quote!(context.set_tray_icon(#i);))?
       } else {
         quote!(compile_error!(
           "The tray icon extension must be either `.ico` or `.png`."
@@ -432,7 +432,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #info_plist,
       #pattern,
     );
-    #with_system_tray_icon_code
+    #with_tray_icon_code
     context
   }))
 }

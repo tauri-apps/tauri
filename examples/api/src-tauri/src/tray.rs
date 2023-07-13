@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{
-  CustomMenuItem, Manager, Runtime, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
-  WindowUrl,
-};
+use tauri::{tray::TrayIconBuilder, WindowUrl};
+
+// pub fn tray() -> TrayIconBuilder {
+//   TrayIconBuilder::new()
+//   .with_tooltip()
+// }
 
 pub fn create_tray<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
   let mut tray_menu1 = SystemTrayMenu::new()

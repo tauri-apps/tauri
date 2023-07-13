@@ -701,7 +701,7 @@ impl AppSettings for RustAppSettings {
       &self.manifest,
       features,
       config.tauri.bundle.clone(),
-      config.tauri.system_tray.clone(),
+      config.tauri.tray_icon.clone(),
     )
   }
 
@@ -1045,7 +1045,7 @@ fn tauri_config_to_bundle_settings(
   manifest: &Manifest,
   features: &[String],
   config: crate::helpers::config::BundleConfig,
-  system_tray_config: Option<crate::helpers::config::SystemTrayConfig>,
+  tray_icon_config: Option<crate::helpers::config::TrayIconConfig>,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
 
@@ -1068,7 +1068,7 @@ fn tauri_config_to_bundle_settings(
 
   #[cfg(target_os = "linux")]
   {
-    if let Some(system_tray_config) = &system_tray_config {
+    if let Some(tray_icon_config) = &tray_icon_config {
       let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
       if tray == "ayatana" {
         depends.push("libayatana-appindicator3-1".into());

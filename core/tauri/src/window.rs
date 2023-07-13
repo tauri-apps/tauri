@@ -4,9 +4,7 @@
 
 //! The Tauri window types and functions.
 
-pub(crate) mod menu;
-
-pub use menu::{MenuEvent, MenuHandle};
+use tauri_runtime::menu::MenuEvent;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -56,7 +54,7 @@ use std::{
   fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
@@ -325,13 +323,21 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let pending = self
       .manager
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
+    let menu = pending
+      .menu()
+      .cloned()
+      .map(|m| (pending.has_app_wide_menu, m));
     let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending),
     }
-    .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
+    .map(|window| {
+      self
+        .manager
+        .attach_window(self.app_handle.clone(), window, menu)
+    })?;
 
     if let Some(effects) = window_effects {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
@@ -769,7 +775,6 @@ struct JsEventListenerKey {
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
 #[default_runtime(crate::Wry, wry)]
-#[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
@@ -777,6 +782,19 @@ pub struct Window<R: Runtime> {
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
+  // The menu set for this window
+  pub(crate) menu: Arc<Mutex<Option<(bool, Menu)>>>,
+}
+
+impl<R: Runtime> std::fmt::Debug for Window<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Window")
+      .field("window", &self.window)
+      .field("manager", &self.manager)
+      .field("app_handle", &self.app_handle)
+      .field("js_event_listeners", &self.js_event_listeners)
+      .finish()
+  }
 }
 
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
@@ -792,6 +810,7 @@ impl<R: Runtime> Clone for Window<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       js_event_listeners: self.js_event_listeners.clone(),
+      menu: self.menu.clone(),
     }
   }
 }
@@ -938,12 +957,14 @@ impl<R: Runtime> Window<R> {
     manager: WindowManager<R>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
+    menu: Option<(bool, Menu)>,
   ) -> Self {
     Self {
       window,
       manager,
       app_handle,
       js_event_listeners: Default::default(),
+      menu: Arc::new(Mutex::new(menu)),
     }
   }
 
@@ -989,18 +1010,193 @@ impl<R: Runtime> Window<R> {
       .on_window_event(move |event| f(&event.clone().into()));
   }
 
-  /// Registers a menu event listener.
-  pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
-    let menu_ids = self.window.menu_ids.clone();
-    self.window.dispatcher.on_menu_event(move |event| {
-      let id = menu_ids
-        .lock()
-        .unwrap()
-        .get(&event.menu_item_id)
-        .unwrap()
-        .clone();
-      f(MenuEvent { menu_item_id: id })
-    })
+  /// Registers a global menu event listener.
+  ///
+  /// Note that this handler is called for any menu event,
+  /// whether it is coming from this window, another window or from the tray icon menu.
+  ///
+  /// Also note that this handler will not be called if
+  /// the window used to register it was closed.
+  ///
+  /// # Examples
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|window, event| {
+  ///     let save_menu_item =  &MenuItem::new("Save", true, None);
+  ///     let menu = Menu::with_items(&[
+  ///       &Submenu::with_items("File", true, &[
+  ///         &save_menu_item,
+  ///       ]),
+  ///     ]);
+  ///     let window = WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
+  ///       .menu(menu)
+  ///       .build()
+  ///       .unwrap();
+  ///
+  ///     window.on_menu_event(move |window, event| {
+  ///       if event.id == save_menu_item.id() {
+  ///           // save menu item
+  ///       }
+  ///     });
+  ///   });
+  /// ```
+  pub fn on_menu_event<F: Fn(&Window<R>, MenuEvent) + Send + Sync + 'static>(&self, f: F) {
+    self
+      .manager
+      .inner
+      .window_menu_event_listeners
+      .lock()
+      .unwrap()
+      .insert(self.label().to_string(), Box::new(f));
+  }
+
+  pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<(bool, Menu)>> {
+    self.menu.lock().expect("poisoned window")
+  }
+
+  pub(crate) fn has_app_wide_menu(&self) -> bool {
+    self.menu_lock().as_ref().map(|m| m.0).unwrap_or(false)
+  }
+
+  pub(crate) fn is_menu_in_use(&self, id: u32) -> bool {
+    self
+      .menu_lock()
+      .as_ref()
+      .map(|m| m.1.id() == id)
+      .unwrap_or(false)
+  }
+
+  /// Returns this window menu .
+  pub fn menu(&self) -> Option<Menu> {
+    self.menu_lock().as_ref().map(|m| m.1.clone())
+  }
+
+  /// Sets the window menu and returns the previous one.
+  pub fn set_menu(&self, menu: Menu) -> crate::Result<Option<Menu>> {
+    let prev_menu = self.remove_menu()?;
+
+    self.manager.insert_menu_into_stash(&menu);
+
+    #[cfg(windows)]
+    {
+      let _ = menu.init_for_hwnd(self.hwnd().unwrap().0);
+    }
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      let _ = menu.init_for_gtk_windows(self.gtk_window().unwrap());
+    }
+
+    self.menu_lock().replace((false, menu.clone()));
+
+    Ok(prev_menu)
+  }
+
+  /// Removes the window menu and returns it.
+  pub fn remove_menu(&self) -> crate::Result<Option<Menu>> {
+    let mut current_menu = self.menu_lock();
+
+    // remove from the window
+    if let Some((_, menu)) = &*current_menu {
+      #[cfg(windows)]
+      {
+        let _ = menu.remove_for_hwnd(self.hwnd()?.0);
+      }
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      {
+        let _ = menu.remove_for_gtk_windows(self.gtk_window()?);
+      }
+    }
+
+    let prev_menu = current_menu.take().map(|m| m.1);
+
+    drop(current_menu);
+
+    self
+      .manager
+      .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
+
+    Ok(prev_menu)
+  }
+
+  /// Hides the window menu.
+  pub fn hide_menu(&self) -> crate::Result<()> {
+    // remove from the window
+    if let Some((_, menu)) = &*self.menu_lock() {
+      #[cfg(windows)]
+      {
+        let _ = menu.hide_for_hwnd(self.hwnd()?.0);
+      }
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      {
+        let _ = menu.hide_for_gtk_windows(self.gtk_window()?);
+      }
+    }
+
+    Ok(())
+  }
+
+  /// Shows the window menu.
+  pub fn show_menu(&self) -> crate::Result<()> {
+    // remove from the window
+    if let Some((_, menu)) = &*self.menu_lock() {
+      #[cfg(windows)]
+      {
+        let _ = menu.show_for_hwnd(self.hwnd()?.0);
+      }
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      {
+        let _ = menu.show_for_gtk_windows(self.gtk_window()?);
+      }
+    }
+
+    Ok(())
+  }
+
+  /// Shows the window menu.
+  pub fn is_menu_visible(&self) -> crate::Result<bool> {
+    // remove from the window
+    if let Some((_, menu)) = &*self.menu_lock() {
+      #[cfg(windows)]
+      {
+        return Ok(menu.is_visible_on_hwnd(self.hwnd()?.0));
+      }
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      {
+        return Ok(menu.is_visible_on_gtk_windows(self.gtk_window()?));
+      }
+    }
+
+    Ok(false)
   }
 
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
@@ -1070,14 +1266,6 @@ impl<R: Runtime> Window<R> {
 
 /// Window getters.
 impl<R: Runtime> Window<R> {
-  /// Gets a handle to the window menu.
-  pub fn menu_handle(&self) -> MenuHandle<R> {
-    MenuHandle {
-      ids: self.window.menu_ids.clone(),
-      dispatcher: self.dispatcher(),
-    }
-  }
-
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   pub fn scale_factor(&self) -> crate::Result<f64> {
     self.window.dispatcher.scale_factor().map_err(Into::into)

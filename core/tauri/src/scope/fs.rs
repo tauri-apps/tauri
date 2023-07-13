@@ -299,6 +299,44 @@ impl Scope {
       forbidden_patterns: forbidden_diff,
     }
   }
+
+  /// Extend the list of allowed patterns with the given iterator.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let scope = app.fs_scope();
+  ///     let reset = scope.reset();
+  ///     scope.extend_allowed(reset.allowed_patterns().into_iter().cloned());
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn extend_allowed<I: IntoIterator<Item = Pattern>>(&self, patterns: I) {
+    self.allowed_patterns.lock().unwrap().extend(patterns);
+  }
+
+  /// Extend the list of forbidden patterns with the given iterator.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let scope = app.fs_scope();
+  ///     let reset = scope.reset();
+  ///     scope.extend_forbidden(reset.forbidden_patterns().into_iter().cloned());
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn extend_forbidden<I: IntoIterator<Item = Pattern>>(&self, patterns: I) {
+    self.forbidden_patterns.lock().unwrap().extend(patterns);
+  }
 }
 
 /// Contains the scope information that was reset after calling [`reset`](`Scope#method.reset`).

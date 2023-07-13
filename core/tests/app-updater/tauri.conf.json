@@ -17,6 +17,11 @@
         "../../../examples/.icons/icon.ico"
       ],
       "category": "DeveloperTool",
+      "macOS": {
+        "frameworks": [
+          "./frameworks/test.framework"
+        ]
+      },
       "windows": {
         "wix": {
           "skipWebviewInstall": true

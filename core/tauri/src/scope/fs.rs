@@ -280,7 +280,7 @@ impl Scope {
   /// the scope to its initial state which matches the scope defined in the configuration file.
   ///
   /// Returns the removed allowed and forbidden patterns.
-  pub fn reset(&self) -> crate::Result<ResetScope> {
+  pub fn reset(&self) -> ResetScope {
     let mut allowed_patterns = self.allowed_patterns.lock().unwrap();
     let mut forbidden_patterns = self.forbidden_patterns.lock().unwrap();
     let allowed_diff = allowed_patterns
@@ -294,10 +294,10 @@ impl Scope {
     *allowed_patterns = self.default_allowed.clone();
     *forbidden_patterns = self.default_forbidden.clone();
 
-    Ok(ResetScope {
+    ResetScope {
       allowed_patterns: allowed_diff,
       forbidden_patterns: forbidden_diff,
-    })
+    }
   }
 }
 
@@ -446,7 +446,7 @@ mod tests {
     assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
     assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
-    let reset = scope.reset().unwrap();
+    let reset = scope.reset();
     assert_eq!(
       reset.allowed_patterns,
       vec![
@@ -474,7 +474,7 @@ mod tests {
     assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
     assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
-    let reset = scope.reset().unwrap();
+    let reset = scope.reset();
     assert_eq!(
       reset.allowed_patterns,
       vec![
@@ -512,7 +512,7 @@ mod tests {
     assert!(!scope.is_allowed(home.join("allowed").join("inner").join("file")));
     assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
-    let reset = scope.reset().unwrap();
+    let reset = scope.reset();
     assert_eq!(
       reset.allowed_patterns,
       vec![

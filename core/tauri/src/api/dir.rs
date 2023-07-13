@@ -33,14 +33,9 @@ pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
 
 fn is_symlink<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
   let path = path.as_ref();
-  // TODO: remove the different implementation once we raise tauri's MSRV to at least 1.58
-  #[cfg(windows)]
-  let ret = symlink_metadata(path).map(|md| md.is_symlink());
-
-  #[cfg(not(windows))]
-  let ret = symlink_metadata(path).map(|md| md.file_type().is_symlink());
-
-  ret.map_err(|e| crate::api::Error::PathIo(e, path.to_path_buf()))
+  symlink_metadata(path)
+    .map(|md| md.is_symlink())
+    .map_err(|e| crate::api::Error::PathIo(e, path.to_path_buf()))
 }
 
 /// Reads a directory. Can perform recursive operations.

@@ -29,7 +29,7 @@
     const command = new Command(cmd, [...args, script], {
       cwd: cwd || null,
       env: _getEnv(),
-      encoding,
+      encoding: encoding || null,
     })
 
     command.on('close', (data) => {

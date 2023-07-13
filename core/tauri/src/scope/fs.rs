@@ -120,7 +120,7 @@ impl Scope {
     env: &Env,
     scope: &FsAllowlistScope,
   ) -> crate::Result<Self> {
-    let (allowed_patterns, forbidden_patterns) = Scope::patterns(config, package_info, env, scope)?;
+    let (allowed_patterns, forbidden_patterns) = Self::patterns(config, package_info, env, scope)?;
 
     let require_literal_leading_dot = match scope {
       FsAllowlistScope::Scope {
@@ -128,10 +128,7 @@ impl Scope {
         ..
       } => *require,
       // dotfiles are not supposed to be exposed by default on unix
-      #[cfg(unix)]
-      _ => true,
-      #[cfg(windows)]
-      _ => false,
+      _ => cfg!(unix),
     };
 
     let default_allowed = allowed_patterns.clone();
@@ -320,10 +317,7 @@ mod tests {
         // see: https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5
         require_literal_separator: true,
         // dotfiles are not supposed to be exposed by default on unix
-        #[cfg(unix)]
-        require_literal_leading_dot: true,
-        #[cfg(windows)]
-        require_literal_leading_dot: false,
+        require_literal_leading_dot: cfg!(unix),
         ..Default::default()
       },
       default_allowed: Default::default(),
@@ -339,98 +333,49 @@ mod tests {
   #[test]
   fn path_is_escaped() {
     let scope = new_scope();
+
     #[cfg(unix)]
-    {
-      scope.allow_directory("/home/tauri/**", false).unwrap();
-      assert!(scope.is_allowed("/home/tauri/**"));
-      assert!(scope.is_allowed("/home/tauri/**/file"));
-      assert!(!scope.is_allowed("/home/tauri/anyfile"));
-    }
+    let home = PathBuf::from("/home/tauri");
     #[cfg(windows)]
-    {
-      scope.allow_directory("C:\\home\\tauri\\**", false).unwrap();
-      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+    let home = PathBuf::from("C:\\home\\tauri");
+
+    scope.allow_directory(home.join("**"), false).unwrap();
+    assert!(scope.is_allowed(home.join("**")));
+    assert!(scope.is_allowed(home.join("**").join("file")));
+    assert!(!scope.is_allowed(home.join("anyfile")));
 
     let scope = new_scope();
-    #[cfg(unix)]
-    {
-      scope.allow_file("/home/tauri/**").unwrap();
-      assert!(scope.is_allowed("/home/tauri/**"));
-      assert!(!scope.is_allowed("/home/tauri/**/file"));
-      assert!(!scope.is_allowed("/home/tauri/anyfile"));
-    }
-    #[cfg(windows)]
-    {
-      scope.allow_file("C:\\home\\tauri\\**").unwrap();
-      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+    scope.allow_file(home.join("**")).unwrap();
+    assert!(scope.is_allowed(home.join("**")));
+    assert!(!scope.is_allowed(home.join("**").join("file")));
+    assert!(!scope.is_allowed(home.join("anyfile")));
 
     let scope = new_scope();
-    #[cfg(unix)]
-    {
-      scope.allow_directory("/home/tauri", true).unwrap();
-      scope.forbid_directory("/home/tauri/**", false).unwrap();
-      assert!(!scope.is_allowed("/home/tauri/**"));
-      assert!(!scope.is_allowed("/home/tauri/**/file"));
-      assert!(scope.is_allowed("/home/tauri/**/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/inner/folder/anyfile"));
-      assert!(scope.is_allowed("/home/tauri/anyfile"));
-    }
-    #[cfg(windows)]
-    {
-      scope.allow_directory("C:\\home\\tauri", true).unwrap();
-      scope
-        .forbid_directory("C:\\home\\tauri\\**", false)
-        .unwrap();
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\inner\\folder\\anyfile"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+
+    scope.allow_directory(&home, true).unwrap();
+    scope.forbid_directory(home.join("**"), false).unwrap();
+    assert!(!scope.is_allowed(home.join("**")));
+    assert!(!scope.is_allowed(home.join("**").join("file")));
+    assert!(scope.is_allowed(home.join("**").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("inner").join("folder").join("anyfile")));
+    assert!(scope.is_allowed(home.join("anyfile")));
 
     let scope = new_scope();
-    #[cfg(unix)]
-    {
-      scope.allow_directory("/home/tauri", true).unwrap();
-      scope.forbid_file("/home/tauri/**").unwrap();
-      assert!(!scope.is_allowed("/home/tauri/**"));
-      assert!(scope.is_allowed("/home/tauri/**/file"));
-      assert!(scope.is_allowed("/home/tauri/**/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/anyfile"));
-    }
-    #[cfg(windows)]
-    {
-      scope.allow_directory("C:\\home\\tauri", true).unwrap();
-      scope.forbid_file("C:\\home\\tauri\\**").unwrap();
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+
+    scope.allow_directory(&home, true).unwrap();
+    scope.forbid_file(home.join("**")).unwrap();
+    assert!(!scope.is_allowed(home.join("**")));
+    assert!(scope.is_allowed(home.join("**").join("file")));
+    assert!(scope.is_allowed(home.join("**").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("anyfile")));
 
     let scope = new_scope();
-    #[cfg(unix)]
-    {
-      scope.allow_directory("/home/tauri", false).unwrap();
-      assert!(scope.is_allowed("/home/tauri/**"));
-      assert!(!scope.is_allowed("/home/tauri/**/file"));
-      assert!(!scope.is_allowed("/home/tauri/**/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/anyfile"));
-    }
-    #[cfg(windows)]
-    {
-      scope.allow_directory("C:\\home\\tauri", false).unwrap();
-      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+
+    scope.allow_directory(&home, false).unwrap();
+    assert!(scope.is_allowed(home.join("**")));
+    assert!(!scope.is_allowed(home.join("**").join("file")));
+    assert!(!scope.is_allowed(home.join("**").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("anyfile")));
   }
 
   #[test]
@@ -438,167 +383,72 @@ mod tests {
     let app = mock_app();
 
     #[cfg(unix)]
-    let allowlist = FsAllowlistScope::Scope {
-      allow: vec![
-        PathBuf::from("/home/tauri/allowed"),
-        PathBuf::from("/home/tauri/allowed/**"),
-      ],
-      deny: vec![
-        PathBuf::from("/home/tauri/forbidden"),
-        PathBuf::from("/home/tauri/forbidden/**"),
-      ],
-      require_literal_leading_dot: Some(true),
-    };
-
+    let home = PathBuf::from("/home/tauri");
     #[cfg(windows)]
+    let home = PathBuf::from("C:\\home\\tauri");
+
     let allowlist = FsAllowlistScope::Scope {
-      allow: vec![
-        PathBuf::from("C:\\home\\tauri\\allowed"),
-        PathBuf::from("C:\\home\\tauri\\allowed\\**"),
-      ],
-      deny: vec![
-        PathBuf::from("C:\\home\\tauri\\forbidden"),
-        PathBuf::from("C:\\home\\tauri\\forbidden\\**"),
-      ],
-      require_literal_leading_dot: Some(false),
+      allow: vec![home.join("allowed"), home.join("allowed").join("**")],
+      deny: vec![home.join("forbidden"), home.join("forbidden/**")],
+      require_literal_leading_dot: Some(cfg!(unix)),
     };
 
     let scope = new_scope_from_allowlist(&app, &allowlist);
-    #[cfg(unix)]
-    {
-      assert!(scope.is_allowed("/home/tauri/allowed"));
-      assert!(scope.is_allowed("/home/tauri/allowed/file"));
-      assert!(scope.is_allowed("/home/tauri/allowed/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/allowed/**"));
 
-      assert!(!scope.is_allowed("/home/tauri/forbidden"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden/**"));
-    }
-    #[cfg(windows)]
-    {
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed\\**"));
+    assert!(scope.is_allowed(home.join("allowed")));
+    assert!(scope.is_allowed(home.join("allowed").join("file")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("allowed").join("**")));
 
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden\\**"));
-    }
+    assert!(!scope.is_allowed(home.join("forbidden")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("**")));
 
     let scope = new_scope_from_allowlist(&app, &allowlist);
-    #[cfg(unix)]
-    {
-      scope.allow_directory("/home/tauri", true).unwrap();
-      assert!(scope.is_allowed("/home/tauri/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/**"));
-      assert!(scope.is_allowed("/home/tauri/allowed/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden/inner/file"));
 
-      scope.reset().unwrap();
-      assert!(!scope.is_allowed("/home/tauri/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/**"));
-      assert!(scope.is_allowed("/home/tauri/allowed/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden/inner/file"));
-    }
-    #[cfg(windows)]
-    {
-      scope.allow_directory("C:\\home\\tauri", true).unwrap();
-      assert!(scope.is_allowed("C:\\home\\tauri\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden\\inner\\file"));
+    scope.allow_directory(&home, true).unwrap();
+    assert!(scope.is_allowed(home.join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("**")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
-      scope.reset().unwrap();
-      assert!(!scope.is_allowed("C:\\home\\tauri\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden\\inner\\file"));
-    }
+    scope.reset().unwrap();
+    assert!(!scope.is_allowed(home.join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("**")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
-    #[cfg(unix)]
-    {
-      scope.allow_file("/home/tauri/allowed_file").unwrap();
-      scope
-        .allow_directory("/home/tauri/workspace", true)
-        .unwrap();
-      scope.forbid_file("/home/tauri/forbidden_file").unwrap();
-      scope.forbid_directory("/home/tauri/ignored", true).unwrap();
-      assert!(scope.is_allowed("/home/tauri/allowed_file"));
-      assert!(scope.is_allowed("/home/tauri/workspace/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden_file"));
-      assert!(!scope.is_allowed("/home/tauri/ignored/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/allowed/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden/inner/file"));
+    scope.allow_file(home.join("allowed_file")).unwrap();
+    scope.allow_directory(home.join("workspace"), true).unwrap();
+    scope.forbid_file(home.join("forbidden_file")).unwrap();
+    scope.forbid_directory(home.join("ignored"), true).unwrap();
+    assert!(scope.is_allowed(home.join("allowed_file")));
+    assert!(scope.is_allowed(home.join("workspace").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden_file")));
+    assert!(!scope.is_allowed(home.join("ignored").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
-      scope.reset().unwrap();
-      assert!(!scope.is_allowed("/home/tauri/allowed_file"));
-      assert!(!scope.is_allowed("/home/tauri/workspace/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden_file"));
-      assert!(!scope.is_allowed("/home/tauri/ignored/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/allowed/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden/inner/file"));
-    }
-    #[cfg(windows)]
-    {
-      scope.allow_file("C:\\home\\tauri\\allowed_file").unwrap();
-      scope
-        .allow_directory("C:\\home\\tauri\\workspace", true)
-        .unwrap();
-      scope
-        .forbid_file("C:\\home\\tauri\\forbidden_file")
-        .unwrap();
-      scope
-        .forbid_directory("C:\\home\\tauri\\ignored", true)
-        .unwrap();
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed_file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\workspace\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden_file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\ignored\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden\\inner\\file"));
+    scope.reset().unwrap();
+    assert!(!scope.is_allowed(home.join("allowed_file")));
+    assert!(!scope.is_allowed(home.join("workspace").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden_file")));
+    assert!(!scope.is_allowed(home.join("ignored").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
-      scope.reset().unwrap();
-      assert!(!scope.is_allowed("C:\\home\\tauri\\allowed_file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\workspace\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden_file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\ignored\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden\\inner\\file"));
-    }
+    scope
+      .forbid_directory(home.join("allowed").join("inner"), true)
+      .unwrap();
+    scope
+      .allow_directory(home.join("forbidden").join("inner"), true)
+      .unwrap();
+    assert!(!scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
 
-    #[cfg(unix)]
-    {
-      scope
-        .forbid_directory("/home/tauri/allowed/inner", true)
-        .unwrap();
-      scope
-        .allow_directory("/home/tauri/forbidden/inner", true)
-        .unwrap();
-      assert!(!scope.is_allowed("/home/tauri/allowed/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden/inner/file"));
-
-      scope.reset().unwrap();
-      assert!(scope.is_allowed("/home/tauri/allowed/inner/file"));
-      assert!(!scope.is_allowed("/home/tauri/forbidden/inner/file"));
-    }
-    #[cfg(windows)]
-    {
-      scope
-        .forbid_directory("C:\\home\\tauri\\allowed\\inner", true)
-        .unwrap();
-      scope
-        .allow_directory("C:\\home\\tauri\\forbidden\\inner", true)
-        .unwrap();
-      assert!(!scope.is_allowed("C:\\home\\tauri\\allowed\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden\\inner\\file"));
-
-      scope.reset().unwrap();
-      assert!(scope.is_allowed("C:\\home\\tauri\\allowed\\inner\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\forbidden\\inner\\file"));
-    }
+    scope.reset().unwrap();
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
   }
 }

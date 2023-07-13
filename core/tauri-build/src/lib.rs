@@ -9,7 +9,7 @@ use cargo_toml::Manifest;
 use heck::AsShoutySnakeCase;
 
 use tauri_utils::{
-  config::{BundleResources, Config},
+  config::{BundleResources, Config, WebviewInstallMode},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -349,11 +349,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .resources
     .clone()
     .unwrap_or_else(|| BundleResources::List(Vec::new()));
-  if let Some(fixed_webview2_runtime_path) = &config.tauri.bundle.windows.webview_fixed_runtime_path
-  {
-    resources.push(fixed_webview2_runtime_path.display().to_string());
+  if target_triple.contains("windows") {
+    if let Some(fixed_webview2_runtime_path) =
+      match &config.tauri.bundle.windows.webview_fixed_runtime_path {
+        Some(path) => Some(path),
+        None => match &config.tauri.bundle.windows.webview_install_mode {
+          WebviewInstallMode::FixedRuntime { path } => Some(path),
+          _ => None,
+        },
+      }
+    {
+      resources.push(fixed_webview2_runtime_path.display().to_string());
+    }
   }
-
   match resources {
     BundleResources::List(res) => {
       copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?

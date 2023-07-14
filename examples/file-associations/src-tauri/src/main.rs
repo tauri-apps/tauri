@@ -20,7 +20,7 @@ fn main() {
       {
         // NOTICE: `args` may include URL protocol (`your-app-protocol://`) or arguments (`--`) if app supports them.
         let mut urls = Vec::new();
-        for arg in env::args() {
+        for arg in env::args().skip(1) {
           if let Ok(url) = url::Url::parse(&arg) {
             urls.push(url);
           }
@@ -34,7 +34,7 @@ fn main() {
       let opened_urls = if let Some(urls) = &*app.state::<OpenedUrls>().0.lock().unwrap() {
         urls
           .iter()
-          .map(|u| u.as_str())
+          .map(|u| u.as_str().replace("\\", "\\\\"))
           .collect::<Vec<_>>()
           .join(", ")
       } else {

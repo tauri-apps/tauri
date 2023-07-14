@@ -194,12 +194,7 @@ fn create_info_plist(
             );
             dict.insert(
               "CFBundleTypeRole".into(),
-              association
-                .role
-                .as_ref()
-                .unwrap_or(&BundleTypeRole::Editor)
-                .to_string()
-                .into(),
+              association.role.to_string().into(),
             );
             plist::Value::Dictionary(dict)
           })

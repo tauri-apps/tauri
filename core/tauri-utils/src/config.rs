@@ -625,10 +625,11 @@ impl Default for WindowsConfig {
 }
 
 /// macOS-only. Corresponds to CFBundleTypeRole
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum BundleTypeRole {
   /// CFBundleTypeRole.Editor. Files can be read and edited.
+  #[default]
   Editor,
   /// CFBundleTypeRole.Viewer. Files can be read.
   Viewer,
@@ -659,11 +660,13 @@ impl Display for BundleTypeRole {
 pub struct FileAssociation {
   /// File extensions to associate with this app. e.g. 'png'
   pub ext: Vec<String>,
-  /// The name. Default to ext[0]
+  /// The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]
   pub name: Option<String>,
-  /// macOS-only. The app’s role with respect to the type.
-  pub role: Option<BundleTypeRole>,
-  /// Linux-only. The mime-type. e.g. 'image/png'
+  /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
+  #[serde(default)]
+  pub role: BundleTypeRole,
+  /// Linux-only. The mime-types. e.g. ['image/png', 'image/jpg']
+  #[serde(alias = "mime-type")]
   pub mime_type: Option<Vec<String>>,
 }
 

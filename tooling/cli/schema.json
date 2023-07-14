@@ -1147,25 +1147,23 @@
           }
         },
         "name": {
-          "description": "The name. Default to ext[0]",
+          "description": "The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]",
           "type": [
             "string",
             "null"
           ]
         },
         "role": {
-          "description": "macOS-only. The app’s role with respect to the type.",
-          "anyOf": [
+          "description": "The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.",
+          "default": "Editor",
+          "allOf": [
             {
               "$ref": "#/definitions/BundleTypeRole"
-            },
-            {
-              "type": "null"
             }
           ]
         },
         "mimeType": {
-          "description": "Linux-only. The mime-type. e.g. 'image/png'",
+          "description": "Linux-only. The mime-types. e.g. ['image/png', 'image/jpg']",
           "type": [
             "array",
             "null"

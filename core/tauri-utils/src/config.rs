@@ -662,7 +662,7 @@ pub struct FileAssociation {
   pub ext: Vec<String>,
   /// The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]
   pub name: Option<String>,
-  /// The association description. Windows-only.
+  /// The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.
   pub description: Option<String>,
   /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]

@@ -1154,7 +1154,7 @@
           ]
         },
         "description": {
-          "description": "The association description. Windows-only.",
+          "description": "The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.",
           "type": [
             "string",
             "null"

@@ -301,6 +301,10 @@ fn build_nsis_app_installer(
   let binaries = generate_binaries_data(settings)?;
   data.insert("binaries", to_json(binaries));
 
+  if let Some(file_associations) = &settings.file_associations() {
+    data.insert("file_associations", to_json(file_associations));
+  }
+
   let silent_webview2_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
   | WebviewInstallMode::EmbedBootstrapper { silent }
   | WebviewInstallMode::OfflineInstaller { silent } =
@@ -414,6 +418,12 @@ fn build_nsis_app_installer(
       .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
   }
+
+  write_ut16_le_with_bom(
+    &output_path.join("FileAssociation.nsh"),
+    include_str!("./templates/FileAssociation.nsh"),
+  )?;
+
   let installer_nsi_path = output_path.join("installer.nsi");
   write_ut16_le_with_bom(
     &installer_nsi_path,

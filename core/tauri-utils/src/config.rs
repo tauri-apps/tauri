@@ -662,10 +662,12 @@ pub struct FileAssociation {
   pub ext: Vec<String>,
   /// The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]
   pub name: Option<String>,
+  /// The association description. Windows-only.
+  pub description: Option<String>,
   /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]
   pub role: BundleTypeRole,
-  /// Linux-only. The mime-types. e.g. ['image/png', 'image/jpg']
+  /// The mime-types e.g. ['image/png', 'image/jpg']. Linux-only.
   #[serde(alias = "mime-type")]
   pub mime_type: Option<Vec<String>>,
 }

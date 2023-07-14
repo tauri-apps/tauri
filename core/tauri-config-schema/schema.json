@@ -1153,6 +1153,13 @@
             "null"
           ]
         },
+        "description": {
+          "description": "The association description. Windows-only.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "role": {
           "description": "The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.",
           "default": "Editor",
@@ -1163,7 +1170,7 @@
           ]
         },
         "mimeType": {
-          "description": "Linux-only. The mime-types. e.g. ['image/png', 'image/jpg']",
+          "description": "The mime-types e.g. ['image/png', 'image/jpg']. Linux-only.",
           "type": [
             "array",
             "null"

@@ -116,7 +116,7 @@
                 <File Id="Path" Source="{{{app_exe_source}}}" KeyPath="yes" Checksum="yes"/>
                 {{#each file_associations as |association| ~}}
                 {{#each association.ext as |ext| ~}}
-                <ProgId Id="{{{product_name}}}.{{{ext}}}" Advertise="yes">
+                <ProgId Id="{{{product_name}}}.{{{ext}}}" Advertise="yes" Description="{{association.description}}">
                     <Extension Id="{{{ext}}}" Advertise="yes">
                         <Verb Id="open" Command="Open with {{{product_name}}}" Argument="&quot;%1&quot;" />
                     </Extension>

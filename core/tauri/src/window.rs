@@ -1054,8 +1054,8 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// }
   /// ```
-  #[cfg(all(feature = "wry"))]
-  #[cfg_attr(doc_cfg, doc(all(feature = "wry")))]
+  #[cfg(feature = "wry")]
+  #[cfg_attr(doc_cfg, doc(feature = "wry"))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,

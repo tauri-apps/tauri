@@ -391,6 +391,9 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   fn raw_display_handle(&self) -> RawDisplayHandle;
 
+  fn primary_monitor(&self) -> Option<Monitor>;
+  fn available_monitors(&self) -> Vec<Monitor>;
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
@@ -463,6 +466,9 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F);
+
+  fn primary_monitor(&self) -> Option<Monitor>;
+  fn available_monitors(&self) -> Vec<Monitor>;
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   #[cfg(target_os = "macos")]

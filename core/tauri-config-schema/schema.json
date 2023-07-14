@@ -1164,7 +1164,7 @@
             }
           ]
         },
-        "mime_type": {
+        "mimeType": {
           "description": "Linux-only. The mime-type. e.g. 'image/png'",
           "type": [
             "array",
@@ -1174,7 +1174,8 @@
             "type": "string"
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     "BundleTypeRole": {
       "description": "macOS-only. Corresponds to CFBundleTypeRole",

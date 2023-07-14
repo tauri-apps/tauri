@@ -655,6 +655,7 @@ impl Display for BundleTypeRole {
 /// File association
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FileAssociation {
   /// File extensions to associate with this app. e.g. 'png'
   pub ext: Vec<String>,

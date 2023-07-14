@@ -112,13 +112,13 @@
                     <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
                 </RegistryKey>
             </Component>
-            <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)">
-                <File Id="Path" Source="{{{app_exe_source}}}" KeyPath="yes" Checksum="yes"/>
+            <Component Id="Path" Guid="{{path_component_guid}}" Win64="$(var.Win64)">
+                <File Id="Path" Source="{{app_exe_source}}" KeyPath="yes" Checksum="yes"/>
                 {{#each file_associations as |association| ~}}
                 {{#each association.ext as |ext| ~}}
-                <ProgId Id="{{{product_name}}}.{{{ext}}}" Advertise="yes" Description="{{association.description}}">
-                    <Extension Id="{{{ext}}}" Advertise="yes">
-                        <Verb Id="open" Command="Open with {{{product_name}}}" Argument="&quot;%1&quot;" />
+                <ProgId Id="{{product_name}}.{{ext}}" Advertise="yes" Description="{{association.description}}">
+                    <Extension Id="{{ext}}" Advertise="yes">
+                        <Verb Id="open" Command="Open with {{product_name}}" Argument="&quot;%1&quot;" />
                     </Extension>
                 </ProgId>
                 {{/each~}}

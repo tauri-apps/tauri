@@ -669,8 +669,8 @@ impl fmt::Display for AssociationExt {
 impl<'d> serde::Deserialize<'d> for AssociationExt {
   fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<Self, D::Error> {
     let ext = String::deserialize(deserializer)?;
-    if ext.starts_with('.') {
-      Ok(AssociationExt(ext.chars().skip(1).collect()))
+    if let Some(ext) = ext.strip_prefix('.') {
+      Ok(AssociationExt(ext.into()))
     } else {
       Ok(AssociationExt(ext))
     }

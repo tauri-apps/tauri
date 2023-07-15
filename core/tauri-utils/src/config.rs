@@ -653,13 +653,37 @@ impl Display for BundleTypeRole {
   }
 }
 
+/// An extension for a [`FileAssociation`].
+///
+/// A leading `.` is automatically stripped.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct AssociationExt(pub String);
+
+impl fmt::Display for AssociationExt {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
+
+impl<'d> serde::Deserialize<'d> for AssociationExt {
+  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<Self, D::Error> {
+    let ext = String::deserialize(deserializer)?;
+    if ext.starts_with('.') {
+      Ok(AssociationExt(ext.chars().skip(1).collect()))
+    } else {
+      Ok(AssociationExt(ext))
+    }
+  }
+}
+
 /// File association
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FileAssociation {
   /// File extensions to associate with this app. e.g. 'png'
-  pub ext: Vec<String>,
+  pub ext: Vec<AssociationExt>,
   /// The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]
   pub name: Option<String>,
   /// The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.
@@ -1718,7 +1742,7 @@ fn default_dist_dir() -> AppUrl {
 struct PackageVersion(String);
 
 impl<'d> serde::Deserialize<'d> for PackageVersion {
-  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<PackageVersion, D::Error> {
+  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<Self, D::Error> {
     struct PackageVersionVisitor;
 
     impl<'d> Visitor<'d> for PackageVersionVisitor {

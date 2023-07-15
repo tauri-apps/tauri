@@ -188,7 +188,7 @@ fn create_info_plist(
               association
                 .name
                 .as_ref()
-                .unwrap_or(&association.ext[0])
+                .unwrap_or(&association.ext[0].0)
                 .to_string()
                 .into(),
             );

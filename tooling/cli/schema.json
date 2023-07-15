@@ -1143,7 +1143,7 @@
           "description": "File extensions to associate with this app. e.g. 'png'",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/AssociationExt"
           }
         },
         "name": {
@@ -1181,6 +1181,10 @@
         }
       },
       "additionalProperties": false
+    },
+    "AssociationExt": {
+      "description": "An extension for a [`FileAssociation`].\n\nA leading `.` is automatically stripped.",
+      "type": "string"
     },
     "BundleTypeRole": {
       "description": "macOS-only. Corresponds to CFBundleTypeRole",

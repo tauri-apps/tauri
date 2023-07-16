@@ -680,18 +680,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Add `state` to the state managed by the application.
   ///
-  /// This method can be called any number of times as long as each call
-  /// refers to a different `T`.
-  /// If a state for `T` is already managed, the function returns false and the value is ignored.
+  /// If the state for the `T` type has previously been set, the state is unchanged and false is returned. Otherwise true is returned.
   ///
   /// Managed state can be retrieved by any command handler via the
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
-  ///
-  /// # Panics
-  ///
-  /// Panics if state of type `T` is already being managed.
+  /// Additionally, [`state`](Self#method.state) can be used to retrieve the value manually.
   ///
   /// # Mutability
   ///

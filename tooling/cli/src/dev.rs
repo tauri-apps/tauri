@@ -79,8 +79,6 @@ pub fn command(options: Options) -> Result<()> {
   let r = command_internal(options);
   if r.is_err() {
     kill_before_dev_process();
-    #[cfg(not(debug_assertions))]
-    let _ = check_for_updates();
   }
   r
 }
@@ -262,8 +260,6 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
 
         let _ = ctrlc::set_handler(move || {
           kill_before_dev_process();
-          #[cfg(not(debug_assertions))]
-          let _ = check_for_updates();
           exit(130);
         });
       }

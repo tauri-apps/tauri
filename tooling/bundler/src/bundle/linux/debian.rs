@@ -174,7 +174,6 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
     let mime_types: Vec<&str> = associations
       .iter()
       .filter_map(|association| association.mime_type.as_ref())
-      .flatten()
       .map(|s| s.as_str())
       .collect();
     Some(mime_types.join(";"))

@@ -1,8 +1,12 @@
 {
   "$schema": "../../../tooling/cli/schema.json",
   "build": {
-    "distDir": ["../index.html"],
-    "devPath": ["../index.html"],
+    "distDir": [
+      "../index.html"
+    ],
+    "devPath": [
+      "../index.html"
+    ],
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },
@@ -24,8 +28,16 @@
       "category": "DeveloperTool",
       "fileAssociations": [
         {
-          "ext": ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg"],
-          "mimeType": ["image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp", "image/webp", "image/svg+xml"]
+          "ext": ["png"],
+          "mimeType": "image/png"
+        },
+        {
+          "ext": ["jpg", "jpeg"],
+          "mimeType": "image/jpeg"
+        },
+        {
+          "ext": ["gif"],
+          "mimeType": "image/gif"
         }
       ],
       "shortDescription": "",

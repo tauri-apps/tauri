@@ -1170,14 +1170,11 @@
           ]
         },
         "mimeType": {
-          "description": "The mime-types e.g. ['image/png', 'image/jpg']. Linux-only.",
+          "description": "The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.",
           "type": [
-            "array",
+            "string",
             "null"
-          ],
-          "items": {
-            "type": "string"
-          }
+          ]
         }
       },
       "additionalProperties": false

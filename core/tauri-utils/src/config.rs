@@ -691,9 +691,9 @@ pub struct FileAssociation {
   /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]
   pub role: BundleTypeRole,
-  /// The mime-types e.g. ['image/png', 'image/jpg']. Linux-only.
+  /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
   #[serde(alias = "mime-type")]
-  pub mime_type: Option<Vec<String>>,
+  pub mime_type: Option<String>,
 }
 
 /// The Updater configuration object.

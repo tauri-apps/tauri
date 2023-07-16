@@ -1524,10 +1524,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => t.into(),
     #[cfg(target_os = "macos")]
-    RuntimeRunEvent::Opened { urls } => {
-      app_handle.trigger_global("opened", Some(serde_json::to_string(&urls).unwrap()));
-      RunEvent::Opened { urls }
-    }
+    RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
     _ => unimplemented!(),
   };
 

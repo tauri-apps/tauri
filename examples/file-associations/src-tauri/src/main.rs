@@ -52,7 +52,7 @@ fn main() {
     .build(tauri::generate_context!())
     .expect("error while running tauri application")
     .run(|app, event| {
-      #[cfg(target_os = "macos")]
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
       if let tauri::RunEvent::Opened { urls } = event {
         if let Some(w) = app.get_window("main") {
           let urls = urls

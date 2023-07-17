@@ -22,8 +22,6 @@ abstract class TauriActivity : WryActivity() {
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
-    if (intent != null) {
-      pluginManager.onNewIntent(intent)
-    }
+    pluginManager.onNewIntent(intent)
   }
 }

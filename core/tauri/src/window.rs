@@ -528,6 +528,14 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Whether the window will be visible on all workspaces or virtual desktops.
+  #[must_use]
+  pub fn visible_on_all_workspaces(mut self, visible_on_all_workspaces: bool) -> Self {
+    self.window_builder = self.window_builder.visible_on_all_workspaces(visible_on_all_workspaces);
+    self
+  }
+
+
   /// Prevents the window contents from being captured by other apps.
   #[must_use]
   pub fn content_protected(mut self, protected: bool) -> Self {
@@ -1478,6 +1486,16 @@ impl<R: Runtime> Window<R> {
       .set_always_on_top(always_on_top)
       .map_err(Into::into)
   }
+
+  /// Determines if this window should be visible on all workspaces or virtual desktops.
+  pub fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_visible_on_all_workspaces(visible_on_all_workspaces)
+      .map_err(Into::into)
+  }
+
 
   /// Prevents the window contents from being captured by other apps.
   pub fn set_content_protected(&self, protected: bool) -> crate::Result<()> {

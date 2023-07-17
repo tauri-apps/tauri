@@ -7,6 +7,7 @@
 package {{package}}
 
 import android.os.Bundle
+import android.content.Intent
 import app.tauri.plugin.PluginManager
 
 abstract class TauriActivity : WryActivity() {
@@ -14,6 +15,13 @@ abstract class TauriActivity : WryActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    if (intent != null) {
+      pluginManager.onNewIntent(intent)
+    }
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
     if (intent != null) {
       pluginManager.onNewIntent(intent)
     }

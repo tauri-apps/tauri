@@ -29,7 +29,7 @@ pub struct ChannelDataCache(pub(crate) Arc<Mutex<HashMap<u32, InvokeBody>>>);
 /// An IPC channel.
 #[derive(Clone)]
 pub struct Channel {
-  id: usize,
+  id: u32,
   on_message: Arc<dyn Fn(InvokeBody) -> crate::Result<()> + Send + Sync>,
 }
 
@@ -51,7 +51,7 @@ impl Channel {
   }
 
   pub(crate) fn _new<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
-    id: usize,
+    id: u32,
     on_message: F,
   ) -> Self {
     #[allow(clippy::let_and_return)]
@@ -94,7 +94,7 @@ impl Channel {
   }
 
   /// The channel identifier.
-  pub fn id(&self) -> usize {
+  pub fn id(&self) -> u32 {
     self.id
   }
 

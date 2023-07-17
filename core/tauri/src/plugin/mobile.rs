@@ -26,7 +26,7 @@ type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>
 
 static PENDING_PLUGIN_CALLS: OnceCell<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
   OnceCell::new();
-static CHANNELS: OnceCell<Mutex<HashMap<usize, Channel>>> = OnceCell::new();
+static CHANNELS: OnceCell<Mutex<HashMap<u32, Channel>>> = OnceCell::new();
 
 /// Possible errors when invoking a plugin.
 #[derive(Debug, thiserror::Error)]
@@ -113,7 +113,7 @@ pub fn send_channel_data(
     .get_or_init(Default::default)
     .lock()
     .unwrap()
-    .get(&(channel_id as usize))
+    .get(&(channel_id as u32))
   {
     let _ = channel.send(data);
   }
@@ -354,7 +354,7 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
         .get_or_init(Default::default)
         .lock()
         .unwrap()
-        .get(&(id as usize))
+        .get(&(id as u32))
       {
         let payload: serde_json::Value = serde_json::from_str(payload.to_str().unwrap()).unwrap();
         let _ = channel.send(payload);

@@ -490,4 +490,4 @@ impl<R: Runtime> InvokeMessage<R> {
 
 /// The `Callback` type is the return value of the `transformCallback` JavaScript function.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct CallbackFn(pub usize);
+pub struct CallbackFn(pub u32);

@@ -126,7 +126,7 @@ mod test {
 
   impl Arbitrary for CallbackFn {
     fn arbitrary(g: &mut Gen) -> CallbackFn {
-      CallbackFn(usize::arbitrary(g))
+      CallbackFn(u32::arbitrary(g))
     }
   }
 

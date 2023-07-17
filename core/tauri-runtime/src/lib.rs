@@ -290,6 +290,7 @@ pub trait UserEvent: Debug + Clone + Send + 'static {}
 impl<T: Debug + Clone + Send + 'static> UserEvent for T {}
 
 /// Event triggered on the event loop run.
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum RunEvent<T: UserEvent> {
   /// Event loop is exiting.
@@ -313,6 +314,9 @@ pub enum RunEvent<T: UserEvent> {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// Emitted when the user wants to open the specified resource with the app.
+  #[cfg(target_os = "macos")]
+  Opened { urls: Vec<url::Url> },
   /// A custom event defined by the user.
   UserEvent(T),
 }
@@ -387,6 +391,9 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   fn raw_display_handle(&self) -> RawDisplayHandle;
 
+  fn primary_monitor(&self) -> Option<Monitor>;
+  fn available_monitors(&self) -> Vec<Monitor>;
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
@@ -459,6 +466,9 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F);
+
+  fn primary_monitor(&self) -> Option<Monitor>;
+  fn available_monitors(&self) -> Vec<Monitor>;
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   #[cfg(target_os = "macos")]

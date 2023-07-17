@@ -167,7 +167,19 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
     exec: &'a str,
     icon: &'a str,
     name: &'a str,
+    mime_type: Option<String>,
   }
+
+  let mime_type = if let Some(associations) = settings.file_associations() {
+    let mime_types: Vec<&str> = associations
+      .iter()
+      .filter_map(|association| association.mime_type.as_ref())
+      .map(|s| s.as_str())
+      .collect();
+    Some(mime_types.join(";"))
+  } else {
+    None
+  };
 
   handlebars.render_to_write(
     "main.desktop",
@@ -184,6 +196,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
       exec: bin_name,
       icon: bin_name,
       name: settings.product_name(),
+      mime_type,
     },
     file,
   )?;

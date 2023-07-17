@@ -2,6 +2,7 @@
 !include FileFunc.nsh
 !include x64.nsh
 !include WordFunc.nsh
+!include "FileAssociation.nsh"
 
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
@@ -527,6 +528,13 @@ Section Install
     IntOp $AppSize $AppSize + $0
   {{/each}}
 
+  ; Create file associations
+  {{#each file_associations as |association| ~}}
+    {{#each association.ext as |ext| ~}}
+       !insertmacro APP_ASSOCIATE "{{ext}}" "{{or association.name ext}}" "{{association-description association.description ext}}" "$INSTDIR\${MAINBINARYNAME}.exe,0" "Open with ${PRODUCTNAME}" "$INSTDIR\${MAINBINARYNAME}.exe $\"%1$\""
+    {{/each}}
+  {{/each}}
+
   ; Create uninstaller
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
@@ -621,6 +629,13 @@ Section Uninstall
   ; Delete external binaries
   {{#each binaries}}
     Delete "$INSTDIR\\{{this}}"
+  {{/each}}
+
+  ; Delete app associations
+  {{#each file_associations as |association| ~}}
+    {{#each association.ext as |ext| ~}}
+      !insertmacro APP_UNASSOCIATE "{{ext}}" "{{or association.name ext}}"
+    {{/each}}
   {{/each}}
 
   ; Delete uninstaller

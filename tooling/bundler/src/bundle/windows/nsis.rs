@@ -301,6 +301,10 @@ fn build_nsis_app_installer(
   let binaries = generate_binaries_data(settings)?;
   data.insert("binaries", to_json(binaries));
 
+  if let Some(file_associations) = &settings.file_associations() {
+    data.insert("file_associations", to_json(file_associations));
+  }
+
   let silent_webview2_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
   | WebviewInstallMode::EmbedBootstrapper { silent }
   | WebviewInstallMode::OfflineInstaller { silent } =
@@ -388,6 +392,8 @@ fn build_nsis_app_installer(
   }
 
   let mut handlebars = Handlebars::new();
+  handlebars.register_helper("or", Box::new(handlebars_or));
+  handlebars.register_helper("association-description", Box::new(association_description));
   handlebars.register_escape_fn(|s| {
     let mut output = String::new();
     for c in s.chars() {
@@ -414,6 +420,12 @@ fn build_nsis_app_installer(
       .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
   }
+
+  write_ut16_le_with_bom(
+    &output_path.join("FileAssociation.nsh"),
+    include_str!("./templates/FileAssociation.nsh"),
+  )?;
+
   let installer_nsi_path = output_path.join("installer.nsi");
   write_ut16_le_with_bom(
     &installer_nsi_path,
@@ -471,6 +483,42 @@ fn build_nsis_app_installer(
   try_sign(&nsis_installer_path, settings)?;
 
   Ok(vec![nsis_installer_path])
+}
+
+fn handlebars_or(
+  h: &handlebars::Helper<'_, '_>,
+  _: &Handlebars<'_>,
+  _: &handlebars::Context,
+  _: &mut handlebars::RenderContext<'_, '_>,
+  out: &mut dyn handlebars::Output,
+) -> handlebars::HelperResult {
+  let param1 = h.param(0).unwrap().render();
+  let param2 = h.param(1).unwrap();
+
+  out.write(&if param1.is_empty() {
+    param2.render()
+  } else {
+    param1
+  })?;
+  Ok(())
+}
+
+fn association_description(
+  h: &handlebars::Helper<'_, '_>,
+  _: &Handlebars<'_>,
+  _: &handlebars::Context,
+  _: &mut handlebars::RenderContext<'_, '_>,
+  out: &mut dyn handlebars::Output,
+) -> handlebars::HelperResult {
+  let description = h.param(0).unwrap().render();
+  let ext = h.param(1).unwrap();
+
+  out.write(&if description.is_empty() {
+    format!("{} File", ext.render().to_uppercase())
+  } else {
+    description
+  })?;
+  Ok(())
 }
 
 /// BTreeMap<OriginalPath, (ParentOfTargetPath, TargetPath)>

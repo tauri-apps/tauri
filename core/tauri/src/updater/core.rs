@@ -506,6 +506,33 @@ impl<R: Runtime> Clone for Update<R> {
 }
 
 impl<R: Runtime> Update<R> {
+  pub fn header<K, V>(mut self, key: K, value: V) -> Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+    HeaderValue: TryFrom<V>,
+    <HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+  {
+    let key: std::result::Result<HeaderName, http::Error> = key.try_into().map_err(Into::into);
+    let value: std::result::Result<HeaderValue, http::Error> = value.try_into().map_err(Into::into);
+    self.headers.insert(key?, value?);
+    Ok(self)
+  }
+}
+
+impl<R: Runtime> Update<R> {
+  pub(crate) fn remove_header<K>(mut self, key: K) -> Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+  {
+    let key: std::result::Result<HeaderName, http::Error> = key.try_into().map_err(Into::into);
+    self.headers.remove(key?);
+    Ok(self)
+  }
+}
+
+impl<R: Runtime> Update<R> {
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
   pub(crate) async fn download_and_install<C: Fn(usize, Option<u64>), D: FnOnce()>(

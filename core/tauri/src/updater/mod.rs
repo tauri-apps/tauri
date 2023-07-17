@@ -275,6 +275,12 @@ impl<R: Runtime> UpdateBuilder<R> {
     Ok(self)
   }
 
+  /// Add endpoints.
+  pub fn endpoints(mut self, urls: &[String]) -> Result<Self> {
+    self.inner = self.inner.urls(urls);
+    Ok(self)
+  }
+
   /// Check if an update is available.
   ///
   /// # Examples
@@ -302,6 +308,7 @@ impl<R: Runtime> UpdateBuilder<R> {
   /// If ther server responds with status code `204`, this method will return [`Error::UpToDate`]
   pub async fn check(self) -> Result<UpdateResponse<R>> {
     let handle = self.inner.app.clone();
+
     // check updates
     match self.inner.build().await {
       Ok(update) => {
@@ -393,6 +400,28 @@ impl<R: Runtime> UpdateResponse<R> {
   /// The update description.
   pub fn body(&self) -> Option<&String> {
     self.update.body.as_ref()
+  }
+
+  /// Add a `Header` to the update request.
+  pub fn header<K, V>(mut self, key: K, value: V) -> Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+    HeaderValue: TryFrom<V>,
+    <HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+  {
+    self.update = self.update.header(key, value)?;
+    Ok(self)
+  }
+
+  /// Removes a header from the update request.
+  pub fn remove_header<K>(mut self, key: K) -> Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+  {
+    self.update = self.update.remove_header(key)?;
+    Ok(self)
   }
 
   /// Downloads and installs the update.

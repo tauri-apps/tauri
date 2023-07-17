@@ -177,6 +177,12 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// Emitted when the user wants to open the specified resource with the app.
+  #[cfg(target_os = "macos")]
+  Opened {
+    /// The URL of the resources that is being open.
+    urls: Vec<url::Url>,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -1008,6 +1014,7 @@ impl<R: Runtime> Builder<R> {
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
+  /// Additionally, [`state`](crate::Manager#method.state) can be used to retrieve the value manually.
   ///
   /// # Panics
   ///
@@ -1516,6 +1523,8 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => t.into(),
+    #[cfg(target_os = "macos")]
+    RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
     _ => unimplemented!(),
   };
 

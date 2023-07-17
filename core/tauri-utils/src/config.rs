@@ -624,6 +624,78 @@ impl Default for WindowsConfig {
   }
 }
 
+/// macOS-only. Corresponds to CFBundleTypeRole
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum BundleTypeRole {
+  /// CFBundleTypeRole.Editor. Files can be read and edited.
+  #[default]
+  Editor,
+  /// CFBundleTypeRole.Viewer. Files can be read.
+  Viewer,
+  /// CFBundleTypeRole.Shell
+  Shell,
+  /// CFBundleTypeRole.QLGenerator
+  QLGenerator,
+  /// CFBundleTypeRole.None
+  None,
+}
+
+impl Display for BundleTypeRole {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Editor => write!(f, "Editor"),
+      Self::Viewer => write!(f, "Viewer"),
+      Self::Shell => write!(f, "Shell"),
+      Self::QLGenerator => write!(f, "QLGenerator"),
+      Self::None => write!(f, "None"),
+    }
+  }
+}
+
+/// An extension for a [`FileAssociation`].
+///
+/// A leading `.` is automatically stripped.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct AssociationExt(pub String);
+
+impl fmt::Display for AssociationExt {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
+
+impl<'d> serde::Deserialize<'d> for AssociationExt {
+  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<Self, D::Error> {
+    let ext = String::deserialize(deserializer)?;
+    if let Some(ext) = ext.strip_prefix('.') {
+      Ok(AssociationExt(ext.into()))
+    } else {
+      Ok(AssociationExt(ext))
+    }
+  }
+}
+
+/// File association
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FileAssociation {
+  /// File extensions to associate with this app. e.g. 'png'
+  pub ext: Vec<AssociationExt>,
+  /// The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]
+  pub name: Option<String>,
+  /// The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.
+  pub description: Option<String>,
+  /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
+  #[serde(default)]
+  pub role: BundleTypeRole,
+  /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
+  #[serde(alias = "mime-type")]
+  pub mime_type: Option<String>,
+}
+
 /// The Updater configuration object.
 ///
 /// See more: https://tauri.app/v1/api/config#updaterconfig
@@ -720,6 +792,8 @@ pub struct BundleConfig {
   /// Should be one of the following:
   /// Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.
   pub category: Option<String>,
+  /// File associations to application.
+  pub file_associations: Option<Vec<FileAssociation>>,
   /// A short description of your application.
   #[serde(alias = "short-description")]
   pub short_description: Option<String>,
@@ -1668,7 +1742,7 @@ fn default_dist_dir() -> AppUrl {
 struct PackageVersion(String);
 
 impl<'d> serde::Deserialize<'d> for PackageVersion {
-  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<PackageVersion, D::Error> {
+  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<Self, D::Error> {
     struct PackageVersionVisitor;
 
     impl<'d> Visitor<'d> for PackageVersionVisitor {
@@ -2291,6 +2365,7 @@ mod build {
       let resources = quote!(None);
       let copyright = quote!(None);
       let category = quote!(None);
+      let file_associations = quote!(None);
       let short_description = quote!(None);
       let long_description = quote!(None);
       let appimage = quote!(Default::default());
@@ -2313,6 +2388,7 @@ mod build {
         resources,
         copyright,
         category,
+        file_associations,
         short_description,
         long_description,
         appimage,
@@ -2616,6 +2692,7 @@ mod test {
         resources: None,
         copyright: None,
         category: None,
+        file_associations: None,
         short_description: None,
         long_description: None,
         appimage: Default::default(),

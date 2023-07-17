@@ -2952,6 +2952,10 @@ fn handle_event_loop<T: UserEvent>(
         );
       }
     },
+    #[cfg(target_os = "macos")]
+    Event::Opened { urls } => {
+      callback(RunEvent::Opened { urls });
+    }
     _ => (),
   }
 

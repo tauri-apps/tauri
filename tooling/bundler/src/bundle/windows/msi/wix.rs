@@ -646,6 +646,10 @@ pub fn build_wix_app_installer(
     }
   }
 
+  if let Some(file_associations) = &settings.file_associations() {
+    data.insert("file_associations", to_json(file_associations));
+  }
+
   if let Some(path) = custom_template_path {
     handlebars
       .register_template_string("main.wxs", read_to_string(path)?)

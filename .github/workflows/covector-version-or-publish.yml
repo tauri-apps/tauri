@@ -121,7 +121,7 @@ jobs:
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
         run: |
-          echo '${{ steps.covector.outputs }}' > output.json
+          echo '${{ toJSON(steps.covector.outputs) }}' > output.json
           id=$(jq '.["-tauri-apps-cli-releaseId"]' < output.json)
           rm output.json
           echo "cliReleaseId=$id" >> "$GITHUB_OUTPUT"

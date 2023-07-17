@@ -318,7 +318,21 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       self.webview_attributes.clone(),
       self.label.clone(),
     )?;
-    pending.navigation_handler = self.navigation_handler.take();
+    let navigation_handler = self.navigation_handler.take();
+    let manager = self.manager.inner.clone();
+    let handler = move |url: Url| -> bool {
+      if let Some(ref handler) = navigation_handler {
+        if !handler(url.clone()) {
+          return false;
+        }
+      }
+      manager
+        .plugins
+        .lock()
+        .expect("poisoned plugin store")
+        .on_navigation(&url)
+    };
+    pending.navigation_handler = Some(Box::new(handler));
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();

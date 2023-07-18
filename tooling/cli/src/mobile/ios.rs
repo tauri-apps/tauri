@@ -30,7 +30,7 @@ use super::{
 };
 use crate::{helpers::config::Config as TauriConfig, Result};
 
-use std::{process::exit, thread::sleep, time::Duration};
+use std::{env::set_var, process::exit, thread::sleep, time::Duration};
 
 mod build;
 mod dev;
@@ -139,6 +139,9 @@ pub fn get_config(
     },
     macos: Default::default(),
   };
+
+  set_var("TAURI_IOS_PROJECT_PATH", config.project_dir());
+  set_var("TAURI_IOS_APP_NAME", config.app().name());
 
   (config, metadata)
 }

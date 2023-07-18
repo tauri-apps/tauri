@@ -146,6 +146,40 @@ fn copy_folder(source: &Path, target: &Path, ignore_paths: &[&str]) -> Result<()
   Ok(())
 }
 
+#[cfg(target_os = "macos")]
+fn update_plist_file<P: AsRef<Path>, F: FnOnce(&mut plist::Dictionary)>(
+  path: P,
+  f: F,
+) -> Result<()> {
+  let path = path.as_ref();
+  if path.exists() {
+    let mut plist = plist::Value::from_file(path)?;
+    if let Some(dict) = plist.as_dictionary_mut() {
+      f(dict);
+      plist::to_file_xml(path, &plist)?;
+    }
+  }
+
+  Ok(())
+}
+
+#[cfg(target_os = "macos")]
+pub fn update_entitlements<F: FnOnce(&mut plist::Dictionary)>(f: F) -> Result<()> {
+  if let (Some(project_path), Ok(app_name)) = (
+    var_os("TAURI_IOS_PROJECT_PATH").map(PathBuf::from),
+    var("TAURI_IOS_APP_NAME"),
+  ) {
+    update_plist_file(
+      project_path
+        .join(format!("{app_name}_iOS"))
+        .join(format!("{app_name}_iOS.entitlements")),
+      f,
+    )?;
+  }
+
+  Ok(())
+}
+
 pub(crate) fn generate_gradle_files(project_dir: PathBuf) -> Result<()> {
   let gradle_settings_path = project_dir.join("tauri.settings.gradle");
   let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");

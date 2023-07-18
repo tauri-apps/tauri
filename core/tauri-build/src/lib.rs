@@ -30,6 +30,8 @@ use std::{
 mod allowlist;
 #[cfg(feature = "codegen")]
 mod codegen;
+/// Tauri configuration functions.
+pub mod config;
 /// Mobile build functions.
 pub mod mobile;
 mod static_vcruntime;

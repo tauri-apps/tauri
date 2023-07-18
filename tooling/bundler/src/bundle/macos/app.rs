@@ -31,7 +31,6 @@ use crate::Settings;
 
 use anyhow::Context;
 use log::{info, warn};
-use tauri_utils::config::BundleTypeRole;
 
 use std::{
   fs,

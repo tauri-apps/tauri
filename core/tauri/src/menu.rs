@@ -4,6 +4,7 @@
 
 //! Menu types and utility functions
 
+use tauri_runtime::menu::builders::AboutMetadataBuilder;
 use tauri_utils::config::Config;
 
 pub use crate::runtime::menu::*;
@@ -13,11 +14,12 @@ pub use crate::runtime::menu::*;
 
 /// Creates a menu filled with default menu items and submenus.
 pub fn default(config: &Config) -> Menu {
-  let mut about_metadata = AboutMetadata::default();
-  about_metadata.name = config.package.product_name.clone();
-  about_metadata.version = config.package.version.clone();
-  about_metadata.copyright = config.tauri.bundle.copyright.clone();
-  about_metadata.authors = config.tauri.bundle.publisher.clone().map(|p| vec![p]);
+  let about_metadata = AboutMetadataBuilder::new()
+    .name(config.package.product_name.clone())
+    .version(config.package.version.clone())
+    .copyright(config.tauri.bundle.copyright.clone())
+    .authors(config.tauri.bundle.publisher.clone().map(|p| vec![p]))
+    .build();
 
   Menu::with_items(&[
     #[cfg(target_os = "macos")]
@@ -25,6 +27,7 @@ pub fn default(config: &Config) -> Menu {
       config.package.binary_name().unwrap_or_default(),
       true,
       &[
+        &PredefinedMenuItem::about(None, Some(about_metadata)),
         &PredefinedMenuItem::separator(),
         &PredefinedMenuItem::services(None),
         &PredefinedMenuItem::separator(),
@@ -33,7 +36,8 @@ pub fn default(config: &Config) -> Menu {
         &PredefinedMenuItem::separator(),
         &PredefinedMenuItem::quit(None),
       ],
-    ),
+    )
+    .unwrap(),
     &Submenu::with_items(
       "File",
       true,
@@ -42,7 +46,8 @@ pub fn default(config: &Config) -> Menu {
         #[cfg(not(target_os = "macos"))]
         &PredefinedMenuItem::quit(None),
       ],
-    ),
+    )
+    .unwrap(),
     &Submenu::with_items(
       "Edit",
       true,
@@ -55,9 +60,10 @@ pub fn default(config: &Config) -> Menu {
         &PredefinedMenuItem::paste(None),
         &PredefinedMenuItem::select_all(None),
       ],
-    ),
+    )
+    .unwrap(),
     #[cfg(target_os = "macos")]
-    &Submenu::with_items("View", true, &[&PredefinedMenuItem::fullscreen(None)]),
+    &Submenu::with_items("View", true, &[&PredefinedMenuItem::fullscreen(None)]).unwrap(),
     &Submenu::with_items(
       "Window",
       true,
@@ -67,7 +73,10 @@ pub fn default(config: &Config) -> Menu {
         #[cfg(target_os = "macos")]
         &PredefinedMenuItem::separator(),
         &PredefinedMenuItem::close_window(None),
+        &PredefinedMenuItem::about(None, Some(about_metadata)),
       ],
-    ),
+    )
+    .unwrap(),
   ])
+  .unwrap()
 }

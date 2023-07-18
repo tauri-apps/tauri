@@ -31,7 +31,7 @@ use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
 use tauri_runtime::{
   menu::{Menu, MenuEvent},
-  tray::{TrayIconBuilder, TrayIconEvent},
+  tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
   window::{
     dpi::{PhysicalPosition, PhysicalSize},
     FileDropEvent,
@@ -464,7 +464,31 @@ impl App<crate::Wry> {
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
-      // TODO(muda-migration): tray getter methods
+      /// Gets the first tray icon register, usually the one configured in
+      /// tauri config file.
+      pub fn tray(&self) -> Option<TrayIcon> {
+        self
+          .manager
+          .inner
+          .tray_icons
+          .lock()
+          .unwrap()
+          .first()
+          .cloned()
+      }
+
+      /// Gets a tray icon using the provided id.
+      pub fn tray_by_id(&self, id: u32) -> Option<TrayIcon> {
+        self
+          .manager
+          .inner
+          .tray_icons
+          .lock()
+          .unwrap()
+          .iter()
+          .find(|t| t.id() == id)
+          .cloned()
+      }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.
       pub fn config(&self) -> Arc<Config> {

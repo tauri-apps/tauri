@@ -33,8 +33,8 @@ http-range = "0.1.4"
 raw-window-handle = "0.5"
 rand = "0.8"
 url = { version = "2" }
-muda = { version = "0.6", path = "../../../muda" }
-tray-icon = { version = "0.6", path = "../../../tray-icon" }
+muda = { git = "https://github.com/tauri-apps/muda" }
+tray-icon = { git = "https://github.com/tauri-apps/tray-icon" }
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.48"

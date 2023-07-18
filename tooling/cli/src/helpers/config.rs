@@ -175,6 +175,13 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   // revert to previous working directory
   set_current_dir(current_dir)?;
 
+  for (plugin, conf) in &config.plugins.0 {
+    set_var(
+      format!("TAURI_{plugin}_PLUGIN_CONFIG"),
+      serde_json::to_string(&conf)?,
+    );
+  }
+
   *config_handle().lock().unwrap() = Some(ConfigMetadata {
     inner: config,
     extensions,

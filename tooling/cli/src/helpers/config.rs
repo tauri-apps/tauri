@@ -177,7 +177,10 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
 
   for (plugin, conf) in &config.plugins.0 {
     set_var(
-      format!("TAURI_{plugin}_PLUGIN_CONFIG"),
+      format!(
+        "TAURI_{}_PLUGIN_CONFIG",
+        plugin.to_uppercase().replace('-', "_")
+      ),
       serde_json::to_string(&conf)?,
     );
   }

@@ -489,7 +489,7 @@ pub fn build_wix_app_installer(
       } else {
         WEBVIEW2_X86_INSTALLER_GUID
       };
-      let offline_installer_path = dirs_next::cache_dir()
+      let offline_installer_path = dirs::cache_dir()
         .unwrap()
         .join("tauri")
         .join("Webview2OfflineInstaller")

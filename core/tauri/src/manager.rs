@@ -1114,7 +1114,7 @@ impl<R: Runtime> WindowManager<R> {
     #[cfg(feature = "isolation")]
     let pattern = self.pattern().clone();
     let navigation_handler = pending.navigation_handler.take();
-    let plugins = self.inner.plugins.clone();
+    let manager = self.inner.clone();
     pending.navigation_handler = Some(Box::new(move |url| {
       // always allow navigation events for the isolation iframe and do not emit them for consumers
       #[cfg(feature = "isolation")]
@@ -1130,7 +1130,8 @@ impl<R: Runtime> WindowManager<R> {
           return false;
         }
       }
-      plugins
+      manager
+        .plugins
         .lock()
         .expect("poisoned plugin store")
         .on_navigation(&url)

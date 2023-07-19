@@ -164,28 +164,13 @@ pub fn gen(
   )
   .with_context(|| "failed to process template")?;
 
-  let asset_dir = dest.join(DEFAULT_ASSET_DIR);
-  if !asset_dir.is_dir() {
-    create_dir_all(&asset_dir).map_err(|cause| {
-      anyhow::anyhow!(
-        "failed to create asset dir {path}: {cause}",
-        path = asset_dir.display()
-      )
-    })?;
-  }
+  let mut dirs_to_create = asset_catalogs.to_vec();
+  dirs_to_create.push(dest.join(DEFAULT_ASSET_DIR));
+  dirs_to_create.push(dest.join("Externals"));
+  dirs_to_create.push(dest.join(format!("{}_iOS", config.app().name())));
 
-  let externals_dir = dest.join("Externals");
-  if !externals_dir.is_dir() {
-    create_dir_all(&externals_dir).map_err(|cause| {
-      anyhow::anyhow!(
-        "failed to create Externals dir {path}: {cause}",
-        path = externals_dir.display()
-      )
-    })?;
-  }
-
-  // Create all asset catalog directories if they don't already exist
-  for dir in asset_catalogs {
+  // Create all required project directories if they don't already exist
+  for dir in &dirs_to_create {
     std::fs::create_dir_all(dir).map_err(|cause| {
       anyhow::anyhow!(
         "failed to create directory at {path}: {cause}",

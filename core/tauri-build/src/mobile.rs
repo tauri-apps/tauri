@@ -151,12 +151,21 @@ fn update_plist_file<P: AsRef<Path>, F: FnOnce(&mut plist::Dictionary)>(
   path: P,
   f: F,
 ) -> Result<()> {
+  use std::io::Cursor;
+
   let path = path.as_ref();
   if path.exists() {
-    let mut plist = plist::Value::from_file(path)?;
+    let plist_str = read_to_string(path)?;
+    let mut plist = plist::Value::from_reader(Cursor::new(&plist_str))?;
     if let Some(dict) = plist.as_dictionary_mut() {
       f(dict);
-      plist::to_file_xml(path, &plist)?;
+      let mut plist_buf = Vec::new();
+      let writer = Cursor::new(&mut plist_buf);
+      plist::to_writer_xml(writer, &plist)?;
+      let new_plist_str = String::from_utf8(plist_buf)?;
+      if new_plist_str != plist_str {
+        write(path, new_plist_str)?;
+      }
     }
   }
 
@@ -221,7 +230,9 @@ pub fn update_android_manifest(block_identifier: &str, parent: &str, insert: Str
     let manifest_path = project_path.join("app/src/main/AndroidManifest.xml");
     let manifest = read_to_string(&manifest_path)?;
     let rewritten = insert_into_xml(&manifest, block_identifier, parent, &insert);
-    write(manifest_path, rewritten)?;
+    if rewritten != manifest {
+      write(manifest_path, rewritten)?;
+    }
   }
   Ok(())
 }

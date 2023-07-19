@@ -25,7 +25,7 @@ thiserror = "1.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 strsim = "0.10.0"
-tar = "0.4.38"
+tar = "0.4.39"
 walkdir = "2"
 handlebars = "4.3"
 tempfile = "3.6.0"

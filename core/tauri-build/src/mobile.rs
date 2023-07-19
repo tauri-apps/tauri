@@ -4,7 +4,7 @@
 
 use std::{
   env::{var, var_os},
-  fs::{copy, create_dir, create_dir_all, remove_dir_all, write},
+  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, write},
   path::{Path, PathBuf},
 };
 
@@ -180,6 +180,52 @@ pub fn update_entitlements<F: FnOnce(&mut plist::Dictionary)>(f: F) -> Result<()
   Ok(())
 }
 
+fn xml_block_comment(id: &str) -> String {
+  format!("<!-- {id}. AUTO-GENERATED. DO NOT REMOVE. -->")
+}
+
+fn insert_into_xml(xml: &str, block_identifier: &str, parent_tag: &str, contents: &str) -> String {
+  let block_comment = xml_block_comment(block_identifier);
+
+  let mut rewritten = Vec::new();
+  let mut found_block = false;
+  let parent_closing_tag = format!("</{parent_tag}>");
+  for line in xml.split('\n') {
+    if line.contains(&block_comment) {
+      found_block = !found_block;
+      continue;
+    }
+
+    // found previous block which should be removed
+    if found_block {
+      continue;
+    }
+
+    if let Some(index) = line.find(&parent_closing_tag) {
+      let identation = " ".repeat(index + 4);
+      rewritten.push(format!("{}{}", identation, block_comment));
+      for l in contents.split('\n') {
+        rewritten.push(format!("{}{}", identation, l));
+      }
+      rewritten.push(format!("{}{}", identation, block_comment));
+    }
+
+    rewritten.push(line.to_string());
+  }
+
+  rewritten.join("\n").to_string()
+}
+
+pub fn update_android_manifest(block_identifier: &str, parent: &str, insert: String) -> Result<()> {
+  if let Some(project_path) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+    let manifest_path = project_path.join("app/src/main/AndroidManifest.xml");
+    let manifest = read_to_string(&manifest_path)?;
+    let rewritten = insert_into_xml(&manifest, block_identifier, parent, &insert);
+    write(manifest_path, rewritten)?;
+  }
+  Ok(())
+}
+
 pub(crate) fn generate_gradle_files(project_dir: PathBuf) -> Result<()> {
   let gradle_settings_path = project_dir.join("tauri.settings.gradle");
   let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
@@ -231,4 +277,40 @@ dependencies {"
   println!("cargo:rerun-if-changed={}", app_build_gradle_path.display());
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn insert_into_xml() {
+    let manifest = format!(
+      r#"<manifest>
+    <application>
+        <intent-filter>
+        </intent-filter>
+    </application>
+</manifest>"#
+    );
+    let id = "tauritest";
+    let new = super::insert_into_xml(&manifest, id, "application", "<something></something>");
+
+    let block_id_comment = super::xml_block_comment(id);
+    let expected = format!(
+      r#"<manifest>
+    <application>
+        <intent-filter>
+        </intent-filter>
+        {block_id_comment}
+        <something></something>
+        {block_id_comment}
+    </application>
+</manifest>"#
+    );
+
+    assert_eq!(new, expected);
+
+    // assert it's still the same after an empty update
+    let new = super::insert_into_xml(&expected, id, "application", "<something></something>");
+    assert_eq!(new, expected);
+  }
 }

@@ -1126,7 +1126,7 @@ impl<R: Runtime> WindowManager<R> {
         }
       }
       if let Some(handler) = &navigation_handler {
-        if !handler(url.clone()) {
+        if !handler(url) {
           return false;
         }
       }
@@ -1134,7 +1134,7 @@ impl<R: Runtime> WindowManager<R> {
         .plugins
         .lock()
         .expect("poisoned plugin store")
-        .on_navigation(&url)
+        .on_navigation(url)
     }));
 
     Ok(pending)

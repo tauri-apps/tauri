@@ -225,7 +225,6 @@ pub struct InnerWindowManager<R: Runtime> {
   ///
   /// This should be mainly used to acceess [`Menu::haccel`]
   /// to setup the accelerator handling in the event loop
-  #[cfg(windows)]
   pub menus: Arc<Mutex<HashMap<u32, Menu>>>,
   /// The menu set to all windows.
   pub(crate) menu: Arc<Mutex<Option<Menu>>>,
@@ -343,7 +342,6 @@ impl<R: Runtime> WindowManager<R> {
         package_info: context.package_info,
         pattern: context.pattern,
         uri_scheme_protocols,
-        #[cfg(windows)]
         menus: Default::default(),
         menu: Arc::new(Mutex::new(menu)),
         menu_event_listeners: Arc::new(Mutex::new(menu_event_listeners)),
@@ -377,7 +375,6 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   /// Menus stash.
-  #[cfg(windows)]
   pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<u32, Menu>> {
     self.inner.menus.lock().expect("poisoned window manager")
   }
@@ -392,18 +389,14 @@ impl<R: Runtime> WindowManager<R> {
 
   /// Menus stash.
   pub(crate) fn insert_menu_into_stash(&self, menu: &Menu) {
-    #[cfg(windows)]
     self.menus_stash_lock().insert(menu.id(), menu.clone());
   }
 
   pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<u32>) {
-    #[cfg(windows)]
-    {
-      if let Some(id) = id {
-        let is_used_by_a_window = self.windows_lock().values().any(|w| w.is_menu_in_use(id));
-        if !(self.is_menu_in_use(id) || is_used_by_a_window) {
-          self.menus_stash_lock().remove(&id);
-        }
+    if let Some(id) = id {
+      let is_used_by_a_window = self.windows_lock().values().any(|w| w.is_menu_in_use(id));
+      if !(self.is_menu_in_use(id) || is_used_by_a_window) {
+        self.menus_stash_lock().remove(&id);
       }
     }
   }

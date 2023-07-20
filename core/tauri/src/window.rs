@@ -1089,7 +1089,7 @@ impl<R: Runtime> Window<R> {
       target_os = "openbsd"
     ))]
     {
-      let _ = menu.init_for_gtk_windows(self.gtk_window().unwrap());
+      let _ = menu.init_for_gtk_window(&self.gtk_window().unwrap());
     }
 
     self.menu_lock().replace((false, menu.clone()));
@@ -1115,7 +1115,7 @@ impl<R: Runtime> Window<R> {
         target_os = "openbsd"
       ))]
       {
-        let _ = menu.remove_for_gtk_windows(self.gtk_window()?);
+        let _ = menu.remove_for_gtk_window(&self.gtk_window()?);
       }
     }
 
@@ -1146,7 +1146,7 @@ impl<R: Runtime> Window<R> {
         target_os = "openbsd"
       ))]
       {
-        let _ = menu.hide_for_gtk_windows(self.gtk_window()?);
+        let _ = menu.hide_for_gtk_window(&self.gtk_window()?);
       }
     }
 
@@ -1169,7 +1169,7 @@ impl<R: Runtime> Window<R> {
         target_os = "openbsd"
       ))]
       {
-        let _ = menu.show_for_gtk_windows(self.gtk_window()?);
+        let _ = menu.show_for_gtk_window(&self.gtk_window()?);
       }
     }
 
@@ -1192,7 +1192,7 @@ impl<R: Runtime> Window<R> {
         target_os = "openbsd"
       ))]
       {
-        return Ok(menu.is_visible_on_gtk_windows(self.gtk_window()?));
+        return Ok(menu.is_visible_on_gtk_window(&self.gtk_window()?));
       }
     }
 

@@ -541,7 +541,7 @@ macro_rules! shared_app_impl {
               target_os = "openbsd"
             ))]
             {
-              let _ = menu.init_for_gtk_windows(window.gtk_window().unwrap());
+              let _ = menu.init_for_gtk_window(&window.gtk_window().unwrap());
             }
             window_menu.replace((true, menu.clone()));
           }
@@ -574,7 +574,7 @@ macro_rules! shared_app_impl {
                 target_os = "openbsd"
               ))]
               {
-                let _ = menu.remove_for_gtk_windows(window.gtk_window()?);
+                let _ = menu.remove_for_gtk_window(&window.gtk_window()?);
               }
               *window.menu_lock() = None;
             }
@@ -613,7 +613,7 @@ macro_rules! shared_app_impl {
                 target_os = "openbsd"
               ))]
               {
-                let _ = menu.hide_for_gtk_windows(window.gtk_window()?);
+                let _ = menu.hide_for_gtk_window(&window.gtk_window()?);
               }
             }
           }
@@ -639,7 +639,7 @@ macro_rules! shared_app_impl {
                 target_os = "openbsd"
               ))]
               {
-                let _ = menu.show_for_gtk_windows(window.gtk_window()?);
+                let _ = menu.show_for_gtk_window(&window.gtk_window()?);
               }
             }
           }

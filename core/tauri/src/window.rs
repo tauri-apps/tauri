@@ -1072,6 +1072,11 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Sets the window menu and returns the previous one.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
+  /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
   pub fn set_menu(&self, menu: Menu) -> crate::Result<Option<Menu>> {
     let prev_menu = self.remove_menu()?;
 
@@ -1098,6 +1103,11 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Removes the window menu and returns it.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
+  /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
   pub fn remove_menu(&self) -> crate::Result<Option<Menu>> {
     let mut current_menu = self.menu_lock();
 
@@ -1117,8 +1127,6 @@ impl<R: Runtime> Window<R> {
       {
         let _ = menu.remove_for_gtk_window(&self.gtk_window()?);
       }
-      #[cfg(target_os = "macos")]
-      menu.remove_for_nsapp();
     }
 
     let prev_menu = current_menu.take().map(|m| m.1);

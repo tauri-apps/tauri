@@ -520,29 +520,23 @@ macro_rules! shared_app_impl {
       ///
       /// Returns None if it can't identify any monitor as a primary one.
       pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
-       Ok(match self.runtime() {
-          RuntimeOrDispatch::Runtime(h) => h
-            .primary_monitor().map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) =>  h
-            .primary_monitor().map(Into::into),
-          _ => unreachable!()
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h.primary_monitor().map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor().map(Into::into),
+          _ => unreachable!(),
         })
       }
 
       /// Returns the list of all the monitors available on the system.
       pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
         Ok(match self.runtime() {
-          RuntimeOrDispatch::Runtime(h) => h
-            .available_monitors()
-            .into_iter()
-            .map(Into::into)
-            .collect(),
-          RuntimeOrDispatch::RuntimeHandle(h) => h
-            .available_monitors()
-            .into_iter()
-            .map(Into::into)
-            .collect(),
-          _ => unreachable!()
+          RuntimeOrDispatch::Runtime(h) => {
+            h.available_monitors().into_iter().map(Into::into).collect()
+          }
+          RuntimeOrDispatch::RuntimeHandle(h) => {
+            h.available_monitors().into_iter().map(Into::into).collect()
+          }
+          _ => unreachable!(),
         })
       }
       /// Returns the default window icon.
@@ -556,6 +550,9 @@ macro_rules! shared_app_impl {
       }
 
       /// Sets the app-wide menu and returns the previous one.
+      ///
+      /// If a window was not created with an explicit menu or had one set explicitly,
+      /// this menu will be assigned to it.
       pub fn set_menu(&self, menu: Menu) -> crate::Result<Option<Menu>> {
         let prev_menu = self.remove_menu()?;
 
@@ -593,6 +590,9 @@ macro_rules! shared_app_impl {
       }
 
       /// Remove the app-wide menu and returns it.
+      ///
+      /// If a window was not created with an explicit menu or had one set explicitly,
+      /// this will remove the menu from it.
       pub fn remove_menu(&self) -> crate::Result<Option<Menu>> {
         let mut current_menu = self.manager.menu_lock();
 
@@ -635,6 +635,9 @@ macro_rules! shared_app_impl {
       }
 
       /// Hides the app-wide menu from windows that have it.
+      ///
+      /// If a window was not created with an explicit menu or had one set explicitly,
+      /// this will hide the menu from it.
       pub fn hide_menu(&self) -> crate::Result<()> {
         if let Some(menu) = &*self.manager.menu_lock() {
           for window in self.manager.windows_lock().values() {
@@ -661,6 +664,9 @@ macro_rules! shared_app_impl {
       }
 
       /// Shows the app-wide menu for windows that have it.
+      ///
+      /// If a window was not created with an explicit menu or had one set explicitly,
+      /// this will show the menu for it.
       pub fn show_menu(&self) -> crate::Result<()> {
         if let Some(menu) = &*self.manager.menu_lock() {
           for window in self.manager.windows_lock().values() {

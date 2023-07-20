@@ -1784,11 +1784,18 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   fn new(args: RuntimeInitArgs) -> Result<Self> {
     Self::init_with_builder(EventLoopBuilder::<Message<T>>::with_user_event(), args)
   }
-
-  #[cfg(target_os = "linux")]
-  fn new_any_thread(#[allow(unused_variables)] args: RuntimeInitArgs) -> Result<Self> {
-    use wry::application::platform::unix::EventLoopExtUnix;
-    Self::init(EventLoop::new_any_thread())
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
+    use wry::application::platform::unix::EventLoopBuilderExtUnix;
+    let mut event_loop_builder = EventLoopBuilder::<Message<T>>::with_user_event();
+    event_loop_builder.with_any_thread(true);
+    Self::init_with_builder(event_loop_builder, args)
   }
 
   #[cfg(windows)]

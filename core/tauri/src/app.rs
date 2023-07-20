@@ -1191,7 +1191,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   #[must_use]
   pub fn menu_with<F: FnOnce(&Config) -> Menu + 'static>(mut self, f: F) -> Self {
-    self.menu_with.replace(Box::new(move |c| f(&c)));
+    self.menu_with.replace(Box::new(move |c| f(c)));
     self.menu = None;
     self
   }
@@ -1624,7 +1624,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
         .lock()
         .unwrap()
       {
-        listener(&app_handle, e)
+        listener(app_handle, e)
       }
       for (label, listener) in &*app_handle
         .manager
@@ -1647,7 +1647,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
         .lock()
         .unwrap()
       {
-        listener(&app_handle, e)
+        listener(app_handle, e)
       }
       RunEvent::TrayIconEvent(e)
     }

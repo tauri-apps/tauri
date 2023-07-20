@@ -302,7 +302,7 @@ impl<R: Runtime> Clone for WindowManager<R> {
 }
 
 impl<R: Runtime> WindowManager<R> {
-  #[allow(clippy::too_many_arguments)]
+  #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
     #[allow(unused_mut)] mut context: Context<impl Assets>,
     plugins: PluginStore<R>,

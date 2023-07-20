@@ -51,7 +51,7 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Callback invoked when webview tries to navigate to the given Url. Returning falses cancels navigation.
   #[allow(unused_variables)]
-  fn on_navigation(&mut self, url: &Url) -> bool {
+  fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
     true
   }
 
@@ -73,7 +73,7 @@ pub trait Plugin<R: Runtime>: Send {
 type SetupHook<R, C> = dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send;
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
-type OnNavigation = dyn Fn(&Url) -> bool + Send;
+type OnNavigation<R> = dyn Fn(&Window<R>, &Url) -> bool + Send;
 type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
@@ -200,7 +200,7 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
   js_init_script: Option<String>,
-  on_navigation: Box<OnNavigation>,
+  on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
@@ -215,7 +215,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       setup: None,
       js_init_script: None,
       invoke_handler: Box::new(|_| false),
-      on_navigation: Box::new(|_| true),
+      on_navigation: Box::new(|_, _| true),
       on_page_load: Box::new(|_, _| ()),
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
@@ -332,7 +332,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
-  ///     .on_navigation(|url| {
+  ///     .on_navigation(|window, url| {
   ///       // allow the production URL or localhost on dev
   ///       url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
   ///     })
@@ -342,7 +342,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_navigation<F>(mut self, on_navigation: F) -> Self
   where
-    F: Fn(&Url) -> bool + Send + 'static,
+    F: Fn(&Window<R>, &Url) -> bool + Send + 'static,
   {
     self.on_navigation = Box::new(on_navigation);
     self
@@ -477,7 +477,7 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
   js_init_script: Option<String>,
-  on_navigation: Box<OnNavigation>,
+  on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
@@ -521,8 +521,8 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     (self.on_webview_ready)(window)
   }
 
-  fn on_navigation(&mut self, url: &Url) -> bool {
-    (self.on_navigation)(url)
+  fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
+    (self.on_navigation)(window, url)
   }
 
   fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
@@ -613,9 +613,9 @@ impl<R: Runtime> PluginStore<R> {
       .for_each(|plugin| plugin.created(window.clone()))
   }
 
-  pub(crate) fn on_navigation(&mut self, url: &Url) -> bool {
+  pub(crate) fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
     for plugin in self.store.iter_mut() {
-      if !plugin.on_navigation(url) {
+      if !plugin.on_navigation(window, url) {
         return false;
       }
     }

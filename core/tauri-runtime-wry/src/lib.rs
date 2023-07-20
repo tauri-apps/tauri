@@ -1728,18 +1728,19 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
 }
 
 impl<T: UserEvent> Wry<T> {
-  fn init(
+  fn init_with_builder(
     mut event_loop_builder: EventLoopBuilder<Message<T>>,
-    args: RuntimeInitArgs,
+    #[allow(unused_variables)] args: RuntimeInitArgs,
   ) -> Result<Self> {
     #[cfg(windows)]
     if let Some(hook) = args.msg_hook {
       use wry::application::platform::windows::EventLoopBuilderExtWindows;
       event_loop_builder.with_msg_hook(hook);
     }
+    Self::init(event_loop_builder.build())
+  }
 
-    let event_loop = event_loop_builder.build();
-
+  fn init(event_loop: EventLoop<Message<T>>) -> Result<Self> {
     let proxy = event_loop.create_proxy();
     menu::MenuEvent::set_event_handler(Some(move |e| {
       let _ = proxy.send_event(Message::MenuEvent(e));
@@ -1782,18 +1783,21 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   type EventLoopProxy = EventProxy<T>;
 
   fn new(args: RuntimeInitArgs) -> Result<Self> {
-    Self::init(EventLoopBuilder::<Message<T>>::with_user_event(), args)
+    Self::init_with_builder(EventLoopBuilder::<Message<T>>::with_user_event(), args)
   }
 
-  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg(target_os = "linux")]
+  fn new_any_thread(#[allow(unused_variables)] args: RuntimeInitArgs) -> Result<Self> {
+    use wry::application::platform::unix::EventLoopExtUnix;
+    Self::init(EventLoop::new_any_thread())
+  }
+
+  #[cfg(windows)]
   fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
-    #[cfg(target_os = "linux")]
-    use wry::application::platform::unix::EventLoopBuilderExtUnix;
-    #[cfg(windows)]
     use wry::application::platform::windows::EventLoopBuilderExtWindows;
     let mut event_loop_builder = EventLoopBuilder::<Message<T>>::with_user_event();
     event_loop_builder.with_any_thread(true);
-    Self::init(event_loop_builder, args)
+    Self::init_with_builder(event_loop_builder, args)
   }
 
   fn create_proxy(&self) -> EventProxy<T> {

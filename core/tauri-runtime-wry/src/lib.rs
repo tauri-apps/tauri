@@ -16,7 +16,6 @@ use tauri_runtime::{
   http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   menu,
   monitor::Monitor,
-  tray,
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -1027,8 +1026,6 @@ pub enum Message<T: 'static> {
     Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
     Sender<Result<Weak<Window>>>,
   ),
-  MenuEvent(menu::MenuEvent),
-  TrayIconEvent(tray::TrayIconEvent),
   UserEvent(T),
 }
 
@@ -2260,8 +2257,6 @@ fn handle_user_message<T: UserEvent>(
       }
     }
 
-    Message::MenuEvent(_) => (),
-    Message::TrayIconEvent(_) => (),
     Message::UserEvent(_) => (),
   }
 

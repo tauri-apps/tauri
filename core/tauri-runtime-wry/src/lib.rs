@@ -83,8 +83,7 @@ use wry::webview::{
 use tauri_runtime::ActivationPolicy;
 #[cfg(target_os = "macos")]
 pub use wry::application::platform::macos::{
-  ActivationPolicy as WryActivationPolicy, CustomMenuItemExtMacOS, EventLoopExtMacOS,
-  WindowExtMacOS,
+  ActivationPolicy as WryActivationPolicy, EventLoopExtMacOS, WindowExtMacOS,
 };
 
 use std::{
@@ -546,7 +545,7 @@ impl std::fmt::Debug for WindowBuilderWrapper {
     s.field("inner", &self.inner).field("center", &self.center);
     #[cfg(target_os = "macos")]
     {
-      s = s.field("tabbing_identifier", &self.tabbing_identifier);
+      s.field("tabbing_identifier", &self.tabbing_identifier);
     }
     s.finish()
   }
@@ -2537,6 +2536,8 @@ fn create_webview<T: UserEvent>(
       target_os = "openbsd"
     ))]
     let _ = menu.init_for_gtk_window(window.gtk_window());
+    #[cfg(target_os = "macos")]
+    menu.init_for_nsapp();
   }
 
   webview_id_map.insert(window.id(), window_id);

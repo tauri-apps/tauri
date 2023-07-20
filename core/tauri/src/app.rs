@@ -1419,7 +1419,7 @@ impl<R: Runtime> Builder<R> {
       R::new(runtime_args)?
     };
     #[cfg(not(any(windows, target_os = "linux")))]
-    let mut runtime = R::new()?;
+    let mut runtime = R::new(runtime_args)?;
 
     #[cfg(target_os = "macos")]
     if let Some(menu) = menu {

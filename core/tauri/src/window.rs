@@ -1117,6 +1117,8 @@ impl<R: Runtime> Window<R> {
       {
         let _ = menu.remove_for_gtk_window(&self.gtk_window()?);
       }
+      #[cfg(target_os = "macos")]
+      menu.remove_for_nsapp();
     }
 
     let prev_menu = current_menu.take().map(|m| m.1);

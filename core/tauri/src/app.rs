@@ -36,7 +36,7 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize},
     FileDropEvent,
   },
-  RuntimeInitArgs,
+  EventLoopProxy, RuntimeInitArgs,
 };
 use tauri_utils::PackageInfo;
 
@@ -185,7 +185,10 @@ pub enum RunEvent {
 
 impl From<EventLoopMessage> for RunEvent {
   fn from(event: EventLoopMessage) -> Self {
-    match event {}
+    match event {
+      EventLoopMessage::MenuEvent(e) => Self::MenuEvent(e),
+      EventLoopMessage::TrayIconEvent(e) => Self::TrayIconEvent(e),
+    }
   }
 }
 
@@ -1426,6 +1429,18 @@ impl<R: Runtime> Builder<R> {
       menu.init_for_nsapp();
     }
 
+    // setup menu event handler
+    let proxy = runtime.create_proxy();
+    crate::menu::MenuEvent::set_event_handler(Some(move |e| {
+      let _ = proxy.send_event(EventLoopMessage::MenuEvent(e));
+    }));
+
+    // setup tray event handler
+    let proxy = runtime.create_proxy();
+    crate::tray::TrayIconEvent::set_event_handler(Some(move |e| {
+      let _ = proxy.send_event(EventLoopMessage::TrayIconEvent(e));
+    }));
+
     runtime.set_device_event_filter(self.device_event_filter);
 
     let runtime_handle = runtime.handle();
@@ -1616,42 +1631,45 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     }
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
-    RuntimeRunEvent::MenuEvent(e) => {
-      for listener in &*app_handle
-        .manager
-        .inner
-        .menu_event_listeners
-        .lock()
-        .unwrap()
-      {
-        listener(app_handle, e)
-      }
-      for (label, listener) in &*app_handle
-        .manager
-        .inner
-        .window_menu_event_listeners
-        .lock()
-        .unwrap()
-      {
-        if let Some(w) = app_handle.get_window(label) {
-          listener(&w, e)
+    RuntimeRunEvent::UserEvent(t) => {
+      match t {
+        EventLoopMessage::MenuEvent(e) => {
+          for listener in &*app_handle
+            .manager
+            .inner
+            .menu_event_listeners
+            .lock()
+            .unwrap()
+          {
+            listener(app_handle, e)
+          }
+          for (label, listener) in &*app_handle
+            .manager
+            .inner
+            .window_menu_event_listeners
+            .lock()
+            .unwrap()
+          {
+            if let Some(w) = app_handle.get_window(label) {
+              listener(&w, e)
+            }
+          }
+        }
+        EventLoopMessage::TrayIconEvent(e) => {
+          for listener in &*app_handle
+            .manager
+            .inner
+            .tray_event_listeners
+            .lock()
+            .unwrap()
+          {
+            listener(app_handle, e)
+          }
         }
       }
-      RunEvent::MenuEvent(e)
+
+      t.into()
     }
-    RuntimeRunEvent::TrayIconEvent(e) => {
-      for listener in &*app_handle
-        .manager
-        .inner
-        .tray_event_listeners
-        .lock()
-        .unwrap()
-      {
-        listener(app_handle, e)
-      }
-      RunEvent::TrayIconEvent(e)
-    }
-    RuntimeRunEvent::UserEvent(t) => t.into(),
     _ => unimplemented!(),
   };
 

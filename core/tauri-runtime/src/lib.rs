@@ -183,10 +183,6 @@ pub enum RunEvent<T: UserEvent> {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
-  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
-  MenuEvent(menu::MenuEvent),
-  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
-  TrayIconEvent(tray_icon::TrayIconEvent),
   /// A custom event defined by the user.
   UserEvent(T),
 }

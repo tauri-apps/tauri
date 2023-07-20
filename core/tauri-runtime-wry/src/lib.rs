@@ -1740,16 +1740,6 @@ impl<T: UserEvent> Wry<T> {
   }
 
   fn init(event_loop: EventLoop<Message<T>>) -> Result<Self> {
-    let proxy = event_loop.create_proxy();
-    menu::MenuEvent::set_event_handler(Some(move |e| {
-      let _ = proxy.send_event(Message::MenuEvent(e));
-    }));
-
-    let proxy = event_loop.create_proxy();
-    tray::TrayIconEvent::set_event_handler(Some(move |e| {
-      let _ = proxy.send_event(Message::TrayIconEvent(e));
-    }));
-
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 
@@ -2312,14 +2302,6 @@ fn handle_event_loop<T: UserEvent>(
 
     Event::LoopDestroyed => {
       callback(RunEvent::Exit);
-    }
-
-    Event::UserEvent(Message::MenuEvent(event)) => {
-      callback(RunEvent::MenuEvent(event));
-    }
-
-    Event::UserEvent(Message::TrayIconEvent(event)) => {
-      callback(RunEvent::TrayIconEvent(event));
     }
 
     Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {

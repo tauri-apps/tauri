@@ -237,7 +237,12 @@ pub fn log_stdout() {
 
 /// The user event type.
 #[derive(Debug, Clone)]
-pub enum EventLoopMessage {}
+pub enum EventLoopMessage {
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  MenuEvent(menu::MenuEvent),
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  TrayIconEvent(tray::TrayIconEvent),
+}
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}

@@ -138,6 +138,14 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     return unimplemented!();
   }
 
+  fn primary_monitor(&self) -> Option<Monitor> {
+    unimplemented!()
+  }
+
+  fn available_monitors(&self) -> Vec<Monitor> {
+    unimplemented!()
+  }
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
@@ -725,6 +733,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
         url: Arc::new(Mutex::new(pending.url)),
       },
     })
+  }
+
+  fn primary_monitor(&self) -> Option<Monitor> {
+    unimplemented!()
+  }
+
+  fn available_monitors(&self) -> Vec<Monitor> {
+    unimplemented!()
   }
 
   #[cfg(target_os = "macos")]

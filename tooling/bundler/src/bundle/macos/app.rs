@@ -163,6 +163,45 @@ fn create_info_plist(
   if let Some(version) = settings.macos().minimum_system_version.clone() {
     plist.insert("LSMinimumSystemVersion".into(), version.into());
   }
+
+  if let Some(associations) = settings.file_associations() {
+    plist.insert(
+      "CFBundleDocumentTypes".into(),
+      plist::Value::Array(
+        associations
+          .iter()
+          .map(|association| {
+            let mut dict = plist::Dictionary::new();
+            dict.insert(
+              "CFBundleTypeExtensions".into(),
+              plist::Value::Array(
+                association
+                  .ext
+                  .iter()
+                  .map(|ext| ext.to_string().into())
+                  .collect(),
+              ),
+            );
+            dict.insert(
+              "CFBundleTypeName".into(),
+              association
+                .name
+                .as_ref()
+                .unwrap_or(&association.ext[0].0)
+                .to_string()
+                .into(),
+            );
+            dict.insert(
+              "CFBundleTypeRole".into(),
+              association.role.to_string().into(),
+            );
+            plist::Value::Dictionary(dict)
+          })
+          .collect(),
+      ),
+    );
+  }
+
   plist.insert("LSRequiresCarbon".into(), true.into());
   plist.insert("NSHighResolutionCapable".into(), true.into());
   if let Some(copyright) = settings.copyright_string() {

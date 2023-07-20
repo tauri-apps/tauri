@@ -21,7 +21,7 @@ use crate::{
   utils::config::Config,
   utils::{assets::Assets, Env},
   Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
-  Runtime, Scopes, StateManager, Theme, Window,
+  Monitor, Runtime, Scopes, StateManager, Theme, Window,
 };
 
 #[cfg(feature = "protocol-asset")]
@@ -177,6 +177,12 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// Emitted when the user wants to open the specified resource with the app.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  Opened {
+    /// The URL of the resources that is being open.
+    urls: Vec<url::Url>,
+  },
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
   MenuEvent(crate::menu::MenuEvent),
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
@@ -510,6 +516,35 @@ macro_rules! shared_app_impl {
         }
       }
 
+      /// Returns the primary monitor of the system.
+      ///
+      /// Returns None if it can't identify any monitor as a primary one.
+      pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
+       Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h
+            .primary_monitor().map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) =>  h
+            .primary_monitor().map(Into::into),
+          _ => unreachable!()
+        })
+      }
+
+      /// Returns the list of all the monitors available on the system.
+      pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h
+            .available_monitors()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+          RuntimeOrDispatch::RuntimeHandle(h) => h
+            .available_monitors()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+          _ => unreachable!()
+        })
+      }
       /// Returns the default window icon.
       pub fn default_window_icon(&self) -> Option<&Icon> {
         self.manager.inner.default_window_icon.as_ref()
@@ -1055,6 +1090,7 @@ impl<R: Runtime> Builder<R> {
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
+  /// Additionally, [`state`](crate::Manager#method.state) can be used to retrieve the value manually.
   ///
   /// # Panics
   ///
@@ -1670,6 +1706,8 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
 
       t.into()
     }
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
     _ => unimplemented!(),
   };
 

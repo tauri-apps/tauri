@@ -43,7 +43,7 @@ dunce = "1"
 heck = "0.4"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.48"
+version = "0.48.0"
 features = [
   "implement",
   "Win32_Foundation",

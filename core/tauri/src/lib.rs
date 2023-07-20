@@ -16,7 +16,7 @@
 //! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
-//! - **linux-protocol-body**: Enables body support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
+//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
@@ -677,18 +677,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Add `state` to the state managed by the application.
   ///
-  /// This method can be called any number of times as long as each call
-  /// refers to a different `T`.
-  /// If a state for `T` is already managed, the function returns false and the value is ignored.
+  /// If the state for the `T` type has previously been set, the state is unchanged and false is returned. Otherwise true is returned.
   ///
   /// Managed state can be retrieved by any command handler via the
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
-  ///
-  /// # Panics
-  ///
-  /// Panics if state of type `T` is already being managed.
+  /// Additionally, [`state`](Self#method.state) can be used to retrieve the value manually.
   ///
   /// # Mutability
   ///

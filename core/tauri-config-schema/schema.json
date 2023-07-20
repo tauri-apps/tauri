@@ -925,6 +925,16 @@
             "null"
           ]
         },
+        "fileAssociations": {
+          "description": "File associations to application.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/FileAssociation"
+          }
+        },
         "shortDescription": {
           "description": "A short description of your application.",
           "type": [
@@ -1118,6 +1128,97 @@
           "type": "string",
           "enum": [
             "updater"
+          ]
+        }
+      ]
+    },
+    "FileAssociation": {
+      "description": "File association",
+      "type": "object",
+      "required": [
+        "ext"
+      ],
+      "properties": {
+        "ext": {
+          "description": "File extensions to associate with this app. e.g. 'png'",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssociationExt"
+          }
+        },
+        "name": {
+          "description": "The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "description": "The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.",
+          "default": "Editor",
+          "allOf": [
+            {
+              "$ref": "#/definitions/BundleTypeRole"
+            }
+          ]
+        },
+        "mimeType": {
+          "description": "The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "AssociationExt": {
+      "description": "An extension for a [`FileAssociation`].\n\nA leading `.` is automatically stripped.",
+      "type": "string"
+    },
+    "BundleTypeRole": {
+      "description": "macOS-only. Corresponds to CFBundleTypeRole",
+      "oneOf": [
+        {
+          "description": "CFBundleTypeRole.Editor. Files can be read and edited.",
+          "type": "string",
+          "enum": [
+            "Editor"
+          ]
+        },
+        {
+          "description": "CFBundleTypeRole.Viewer. Files can be read.",
+          "type": "string",
+          "enum": [
+            "Viewer"
+          ]
+        },
+        {
+          "description": "CFBundleTypeRole.Shell",
+          "type": "string",
+          "enum": [
+            "Shell"
+          ]
+        },
+        {
+          "description": "CFBundleTypeRole.QLGenerator",
+          "type": "string",
+          "enum": [
+            "QLGenerator"
+          ]
+        },
+        {
+          "description": "CFBundleTypeRole.None",
+          "type": "string",
+          "enum": [
+            "None"
           ]
         }
       ]

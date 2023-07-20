@@ -541,7 +541,7 @@ macro_rules! shared_app_impl {
               target_os = "openbsd"
             ))]
             {
-              let _ = menu.init_for_gtk_windows(window.gtk_window().unwrap());
+              let _ = menu.init_for_gtk_window(&window.gtk_window().unwrap());
             }
             window_menu.replace((true, menu.clone()));
           }
@@ -574,7 +574,7 @@ macro_rules! shared_app_impl {
                 target_os = "openbsd"
               ))]
               {
-                let _ = menu.remove_for_gtk_windows(window.gtk_window()?);
+                let _ = menu.remove_for_gtk_window(&window.gtk_window()?);
               }
               *window.menu_lock() = None;
             }
@@ -613,7 +613,7 @@ macro_rules! shared_app_impl {
                 target_os = "openbsd"
               ))]
               {
-                let _ = menu.hide_for_gtk_windows(window.gtk_window()?);
+                let _ = menu.hide_for_gtk_window(&window.gtk_window()?);
               }
             }
           }
@@ -639,7 +639,7 @@ macro_rules! shared_app_impl {
                 target_os = "openbsd"
               ))]
               {
-                let _ = menu.show_for_gtk_windows(window.gtk_window()?);
+                let _ = menu.show_for_gtk_window(&window.gtk_window()?);
               }
             }
           }
@@ -1191,7 +1191,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   #[must_use]
   pub fn menu_with<F: FnOnce(&Config) -> Menu + 'static>(mut self, f: F) -> Self {
-    self.menu_with.replace(Box::new(move |c| f(&c)));
+    self.menu_with.replace(Box::new(move |c| f(c)));
     self.menu = None;
     self
   }
@@ -1419,7 +1419,7 @@ impl<R: Runtime> Builder<R> {
       R::new(runtime_args)?
     };
     #[cfg(not(any(windows, target_os = "linux")))]
-    let mut runtime = R::new()?;
+    let mut runtime = R::new(runtime_args)?;
 
     #[cfg(target_os = "macos")]
     if let Some(menu) = menu {
@@ -1624,7 +1624,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
         .lock()
         .unwrap()
       {
-        listener(&app_handle, e)
+        listener(app_handle, e)
       }
       for (label, listener) in &*app_handle
         .manager
@@ -1647,7 +1647,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
         .lock()
         .unwrap()
       {
-        listener(&app_handle, e)
+        listener(app_handle, e)
       }
       RunEvent::TrayIconEvent(e)
     }

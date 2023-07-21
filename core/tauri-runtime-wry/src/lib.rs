@@ -877,10 +877,11 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn visible_on_all_workspaces(mut self, visible_on_all_workspaces: bool) -> Self {
-    self.inner = self.inner.with_visible_on_all_workspaces(visible_on_all_workspaces);
+    self.inner = self
+      .inner
+      .with_visible_on_all_workspaces(visible_on_all_workspaces);
     self
   }
-
 
   fn content_protected(mut self, protected: bool) -> Self {
     self.inner = self.inner.with_content_protection(protected);
@@ -1561,10 +1562,12 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> Result<()> {
     send_user_message(
       &self.context,
-      Message::Window(self.window_id, WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces)),
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces),
+      ),
     )
   }
-
 
   fn set_content_protected(&self, protected: bool) -> Result<()> {
     send_user_message(
@@ -2515,7 +2518,9 @@ fn handle_user_message<T: UserEvent>(
               window.set_has_shadow(_enable);
             }
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
-            WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => window.set_visible_on_all_workspaces(visible_on_all_workspaces),
+            WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => {
+              window.set_visible_on_all_workspaces(visible_on_all_workspaces)
+            }
             WindowMessage::SetContentProtected(protected) => {
               window.set_content_protection(protected)
             }

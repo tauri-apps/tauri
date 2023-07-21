@@ -1981,7 +1981,7 @@
           "type": "string"
         },
         "windows": {
-          "description": "The list of window labels this scope applies to.",
+          "description": "The list of window label glob patterns(`**` ignored) this scope applies to.",
           "type": "array",
           "items": {
             "type": "string"

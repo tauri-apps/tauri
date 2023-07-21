@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{Config, Runtime, Window};
 use url::Url;
+use glob::Pattern;
 
 /// IPC access configuration for a remote domain.
 #[derive(Debug, Clone)]
@@ -136,7 +137,13 @@ impl Scope {
 
     for s in &*self.remote_access.lock().unwrap() {
       #[allow(unused_mut)]
-      let mut matches_window = s.windows.contains(&label);
+      let mut matches_window = false;
+      for window_label_pattern in s.windows() {
+        if !window_label_pattern.contains("**") && Pattern::new(window_label_pattern).unwrap_or_default().matches(&label) {
+          matches_window = true;
+          break;
+        }
+      }
 
       let matches_scheme = s
         .scheme
@@ -311,6 +318,44 @@ mod tests {
 
     window.navigate("https://tauri.app/inner/path".parse().unwrap());
     assert_ipc_response(&window, path_is_absolute_payload(), Ok(true));
+  }
+
+  #[test]
+  fn window_label_pattern_is_allowed() {
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+      .add_window("mai*")
+      .add_plugin("path")]);
+
+    window.navigate("https://tauri.app".parse().unwrap());
+    assert_ipc_response(&window, path_is_absolute_payload(), Ok(true));
+  }
+
+  #[test]
+  fn window_label_pattern_double_asterisk_is_ignored() {
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+      .add_window("**")
+      .add_plugin("path")]);
+
+    window.navigate("https://tauri.app".parse().unwrap());
+    assert_ipc_response(
+      &window,
+      path_is_absolute_payload(),
+      Err(&crate::window::ipc_scope_window_error_message("main")),
+    );
+  }
+
+  #[test]
+  fn window_label_pattern_invalid_is_ignored() {
+    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+      .add_window("***")
+      .add_plugin("path")]);
+
+    window.navigate("https://tauri.app".parse().unwrap());
+    assert_ipc_response(
+      &window,
+      path_is_absolute_payload(),
+      Err(&crate::window::ipc_scope_window_error_message("main")),
+    );
   }
 
   #[test]

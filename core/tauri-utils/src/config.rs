@@ -1232,7 +1232,7 @@ pub struct RemoteDomainAccessScope {
   pub scheme: Option<String>,
   /// The domain to allow.
   pub domain: String,
-  /// The list of window labels this scope applies to.
+  /// The list of window label glob patterns(`**` ignored) this scope applies to.
   pub windows: Vec<String>,
   /// The list of plugins that are allowed in this scope.
   #[serde(default)]

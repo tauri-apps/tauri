@@ -1223,6 +1223,26 @@ impl Default for DisabledCspModificationKind {
   }
 }
 
+fn de_remote_domain_access_scope_windows<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  let windows = Option::<Vec<String>>::deserialize(deserializer)?.unwrap_or_default();
+  for w in &windows {
+    if w == "*" || w == "**" {
+      return Err(serde::de::Error::custom(
+        "* and ** are not allowed for a remote domain access scope window pattern",
+      ));
+    }
+    if let Err(e) = glob::Pattern::new(w) {
+      return Err(serde::de::Error::custom(format!(
+        "invalid remote domain access scope window pattern: {e}"
+      )));
+    }
+  }
+  Ok(windows)
+}
+
 /// External command access definition.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1232,7 +1252,8 @@ pub struct RemoteDomainAccessScope {
   pub scheme: Option<String>,
   /// The domain to allow.
   pub domain: String,
-  /// The list of window label glob patterns this scope applies to. `**` is not allowed and therefore ignored.
+  /// The list of window label glob patterns this scope applies to. `*` and `**` are not allowed.
+  #[serde(deserialize_with = "de_remote_domain_access_scope_windows")]
   pub windows: Vec<String>,
   /// The list of plugins that are allowed in this scope.
   #[serde(default)]

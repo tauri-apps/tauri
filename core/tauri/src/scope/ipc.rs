@@ -5,15 +5,15 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{Config, Runtime, Window};
-use url::Url;
 use glob::Pattern;
+use url::Url;
 
 /// IPC access configuration for a remote domain.
 #[derive(Debug, Clone)]
 pub struct RemoteDomainAccessScope {
   scheme: Option<String>,
   domain: String,
-  windows: Vec<String>,
+  windows: Vec<Pattern>,
   plugins: Vec<String>,
 }
 
@@ -34,9 +34,15 @@ impl RemoteDomainAccessScope {
     self
   }
 
-  /// Adds the given window label to the list of windows that uses this scope.
-  pub fn add_window(mut self, window: impl Into<String>) -> Self {
-    self.windows.push(window.into());
+  /// Adds the given window label glob pattern to the list of windows that uses this scope.
+  pub fn add_window(mut self, window: impl AsRef<str>) -> Self {
+    let window = window.as_ref();
+    if window == "*" || window == "**" {
+      panic!("{window} is not allowed for a remote domain access scope window pattern");
+    }
+    self
+      .windows
+      .push(Pattern::new(window).expect("invalid remote domain access scope pattern"));
     self
   }
 
@@ -61,8 +67,8 @@ impl RemoteDomainAccessScope {
     &self.domain
   }
 
-  /// The list of window labels that can access this scope.
-  pub fn windows(&self) -> &Vec<String> {
+  /// The list of window label patterns that can access this scope.
+  pub fn windows(&self) -> &Vec<Pattern> {
     &self.windows
   }
 
@@ -95,7 +101,11 @@ impl Scope {
       .map(|s| RemoteDomainAccessScope {
         scheme: s.scheme,
         domain: s.domain,
-        windows: s.windows,
+        windows: s
+          .windows
+          .iter()
+          .map(|p| Pattern::new(p).expect("invalid pattern for remote domain access scope"))
+          .collect(),
         plugins: s.plugins,
       })
       .collect();
@@ -136,14 +146,7 @@ impl Scope {
     let label = window.label().to_string();
 
     for s in &*self.remote_access.lock().unwrap() {
-      #[allow(unused_mut)]
-      let mut matches_window = false;
-      for window_label_pattern in s.windows() {
-        if !window_label_pattern.contains("**") && Pattern::new(window_label_pattern).unwrap_or_default().matches(&label) {
-          matches_window = true;
-          break;
-        }
-      }
+      let matches_window = s.windows().iter().any(|pattern| pattern.matches(&label));
 
       let matches_scheme = s
         .scheme
@@ -331,31 +334,21 @@ mod tests {
   }
 
   #[test]
-  fn window_label_pattern_double_asterisk_is_ignored() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
-      .add_window("**")
-      .add_plugin("path")]);
-
-    window.navigate("https://tauri.app".parse().unwrap());
-    assert_ipc_response(
-      &window,
-      path_is_absolute_payload(),
-      Err(&crate::window::ipc_scope_window_error_message("main")),
-    );
+  #[should_panic(expected = "* is not allowed for a remote domain access scope window pattern")]
+  fn window_label_pattern_asterisk_panicks() {
+    RemoteDomainAccessScope::new("tauri.app").add_window("*");
   }
 
   #[test]
-  fn window_label_pattern_invalid_is_ignored() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
-      .add_window("***")
-      .add_plugin("path")]);
+  #[should_panic(expected = "** is not allowed for a remote domain access scope window pattern")]
+  fn window_label_pattern_double_asterisk_panicks() {
+    RemoteDomainAccessScope::new("tauri.app").add_window("**");
+  }
 
-    window.navigate("https://tauri.app".parse().unwrap());
-    assert_ipc_response(
-      &window,
-      path_is_absolute_payload(),
-      Err(&crate::window::ipc_scope_window_error_message("main")),
-    );
+  #[test]
+  #[should_panic(expected = "invalid remote domain access scope pattern")]
+  fn window_label_pattern_invalid_pattern_panicks() {
+    RemoteDomainAccessScope::new("tauri.app").add_window("***");
   }
 
   #[test]

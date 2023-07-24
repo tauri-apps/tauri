@@ -63,6 +63,19 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
   }
 
+  // Sign main windows binary before the bundling step in case neither wix and nsis bundles are enabled
+  #[cfg(target_os = "windows")]
+  {
+    let main_binary = settings
+      .binaries()
+      .iter()
+      .find(|bin| bin.main())
+      .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+    let app_exe_source = settings.binary_path(main_binary);
+
+    windows::sign::try_sign(&app_exe_source, &settings)?;
+  }
+
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
     if bundles.iter().any(|b| b.package_type == *package_type) {

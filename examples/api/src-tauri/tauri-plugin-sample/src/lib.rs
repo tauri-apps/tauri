@@ -46,5 +46,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
       Ok(())
     })
+    .on_navigation(|window, url| {
+      println!("navigation {} {url}", window.label());
+      true
+    })
     .build()
 }

@@ -60,7 +60,7 @@ use std::{
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
-pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
+pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -306,7 +306,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_navigation<F: Fn(Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
     self
   }

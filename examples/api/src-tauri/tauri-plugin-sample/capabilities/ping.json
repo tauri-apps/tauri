@@ -1,0 +1,7 @@
+{
+  "id": "allow-ping",
+  "description": "Allows the ping command",
+  "features": [
+    "ping"
+  ]
+}

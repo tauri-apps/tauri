@@ -1,0 +1,8 @@
+{
+  "features": [],
+  "description": "Default empty capability set",
+  "scope": {
+    "allowed": [],
+    "denied": []
+  }
+}

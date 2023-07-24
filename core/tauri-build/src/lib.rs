@@ -34,6 +34,8 @@ mod codegen;
 pub mod config;
 /// Mobile build functions.
 pub mod mobile;
+/// Build scripts for Tauri plugins.
+pub mod plugin;
 mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
@@ -472,6 +474,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       _ => (),
     }
   }
+
+  let _manifests = plugin::manifests();
 
   Ok(())
 }

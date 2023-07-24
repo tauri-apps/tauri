@@ -3,9 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use std::process::exit;
+use tauri_build::{
+  mobile::PluginBuilder,
+  plugin::{set_manifest, Manifest, ScopeType},
+};
 
 fn main() {
-  if let Err(error) = tauri_build::mobile::PluginBuilder::new()
+  if let Err(error) = PluginBuilder::new()
     .android_path("android")
     .ios_path("ios")
     .run()
@@ -13,4 +17,12 @@ fn main() {
     println!("{error:#}");
     exit(1);
   }
+
+  set_manifest(
+    Manifest::new("sample")
+      .default_capability(include_str!("capabilities/default.json"))
+      .capability(include_str!("capabilities/ping.json"))
+      .feature("ping")
+      .scope_type(ScopeType::String),
+  );
 }

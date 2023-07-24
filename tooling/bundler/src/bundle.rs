@@ -118,6 +118,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
             p,
             PackageType::AppImage
               | PackageType::MacOsBundle
+              | PackageType::Dmg
               | PackageType::Nsis
               | PackageType::WindowsMsi
           )

@@ -1488,7 +1488,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Determines if this window should be visible on all workspaces or virtual desktops.
+  /// Sets whether the window should be visible on all workspaces or virtual desktops.
   pub fn set_visible_on_all_workspaces(
     &self,
     visible_on_all_workspaces: bool,

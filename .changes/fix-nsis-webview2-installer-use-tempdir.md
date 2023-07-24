@@ -1,5 +1,5 @@
 ---
-'tauri-bundler': 'patch:bug'
+'tauri-bundler': 'patch:enhance'
 ---
 
-On Windows, fix NSIS installer writing webview2 installer file to the well-known temp dir instead of the install dir, so we don't pollute the install dir.
+On Windows, NSIS installer will write webview2 installer file to the well-known temp dir instead of the install dir, so we don't pollute the install dir.

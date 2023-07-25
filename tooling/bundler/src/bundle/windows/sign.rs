@@ -88,7 +88,7 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   Err(crate::Error::SignToolNotFound)
 }
 
-/// Check if executable is already signed.
+/// Check if binary is already signed.
 /// Used to skip sidecar binaries that are already signed.
 pub fn verify(path: &Path) -> crate::Result<bool> {
   // Construct SignTool command

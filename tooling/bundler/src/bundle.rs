@@ -63,17 +63,28 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
   }
 
-  // Sign main windows binary before the bundling step in case neither wix and nsis bundles are enabled
   #[cfg(target_os = "windows")]
   {
-    let main_binary = settings
-      .binaries()
-      .iter()
-      .find(|bin| bin.main())
-      .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
-    let app_exe_source = settings.binary_path(main_binary);
+    // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
+    for bin in settings.binaries() {
+      let bin_path = settings.binary_path(bin);
+      windows::sign::try_sign(&bin_path, &settings)?;
+    }
 
-    windows::sign::try_sign(&app_exe_source, &settings)?;
+    // Sign the sidecar binaries
+    for bin in settings.external_binaries() {
+      let path = bin?;
+      let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
+
+      if !skip && windows::sign::verify(&path)? {
+        info!(
+          "sidecar at \"{}\" already signed. Skipping...",
+          path.display()
+        )
+      } else {
+        windows::sign::try_sign(&path, &settings)?;
+      }
+    }
   }
 
   for package_type in &package_types {

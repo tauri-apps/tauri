@@ -1916,6 +1916,27 @@ pub struct Config {
   /// The plugins config.
   #[serde(default)]
   pub plugins: PluginConfig,
+  /// The namespaces defining what capabilities are enabled.
+  #[serde(default)]
+  pub namespaces: Vec<Namespace>,
+}
+
+/// A namespace defining a set of capabilities that are enabled for a given window.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Namespace {
+  /// Identifier of this namespace. Must be unique.
+  ///
+  /// It is recommended to use `drop-` or `allow-` prefixes to ensure the rule can be easily categorized.
+  pub id: String,
+  /// Describes the namespace in a human readable format.
+  pub description: String,
+  /// The windows that can use the configuration of this namespace.
+  pub members: Vec<String>,
+  /// List of capabilities attached to this namespace.
+  pub capabilities: Vec<String>,
 }
 
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
@@ -2646,6 +2667,17 @@ mod build {
     }
   }
 
+  impl ToTokens for Namespace {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let id = str_lit(&self.id);
+      let description = str_lit(&self.description);
+      let members = vec_lit(&self.members, str_lit);
+      let capabilities = vec_lit(&self.capabilities, str_lit);
+
+      literal_struct!(tokens, Namespace, id, description, members, capabilities);
+    }
+  }
+
   impl ToTokens for Config {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let schema = quote!(None);
@@ -2653,8 +2685,9 @@ mod build {
       let tauri = &self.tauri;
       let build = &self.build;
       let plugins = &self.plugins;
+      let namespaces = vec_lit(&self.namespaces, identity);
 
-      literal_struct!(tokens, Config, schema, package, tauri, build, plugins);
+      literal_struct!(tokens, Config, schema, package, tauri, build, plugins, namespaces);
     }
   }
 }

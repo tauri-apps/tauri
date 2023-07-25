@@ -456,18 +456,18 @@ Section WebView2
   !endif
 
   !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
-    CreateDirectory "$INSTDIR\redist"
-    File "/oname=$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
+    Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+    File "/oname=$TEMP\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
     DetailPrint "$(installingWebview2)"
-    StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe"
+    StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     Goto install_webview2
   !endif
 
   !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
-    CreateDirectory "$INSTDIR\redist"
-    File "/oname=$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
+    Delete "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+    File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
     DetailPrint "$(installingWebview2)"
-    StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+    StrCpy $6 "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
     Goto install_webview2
   !endif
 

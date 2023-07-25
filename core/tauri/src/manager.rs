@@ -1002,7 +1002,9 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    // make sure the directory is created and available to prevent a panic
+    // make sure the directory is created and available to prevent a panic.
+    // On Windows we let WebView2 handle it so that the dir has the correct permissions.
+    #[cfg(not(windows))]
     if let Some(user_data_dir) = &pending.webview_attributes.data_directory {
       if !user_data_dir.exists() {
         create_dir_all(user_data_dir)?;

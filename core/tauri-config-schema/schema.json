@@ -446,7 +446,7 @@
           "type": "boolean"
         },
         "visibleOnAllWorkspaces": {
-          "description": "Whether the window should be visible on all workspaces.",
+          "description": "Whether the window should be visible on all workspaces or virtual desktops.",
           "default": false,
           "type": "boolean"
         },

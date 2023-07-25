@@ -17,13 +17,16 @@ pub use anyhow::Result;
 use cargo_toml::Manifest;
 use heck::AsShoutySnakeCase;
 
+use serde::{Deserialize, Serialize};
 use tauri_utils::{
-  config::Config,
+  config::{Config, Namespace},
   resources::{external_binaries, resource_relpath, ResourcePaths},
 };
 
 use std::{
+  collections::HashMap,
   env::var_os,
+  fs::write,
   path::{Path, PathBuf},
 };
 
@@ -295,9 +298,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
 
-  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
-    std::env::current_dir().unwrap(),
-  )?)?;
+  let (config, config_path) =
+    tauri_utils::config::parse::read_from(std::env::current_dir().unwrap())?;
+  let mut config = serde_json::from_value(config)?;
   if let Ok(env) = std::env::var("TAURI_CONFIG") {
     let merge_config: serde_json::Value = serde_json::from_str(&env)?;
     json_patch::merge(&mut config, &merge_config);
@@ -475,12 +478,67 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
   }
 
-  let _manifests = plugin::manifests();
+  let manifests = plugin::manifests();
+  let mut resolution = HashMap::<String, MemberResolution>::new();
+
+  for namespace in &config.namespaces {
+    for member in &namespace.members {
+      let member_resolution =
+        resolution
+          .entry(member.clone())
+          .or_insert_with(|| MemberResolution {
+            member: member.clone(),
+            capabilities: Default::default(),
+          });
+
+      for capability in &namespace.capabilities {
+        let (plugin, capability) = manifests.find_capability(capability).unwrap_or_else(|| {
+          panic!("could not find capability specification matching id {capability}")
+        });
+        let resolved_capability = member_resolution
+          .capabilities
+          .entry(capability.id.clone())
+          .or_default();
+        resolved_capability.features.extend(capability.features);
+      }
+    }
+  }
+
+  let lockfile = NamespaceLockFile {
+    version: 1,
+    namespaces: config.namespaces,
+    plugins: manifests,
+    resolution: resolution.into_values().collect(),
+  };
+  write(
+    config_path.parent().unwrap().join("tauri.namespace.lock"),
+    serde_json::to_string_pretty(&lockfile)?,
+  )
+  .context("failed to write namespace lockfile")?;
 
   Ok(())
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Serialize)]
+struct MemberResolution {
+  member: String,
+  capabilities: HashMap<String, ResolvedCapability>,
+}
+
+#[derive(Default, Serialize)]
+struct ResolvedCapability {
+  features: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct NamespaceLockFile {
+  version: u8,
+  namespaces: Vec<Namespace>,
+  plugins: plugin::ManifestMap,
+  resolution: Vec<MemberResolution>,
+}
+
+#[derive(Deserialize)]
 struct CargoMetadata {
   workspace_root: PathBuf,
 }

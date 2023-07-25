@@ -8,13 +8,14 @@ use std::{
 };
 
 const PLUGIN_METADATA_KEY: &str = "PLUGIN_MANIFEST_PATH";
+const DEFAULT_CAPABILITY_ID: &str = "default";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ScopeType {
   String,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CapabilityScope {
   #[serde(default)]
   allowed: Vec<serde_json::Value>,
@@ -22,14 +23,15 @@ pub struct CapabilityScope {
   blocked: Vec<serde_json::Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Capability {
-  id: Option<String>,
-  description: String,
   #[serde(default)]
-  features: Vec<String>,
+  pub(crate) id: String,
+  pub(crate) description: String,
   #[serde(default)]
-  scope: CapabilityScope,
+  pub(crate) features: Vec<String>,
+  #[serde(default)]
+  pub(crate) scope: CapabilityScope,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,10 +58,10 @@ impl Manifest {
     let mut capability: Capability = serde_json::from_str(default_capability.as_ref())
       .expect("failed to deserialize default capability");
     assert!(
-      capability.id.is_none(),
+      capability.id.is_empty(),
       "default capability cannot have an specific identifier"
     );
-    capability.id.replace("default".into());
+    capability.id = DEFAULT_CAPABILITY_ID.into();
     self.default_capability.replace(capability);
     self
   }
@@ -68,7 +70,7 @@ impl Manifest {
     let capability: Capability =
       serde_json::from_str(capability.as_ref()).expect("failed to deserialize default capability");
     assert!(
-      capability.id.is_some(),
+      !capability.id.is_empty(),
       "capability must have an specific identifier"
     );
     self.capabilities.push(capability);
@@ -106,7 +108,30 @@ pub fn set_manifest(manifest: Manifest) {
   println!("cargo:{PLUGIN_METADATA_KEY}={}", manifest_path.display());
 }
 
-pub(crate) fn manifests() -> HashMap<String, Manifest> {
+#[derive(Serialize)]
+pub(crate) struct ManifestMap(HashMap<String, Manifest>);
+
+impl ManifestMap {
+  pub fn find_capability(&self, id: &str) -> Option<(String, Capability)> {
+    for (plugin, manifest) in &self.0 {
+      if id == format!("{DEFAULT_CAPABILITY_ID}-{plugin}") {
+        return Some((
+          plugin.clone(),
+          manifest.default_capability.clone().unwrap_or_default(),
+        ));
+      }
+      for capability in &manifest.capabilities {
+        if capability.id == id {
+          return Some((plugin.clone(), capability.clone()));
+        }
+      }
+    }
+
+    None
+  }
+}
+
+pub(crate) fn manifests() -> ManifestMap {
   let mut manifests = HashMap::new();
 
   for (key, value) in vars_os() {
@@ -126,5 +151,5 @@ pub(crate) fn manifests() -> HashMap<String, Manifest> {
     }
   }
 
-  manifests
+  ManifestMap(manifests)
 }

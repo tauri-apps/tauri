@@ -192,12 +192,12 @@ pub fn is_configuration_file(path: &Path) -> bool {
 /// Merging the configurations using [JSON Merge Patch (RFC 7396)].
 ///
 /// [JSON Merge Patch (RFC 7396)]: https://datatracker.ietf.org/doc/html/rfc7396.
-pub fn read_from(root_dir: PathBuf) -> Result<Value, ConfigError> {
-  let mut config: Value = parse_value(root_dir.join("tauri.conf.json"))?.0;
+pub fn read_from(root_dir: PathBuf) -> Result<(Value, PathBuf), ConfigError> {
+  let (mut config, path) = parse_value(root_dir.join("tauri.conf.json"))?;
   if let Some((platform_config, _)) = read_platform(root_dir)? {
     merge(&mut config, &platform_config);
   }
-  Ok(config)
+  Ok((config, path))
 }
 
 /// Reads the platform-specific configuration file from the given root directory if it exists.

@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "namespaces": [
+    {
+      "id": "main",
+      "description": "Main window namespace",
+      "members": [
+        "main"
+      ],
+      "capabilities": [
+        "allow-ping"
+      ]
+    }
+  ],
+  "plugins": {
+    "sample": {
+      "plugin": "sample",
+      "default_capability": {
+        "id": "default",
+        "description": "Default empty capability set",
+        "features": [],
+        "scope": {
+          "allowed": [],
+          "blocked": []
+        }
+      },
+      "capabilities": [
+        {
+          "id": "allow-ping",
+          "description": "Allows the ping command",
+          "features": [
+            "ping"
+          ],
+          "scope": {
+            "allowed": [],
+            "blocked": []
+          }
+        }
+      ],
+      "features": [
+        "ping"
+      ],
+      "scope_type": [
+        "String"
+      ]
+    }
+  },
+  "resolution": [
+    {
+      "member": "main",
+      "capabilities": {
+        "allow-ping": {
+          "features": [
+            "ping"
+          ]
+        }
+      }
+    }
+  ]
+}

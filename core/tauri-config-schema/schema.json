@@ -108,6 +108,14 @@
           "$ref": "#/definitions/PluginConfig"
         }
       ]
+    },
+    "namespaces": {
+      "description": "The namespaces defining what capabilities are enabled.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Namespace"
+      }
     }
   },
   "additionalProperties": false,
@@ -2258,6 +2266,41 @@
       "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\nSee more: https://tauri.app/v1/api/config#pluginconfig",
       "type": "object",
       "additionalProperties": true
+    },
+    "Namespace": {
+      "description": "A namespace defining a set of capabilities that are enabled for a given window.",
+      "type": "object",
+      "required": [
+        "capabilities",
+        "description",
+        "id",
+        "members"
+      ],
+      "properties": {
+        "id": {
+          "description": "Identifier of this namespace. Must be unique.\n\nIt is recommended to use `drop-` or `allow-` prefixes to ensure the rule can be easily categorized.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Describes the namespace in a human readable format.",
+          "type": "string"
+        },
+        "members": {
+          "description": "The windows that can use the configuration of this namespace.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "capabilities": {
+          "description": "List of capabilities attached to this namespace.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

@@ -17,9 +17,10 @@ pub use anyhow::Result;
 use cargo_toml::Manifest;
 use heck::AsShoutySnakeCase;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tauri_utils::{
-  config::{Config, Namespace},
+  config::Config,
+  namespace::{MemberResolution, NamespaceLockFile},
   resources::{external_binaries, resource_relpath, ResourcePaths},
 };
 
@@ -517,25 +518,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   .context("failed to write namespace lockfile")?;
 
   Ok(())
-}
-
-#[derive(Serialize)]
-struct MemberResolution {
-  member: String,
-  capabilities: HashMap<String, ResolvedCapability>,
-}
-
-#[derive(Default, Serialize)]
-struct ResolvedCapability {
-  features: Vec<String>,
-}
-
-#[derive(Serialize)]
-struct NamespaceLockFile {
-  version: u8,
-  namespaces: Vec<Namespace>,
-  plugins: plugin::ManifestMap,
-  resolution: Vec<MemberResolution>,
 }
 
 #[derive(Deserialize)]

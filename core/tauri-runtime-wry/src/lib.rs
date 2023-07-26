@@ -3125,7 +3125,9 @@ fn create_webview<T: UserEvent>(
   }
   if let Some(navigation_handler) = pending.navigation_handler {
     webview_builder = webview_builder.with_navigation_handler(move |url| {
-      Url::parse(&url).map(&navigation_handler).unwrap_or(true)
+      Url::parse(&url)
+        .map(|url| navigation_handler(&url))
+        .unwrap_or(true)
     });
   }
   if let Some(user_agent) = webview_attributes.user_agent {

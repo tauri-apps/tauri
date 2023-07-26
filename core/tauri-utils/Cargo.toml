@@ -55,7 +55,7 @@ features = [
 [features]
 build = [ "proc-macro2", "quote" ]
 compression = [ "brotli" ]
-schema = [ "schemars" ]
+schema = [ "glob", "schemars" ]
 isolation = [ "aes-gcm", "getrandom", "serialize-to-javascript" ]
 process-relaunch-dangerous-allow-symlink-macos = [ ]
 config-json5 = [ "json5" ]

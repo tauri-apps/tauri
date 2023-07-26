@@ -561,6 +561,17 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Sets custom name for Windows' window class.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn window_classname<S: Into<String>>(mut self, classname: S) -> Self {
+    self.window_builder = self.window_builder.window_classname(classname);
+    self
+  }
+
   /// Sets whether or not the window has shadow.
   ///
   /// ## Platform-specific

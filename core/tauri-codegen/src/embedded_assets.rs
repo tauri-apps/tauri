@@ -59,6 +59,12 @@ pub enum EmbeddedAssetsError {
 
   #[error("version error: {0}")]
   Version(#[from] semver::Error),
+
+  #[error(transparent)]
+  Io(#[from] std::io::Error),
+
+  #[error(transparent)]
+  Json(#[from] serde_json::Error),
 }
 
 /// Represent a directory of assets that are compressed and embedded.

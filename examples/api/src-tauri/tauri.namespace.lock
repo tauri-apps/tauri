@@ -48,13 +48,9 @@
   "resolution": [
     {
       "member": "main",
-      "capabilities": {
-        "allow-ping": {
-          "features": [
-            "ping"
-          ]
-        }
-      }
+      "commands": [
+        "plugin:sample|ping"
+      ]
     }
   ]
 }

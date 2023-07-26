@@ -1691,6 +1691,15 @@ impl<R: Runtime> Window<R> {
           return Ok(());
         }
 
+        if !manager
+          .inner
+          .runtime_authority
+          .is_allowed(self.label(), &payload.cmd)
+        {
+          invoke.resolver.reject("Not allowed");
+          return Ok(());
+        }
+
         if payload.cmd.starts_with("plugin:") {
           if !is_local {
             let command = invoke.message.command.replace("plugin:", "");

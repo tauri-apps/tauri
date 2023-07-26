@@ -489,18 +489,20 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           .entry(member.clone())
           .or_insert_with(|| MemberResolution {
             member: member.clone(),
-            capabilities: Default::default(),
+            commands: Default::default(),
           });
 
       for capability in &namespace.capabilities {
         let (plugin, capability) = manifests.find_capability(capability).unwrap_or_else(|| {
           panic!("could not find capability specification matching id {capability}")
         });
-        let resolved_capability = member_resolution
-          .capabilities
-          .entry(capability.id.clone())
-          .or_default();
-        resolved_capability.features.extend(capability.features);
+        member_resolution.commands.extend(
+          capability
+            .features
+            .into_iter()
+            .map(|f| format!("plugin:{plugin}|{f}"))
+            .collect::<Vec<_>>(),
+        );
       }
     }
   }

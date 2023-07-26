@@ -66,6 +66,7 @@ pub use cocoa;
 pub use embed_plist;
 /// The Tauri error enum.
 pub use error::Error;
+use runtime_authority::RuntimeAuthority;
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
@@ -85,6 +86,7 @@ mod hooks;
 mod manager;
 mod pattern;
 pub mod plugin;
+pub mod runtime_authority;
 mod vibrancy;
 pub mod window;
 use tauri_runtime as runtime;
@@ -389,6 +391,7 @@ pub struct Context<A: Assets> {
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
+  pub(crate) runtime_authority: RuntimeAuthority,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
@@ -487,6 +490,7 @@ impl<A: Assets> Context<A> {
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
+    runtime_authority: RuntimeAuthority,
   ) -> Self {
     Self {
       config,
@@ -498,6 +502,7 @@ impl<A: Assets> Context<A> {
       package_info,
       _info_plist: info_plist,
       pattern,
+      runtime_authority,
     }
   }
 

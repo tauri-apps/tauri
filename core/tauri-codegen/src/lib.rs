@@ -45,7 +45,7 @@ pub enum CodegenConfigError {
   ConfigError(#[from] ConfigError),
 }
 
-/// Get the [`Config`] from the `TAURI_CONFIG` environmental variable, or read from the passed path.
+/// Get the [`Config`] from the passed path and merge it with the value from the `TAURI_CONFIG` environment variable.
 ///
 /// If the passed path is relative, it should be relative to the current working directory of the
 /// compiling crate.
@@ -67,8 +67,8 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
   // it is impossible for the content of two separate configs to get mixed up. The chances are
   // already unlikely unless the developer goes out of their way to run the cli on a different
   // project than the target crate.
-  let mut config =
-    serde_json::from_value(tauri_utils::config::parse::read_from(parent.clone())?.0)?;
+  let (config, config_path) = tauri_utils::config::parse::read_from(parent.clone())?;
+  let mut config = serde_json::from_value(config)?;
   if let Ok(env) = std::env::var("TAURI_CONFIG") {
     let merge_config: serde_json::Value =
       serde_json::from_str(&env).map_err(CodegenConfigError::FormatInline)?;
@@ -84,5 +84,11 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
   // Reset working directory.
   std::env::set_current_dir(old_cwd).map_err(CodegenConfigError::CurrentDir)?;
 
-  Ok((config, parent))
+  Ok((
+    config,
+    config_path
+      .parent()
+      .map(ToOwned::to_owned)
+      .ok_or_else(|| CodegenConfigError::Parent(config_path))?,
+  ))
 }

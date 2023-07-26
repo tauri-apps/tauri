@@ -25,7 +25,6 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
@@ -50,6 +49,10 @@ use crate::{
   },
   Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
+};
+use crate::{
+  app::{GlobalMenuEventListener, WindowMenuEvent},
+  runtime_authority::RuntimeAuthority,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -234,6 +237,7 @@ pub struct InnerWindowManager<R: Runtime> {
   invoke_initialization_script: String,
   /// Application pattern.
   pub(crate) pattern: Pattern,
+  pub(crate) runtime_authority: RuntimeAuthority,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -334,6 +338,7 @@ impl<R: Runtime> WindowManager<R> {
         window_event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,
+        runtime_authority: context.runtime_authority,
       }),
     }
   }

@@ -118,7 +118,7 @@ impl Manifest {
 }
 
 /// A collection mapping a plugin name to its manifest.
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ManifestMap(HashMap<String, Manifest>);
 
 impl From<HashMap<String, Manifest>> for ManifestMap {

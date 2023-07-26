@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::path::{Path, PathBuf};
-use std::{ffi::OsStr, str::FromStr};
+use std::{ffi::OsStr, fs::read_to_string, str::FromStr};
 
 use base64::Engine;
 use proc_macro2::TokenStream;
@@ -15,6 +15,7 @@ use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
 use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
+use tauri_utils::namespace::NamespaceLockFile;
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
 
@@ -421,6 +422,15 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   };
 
+  let lockfile_path = config_parent.join("tauri.namespace.lock");
+  let lockfile: NamespaceLockFile = if lockfile_path.exists() {
+    let lockfile = read_to_string(&lockfile_path)?;
+    serde_json::from_str(&lockfile)?
+  } else {
+    Default::default()
+  };
+  let runtime_authority = runtime_authority_codegen(&root, lockfile);
+
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
@@ -431,10 +441,28 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #package_info,
       #info_plist,
       #pattern,
+      #runtime_authority
     );
     #with_system_tray_icon_code
     context
   }))
+}
+
+fn runtime_authority_codegen(root: &TokenStream, lockfile: NamespaceLockFile) -> TokenStream {
+  let add_members = lockfile.resolution.iter().map(|r| {
+    let member = &r.member;
+    let commands = &r.commands;
+    let resolution = quote!(#root::runtime_authority::MemberResolution {
+      member: #member.into(),
+      commands: vec![#(#commands)*.into()]
+    });
+    quote!(authority.add_member(#resolution);)
+  });
+  quote!({
+    let mut authority = #root::runtime_authority::RuntimeAuthority::new();
+    #(#add_members)*
+    authority
+  })
 }
 
 fn ico_icon<P: AsRef<Path>>(

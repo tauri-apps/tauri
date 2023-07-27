@@ -324,7 +324,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
               "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key defined in `tauri.conf.json > tauri > updater > pubkey`."
             ));
           }
-          signed_paths.append(&mut vec![signature_path]);
+          signed_paths.push(signature_path);
         }
       }
 

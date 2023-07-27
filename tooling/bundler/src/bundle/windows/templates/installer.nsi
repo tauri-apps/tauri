@@ -1,7 +1,13 @@
+Unicode true
+SetCompressor /SOLID lzma
+
 !include MUI2.nsh
 !include FileFunc.nsh
 !include x64.nsh
 !include WordFunc.nsh
+!include "StrFunc.nsh"
+${StrCase}
+${StrLoc}
 
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
@@ -16,6 +22,7 @@
 !define MAINBINARYNAME "{{main_binary_name}}"
 !define MAINBINARYSRCPATH "{{main_binary_path}}"
 !define BUNDLEID "{{bundle_id}}"
+!define COPYRIGHT "{{copyright}}"
 !define OUTFILE "{{out_file}}"
 !define ARCH "{{arch}}"
 !define PLUGINSPATH "{{additional_plugins_path}}"
@@ -27,12 +34,11 @@
 !define WEBVIEW2INSTALLERPATH "{{webview2_installer_path}}"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
+!define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
 
 Name "${PRODUCTNAME}"
-BrandingText "{{copyright}}"
+BrandingText "${COPYRIGHT}"
 OutFile "${OUTFILE}"
-Unicode true
-SetCompressor /SOLID lzma
 
 VIProductVersion "${VERSIONWITHBUILD}"
 VIAddVersionKey "ProductName" "${PRODUCTNAME}"
@@ -44,6 +50,10 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; Plugins path, currently exists for linux only
 !if "${PLUGINSPATH}" != ""
     !addplugindir "${PLUGINSPATH}"
+!endif
+
+!if "${UNINSTALLERSIGNCOMMAND}" != ""
+  !uninstfinalize '${UNINSTALLERSIGNCOMMAND}'
 !endif
 
 ; Handle install mode, `perUser`, `perMachine` or `both`
@@ -135,7 +145,11 @@ Function PageReinstall
     ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "DisplayName"
     ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "Publisher"
     StrCmp "$R0$R1" "${PRODUCTNAME}${MANUFACTURER}" 0 wix_loop
-    StrCpy $R5 "wix"
+    ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "UninstallString"
+    ${StrCase} $R1 $R0 "L"
+    ${StrLoc} $R0 $R1 "msiexec" ">"
+    StrCmp $R0 0 0 wix_done
+    StrCpy $R7 "wix"
     StrCpy $R6 "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1"
     Goto compare_version
   wix_done:
@@ -149,7 +163,7 @@ Function PageReinstall
   ; and modify the messages presented to the user accordingly
   compare_version:
   StrCpy $R4 "$(older)"
-  ${If} $R5 == "wix"
+  ${If} $R7 == "wix"
     ReadRegStr $R0 HKLM "$R6" "DisplayVersion"
   ${Else}
     ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
@@ -243,15 +257,14 @@ Function PageLeaveReinstall
   reinst_uninstall:
     HideWindow
     ClearErrors
-    ExecWait '$R1 /P _?=$4' $0
 
-    ${If} $R5 == "wix"
+    ${If} $R7 == "wix"
       ReadRegStr $R1 HKLM "$R6" "UninstallString"
       ExecWait '$R1' $0
     ${Else}
       ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
       ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-      ExecWait '$R1 _?=$4' $0
+      ExecWait '$R1 /P _?=$4' $0
     ${EndIf}
 
     BringToFront
@@ -337,16 +350,7 @@ FunctionEnd
   !include "{{this}}"
 {{/each}}
 
-Var PassiveMode
-Function .onInit
-  ${GetOptions} $CMDLINE "/P" $PassiveMode
-  IfErrors +2 0
-    StrCpy $PassiveMode 1
-
-  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
-    !insertmacro MUI_LANGDLL_DISPLAY
-  !endif
-
+!macro SetContext
   !if "${INSTALLMODE}" == "currentUser"
     SetShellVarContext current
   !else if "${INSTALLMODE}" == "perMachine"
@@ -362,6 +366,19 @@ Function .onInit
       SetRegView 32
     !endif
   ${EndIf}
+!macroend
+
+Var PassiveMode
+Function .onInit
+  ${GetOptions} $CMDLINE "/P" $PassiveMode
+  IfErrors +2 0
+    StrCpy $PassiveMode 1
+
+  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
+    !insertmacro MUI_LANGDLL_DISPLAY
+  !endif
+
+  !insertmacro SetContext
 
   ${If} $INSTDIR == ""
     ; Set default install location
@@ -439,18 +456,18 @@ Section WebView2
   !endif
 
   !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
-    CreateDirectory "$INSTDIR\redist"
-    File "/oname=$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
+    Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+    File "/oname=$TEMP\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
     DetailPrint "$(installingWebview2)"
-    StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe"
+    StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     Goto install_webview2
   !endif
 
   !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
-    CreateDirectory "$INSTDIR\redist"
-    File "/oname=$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
+    Delete "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+    File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
     DetailPrint "$(installingWebview2)"
-    StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+    StrCpy $6 "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
     Goto install_webview2
   !endif
 
@@ -588,15 +605,7 @@ Function .onInstSuccess
 FunctionEnd
 
 Function un.onInit
-  ${If} ${RunningX64}
-    !if "${ARCH}" == "x64"
-      SetRegView 64
-    !else if "${ARCH}" == "arm64"
-      SetRegView 64
-    !else
-      SetRegView 32
-    !endif
-  ${EndIf}
+  !insertmacro SetContext
 
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_UNINIT

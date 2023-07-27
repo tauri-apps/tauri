@@ -17,8 +17,8 @@
     callback,
     once
   ) {
-    var identifier = uid()
-    var prop = `_${identifier}`
+    const identifier = uid()
+    const prop = `_${identifier}`
 
     Object.defineProperty(window, prop, {
       value: (result) => {
@@ -50,11 +50,11 @@
 
   window.__TAURI_INVOKE__ = function invoke(cmd, args = {}) {
     return new Promise(function (resolve, reject) {
-      var callback = window.__TAURI__.transformCallback(function (r) {
+      const callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r)
         delete window[`_${error}`]
       }, true)
-      var error = window.__TAURI__.transformCallback(function (e) {
+      const error = window.__TAURI__.transformCallback(function (e) {
         reject(e)
         delete window[`_${callback}`]
       }, true)
@@ -91,13 +91,14 @@
     document.querySelector('body').addEventListener(
       'click',
       function (e) {
-        var target = e.target
+        let target = e.target
+        const baseTarget = document.querySelector('head base')?.target
         while (target != null) {
           if (target.matches('a')) {
             if (
               target.href &&
               (['http://', 'https://', 'mailto:', 'tel:'].some(v => target.href.startsWith(v))) &&
-              target.target === '_blank'
+              (target.target === '_blank' || (!target.target &&  baseTarget === "_blank"))
             ) {
               window.__TAURI_INVOKE__('tauri', {
                 __tauriModule: 'Shell',
@@ -210,7 +211,7 @@
   }
 
   window.Notification = function (title, options) {
-    var opts = options || {}
+    const opts = options || {}
     sendNotification(
       Object.assign(opts, {
         title: title

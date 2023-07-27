@@ -198,13 +198,12 @@ impl Cmd {
       dir,
     )?;
     dir::read_dir_with_options(
-      &resolved_path,
+      resolved_path,
       recursive,
       dir::ReadDirOptions {
         scope: Some(&context.window.state::<Scopes>().fs),
       },
     )
-    .with_context(|| format!("path: {}", resolved_path.display()))
     .map_err(Into::into)
   }
 

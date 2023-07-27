@@ -1214,6 +1214,7 @@ impl<R: Runtime> Builder<R> {
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
+  /// Additionally, [`state`](crate::Manager#method.state) can be used to retrieve the value manually.
   ///
   /// # Panics
   ///
@@ -1461,6 +1462,15 @@ impl<R: Runtime> Builder<R> {
   ///
   /// * `uri_scheme` The URI scheme to register, such as `example`.
   /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// tauri::Builder::default()
+  ///   .register_uri_scheme_protocol("myscheme", |app, req| {
+  ///     tauri::http::ResponseBuilder::new().body(Vec::new())
+  ///   });
+  /// ```
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,

@@ -3045,7 +3045,7 @@ fn on_close_requested<'a, T: UserEvent>(
 }
 
 fn on_window_close(window_id: WebviewId, windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
-  if let Some(mut window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
+  if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }
 }

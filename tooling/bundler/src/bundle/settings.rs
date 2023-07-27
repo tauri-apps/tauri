@@ -93,6 +93,26 @@ impl PackageType {
   pub fn all() -> &'static [PackageType] {
     ALL_PACKAGE_TYPES
   }
+
+  /// Gets a number representing priority which used to sort package types
+  /// in an order that guarantees that if a certain package type
+  /// depends on another (like Dmg depending on MacOsBundle), the dependency
+  /// will be built first
+  ///
+  /// The lower the number, the higher the priority
+  pub fn priority(&self) -> u32 {
+    match self {
+      PackageType::MacOsBundle => 0,
+      PackageType::IosBundle => 0,
+      PackageType::WindowsMsi => 0,
+      PackageType::Nsis => 0,
+      PackageType::Deb => 0,
+      PackageType::Rpm => 0,
+      PackageType::AppImage => 0,
+      PackageType::Dmg => 1,
+      PackageType::Updater => 2,
+    }
+  }
 }
 
 const ALL_PACKAGE_TYPES: &[PackageType] = &[
@@ -362,6 +382,12 @@ pub struct BundleSettings {
   ///
   /// supports glob patterns.
   pub resources: Option<Vec<String>>,
+  /// The app's resources to bundle. Takes precedence over `Self::resources` when specified.
+  ///
+  /// Maps each resource path to its target directory in the bundle resources directory.
+  ///
+  /// Supports glob patterns.
+  pub resources_map: Option<HashMap<String, String>>,
   /// the app's copyright.
   pub copyright: Option<String>,
   /// the app's category.
@@ -712,9 +738,14 @@ impl Settings {
   /// Returns an iterator over the resource files to be included in this
   /// bundle.
   pub fn resource_files(&self) -> ResourcePaths<'_> {
-    match self.bundle_settings.resources {
-      Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
-      None => ResourcePaths::new(&[], true),
+    match (
+      &self.bundle_settings.resources,
+      &self.bundle_settings.resources_map,
+    ) {
+      (Some(paths), None) => ResourcePaths::new(paths.as_slice(), true),
+      (None, Some(map)) => ResourcePaths::from_map(map, true),
+      (Some(_), Some(_)) => panic!("cannot use both `resources` and `resources_map`"),
+      (None, None) => ResourcePaths::new(&[], true),
     }
   }
 
@@ -745,10 +776,10 @@ impl Settings {
 
   /// Copies resources to a path.
   pub fn copy_resources(&self, path: &Path) -> crate::Result<()> {
-    for src in self.resource_files() {
-      let src = src?;
-      let dest = path.join(tauri_utils::resources::resource_relpath(&src));
-      common::copy_file(&src, dest)?;
+    for resource in self.resource_files().iter() {
+      let resource = resource?;
+      let dest = path.join(resource.target());
+      common::copy_file(resource.path(), dest)?;
     }
     Ok(())
   }

@@ -49,6 +49,9 @@ pub enum Error {
   /// IO error.
   #[error(transparent)]
   Io(#[from] std::io::Error),
+  /// IO error at the given path.
+  #[error("{0}, path {1}")]
+  PathIo(std::io::Error, std::path::PathBuf),
   /// Ignore error.
   #[error("failed to walkdir: {0}")]
   Ignore(#[from] ignore::Error),

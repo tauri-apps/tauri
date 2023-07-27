@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   fs,
   io::{self, Cursor, Read, Seek},
-  path::{self, Path, PathBuf},
+  path::{self, Component, Path, PathBuf},
 };
 
 /// The archive reader.
@@ -84,10 +84,22 @@ impl<'a, R: Read> Entry<'a, R> {
 
   /// Extract this entry into `into_path`.
   /// If it's a directory, the target will be created, if it's a file, it'll be extracted at this location.
+  /// If it's a symlink, it will be created.
   /// Note: You need to include the complete path, with file name and extension.
   pub fn extract(self, into_path: &path::Path) -> crate::api::Result<()> {
     match self {
       Self::Tar(mut entry) => {
+        // validate path
+        let path = entry.path()?;
+        if path.components().any(|c| matches!(c, Component::ParentDir)) {
+          return Err(
+            std::io::Error::new(
+              std::io::ErrorKind::InvalidInput,
+              "cannot extract path with parent dir component",
+            )
+            .into(),
+          );
+        }
         // determine if it's a file or a directory
         if entry.header().entry_type() == tar::EntryType::Directory {
           // this is a directory, lets create it
@@ -100,13 +112,8 @@ impl<'a, R: Read> Entry<'a, R> {
             }
           }
         } else {
-          let mut out_file = fs::File::create(into_path)?;
-          io::copy(&mut entry, &mut out_file)?;
-
-          // make sure we set permissions
-          if let Ok(mode) = entry.header().mode() {
-            set_perms(into_path, Some(&mut out_file), mode, true)?;
-          }
+          // handle files, symlinks, hard links, etc. and set permissions
+          entry.unpack(into_path)?;
         }
       }
       Self::Zip(entry) => {
@@ -268,61 +275,5 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
       }
     }
     Ok(())
-  }
-}
-
-fn set_perms(
-  dst: &Path,
-  f: Option<&mut std::fs::File>,
-  mode: u32,
-  preserve: bool,
-) -> crate::api::Result<()> {
-  _set_perms(dst, f, mode, preserve).map_err(|_| {
-    crate::api::Error::Extract(format!(
-      "failed to set permissions to {mode:o} \
-               for `{}`",
-      dst.display()
-    ))
-  })
-}
-
-#[cfg(unix)]
-fn _set_perms(
-  dst: &Path,
-  f: Option<&mut std::fs::File>,
-  mode: u32,
-  preserve: bool,
-) -> io::Result<()> {
-  use std::os::unix::prelude::*;
-
-  let mode = if preserve { mode } else { mode & 0o777 };
-  let perm = fs::Permissions::from_mode(mode as _);
-  match f {
-    Some(f) => f.set_permissions(perm),
-    None => fs::set_permissions(dst, perm),
-  }
-}
-
-#[cfg(windows)]
-fn _set_perms(
-  dst: &Path,
-  f: Option<&mut std::fs::File>,
-  mode: u32,
-  _preserve: bool,
-) -> io::Result<()> {
-  if mode & 0o200 == 0o200 {
-    return Ok(());
-  }
-  match f {
-    Some(f) => {
-      let mut perm = f.metadata()?.permissions();
-      perm.set_readonly(true);
-      f.set_permissions(perm)
-    }
-    None => {
-      let mut perm = fs::metadata(dst)?.permissions();
-      perm.set_readonly(true);
-      fs::set_permissions(dst, perm)
-    }
   }
 }

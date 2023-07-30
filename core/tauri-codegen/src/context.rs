@@ -575,25 +575,31 @@ fn find_icon<F: Fn(&&String) -> bool>(
 
 #[cfg(feature = "shell-scope")]
 fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStream {
-  let commands = scope
-    .0
-    .iter()
-    .map(|scope| {
-      let sidecar = &scope.sidecar;
+  use quote::TokenStreamExt;
 
-      let name = &scope.name;
-      let name = quote!(#name.into());
+  let commands = scope.0.iter().map(|scope| {
+    let name = &scope.name;
+    let name = quote!(#name.into());
 
-      let command = scope.command.to_string_lossy();
-      let command = quote!(::std::path::PathBuf::from(#command));
+    let command = scope.command.to_string_lossy();
+    let mut code = if scope.sidecar {
+      quote!(#root::scope::ShellScopeAllowedCommandBuilder::sidecar(#command))
+    } else {
+      quote!(#root::scope::ShellScopeAllowedCommandBuilder::new(#command))
+    };
 
-      let args = match &scope.args {
-        ShellAllowedArgs::Flag(true) => quote!(::std::option::Option::None),
-        ShellAllowedArgs::Flag(false) => quote!(::std::option::Option::Some(::std::vec![])),
-        ShellAllowedArgs::List(list) => {
-          let list = list.iter().map(|arg| match arg {
+    match &scope.args {
+      ShellAllowedArgs::Flag(true) => {
+        code.append_all(quote!(.allow_any_args()));
+      }
+      ShellAllowedArgs::Flag(false) => {
+        // args are disallowed by default on ShellScopeAllowedCommandBuilder
+      }
+      ShellAllowedArgs::List(args) => {
+        for arg in args {
+          match arg {
             ShellAllowedArg::Fixed(fixed) => {
-              quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
+              code.append_all(quote!(.arg(#fixed)));
             }
             ShellAllowedArg::Var { validator } => {
               let validator = match regex::Regex::new(validator) {
@@ -610,40 +616,28 @@ fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStr
                 }
               };
 
-              quote!(#root::scope::ShellScopeAllowedArg::Var { validator: #validator })
+              code.append_all(quote!(.validated_arg(#validator)));
             }
             _ => panic!("unknown shell scope arg, unable to prepare"),
-          });
-
-          quote!(::std::option::Option::Some(::std::vec![#(#list),*]))
-        }
-        _ => panic!("unknown shell scope command, unable to prepare"),
-      };
-
-      (
-        quote!(#name),
-        quote!(
-          #root::scope::ShellScopeAllowedCommand {
-            command: #command,
-            args: #args,
-            sidecar: #sidecar,
           }
-        ),
-      )
-    })
-    .collect::<Vec<_>>();
+        }
+      }
+      _ => panic!("unknown shell scope command, unable to prepare"),
+    }
 
-  if commands.is_empty() {
-    quote!(::std::collections::HashMap::new())
-  } else {
-    let insertions = commands
-      .iter()
-      .map(|(name, value)| quote!(hashmap.insert(#name, #value);));
+    (
+      quote!(#name),
+      quote!(
+        #code.build()
+      ),
+    )
+  });
 
-    quote!({
-      let mut hashmap = ::std::collections::HashMap::new();
-      #(#insertions)*
-      hashmap
-    })
-  }
+  let insertions = commands.map(|(name, value)| quote!(hashmap.insert(#name, #value);));
+
+  quote!({
+    let mut hashmap = ::std::collections::HashMap::new();
+    #(#insertions)*
+    hashmap
+  })
 }

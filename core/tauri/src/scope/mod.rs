@@ -15,7 +15,8 @@ pub use fs::{Event as FsScopeEvent, Pattern as GlobPattern, Scope as FsScope};
 #[cfg(shell_scope)]
 pub use shell::{
   ExecuteArgs, Scope as ShellScope, ScopeAllowedArg as ShellScopeAllowedArg,
-  ScopeAllowedCommand as ShellScopeAllowedCommand, ScopeConfig as ShellScopeConfig,
+  ScopeAllowedCommand as ShellScopeAllowedCommand,
+  ScopeAllowedCommandBuilder as ShellScopeAllowedCommandBuilder, ScopeConfig as ShellScopeConfig,
   ScopeError as ShellScopeError,
 };
 use std::path::Path;

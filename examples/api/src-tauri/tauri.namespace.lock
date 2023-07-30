@@ -8,15 +8,37 @@
         "main"
       ],
       "capabilities": [
+        "allow-all-api-commands",
         "allow-ping"
       ]
     }
   ],
   "plugins": {
+    "__app__": {
+      "default_capability": null,
+      "capabilities": [
+        {
+          "id": "allow-all-api-commands",
+          "component": null,
+          "description": "Allows all application defined commands",
+          "features": [
+            "log_operation",
+            "perform_request"
+          ],
+          "scope": {
+            "allowed": [],
+            "blocked": []
+          }
+        }
+      ],
+      "features": [],
+      "scope_type": []
+    },
     "sample": {
       "plugin": "sample",
       "default_capability": {
         "id": "default",
+        "component": null,
         "description": "Default empty capability set",
         "features": [],
         "scope": {
@@ -27,6 +49,7 @@
       "capabilities": [
         {
           "id": "allow-ping",
+          "component": null,
           "description": "Allows the ping command",
           "features": [
             "ping"
@@ -49,6 +72,8 @@
     {
       "member": "main",
       "commands": [
+        "log_operation",
+        "perform_request",
         "plugin:sample|ping"
       ]
     }

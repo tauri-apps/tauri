@@ -27,6 +27,7 @@ tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", br
 [patch.crates-io]
 tauri = { path = "../../../core/tauri" }
 tauri-build = { path = "../../../core/tauri-build" }
+tao = { path = "../../../../tao" }
 
 [patch.'https://github.com/tauri-apps/tauri']
 tauri = { path = "../../../core/tauri" }

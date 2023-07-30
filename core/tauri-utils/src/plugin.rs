@@ -6,7 +6,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  ops::{Deref, DerefMut},
+};
 
 const DEFAULT_CAPABILITY_ID: &str = "default";
 
@@ -34,6 +37,12 @@ pub struct Capability {
   /// The identifier of the capability. Must be unique.
   #[serde(default)]
   pub id: String,
+  /// The component this capability refers to.
+  ///
+  /// Currently the possible values are plugin names.
+  ///
+  /// When no value is set, it referes to the application itself.
+  pub component: Option<String>,
   /// Describes the capability in a human readable format.
   pub description: String,
   /// List of features enabled by this capability.
@@ -48,6 +57,7 @@ pub struct Capability {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
   /// Plugin name.
+  #[serde(skip_serializing_if = "String::is_empty", default)]
   pub plugin: String,
   /// Default capability.
   pub default_capability: Option<Capability>,
@@ -77,7 +87,7 @@ impl Manifest {
       .expect("failed to deserialize default capability");
     assert!(
       capability.id.is_empty(),
-      "default capability cannot have an specific identifier"
+      "default capability cannot have an identifier"
     );
     capability.id = DEFAULT_CAPABILITY_ID.into();
     self.default_capability.replace(capability);
@@ -90,7 +100,7 @@ impl Manifest {
       serde_json::from_str(capability.as_ref()).expect("failed to deserialize default capability");
     assert!(
       !capability.id.is_empty(),
-      "capability must have an specific identifier"
+      "capability must have an identifier"
     );
     self.capabilities.push(capability);
     self
@@ -120,6 +130,20 @@ impl Manifest {
 /// A collection mapping a plugin name to its manifest.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ManifestMap(HashMap<String, Manifest>);
+
+impl Deref for ManifestMap {
+  type Target = HashMap<String, Manifest>;
+
+  fn deref(&self) -> &Self::Target {
+    &self.0
+  }
+}
+
+impl DerefMut for ManifestMap {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.0
+  }
+}
 
 impl From<HashMap<String, Manifest>> for ManifestMap {
   fn from(value: HashMap<String, Manifest>) -> Self {

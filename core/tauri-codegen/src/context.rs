@@ -454,7 +454,7 @@ fn runtime_authority_codegen(root: &TokenStream, lockfile: NamespaceLockFile) ->
     let commands = &r.commands;
     let resolution = quote!(#root::runtime_authority::MemberResolution {
       member: #member.into(),
-      commands: vec![#(#commands)*.into()]
+      commands: vec![#(#commands.into(),)*]
     });
     quote!(authority.add_member(#resolution);)
   });

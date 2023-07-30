@@ -1,0 +1,8 @@
+{
+  "id": "allow-all-api-commands",
+  "description": "Allows all application defined commands",
+  "features": [
+    "log_operation",
+    "perform_request"
+  ]
+}

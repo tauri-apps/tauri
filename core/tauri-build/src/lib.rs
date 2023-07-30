@@ -21,6 +21,7 @@ use serde::Deserialize;
 use tauri_utils::{
   config::Config,
   namespace::{MemberResolution, NamespaceLockFile},
+  plugin::Capability,
   resources::{external_binaries, resource_relpath, ResourcePaths},
 };
 
@@ -233,6 +234,7 @@ impl WindowsAttributes {
 pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,
+  capabilities: Vec<Capability>,
 }
 
 impl Attributes {
@@ -245,6 +247,19 @@ impl Attributes {
   #[must_use]
   pub fn windows_attributes(mut self, windows_attributes: WindowsAttributes) -> Self {
     self.windows_attributes = windows_attributes;
+    self
+  }
+
+  /// Appends a capability JSON. See [`Capability`].
+  #[must_use]
+  pub fn capability(mut self, capability: impl AsRef<str>) -> Self {
+    let capability: Capability =
+      serde_json::from_str(capability.as_ref()).expect("failed to deserialize capability");
+    assert!(
+      !capability.id.is_empty(),
+      "capability must have an identifier"
+    );
+    self.capabilities.push(capability);
     self
   }
 }
@@ -479,7 +494,20 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
   }
 
-  let manifests = plugin::manifests();
+  let mut manifests = plugin::manifests();
+
+  const APP_MANIFEST_KEY: &str = "__app__";
+
+  manifests.insert(
+    APP_MANIFEST_KEY.into(),
+    tauri_utils::plugin::Manifest {
+      plugin: "".into(),
+      default_capability: None,
+      capabilities: attributes.capabilities,
+      features: Vec::new(),
+      scope_type: Vec::new(),
+    },
+  );
   let mut resolution = HashMap::<String, MemberResolution>::new();
 
   for namespace in &config.namespaces {
@@ -496,13 +524,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         let (plugin, capability) = manifests.find_capability(capability).unwrap_or_else(|| {
           panic!("could not find capability specification matching id {capability}")
         });
-        member_resolution.commands.extend(
-          capability
-            .features
-            .into_iter()
-            .map(|f| format!("plugin:{plugin}|{f}"))
-            .collect::<Vec<_>>(),
-        );
+        if plugin == APP_MANIFEST_KEY {
+          member_resolution.commands.extend(capability.features);
+        } else {
+          member_resolution.commands.extend(
+            capability
+              .features
+              .into_iter()
+              .map(|f| format!("plugin:{plugin}|{f}"))
+              .collect::<Vec<_>>(),
+          );
+        }
       }
     }
   }

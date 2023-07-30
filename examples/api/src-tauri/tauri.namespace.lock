@@ -9,11 +9,48 @@
       ],
       "capabilities": [
         "allow-all-api-commands",
-        "allow-ping"
+        "allow-ping",
+        "allow-event-emit",
+        "allow-event-listen"
       ]
     }
   ],
   "plugins": {
+    "event": {
+      "plugin": "event",
+      "default_capability": null,
+      "capabilities": [
+        {
+          "id": "allow-event-emit",
+          "component": null,
+          "description": "Allows the event's emit function",
+          "features": [
+            "emit"
+          ],
+          "scope": {
+            "allowed": [],
+            "blocked": []
+          }
+        },
+        {
+          "id": "allow-event-listen",
+          "component": null,
+          "description": "Allows the event's listen function",
+          "features": [
+            "listen"
+          ],
+          "scope": {
+            "allowed": [],
+            "blocked": []
+          }
+        }
+      ],
+      "features": [
+        "emit",
+        "listen"
+      ],
+      "scope_type": []
+    },
     "__app__": {
       "default_capability": null,
       "capabilities": [
@@ -31,6 +68,13 @@
           }
         }
       ],
+      "features": [],
+      "scope_type": []
+    },
+    "path": {
+      "plugin": "path",
+      "default_capability": null,
+      "capabilities": [],
       "features": [],
       "scope_type": []
     },
@@ -74,7 +118,9 @@
       "commands": [
         "log_operation",
         "perform_request",
-        "plugin:sample|ping"
+        "plugin:sample|ping",
+        "plugin:event|emit",
+        "plugin:event|listen"
       ]
     }
   ]

@@ -20,10 +20,14 @@ pub fn set_manifest(manifest: Manifest) {
     .expect(
       "missing OUT_DIR environment variable.. are you sure you are running this on a build script?",
     )
-    .join("plugin-manifest.json");
+    .join(format!("{}-plugin-manifest.json", manifest.plugin));
   write(&manifest_path, manifest_str).expect("failed to save manifest file");
 
-  println!("cargo:{PLUGIN_METADATA_KEY}={}", manifest_path.display());
+  println!(
+    "cargo:{}_{PLUGIN_METADATA_KEY}={}",
+    manifest.plugin,
+    manifest_path.display()
+  );
 }
 
 pub(crate) fn manifests() -> ManifestMap {
@@ -34,14 +38,12 @@ pub(crate) fn manifests() -> ManifestMap {
     if let Some(_plugin_crate_name) = key
       .strip_prefix("DEP_")
       .and_then(|v| v.strip_suffix(&format!("_{PLUGIN_METADATA_KEY}")))
-      .map(|p| p.to_lowercase())
     {
       let plugin_manifest_path = PathBuf::from(value);
       let plugin_manifest_str =
         read_to_string(&plugin_manifest_path).expect("failed to read plugin manifest");
       let manifest: Manifest =
         serde_json::from_str(&plugin_manifest_str).expect("failed to deserialize plugin manifest");
-
       manifests.insert(manifest.plugin.clone(), manifest);
     }
   }

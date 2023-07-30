@@ -111,6 +111,6 @@
     "id": "main",
     "description": "Main window namespace",
     "members": ["main"],
-    "capabilities": ["allow-all-api-commands", "allow-ping"]
+    "capabilities": ["allow-all-api-commands", "allow-ping", "allow-event-emit", "allow-event-listen"]
   }]
 }

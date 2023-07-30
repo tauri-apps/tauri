@@ -131,6 +131,15 @@ fn main() {
       println!("cargo:ios_library_path={}", lib_path.display());
     }
   }
+
+  tauri_build::plugin::set_manifest(
+    tauri_build::plugin::Manifest::new("event")
+      .features(["emit", "listen"])
+      .capability(include_str!("./capabilities/allow-event-emit.json"))
+      .capability(include_str!("./capabilities/allow-event-listen.json")),
+  );
+
+  tauri_build::plugin::set_manifest(tauri_build::plugin::Manifest::new("path"));
 }
 
 fn add_manifest() {

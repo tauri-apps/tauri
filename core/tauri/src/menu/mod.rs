@@ -89,14 +89,37 @@ pub unsafe trait IsMenuItem<R: Runtime>: sealed::IsMenuItemBase {
 /// # Safety
 ///
 /// This trait is ONLY meant to be implemented internally by the crate.
-pub unsafe trait ContextMenu {}
+pub unsafe trait ContextMenu: sealed::ContextMenuBase + Sync {}
 
 pub(crate) mod sealed {
+  use crate::Position;
+
   pub unsafe trait IsMenuItemBase {
     fn inner(&self) -> &dyn super::muda::IsMenuItem;
   }
 
   pub unsafe trait ContextMenuBase {
     fn inner(&self) -> &dyn super::muda::ContextMenu;
+
+    #[cfg(windows)]
+    fn show_context_menu_for_hwnd(
+      &self,
+      hwnd: isize,
+      position: Option<Position>,
+    ) -> crate::Result<()>;
+
+    #[cfg(linux)]
+    fn show_context_menu_for_gtk_window(
+      &self,
+      w: &gtk::ApplicationWindow,
+      position: Option<Position>,
+    ) -> crate::Result<()>;
+
+    #[cfg(target_os = "macos")]
+    fn show_context_menu_for_nsview(
+      &self,
+      view: cocoa::base::id,
+      position: Option<Position>,
+    ) -> crate::Result<()>;
   }
 }

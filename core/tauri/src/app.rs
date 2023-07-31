@@ -566,23 +566,21 @@ macro_rules! shared_app_impl {
         for window in self.manager.windows_lock().values() {
           let mut window_menu = window.menu_lock();
           if window_menu.as_ref().map(|m| m.0).unwrap_or(true) {
-            // TODO(muda-migration): make it thread-safe
             #[cfg(windows)]
-            {
-              let _ = menu.inner().init_for_hwnd(window.hwnd().unwrap().0);
-            }
-            #[cfg(any(
-              target_os = "linux",
-              target_os = "dragonfly",
-              target_os = "freebsd",
-              target_os = "netbsd",
-              target_os = "openbsd"
-            ))]
-            {
-              let _ = menu
-                .inner()
-                .init_for_gtk_window(&window.gtk_window().unwrap());
-            }
+            let hwnd = window.hwnd()?.0;
+            #[cfg(linux)]
+            let gtk_window = window.gtk_window()?;
+            let menu_c = menu.clone();
+            self.run_on_main_thread(move || {
+              #[cfg(windows)]
+              {
+                let _ = menu_c.inner().init_for_hwnd(hwnd);
+              }
+              #[cfg(linux)]
+              {
+                let _ = menu_c.inner().init_for_gtk_window(&gtk_window);
+              }
+            })?;
             window_menu.replace((true, menu.clone()));
           }
         }
@@ -606,19 +604,20 @@ macro_rules! shared_app_impl {
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
               #[cfg(windows)]
-              {
-                let _ = menu.inner().remove_for_hwnd(window.hwnd()?.0);
-              }
-              #[cfg(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-              ))]
-              {
-                let _ = menu.inner().remove_for_gtk_window(&window.gtk_window()?);
-              }
+              let hwnd = window.hwnd()?.0;
+              #[cfg(linux)]
+              let gtk_window = window.gtk_window()?;
+              let menu_c = menu.clone();
+              self.run_on_main_thread(move || {
+                #[cfg(windows)]
+                {
+                  let _ = menu_c.inner().remove_for_hwnd(hwnd);
+                }
+                #[cfg(linux)]
+                {
+                  let _ = menu_c.inner().remove_for_gtk_window(&gtk_window);
+                }
+              })?;
               *window.menu_lock() = None;
             }
           }
@@ -648,19 +647,20 @@ macro_rules! shared_app_impl {
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
               #[cfg(windows)]
-              {
-                let _ = menu.inner().hide_for_hwnd(window.hwnd()?.0);
-              }
-              #[cfg(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-              ))]
-              {
-                let _ = menu.inner().hide_for_gtk_window(&window.gtk_window()?);
-              }
+              let hwnd = window.hwnd()?.0;
+              #[cfg(linux)]
+              let gtk_window = window.gtk_window()?;
+              let menu_c = menu.clone();
+              self.run_on_main_thread(move || {
+                #[cfg(windows)]
+                {
+                  let _ = menu_c.inner().hide_for_hwnd(hwnd);
+                }
+                #[cfg(linux)]
+                {
+                  let _ = menu_c.inner().hide_for_gtk_window(&gtk_window);
+                }
+              })?;
             }
           }
         }
@@ -677,19 +677,20 @@ macro_rules! shared_app_impl {
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
               #[cfg(windows)]
-              {
-                let _ = menu.inner().show_for_hwnd(window.hwnd()?.0);
-              }
-              #[cfg(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-              ))]
-              {
-                let _ = menu.inner().show_for_gtk_window(&window.gtk_window()?);
-              }
+              let hwnd = window.hwnd()?.0;
+              #[cfg(linux)]
+              let gtk_window = window.gtk_window()?;
+              let menu_c = menu.clone();
+              self.run_on_main_thread(move || {
+                #[cfg(windows)]
+                {
+                  let _ = menu_c.inner().show_for_hwnd(hwnd);
+                }
+                #[cfg(linux)]
+                {
+                  let _ = menu_c.inner().show_for_gtk_window(&gtk_window);
+                }
+              })?;
             }
           }
         }
@@ -730,6 +731,11 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::path::init())?;
     self.handle.plugin(crate::event::init())?;
     Ok(())
+  }
+
+  /// Runs the given closure on the main thread.
+  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+    self.app_handle().run_on_main_thread(f)
   }
 
   /// Gets a handle to the application instance.

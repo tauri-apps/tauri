@@ -4,7 +4,7 @@
 
 //! The Tauri window types and functions.
 
-use tauri_runtime::menu::{ContextMenu, MenuEvent};
+use crate::menu::{ContextMenu, MenuEvent};
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -54,7 +54,7 @@ use std::{
   fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{Arc, Mutex, MutexGuard},
+  sync::{mpsc::channel, Arc, Mutex, MutexGuard},
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
@@ -1087,23 +1087,21 @@ impl<R: Runtime> Window<R> {
 
     self.manager.insert_menu_into_stash(&menu);
 
-    // TODO(muda-migration): make it thread-safe
     #[cfg(windows)]
-    {
-      let _ = menu.inner().init_for_hwnd(self.hwnd().unwrap().0);
-    }
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ))]
-    {
-      let _ = menu
-        .inner()
-        .init_for_gtk_window(&self.gtk_window().unwrap());
-    }
+    let hwnd = self.hwnd()?.0;
+    #[cfg(linux)]
+    let gtk_window = self.gtk_window()?;
+    let menu_c = menu.clone();
+    self.run_on_main_thread(move || {
+      #[cfg(windows)]
+      {
+        let _ = menu_c.inner().init_for_hwnd(hwnd);
+      }
+      #[cfg(linux)]
+      {
+        let _ = menu_c.inner().init_for_gtk_window(&gtk_window);
+      }
+    })?;
 
     self.menu_lock().replace((false, menu.clone()));
 
@@ -1122,19 +1120,20 @@ impl<R: Runtime> Window<R> {
     // remove from the window
     if let Some((_, menu)) = &*current_menu {
       #[cfg(windows)]
-      {
-        let _ = menu.inner().remove_for_hwnd(self.hwnd()?.0);
-      }
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      {
-        let _ = menu.inner().remove_for_gtk_window(&self.gtk_window()?);
-      }
+      let hwnd = self.hwnd()?.0;
+      #[cfg(linux)]
+      let gtk_window = self.gtk_window()?;
+      let menu_c = menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        {
+          let _ = menu_c.inner().remove_for_hwnd(hwnd);
+        }
+        #[cfg(linux)]
+        {
+          let _ = menu_c.inner().remove_for_gtk_window(&gtk_window);
+        }
+      })?;
     }
 
     let prev_menu = current_menu.take().map(|m| m.1);
@@ -1153,19 +1152,20 @@ impl<R: Runtime> Window<R> {
     // remove from the window
     if let Some((_, menu)) = &*self.menu_lock() {
       #[cfg(windows)]
-      {
-        let _ = menu.inner().hide_for_hwnd(self.hwnd()?.0);
-      }
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      {
-        let _ = menu.inner().hide_for_gtk_window(&self.gtk_window()?);
-      }
+      let hwnd = self.hwnd()?.0;
+      #[cfg(linux)]
+      let gtk_window = self.gtk_window()?;
+      let menu_c = menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        {
+          let _ = menu_c.inner().hide_for_hwnd(hwnd);
+        }
+        #[cfg(linux)]
+        {
+          let _ = menu_c.inner().hide_for_gtk_window(&gtk_window);
+        }
+      })?;
     }
 
     Ok(())
@@ -1176,19 +1176,20 @@ impl<R: Runtime> Window<R> {
     // remove from the window
     if let Some((_, menu)) = &*self.menu_lock() {
       #[cfg(windows)]
-      {
-        let _ = menu.inner().show_for_hwnd(self.hwnd()?.0);
-      }
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      {
-        let _ = menu.inner().show_for_gtk_window(&self.gtk_window()?);
-      }
+      let hwnd = self.hwnd()?.0;
+      #[cfg(linux)]
+      let gtk_window = self.gtk_window()?;
+      let menu_c = menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        {
+          let _ = menu_c.inner().show_for_hwnd(hwnd);
+        }
+        #[cfg(linux)]
+        {
+          let _ = menu_c.inner().show_for_gtk_window(&gtk_window);
+        }
+      })?;
     }
 
     Ok(())
@@ -1198,20 +1199,24 @@ impl<R: Runtime> Window<R> {
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     // remove from the window
     if let Some((_, menu)) = &*self.menu_lock() {
+      let (tx, rx) = channel();
       #[cfg(windows)]
-      {
-        return Ok(menu.inner().is_visible_on_hwnd(self.hwnd()?.0));
-      }
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      {
-        return Ok(menu.inner().is_visible_on_gtk_window(&self.gtk_window()?));
-      }
+      let hwnd = self.hwnd()?.0;
+      #[cfg(linux)]
+      let gtk_window = self.gtk_window()?;
+      let menu_c = menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        {
+          let _ = tx.send(menu_c.inner().is_visible_on_hwnd(hwnd));
+        }
+        #[cfg(linux)]
+        {
+          let _ = tx.send(menu_c.inner().is_visible_on_gtk_window(&gtk_window));
+        }
+      })?;
+
+      return Ok(rx.recv().unwrap_or(false));
     }
 
     Ok(false)
@@ -1226,14 +1231,14 @@ impl<R: Runtime> Window<R> {
     menu: &dyn ContextMenu,
     position: Option<P>,
   ) -> crate::Result<()> {
-    let position = position.map(|p| p.into()).map(|p| p.into());
+    let position = position.map(|p| p.into());
 
-    #[cfg(target_os = "windows")]
-    menu.show_context_menu_for_hwnd(self.hwnd()?.0, position);
-    #[cfg(target_os = "linux")]
-    menu.show_context_menu_for_gtk_window(&self.gtk_window()?, position);
+    #[cfg(windows)]
+    menu.show_context_menu_for_hwnd(self.hwnd()?.0, position)?;
+    #[cfg(linux)]
+    menu.show_context_menu_for_gtk_window(&self.gtk_window()?, position)?;
     #[cfg(target_os = "macos")]
-    menu.show_context_menu_for_nsview(self.ns_view()? as _, position);
+    menu.show_context_menu_for_nsview(self.ns_view()? as _, position)?;
 
     Ok(())
   }

@@ -4,7 +4,8 @@
 
 fn main() {
   tauri_build::try_build(
-    tauri_build::Attributes::new().capability(include_str!("./capabilities/allow-commands.json")),
+    tauri_build::Attributes::new()
+      .capability_json(include_str!("./capabilities/allow-commands.json")),
   )
   .expect("failed to run tauri-build");
 

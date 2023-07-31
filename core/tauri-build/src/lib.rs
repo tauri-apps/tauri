@@ -21,7 +21,7 @@ use serde::Deserialize;
 use tauri_utils::{
   config::Config,
   namespace::{MemberResolution, NamespaceLockFile},
-  plugin::Capability,
+  plugin::{Capability, CapabilityOrList},
   resources::{external_binaries, resource_relpath, ResourcePaths},
 };
 
@@ -252,14 +252,31 @@ impl Attributes {
 
   /// Appends a capability JSON. See [`Capability`].
   #[must_use]
-  pub fn capability(mut self, capability: impl AsRef<str>) -> Self {
-    let capability: Capability =
+  pub fn capability_json(self, capability: impl AsRef<str>) -> Self {
+    let capability: CapabilityOrList =
       serde_json::from_str(capability.as_ref()).expect("failed to deserialize capability");
+    match capability {
+      CapabilityOrList::Single(capability) => self.capability(capability),
+      CapabilityOrList::List(l) => self.capabilities(l),
+    }
+  }
+
+  /// Appends a [`Capability`].
+  #[must_use]
+  pub fn capability(mut self, capability: Capability) -> Self {
     assert!(
       !capability.id.is_empty(),
       "capability must have an identifier"
     );
     self.capabilities.push(capability);
+    self
+  }
+
+  /// Appends the given list of capabilities. See [`Self::capability`].
+  pub fn capabilities<I: IntoIterator<Item = Capability>>(mut self, capabilities: I) -> Self {
+    for capability in capabilities {
+      self = self.capability(capability);
+    }
     self
   }
 }

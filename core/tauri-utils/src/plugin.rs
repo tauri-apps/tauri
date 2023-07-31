@@ -53,10 +53,13 @@ pub struct Capability {
   pub scope: CapabilityScope,
 }
 
+/// An enum used to do serde operations with a list or a single capability.
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
-enum CapabilityOrList {
+pub enum CapabilityOrList {
+  /// A single capability.
   Single(Capability),
+  /// A list of capabilities.
   List(Vec<Capability>),
 }
 

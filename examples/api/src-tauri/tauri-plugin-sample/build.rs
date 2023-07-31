@@ -20,8 +20,8 @@ fn main() {
 
   set_manifest(
     Manifest::new("sample")
-      .default_capability(include_str!("capabilities/default.json"))
-      .capability(include_str!("capabilities/ping.json"))
+      .default_capability_json(include_str!("capabilities/default.json"))
+      .capability_json(include_str!("capabilities/ping.json"))
       .feature("ping")
       .scope_type(ScopeType::String),
   );

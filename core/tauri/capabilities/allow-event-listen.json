@@ -1,5 +1,0 @@
-{
-  "id": "allow-event-listen",
-  "description": "Allows the event's listen function",
-  "features": ["listen"]
-}

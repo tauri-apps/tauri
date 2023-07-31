@@ -1,5 +1,0 @@
-{
-  "id": "allow-event-emit",
-  "description": "Allows the event's emit function",
-  "features": ["emit"]
-}

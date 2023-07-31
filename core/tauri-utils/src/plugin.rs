@@ -53,6 +53,13 @@ pub struct Capability {
   pub scope: CapabilityScope,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+enum CapabilityOrList {
+  Single(Capability),
+  List(Vec<Capability>),
+}
+
 /// Plugin manifest.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
@@ -81,8 +88,8 @@ impl Manifest {
     }
   }
 
-  /// Sets the plugin's default capability set.
-  pub fn default_capability(mut self, default_capability: impl AsRef<str>) -> Self {
+  /// Sets the plugin's default capability set from a JSON string.
+  pub fn default_capability_json(mut self, default_capability: impl AsRef<str>) -> Self {
     let mut capability: Capability = serde_json::from_str(default_capability.as_ref())
       .expect("failed to deserialize default capability");
     assert!(
@@ -94,15 +101,31 @@ impl Manifest {
     self
   }
 
-  /// Appends a capability JSON. See [`Capability`].
-  pub fn capability(mut self, capability: impl AsRef<str>) -> Self {
-    let capability: Capability =
+  /// Appends a capability from a JSON string. The JSON can also include an array of capabilities instead of a single one. See [`Capability`].
+  pub fn capability_json(self, capability: impl AsRef<str>) -> Self {
+    let capability =
       serde_json::from_str(capability.as_ref()).expect("failed to deserialize default capability");
+    match capability {
+      CapabilityOrList::Single(cap) => self.capability(cap),
+      CapabilityOrList::List(l) => self.capabilities(l),
+    }
+  }
+
+  /// Appends a [`Capability`].
+  pub fn capability(mut self, capability: Capability) -> Self {
     assert!(
       !capability.id.is_empty(),
       "capability must have an identifier"
     );
     self.capabilities.push(capability);
+    self
+  }
+
+  /// Appends the given list of capabilities. See [`Self::capability`].
+  pub fn capabilities<I: IntoIterator<Item = Capability>>(mut self, capabilities: I) -> Self {
+    for capability in capabilities {
+      self = self.capability(capability);
+    }
     self
   }
 

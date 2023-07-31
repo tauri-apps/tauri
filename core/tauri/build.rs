@@ -135,8 +135,7 @@ fn main() {
   tauri_build::plugin::set_manifest(
     tauri_build::plugin::Manifest::new("event")
       .features(["emit", "listen"])
-      .capability(include_str!("./capabilities/allow-event-emit.json"))
-      .capability(include_str!("./capabilities/allow-event-listen.json")),
+      .capability_json(include_str!("./capabilities/event.json")),
   );
 
   tauri_build::plugin::set_manifest(tauri_build::plugin::Manifest::new("path"));

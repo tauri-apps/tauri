@@ -8,12 +8,12 @@ use crate::{menu::run_main_thread, runtime::menu as muda, AppHandle, Runtime};
 ///
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
-pub struct MenuItem<R: Runtime> {
-  pub(crate) inner: muda::MenuItem,
+pub struct CheckMenuItem<R: Runtime> {
+  pub(crate) inner: muda::CheckMenuItem,
   pub(crate) app_handle: AppHandle<R>,
 }
 
-impl<R: Runtime> Clone for MenuItem<R> {
+impl<R: Runtime> Clone for CheckMenuItem<R> {
   fn clone(&self) -> Self {
     Self {
       inner: self.inner.clone(),
@@ -25,18 +25,18 @@ impl<R: Runtime> Clone for MenuItem<R> {
 /// # Safety
 ///
 /// We make sure it always runs on the main thread.
-unsafe impl<R: Runtime> Sync for MenuItem<R> {}
-unsafe impl<R: Runtime> Send for MenuItem<R> {}
+unsafe impl<R: Runtime> Sync for CheckMenuItem<R> {}
+unsafe impl<R: Runtime> Send for CheckMenuItem<R> {}
 
-unsafe impl<R: Runtime> super::sealed::IsMenuItemBase for MenuItem<R> {
+unsafe impl<R: Runtime> super::sealed::IsMenuItemBase for CheckMenuItem<R> {
   fn inner(&self) -> &dyn muda::IsMenuItem {
     &self.inner
   }
 }
 
-unsafe impl<R: Runtime> super::IsMenuItem<R> for MenuItem<R> {
+unsafe impl<R: Runtime> super::IsMenuItem<R> for CheckMenuItem<R> {
   fn kind(&self) -> super::MenuItemKind<R> {
-    super::MenuItemKind::MenuItem(self.clone())
+    super::MenuItemKind::Check(self.clone())
   }
 
   fn id(&self) -> crate::Result<u32> {
@@ -44,7 +44,7 @@ unsafe impl<R: Runtime> super::IsMenuItem<R> for MenuItem<R> {
   }
 }
 
-impl<R: Runtime> MenuItem<R> {
+impl<R: Runtime> CheckMenuItem<R> {
   /// Create a new menu item.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
@@ -53,12 +53,14 @@ impl<R: Runtime> MenuItem<R> {
     app_handle: &AppHandle<R>,
     text: S,
     enabled: bool,
+    chceked: bool,
     acccelerator: Option<S>,
   ) -> Self {
     Self {
-      inner: muda::MenuItem::new(
+      inner: muda::CheckMenuItem::new(
         text,
         enabled,
+        chceked,
         acccelerator.and_then(|s| s.as_ref().parse().ok()),
       ),
       app_handle: app_handle.clone(),
@@ -97,5 +99,15 @@ impl<R: Runtime> MenuItem<R> {
   pub fn set_accelerator<S: AsRef<str>>(&self, acccelerator: Option<S>) -> crate::Result<()> {
     let accel = acccelerator.and_then(|s| s.as_ref().parse().ok());
     run_main_thread!(self, |self_: Self| self_.inner.set_accelerator(accel))?.map_err(Into::into)
+  }
+
+  /// Get whether this check menu item is checked or not.
+  pub fn is_checked(&self) -> crate::Result<bool> {
+    run_main_thread!(self, |self_: Self| self_.inner.is_checked())
+  }
+
+  /// Check or Uncheck this check menu item.
+  pub fn set_checked(&self, checked: bool) -> crate::Result<()> {
+    run_main_thread!(self, |self_: Self| self_.inner.set_checked(checked))
   }
 }

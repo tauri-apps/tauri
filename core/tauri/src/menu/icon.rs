@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::run_main_thread, runtime::menu as muda, AppHandle, Runtime};
+use super::NativeIcon;
+use crate::{menu::run_main_thread, runtime::menu as muda, AppHandle, Icon, Runtime};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
-pub struct MenuItem<R: Runtime> {
-  pub(crate) inner: muda::MenuItem,
+pub struct IconMenuItem<R: Runtime> {
+  pub(crate) inner: muda::IconMenuItem,
   pub(crate) app_handle: AppHandle<R>,
 }
 
-impl<R: Runtime> Clone for MenuItem<R> {
+impl<R: Runtime> Clone for IconMenuItem<R> {
   fn clone(&self) -> Self {
     Self {
       inner: self.inner.clone(),
@@ -25,18 +26,18 @@ impl<R: Runtime> Clone for MenuItem<R> {
 /// # Safety
 ///
 /// We make sure it always runs on the main thread.
-unsafe impl<R: Runtime> Sync for MenuItem<R> {}
-unsafe impl<R: Runtime> Send for MenuItem<R> {}
+unsafe impl<R: Runtime> Sync for IconMenuItem<R> {}
+unsafe impl<R: Runtime> Send for IconMenuItem<R> {}
 
-unsafe impl<R: Runtime> super::sealed::IsMenuItemBase for MenuItem<R> {
+unsafe impl<R: Runtime> super::sealed::IsMenuItemBase for IconMenuItem<R> {
   fn inner(&self) -> &dyn muda::IsMenuItem {
     &self.inner
   }
 }
 
-unsafe impl<R: Runtime> super::IsMenuItem<R> for MenuItem<R> {
+unsafe impl<R: Runtime> super::IsMenuItem<R> for IconMenuItem<R> {
   fn kind(&self) -> super::MenuItemKind<R> {
-    super::MenuItemKind::MenuItem(self.clone())
+    super::MenuItemKind::Icon(self.clone())
   }
 
   fn id(&self) -> crate::Result<u32> {
@@ -44,7 +45,7 @@ unsafe impl<R: Runtime> super::IsMenuItem<R> for MenuItem<R> {
   }
 }
 
-impl<R: Runtime> MenuItem<R> {
+impl<R: Runtime> IconMenuItem<R> {
   /// Create a new menu item.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
@@ -53,12 +54,41 @@ impl<R: Runtime> MenuItem<R> {
     app_handle: &AppHandle<R>,
     text: S,
     enabled: bool,
+    icon: Option<Icon>,
     acccelerator: Option<S>,
   ) -> Self {
     Self {
-      inner: muda::MenuItem::new(
+      inner: muda::IconMenuItem::new(
         text,
         enabled,
+        icon
+          .and_then(|i| -> Option<crate::runtime::Icon> { i.try_into().ok() })
+          .and_then(|i| i.try_into().ok()),
+        acccelerator.and_then(|s| s.as_ref().parse().ok()),
+      ),
+      app_handle: app_handle.clone(),
+    }
+  }
+
+  /// Create a new icon menu item but with a native icon.
+  ///
+  /// See [`IconMenuItem::new`] for more info.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux**: Unsupported.
+  pub fn with_native_icon<S: AsRef<str>>(
+    app_handle: &AppHandle<R>,
+    text: S,
+    enabled: bool,
+    native_icon: Option<NativeIcon>,
+    acccelerator: Option<S>,
+  ) -> Self {
+    Self {
+      inner: muda::IconMenuItem::with_native_icon(
+        text,
+        enabled,
+        native_icon,
         acccelerator.and_then(|s| s.as_ref().parse().ok()),
       ),
       app_handle: app_handle.clone(),
@@ -97,5 +127,25 @@ impl<R: Runtime> MenuItem<R> {
   pub fn set_accelerator<S: AsRef<str>>(&self, acccelerator: Option<S>) -> crate::Result<()> {
     let accel = acccelerator.and_then(|s| s.as_ref().parse().ok());
     run_main_thread!(self, |self_: Self| self_.inner.set_accelerator(accel))?.map_err(Into::into)
+  }
+
+  /// Change this menu item icon or remove it.
+  pub fn set_icon(&self, icon: Option<Icon>) -> crate::Result<()> {
+    run_main_thread!(self, |self_: Self| self_.inner.set_icon(
+      icon
+        .and_then(|i| -> Option<crate::runtime::Icon> { i.try_into().ok() })
+        .and_then(|i| i.try_into().ok())
+    ))
+  }
+
+  /// Change this menu item icon to a native image or remove it.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux**: Unsupported.
+  pub fn set_native_icon(&mut self, _icon: Option<NativeIcon>) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    return run_main_thread!(self, |self_: Self| self_.inner.set_native_icon(_icon));
+    Ok(())
   }
 }

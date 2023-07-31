@@ -176,21 +176,23 @@ impl From<HashMap<String, Manifest>> for ManifestMap {
 
 impl ManifestMap {
   /// Finds the capability with the given identifier.
-  pub fn find_capability(&self, id: &str) -> Option<(String, Capability)> {
+  pub fn find_capability(&self, id: &str) -> Vec<(String, Capability)> {
+    let mut capabilities = Vec::new();
+
     for (plugin, manifest) in &self.0 {
       if id == format!("{DEFAULT_CAPABILITY_ID}-{plugin}") {
-        return Some((
+        capabilities.push((
           plugin.clone(),
           manifest.default_capability.clone().unwrap_or_default(),
         ));
       }
       for capability in &manifest.capabilities {
         if capability.id == id {
-          return Some((plugin.clone(), capability.clone()));
+          capabilities.push((plugin.clone(), capability.clone()));
         }
       }
     }
 
-    None
+    capabilities
   }
 }

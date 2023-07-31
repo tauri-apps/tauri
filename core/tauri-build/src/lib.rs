@@ -521,19 +521,47 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           });
 
       for capability in &namespace.capabilities {
-        let (plugin, capability) = manifests.find_capability(capability).unwrap_or_else(|| {
+        let (target_plugin, capability_id) = capability
+          .split_once(':')
+          .map(|(plugin, id)| (Some(plugin), id))
+          .unwrap_or_else(|| (None, capability.as_str()));
+        let capabilities = manifests.find_capability(capability_id);
+
+        if capabilities.is_empty() {
           panic!("could not find capability specification matching id {capability}")
-        });
-        if plugin == APP_MANIFEST_KEY {
-          member_resolution.commands.extend(capability.features);
         } else {
-          member_resolution.commands.extend(
-            capability
-              .features
+          let (plugin, capability) = if let Some(target) = target_plugin {
+            capabilities
               .into_iter()
-              .map(|f| format!("plugin:{plugin}|{f}"))
-              .collect::<Vec<_>>(),
-          );
+              .find(|(p, _)| p == target)
+              .unwrap_or_else(|| {
+                panic!("failed to find capability matching id {capability_id} for plugin {target}")
+              })
+          } else if capabilities.len() > 1 {
+            panic!(
+              "found a conflict on capability id {capability}, please use one of the [{}] prefixes",
+              capabilities
+                .iter()
+                .map(|(p, _)| format!("'{p}:'"))
+                .collect::<Vec<String>>()
+                .join(", ")
+            );
+          } else {
+            // already checked that the capabilities aren't empty
+            capabilities.into_iter().next().unwrap()
+          };
+
+          if plugin == APP_MANIFEST_KEY {
+            member_resolution.commands.extend(capability.features);
+          } else {
+            member_resolution.commands.extend(
+              capability
+                .features
+                .into_iter()
+                .map(|f| format!("plugin:{plugin}|{f}"))
+                .collect::<Vec<_>>(),
+            );
+          }
         }
       }
     }

@@ -350,14 +350,11 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       }
     }
 
-    let out_path = out_dir.join("Info.plist");
     info_plist
-      .to_file_xml(&out_path)
+      .to_file_xml(&out_dir.join("Info.plist"))
       .expect("failed to write Info.plist");
-
-    let info_plist_path = out_path.display().to_string();
     quote!({
-      tauri::embed_plist::embed_info_plist!(#info_plist_path);
+      tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));
     })
   } else {
     quote!(())
@@ -497,9 +494,10 @@ fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, Embe
     error,
   })?;
 
-  let out_path = out_path.display().to_string();
-
-  let icon = quote!(Some(include_bytes!(#out_path).to_vec()));
+  let icon_path = path.file_name().unwrap().to_str().unwrap().to_string();
+  let icon = quote!(::std::option::Option::Some(
+    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_path)).to_vec()
+  ));
   Ok(icon)
 }
 
@@ -536,9 +534,14 @@ fn png_icon<P: AsRef<Path>>(
     error,
   })?;
 
-  let out_path = out_path.display().to_string();
-
-  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  let icon_path = path.file_name().unwrap().to_str().unwrap().to_string();
+  let icon = quote!(Some(
+    #root::Icon::Rgba {
+      rgba: include_bytes!(#icon_path).to_vec(),
+      width: #width,
+      height: #height,
+    }
+  ));
   Ok(icon)
 }
 

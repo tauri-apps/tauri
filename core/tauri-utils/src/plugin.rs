@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use std::{
-  collections::HashMap,
+  collections::BTreeMap,
   ops::{Deref, DerefMut},
 };
 
@@ -155,10 +155,10 @@ impl Manifest {
 
 /// A collection mapping a plugin name to its manifest.
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct ManifestMap(HashMap<String, Manifest>);
+pub struct ManifestMap(BTreeMap<String, Manifest>);
 
 impl Deref for ManifestMap {
-  type Target = HashMap<String, Manifest>;
+  type Target = BTreeMap<String, Manifest>;
 
   fn deref(&self) -> &Self::Target {
     &self.0
@@ -171,8 +171,8 @@ impl DerefMut for ManifestMap {
   }
 }
 
-impl From<HashMap<String, Manifest>> for ManifestMap {
-  fn from(value: HashMap<String, Manifest>) -> Self {
+impl From<BTreeMap<String, Manifest>> for ManifestMap {
+  fn from(value: BTreeMap<String, Manifest>) -> Self {
     Self(value)
   }
 }

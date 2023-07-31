@@ -6,7 +6,7 @@ use tauri_utils::plugin::Capability;
 pub use tauri_utils::plugin::{Manifest, ManifestMap, ScopeType};
 
 use std::{
-  collections::HashMap,
+  collections::BTreeMap,
   env::{var_os, vars_os},
   fs::{read_to_string, write},
   path::PathBuf,
@@ -49,7 +49,7 @@ pub fn set_manifest(mut manifest: Manifest) {
 }
 
 pub(crate) fn manifests() -> ManifestMap {
-  let mut manifests = HashMap::new();
+  let mut manifests = BTreeMap::new();
 
   for (key, value) in vars_os() {
     let key = key.to_string_lossy();

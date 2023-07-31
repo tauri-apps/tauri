@@ -16,6 +16,26 @@
     }
   ],
   "plugins": {
+    "__app__": {
+      "default_capability": null,
+      "capabilities": [
+        {
+          "id": "allow-all-api-commands",
+          "component": null,
+          "description": "Allows all application defined commands",
+          "features": [
+            "log_operation",
+            "perform_request"
+          ],
+          "scope": {
+            "allowed": [],
+            "blocked": []
+          }
+        }
+      ],
+      "features": [],
+      "scope_type": []
+    },
     "event": {
       "plugin": "event",
       "default_capability": null,
@@ -49,26 +69,6 @@
         "emit",
         "listen"
       ],
-      "scope_type": []
-    },
-    "__app__": {
-      "default_capability": null,
-      "capabilities": [
-        {
-          "id": "allow-all-api-commands",
-          "component": null,
-          "description": "Allows all application defined commands",
-          "features": [
-            "log_operation",
-            "perform_request"
-          ],
-          "scope": {
-            "allowed": [],
-            "blocked": []
-          }
-        }
-      ],
-      "features": [],
       "scope_type": []
     },
     "path": {

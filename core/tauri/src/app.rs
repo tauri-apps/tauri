@@ -589,7 +589,7 @@ macro_rules! shared_app_impl {
 
         // set it app-wide for macos
         #[cfg(target_os = "macos")]
-        menu.init_for_nsapp();
+        menu.inner().init_for_nsapp();
 
         Ok(prev_menu)
       }
@@ -625,7 +625,7 @@ macro_rules! shared_app_impl {
 
           // remove app-wide for macos
           #[cfg(target_os = "macos")]
-          menu.remove_for_nsapp();
+          menu.inner().remove_for_nsapp();
         }
 
         let prev_menu = current_menu.take();
@@ -1382,7 +1382,7 @@ impl<R: Runtime> Builder<R> {
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.menu_with.is_none() && self.enable_macos_default_menu {
-      self.menu = Some(crate::menu::default(context.config()));
+      // TODO self.menu = Some(crate::menu::default(context.config()));
     }
 
     let menu = match (self.menu, self.menu_with) {
@@ -1455,7 +1455,7 @@ impl<R: Runtime> Builder<R> {
 
     #[cfg(target_os = "macos")]
     if let Some(menu) = menu {
-      menu.init_for_nsapp();
+      menu.inner().init_for_nsapp();
     }
 
     // setup menu event handler

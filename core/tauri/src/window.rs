@@ -1233,7 +1233,7 @@ impl<R: Runtime> Window<R> {
     #[cfg(target_os = "linux")]
     menu.show_context_menu_for_gtk_window(&self.gtk_window()?, position);
     #[cfg(target_os = "macos")]
-    menu.show_context_menu_for_nsview(self.ns_view() as _, position);
+    menu.show_context_menu_for_nsview(self.ns_view()? as _, position);
 
     Ok(())
   }
@@ -1446,6 +1446,23 @@ impl<R: Runtime> Window<R> {
       .and_then(|handle| {
         if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
           Ok(h.ns_window)
+        } else {
+          Err(crate::Error::InvalidWindowHandle)
+        }
+      })
+  }
+
+  /// Returns the pointer to the content view of this window.
+  #[cfg(target_os = "macos")]
+  pub fn ns_view(&self) -> crate::Result<*mut std::ffi::c_void> {
+    self
+      .window
+      .dispatcher
+      .raw_window_handle()
+      .map_err(Into::into)
+      .and_then(|handle| {
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
+          Ok(h.ns_view)
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }

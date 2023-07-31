@@ -10,12 +10,47 @@
       "capabilities": [
         "allow-all-api-commands",
         "allow-ping",
-        "allow-event-emit",
-        "allow-event-listen"
+        "allow-emit",
+        "allow-listen"
       ]
     }
   ],
   "plugins": {
+    "event": {
+      "plugin": "event",
+      "default_capability": null,
+      "capabilities": [
+        {
+          "id": "allow-emit",
+          "component": null,
+          "description": "Allows the emit functionality",
+          "features": [
+            "emit"
+          ],
+          "scope": {
+            "allowed": [],
+            "blocked": []
+          }
+        },
+        {
+          "id": "allow-listen",
+          "component": null,
+          "description": "Allows the listen functionality",
+          "features": [
+            "listen"
+          ],
+          "scope": {
+            "allowed": [],
+            "blocked": []
+          }
+        }
+      ],
+      "features": [
+        "emit",
+        "listen"
+      ],
+      "scope_type": []
+    },
     "__app__": {
       "default_capability": null,
       "capabilities": [
@@ -34,41 +69,6 @@
         }
       ],
       "features": [],
-      "scope_type": []
-    },
-    "event": {
-      "plugin": "event",
-      "default_capability": null,
-      "capabilities": [
-        {
-          "id": "allow-event-emit",
-          "component": null,
-          "description": "Allows the event's emit function",
-          "features": [
-            "emit"
-          ],
-          "scope": {
-            "allowed": [],
-            "blocked": []
-          }
-        },
-        {
-          "id": "allow-event-listen",
-          "component": null,
-          "description": "Allows the event's listen function",
-          "features": [
-            "listen"
-          ],
-          "scope": {
-            "allowed": [],
-            "blocked": []
-          }
-        }
-      ],
-      "features": [
-        "emit",
-        "listen"
-      ],
       "scope_type": []
     },
     "path": {

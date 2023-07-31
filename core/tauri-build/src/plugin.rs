@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use tauri_utils::plugin::Capability;
 pub use tauri_utils::plugin::{Manifest, ManifestMap, ScopeType};
 
 use std::{
@@ -13,7 +14,24 @@ use std::{
 
 const PLUGIN_METADATA_KEY: &str = "PLUGIN_MANIFEST_PATH";
 
-pub fn set_manifest(manifest: Manifest) {
+pub fn set_manifest(mut manifest: Manifest) {
+  for feature in &manifest.features {
+    let feature_capability_id = format!("allow-{feature}");
+    if !manifest
+      .capabilities
+      .iter()
+      .any(|c| c.id == feature_capability_id)
+    {
+      manifest.capabilities.push(Capability {
+        id: feature_capability_id,
+        component: None,
+        description: format!("Allows the {feature} functionality"),
+        features: vec![feature.clone()],
+        scope: Default::default(),
+      });
+    }
+  }
+
   let manifest_str = serde_json::to_string(&manifest).expect("failed to serialize plugin manifest");
   let manifest_path = var_os("OUT_DIR")
     .map(PathBuf::from)

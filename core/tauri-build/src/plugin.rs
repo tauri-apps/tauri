@@ -25,7 +25,7 @@ pub fn set_manifest(mut manifest: Manifest) {
       manifest.capabilities.push(Capability {
         id: feature_capability_id,
         component: None,
-        description: format!("Allows the {feature} functionality"),
+        description: Some(format!("Allows the {feature} functionality")),
         features: vec![feature.clone()],
         scope: Default::default(),
       });

@@ -44,7 +44,7 @@ pub struct Capability {
   /// When no value is set, it referes to the application itself.
   pub component: Option<String>,
   /// Describes the capability in a human readable format.
-  pub description: String,
+  pub description: Option<String>,
   /// List of features enabled by this capability.
   #[serde(default)]
   pub features: Vec<String>,

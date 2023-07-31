@@ -1932,7 +1932,7 @@ pub struct Namespace {
   /// It is recommended to use `drop-` or `allow-` prefixes to ensure the rule can be easily categorized.
   pub id: String,
   /// Describes the namespace in a human readable format.
-  pub description: String,
+  pub description: Option<String>,
   /// The windows that can use the configuration of this namespace.
   pub members: Vec<String>,
   /// List of capabilities attached to this namespace.
@@ -2670,7 +2670,7 @@ mod build {
   impl ToTokens for Namespace {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let id = str_lit(&self.id);
-      let description = str_lit(&self.description);
+      let description = opt_str_lit(self.description.as_ref());
       let members = vec_lit(&self.members, str_lit);
       let capabilities = vec_lit(&self.capabilities, str_lit);
 

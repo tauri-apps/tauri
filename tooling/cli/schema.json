@@ -2272,7 +2272,6 @@
       "type": "object",
       "required": [
         "capabilities",
-        "description",
         "id",
         "members"
       ],
@@ -2283,7 +2282,10 @@
         },
         "description": {
           "description": "Describes the namespace in a human readable format.",
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "members": {
           "description": "The windows that can use the configuration of this namespace.",

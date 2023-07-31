@@ -89,4 +89,13 @@ pub enum Error {
   #[cfg(target_os = "android")]
   #[error("jni error: {0}")]
   Jni(#[from] jni::errors::Error),
+  /// Failed to receive message .
+  #[error("failed to receive message")]
+  FailedToReceiveMessage,
+  /// Menu error.
+  #[error("menu error: {0}")]
+  Menu(#[from] tauri_runtime::menu::Error),
+  /// Tray icon error.
+  #[error("tray icon error: {0}")]
+  Tray(#[from] tauri_runtime::tray::Error),
 }

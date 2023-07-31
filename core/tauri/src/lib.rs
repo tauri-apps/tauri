@@ -150,7 +150,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use serde::Serialize;
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{
+  collections::HashMap,
+  fmt::{self, Debug},
+  sync::Arc,
+};
 
 // Export types likely to be used by the application.
 pub use runtime::http;

@@ -35,8 +35,8 @@ use crate::{
 };
 #[cfg(desktop)]
 use crate::{
+  menu::Menu,
   runtime::{
-    menu::Menu,
     window::dpi::{Position, Size},
     UserAttentionType,
   },
@@ -323,10 +323,15 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let pending = self
       .manager
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
-    let menu = pending
-      .menu()
-      .cloned()
-      .map(|m| (pending.has_app_wide_menu, m));
+    let menu = pending.menu().cloned().map(|m| {
+      (
+        pending.has_app_wide_menu,
+        Menu {
+          inner: m,
+          app_handle: self.app_handle.clone(),
+        },
+      )
+    });
     let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
@@ -365,8 +370,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Sets the menu for the window.
   #[must_use]
-  pub fn menu(mut self, menu: Menu) -> Self {
-    self.window_builder = self.window_builder.menu(menu);
+  pub fn menu(mut self, menu: Menu<R>) -> Self {
+    self.window_builder = self.window_builder.menu(menu.inner().clone());
     self
   }
 
@@ -783,7 +788,7 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
   // The menu set for this window
-  pub(crate) menu: Arc<Mutex<Option<(bool, Menu)>>>,
+  pub(crate) menu: Arc<Mutex<Option<(bool, Menu<R>)>>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {
@@ -957,7 +962,7 @@ impl<R: Runtime> Window<R> {
     manager: WindowManager<R>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
-    menu: Option<(bool, Menu)>,
+    menu: Option<(bool, Menu<R>)>,
   ) -> Self {
     Self {
       window,
@@ -1050,7 +1055,7 @@ impl<R: Runtime> Window<R> {
       .insert(self.label().to_string(), Box::new(f));
   }
 
-  pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<(bool, Menu)>> {
+  pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<(bool, Menu<R>)>> {
     self.menu.lock().expect("poisoned window")
   }
 
@@ -1062,12 +1067,12 @@ impl<R: Runtime> Window<R> {
     self
       .menu_lock()
       .as_ref()
-      .map(|m| m.1.id() == id)
+      .map(|m| m.1.id().map(|i| i == id).unwrap_or(false))
       .unwrap_or(false)
   }
 
   /// Returns this window menu .
-  pub fn menu(&self) -> Option<Menu> {
+  pub fn menu(&self) -> Option<Menu<R>> {
     self.menu_lock().as_ref().map(|m| m.1.clone())
   }
 
@@ -1077,14 +1082,15 @@ impl<R: Runtime> Window<R> {
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
-  pub fn set_menu(&self, menu: Menu) -> crate::Result<Option<Menu>> {
+  pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
 
     self.manager.insert_menu_into_stash(&menu);
 
+    // TODO(muda-migration): make it thread-safe
     #[cfg(windows)]
     {
-      let _ = menu.init_for_hwnd(self.hwnd().unwrap().0);
+      let _ = menu.inner().init_for_hwnd(self.hwnd().unwrap().0);
     }
     #[cfg(any(
       target_os = "linux",
@@ -1094,7 +1100,9 @@ impl<R: Runtime> Window<R> {
       target_os = "openbsd"
     ))]
     {
-      let _ = menu.init_for_gtk_window(&self.gtk_window().unwrap());
+      let _ = menu
+        .inner()
+        .init_for_gtk_window(&self.gtk_window().unwrap());
     }
 
     self.menu_lock().replace((false, menu.clone()));
@@ -1108,14 +1116,14 @@ impl<R: Runtime> Window<R> {
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
-  pub fn remove_menu(&self) -> crate::Result<Option<Menu>> {
+  pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
     let mut current_menu = self.menu_lock();
 
     // remove from the window
     if let Some((_, menu)) = &*current_menu {
       #[cfg(windows)]
       {
-        let _ = menu.remove_for_hwnd(self.hwnd()?.0);
+        let _ = menu.inner().remove_for_hwnd(self.hwnd()?.0);
       }
       #[cfg(any(
         target_os = "linux",
@@ -1125,7 +1133,7 @@ impl<R: Runtime> Window<R> {
         target_os = "openbsd"
       ))]
       {
-        let _ = menu.remove_for_gtk_window(&self.gtk_window()?);
+        let _ = menu.inner().remove_for_gtk_window(&self.gtk_window()?);
       }
     }
 
@@ -1135,7 +1143,7 @@ impl<R: Runtime> Window<R> {
 
     self
       .manager
-      .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
+      .remove_menu_from_stash_by_id(prev_menu.as_ref().and_then(|m| m.id().ok()));
 
     Ok(prev_menu)
   }
@@ -1146,7 +1154,7 @@ impl<R: Runtime> Window<R> {
     if let Some((_, menu)) = &*self.menu_lock() {
       #[cfg(windows)]
       {
-        let _ = menu.hide_for_hwnd(self.hwnd()?.0);
+        let _ = menu.inner().hide_for_hwnd(self.hwnd()?.0);
       }
       #[cfg(any(
         target_os = "linux",
@@ -1156,7 +1164,7 @@ impl<R: Runtime> Window<R> {
         target_os = "openbsd"
       ))]
       {
-        let _ = menu.hide_for_gtk_window(&self.gtk_window()?);
+        let _ = menu.inner().hide_for_gtk_window(&self.gtk_window()?);
       }
     }
 
@@ -1169,7 +1177,7 @@ impl<R: Runtime> Window<R> {
     if let Some((_, menu)) = &*self.menu_lock() {
       #[cfg(windows)]
       {
-        let _ = menu.show_for_hwnd(self.hwnd()?.0);
+        let _ = menu.inner().show_for_hwnd(self.hwnd()?.0);
       }
       #[cfg(any(
         target_os = "linux",
@@ -1179,7 +1187,7 @@ impl<R: Runtime> Window<R> {
         target_os = "openbsd"
       ))]
       {
-        let _ = menu.show_for_gtk_window(&self.gtk_window()?);
+        let _ = menu.inner().show_for_gtk_window(&self.gtk_window()?);
       }
     }
 
@@ -1192,7 +1200,7 @@ impl<R: Runtime> Window<R> {
     if let Some((_, menu)) = &*self.menu_lock() {
       #[cfg(windows)]
       {
-        return Ok(menu.is_visible_on_hwnd(self.hwnd()?.0));
+        return Ok(menu.inner().is_visible_on_hwnd(self.hwnd()?.0));
       }
       #[cfg(any(
         target_os = "linux",
@@ -1202,7 +1210,7 @@ impl<R: Runtime> Window<R> {
         target_os = "openbsd"
       ))]
       {
-        return Ok(menu.is_visible_on_gtk_window(&self.gtk_window()?));
+        return Ok(menu.inner().is_visible_on_gtk_window(&self.gtk_window()?));
       }
     }
 
@@ -1218,10 +1226,10 @@ impl<R: Runtime> Window<R> {
     menu: &dyn ContextMenu,
     position: Option<P>,
   ) -> crate::Result<()> {
-    let position = position.map(|p| p.into());
+    let position = position.map(|p| p.into()).map(|p| p.into());
 
     #[cfg(target_os = "windows")]
-    menu.show_context_menu_for_hwnd(self.hwnd()? as _, position);
+    menu.show_context_menu_for_hwnd(self.hwnd()?.0, position);
     #[cfg(target_os = "linux")]
     menu.show_context_menu_for_gtk_window(&self.gtk_window()?, position);
     #[cfg(target_os = "macos")]

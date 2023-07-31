@@ -30,7 +30,6 @@ use crate::scope::FsScope;
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
 use tauri_runtime::{
-  menu::{Menu, MenuEvent},
   tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
   window::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -46,7 +45,10 @@ use std::{
   sync::{mpsc::Sender, Arc, Weak},
 };
 
-use crate::runtime::RuntimeHandle;
+use crate::{
+  menu::{Menu, MenuEvent},
+  runtime::RuntimeHandle,
+};
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
@@ -545,7 +547,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Returns the app-wide menu.
-      pub fn menu(&self) -> Option<Menu> {
+      pub fn menu(&self) -> Option<Menu<R>> {
         self.manager.menu_lock().clone()
       }
 
@@ -553,7 +555,7 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this menu will be assigned to it.
-      pub fn set_menu(&self, menu: Menu) -> crate::Result<Option<Menu>> {
+      pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
         let prev_menu = self.remove_menu()?;
 
         self.manager.insert_menu_into_stash(&menu);
@@ -564,9 +566,10 @@ macro_rules! shared_app_impl {
         for window in self.manager.windows_lock().values() {
           let mut window_menu = window.menu_lock();
           if window_menu.as_ref().map(|m| m.0).unwrap_or(true) {
+            // TODO(muda-migration): make it thread-safe
             #[cfg(windows)]
             {
-              let _ = menu.init_for_hwnd(window.hwnd().unwrap().0);
+              let _ = menu.inner().init_for_hwnd(window.hwnd().unwrap().0);
             }
             #[cfg(any(
               target_os = "linux",
@@ -576,7 +579,9 @@ macro_rules! shared_app_impl {
               target_os = "openbsd"
             ))]
             {
-              let _ = menu.init_for_gtk_window(&window.gtk_window().unwrap());
+              let _ = menu
+                .inner()
+                .init_for_gtk_window(&window.gtk_window().unwrap());
             }
             window_menu.replace((true, menu.clone()));
           }
@@ -593,7 +598,7 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will remove the menu from it.
-      pub fn remove_menu(&self) -> crate::Result<Option<Menu>> {
+      pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
         let mut current_menu = self.manager.menu_lock();
 
         // remove from windows that have the app-wide menu
@@ -602,7 +607,7 @@ macro_rules! shared_app_impl {
             if window.has_app_wide_menu() {
               #[cfg(windows)]
               {
-                let _ = menu.remove_for_hwnd(window.hwnd()?.0);
+                let _ = menu.inner().remove_for_hwnd(window.hwnd()?.0);
               }
               #[cfg(any(
                 target_os = "linux",
@@ -612,7 +617,7 @@ macro_rules! shared_app_impl {
                 target_os = "openbsd"
               ))]
               {
-                let _ = menu.remove_for_gtk_window(&window.gtk_window()?);
+                let _ = menu.inner().remove_for_gtk_window(&window.gtk_window()?);
               }
               *window.menu_lock() = None;
             }
@@ -629,7 +634,7 @@ macro_rules! shared_app_impl {
 
         self
           .manager
-          .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
+          .remove_menu_from_stash_by_id(prev_menu.as_ref().and_then(|m| m.id().ok()));
 
         Ok(prev_menu)
       }
@@ -644,7 +649,7 @@ macro_rules! shared_app_impl {
             if window.has_app_wide_menu() {
               #[cfg(windows)]
               {
-                let _ = menu.hide_for_hwnd(window.hwnd()?.0);
+                let _ = menu.inner().hide_for_hwnd(window.hwnd()?.0);
               }
               #[cfg(any(
                 target_os = "linux",
@@ -654,7 +659,7 @@ macro_rules! shared_app_impl {
                 target_os = "openbsd"
               ))]
               {
-                let _ = menu.hide_for_gtk_window(&window.gtk_window()?);
+                let _ = menu.inner().hide_for_gtk_window(&window.gtk_window()?);
               }
             }
           }
@@ -673,7 +678,7 @@ macro_rules! shared_app_impl {
             if window.has_app_wide_menu() {
               #[cfg(windows)]
               {
-                let _ = menu.show_for_hwnd(window.hwnd()?.0);
+                let _ = menu.inner().show_for_hwnd(window.hwnd()?.0);
               }
               #[cfg(any(
                 target_os = "linux",
@@ -683,7 +688,7 @@ macro_rules! shared_app_impl {
                 target_os = "openbsd"
               ))]
               {
-                let _ = menu.show_for_gtk_window(&window.gtk_window()?);
+                let _ = menu.inner().show_for_gtk_window(&window.gtk_window()?);
               }
             }
           }
@@ -905,10 +910,10 @@ pub struct Builder<R: Runtime> {
   state: StateManager,
 
   /// The menu set to all windows.
-  menu: Option<Menu>,
+  menu: Option<Menu<R>>,
 
   /// A closure that returns the menu set to all windows.
-  menu_with: Option<Box<dyn FnOnce(&Config) -> Menu>>,
+  menu_with: Option<Box<dyn FnOnce(&Config) -> Menu<R>>>,
 
   /// Enable macOS default menu creation.
   #[allow(unused)]
@@ -1219,25 +1224,9 @@ impl<R: Runtime> Builder<R> {
   ///   ]));
   /// ```
   #[must_use]
-  pub fn menu(mut self, menu: Menu) -> Self {
+  pub fn menu(mut self, menu: Menu<R>) -> Self {
     self.menu_with = None;
     self.menu.replace(menu);
-    self
-  }
-
-  /// Sets a closure to construct the menu to use on all windows.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
-  ///
-  /// tauri::Builder::default()
-  ///   .menu_with(tauri::menu::default);
-  /// ```
-  #[must_use]
-  pub fn menu_with<F: FnOnce(&Config) -> Menu + 'static>(mut self, f: F) -> Self {
-    self.menu_with.replace(Box::new(move |c| f(c)));
-    self.menu = None;
     self
   }
 
@@ -1428,12 +1417,9 @@ impl<R: Runtime> Builder<R> {
     }
 
     if let Some(menu) = &menu {
-      manager
-        .inner
-        .menus
-        .lock()
-        .unwrap()
-        .insert(menu.id(), menu.clone());
+      if let Ok(id) = menu.id() {
+        manager.inner.menus.lock().unwrap().insert(id, menu.clone());
+      }
     }
 
     let runtime_args = RuntimeInitArgs {
@@ -1445,7 +1431,8 @@ impl<R: Runtime> Builder<R> {
           unsafe {
             let msg = msg as *const MSG;
             for menu in menus.lock().unwrap().values() {
-              let translated = TranslateAcceleratorW((*msg).hwnd, HACCEL(menu.haccel()), msg);
+              let translated =
+                TranslateAcceleratorW((*msg).hwnd, HACCEL(menu.inner().haccel()), msg);
               if translated == 1 {
                 return true;
               }
@@ -1599,10 +1586,15 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
       let pending = app
         .manager
         .prepare_window(app.handle.clone(), pending, &window_labels)?;
-      let menu = pending
-        .menu()
-        .cloned()
-        .map(|m| (pending.has_app_wide_menu, m));
+      let menu = pending.menu().cloned().map(|m| {
+        (
+          pending.has_app_wide_menu,
+          Menu {
+            inner: m,
+            app_handle: app.handle(),
+          },
+        )
+      });
       let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app.handle().runtime() {
         runtime.create_window(pending)?

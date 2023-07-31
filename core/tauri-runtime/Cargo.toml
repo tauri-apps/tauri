@@ -34,7 +34,7 @@ raw-window-handle = "0.5"
 rand = "0.8"
 url = { version = "2" }
 muda = { git = "https://github.com/tauri-apps/muda", default-features = false }
-tray-icon = { git = "https://github.com/tauri-apps/tray-icon", default-features = false }
+tray-icon = { path = "../../../tray-icon", default-features = false }
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.48"

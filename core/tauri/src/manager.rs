@@ -10,10 +10,11 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
+use crate::menu::Menu;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
-use tauri_runtime::{menu::Menu, tray::TrayIcon};
+use tauri_runtime::tray::TrayIcon;
 use url::Url;
 
 use tauri_macros::default_runtime;
@@ -225,9 +226,9 @@ pub struct InnerWindowManager<R: Runtime> {
   ///
   /// This should be mainly used to acceess [`Menu::haccel`]
   /// to setup the accelerator handling in the event loop
-  pub menus: Arc<Mutex<HashMap<u32, Menu>>>,
+  pub menus: Arc<Mutex<HashMap<u32, Menu<R>>>>,
   /// The menu set to all windows.
-  pub(crate) menu: Arc<Mutex<Option<Menu>>>,
+  pub(crate) menu: Arc<Mutex<Option<Menu<R>>>>,
   /// Menu event listeners to all windows.
   pub(crate) menu_event_listeners: Arc<Mutex<Vec<GlobalMenuEventListener<AppHandle<R>>>>>,
   /// Menu event listeners to specific windows.
@@ -312,7 +313,7 @@ impl<R: Runtime> WindowManager<R> {
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners, window_menu_event_listeners): (
-      Option<Menu>,
+      Option<Menu<R>>,
       Vec<GlobalMenuEventListener<AppHandle<R>>>,
       HashMap<String, GlobalMenuEventListener<Window<R>>>,
     ),
@@ -370,12 +371,12 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   /// App-wide menu.
-  pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<Menu>> {
+  pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<Menu<R>>> {
     self.inner.menu.lock().expect("poisoned window manager")
   }
 
   /// Menus stash.
-  pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<u32, Menu>> {
+  pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<u32, Menu<R>>> {
     self.inner.menus.lock().expect("poisoned window manager")
   }
 
@@ -383,13 +384,15 @@ impl<R: Runtime> WindowManager<R> {
     self
       .menu_lock()
       .as_ref()
-      .map(|m| m.id() == id)
+      .map(|m| m.id().map(|i| i == id).unwrap_or(false))
       .unwrap_or(false)
   }
 
   /// Menus stash.
-  pub(crate) fn insert_menu_into_stash(&self, menu: &Menu) {
-    self.menus_stash_lock().insert(menu.id(), menu.clone());
+  pub(crate) fn insert_menu_into_stash(&self, menu: &Menu<R>) {
+    if let Ok(id) = menu.id() {
+      self.menus_stash_lock().insert(id, menu.clone());
+    }
   }
 
   pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<u32>) {
@@ -1176,16 +1179,17 @@ impl<R: Runtime> WindowManager<R> {
     }));
 
     if let Some(menu) = &*self.inner.menu.lock().unwrap() {
-      pending = pending.set_app_menu(menu.clone());
+      pending = pending.set_app_menu(menu.inner().clone());
     }
 
     if let Some(menu) = pending.menu() {
-      self
-        .inner
-        .menus
-        .lock()
-        .unwrap()
-        .insert(menu.id(), menu.clone());
+      self.inner.menus.lock().unwrap().insert(
+        menu.id(),
+        Menu {
+          inner: menu.clone(),
+          app_handle: app_handle.clone(),
+        },
+      );
     }
 
     Ok(pending)
@@ -1195,7 +1199,7 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     app_handle: AppHandle<R>,
     window: DetachedWindow<EventLoopMessage, R>,
-    menu: Option<(bool, Menu)>,
+    menu: Option<(bool, Menu<R>)>,
   ) -> Window<R> {
     let window = Window::new(self.clone(), window, app_handle, menu);
 

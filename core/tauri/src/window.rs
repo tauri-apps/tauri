@@ -4,7 +4,7 @@
 
 //! The Tauri window types and functions.
 
-use tauri_runtime::menu::MenuEvent;
+use tauri_runtime::menu::{ContextMenu, MenuEvent};
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -1207,6 +1207,27 @@ impl<R: Runtime> Window<R> {
     }
 
     Ok(false)
+  }
+
+  /// Shows the specified menu as a context menu at the specified position.
+  /// If a position was not provided, the cursor position will be used.
+  ///
+  /// The position is relative to the window's top-left corner.
+  pub fn show_context_menu<P: Into<Position>>(
+    &self,
+    menu: &dyn ContextMenu,
+    position: Option<P>,
+  ) -> crate::Result<()> {
+    let position = position.map(|p| p.into());
+
+    #[cfg(target_os = "windows")]
+    menu.show_context_menu_for_hwnd(self.hwnd()? as _, position);
+    #[cfg(target_os = "linux")]
+    menu.show_context_menu_for_gtk_window(&self.gtk_window()?, position);
+    #[cfg(target_os = "macos")]
+    menu.show_context_menu_for_nsview(self.ns_view() as _, position);
+
+    Ok(())
   }
 
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.

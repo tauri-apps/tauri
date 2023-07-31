@@ -166,17 +166,27 @@ impl Scope {
 
 #[cfg(test)]
 mod tests {
+  use tauri_utils::namespace::MemberResolution;
+
   use super::RemoteDomainAccessScope;
   use crate::{
     api::ipc::CallbackFn,
-    test::{assert_ipc_response, mock_app, MockRuntime},
+    test::{assert_ipc_response, mock_builder, mock_context, noop_assets, MockRuntime},
     App, InvokePayload, Manager, Window, WindowBuilder,
   };
 
   const PLUGIN_NAME: &str = "test";
 
   fn test_context(scopes: Vec<RemoteDomainAccessScope>) -> (App<MockRuntime>, Window<MockRuntime>) {
-    let app = mock_app();
+    let mut context = mock_context(noop_assets());
+    context.runtime_authority.add_member(MemberResolution {
+      member: "main".into(),
+      commands: vec![
+        "plugin:path|is_absolute".into(),
+        format!("plugin:{PLUGIN_NAME}|doSomething"),
+      ],
+    });
+    let app = mock_builder().build(context).unwrap();
     let window = WindowBuilder::new(&app, "main", Default::default())
       .build()
       .unwrap();

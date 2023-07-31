@@ -132,6 +132,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       },
       build: Default::default(),
       plugins: Default::default(),
+      namespaces: Default::default(),
     },
     assets: Arc::new(assets),
     default_window_icon: None,
@@ -147,6 +148,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
+    runtime_authority: Default::default(),
   }
 }
 

@@ -327,6 +327,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       (
         pending.has_app_wide_menu,
         Menu {
+          id: m.id(),
           inner: m,
           app_handle: self.app_handle.clone(),
         },
@@ -1081,7 +1082,7 @@ impl<R: Runtime> Window<R> {
     self
       .menu_lock()
       .as_ref()
-      .map(|m| m.1.id().map(|i| i == id).unwrap_or(false))
+      .map(|m| m.1.id() == id)
       .unwrap_or(false)
   }
 

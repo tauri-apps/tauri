@@ -37,7 +37,7 @@ impl<R: Runtime> super::IsMenuItem<R> for PredefinedMenuItem<R> {
     super::MenuItemKind::Predefined(self.clone())
   }
 
-  fn id(&self) -> crate::Result<u32> {
+  fn id(&self) -> u32 {
     self.id()
   }
 }
@@ -227,8 +227,8 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   }
 
   /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> crate::Result<u32> {
-    Ok(0)
+  pub fn id(&self) -> u32 {
+    0
   }
 
   /// Get the text for this menu item.

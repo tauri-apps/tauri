@@ -50,14 +50,14 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<TrayI
     .with_on_menu_event(move |app, event| {
       dbg!(event);
       match event.id {
-        i if i == quit_i.id().unwrap() => {
+        i if i == quit_i.id() => {
           // exit the app
           app.exit(0);
         }
-        i if i == remove_tray_i.id().unwrap() => {
+        i if i == remove_tray_i.id() => {
           app.remove_tray_by_id(TRAY_ID);
         }
-        i if i == toggle_i.id().unwrap() => {
+        i if i == toggle_i.id() => {
           if let Some(window) = app.get_window("main") {
             let new_title = if window.is_visible().unwrap() {
               window.hide().unwrap();
@@ -69,22 +69,22 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<TrayI
             toggle_i.set_text(new_title).unwrap();
           }
         }
-        i if i == new_window_i.id().unwrap() => {
+        i if i == new_window_i.id() => {
           WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
             .title("Tauri")
             .build()
             .unwrap();
         }
         #[cfg(target_os = "macos")]
-        i if i == set_title_i.id().unwrap() => {
+        i if i == set_title_i.id() => {
           if let Some(tray) = app.tray_by_id(TRAY_ID) {
             tray.set_title(Some("Tauri")).unwrap();
           }
         }
-        i if i == icon_i_1.id().unwrap() || i == icon_i_2.id().unwrap() => {
+        i if i == icon_i_1.id() || i == icon_i_2.id() => {
           if let Some(tray) = app.tray_by_id(TRAY_ID) {
             tray
-              .set_icon(Some(tauri::Icon::Raw(if i == icon_i_1.id().unwrap() {
+              .set_icon(Some(tauri::Icon::Raw(if i == icon_i_1.id() {
                 include_bytes!("../../../.icons/icon.ico").to_vec()
               } else {
                 include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec()
@@ -92,7 +92,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<TrayI
               .unwrap();
           }
         }
-        i if i == switch_i.id().unwrap() => {
+        i if i == switch_i.id() => {
           let flag = is_menu1.load(Ordering::Relaxed);
           let (menu, tooltip) = if flag {
             (menu2.clone(), "Menu 2")

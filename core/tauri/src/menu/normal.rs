@@ -9,6 +9,7 @@ use crate::{run_main_thread, runtime::menu as muda, AppHandle, Runtime};
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
 pub struct MenuItem<R: Runtime> {
+  pub(crate) id: u32,
   pub(crate) inner: muda::MenuItem,
   pub(crate) app_handle: AppHandle<R>,
 }
@@ -16,6 +17,7 @@ pub struct MenuItem<R: Runtime> {
 impl<R: Runtime> Clone for MenuItem<R> {
   fn clone(&self) -> Self {
     Self {
+      id: self.id,
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -39,8 +41,8 @@ impl<R: Runtime> super::IsMenuItem<R> for MenuItem<R> {
     super::MenuItemKind::MenuItem(self.clone())
   }
 
-  fn id(&self) -> crate::Result<u32> {
-    self.id()
+  fn id(&self) -> u32 {
+    self.id
   }
 }
 
@@ -55,12 +57,14 @@ impl<R: Runtime> MenuItem<R> {
     enabled: bool,
     acccelerator: Option<S>,
   ) -> Self {
+    let item = muda::MenuItem::new(
+      text,
+      enabled,
+      acccelerator.and_then(|s| s.as_ref().parse().ok()),
+    );
     Self {
-      inner: muda::MenuItem::new(
-        text,
-        enabled,
-        acccelerator.and_then(|s| s.as_ref().parse().ok()),
-      ),
+      id: item.id(),
+      inner: item,
       app_handle: app_handle.clone(),
     }
   }
@@ -71,8 +75,8 @@ impl<R: Runtime> MenuItem<R> {
   }
 
   /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> crate::Result<u32> {
-    run_main_thread!(self, |self_: Self| self_.inner.id())
+  pub fn id(&self) -> u32 {
+    self.id
   }
 
   /// Get the text for this menu item.

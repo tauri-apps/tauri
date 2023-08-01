@@ -388,15 +388,13 @@ impl<R: Runtime> WindowManager<R> {
     self
       .menu_lock()
       .as_ref()
-      .map(|m| m.id().map(|i| i == id).unwrap_or(false))
+      .map(|m| m.id() == id)
       .unwrap_or(false)
   }
 
   /// Menus stash.
   pub(crate) fn insert_menu_into_stash(&self, menu: &Menu<R>) {
-    if let Ok(id) = menu.id() {
-      self.menus_stash_lock().insert(id, menu.clone());
-    }
+    self.menus_stash_lock().insert(menu.id(), menu.clone());
   }
 
   pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<u32>) {
@@ -1202,6 +1200,7 @@ impl<R: Runtime> WindowManager<R> {
       self.inner.menus.lock().unwrap().insert(
         menu.id(),
         Menu {
+          id: menu.id(),
           inner: menu.clone(),
           app_handle: app_handle.clone(),
         },

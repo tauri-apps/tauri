@@ -678,7 +678,7 @@ macro_rules! shared_app_impl {
 
         self
           .manager
-          .remove_menu_from_stash_by_id(prev_menu.as_ref().and_then(|m| m.id().ok()));
+          .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
 
         Ok(prev_menu)
       }
@@ -1534,9 +1534,10 @@ impl<R: Runtime> Builder<R> {
 
     if let Some(menu) = self.menu {
       let menu = menu(&app.handle)?;
-      if let Ok(id) = menu.id() {
-        app.manager.menus_stash_lock().insert(id, menu.clone());
-      }
+      app
+        .manager
+        .menus_stash_lock()
+        .insert(menu.id(), menu.clone());
 
       #[cfg(target_os = "macos")]
       menu.inner().init_for_nsapp();
@@ -1649,6 +1650,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         (
           pending.has_app_wide_menu,
           Menu {
+            id: m.id(),
             inner: m,
             app_handle: app_handle.clone(),
           },

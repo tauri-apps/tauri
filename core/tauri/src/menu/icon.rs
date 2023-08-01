@@ -10,6 +10,7 @@ use crate::{run_main_thread, runtime::menu as muda, AppHandle, Icon, Runtime};
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
 pub struct IconMenuItem<R: Runtime> {
+  pub(crate) id: u32,
   pub(crate) inner: muda::IconMenuItem,
   pub(crate) app_handle: AppHandle<R>,
 }
@@ -17,6 +18,7 @@ pub struct IconMenuItem<R: Runtime> {
 impl<R: Runtime> Clone for IconMenuItem<R> {
   fn clone(&self) -> Self {
     Self {
+      id: self.id,
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -40,8 +42,8 @@ impl<R: Runtime> super::IsMenuItem<R> for IconMenuItem<R> {
     super::MenuItemKind::Icon(self.clone())
   }
 
-  fn id(&self) -> crate::Result<u32> {
-    self.id()
+  fn id(&self) -> u32 {
+    self.id
   }
 }
 
@@ -57,15 +59,17 @@ impl<R: Runtime> IconMenuItem<R> {
     icon: Option<Icon>,
     acccelerator: Option<S>,
   ) -> Self {
+    let item = muda::IconMenuItem::new(
+      text,
+      enabled,
+      icon
+        .and_then(|i| -> Option<crate::runtime::Icon> { i.try_into().ok() })
+        .and_then(|i| i.try_into().ok()),
+      acccelerator.and_then(|s| s.as_ref().parse().ok()),
+    );
     Self {
-      inner: muda::IconMenuItem::new(
-        text,
-        enabled,
-        icon
-          .and_then(|i| -> Option<crate::runtime::Icon> { i.try_into().ok() })
-          .and_then(|i| i.try_into().ok()),
-        acccelerator.and_then(|s| s.as_ref().parse().ok()),
-      ),
+      id: item.id(),
+      inner: item,
       app_handle: app_handle.clone(),
     }
   }
@@ -84,13 +88,15 @@ impl<R: Runtime> IconMenuItem<R> {
     native_icon: Option<NativeIcon>,
     acccelerator: Option<S>,
   ) -> Self {
+    let item = muda::IconMenuItem::with_native_icon(
+      text,
+      enabled,
+      native_icon,
+      acccelerator.and_then(|s| s.as_ref().parse().ok()),
+    );
     Self {
-      inner: muda::IconMenuItem::with_native_icon(
-        text,
-        enabled,
-        native_icon,
-        acccelerator.and_then(|s| s.as_ref().parse().ok()),
-      ),
+      id: item.id(),
+      inner: item,
       app_handle: app_handle.clone(),
     }
   }
@@ -101,8 +107,8 @@ impl<R: Runtime> IconMenuItem<R> {
   }
 
   /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> crate::Result<u32> {
-    run_main_thread!(self, |self_: Self| self_.inner.id())
+  pub fn id(&self) -> u32 {
+    self.id
   }
 
   /// Get the text for this menu item.

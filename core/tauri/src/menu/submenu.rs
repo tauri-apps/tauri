@@ -11,6 +11,7 @@ use muda::ContextMenu;
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
 pub struct Submenu<R: Runtime> {
+  pub(crate) id: u32,
   pub(crate) inner: muda::Submenu,
   pub(crate) app_handle: AppHandle<R>,
 }
@@ -24,6 +25,7 @@ unsafe impl<R: Runtime> Send for Submenu<R> {}
 impl<R: Runtime> Clone for Submenu<R> {
   fn clone(&self) -> Self {
     Self {
+      id: self.id,
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -41,8 +43,8 @@ impl<R: Runtime> super::IsMenuItem<R> for Submenu<R> {
     super::MenuItemKind::Submenu(self.clone())
   }
 
-  fn id(&self) -> crate::Result<u32> {
-    self.id()
+  fn id(&self) -> u32 {
+    self.id
   }
 }
 
@@ -95,8 +97,10 @@ impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
 impl<R: Runtime> Submenu<R> {
   /// Creates a new submenu.
   pub fn new<S: AsRef<str>>(app_handle: &AppHandle<R>, text: S, enabled: bool) -> Self {
+    let submenu = muda::Submenu::new(text, enabled);
     Self {
-      inner: muda::Submenu::new(text, enabled),
+      id: submenu.id(),
+      inner: submenu,
       app_handle: app_handle.clone(),
     }
   }
@@ -123,8 +127,8 @@ impl<R: Runtime> Submenu<R> {
   }
 
   /// Returns a unique identifier associated with this submenu.
-  pub fn id(&self) -> crate::Result<u32> {
-    run_main_thread!(self, |self_: Self| self_.inner.id())
+  pub fn id(&self) -> u32 {
+    self.id
   }
 
   /// Add a menu item to the end of this submenu.
@@ -192,10 +196,12 @@ impl<R: Runtime> Submenu<R> {
         .into_iter()
         .map(|i| match i {
           muda::MenuItemKind::MenuItem(i) => super::MenuItemKind::MenuItem(super::MenuItem {
+            id: i.id(),
             inner: i,
             app_handle: handle.clone(),
           }),
           muda::MenuItemKind::Submenu(i) => super::MenuItemKind::Submenu(super::Submenu {
+            id: i.id(),
             inner: i,
             app_handle: handle.clone(),
           }),
@@ -206,10 +212,12 @@ impl<R: Runtime> Submenu<R> {
             })
           }
           muda::MenuItemKind::Check(i) => super::MenuItemKind::Check(super::CheckMenuItem {
+            id: i.id(),
             inner: i,
             app_handle: handle.clone(),
           }),
           muda::MenuItemKind::Icon(i) => super::MenuItemKind::Icon(super::IconMenuItem {
+            id: i.id(),
             inner: i,
             app_handle: handle.clone(),
           }),

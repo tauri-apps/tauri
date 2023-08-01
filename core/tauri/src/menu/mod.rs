@@ -43,7 +43,7 @@ pub enum MenuItemKind<R: Runtime> {
 
 impl<R: Runtime> MenuItemKind<R> {
   /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> crate::Result<u32> {
+  pub fn id(&self) -> u32 {
     match self {
       MenuItemKind::MenuItem(i) => i.id(),
       MenuItemKind::Submenu(i) => i.id(),
@@ -154,7 +154,7 @@ pub trait IsMenuItem<R: Runtime>: sealed::IsMenuItemBase {
   fn kind(&self) -> MenuItemKind<R>;
 
   /// Returns a unique identifier associated with this menu.
-  fn id(&self) -> crate::Result<u32> {
+  fn id(&self) -> u32 {
     self.kind().id()
   }
 }

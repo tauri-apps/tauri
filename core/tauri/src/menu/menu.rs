@@ -10,6 +10,7 @@ use tauri_runtime::menu::AboutMetadata;
 /// A type that is either a menu bar on the window
 /// on Windows and Linux or as a global menu in the menubar on macOS.
 pub struct Menu<R: Runtime> {
+  pub(crate) id: u32,
   pub(crate) inner: muda::Menu,
   pub(crate) app_handle: AppHandle<R>,
 }
@@ -23,6 +24,7 @@ unsafe impl<R: Runtime> Send for Menu<R> {}
 impl<R: Runtime> Clone for Menu<R> {
   fn clone(&self) -> Self {
     Self {
+      id: self.id,
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -78,8 +80,10 @@ impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
 impl<R: Runtime> Menu<R> {
   /// Creates a new menu.
   pub fn new(app_handle: &AppHandle<R>) -> Self {
+    let menu = muda::Menu::new();
     Self {
-      inner: muda::Menu::new(),
+      id: menu.id(),
+      inner: menu,
       app_handle: app_handle.clone(),
     }
   }
@@ -190,8 +194,8 @@ impl<R: Runtime> Menu<R> {
   }
 
   /// Returns a unique identifier associated with this menu.
-  pub fn id(&self) -> crate::Result<u32> {
-    run_main_thread!(self, |self_: Self| self_.inner.id())
+  pub fn id(&self) -> u32 {
+    self.id
   }
 
   /// Add a menu item to the end of this menu.
@@ -294,10 +298,12 @@ impl<R: Runtime> Menu<R> {
       .into_iter()
       .map(|i| match i {
         muda::MenuItemKind::MenuItem(i) => super::MenuItemKind::MenuItem(super::MenuItem {
+          id: i.id(),
           inner: i,
           app_handle: handle.clone(),
         }),
         muda::MenuItemKind::Submenu(i) => super::MenuItemKind::Submenu(super::Submenu {
+          id: i.id(),
           inner: i,
           app_handle: handle.clone(),
         }),
@@ -308,10 +314,12 @@ impl<R: Runtime> Menu<R> {
           })
         }
         muda::MenuItemKind::Check(i) => super::MenuItemKind::Check(super::CheckMenuItem {
+          id: i.id(),
           inner: i,
           app_handle: handle.clone(),
         }),
         muda::MenuItemKind::Icon(i) => super::MenuItemKind::Icon(super::IconMenuItem {
+          id: i.id(),
           inner: i,
           app_handle: handle.clone(),
         }),

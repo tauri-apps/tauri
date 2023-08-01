@@ -30,9 +30,11 @@ pub struct TrayIconAttributes<R: Runtime> {
   pub menu: Option<Box<dyn crate::runtime::menu::ContextMenu>>,
 
   /// Set a handler for menu events
+  #[allow(clippy::type_complexity)]
   pub on_menu_event: Option<Box<dyn Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>>,
 
   /// Set a handler for tray icon events
+  #[allow(clippy::type_complexity)]
   pub on_tray_event: Option<Box<dyn Fn(&TrayIcon<R>, TrayIconEvent) + Send + Sync + 'static>>,
 
   /// Tray icon
@@ -86,7 +88,9 @@ impl<R: Runtime> From<TrayIconAttributes<R>> for tray_icon::TrayIconAttributes {
 /// [`TrayIcon`] builder struct and associated methods.
 #[derive(Default)]
 pub struct TrayIconBuilder<R: Runtime> {
+  #[allow(clippy::type_complexity)]
   on_menu_event: Option<Box<dyn Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>>,
+  #[allow(clippy::type_complexity)]
   on_tray_event: Option<Box<dyn Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>>,
   inner: tray_icon::TrayIconBuilder,
 }

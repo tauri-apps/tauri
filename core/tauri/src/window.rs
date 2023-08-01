@@ -1169,7 +1169,7 @@ impl<R: Runtime> Window<R> {
 
     self
       .manager
-      .remove_menu_from_stash_by_id(prev_menu.as_ref().and_then(|m| m.id().ok()));
+      .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
 
     Ok(prev_menu)
   }

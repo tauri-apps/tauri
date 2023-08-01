@@ -1274,18 +1274,7 @@ impl<R: Runtime> Window<R> {
   ) -> crate::Result<()> {
     let position = position.map(|p| p.into());
 
-    #[cfg(windows)]
-    menu.show_context_menu_for_hwnd(self.hwnd()?.0, position)?;
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ))]
-    menu.show_context_menu_for_gtk_window(self.clone(), position)?;
-    #[cfg(target_os = "macos")]
-    menu.show_context_menu_for_nsview(self.clone(), position)?;
+    menu.popup(self.clone(), position)?;
 
     Ok(())
   }

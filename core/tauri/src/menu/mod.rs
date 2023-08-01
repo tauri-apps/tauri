@@ -177,28 +177,7 @@ pub(crate) mod sealed {
     fn inner(&self) -> &dyn super::muda::ContextMenu;
     fn inner_owned(&self) -> Box<dyn super::muda::ContextMenu>;
 
-    #[cfg(windows)]
-    fn show_context_menu_for_hwnd(
-      &self,
-      hwnd: isize,
-      position: Option<Position>,
-    ) -> crate::Result<()>;
-
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ))]
-    fn show_context_menu_for_gtk_window<R: crate::Runtime>(
-      &self,
-      window: crate::Window<R>,
-      position: Option<Position>,
-    ) -> crate::Result<()>;
-
-    #[cfg(target_os = "macos")]
-    fn show_context_menu_for_nsview<R: crate::Runtime>(
+    fn popup<R: crate::Runtime>(
       &self,
       window: crate::Window<R>,
       position: Option<Position>,

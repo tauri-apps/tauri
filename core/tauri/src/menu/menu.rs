@@ -39,49 +39,37 @@ impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
     Box::new(self.clone().inner)
   }
 
-  #[cfg(windows)]
-  fn show_context_menu_for_hwnd(
-    &self,
-    hwnd: isize,
-    position: Option<Position>,
-  ) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| self_
-      .inner()
-      .show_context_menu_for_hwnd(hwnd, position.map(Into::into)))
-  }
-
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
-  fn show_context_menu_for_gtk_window<T: Runtime>(
+  fn popup<T: Runtime>(
     &self,
     window: crate::Window<T>,
     position: Option<Position>,
   ) -> crate::Result<()> {
     run_main_thread!(self, |self_: Self| {
-      if let Ok(gtk_window) = window.gtk_window() {
-        self_
-          .inner()
-          .show_context_menu_for_gtk_window(&gtk_window, position.map(Into::into))
-      }
-    })
-  }
-
-  #[cfg(target_os = "macos")]
-  fn show_context_menu_for_nsview<T: Runtime>(
-    &self,
-    window: crate::Window<T>,
-    position: Option<Position>,
-  ) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| {
+      #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {
         self_
           .inner()
-          .show_context_menu_for_nsview(view as _, position.map(Into::into))
+          .show_context_menu_for_nsview(view as _, position.map(Into::into));
+      }
+
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      if let Ok(gtk_window) = window.gtk_window() {
+        self_
+          .inner()
+          .show_context_menu_for_gtk_window(&gtk_window, position.map(Into::into));
+      }
+
+      #[cfg(windows)]
+      if let Ok(hwnd) = window.hwnd() {
+        self_
+          .inner()
+          .show_context_menu_for_hwnd(hwnd.0, position.map(Into::into));
       }
     })
   }

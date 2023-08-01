@@ -633,7 +633,6 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will remove the menu from it.
-
       pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
         let mut current_menu = self.manager.menu_lock();
 

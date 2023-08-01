@@ -244,8 +244,8 @@ impl<R: Runtime> PredefinedMenuItem<R> {
     run_main_thread!(self, |self_: Self| self_.inner.set_text(text))
   }
 
-  /// Gets a reference to the [`AppHandle`]
-  pub fn app_handle(&self) -> &AppHandle<R> {
-    &self.app_handle
+  /// The application handle associated with this type.
+  pub fn app_handle(&self) -> AppHandle<R> {
+    self.app_handle.clone()
   }
 }

@@ -196,9 +196,9 @@ impl<R: Runtime> Menu<R> {
     &self.inner
   }
 
-  /// Gets a reference to the [`AppHandle`]
-  pub fn app_handle(&self) -> &AppHandle<R> {
-    &self.app_handle
+  /// The application handle associated with this type.
+  pub fn app_handle(&self) -> AppHandle<R> {
+    self.app_handle.clone()
   }
 
   /// Returns a unique identifier associated with this menu.

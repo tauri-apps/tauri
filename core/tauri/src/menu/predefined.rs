@@ -243,4 +243,9 @@ impl<R: Runtime> PredefinedMenuItem<R> {
     let text = text.as_ref().to_string();
     run_main_thread!(self, |self_: Self| self_.inner.set_text(text))
   }
+
+  /// Gets a reference to the [`AppHandle`]
+  pub fn app_handle(&self) -> &AppHandle<R> {
+    &self.app_handle
+  }
 }

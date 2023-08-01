@@ -65,6 +65,11 @@ impl<R: Runtime> MenuItem<R> {
     }
   }
 
+  /// Gets a reference to the [`AppHandle`]
+  pub fn app_handle(&self) -> &AppHandle<R> {
+    &self.app_handle
+  }
+
   /// Returns a unique identifier associated with this menu item.
   pub fn id(&self) -> crate::Result<u32> {
     run_main_thread!(self, |self_: Self| self_.inner.id())

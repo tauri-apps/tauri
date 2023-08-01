@@ -595,6 +595,7 @@ macro_rules! shared_app_impl {
         for window in self.manager.windows_lock().values() {
           let mut window_menu = window.menu_lock();
           if window_menu.as_ref().map(|m| m.0).unwrap_or(true) {
+            #[cfg(not(target_os = "macos"))]
             let window = window.clone();
             let menu_ = menu.clone();
             self.run_on_main_thread(move || {
@@ -642,6 +643,7 @@ macro_rules! shared_app_impl {
         if let Some(menu) = &*current_menu {
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
+              #[cfg(not(target_os = "macos"))]
               let window_ = window.clone();
               let menu_ = menu.clone();
               self.run_on_main_thread(move || {

@@ -264,8 +264,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         );
         png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
       }
-    } else if target == Target::Linux {
-      // handle default window icons for Linux targets
+    } else {
+      // handle default window icons for Unix targets
       let icon_path = find_icon(
         &config,
         &config_parent,
@@ -273,8 +273,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         "icons/icon.png",
       );
       png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
-    } else {
-      quote!(::std::option::Option::None)
     }
   };
 

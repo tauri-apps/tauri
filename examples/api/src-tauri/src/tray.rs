@@ -78,7 +78,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<TrayI
         #[cfg(target_os = "macos")]
         i if i == set_title_i.id().unwrap() => {
           if let Some(tray) = app.tray_by_id(TRAY_ID) {
-            tray.set_title("Tauri").unwrap();
+            tray.set_title(Some("Tauri")).unwrap();
           }
         }
         i if i == icon_i_1.id().unwrap() || i == icon_i_2.id().unwrap() => {

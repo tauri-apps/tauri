@@ -100,11 +100,6 @@
           "deny": ["$APPDATA/db/*.stronghold"]
         }
       }
-    },
-    "trayIcon": {
-      "iconPath": "../../.icons/tray_icon_with_transparency.png",
-      "iconAsTemplate": true,
-      "menuOnLeftClick": false
     }
   }
 }

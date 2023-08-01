@@ -74,6 +74,8 @@ const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 pub(crate) const STRINGIFY_IPC_MESSAGE_FN: &str =
   include_str!("../scripts/stringify-ipc-message-fn.js");
 
+type TrayIconEventListener<R> = Box<dyn Fn(&TrayIcon<R>, crate::tray::TrayIconEvent) + Send + Sync>;
+
 // we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
 // and we do not get a secure context without the custom protocol that proxies to the dev server
 // additionally, we need the custom protocol to inject the initialization scripts on Android
@@ -238,8 +240,10 @@ pub struct InnerWindowManager<R: Runtime> {
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
   /// Tray icons
   pub(crate) tray_icons: Arc<Mutex<Vec<TrayIcon<R>>>>,
+  /// Global Tray icon event listeners.
+  pub(crate) global_tray_event_listeners: Arc<Mutex<Vec<GlobalTrayIconEventListener<R>>>>,
   /// Tray icon event listeners.
-  pub(crate) tray_event_listeners: Arc<Mutex<Vec<GlobalTrayIconEventListener<R>>>>,
+  pub(crate) tray_event_listeners: Arc<Mutex<HashMap<u32, TrayIconEventListener<R>>>>,
   /// Responder for invoke calls.
   invoke_responder: Arc<InvokeResponder<R>>,
   /// The script that initializes the invoke system.
@@ -316,7 +320,7 @@ impl<R: Runtime> WindowManager<R> {
       Vec<GlobalMenuEventListener<AppHandle<R>>>,
       HashMap<String, GlobalMenuEventListener<Window<R>>>,
     ),
-    tray_event_listeners: Vec<GlobalTrayIconEventListener<R>>,
+    global_tray_event_listeners: Vec<GlobalTrayIconEventListener<R>>,
     (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
   ) -> Self {
     // generate a random isolation key at runtime
@@ -348,7 +352,8 @@ impl<R: Runtime> WindowManager<R> {
         window_menu_event_listeners: Arc::new(Mutex::new(window_menu_event_listeners)),
         window_event_listeners: Arc::new(window_event_listeners),
         tray_icons: Default::default(),
-        tray_event_listeners: Arc::new(Mutex::new(tray_event_listeners)),
+        global_tray_event_listeners: Arc::new(Mutex::new(global_tray_event_listeners)),
+        tray_event_listeners: Arc::new(Mutex::new(HashMap::new())),
         invoke_responder,
         invoke_initialization_script,
       }),

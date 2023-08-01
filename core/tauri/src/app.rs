@@ -1753,11 +1753,25 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
           for listener in &*app_handle
             .manager
             .inner
-            .tray_event_listeners
+            .global_tray_event_listeners
             .lock()
             .unwrap()
           {
             listener(app_handle, e)
+          }
+
+          for (id, listener) in &*app_handle
+            .manager
+            .inner
+            .tray_event_listeners
+            .lock()
+            .unwrap()
+          {
+            if e.id == *id {
+              if let Some(tray) = app_handle.tray_by_id(*id) {
+                listener(&tray, e)
+              }
+            }
           }
         }
       }

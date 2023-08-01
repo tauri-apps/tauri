@@ -40,11 +40,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         .build(),
     )
     .plugin(tauri_plugin_sample::init())
+    .tray_icon(tray::create_tray)
     .setup(move |app| {
       #[cfg(desktop)]
       {
-        tray::create_tray(app)?;
-
         app.handle().plugin(tauri_plugin_cli::init())?;
       }
 

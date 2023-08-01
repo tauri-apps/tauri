@@ -797,6 +797,7 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
   // The menu set for this window
+  #[allow(clippy::type_complexity)]
   pub(crate) menu: Arc<Mutex<Option<(bool, Menu<R>)>>>,
 }
 
@@ -1104,7 +1105,13 @@ impl<R: Runtime> Window<R> {
 
     #[cfg(windows)]
     let hwnd = self.hwnd()?.0;
-    #[cfg(linux)]
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
     let gtk_window = self.gtk_window()?;
     let menu_c = menu.clone();
     self.run_on_main_thread(move || {
@@ -1112,7 +1119,13 @@ impl<R: Runtime> Window<R> {
       {
         let _ = menu_c.inner().init_for_hwnd(hwnd);
       }
-      #[cfg(linux)]
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
       {
         let _ = menu_c.inner().init_for_gtk_window(&gtk_window);
       }
@@ -1138,7 +1151,13 @@ impl<R: Runtime> Window<R> {
     if let Some((_, menu)) = &*current_menu {
       #[cfg(windows)]
       let hwnd = self.hwnd()?.0;
-      #[cfg(linux)]
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
       let gtk_window = self.gtk_window()?;
       let menu_c = menu.clone();
       self.run_on_main_thread(move || {
@@ -1146,7 +1165,13 @@ impl<R: Runtime> Window<R> {
         {
           let _ = menu_c.inner().remove_for_hwnd(hwnd);
         }
-        #[cfg(linux)]
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
         {
           let _ = menu_c.inner().remove_for_gtk_window(&gtk_window);
         }
@@ -1172,7 +1197,13 @@ impl<R: Runtime> Window<R> {
     if let Some((_, menu)) = &*self.menu_lock() {
       #[cfg(windows)]
       let hwnd = self.hwnd()?.0;
-      #[cfg(linux)]
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
       let gtk_window = self.gtk_window()?;
       let menu_c = menu.clone();
       self.run_on_main_thread(move || {
@@ -1180,7 +1211,13 @@ impl<R: Runtime> Window<R> {
         {
           let _ = menu_c.inner().hide_for_hwnd(hwnd);
         }
-        #[cfg(linux)]
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
         {
           let _ = menu_c.inner().hide_for_gtk_window(&gtk_window);
         }
@@ -1198,7 +1235,13 @@ impl<R: Runtime> Window<R> {
     if let Some((_, menu)) = &*self.menu_lock() {
       #[cfg(windows)]
       let hwnd = self.hwnd()?.0;
-      #[cfg(linux)]
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
       let gtk_window = self.gtk_window()?;
       let menu_c = menu.clone();
       self.run_on_main_thread(move || {
@@ -1206,7 +1249,13 @@ impl<R: Runtime> Window<R> {
         {
           let _ = menu_c.inner().show_for_hwnd(hwnd);
         }
-        #[cfg(linux)]
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
         {
           let _ = menu_c.inner().show_for_gtk_window(&gtk_window);
         }
@@ -1225,7 +1274,13 @@ impl<R: Runtime> Window<R> {
       let (tx, rx) = std::sync::mpsc::channel();
       #[cfg(windows)]
       let hwnd = self.hwnd()?.0;
-      #[cfg(linux)]
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
       let gtk_window = self.gtk_window()?;
       let menu_c = menu.clone();
       self.run_on_main_thread(move || {
@@ -1233,7 +1288,13 @@ impl<R: Runtime> Window<R> {
         {
           let _ = tx.send(menu_c.inner().is_visible_on_hwnd(hwnd));
         }
-        #[cfg(linux)]
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
         {
           let _ = tx.send(menu_c.inner().is_visible_on_gtk_window(&gtk_window));
         }
@@ -1258,7 +1319,13 @@ impl<R: Runtime> Window<R> {
 
     #[cfg(windows)]
     menu.show_context_menu_for_hwnd(self.hwnd()?.0, position)?;
-    #[cfg(linux)]
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
     menu.show_context_menu_for_gtk_window(&self.gtk_window()?, position)?;
     #[cfg(target_os = "macos")]
     menu.show_context_menu_for_nsview(self.clone(), position)?;

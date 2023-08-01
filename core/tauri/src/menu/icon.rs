@@ -29,13 +29,13 @@ impl<R: Runtime> Clone for IconMenuItem<R> {
 unsafe impl<R: Runtime> Sync for IconMenuItem<R> {}
 unsafe impl<R: Runtime> Send for IconMenuItem<R> {}
 
-unsafe impl<R: Runtime> super::sealed::IsMenuItemBase for IconMenuItem<R> {
+impl<R: Runtime> super::sealed::IsMenuItemBase for IconMenuItem<R> {
   fn inner(&self) -> &dyn muda::IsMenuItem {
     &self.inner
   }
 }
 
-unsafe impl<R: Runtime> super::IsMenuItem<R> for IconMenuItem<R> {
+impl<R: Runtime> super::IsMenuItem<R> for IconMenuItem<R> {
   fn kind(&self) -> super::MenuItemKind<R> {
     super::MenuItemKind::Icon(self.clone())
   }

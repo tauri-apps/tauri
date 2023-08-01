@@ -29,13 +29,13 @@ impl<R: Runtime> Clone for Menu<R> {
   }
 }
 
-unsafe impl<R: Runtime> super::ContextMenu for Menu<R> {}
-unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
+impl<R: Runtime> super::ContextMenu for Menu<R> {}
+impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
   fn inner(&self) -> &dyn muda::ContextMenu {
     &self.inner
   }
 
-  fn into_inner(&self) -> Box<dyn muda::ContextMenu> {
+  fn inner_owned(&self) -> Box<dyn muda::ContextMenu> {
     Box::new(self.clone().inner)
   }
 
@@ -50,7 +50,13 @@ unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
       .show_context_menu_for_hwnd(hwnd, position.map(Into::into)))
   }
 
-  #[cfg(linux)]
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   fn show_context_menu_for_gtk_window(
     &self,
     w: &gtk::ApplicationWindow,

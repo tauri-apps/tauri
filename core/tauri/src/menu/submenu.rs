@@ -30,13 +30,13 @@ impl<R: Runtime> Clone for Submenu<R> {
   }
 }
 
-unsafe impl<R: Runtime> super::sealed::IsMenuItemBase for Submenu<R> {
+impl<R: Runtime> super::sealed::IsMenuItemBase for Submenu<R> {
   fn inner(&self) -> &dyn muda::IsMenuItem {
     &self.inner
   }
 }
 
-unsafe impl<R: Runtime> super::IsMenuItem<R> for Submenu<R> {
+impl<R: Runtime> super::IsMenuItem<R> for Submenu<R> {
   fn kind(&self) -> super::MenuItemKind<R> {
     super::MenuItemKind::Submenu(self.clone())
   }
@@ -46,13 +46,13 @@ unsafe impl<R: Runtime> super::IsMenuItem<R> for Submenu<R> {
   }
 }
 
-unsafe impl<R: Runtime> super::ContextMenu for Submenu<R> {}
-unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
+impl<R: Runtime> super::ContextMenu for Submenu<R> {}
+impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
   fn inner(&self) -> &dyn muda::ContextMenu {
     &self.inner
   }
 
-  fn into_inner(&self) -> Box<dyn muda::ContextMenu> {
+  fn inner_owned(&self) -> Box<dyn muda::ContextMenu> {
     Box::new(self.clone().inner)
   }
 
@@ -69,7 +69,13 @@ unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
     })
   }
 
-  #[cfg(linux)]
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   fn show_context_menu_for_gtk_window(
     &self,
     w: &gtk::ApplicationWindow,

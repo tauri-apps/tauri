@@ -597,14 +597,26 @@ macro_rules! shared_app_impl {
           if window_menu.as_ref().map(|m| m.0).unwrap_or(true) {
             #[cfg(windows)]
             let hwnd = window.hwnd()?.0;
-            #[cfg(linux)]
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
             let gtk_window = window.gtk_window()?;
             let menu_c = menu.clone();
             self.run_on_main_thread(move || {
               #[cfg(windows)]
               let _ = menu_c.inner().init_for_hwnd(hwnd);
 
-              #[cfg(linux)]
+              #[cfg(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+              ))]
               let _ = menu_c.inner().init_for_gtk_window(&gtk_window);
 
               #[cfg(target_os = "macos")]
@@ -635,14 +647,26 @@ macro_rules! shared_app_impl {
             if window.has_app_wide_menu() {
               #[cfg(windows)]
               let hwnd = window.hwnd()?.0;
-              #[cfg(linux)]
+              #[cfg(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+              ))]
               let gtk_window = window.gtk_window()?;
               let menu_c = menu.clone();
               self.run_on_main_thread(move || {
                 #[cfg(windows)]
                 let _ = menu_c.inner().remove_for_hwnd(hwnd);
 
-                #[cfg(linux)]
+                #[cfg(any(
+                  target_os = "linux",
+                  target_os = "dragonfly",
+                  target_os = "freebsd",
+                  target_os = "netbsd",
+                  target_os = "openbsd"
+                ))]
                 let _ = menu_c.inner().remove_for_gtk_window(&gtk_window);
 
                 #[cfg(target_os = "macos")]
@@ -680,7 +704,13 @@ macro_rules! shared_app_impl {
             if window.has_app_wide_menu() {
               #[cfg(windows)]
               let hwnd = window.hwnd()?.0;
-              #[cfg(linux)]
+              #[cfg(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+              ))]
               let gtk_window = window.gtk_window()?;
               let menu_c = menu.clone();
               self.run_on_main_thread(move || {
@@ -688,7 +718,13 @@ macro_rules! shared_app_impl {
                 {
                   let _ = menu_c.inner().hide_for_hwnd(hwnd);
                 }
-                #[cfg(linux)]
+                #[cfg(any(
+                  target_os = "linux",
+                  target_os = "dragonfly",
+                  target_os = "freebsd",
+                  target_os = "netbsd",
+                  target_os = "openbsd"
+                ))]
                 {
                   let _ = menu_c.inner().hide_for_gtk_window(&gtk_window);
                 }
@@ -712,7 +748,13 @@ macro_rules! shared_app_impl {
             if window.has_app_wide_menu() {
               #[cfg(windows)]
               let hwnd = window.hwnd()?.0;
-              #[cfg(linux)]
+              #[cfg(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+              ))]
               let gtk_window = window.gtk_window()?;
               let menu_c = menu.clone();
               self.run_on_main_thread(move || {
@@ -720,7 +762,13 @@ macro_rules! shared_app_impl {
                 {
                   let _ = menu_c.inner().show_for_hwnd(hwnd);
                 }
-                #[cfg(linux)]
+                #[cfg(any(
+                  target_os = "linux",
+                  target_os = "dragonfly",
+                  target_os = "freebsd",
+                  target_os = "netbsd",
+                  target_os = "openbsd"
+                ))]
                 {
                   let _ = menu_c.inner().show_for_gtk_window(&gtk_window);
                 }

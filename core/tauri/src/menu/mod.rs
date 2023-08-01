@@ -9,6 +9,7 @@
 pub mod builders;
 mod check;
 mod icon;
+#[allow(clippy::module_inception)]
 mod menu;
 mod normal;
 mod predefined;
@@ -148,7 +149,7 @@ impl<R: Runtime> MenuItemKind<R> {
 /// # Safety
 ///
 /// This trait is ONLY meant to be implemented internally by the crate.
-pub unsafe trait IsMenuItem<R: Runtime>: sealed::IsMenuItemBase {
+pub trait IsMenuItem<R: Runtime>: sealed::IsMenuItemBase {
   /// Returns the kind of this menu item.
   fn kind(&self) -> MenuItemKind<R>;
 
@@ -163,18 +164,18 @@ pub unsafe trait IsMenuItem<R: Runtime>: sealed::IsMenuItemBase {
 /// # Safety
 ///
 /// This trait is ONLY meant to be implemented internally by the crate.
-pub unsafe trait ContextMenu: sealed::ContextMenuBase + Send + Sync {}
+pub trait ContextMenu: sealed::ContextMenuBase + Send + Sync {}
 
 pub(crate) mod sealed {
   use crate::Position;
 
-  pub unsafe trait IsMenuItemBase {
+  pub trait IsMenuItemBase {
     fn inner(&self) -> &dyn super::muda::IsMenuItem;
   }
 
-  pub unsafe trait ContextMenuBase {
+  pub trait ContextMenuBase {
     fn inner(&self) -> &dyn super::muda::ContextMenu;
-    fn into_inner(&self) -> Box<dyn super::muda::ContextMenu>;
+    fn inner_owned(&self) -> Box<dyn super::muda::ContextMenu>;
 
     #[cfg(windows)]
     fn show_context_menu_for_hwnd(
@@ -183,7 +184,13 @@ pub(crate) mod sealed {
       position: Option<Position>,
     ) -> crate::Result<()>;
 
-    #[cfg(linux)]
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
     fn show_context_menu_for_gtk_window(
       &self,
       w: &gtk::ApplicationWindow,

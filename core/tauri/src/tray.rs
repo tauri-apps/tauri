@@ -20,22 +20,22 @@ pub struct TrayIconAttributes<R: Runtime> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub tooltip: Option<String>,
+  tooltip: Option<String>,
 
   /// Tray menu
   ///
   /// ## Platform-specific:
   ///
   /// - **Linux**: once a menu is set, it cannot be removed.
-  pub menu: Option<Box<dyn crate::runtime::menu::ContextMenu>>,
+  menu: Option<Box<dyn crate::runtime::menu::ContextMenu>>,
 
   /// Set a handler for menu events
   #[allow(clippy::type_complexity)]
-  pub on_menu_event: Option<Box<dyn Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>>,
+  on_menu_event: Option<Box<dyn Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>>,
 
   /// Set a handler for tray icon events
   #[allow(clippy::type_complexity)]
-  pub on_tray_event: Option<Box<dyn Fn(&TrayIcon<R>, TrayIconEvent) + Send + Sync + 'static>>,
+  on_tray_event: Option<Box<dyn Fn(&TrayIcon<R>, TrayIconEvent) + Send + Sync + 'static>>,
 
   /// Tray icon
   ///
@@ -43,16 +43,16 @@ pub struct TrayIconAttributes<R: Runtime> {
   ///
   /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
   ///     Setting an empty [`Menu`](crate::menu::Menu) is enough.
-  pub icon: Option<Icon>,
+  icon: Option<Icon>,
 
   /// Tray icon temp dir path. **Linux only**.
-  pub temp_dir_path: Option<PathBuf>,
+  temp_dir_path: Option<PathBuf>,
 
   /// Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
-  pub icon_is_template: bool,
+  icon_is_template: bool,
 
   /// Whether to show the tray menu on left click or not, default is `true`. **macOS only**.
-  pub menu_on_left_click: bool,
+  menu_on_left_click: bool,
 
   /// Tray icon title.
   ///
@@ -64,7 +64,7 @@ pub struct TrayIconAttributes<R: Runtime> {
   /// user requests it as it can take up a significant amount of space
   /// on the user's panel.  This may not be shown in all visualizations.
   /// - **Windows:** Unsupported.
-  pub title: Option<String>,
+  title: Option<String>,
 }
 
 impl<R: Runtime> From<TrayIconAttributes<R>> for tray_icon::TrayIconAttributes {

@@ -58,7 +58,7 @@ use std::{
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
-pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
+pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -304,7 +304,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_navigation<F: Fn(Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
     self
   }
@@ -536,6 +536,15 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn always_on_top(mut self, always_on_top: bool) -> Self {
     self.window_builder = self.window_builder.always_on_top(always_on_top);
+    self
+  }
+
+  /// Whether the window will be visible on all workspaces or virtual desktops.
+  #[must_use]
+  pub fn visible_on_all_workspaces(mut self, visible_on_all_workspaces: bool) -> Self {
+    self.window_builder = self
+      .window_builder
+      .visible_on_all_workspaces(visible_on_all_workspaces);
     self
   }
 
@@ -1725,6 +1734,18 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_always_on_top(always_on_top)
+      .map_err(Into::into)
+  }
+
+  /// Sets whether the window should be visible on all workspaces or virtual desktops.
+  pub fn set_visible_on_all_workspaces(
+    &self,
+    visible_on_all_workspaces: bool,
+  ) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_visible_on_all_workspaces(visible_on_all_workspaces)
       .map_err(Into::into)
   }
 

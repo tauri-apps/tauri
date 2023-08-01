@@ -26,6 +26,8 @@ type UriSchemeProtocol =
 
 type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
 
+type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+
 /// UI scaling utilities.
 pub mod dpi;
 
@@ -211,7 +213,7 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
 
   /// A handler to decide if incoming url is allowed to navigate.
-  pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
+  pub navigation_handler: Option<Box<NavigationHandler>>,
 
   /// The resolved URL to load on the webview.
   pub url: String,

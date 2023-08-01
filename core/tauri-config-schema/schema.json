@@ -445,6 +445,11 @@
           "default": false,
           "type": "boolean"
         },
+        "visibleOnAllWorkspaces": {
+          "description": "Whether the window should be visible on all workspaces or virtual desktops.",
+          "default": false,
+          "type": "boolean"
+        },
         "contentProtected": {
           "description": "Prevents the window contents from being captured by other apps.",
           "default": false,

@@ -9,7 +9,7 @@ use crate::{
   webview::{WebviewAttributes, WebviewIpcHandler},
   Dispatch, Runtime, UserEvent, WindowBuilder,
 };
-use muda::Menu;
+
 use serde::{Deserialize, Deserializer};
 use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
@@ -242,6 +242,28 @@ pub fn assert_label_is_valid(label: &str) {
   );
 }
 
+#[cfg(not(target_os = "macos"))]
+impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
+  #[must_use]
+  pub fn set_menu(mut self, menu: crate::menu::Menu) -> Self {
+    self.window_builder = self.window_builder.menu(menu);
+    self
+  }
+
+  #[must_use]
+  pub fn set_app_menu(mut self, menu: crate::menu::Menu) -> Self {
+    if !self.window_builder.has_menu() {
+      self.window_builder = self.window_builder.menu(menu);
+      self.has_app_wide_menu = true;
+    }
+    self
+  }
+
+  pub fn menu(&self) -> Option<&crate::menu::Menu> {
+    self.window_builder.get_menu()
+  }
+}
+
 impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
@@ -296,25 +318,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         has_app_wide_menu: false,
       })
     }
-  }
-
-  #[must_use]
-  pub fn set_menu(mut self, menu: crate::menu::Menu) -> Self {
-    self.window_builder = self.window_builder.menu(menu);
-    self
-  }
-
-  #[must_use]
-  pub fn set_app_menu(mut self, menu: crate::menu::Menu) -> Self {
-    if !self.window_builder.has_menu() {
-      self.window_builder = self.window_builder.menu(menu);
-      self.has_app_wide_menu = true;
-    }
-    self
-  }
-
-  pub fn menu(&self) -> Option<&Menu> {
-    self.window_builder.get_menu()
   }
 
   pub fn register_uri_scheme_protocol<

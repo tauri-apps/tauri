@@ -399,6 +399,9 @@ impl<R: Runtime> WindowManager<R> {
 
   pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<u32>) {
     if let Some(id) = id {
+      #[cfg(target_os = "macos")]
+      let is_used_by_a_window = false;
+      #[cfg(not(target_os = "macos"))]
       let is_used_by_a_window = self.windows_lock().values().any(|w| w.is_menu_in_use(id));
       if !(self.is_menu_in_use(id) || is_used_by_a_window) {
         self.menus_stash_lock().remove(&id);
@@ -1192,19 +1195,22 @@ impl<R: Runtime> WindowManager<R> {
       }
     }));
 
-    if let Some(menu) = &*self.menu_lock() {
-      pending = pending.set_app_menu(menu.inner().clone());
-    }
+    #[cfg(not(target_os = "macos"))]
+    {
+      if let Some(menu) = &*self.menu_lock() {
+        pending = pending.set_app_menu(menu.inner().clone());
+      }
 
-    if let Some(menu) = pending.menu() {
-      self.inner.menus.lock().unwrap().insert(
-        menu.id(),
-        Menu {
-          id: menu.id(),
-          inner: menu.clone(),
-          app_handle: app_handle.clone(),
-        },
-      );
+      if let Some(menu) = pending.menu() {
+        self.inner.menus.lock().unwrap().insert(
+          menu.id(),
+          Menu {
+            id: menu.id(),
+            inner: menu.clone(),
+            app_handle: app_handle.clone(),
+          },
+        );
+      }
     }
 
     Ok(pending)
@@ -1214,9 +1220,15 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     app_handle: AppHandle<R>,
     window: DetachedWindow<EventLoopMessage, R>,
-    menu: Option<(bool, Menu<R>)>,
+    #[cfg(not(target_os = "macos"))] menu: Option<(bool, Menu<R>)>,
   ) -> Window<R> {
-    let window = Window::new(self.clone(), window, app_handle, menu);
+    let window = Window::new(
+      self.clone(),
+      window,
+      app_handle,
+      #[cfg(not(target_os = "macos"))]
+      menu,
+    );
 
     let window_ = window.clone();
     let window_event_listeners = self.inner.window_event_listeners.clone();

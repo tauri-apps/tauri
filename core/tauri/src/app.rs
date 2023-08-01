@@ -590,6 +590,7 @@ macro_rules! shared_app_impl {
         self.manager.menu_lock().replace(menu.clone());
 
         // set it on all windows that don't have one or previously had the app-wide menu
+        #[cfg(not(target_os = "macos"))]
         for window in self.manager.windows_lock().values() {
           let mut window_menu = window.menu_lock();
           if window_menu.as_ref().map(|m| m.0).unwrap_or(true) {
@@ -636,8 +637,9 @@ macro_rules! shared_app_impl {
       pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
         let mut current_menu = self.manager.menu_lock();
 
-        // remove from windows that have the app-wide menu
         if let Some(menu) = &*current_menu {
+          // remove from windows that have the app-wide menu
+          #[cfg(not(target_os = "macos"))]
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
               #[cfg(not(target_os = "macos"))]
@@ -1610,6 +1612,8 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
 
     for pending in pending_windows {
       let pending = manager.prepare_window(app_handle.clone(), pending, &window_labels)?;
+
+      #[cfg(not(target_os = "macos"))]
       let menu = pending.menu().cloned().map(|m| {
         (
           pending.has_app_wide_menu,
@@ -1620,6 +1624,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
           },
         )
       });
+
       let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app_handle.runtime() {
         runtime.create_window(pending)?
@@ -1627,7 +1632,12 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
         unreachable!()
       };
-      let window = manager.attach_window(app_handle.clone(), detached, menu);
+      let window = manager.attach_window(
+        app_handle.clone(),
+        detached,
+        #[cfg(not(target_os = "macos"))]
+        menu,
+      );
 
       if let Some(effects) = window_effects {
         crate::vibrancy::set_window_effects(&window, Some(effects))?;

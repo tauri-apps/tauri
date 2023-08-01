@@ -4,7 +4,7 @@
 
 //! The Tauri window types and functions.
 
-use crate::menu::{ContextMenu, MenuEvent};
+use crate::menu::ContextMenu;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -54,7 +54,7 @@ use std::{
   fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex},
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
@@ -323,6 +323,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let pending = self
       .manager
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
+
+    #[cfg(not(target_os = "macos"))]
     let menu = pending.menu().cloned().map(|m| {
       (
         pending.has_app_wide_menu,
@@ -333,6 +335,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         },
       )
     });
+
     let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
@@ -340,9 +343,12 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending),
     }
     .map(|window| {
-      self
-        .manager
-        .attach_window(self.app_handle.clone(), window, menu)
+      self.manager.attach_window(
+        self.app_handle.clone(),
+        window,
+        #[cfg(not(target_os = "macos"))]
+        menu,
+      )
     })?;
 
     if let Some(effects) = window_effects {
@@ -798,6 +804,7 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
   // The menu set for this window
+  #[cfg(not(target_os = "macos"))]
   #[allow(clippy::type_complexity)]
   pub(crate) menu: Arc<Mutex<Option<(bool, Menu<R>)>>>,
 }
@@ -826,6 +833,7 @@ impl<R: Runtime> Clone for Window<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       js_event_listeners: self.js_event_listeners.clone(),
+      #[cfg(not(target_os = "macos"))]
       menu: self.menu.clone(),
     }
   }
@@ -973,13 +981,14 @@ impl<R: Runtime> Window<R> {
     manager: WindowManager<R>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
-    menu: Option<(bool, Menu<R>)>,
+    #[cfg(not(target_os = "macos"))] menu: Option<(bool, Menu<R>)>,
   ) -> Self {
     Self {
       window,
       manager,
       app_handle,
       js_event_listeners: Default::default(),
+      #[cfg(not(target_os = "macos"))]
       menu: Arc::new(Mutex::new(menu)),
     }
   }
@@ -1024,244 +1033,6 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .on_window_event(move |event| f(&event.clone().into()));
-  }
-
-  /// Registers a global menu event listener.
-  ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
-  ///
-  /// Also note that this handler will not be called if
-  /// the window used to register it was closed.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::menu::{Menu, Submenu, MenuItem};
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(&handle, "Save", true, None);
-  ///     let menu = Menu::with_items(&handle, &[
-  ///       &Submenu::with_items(&handle, "File", true, &[
-  ///         &save_menu_item,
-  ///       ])?,
-  ///     ])?;
-  ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
-  ///       .menu(menu)
-  ///       .build()
-  ///       .unwrap();
-  ///
-  ///     window.on_menu_event(move |window, event| {
-  ///       if event.id == save_menu_item.id() {
-  ///           // save menu item
-  ///       }
-  ///     });
-  ///
-  ///     Ok(())
-  ///   });
-  /// ```
-  pub fn on_menu_event<F: Fn(&Window<R>, MenuEvent) + Send + Sync + 'static>(&self, f: F) {
-    self
-      .manager
-      .inner
-      .window_menu_event_listeners
-      .lock()
-      .unwrap()
-      .insert(self.label().to_string(), Box::new(f));
-  }
-
-  pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<(bool, Menu<R>)>> {
-    self.menu.lock().expect("poisoned window")
-  }
-
-  pub(crate) fn has_app_wide_menu(&self) -> bool {
-    self.menu_lock().as_ref().map(|m| m.0).unwrap_or(false)
-  }
-
-  pub(crate) fn is_menu_in_use(&self, id: u32) -> bool {
-    self
-      .menu_lock()
-      .as_ref()
-      .map(|m| m.1.id() == id)
-      .unwrap_or(false)
-  }
-
-  /// Returns this window menu .
-  pub fn menu(&self) -> Option<Menu<R>> {
-    self.menu_lock().as_ref().map(|m| m.1.clone())
-  }
-
-  /// Sets the window menu and returns the previous one.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
-  #[cfg(not(target_os = "macos"))]
-  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
-  pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
-    let prev_menu = self.remove_menu()?;
-
-    self.manager.insert_menu_into_stash(&menu);
-
-    let window = self.clone();
-    let menu_ = menu.clone();
-    self.run_on_main_thread(move || {
-      #[cfg(windows)]
-      if let Ok(hwnd) = window.hwnd() {
-        let _ = menu_.inner().init_for_hwnd(hwnd.0);
-      }
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      if let (Ok(gtk_window), Ok(gtk_box)) = (window.gtk_window(), window.default_vbox()) {
-        let _ = menu_
-          .inner()
-          .init_for_gtk_window(&gtk_window, Some(&gtk_box));
-      }
-    })?;
-
-    self.menu_lock().replace((false, menu.clone()));
-
-    Ok(prev_menu)
-  }
-
-  /// Removes the window menu and returns it.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
-  #[cfg(not(target_os = "macos"))]
-  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
-  pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
-    let mut current_menu = self.menu_lock();
-
-    // remove from the window
-    if let Some((_, menu)) = &*current_menu {
-      let window = self.clone();
-      let menu_ = menu.clone();
-      self.run_on_main_thread(move || {
-        #[cfg(windows)]
-        if let Ok(hwnd) = window.hwnd() {
-          let _ = menu_.inner().remove_for_hwnd(hwnd.0);
-        }
-        #[cfg(any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
-        ))]
-        if let Ok(gtk_window) = window.gtk_window() {
-          let _ = menu_.inner().remove_for_gtk_window(&gtk_window);
-        }
-      })?;
-    }
-
-    let prev_menu = current_menu.take().map(|m| m.1);
-
-    drop(current_menu);
-
-    self
-      .manager
-      .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
-
-    Ok(prev_menu)
-  }
-
-  /// Hides the window menu.
-  #[cfg(not(target_os = "macos"))]
-  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
-  pub fn hide_menu(&self) -> crate::Result<()> {
-    // remove from the window
-    if let Some((_, menu)) = &*self.menu_lock() {
-      let window = self.clone();
-      let menu_ = menu.clone();
-      self.run_on_main_thread(move || {
-        #[cfg(windows)]
-        if let Ok(hwnd) = window.hwnd() {
-          let _ = menu_.inner().hide_for_hwnd(hwnd.0);
-        }
-        #[cfg(any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
-        ))]
-        if let Ok(gtk_window) = window.gtk_window() {
-          let _ = menu_.inner().hide_for_gtk_window(&gtk_window);
-        }
-      })?;
-    }
-
-    Ok(())
-  }
-
-  /// Shows the window menu.
-  #[cfg(not(target_os = "macos"))]
-  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
-  pub fn show_menu(&self) -> crate::Result<()> {
-    // remove from the window
-    if let Some((_, menu)) = &*self.menu_lock() {
-      let window = self.clone();
-      let menu_ = menu.clone();
-      self.run_on_main_thread(move || {
-        #[cfg(windows)]
-        if let Ok(hwnd) = window.hwnd() {
-          let _ = menu_.inner().show_for_hwnd(hwnd.0);
-        }
-        #[cfg(any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
-        ))]
-        if let Ok(gtk_window) = window.gtk_window() {
-          let _ = menu_.inner().show_for_gtk_window(&gtk_window);
-        }
-      })?;
-    }
-
-    Ok(())
-  }
-
-  /// Shows the window menu.
-  #[cfg(not(target_os = "macos"))]
-  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
-  pub fn is_menu_visible(&self) -> crate::Result<bool> {
-    // remove from the window
-    if let Some((_, menu)) = &*self.menu_lock() {
-      let (tx, rx) = std::sync::mpsc::channel();
-      let window = self.clone();
-      let menu_ = menu.clone();
-      self.run_on_main_thread(move || {
-        #[cfg(windows)]
-        if let Ok(hwnd) = window.hwnd() {
-          let _ = tx.send(menu_.inner().is_visible_on_hwnd(hwnd.0));
-        }
-        #[cfg(any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
-        ))]
-        if let Ok(gtk_window) = window.gtk_window() {
-          let _ = tx.send(menu_.inner().is_visible_on_gtk_window(&gtk_window));
-        }
-      })?;
-
-      return Ok(rx.recv().unwrap_or(false));
-    }
-
-    Ok(false)
   }
 
   /// Shows the specified menu as a context menu at the specified position.
@@ -1342,6 +1113,242 @@ impl<R: Runtime> Window<R> {
       .dispatcher
       .with_webview(|w| f(PlatformWebview(*w.downcast().unwrap())))
       .map_err(Into::into)
+  }
+}
+
+/// Menu APIs
+#[cfg(not(target_os = "macos"))]
+#[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
+impl<R: Runtime> Window<R> {
+  /// Registers a global menu event listener.
+  ///
+  /// Note that this handler is called for any menu event,
+  /// whether it is coming from this window, another window or from the tray icon menu.
+  ///
+  /// Also note that this handler will not be called if
+  /// the window used to register it was closed.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::menu::{Menu, Submenu, MenuItem};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     let save_menu_item = MenuItem::new(&handle, "Save", true, None);
+  ///     let menu = Menu::with_items(&handle, &[
+  ///       &Submenu::with_items(&handle, "File", true, &[
+  ///         &save_menu_item,
+  ///       ])?,
+  ///     ])?;
+  ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
+  ///       .menu(menu)
+  ///       .build()
+  ///       .unwrap();
+  ///
+  ///     window.on_menu_event(move |window, event| {
+  ///       if event.id == save_menu_item.id() {
+  ///           // save menu item
+  ///       }
+  ///     });
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+    &self,
+    f: F,
+  ) {
+    self
+      .manager
+      .inner
+      .window_menu_event_listeners
+      .lock()
+      .unwrap()
+      .insert(self.label().to_string(), Box::new(f));
+  }
+
+  pub(crate) fn menu_lock(&self) -> std::sync::MutexGuard<'_, Option<(bool, Menu<R>)>> {
+    self.menu.lock().expect("poisoned window")
+  }
+
+  pub(crate) fn has_app_wide_menu(&self) -> bool {
+    self.menu_lock().as_ref().map(|m| m.0).unwrap_or(false)
+  }
+
+  pub(crate) fn is_menu_in_use(&self, id: u32) -> bool {
+    self
+      .menu_lock()
+      .as_ref()
+      .map(|m| m.1.id() == id)
+      .unwrap_or(false)
+  }
+
+  /// Returns this window menu .
+  pub fn menu(&self) -> Option<Menu<R>> {
+    self.menu_lock().as_ref().map(|m| m.1.clone())
+  }
+
+  /// Sets the window menu and returns the previous one.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
+  /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
+  pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
+    let prev_menu = self.remove_menu()?;
+
+    self.manager.insert_menu_into_stash(&menu);
+
+    let window = self.clone();
+    let menu_ = menu.clone();
+    self.run_on_main_thread(move || {
+      #[cfg(windows)]
+      if let Ok(hwnd) = window.hwnd() {
+        let _ = menu_.inner().init_for_hwnd(hwnd.0);
+      }
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      if let (Ok(gtk_window), Ok(gtk_box)) = (window.gtk_window(), window.default_vbox()) {
+        let _ = menu_
+          .inner()
+          .init_for_gtk_window(&gtk_window, Some(&gtk_box));
+      }
+    })?;
+
+    self.menu_lock().replace((false, menu.clone()));
+
+    Ok(prev_menu)
+  }
+
+  /// Removes the window menu and returns it.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
+  /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
+  pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
+    let mut current_menu = self.menu_lock();
+
+    // remove from the window
+    if let Some((_, menu)) = &*current_menu {
+      let window = self.clone();
+      let menu_ = menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = menu_.inner().remove_for_hwnd(hwnd.0);
+        }
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = menu_.inner().remove_for_gtk_window(&gtk_window);
+        }
+      })?;
+    }
+
+    let prev_menu = current_menu.take().map(|m| m.1);
+
+    drop(current_menu);
+
+    self
+      .manager
+      .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
+
+    Ok(prev_menu)
+  }
+
+  /// Hides the window menu.
+  pub fn hide_menu(&self) -> crate::Result<()> {
+    // remove from the window
+    if let Some((_, menu)) = &*self.menu_lock() {
+      let window = self.clone();
+      let menu_ = menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = menu_.inner().hide_for_hwnd(hwnd.0);
+        }
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = menu_.inner().hide_for_gtk_window(&gtk_window);
+        }
+      })?;
+    }
+
+    Ok(())
+  }
+
+  /// Shows the window menu.
+  pub fn show_menu(&self) -> crate::Result<()> {
+    // remove from the window
+    if let Some((_, menu)) = &*self.menu_lock() {
+      let window = self.clone();
+      let menu_ = menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = menu_.inner().show_for_hwnd(hwnd.0);
+        }
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = menu_.inner().show_for_gtk_window(&gtk_window);
+        }
+      })?;
+    }
+
+    Ok(())
+  }
+
+  /// Shows the window menu.
+  pub fn is_menu_visible(&self) -> crate::Result<bool> {
+    // remove from the window
+    if let Some((_, menu)) = &*self.menu_lock() {
+      let (tx, rx) = std::sync::mpsc::channel();
+      let window = self.clone();
+      let menu_ = menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = tx.send(menu_.inner().is_visible_on_hwnd(hwnd.0));
+        }
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = tx.send(menu_.inner().is_visible_on_gtk_window(&gtk_window));
+        }
+      })?;
+
+      return Ok(rx.recv().unwrap_or(false));
+    }
+
+    Ok(false)
   }
 }
 

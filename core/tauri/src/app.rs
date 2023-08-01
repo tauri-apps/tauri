@@ -915,11 +915,8 @@ pub struct Builder<R: Runtime> {
   /// App state.
   state: StateManager,
 
-  /// The menu set to all windows.
-  menu: Option<Menu<R>>,
-
   /// A closure that returns the menu set to all windows.
-  menu_with: Option<Box<dyn FnOnce(&Config) -> Menu<R>>>,
+  menu: Option<Box<dyn FnOnce(&AppHandle<R>) -> crate::Result<Menu<R>>>>,
 
   /// Enable macOS default menu creation.
   #[allow(unused)]
@@ -958,7 +955,6 @@ impl<R: Runtime> Builder<R> {
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
       menu: None,
-      menu_with: None,
       enable_macos_default_menu: true,
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
@@ -1230,9 +1226,11 @@ impl<R: Runtime> Builder<R> {
   ///   ]));
   /// ```
   #[must_use]
-  pub fn menu(mut self, menu: Menu<R>) -> Self {
-    self.menu_with = None;
-    self.menu.replace(menu);
+  pub fn menu<F: FnOnce(&AppHandle<R>) -> crate::Result<Menu<R>> + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.menu.replace(Box::new(f));
     self
   }
 
@@ -1387,16 +1385,11 @@ impl<R: Runtime> Builder<R> {
   #[allow(clippy::type_complexity)]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
-    if self.menu.is_none() && self.menu_with.is_none() && self.enable_macos_default_menu {
-      // TODO self.menu = Some(crate::menu::default(context.config()));
+    if self.menu.is_none() && self.enable_macos_default_menu {
+      self.menu = Some(Box::new(|app_handle| {
+        crate::menu::Menu::default(app_handle)
+      }));
     }
-
-    let menu = match (self.menu, self.menu_with) {
-      (None, Some(f)) => Some(f(context.config())),
-      (Some(m), None) => Some(m),
-      (None, None) => None,
-      _ => unreachable!(),
-    };
 
     let manager = WindowManager::with_handlers(
       context,
@@ -1406,7 +1399,7 @@ impl<R: Runtime> Builder<R> {
       self.uri_scheme_protocols,
       self.state,
       self.window_event_listeners,
-      (menu.clone(), self.menu_event_listeners, HashMap::new()),
+      (self.menu_event_listeners, HashMap::new()),
       self.tray_event_listeners,
       (self.invoke_responder, self.invoke_initialization_script),
     );
@@ -1420,12 +1413,6 @@ impl<R: Runtime> Builder<R> {
         webview_attributes,
         label,
       )?);
-    }
-
-    if let Some(menu) = &menu {
-      if let Ok(id) = menu.id() {
-        manager.inner.menus.lock().unwrap().insert(id, menu.clone());
-      }
     }
 
     let runtime_args = RuntimeInitArgs {
@@ -1492,6 +1479,14 @@ impl<R: Runtime> Builder<R> {
       },
     };
 
+    if let Some(menu) = self.menu {
+      let menu = menu(&app.handle)?;
+      if let Ok(id) = menu.id() {
+        app.manager.menus_stash_lock().insert(id, menu.clone());
+      }
+      app.manager.menu_lock().replace(menu);
+    }
+
     app.register_core_plugins()?;
 
     let env = Env::default();
@@ -1531,6 +1526,8 @@ impl<R: Runtime> Builder<R> {
     {
       let mut tray_stash = app.manager.inner.tray_icons.lock().unwrap();
       let config = app.config();
+
+      // config tray
       if let Some(tray_config) = &config.tauri.tray_icon {
         let mut tray = TrayIconBuilder::new()
           .with_icon_as_template(tray_config.icon_as_template)
@@ -1547,6 +1544,8 @@ impl<R: Runtime> Builder<R> {
         }
         tray_stash.push(tray.build().map_err(Into::<crate::runtime::Error>::into)?);
       }
+
+      // tray icon registered on the builder
       for tray_builder in self.tray_icons {
         tray_stash.push(
           tray_builder
@@ -1588,27 +1587,28 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
       .map(|p| p.label.clone())
       .collect::<Vec<_>>();
 
+    let app_handle = app.handle();
+    let manager = app.manager();
+
     for pending in pending_windows {
-      let pending = app
-        .manager
-        .prepare_window(app.handle.clone(), pending, &window_labels)?;
+      let pending = manager.prepare_window(app_handle.clone(), pending, &window_labels)?;
       let menu = pending.menu().cloned().map(|m| {
         (
           pending.has_app_wide_menu,
           Menu {
             inner: m,
-            app_handle: app.handle(),
+            app_handle: app_handle.clone(),
           },
         )
       });
       let window_effects = pending.webview_attributes.window_effects.clone();
-      let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app.handle().runtime() {
+      let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app_handle.runtime() {
         runtime.create_window(pending)?
       } else {
         // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
         unreachable!()
       };
-      let window = app.manager.attach_window(app.handle(), detached, menu);
+      let window = manager.attach_window(app_handle.clone(), detached, menu);
 
       if let Some(effects) = window_effects {
         crate::vibrancy::set_window_effects(&window, Some(effects))?;

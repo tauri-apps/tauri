@@ -61,7 +61,7 @@ mod ui {
   pub fn main() {
     let context = super::context();
     tauri::Builder::default()
-      .menu_with(tauri::menu::default)
+      .menu(tauri::menu::Menu::default)
       .setup(|app| {
         // set the splashscreen and main windows to be globally available with the tauri state API
         app.manage(SplashscreenWindow(Arc::new(Mutex::new(

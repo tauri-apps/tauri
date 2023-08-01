@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{IsMenuItem, MenuItemKind};
+use super::{IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use crate::{menu::run_main_thread, runtime::menu as muda, AppHandle, Runtime};
 use muda::ContextMenu;
+use tauri_runtime::menu::AboutMetadata;
 
 /// A type that is either a menu bar on the window
 /// on Windows and Linux or as a global menu in the menubar on macOS.
@@ -85,6 +86,92 @@ impl<R: Runtime> Menu<R> {
     let menu = Self::new(app_handle);
     menu.append_items(items)?;
     Ok(menu)
+  }
+
+  /// Creates a menu filled with default menu items and submenus.
+  pub fn default(app_handle: &AppHandle<R>) -> crate::Result<Self> {
+    let pkg_info = app_handle.package_info();
+    let config = app_handle.config();
+    let about_metadata = AboutMetadata {
+      name: Some(pkg_info.name.clone()),
+      version: Some(pkg_info.version.to_string()),
+      copyright: config.tauri.bundle.copyright.clone(),
+      authors: config.tauri.bundle.publisher.clone().map(|p| vec![p]),
+      ..Default::default()
+    };
+
+    Menu::with_items(
+      app_handle,
+      &[
+        #[cfg(target_os = "macos")]
+        &Submenu::with_items(
+          app_handle,
+          pkg_info.name,
+          true,
+          &[
+            &PredefinedMenuItem::about(None, Some(about_metadata.clone())),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::services(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::hide(None),
+            &PredefinedMenuItem::hide_others(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::quit(None),
+          ],
+        )?,
+        #[cfg(not(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        )))]
+        &Submenu::with_items(
+          app_handle,
+          "File",
+          true,
+          &[
+            &PredefinedMenuItem::close_window(app_handle, None),
+            #[cfg(not(target_os = "macos"))]
+            &PredefinedMenuItem::quit(app_handle, None),
+          ],
+        )?,
+        &Submenu::with_items(
+          app_handle,
+          "Edit",
+          true,
+          &[
+            &PredefinedMenuItem::undo(app_handle, None),
+            &PredefinedMenuItem::redo(app_handle, None),
+            &PredefinedMenuItem::separator(app_handle),
+            &PredefinedMenuItem::cut(app_handle, None),
+            &PredefinedMenuItem::copy(app_handle, None),
+            &PredefinedMenuItem::paste(app_handle, None),
+            &PredefinedMenuItem::select_all(app_handle, None),
+          ],
+        )?,
+        #[cfg(target_os = "macos")]
+        &Submenu::with_items(
+          app_handle,
+          "View",
+          true,
+          &[&PredefinedMenuItem::fullscreen(None)],
+        )?,
+        &Submenu::with_items(
+          app_handle,
+          "Window",
+          true,
+          &[
+            &PredefinedMenuItem::minimize(app_handle, None),
+            &PredefinedMenuItem::maximize(app_handle, None),
+            #[cfg(target_os = "macos")]
+            &PredefinedMenuItem::separator(app_handle),
+            &PredefinedMenuItem::close_window(app_handle, None),
+            &PredefinedMenuItem::about(app_handle, None, Some(about_metadata)),
+          ],
+        )?,
+      ],
+    )
   }
 
   pub(crate) fn inner(&self) -> &muda::Menu {

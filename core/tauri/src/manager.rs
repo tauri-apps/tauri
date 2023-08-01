@@ -312,8 +312,7 @@ impl<R: Runtime> WindowManager<R> {
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
-    (menu, menu_event_listeners, window_menu_event_listeners): (
-      Option<Menu<R>>,
+    (menu_event_listeners, window_menu_event_listeners): (
       Vec<GlobalMenuEventListener<AppHandle<R>>>,
       HashMap<String, GlobalMenuEventListener<Window<R>>>,
     ),
@@ -344,7 +343,7 @@ impl<R: Runtime> WindowManager<R> {
         pattern: context.pattern,
         uri_scheme_protocols,
         menus: Default::default(),
-        menu: Arc::new(Mutex::new(menu)),
+        menu: Arc::new(Mutex::new(None)),
         menu_event_listeners: Arc::new(Mutex::new(menu_event_listeners)),
         window_menu_event_listeners: Arc::new(Mutex::new(window_menu_event_listeners)),
         window_event_listeners: Arc::new(window_event_listeners),
@@ -1178,7 +1177,8 @@ impl<R: Runtime> WindowManager<R> {
       }
     }));
 
-    if let Some(menu) = &*self.inner.menu.lock().unwrap() {
+    dbg!(self.menu_lock().is_some());
+    if let Some(menu) = &*self.menu_lock() {
       pending = pending.set_app_menu(menu.inner().clone());
     }
 

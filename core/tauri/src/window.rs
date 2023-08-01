@@ -1040,10 +1040,10 @@ impl<R: Runtime> Window<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
-  ///     let save_menu_item =  &MenuItem::new(&handle, "Save", true, None);
+  ///     let save_menu_item = MenuItem::new(&handle, "Save", true, None);
   ///     let menu = Menu::with_items(&handle, &[
   ///       &Submenu::with_items(&handle, "File", true, &[
-  ///         save_menu_item,
+  ///         &save_menu_item,
   ///       ])?,
   ///     ])?;
   ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
@@ -1052,7 +1052,7 @@ impl<R: Runtime> Window<R> {
   ///       .unwrap();
   ///
   ///     window.on_menu_event(move |window, event| {
-  ///       if event.id == save_menu_item.id().unwrap() {
+  ///       if event.id == save_menu_item.id() {
   ///           // save menu item
   ///       }
   ///     });

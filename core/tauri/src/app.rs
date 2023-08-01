@@ -1249,12 +1249,12 @@ impl<R: Runtime> Builder<R> {
   /// use tauri::{tray::TrayIconBuilder, menu::{Menu, MenuItem}};
   ///
   /// tauri::Builder::default()
-  ///   .tray_icon(TrayIconBuilder::new().with_menu(
-  ///     Menu::with_items(&[
-  ///       &MenuItem::new("New window", true, None).unwrap(),
-  ///       &MenuItem::new("Quit", true, None).unwrap(),
-  ///     ]).unwrap()
-  ///   ));
+  ///   .tray_icon(|handle| TrayIconBuilder::new().with_menu(
+  ///     &Menu::with_items(handle, &[
+  ///       &MenuItem::new(handle, "New window", true, None),
+  ///       &MenuItem::new(handle, "Quit", true, None),
+  ///     ])?
+  ///   ).build(handle));
   /// ```
   #[must_use]
   pub fn tray_icon<F: FnOnce(&AppHandle<R>) -> crate::Result<TrayIcon<R>> + 'static>(
@@ -1269,18 +1269,20 @@ impl<R: Runtime> Builder<R> {
   ///
   /// # Examples
   /// ```
-  /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
+  /// use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
   ///
   /// tauri::Builder::default()
-  ///   .menu(Menu::with_items([
-  ///     MenuEntry::Submenu(Submenu::new(
+  ///   .menu(|handle| Menu::with_items(handle, &[
+  ///     &Submenu::with_items(
+  ///       handle,
   ///       "File",
-  ///       Menu::with_items([
-  ///         MenuItem::CloseWindow.into(),
+  ///       true,
+  ///       &[
+  ///         &PredefinedMenuItem::close_window(handle, None),
   ///         #[cfg(target_os = "macos")]
-  ///         CustomMenuItem::new("hello", "Hello").into(),
-  ///       ]),
-  ///     )),
+  ///         &MenuItem::new(handle, "Hello", true, None),
+  ///       ],
+  ///     )?
   ///   ]));
   /// ```
   #[must_use]
@@ -1329,26 +1331,7 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Registers a global menu event listener.
-  ///
-  /// # Examples
-  /// ```
-  /// let quit_menu_item =  &MenuItem::new("Quit", true, None);
-  /// let menu = Menu::with_items(&[
-  ///   &Submenu::with_items("File", true, &[
-  ///    &quit_menu_item,
-  ///   ]),
-  /// ]);
-  ///
-  /// tauri::Builder::default()
-  ///   .menu(menu)
-  ///   .on_menu_event(|app, event| {
-  ///     if event.id == quit_menu_item.id() {
-  ///       // quit app
-  ///       app.exit(0);
-  ///     }
-  ///   });
-  /// ```
+  /// Registers a global tray icon menu event listener.
   #[must_use]
   pub fn on_tray_icon_event<F: Fn(&AppHandle<R>, TrayIconEvent) + Send + Sync + 'static>(
     mut self,
@@ -1359,25 +1342,6 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Registers a global menu event listener.
-  ///
-  /// # Examples
-  /// ```
-  /// let quit_menu_item =  &MenuItem::new("Quit", true, None);
-  /// let menu = Menu::with_items(&[
-  ///   &Submenu::with_items("File", true, &[
-  ///    &quit_menu_item,
-  ///   ]),
-  /// ]);
-  ///
-  /// tauri::Builder::default()
-  ///   .menu(menu)
-  ///   .on_menu_event(|app, event| {
-  ///     if event.id == quit_menu_item.id() {
-  ///       // quit app
-  ///       app.exit(0);
-  ///     }
-  ///   });
-  /// ```
   #[must_use]
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
     mut self,

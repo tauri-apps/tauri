@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Position, Runtime};
 use muda::ContextMenu;
 use tauri_runtime::menu::AboutMetadata;
 
@@ -43,7 +43,7 @@ unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
   fn show_context_menu_for_hwnd(
     &self,
     hwnd: isize,
-    position: Option<crate::Position>,
+    position: Option<Position>,
   ) -> crate::Result<()> {
     run_main_thread!(self, |self_: Self| self_
       .inner()
@@ -62,14 +62,18 @@ unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
   }
 
   #[cfg(target_os = "macos")]
-  fn show_context_menu_for_nsview(
+  fn show_context_menu_for_nsview<T: Runtime>(
     &self,
-    view: cocoa::base::id,
+    window: crate::Window<T>,
     position: Option<Position>,
   ) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| self_
-      .inner()
-      .show_context_menu_for_ns_view(view, position.map(Into::into)))
+    run_main_thread!(self, |self_: Self| {
+      if let Ok(view) = window.ns_view() {
+        self_
+          .inner()
+          .show_context_menu_for_nsview(view as _, position.map(Into::into))
+      }
+    })
   }
 }
 
@@ -110,17 +114,17 @@ impl<R: Runtime> Menu<R> {
         #[cfg(target_os = "macos")]
         &Submenu::with_items(
           app_handle,
-          pkg_info.name,
+          pkg_info.name.clone(),
           true,
           &[
-            &PredefinedMenuItem::about(None, Some(about_metadata.clone())),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::services(None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::hide(None),
-            &PredefinedMenuItem::hide_others(None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::quit(None),
+            &PredefinedMenuItem::about(app_handle, None, Some(about_metadata.clone())),
+            &PredefinedMenuItem::separator(app_handle),
+            &PredefinedMenuItem::services(app_handle, None),
+            &PredefinedMenuItem::separator(app_handle),
+            &PredefinedMenuItem::hide(app_handle, None),
+            &PredefinedMenuItem::hide_others(app_handle, None),
+            &PredefinedMenuItem::separator(app_handle),
+            &PredefinedMenuItem::quit(app_handle, None),
           ],
         )?,
         #[cfg(not(any(
@@ -159,7 +163,7 @@ impl<R: Runtime> Menu<R> {
           app_handle,
           "View",
           true,
-          &[&PredefinedMenuItem::fullscreen(None)],
+          &[&PredefinedMenuItem::fullscreen(app_handle, None)],
         )?,
         &Submenu::with_items(
           app_handle,

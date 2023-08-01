@@ -54,7 +54,7 @@ use std::{
   fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{mpsc::channel, Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
@@ -1034,24 +1034,28 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Examples
   /// ```
+  /// use tauri::menu::{Menu, Submenu, MenuItem};
   /// tauri::Builder::default()
-  ///   .setup(|window, event| {
-  ///     let save_menu_item =  &MenuItem::new("Save", true, None);
-  ///     let menu = Menu::with_items(&[
-  ///       &Submenu::with_items("File", true, &[
-  ///         &save_menu_item,
-  ///       ]),
-  ///     ]);
-  ///     let window = WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     let save_menu_item =  &MenuItem::new(&handle, "Save", true, None);
+  ///     let menu = Menu::with_items(&handle, &[
+  ///       &Submenu::with_items(&handle, "File", true, &[
+  ///         save_menu_item,
+  ///       ])?,
+  ///     ])?;
+  ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
   ///       .menu(menu)
   ///       .build()
   ///       .unwrap();
   ///
   ///     window.on_menu_event(move |window, event| {
-  ///       if event.id == save_menu_item.id() {
+  ///       if event.id == save_menu_item.id().unwrap() {
   ///           // save menu item
   ///       }
   ///     });
+  ///
+  ///     Ok(())
   ///   });
   /// ```
   pub fn on_menu_event<F: Fn(&Window<R>, MenuEvent) + Send + Sync + 'static>(&self, f: F) {
@@ -1091,6 +1095,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
+  #[cfg(not(target_os = "macos"))]
+  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
 
@@ -1123,6 +1129,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
+  #[cfg(not(target_os = "macos"))]
+  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
   pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
     let mut current_menu = self.menu_lock();
 
@@ -1157,6 +1165,8 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Hides the window menu.
+  #[cfg(not(target_os = "macos"))]
+  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
   pub fn hide_menu(&self) -> crate::Result<()> {
     // remove from the window
     if let Some((_, menu)) = &*self.menu_lock() {
@@ -1181,6 +1191,8 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Shows the window menu.
+  #[cfg(not(target_os = "macos"))]
+  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
   pub fn show_menu(&self) -> crate::Result<()> {
     // remove from the window
     if let Some((_, menu)) = &*self.menu_lock() {
@@ -1205,10 +1217,12 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Shows the window menu.
+  #[cfg(not(target_os = "macos"))]
+  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     // remove from the window
     if let Some((_, menu)) = &*self.menu_lock() {
-      let (tx, rx) = channel();
+      let (tx, rx) = std::sync::mpsc::channel();
       #[cfg(windows)]
       let hwnd = self.hwnd()?.0;
       #[cfg(linux)]
@@ -1235,9 +1249,9 @@ impl<R: Runtime> Window<R> {
   /// If a position was not provided, the cursor position will be used.
   ///
   /// The position is relative to the window's top-left corner.
-  pub fn show_context_menu<P: Into<Position>>(
+  pub fn show_context_menu<M: ContextMenu, P: Into<Position>>(
     &self,
-    menu: &dyn ContextMenu,
+    menu: &M,
     position: Option<P>,
   ) -> crate::Result<()> {
     let position = position.map(|p| p.into());
@@ -1247,7 +1261,7 @@ impl<R: Runtime> Window<R> {
     #[cfg(linux)]
     menu.show_context_menu_for_gtk_window(&self.gtk_window()?, position)?;
     #[cfg(target_os = "macos")]
-    menu.show_context_menu_for_nsview(self.ns_view()? as _, position)?;
+    menu.show_context_menu_for_nsview(self.clone(), position)?;
 
     Ok(())
   }

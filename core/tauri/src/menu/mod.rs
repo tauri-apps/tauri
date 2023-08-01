@@ -191,9 +191,9 @@ pub(crate) mod sealed {
     ) -> crate::Result<()>;
 
     #[cfg(target_os = "macos")]
-    fn show_context_menu_for_nsview(
+    fn show_context_menu_for_nsview<R: crate::Runtime>(
       &self,
-      view: cocoa::base::id,
+      window: crate::Window<R>,
       position: Option<Position>,
     ) -> crate::Result<()>;
   }

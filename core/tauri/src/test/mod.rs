@@ -166,7 +166,9 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
 /// }
 /// ```
 pub fn mock_builder() -> Builder<MockRuntime> {
-  let mut builder = Builder::<MockRuntime>::new().manage(Ipc(Default::default()));
+  let mut builder = Builder::<MockRuntime>::new()
+    .enable_macos_default_menu(false)
+    .manage(Ipc(Default::default()));
 
   builder.invoke_responder = Arc::new(|window, response, callback, error| {
     let window_ = window.clone();

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{IsMenuItem, MenuItemKind};
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Position, Runtime};
 use muda::ContextMenu;
 
 /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
@@ -60,7 +60,7 @@ unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
   fn show_context_menu_for_hwnd(
     &self,
     hwnd: isize,
-    position: Option<crate::Position>,
+    position: Option<Position>,
   ) -> crate::Result<()> {
     run_main_thread!(self, |self_: Self| {
       self_
@@ -83,15 +83,17 @@ unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
   }
 
   #[cfg(target_os = "macos")]
-  fn show_context_menu_for_nsview(
+  fn show_context_menu_for_nsview<T: Runtime>(
     &self,
-    view: cocoa::base::id,
+    window: crate::Window<T>,
     position: Option<Position>,
   ) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| {
-      self_
-        .inner()
-        .show_context_menu_for_ns_view(view, position.map(Into::into))
+    run_main_thread!(self, move |self_: Self| {
+      if let Ok(view) = window.ns_view() {
+        self_
+          .inner()
+          .show_context_menu_for_nsview(view as _, position.map(Into::into))
+      }
     })
   }
 }

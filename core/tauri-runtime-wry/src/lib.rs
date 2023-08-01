@@ -2574,6 +2574,7 @@ fn create_webview<T: UserEvent>(
   let is_window_transparent = window_builder.inner.window.transparent;
   let window = window_builder.inner.build(event_loop).unwrap();
 
+  #[cfg(not(target_os = "macos"))]
   if let Some(menu) = window_builder.menu {
     #[cfg(windows)]
     let _ = menu.init_for_hwnd(window.hwnd() as _);

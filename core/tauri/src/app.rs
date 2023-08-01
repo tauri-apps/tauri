@@ -602,13 +602,13 @@ macro_rules! shared_app_impl {
             let menu_c = menu.clone();
             self.run_on_main_thread(move || {
               #[cfg(windows)]
-              {
-                let _ = menu_c.inner().init_for_hwnd(hwnd);
-              }
+              let _ = menu_c.inner().init_for_hwnd(hwnd);
+
               #[cfg(linux)]
-              {
-                let _ = menu_c.inner().init_for_gtk_window(&gtk_window);
-              }
+              let _ = menu_c.inner().init_for_gtk_window(&gtk_window);
+
+              #[cfg(target_os = "macos")]
+              menu_c.inner().init_for_nsapp();
             })?;
             window_menu.replace((true, menu.clone()));
           }
@@ -625,6 +625,7 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will remove the menu from it.
+
       pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
         let mut current_menu = self.manager.menu_lock();
 
@@ -639,13 +640,13 @@ macro_rules! shared_app_impl {
               let menu_c = menu.clone();
               self.run_on_main_thread(move || {
                 #[cfg(windows)]
-                {
-                  let _ = menu_c.inner().remove_for_hwnd(hwnd);
-                }
+                let _ = menu_c.inner().remove_for_hwnd(hwnd);
+
                 #[cfg(linux)]
-                {
-                  let _ = menu_c.inner().remove_for_gtk_window(&gtk_window);
-                }
+                let _ = menu_c.inner().remove_for_gtk_window(&gtk_window);
+
+                #[cfg(target_os = "macos")]
+                let _ = menu_c.inner().remove_for_nsapp();
               })?;
               *window.menu_lock() = None;
             }
@@ -671,6 +672,8 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will hide the menu from it.
+      #[cfg(not(target_os = "macos"))]
+      #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
       pub fn hide_menu(&self) -> crate::Result<()> {
         if let Some(menu) = &*self.manager.menu_lock() {
           for window in self.manager.windows_lock().values() {
@@ -701,6 +704,8 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will show the menu for it.
+      #[cfg(not(target_os = "macos"))]
+      #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
       pub fn show_menu(&self) -> crate::Result<()> {
         if let Some(menu) = &*self.manager.menu_lock() {
           for window in self.manager.windows_lock().values() {
@@ -1225,9 +1230,9 @@ impl<R: Runtime> Builder<R> {
   /// tauri::Builder::default()
   ///   .tray_icon(TrayIconBuilder::new().with_menu(
   ///     Menu::with_items(&[
-  ///       &MenuItem::new("New window", true, None),
-  ///       &MenuItem::new("Quit", true, None),
-  ///     ])
+  ///       &MenuItem::new("New window", true, None).unwrap(),
+  ///       &MenuItem::new("Quit", true, None).unwrap(),
+  ///     ]).unwrap()
   ///   ));
   /// ```
   #[must_use]
@@ -1475,11 +1480,6 @@ impl<R: Runtime> Builder<R> {
     #[cfg(not(any(windows, target_os = "linux")))]
     let mut runtime = R::new(runtime_args)?;
 
-    #[cfg(target_os = "macos")]
-    if let Some(menu) = menu {
-      menu.inner().init_for_nsapp();
-    }
-
     // setup menu event handler
     let proxy = runtime.create_proxy();
     crate::menu::MenuEvent::set_event_handler(Some(move |e| {
@@ -1513,6 +1513,10 @@ impl<R: Runtime> Builder<R> {
       if let Ok(id) = menu.id() {
         app.manager.menus_stash_lock().insert(id, menu.clone());
       }
+
+      #[cfg(target_os = "macos")]
+      menu.inner().init_for_nsapp();
+
       app.manager.menu_lock().replace(menu);
     }
 

@@ -6,8 +6,8 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::runtime::tray as tray_icon;
 pub use crate::runtime::tray::TrayIconEvent;
+use crate::{menu::ContextMenu, runtime::tray as tray_icon};
 use crate::{run_main_thread, AppHandle, Icon, Runtime};
 
 // TODO(muda-migration): tray icon type `on_event` handler
@@ -28,7 +28,7 @@ pub struct TrayIconAttributes {
   /// ## Platform-specific:
   ///
   /// - **Linux**: once a menu is set, it cannot be removed.
-  pub menu: Option<Box<dyn crate::menu::ContextMenu>>,
+  pub menu: Option<Box<dyn crate::runtime::menu::ContextMenu>>,
 
   /// Tray icon
   ///
@@ -64,7 +64,7 @@ impl From<TrayIconAttributes> for tray_icon::TrayIconAttributes {
   fn from(value: TrayIconAttributes) -> Self {
     Self {
       tooltip: value.tooltip,
-      menu: value.menu.map(|m| m.into_inner()),
+      menu: value.menu,
       icon: value.icon.and_then(|i| {
         i.try_into()
           .ok()
@@ -101,7 +101,7 @@ impl TrayIconBuilder {
   /// ## Platform-specific:
   ///
   /// - **Linux**: once a menu is set, it cannot be removed or replaced but you can change its content.
-  pub fn with_menu(mut self, menu: &dyn crate::menu::ContextMenu) -> Self {
+  pub fn with_menu<M: ContextMenu>(mut self, menu: &M) -> Self {
     self.0 = self.0.with_menu(menu.into_inner());
     self
   }
@@ -255,7 +255,7 @@ impl<R: Runtime> TrayIcon<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux**: once a menu is set it cannot be removed so `None` has no effect
-  pub fn set_menu(&self, menu: Option<Box<dyn crate::menu::ContextMenu>>) -> crate::Result<()> {
+  pub fn set_menu<M: ContextMenu + 'static>(&self, menu: Option<M>) -> crate::Result<()> {
     run_main_thread!(self, |self_: Self| self_
       .inner
       .set_menu(menu.map(|m| m.into_inner())))

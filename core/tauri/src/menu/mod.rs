@@ -191,9 +191,9 @@ pub(crate) mod sealed {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    fn show_context_menu_for_gtk_window(
+    fn show_context_menu_for_gtk_window<R: crate::Runtime>(
       &self,
-      w: &gtk::ApplicationWindow,
+      window: crate::Window<R>,
       position: Option<Position>,
     ) -> crate::Result<()>;
 

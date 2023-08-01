@@ -595,20 +595,13 @@ macro_rules! shared_app_impl {
         for window in self.manager.windows_lock().values() {
           let mut window_menu = window.menu_lock();
           if window_menu.as_ref().map(|m| m.0).unwrap_or(true) {
-            #[cfg(windows)]
-            let hwnd = window.hwnd()?.0;
-            #[cfg(any(
-              target_os = "linux",
-              target_os = "dragonfly",
-              target_os = "freebsd",
-              target_os = "netbsd",
-              target_os = "openbsd"
-            ))]
-            let gtk_window = window.gtk_window()?;
-            let menu_c = menu.clone();
+            let window = window.clone();
+            let menu_ = menu.clone();
             self.run_on_main_thread(move || {
               #[cfg(windows)]
-              let _ = menu_c.inner().init_for_hwnd(hwnd);
+              if let Ok(hwnd) = window.hwnd() {
+                let _ = menu_.inner().init_for_hwnd(hwnd.0);
+              }
 
               #[cfg(any(
                 target_os = "linux",
@@ -617,10 +610,14 @@ macro_rules! shared_app_impl {
                 target_os = "netbsd",
                 target_os = "openbsd"
               ))]
-              let _ = menu_c.inner().init_for_gtk_window(&gtk_window);
+              if let (Ok(gtk_window), Ok(gtk_box)) = (window.gtk_window(), window.default_vbox()) {
+                let _ = menu_
+                  .inner()
+                  .init_for_gtk_window(&gtk_window, Some(&gtk_box));
+              }
 
               #[cfg(target_os = "macos")]
-              menu_c.inner().init_for_nsapp();
+              menu_.inner().init_for_nsapp();
             })?;
             window_menu.replace((true, menu.clone()));
           }
@@ -645,20 +642,13 @@ macro_rules! shared_app_impl {
         if let Some(menu) = &*current_menu {
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
-              #[cfg(windows)]
-              let hwnd = window.hwnd()?.0;
-              #[cfg(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-              ))]
-              let gtk_window = window.gtk_window()?;
-              let menu_c = menu.clone();
+              let window_ = window.clone();
+              let menu_ = menu.clone();
               self.run_on_main_thread(move || {
                 #[cfg(windows)]
-                let _ = menu_c.inner().remove_for_hwnd(hwnd);
+                if let Ok(hwnd) = window_.hwnd() {
+                  let _ = menu_.inner().remove_for_hwnd(hwnd.0);
+                }
 
                 #[cfg(any(
                   target_os = "linux",
@@ -667,10 +657,12 @@ macro_rules! shared_app_impl {
                   target_os = "netbsd",
                   target_os = "openbsd"
                 ))]
-                let _ = menu_c.inner().remove_for_gtk_window(&gtk_window);
+                if let Ok(gtk_window) = window_.gtk_window() {
+                  let _ = menu_.inner().remove_for_gtk_window(&gtk_window);
+                }
 
                 #[cfg(target_os = "macos")]
-                let _ = menu_c.inner().remove_for_nsapp();
+                let _ = menu_.inner().remove_for_nsapp();
               })?;
               *window.menu_lock() = None;
             }
@@ -702,21 +694,12 @@ macro_rules! shared_app_impl {
         if let Some(menu) = &*self.manager.menu_lock() {
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
-              #[cfg(windows)]
-              let hwnd = window.hwnd()?.0;
-              #[cfg(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-              ))]
-              let gtk_window = window.gtk_window()?;
-              let menu_c = menu.clone();
+              let window = window.clone();
+              let menu_ = menu.clone();
               self.run_on_main_thread(move || {
                 #[cfg(windows)]
-                {
-                  let _ = menu_c.inner().hide_for_hwnd(hwnd);
+                if let Ok(hwnd) = window.hwnd() {
+                  let _ = menu_.inner().hide_for_hwnd(hwnd.0);
                 }
                 #[cfg(any(
                   target_os = "linux",
@@ -725,8 +708,8 @@ macro_rules! shared_app_impl {
                   target_os = "netbsd",
                   target_os = "openbsd"
                 ))]
-                {
-                  let _ = menu_c.inner().hide_for_gtk_window(&gtk_window);
+                if let Ok(gtk_window) = window.gtk_window() {
+                  let _ = menu_.inner().hide_for_gtk_window(&gtk_window);
                 }
               })?;
             }
@@ -746,21 +729,12 @@ macro_rules! shared_app_impl {
         if let Some(menu) = &*self.manager.menu_lock() {
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
-              #[cfg(windows)]
-              let hwnd = window.hwnd()?.0;
-              #[cfg(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-              ))]
-              let gtk_window = window.gtk_window()?;
-              let menu_c = menu.clone();
+              let window = window.clone();
+              let menu_ = menu.clone();
               self.run_on_main_thread(move || {
                 #[cfg(windows)]
-                {
-                  let _ = menu_c.inner().show_for_hwnd(hwnd);
+                if let Ok(hwnd) = window.hwnd() {
+                  let _ = menu_.inner().show_for_hwnd(hwnd.0);
                 }
                 #[cfg(any(
                   target_os = "linux",
@@ -769,8 +743,8 @@ macro_rules! shared_app_impl {
                   target_os = "netbsd",
                   target_os = "openbsd"
                 ))]
-                {
-                  let _ = menu_c.inner().show_for_gtk_window(&gtk_window);
+                if let Ok(gtk_window) = window.gtk_window() {
+                  let _ = menu_.inner().show_for_gtk_window(&gtk_window);
                 }
               })?;
             }

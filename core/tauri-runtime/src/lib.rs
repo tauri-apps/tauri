@@ -463,6 +463,16 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
 
+  /// Returns the vertical [`gtk::Box`] that is added by default as the sole child of this window.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn default_vbox(&self) -> Result<gtk::Box>;
+
   fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle>;
 
   /// Returns the current window theme.

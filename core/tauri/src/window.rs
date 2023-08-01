@@ -1103,21 +1103,12 @@ impl<R: Runtime> Window<R> {
 
     self.manager.insert_menu_into_stash(&menu);
 
-    #[cfg(windows)]
-    let hwnd = self.hwnd()?.0;
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ))]
-    let gtk_window = self.gtk_window()?;
-    let menu_c = menu.clone();
+    let window = self.clone();
+    let menu_ = menu.clone();
     self.run_on_main_thread(move || {
       #[cfg(windows)]
-      {
-        let _ = menu_c.inner().init_for_hwnd(hwnd);
+      if let Ok(hwnd) = window.hwnd() {
+        let _ = menu_.inner().init_for_hwnd(hwnd.0);
       }
       #[cfg(any(
         target_os = "linux",
@@ -1126,8 +1117,10 @@ impl<R: Runtime> Window<R> {
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      {
-        let _ = menu_c.inner().init_for_gtk_window(&gtk_window);
+      if let (Ok(gtk_window), Ok(gtk_box)) = (window.gtk_window(), window.default_vbox()) {
+        let _ = menu_
+          .inner()
+          .init_for_gtk_window(&gtk_window, Some(&gtk_box));
       }
     })?;
 
@@ -1149,21 +1142,12 @@ impl<R: Runtime> Window<R> {
 
     // remove from the window
     if let Some((_, menu)) = &*current_menu {
-      #[cfg(windows)]
-      let hwnd = self.hwnd()?.0;
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      let gtk_window = self.gtk_window()?;
-      let menu_c = menu.clone();
+      let window = self.clone();
+      let menu_ = menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
-        {
-          let _ = menu_c.inner().remove_for_hwnd(hwnd);
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = menu_.inner().remove_for_hwnd(hwnd.0);
         }
         #[cfg(any(
           target_os = "linux",
@@ -1172,8 +1156,8 @@ impl<R: Runtime> Window<R> {
           target_os = "netbsd",
           target_os = "openbsd"
         ))]
-        {
-          let _ = menu_c.inner().remove_for_gtk_window(&gtk_window);
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = menu_.inner().remove_for_gtk_window(&gtk_window);
         }
       })?;
     }
@@ -1195,21 +1179,12 @@ impl<R: Runtime> Window<R> {
   pub fn hide_menu(&self) -> crate::Result<()> {
     // remove from the window
     if let Some((_, menu)) = &*self.menu_lock() {
-      #[cfg(windows)]
-      let hwnd = self.hwnd()?.0;
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      let gtk_window = self.gtk_window()?;
-      let menu_c = menu.clone();
+      let window = self.clone();
+      let menu_ = menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
-        {
-          let _ = menu_c.inner().hide_for_hwnd(hwnd);
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = menu_.inner().hide_for_hwnd(hwnd.0);
         }
         #[cfg(any(
           target_os = "linux",
@@ -1218,8 +1193,8 @@ impl<R: Runtime> Window<R> {
           target_os = "netbsd",
           target_os = "openbsd"
         ))]
-        {
-          let _ = menu_c.inner().hide_for_gtk_window(&gtk_window);
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = menu_.inner().hide_for_gtk_window(&gtk_window);
         }
       })?;
     }
@@ -1233,21 +1208,12 @@ impl<R: Runtime> Window<R> {
   pub fn show_menu(&self) -> crate::Result<()> {
     // remove from the window
     if let Some((_, menu)) = &*self.menu_lock() {
-      #[cfg(windows)]
-      let hwnd = self.hwnd()?.0;
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      let gtk_window = self.gtk_window()?;
-      let menu_c = menu.clone();
+      let window = self.clone();
+      let menu_ = menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
-        {
-          let _ = menu_c.inner().show_for_hwnd(hwnd);
+        if let Ok(hwnd) = widnow.hwnd() {
+          let _ = menu_.inner().show_for_hwnd(hwnd.0);
         }
         #[cfg(any(
           target_os = "linux",
@@ -1256,8 +1222,8 @@ impl<R: Runtime> Window<R> {
           target_os = "netbsd",
           target_os = "openbsd"
         ))]
-        {
-          let _ = menu_c.inner().show_for_gtk_window(&gtk_window);
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = menu_.inner().show_for_gtk_window(&gtk_window);
         }
       })?;
     }
@@ -1272,21 +1238,12 @@ impl<R: Runtime> Window<R> {
     // remove from the window
     if let Some((_, menu)) = &*self.menu_lock() {
       let (tx, rx) = std::sync::mpsc::channel();
-      #[cfg(windows)]
-      let hwnd = self.hwnd()?.0;
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      let gtk_window = self.gtk_window()?;
-      let menu_c = menu.clone();
+      let window = self.clone();
+      let menu_ = menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
-        {
-          let _ = tx.send(menu_c.inner().is_visible_on_hwnd(hwnd));
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = tx.send(menu_.inner().is_visible_on_hwnd(hwnd.0));
         }
         #[cfg(any(
           target_os = "linux",
@@ -1295,8 +1252,8 @@ impl<R: Runtime> Window<R> {
           target_os = "netbsd",
           target_os = "openbsd"
         ))]
-        {
-          let _ = tx.send(menu_c.inner().is_visible_on_gtk_window(&gtk_window));
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = tx.send(menu_.inner().is_visible_on_gtk_window(&gtk_window));
         }
       })?;
 
@@ -1326,7 +1283,7 @@ impl<R: Runtime> Window<R> {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    menu.show_context_menu_for_gtk_window(&self.gtk_window()?, position)?;
+    menu.show_context_menu_for_gtk_window(self.clone(), position)?;
     #[cfg(target_os = "macos")]
     menu.show_context_menu_for_nsview(self.clone(), position)?;
 
@@ -1583,7 +1540,7 @@ impl<R: Runtime> Window<R> {
 
   /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   ///
-  /// Note that this can only be used on the main thread.
+  /// Note that this type can only be used on the main thread.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1593,6 +1550,20 @@ impl<R: Runtime> Window<R> {
   ))]
   pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
     self.window.dispatcher.gtk_window().map_err(Into::into)
+  }
+
+  /// Returns the vertical [`gtk::Box`] that is added by default as the sole child of this window.
+  ///
+  /// Note that this type can only be used on the main thread.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn default_vbox(&self) -> crate::Result<gtk::Box> {
+    self.window.dispatcher.default_vbox().map_err(Into::into)
   }
 
   /// Returns the current window theme.

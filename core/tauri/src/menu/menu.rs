@@ -57,14 +57,18 @@ impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn show_context_menu_for_gtk_window(
+  fn show_context_menu_for_gtk_window<T: Runtime>(
     &self,
-    w: &gtk::ApplicationWindow,
+    window: crate::Window<T>,
     position: Option<Position>,
   ) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| self_
-      .inner()
-      .show_context_menu_for_gtk_window(w, position.map(Into::into)))
+    run_main_thread!(self, |self_: Self| {
+      if let Ok(gtk_window) = window.gtk_window() {
+        self_
+          .inner()
+          .show_context_menu_for_gtk_window(&gtk_window, position.map(Into::into))
+      }
+    })
   }
 
   #[cfg(target_os = "macos")]

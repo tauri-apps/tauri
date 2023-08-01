@@ -916,6 +916,24 @@ pub struct GtkWindow(pub gtk::ApplicationWindow);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkWindow {}
 
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub struct GtkBox(pub gtk::Box);
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for GtkBox {}
+
 pub struct RawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for RawWindowHandle {}
 
@@ -965,6 +983,14 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkWindow(Sender<GtkWindow>),
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  GtkBox(Sender<GtkBox>),
   RawWindowHandle(Sender<RawWindowHandle>),
   Theme(Sender<Theme>),
   // Setters
@@ -1204,7 +1230,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     window_getter!(self, WindowMessage::Theme)
   }
 
-  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1214,6 +1239,17 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
     window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn default_vbox(&self) -> Result<gtk::Box> {
+    window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
   }
 
   fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
@@ -2172,6 +2208,9 @@ fn handle_user_message<T: UserEvent>(
             target_os = "openbsd"
           ))]
           WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          WindowMessage::GtkBox(tx) => tx
+            .send(GtkBox(window.default_vbox().unwrap().clone()))
+            .unwrap(),
           WindowMessage::RawWindowHandle(tx) => tx
             .send(RawWindowHandle(window.raw_window_handle()))
             .unwrap(),
@@ -2585,7 +2624,7 @@ fn create_webview<T: UserEvent>(
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    let _ = menu.init_for_gtk_window(window.gtk_window());
+    let _ = menu.init_for_gtk_window(window.gtk_window(), window.default_vbox());
   }
 
   webview_id_map.insert(window.id(), window_id);

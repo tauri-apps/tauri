@@ -485,6 +485,17 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     unimplemented!()
   }
 
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn default_vbox(&self) -> Result<gtk::Box> {
+    unimplemented!()
+  }
+
   fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
     #[cfg(target_os = "linux")]
     return Ok(raw_window_handle::RawWindowHandle::Xlib(

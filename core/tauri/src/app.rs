@@ -27,10 +27,10 @@ use crate::{
 #[cfg(feature = "protocol-asset")]
 use crate::scope::FsScope;
 
+use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
 use tauri_runtime::{
-  tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
   window::{
     dpi::{PhysicalPosition, PhysicalSize},
     FileDropEvent,
@@ -475,9 +475,9 @@ impl App<crate::Wry> {
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
-      /// Gets the first tray icon register, usually the one configured in
+      /// Gets the first tray icon registerd, usually the one configured in
       /// tauri config file.
-      pub fn tray(&self) -> Option<TrayIcon> {
+      pub fn tray(&self) -> Option<TrayIcon<R>> {
         self
           .manager
           .inner
@@ -488,8 +488,20 @@ macro_rules! shared_app_impl {
           .cloned()
       }
 
+      /// Removes the first tray icon registerd, usually the one configured in
+      /// tauri config file, from tauri's internal state and returns it.
+      ///
+      /// Note that dropping the returned icon, will cause the tray icon to disappear.
+      pub fn remove_tray(&self) -> Option<TrayIcon<R>> {
+        let mut tray_icons = self.manager.inner.tray_icons.lock().unwrap();
+        if !tray_icons.is_empty() {
+          return Some(tray_icons.swap_remove(0));
+        }
+        None
+      }
+
       /// Gets a tray icon using the provided id.
-      pub fn tray_by_id(&self, id: u32) -> Option<TrayIcon> {
+      pub fn tray_by_id(&self, id: u32) -> Option<TrayIcon<R>> {
         self
           .manager
           .inner
@@ -497,8 +509,25 @@ macro_rules! shared_app_impl {
           .lock()
           .unwrap()
           .iter()
-          .find(|t| t.id() == id)
+          .find(|t| t.id().map(|i| i == id).unwrap_or(false))
           .cloned()
+      }
+
+      /// Removes a tray icon using the provided id from tauri's internal state and returns it.
+      ///
+      /// Note that dropping the returned icon, will cause the tray icon to disappear.
+      pub fn remove_tray_by_id(&self, id: u32) -> Option<TrayIcon<R>> {
+        let mut tray_icons = self.manager.inner.tray_icons.lock().unwrap();
+
+        let idx = tray_icons
+          .iter()
+          .position(|t| t.id().map(|i| i == id).unwrap_or(false));
+
+        if let Some(idx) = idx {
+          return Some(tray_icons.swap_remove(idx));
+        }
+
+        None
       }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.
@@ -1526,6 +1555,7 @@ impl<R: Runtime> Builder<R> {
     {
       let mut tray_stash = app.manager.inner.tray_icons.lock().unwrap();
       let config = app.config();
+      let handle = app.handle();
 
       // config tray
       if let Some(tray_config) = &config.tauri.tray_icon {
@@ -1533,8 +1563,7 @@ impl<R: Runtime> Builder<R> {
           .with_icon_as_template(tray_config.icon_as_template)
           .with_menu_on_left_click(tray_config.menu_on_left_click);
         if let Some(icon) = &app.manager.inner.tray_icon {
-          let icon: crate::runtime::Icon = icon.clone().try_into()?;
-          tray = tray.with_icon(icon.try_into()?);
+          tray = tray.with_icon(icon.clone());
         }
         if let Some(title) = &tray_config.title {
           tray = tray.with_title(title);
@@ -1542,16 +1571,12 @@ impl<R: Runtime> Builder<R> {
         if let Some(tooltip) = &tray_config.tooltip {
           tray = tray.with_tooltip(tooltip);
         }
-        tray_stash.push(tray.build().map_err(Into::<crate::runtime::Error>::into)?);
+        tray_stash.push(tray.build(&handle)?);
       }
 
       // tray icon registered on the builder
       for tray_builder in self.tray_icons {
-        tray_stash.push(
-          tray_builder
-            .build()
-            .map_err(Into::<crate::runtime::Error>::into)?,
-        );
+        tray_stash.push(tray_builder.build(&handle)?);
       }
     }
 

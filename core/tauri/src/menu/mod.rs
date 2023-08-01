@@ -4,7 +4,6 @@
 
 //! Menu types and utility functions
 
-// TODO(muda-migration): add default menu
 // TODO(muda-migration): figure out js events
 
 pub mod builders;
@@ -25,22 +24,6 @@ pub use crate::runtime::menu::{icon::NativeIcon, AboutMetadata, MenuEvent};
 use crate::Runtime;
 
 use crate::runtime::menu as muda;
-
-macro_rules! run_main_thread {
-  ($self:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-
-    let (tx, rx) = channel();
-    let self_ = $self.clone();
-    let task = move || {
-      let _ = tx.send($ex(self_));
-    };
-    $self.app_handle.run_on_main_thread(Box::new(task))?;
-    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
-  }};
-}
-
-pub(crate) use run_main_thread;
 
 /// An enumeration of all menu item kinds that could be added to
 /// a [`Menu`] or [`Submenu`]
@@ -180,7 +163,7 @@ pub unsafe trait IsMenuItem<R: Runtime>: sealed::IsMenuItemBase {
 /// # Safety
 ///
 /// This trait is ONLY meant to be implemented internally by the crate.
-pub unsafe trait ContextMenu: sealed::ContextMenuBase + Sync {}
+pub unsafe trait ContextMenu: sealed::ContextMenuBase + Send + Sync {}
 
 pub(crate) mod sealed {
   use crate::Position;
@@ -191,6 +174,7 @@ pub(crate) mod sealed {
 
   pub unsafe trait ContextMenuBase {
     fn inner(&self) -> &dyn super::muda::ContextMenu;
+    fn into_inner(&self) -> Box<dyn super::muda::ContextMenu>;
 
     #[cfg(windows)]
     fn show_context_menu_for_hwnd(

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
-use crate::{menu::run_main_thread, runtime::menu as muda, AppHandle, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Runtime};
 use muda::ContextMenu;
 use tauri_runtime::menu::AboutMetadata;
 
@@ -33,6 +33,10 @@ unsafe impl<R: Runtime> super::ContextMenu for Menu<R> {}
 unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
   fn inner(&self) -> &dyn muda::ContextMenu {
     &self.inner
+  }
+
+  fn into_inner(&self) -> Box<dyn muda::ContextMenu> {
+    Box::new(self.clone().inner)
   }
 
   #[cfg(windows)]

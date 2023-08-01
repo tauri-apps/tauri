@@ -11,10 +11,10 @@ use std::{
 };
 
 use crate::menu::Menu;
+use crate::tray::TrayIcon;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
-use tauri_runtime::tray::TrayIcon;
 use url::Url;
 
 use tauri_macros::default_runtime;
@@ -237,7 +237,7 @@ pub struct InnerWindowManager<R: Runtime> {
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
   /// Tray icons
-  pub(crate) tray_icons: Arc<Mutex<Vec<TrayIcon>>>,
+  pub(crate) tray_icons: Arc<Mutex<Vec<TrayIcon<R>>>>,
   /// Tray icon event listeners.
   pub(crate) tray_event_listeners: Arc<Mutex<Vec<GlobalTrayIconEventListener<R>>>>,
   /// Responder for invoke calls.
@@ -1177,7 +1177,6 @@ impl<R: Runtime> WindowManager<R> {
       }
     }));
 
-    dbg!(self.menu_lock().is_some());
     if let Some(menu) = &*self.menu_lock() {
       pending = pending.set_app_menu(menu.inner().clone());
     }

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::NativeIcon;
-use crate::{menu::run_main_thread, runtime::menu as muda, AppHandle, Icon, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Icon, Runtime};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///

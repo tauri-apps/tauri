@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{IsMenuItem, MenuItemKind};
-use crate::{menu::run_main_thread, runtime::menu as muda, AppHandle, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Runtime};
 use muda::ContextMenu;
 
 /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
@@ -50,6 +50,10 @@ unsafe impl<R: Runtime> super::ContextMenu for Submenu<R> {}
 unsafe impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
   fn inner(&self) -> &dyn muda::ContextMenu {
     &self.inner
+  }
+
+  fn into_inner(&self) -> Box<dyn muda::ContextMenu> {
+    Box::new(self.clone().inner)
   }
 
   #[cfg(windows)]

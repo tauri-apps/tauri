@@ -2208,6 +2208,13 @@ fn handle_user_message<T: UserEvent>(
             target_os = "openbsd"
           ))]
           WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+          ))]
           WindowMessage::GtkBox(tx) => tx
             .send(GtkBox(window.default_vbox().unwrap().clone()))
             .unwrap(),

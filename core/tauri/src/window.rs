@@ -1212,7 +1212,7 @@ impl<R: Runtime> Window<R> {
       let menu_ = menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
-        if let Ok(hwnd) = widnow.hwnd() {
+        if let Ok(hwnd) = window.hwnd() {
           let _ = menu_.inner().show_for_hwnd(hwnd.0);
         }
         #[cfg(any(

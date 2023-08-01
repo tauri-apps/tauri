@@ -985,7 +985,7 @@ pub struct Builder<R: Runtime> {
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
 
   /// Tray icon builder
-  tray_icons: Vec<TrayIconBuilder>,
+  tray_icons_builders: Vec<Box<dyn FnOnce(&AppHandle<R>) -> crate::Result<TrayIcon<R>>>>,
 
   /// Tray icon event handlers.
   tray_event_listeners: Vec<GlobalTrayIconEventListener<R>>,
@@ -1014,7 +1014,7 @@ impl<R: Runtime> Builder<R> {
       enable_macos_default_menu: true,
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
-      tray_icons: Vec::new(),
+      tray_icons_builders: Vec::new(),
       tray_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
     }
@@ -1258,8 +1258,11 @@ impl<R: Runtime> Builder<R> {
   ///   ));
   /// ```
   #[must_use]
-  pub fn tray_icon(mut self, tray: TrayIconBuilder) -> Self {
-    self.tray_icons.push(tray);
+  pub fn tray_icon<F: FnOnce(&AppHandle<R>) -> crate::Result<TrayIcon<R>> + 'static>(
+    mut self,
+    tray_builder: F,
+  ) -> Self {
+    self.tray_icons_builders.push(Box::new(tray_builder));
     self
   }
 
@@ -1601,8 +1604,8 @@ impl<R: Runtime> Builder<R> {
       }
 
       // tray icon registered on the builder
-      for tray_builder in self.tray_icons {
-        tray_stash.push(tray_builder.build(&handle)?);
+      for tray_builder in self.tray_icons_builders {
+        tray_stash.push(tray_builder(&handle)?);
       }
     }
 

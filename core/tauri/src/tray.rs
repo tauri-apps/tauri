@@ -234,6 +234,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
     }
 
     Ok(TrayIcon {
+      id,
       inner,
       app_handle: app_handle.clone(),
     })
@@ -244,6 +245,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
 ///
 /// This type is reference-counted and the icon is removed when the last instance is dropped.
 pub struct TrayIcon<R: Runtime> {
+  id: u32,
   inner: tray_icon::TrayIcon,
   app_handle: AppHandle<R>,
 }
@@ -251,6 +253,7 @@ pub struct TrayIcon<R: Runtime> {
 impl<R: Runtime> Clone for TrayIcon<R> {
   fn clone(&self) -> Self {
     Self {
+      id: self.id,
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -298,6 +301,7 @@ impl<R: Runtime> TrayIcon<R> {
     }
 
     Ok(Self {
+      id,
       inner,
       app_handle: app_handle.clone(),
     })
@@ -312,6 +316,7 @@ impl<R: Runtime> TrayIcon<R> {
     id: u32,
   ) -> crate::Result<Self> {
     Ok(Self {
+      id,
       inner: tray_icon::TrayIcon::with_id(attrs.into(), id)?,
       app_handle: app_handle.clone(),
     })
@@ -323,8 +328,8 @@ impl<R: Runtime> TrayIcon<R> {
   }
 
   /// Returns the id associated with this tray icon.
-  pub fn id(&self) -> crate::Result<u32> {
-    run_main_thread!(self, |self_: Self| self_.inner.id())
+  pub fn id(&self) -> u32 {
+    self.id
   }
 
   /// Set new tray icon. If `None` is provided, it will remove the icon.

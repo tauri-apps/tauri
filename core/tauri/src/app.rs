@@ -509,7 +509,7 @@ macro_rules! shared_app_impl {
           .lock()
           .unwrap()
           .iter()
-          .find(|t| t.id().map(|i| i == id).unwrap_or(false))
+          .find(|t| t.id() == id)
           .cloned()
       }
 
@@ -519,9 +519,7 @@ macro_rules! shared_app_impl {
       pub fn remove_tray_by_id(&self, id: u32) -> Option<TrayIcon<R>> {
         let mut tray_icons = self.manager.inner.tray_icons.lock().unwrap();
 
-        let idx = tray_icons
-          .iter()
-          .position(|t| t.id().map(|i| i == id).unwrap_or(false));
+        let idx = tray_icons.iter().position(|t| t.id() == id);
 
         if let Some(idx) = idx {
           return Some(tray_icons.swap_remove(idx));

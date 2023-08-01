@@ -3,13 +3,29 @@
 // SPDX-License-Identifier: MIT
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{tray::TrayIconBuilder, WindowUrl};
+use tauri::{
+  menu::{Menu, MenuItem},
+  tray::{TrayIcon, TrayIconBuilder},
+  Runtime, WindowUrl,
+};
 
-// pub fn tray() -> TrayIconBuilder {
-//   TrayIconBuilder::new()
-//   .with_tooltip()
-// }
+pub fn create_tray<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<TrayIcon<R>> {
+  let app = app.handle();
+  TrayIconBuilder::new()
+    .with_tooltip("Tauri")
+    .with_menu(&Menu::with_items(
+      &app,
+      &[
+        &MenuItem::new(&app, "Toggle", true, None),
+        &MenuItem::new(&app, "New window", true, None),
+        &MenuItem::new(&app, "Tray Icon 1", true, None),
+        &MenuItem::new(&app, "Tray Icon 2", true, None),
+      ],
+    )?)
+    .build(&app)
+}
 
+/*
 pub fn create_tray<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
   let mut tray_menu1 = SystemTrayMenu::new()
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
@@ -124,3 +140,4 @@ pub fn create_tray<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     .build(app)
     .map(|_| ())
 }
+*/

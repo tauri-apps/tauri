@@ -6,4 +6,13 @@
 
 pub use crate::runtime::menu::builders::AboutMetadataBuilder;
 
-// TODO(muda-migration): add builder types
+mod menu;
+pub use menu::MenuBuilder;
+mod normal;
+pub use normal::MenuItemBuilder;
+mod submenu;
+pub use submenu::SubmenuBuilder;
+mod check;
+pub use check::CheckMenuItemBuilder;
+mod icon;
+pub use icon::IconMenuItemBuilder;

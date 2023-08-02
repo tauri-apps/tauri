@@ -8,81 +8,10 @@ use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::MenuEvent;
 use crate::{menu::ContextMenu, runtime::tray as tray_icon};
 use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 pub use tray_icon::{ClickType, Rectangle, TrayIconEvent};
 
 // TODO(muda-migration): figure out js events
-
-/// Attributes to use when creating a tray icon.
-#[derive(Default)]
-pub struct TrayIconAttributes<R: Runtime> {
-  /// Tray icon tooltip
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux:** Unsupported.
-  tooltip: Option<String>,
-
-  /// Tray menu
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux**: once a menu is set, it cannot be removed.
-  menu: Option<Box<dyn crate::runtime::menu::ContextMenu>>,
-
-  /// Set a handler for menu events
-  on_menu_event: Option<GlobalMenuEventListener<AppHandle<R>>>,
-
-  /// Set a handler for tray icon events
-  on_tray_event: Option<GlobalTrayIconEventListener<TrayIcon<R>>>,
-
-  /// Tray icon
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
-  ///     Setting an empty [`Menu`](crate::menu::Menu) is enough.
-  icon: Option<Icon>,
-
-  /// Tray icon temp dir path. **Linux only**.
-  temp_dir_path: Option<PathBuf>,
-
-  /// Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
-  icon_is_template: bool,
-
-  /// Whether to show the tray menu on left click or not, default is `true`. **macOS only**.
-  menu_on_left_click: bool,
-
-  /// Tray icon title.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** The title will not be shown unless there is an icon
-  /// as well.  The title is useful for numerical and other frequently
-  /// updated information.  In general, it shouldn't be shown unless a
-  /// user requests it as it can take up a significant amount of space
-  /// on the user's panel.  This may not be shown in all visualizations.
-  /// - **Windows:** Unsupported.
-  title: Option<String>,
-}
-
-impl<R: Runtime> From<TrayIconAttributes<R>> for tray_icon::TrayIconAttributes {
-  fn from(value: TrayIconAttributes<R>) -> Self {
-    Self {
-      tooltip: value.tooltip,
-      menu: value.menu,
-      icon: value.icon.and_then(|i| {
-        i.try_into()
-          .ok()
-          .and_then(|i: crate::runtime::Icon| i.try_into().ok())
-      }),
-      temp_dir_path: value.temp_dir_path,
-      icon_is_template: value.icon_is_template,
-      menu_on_left_click: value.menu_on_left_click,
-      title: value.title,
-    }
-  }
-}
 
 /// [`TrayIcon`] builder struct and associated methods.
 #[derive(Default)]
@@ -234,6 +163,8 @@ impl<R: Runtime> TrayIconBuilder<R> {
 /// Tray icon struct and associated methods.
 ///
 /// This type is reference-counted and the icon is removed when the last instance is dropped.
+///
+/// See [TrayIconBuilder] to construct this type.
 pub struct TrayIcon<R: Runtime> {
   id: u32,
   inner: tray_icon::TrayIcon,
@@ -257,51 +188,6 @@ unsafe impl<R: Runtime> Sync for TrayIcon<R> {}
 unsafe impl<R: Runtime> Send for TrayIcon<R> {}
 
 impl<R: Runtime> TrayIcon<R> {
-  /// Builds and adds a new tray icon to the system tray.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
-  /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
-  pub fn new<M: Manager<R>>(manager: &M, mut attrs: TrayIconAttributes<R>) -> crate::Result<Self> {
-    let on_menu_event = attrs.on_menu_event.take();
-    let on_tray_event = attrs.on_tray_event.take();
-
-    let inner = tray_icon::TrayIcon::new(attrs.into())?;
-    let icon = Self {
-      id: inner.id(),
-      inner,
-      app_handle: manager.app_handle(),
-    };
-
-    icon.register(&icon.app_handle, on_menu_event, on_tray_event);
-
-    Ok(icon)
-  }
-
-  /// Builds and adds a new tray icon to the system tray with the specified Id.
-  ///
-  /// See [`TrayIcon::new`] for more info.
-  pub fn with_id(
-    app_handle: &AppHandle<R>,
-    mut attrs: TrayIconAttributes<R>,
-    id: u32,
-  ) -> crate::Result<Self> {
-    let on_menu_event = attrs.on_menu_event.take();
-    let on_tray_event = attrs.on_tray_event.take();
-
-    let inner = tray_icon::TrayIcon::with_id(attrs.into(), id)?;
-    let icon = Self {
-      id,
-      inner,
-      app_handle: app_handle.clone(),
-    };
-
-    icon.register(app_handle, on_menu_event, on_tray_event);
-
-    Ok(icon)
-  }
-
   fn register(
     &self,
     app_handle: &AppHandle<R>,

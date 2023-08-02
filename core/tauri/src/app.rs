@@ -898,14 +898,20 @@ impl<R: Runtime> App<R> {
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
-  /// app.run(|_app_handle, event| match event {
-  ///   tauri::RunEvent::ExitRequested { api, .. } => {
-  ///     api.prevent_exit();
+  /// app.run(|_app_handle, event| {
+  ///   match event {
+  ///     tauri::RunEvent::ExitRequested { api, .. } => {
+  ///       api.prevent_exit();
+  ///     }
+  ///     _ => {}
   ///   }
-  ///   _ => {}
+  ///   Ok(())
   /// });
   /// ```
-  pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
+  pub fn run<F: FnMut(&AppHandle<R>, RunEvent) -> crate::Result<()> + 'static>(
+    mut self,
+    mut callback: F,
+  ) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
@@ -963,7 +969,7 @@ impl<R: Runtime> App<R> {
         &app_handle,
         event,
         &manager,
-        Option::<&mut Box<dyn FnMut(&AppHandle<R>, RunEvent)>>::None,
+        Option::<&mut Box<dyn FnMut(&AppHandle<R>, RunEvent) -> crate::Result<()>>>::None,
       )
     })
   }
@@ -1562,7 +1568,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Runs the configured Tauri application.
   pub fn run<A: Assets>(self, context: Context<A>) -> crate::Result<()> {
-    self.build(context)?.run(|_, _| {});
+    self.build(context)?.run(|_, _| Ok(()));
     Ok(())
   }
 }
@@ -1632,7 +1638,10 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   Ok(())
 }
 
-fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
+fn on_event_loop_event<
+  R: Runtime,
+  F: FnMut(&AppHandle<R>, RunEvent) -> crate::Result<()> + 'static,
+>(
   app_handle: &AppHandle<R>,
   event: RuntimeRunEvent<EventLoopMessage>,
   manager: &WindowManager<R>,
@@ -1746,7 +1755,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     .on_event(app_handle, &event);
 
   if let Some(c) = callback {
-    c(app_handle, event);
+    let _ = c(app_handle, event);
   }
 }
 

@@ -644,9 +644,6 @@ macro_rules! shared_app_impl {
                   .inner()
                   .init_for_gtk_window(&gtk_window, Some(&gtk_box));
               }
-
-              #[cfg(target_os = "macos")]
-              menu_.inner().init_for_nsapp();
             })?;
             window_menu.replace((true, menu.clone()));
           }
@@ -654,7 +651,12 @@ macro_rules! shared_app_impl {
 
         // set it app-wide for macos
         #[cfg(target_os = "macos")]
-        menu.inner().init_for_nsapp();
+        {
+          let menu_ = menu.clone();
+          self.run_on_main_thread(move || {
+            menu_.inner().init_for_nsapp();
+          })?;
+        }
 
         Ok(prev_menu)
       }
@@ -690,9 +692,6 @@ macro_rules! shared_app_impl {
                 if let Ok(gtk_window) = window_.gtk_window() {
                   let _ = menu_.inner().remove_for_gtk_window(&gtk_window);
                 }
-
-                #[cfg(target_os = "macos")]
-                let _ = menu_.inner().remove_for_nsapp();
               })?;
               *window.menu_lock() = None;
             }
@@ -700,7 +699,12 @@ macro_rules! shared_app_impl {
 
           // remove app-wide for macos
           #[cfg(target_os = "macos")]
-          menu.inner().remove_for_nsapp();
+          {
+            let menu_ = menu.clone();
+            self.run_on_main_thread(move || {
+              menu_.inner().remove_for_nsapp();
+            })?;
+          }
         }
 
         let prev_menu = current_menu.take();

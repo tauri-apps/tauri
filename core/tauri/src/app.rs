@@ -391,11 +391,6 @@ impl<R: Runtime> AppHandle<R> {
     self.cleanup_before_exit();
     crate::process::restart(&self.env());
   }
-
-  /// Runs necessary cleanup tasks before exiting the process
-  fn cleanup_before_exit(&self) {
-    self.manager.inner.tray_icons.lock().unwrap().clear()
-  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {}
@@ -804,6 +799,12 @@ macro_rules! shared_app_impl {
         }
         Ok(())
       }
+
+      /// Runs necessary cleanup tasks before exiting the process.
+      /// **You sould always exit the process immediately after this function returns.**
+      pub fn cleanup_before_exit(&self) {
+        self.manager.inner.tray_icons.lock().unwrap().clear()
+      }
     }
   };
 }
@@ -927,8 +928,7 @@ impl<R: Runtime> App<R> {
   /// Runs a iteration of the runtime event loop and immediately return.
   ///
   /// Note that when using this API, app cleanup is not automatically done.
-  /// The cleanup calls [`crate::process::kill_children`] so you may want to call that function before exiting the application.
-  /// Additionally, the cleanup calls [AppHandle#remove_tray_icon](`AppHandle#method.remove_tray_icon`) (Windows only).
+  /// The cleanup calls [`App::cleanup_before_exit`] so you may want to call that function before exiting the application.
   ///
   /// # Examples
   /// ```no_run
@@ -939,6 +939,7 @@ impl<R: Runtime> App<R> {
   /// loop {
   ///   let iteration = app.run_iteration();
   ///   if iteration.window_count == 0 {
+  ///     app.cleanup_before_exit();
   ///     break;
   ///   }
   /// }

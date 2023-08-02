@@ -721,7 +721,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891>
   /// - **Linux**: Unsupported
   pub fn effects(mut self, effects: WindowEffectsConfig) -> Self {
     self.webview_attributes = self.webview_attributes.window_effects(effects);
@@ -1817,7 +1817,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891>
   /// - **Linux**: Unsupported
   pub fn set_effects<E: Into<Option<WindowEffectsConfig>>>(&self, effects: E) -> crate::Result<()> {
     let effects = effects.into();

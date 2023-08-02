@@ -1202,7 +1202,7 @@ impl<R: Runtime> WindowManager<R> {
           Menu {
             id: menu.id(),
             inner: menu.clone(),
-            app_handle: app_handle.clone(),
+            app_handle,
           },
         );
       }

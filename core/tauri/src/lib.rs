@@ -892,6 +892,22 @@ mod tests {
   }
 }
 
+macro_rules! run_main_thread {
+  ($self:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+
+    let (tx, rx) = channel();
+    let self_ = $self.clone();
+    let task = move || {
+      let _ = tx.send($ex(self_));
+    };
+    $self.app_handle.run_on_main_thread(Box::new(task))?;
+    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
+  }};
+}
+
+pub(crate) use run_main_thread;
+
 #[cfg(test)]
 mod test_utils {
   use proptest::prelude::*;
@@ -920,19 +936,3 @@ mod test_utils {
     }
   }
 }
-
-macro_rules! run_main_thread {
-  ($self:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-
-    let (tx, rx) = channel();
-    let self_ = $self.clone();
-    let task = move || {
-      let _ = tx.send($ex(self_));
-    };
-    $self.app_handle.run_on_main_thread(Box::new(task))?;
-    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
-  }};
-}
-
-pub(crate) use run_main_thread;

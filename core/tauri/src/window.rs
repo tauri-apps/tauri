@@ -334,10 +334,12 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     ])?;
   ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
   ///       .menu(menu)
-  ///        on_menu_event(move |window, event| {
+  ///       .on_menu_event(move |window, event| {
   ///         if event.id == save_menu_item.id() {
   ///           // save menu item
   ///         }
+  ///
+  ///         Ok(())
   ///       })
   ///       .build()
   ///       .unwrap();
@@ -1199,6 +1201,8 @@ impl<R: Runtime> Window<R> {
   ///       if event.id == save_menu_item.id() {
   ///           // save menu item
   ///       }
+  ///
+  ///       Ok(())
   ///     });
   ///
   ///     Ok(())
@@ -1272,7 +1276,7 @@ impl<R: Runtime> Window<R> {
       }
     })?;
 
-    self.menu_lock().replace((false, menu.clone()));
+    self.menu_lock().replace((false, menu));
 
     Ok(prev_menu)
   }

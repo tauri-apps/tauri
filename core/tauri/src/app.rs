@@ -849,7 +849,7 @@ impl<R: Runtime> App<R> {
   ///   .expect("error while building tauri application");
   /// #[cfg(target_os = "macos")]
   /// app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-  /// app.run(|_app_handle, _event| {});
+  /// app.run(|_app_handle, _event| Ok(()));
   /// ```
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
@@ -878,7 +878,7 @@ impl<R: Runtime> App<R> {
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
   /// app.set_device_event_filter(tauri::DeviceEventFilter::Always);
-  /// app.run(|_app_handle, _event| {});
+  /// app.run(|_app_handle, _event| Ok(()));
   /// ```
   ///
   /// [`tao`]: https://crates.io/crates/tao
@@ -1322,14 +1322,17 @@ impl<R: Runtime> Builder<R> {
   /// # Examples
   /// ```
   /// tauri::Builder::default()
-  ///   .on_window_event(|event| match event.event() {
-  ///     tauri::WindowEvent::Focused(focused) => {
-  ///       // hide window whenever it loses focus
-  ///       if !focused {
-  ///         event.window().hide().unwrap();
+  ///   .on_window_event(|event| {
+  ///     match event.event() {
+  ///       tauri::WindowEvent::Focused(focused) => {
+  ///         // hide window whenever it loses focus
+  ///         if !focused {
+  ///           event.window().hide().unwrap();
+  ///         }
   ///       }
+  ///       _ => {}
   ///     }
-  ///     _ => {}
+  ///     Ok(())
   ///   });
   /// ```
   #[must_use]

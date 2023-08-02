@@ -3908,9 +3908,9 @@ dependencies = [
 
 [[package]]
 name = "tray-icon"
-version = "0.7.2"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a903d0c8c8c9caa5f00f38e9465349e89ed3f72506b07994aa4393d7caf3e10"
+checksum = "abc6ebb68e3591924520845d34aacb1b2a7951f439cabcbc2447a16b70eb5bdd"
 dependencies = [
  "cocoa 0.25.0",
  "core-graphics 0.23.1",

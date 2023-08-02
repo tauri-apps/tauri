@@ -475,6 +475,34 @@ impl App<crate::Wry> {
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
+      /// Registers a global menu event listener.
+      pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
+        &self,
+        handler: F,
+      ) {
+        self
+          .manager
+          .inner
+          .menu_event_listeners
+          .lock()
+          .unwrap()
+          .push(Box::new(handler));
+      }
+
+      /// Registers a global tray icon menu event listener.
+      pub fn on_tray_icon_event<F: Fn(&AppHandle<R>, TrayIconEvent) + Send + Sync + 'static>(
+        &self,
+        handler: F,
+      ) {
+        self
+          .manager
+          .inner
+          .global_tray_event_listeners
+          .lock()
+          .unwrap()
+          .push(Box::new(handler));
+      }
+
       /// Gets the first tray icon registerd, usually the one configured in
       /// tauri config file.
       pub fn tray(&self) -> Option<TrayIcon<R>> {
@@ -979,14 +1007,8 @@ pub struct Builder<R: Runtime> {
   #[allow(unused)]
   enable_macos_default_menu: bool,
 
-  /// Menu event handlers .
-  menu_event_listeners: Vec<GlobalMenuEventListener<AppHandle<R>>>,
-
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
-
-  /// Tray icon event handlers.
-  tray_event_listeners: Vec<GlobalTrayIconEventListener<R>>,
 
   /// The device event filter.
   device_event_filter: DeviceEventFilter,
@@ -1010,9 +1032,7 @@ impl<R: Runtime> Builder<R> {
       state: StateManager::new(),
       menu: None,
       enable_macos_default_menu: true,
-      menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
-      tray_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
     }
   }
@@ -1304,26 +1324,6 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Registers a global tray icon menu event listener.
-  #[must_use]
-  pub fn on_tray_icon_event<F: Fn(&AppHandle<R>, TrayIconEvent) + Send + Sync + 'static>(
-    mut self,
-    handler: F,
-  ) -> Self {
-    self.tray_event_listeners.push(Box::new(handler));
-    self
-  }
-
-  /// Registers a global menu event listener.
-  #[must_use]
-  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
-    mut self,
-    handler: F,
-  ) -> Self {
-    self.menu_event_listeners.push(Box::new(handler));
-    self
-  }
-
   /// Registers a URI scheme protocol available to all webviews.
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
@@ -1394,8 +1394,7 @@ impl<R: Runtime> Builder<R> {
       self.uri_scheme_protocols,
       self.state,
       self.window_event_listeners,
-      (self.menu_event_listeners, HashMap::new()),
-      self.tray_event_listeners,
+      HashMap::new(),
       (self.invoke_responder, self.invoke_initialization_script),
     );
 

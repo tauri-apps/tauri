@@ -42,12 +42,11 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
 
   const TRAY_ID: u32 = 21937;
 
-  let _ = TrayIconBuilder::new()
-    .with_tooltip("Tauri")
-    .with_id(TRAY_ID)
-    .with_icon(app.default_window_icon().unwrap().clone())
-    .with_menu(&menu1)
-    .with_on_menu_event(move |app, event| {
+  let _ = TrayIconBuilder::with_id(TRAY_ID)
+    .tooltip("Tauri")
+    .icon(app.default_window_icon().unwrap().clone())
+    .menu(&menu1)
+    .on_menu_event(move |app, event| {
       dbg!(event);
       match event.id {
         i if i == quit_i.id() => {
@@ -108,7 +107,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         _ => {}
       }
     })
-    .with_on_tray_event(|tray, event| {
+    .on_tray_event(|tray, event| {
       if event.click_type == ClickType::Left {
         let app = tray.app_handle();
         if let Some(window) = app.get_window("main") {

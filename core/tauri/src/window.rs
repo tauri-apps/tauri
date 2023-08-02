@@ -59,6 +59,8 @@ use std::{
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+pub(crate) type MenuEventHandler<R> =
+  Box<dyn Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -120,6 +122,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
+  on_menu_event: Option<MenuEventHandler<R>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
@@ -194,6 +197,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      on_menu_event: None,
     }
   }
 
@@ -232,6 +236,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       ),
       web_resource_request_handler: None,
       navigation_handler: None,
+      on_menu_event: None,
     };
 
     builder
@@ -309,6 +314,47 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Registers a global menu event listener.
+  ///
+  /// Note that this handler is called for any menu event,
+  /// whether it is coming from this window, another window or from the tray icon menu.
+  ///
+  /// Also note that this handler will not be called if
+  /// the window used to register it was closed.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::menu::{Menu, Submenu, MenuItem};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     let save_menu_item = MenuItem::new(&handle, "Save", true, None);
+  ///     let menu = Menu::with_items(&handle, &[
+  ///       &Submenu::with_items(&handle, "File", true, &[
+  ///         &save_menu_item,
+  ///       ])?,
+  ///     ])?;
+  ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
+  ///       .menu(menu)
+  ///        on_menu_event(move |window, event| {
+  ///         if event.id == save_menu_item.id() {
+  ///           // save menu item
+  ///         }
+  ///       })
+  ///       .build()
+  ///       .unwrap();
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.on_menu_event.replace(Box::new(f));
+    self
+  }
+
   /// Creates a new webview window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
     let mut pending = PendingWindow::new(
@@ -350,6 +396,10 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         menu,
       )
     })?;
+
+    if let Some(handler) = self.on_menu_event {
+      window.on_menu_event(handler);
+    }
 
     if let Some(effects) = window_effects {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;

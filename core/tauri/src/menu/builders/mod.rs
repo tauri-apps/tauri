@@ -6,4 +6,4 @@
 
 pub use crate::runtime::menu::builders::AboutMetadataBuilder;
 
-// TODO (muda-migration): add builder types
+// TODO(muda-migration): add builder types

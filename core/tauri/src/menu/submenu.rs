@@ -48,27 +48,19 @@ impl<R: Runtime> super::IsMenuItem<R> for Submenu<R> {
   }
 }
 
-impl<R: Runtime> super::ContextMenu for Submenu<R> {}
-impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
-  fn inner(&self) -> &dyn muda::ContextMenu {
-    &self.inner
-  }
-
-  fn inner_owned(&self) -> Box<dyn muda::ContextMenu> {
-    Box::new(self.clone().inner)
-  }
-
-  fn popup<T: Runtime>(
+impl<R: Runtime> super::ContextMenu for Submenu<R> {
+  fn popup<T: Runtime, P: Into<Position>>(
     &self,
     window: crate::Window<T>,
-    position: Option<Position>,
+    position: Option<P>,
   ) -> crate::Result<()> {
+    let position = position.map(Into::into).map(Into::into);
     run_main_thread!(self, move |self_: Self| {
       #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {
         self_
           .inner()
-          .show_context_menu_for_nsview(view as _, position.map(Into::into));
+          .show_context_menu_for_nsview(view as _, position);
       }
 
       #[cfg(any(
@@ -79,18 +71,23 @@ impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
         target_os = "openbsd"
       ))]
       if let Ok(w) = window.gtk_window() {
-        self_
-          .inner()
-          .show_context_menu_for_gtk_window(&w, position.map(Into::into));
+        self_.inner().show_context_menu_for_gtk_window(&w, position);
       }
 
       #[cfg(windows)]
       if let Ok(hwnd) = window.hwnd() {
-        self_
-          .inner()
-          .show_context_menu_for_hwnd(hwnd.0, position.map(Into::into))
+        self_.inner().show_context_menu_for_hwnd(hwnd.0, position)
       }
     })
+  }
+}
+impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
+  fn inner(&self) -> &dyn muda::ContextMenu {
+    &self.inner
+  }
+
+  fn inner_owned(&self) -> Box<dyn muda::ContextMenu> {
+    Box::new(self.clone().inner)
   }
 }
 

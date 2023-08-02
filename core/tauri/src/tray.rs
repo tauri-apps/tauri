@@ -216,32 +216,15 @@ impl<R: Runtime> TrayIconBuilder<R> {
   pub fn build(self, app_handle: &AppHandle<R>) -> crate::Result<TrayIcon<R>> {
     let id = self.id();
     let inner = self.inner.build()?;
-
-    if let Some(handler) = self.on_menu_event {
-      app_handle
-        .manager
-        .inner
-        .menu_event_listeners
-        .lock()
-        .unwrap()
-        .push(handler);
-    }
-
-    if let Some(handler) = self.on_tray_event {
-      app_handle
-        .manager
-        .inner
-        .tray_event_listeners
-        .lock()
-        .unwrap()
-        .insert(id, handler);
-    }
-
-    Ok(TrayIcon {
+    let icon = TrayIcon {
       id,
       inner,
       app_handle: app_handle.clone(),
-    })
+    };
+
+    icon.register(app_handle, self.on_menu_event, self.on_tray_event);
+
+    Ok(icon)
   }
 }
 
@@ -271,19 +254,12 @@ unsafe impl<R: Runtime> Sync for TrayIcon<R> {}
 unsafe impl<R: Runtime> Send for TrayIcon<R> {}
 
 impl<R: Runtime> TrayIcon<R> {
-  /// Builds and adds a new tray icon to the system tray.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
-  /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
-  pub fn new(app_handle: &AppHandle<R>, mut attrs: TrayIconAttributes<R>) -> crate::Result<Self> {
-    let on_menu_event = attrs.on_menu_event.take();
-    let on_tray_event = attrs.on_tray_event.take();
-
-    let inner = tray_icon::TrayIcon::new(attrs.into())?;
-    let id = inner.id();
-
+  fn register(
+    &self,
+    app_handle: &AppHandle<R>,
+    on_menu_event: Option<Box<dyn Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>>,
+    on_tray_event: Option<Box<dyn Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>>,
+  ) {
     if let Some(handler) = on_menu_event {
       app_handle
         .manager
@@ -301,14 +277,38 @@ impl<R: Runtime> TrayIcon<R> {
         .tray_event_listeners
         .lock()
         .unwrap()
-        .insert(id, handler);
+        .insert(self.id, handler);
     }
 
-    Ok(Self {
-      id,
+    app_handle
+      .manager
+      .inner
+      .tray_icons
+      .lock()
+      .unwrap()
+      .push(self.clone());
+  }
+
+  /// Builds and adds a new tray icon to the system tray.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
+  /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
+  pub fn new(app_handle: &AppHandle<R>, mut attrs: TrayIconAttributes<R>) -> crate::Result<Self> {
+    let on_menu_event = attrs.on_menu_event.take();
+    let on_tray_event = attrs.on_tray_event.take();
+
+    let inner = tray_icon::TrayIcon::new(attrs.into())?;
+    let icon = Self {
+      id: inner.id(),
       inner,
       app_handle: app_handle.clone(),
-    })
+    };
+
+    icon.register(app_handle, on_menu_event, on_tray_event);
+
+    Ok(icon)
   }
 
   /// Builds and adds a new tray icon to the system tray with the specified Id.
@@ -316,14 +316,22 @@ impl<R: Runtime> TrayIcon<R> {
   /// See [`TrayIcon::new`] for more info.
   pub fn with_id(
     app_handle: &AppHandle<R>,
-    attrs: TrayIconAttributes<R>,
+    mut attrs: TrayIconAttributes<R>,
     id: u32,
   ) -> crate::Result<Self> {
-    Ok(Self {
+    let on_menu_event = attrs.on_menu_event.take();
+    let on_tray_event = attrs.on_tray_event.take();
+
+    let inner = tray_icon::TrayIcon::with_id(attrs.into(), id)?;
+    let icon = Self {
       id,
-      inner: tray_icon::TrayIcon::with_id(attrs.into(), id)?,
+      inner,
       app_handle: app_handle.clone(),
-    })
+    };
+
+    icon.register(app_handle, on_menu_event, on_tray_event);
+
+    Ok(icon)
   }
 
   /// The application handle associated with this type.

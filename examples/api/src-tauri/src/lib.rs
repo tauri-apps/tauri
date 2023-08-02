@@ -40,11 +40,12 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         .build(),
     )
     .plugin(tauri_plugin_sample::init())
-    .tray_icon(tray::create_tray)
     .setup(move |app| {
       #[cfg(desktop)]
       {
-        app.handle().plugin(tauri_plugin_cli::init())?;
+        let handle = app.handle();
+        tray::create_tray(&handle)?;
+        handle.plugin(tauri_plugin_cli::init())?;
       }
 
       let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());

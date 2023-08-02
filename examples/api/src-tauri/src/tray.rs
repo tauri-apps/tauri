@@ -5,11 +5,11 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   menu::{Menu, MenuItem},
-  tray::{ClickType, TrayIcon, TrayIconBuilder},
+  tray::{ClickType, TrayIconBuilder},
   Manager, Runtime, WindowBuilder, WindowUrl,
 };
 
-pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<TrayIcon<R>> {
+pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
   let toggle_i = MenuItem::new(&app, "Toggle", true, None);
   let new_window_i = MenuItem::new(&app, "New window", true, None);
   let icon_i_1 = MenuItem::new(&app, "Icon 1", true, None);
@@ -42,7 +42,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<TrayI
 
   const TRAY_ID: u32 = 21937;
 
-  TrayIconBuilder::new()
+  let _ = TrayIconBuilder::new()
     .with_tooltip("Tauri")
     .with_id(TRAY_ID)
     .with_icon(app.default_window_icon().unwrap().clone())
@@ -51,7 +51,6 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<TrayI
       dbg!(event);
       match event.id {
         i if i == quit_i.id() => {
-          // exit the app
           app.exit(0);
         }
         i if i == remove_tray_i.id() => {
@@ -118,5 +117,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<TrayI
         }
       }
     })
-    .build(&app)
+    .build(&app);
+
+  Ok(())
 }

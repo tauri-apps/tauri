@@ -985,9 +985,6 @@ pub struct Builder<R: Runtime> {
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
 
-  /// Tray icon builder
-  tray_icons_builders: Vec<Box<dyn FnOnce(&AppHandle<R>) -> crate::Result<TrayIcon<R>>>>,
-
   /// Tray icon event handlers.
   tray_event_listeners: Vec<GlobalTrayIconEventListener<R>>,
 
@@ -1015,7 +1012,6 @@ impl<R: Runtime> Builder<R> {
       enable_macos_default_menu: true,
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
-      tray_icons_builders: Vec::new(),
       tray_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
     }
@@ -1239,31 +1235,6 @@ impl<R: Runtime> Builder<R> {
       self.state.set(state),
       "state for type '{type_name}' is already being managed",
     );
-    self
-  }
-
-  /// Sets the given tray icon builder to be built before the app runs.
-  ///
-  /// Prefer the [`TrayIconBuilder#method.build`](crate::tray::TrayIconBuilder#method.build) method to create the tray at runtime instead.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::{tray::TrayIconBuilder, menu::{Menu, MenuItem}};
-  ///
-  /// tauri::Builder::default()
-  ///   .tray_icon(|handle| TrayIconBuilder::new().with_menu(
-  ///     &Menu::with_items(handle, &[
-  ///       &MenuItem::new(handle, "New window", true, None),
-  ///       &MenuItem::new(handle, "Quit", true, None),
-  ///     ])?
-  ///   ).build(handle));
-  /// ```
-  #[must_use]
-  pub fn tray_icon<F: FnOnce(&AppHandle<R>) -> crate::Result<TrayIcon<R>> + 'static>(
-    mut self,
-    tray_builder: F,
-  ) -> Self {
-    self.tray_icons_builders.push(Box::new(tray_builder));
     self
   }
 
@@ -1546,36 +1517,33 @@ impl<R: Runtime> Builder<R> {
       }
     }
 
-    // initialize tray icons
-    {
-      let mut tray_stash = app.manager.inner.tray_icons.lock().unwrap();
-      let config = app.config();
-      let handle = app.handle();
+    let handle = app.handle();
 
-      // config tray
-      if let Some(tray_config) = &config.tauri.tray_icon {
-        let mut tray = TrayIconBuilder::new()
-          .with_icon_as_template(tray_config.icon_as_template)
-          .with_menu_on_left_click(tray_config.menu_on_left_click);
-        if let Some(icon) = &app.manager.inner.tray_icon {
-          tray = tray.with_icon(icon.clone());
-        }
-        if let Some(title) = &tray_config.title {
-          tray = tray.with_title(title);
-        }
-        if let Some(tooltip) = &tray_config.tooltip {
-          tray = tray.with_tooltip(tooltip);
-        }
-        tray_stash.push(tray.build(&handle)?);
+    // initialize default tray icon if defined
+    let config = app.config();
+    if let Some(tray_config) = &config.tauri.tray_icon {
+      let mut tray = TrayIconBuilder::new()
+        .with_icon_as_template(tray_config.icon_as_template)
+        .with_menu_on_left_click(tray_config.menu_on_left_click);
+      if let Some(icon) = &app.manager.inner.tray_icon {
+        tray = tray.with_icon(icon.clone());
       }
-
-      // tray icon registered on the builder
-      for tray_builder in self.tray_icons_builders {
-        tray_stash.push(tray_builder(&handle)?);
+      if let Some(title) = &tray_config.title {
+        tray = tray.with_title(title);
       }
+      if let Some(tooltip) = &tray_config.tooltip {
+        tray = tray.with_tooltip(tooltip);
+      }
+      app
+        .manager
+        .inner
+        .tray_icons
+        .lock()
+        .unwrap()
+        .push(tray.build(&handle)?);
     }
 
-    app.manager.initialize_plugins(&app.handle())?;
+    app.manager.initialize_plugins(&handle)?;
 
     Ok(app)
   }

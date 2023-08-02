@@ -22,9 +22,12 @@ pub struct TrayIconBuilder<R: Runtime> {
 }
 
 impl<R: Runtime> TrayIconBuilder<R> {
-  /// Creates a new [`TrayIconBuilder`] with default [`TrayIconAttributes`].
+  /// Creates a new tray icon builder.
   ///
-  /// See [`TrayIcon::new`] for more info.
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
+  /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
   pub fn new() -> Self {
     Self {
       inner: tray_icon::TrayIconBuilder::new(),

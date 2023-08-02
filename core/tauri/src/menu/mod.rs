@@ -145,6 +145,34 @@ impl<R: Runtime> MenuItemKind<R> {
   }
 }
 
+impl<R: Runtime> Clone for MenuItemKind<R> {
+  fn clone(&self) -> Self {
+    match self {
+      Self::MenuItem(i) => Self::MenuItem(i.clone()),
+      Self::Submenu(i) => Self::Submenu(i.clone()),
+      Self::Predefined(i) => Self::Predefined(i.clone()),
+      Self::Check(i) => Self::Check(i.clone()),
+      Self::Icon(i) => Self::Icon(i.clone()),
+    }
+  }
+}
+
+impl<R: Runtime> sealed::IsMenuItemBase for MenuItemKind<R> {
+  fn inner(&self) -> &dyn muda::IsMenuItem {
+    self.inner().inner()
+  }
+}
+
+impl<R: Runtime> IsMenuItem<R> for MenuItemKind<R> {
+  fn kind(&self) -> MenuItemKind<R> {
+    self.clone()
+  }
+
+  fn id(&self) -> u32 {
+    self.id()
+  }
+}
+
 /// A trait that defines a generic item in a menu, which may be one of [`MenuItemKind`]
 ///
 /// # Safety

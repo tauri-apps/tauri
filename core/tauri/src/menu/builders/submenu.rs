@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::*, AppHandle, Icon, Manager, Runtime};
+use crate::{menu::*, Icon, Manager, Runtime};
 
-/// A builder type for [`Menu`]
+/// A builder type for [`Submenu`]
 ///
 /// # Example
 ///
@@ -40,68 +40,66 @@ use crate::{menu::*, AppHandle, Icon, Manager, Runtime};
 ///     Ok(())
 ///   });
 /// ```
-pub struct SubmenuBuilder<R: Runtime> {
-  submenu: Submenu<R>,
-  app_handle: AppHandle<R>,
+pub struct SubmenuBuilder<'m, R: Runtime, M: Manager<R>> {
+  manager: &'m M,
+  text: String,
+  enabled: bool,
+  items: Vec<MenuItemKind<R>>,
 }
 
-impl<R: Runtime> SubmenuBuilder<R> {
-  /// Create a new menu builder.
-  pub fn new<M: Manager<R>, S: AsRef<str>>(manager: &M, text: S) -> Self {
+impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
+  /// Create a new submenu builder.
+  pub fn new<S: AsRef<str>>(manager: &'m M, text: S) -> Self {
     Self {
-      submenu: Submenu::new(manager, text, true),
-      app_handle: manager.app_handle(),
+      items: Vec::new(),
+      text: text.as_ref().to_string(),
+      enabled: false,
+      manager,
     }
   }
 
-  /// Set the enabled state for submenu.
-  pub fn enabled(self, enabled: bool) -> crate::Result<Self> {
-    self.submenu.set_enabled(enabled)?;
-    Ok(self)
+  /// Set the enabled state for the submenu.
+  pub fn enabled(mut self, enabled: bool) -> Self {
+    self.enabled = enabled;
+    self
   }
 
   /// Add this item to the submenu.
-  pub fn item(self, item: &dyn IsMenuItem<R>) -> crate::Result<Self> {
-    self.submenu.append(item)?;
-    Ok(self)
+  pub fn item(mut self, item: &dyn IsMenuItem<R>) -> Self {
+    self.items.push(item.kind());
+    self
   }
 
   /// Add these items to the submenu.
-  pub fn items(self, items: &[&dyn IsMenuItem<R>]) -> crate::Result<Self> {
-    self.submenu.append_items(items)?;
-    Ok(self)
+  pub fn items(mut self, items: &[&dyn IsMenuItem<R>]) -> Self {
+    for item in items {
+      self = self.item(*item);
+    }
+    self
   }
 
   /// Add a [MenuItem] to the submenu.
-  pub fn text<S: AsRef<str>>(self, text: S) -> crate::Result<Self> {
+  pub fn text<S: AsRef<str>>(mut self, text: S) -> Self {
     self
-      .submenu
-      .append(&MenuItem::new(&self.app_handle, text, true, None))?;
-    Ok(self)
+      .items
+      .push(MenuItem::new(self.manager, text, true, None).kind());
+    self
   }
 
   /// Add a [CheckMenuItem] to the submenu.
-  pub fn check<S: AsRef<str>>(self, text: S) -> crate::Result<Self> {
-    self.submenu.append(&CheckMenuItem::new(
-      &self.app_handle,
-      text,
-      true,
-      true,
-      None,
-    ))?;
-    Ok(self)
+  pub fn check<S: AsRef<str>>(mut self, text: S) -> Self {
+    self
+      .items
+      .push(CheckMenuItem::new(self.manager, text, true, true, None).kind());
+    self
   }
 
   /// Add an [IconMenuItem] to the submenu.
-  pub fn icon<S: AsRef<str>>(self, text: S, icon: Icon) -> crate::Result<Self> {
-    self.submenu.append(&IconMenuItem::new(
-      &self.app_handle,
-      text,
-      true,
-      Some(icon),
-      None,
-    ))?;
-    Ok(self)
+  pub fn icon<S: AsRef<str>>(mut self, text: S, icon: Icon) -> Self {
+    self
+      .items
+      .push(IconMenuItem::new(self.manager, text, true, Some(icon), None).kind());
+    self
   }
 
   /// Add an [IconMenuItem] with a native icon to the submenu.
@@ -109,55 +107,51 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux**: Unsupported.
-  pub fn native_icon<S: AsRef<str>>(self, text: S, icon: NativeIcon) -> crate::Result<Self> {
-    self.submenu.append(&IconMenuItem::with_native_icon(
-      &self.app_handle,
-      text,
-      true,
-      Some(icon),
-      None,
-    ))?;
-    Ok(self)
+  pub fn native_icon<S: AsRef<str>>(mut self, text: S, icon: NativeIcon) -> Self {
+    self
+      .items
+      .push(IconMenuItem::with_native_icon(self.manager, text, true, Some(icon), None).kind());
+    self
   }
 
   /// Add Separator menu item to the submenu.
-  pub fn separator(self) -> crate::Result<Self> {
+  pub fn separator(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::separator(&self.app_handle))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::separator(self.manager).kind());
+    self
   }
 
   /// Add Copy menu item to the submenu.
-  pub fn copy(self) -> crate::Result<Self> {
+  pub fn copy(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::copy(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::copy(self.manager, None).kind());
+    self
   }
 
   /// Add Cut menu item to the submenu.
-  pub fn cut(self) -> crate::Result<Self> {
+  pub fn cut(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::cut(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::cut(self.manager, None).kind());
+    self
   }
 
   /// Add Paste menu item to the submenu.
-  pub fn paste(self) -> crate::Result<Self> {
+  pub fn paste(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::paste(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::paste(self.manager, None).kind());
+    self
   }
 
   /// Add SelectAll menu item to the submenu.
-  pub fn select_all(self) -> crate::Result<Self> {
+  pub fn select_all(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::select_all(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::select_all(self.manager, None).kind());
+    self
   }
 
   /// Add Undo menu item to the submenu.
@@ -165,22 +159,22 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn undo(self) -> crate::Result<Self> {
+  pub fn undo(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::undo(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::undo(self.manager, None).kind());
+    self
   }
   /// Add Redo menu item to the submenu.
   ///
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn redo(self) -> crate::Result<Self> {
+  pub fn redo(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::redo(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::redo(self.manager, None).kind());
+    self
   }
 
   /// Add Minimize window menu item to the submenu.
@@ -188,11 +182,11 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn minimize(self) -> crate::Result<Self> {
+  pub fn minimize(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::minimize(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::minimize(self.manager, None).kind());
+    self
   }
 
   /// Add Maximize window menu item to the submenu.
@@ -200,11 +194,11 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn maximize(self) -> crate::Result<Self> {
+  pub fn maximize(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::maximize(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::maximize(self.manager, None).kind());
+    self
   }
 
   /// Add Fullscreen menu item to the submenu.
@@ -212,11 +206,11 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn fullscreen(self) -> crate::Result<Self> {
+  pub fn fullscreen(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::fullscreen(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::fullscreen(self.manager, None).kind());
+    self
   }
 
   /// Add Hide window menu item to the submenu.
@@ -224,11 +218,11 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn hide(self) -> crate::Result<Self> {
+  pub fn hide(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::hide(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::hide(self.manager, None).kind());
+    self
   }
 
   /// Add Hide other windows menu item to the submenu.
@@ -236,11 +230,11 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn hide_others(self) -> crate::Result<Self> {
+  pub fn hide_others(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::hide_others(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::hide_others(self.manager, None).kind());
+    self
   }
 
   /// Add Show all app windows menu item to the submenu.
@@ -248,11 +242,11 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn show_all(self) -> crate::Result<Self> {
+  pub fn show_all(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::show_all(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::show_all(self.manager, None).kind());
+    self
   }
 
   /// Add Close window menu item to the submenu.
@@ -260,11 +254,11 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn close_window(self) -> crate::Result<Self> {
+  pub fn close_window(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::close_window(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::close_window(self.manager, None).kind());
+    self
   }
 
   /// Add Quit app menu item to the submenu.
@@ -272,19 +266,19 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn quit(self) -> crate::Result<Self> {
+  pub fn quit(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::quit(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::quit(self.manager, None).kind());
+    self
   }
 
   /// Add About app menu item to the submenu.
-  pub fn about(self, metadata: Option<AboutMetadata>) -> crate::Result<Self> {
+  pub fn about(mut self, metadata: Option<AboutMetadata>) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::about(&self.app_handle, None, metadata))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::about(self.manager, None, metadata).kind());
+    self
   }
 
   /// Add Services menu item to the submenu.
@@ -292,15 +286,24 @@ impl<R: Runtime> SubmenuBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn services(self) -> crate::Result<Self> {
+  pub fn services(mut self) -> Self {
     self
-      .submenu
-      .append(&PredefinedMenuItem::services(&self.app_handle, None))?;
-    Ok(self)
+      .items
+      .push(PredefinedMenuItem::services(self.manager, None).kind());
+    self
   }
 
-  /// Builds this menu
-  pub fn build(self) -> Submenu<R> {
-    self.submenu
+  /// Builds this submenu
+  pub fn build(self) -> crate::Result<Submenu<R>> {
+    if self.items.is_empty() {
+      Ok(Submenu::new(self.manager, self.text, self.enabled))
+    } else {
+      let items = self
+        .items
+        .iter()
+        .map(|i| i as &dyn IsMenuItem<R>)
+        .collect::<Vec<_>>();
+      Submenu::with_items(self.manager, self.text, self.enabled, &items)
+    }
   }
 }

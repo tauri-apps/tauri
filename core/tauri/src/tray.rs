@@ -189,7 +189,8 @@ impl<R: Runtime> TrayIconBuilder<R> {
 
   /// Set a handler for menu events.
   ///
-  /// Note that this handler is global and will be triggered for all menu events.
+  /// Note that this handler is called for any menu event,
+  /// whether it is coming from this window, another window or from the tray icon menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
@@ -338,6 +339,33 @@ impl<R: Runtime> TrayIcon<R> {
   /// The application handle associated with this type.
   pub fn app_handle(&self) -> AppHandle<R> {
     self.app_handle.clone()
+  }
+
+  /// Register a handler for menu events.
+  ///
+  /// Note that this handler is called for any menu event,
+  /// whether it is coming from this window, another window or from the tray icon menu.
+  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(&self, f: F) {
+    self
+      .app_handle
+      .manager
+      .inner
+      .menu_event_listeners
+      .lock()
+      .unwrap()
+      .push(Box::new(f));
+  }
+
+  /// Register a handler for this tray icon events.
+  pub fn on_tray_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(&self, f: F) {
+    self
+      .app_handle
+      .manager
+      .inner
+      .tray_event_listeners
+      .lock()
+      .unwrap()
+      .insert(self.id, Box::new(f));
   }
 
   /// Returns the id associated with this tray icon.

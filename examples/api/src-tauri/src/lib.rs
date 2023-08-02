@@ -134,6 +134,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       // This allow us to catch tray icon events when there is no window
       api.prevent_exit();
     }
+    Ok(())
   })
 }
 

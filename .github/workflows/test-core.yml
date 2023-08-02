@@ -98,7 +98,7 @@ jobs:
           workspaces: core -> ../target
           save-if: ${{ matrix.features.key == 'all' }}
 
-       - name: Downgrade crates with MSRV conflict
+      - name: Downgrade crates with MSRV conflict
         # The --precise flag can only be used once per invocation.
         run: |
           cargo update -p time --precise 0.3.23

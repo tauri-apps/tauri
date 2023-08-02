@@ -108,9 +108,10 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 
   /// Sets the unique id to build the tray icon with.
-  pub fn with_id(mut self, id: u32) -> Self {
-    self.inner = self.inner.with_id(id);
-    self
+  pub fn with_id(id: u32) -> Self {
+    let mut builder = Self::new();
+    builder.inner = builder.inner.with_id(id);
+    builder
   }
 
   /// Set the a menu for this tray icon.
@@ -118,7 +119,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux**: once a menu is set, it cannot be removed or replaced but you can change its content.
-  pub fn with_menu<M: ContextMenu>(mut self, menu: &M) -> Self {
+  pub fn menu<M: ContextMenu>(mut self, menu: &M) -> Self {
     self.inner = self.inner.with_menu(menu.inner_owned());
     self
   }
@@ -129,7 +130,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
   /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
-  pub fn with_icon(mut self, icon: Icon) -> Self {
+  pub fn icon(mut self, icon: Icon) -> Self {
     let icon = icon
       .try_into()
       .ok()
@@ -145,7 +146,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn with_tooltip<S: AsRef<str>>(mut self, s: S) -> Self {
+  pub fn tooltip<S: AsRef<str>>(mut self, s: S) -> Self {
     self.inner = self.inner.with_tooltip(s);
     self
   }
@@ -160,7 +161,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// user requests it as it can take up a significant amount of space
   /// on the user's panel.  This may not be shown in all visualizations.
   /// - **Windows:** Unsupported.
-  pub fn with_title<S: AsRef<str>>(mut self, title: S) -> Self {
+  pub fn title<S: AsRef<str>>(mut self, title: S) -> Self {
     self.inner = self.inner.with_title(title);
     self
   }
@@ -169,19 +170,19 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// On Linux, we need to write the icon to the disk and usually it will
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
-  pub fn with_temp_dir_path<P: AsRef<Path>>(mut self, s: P) -> Self {
+  pub fn temp_dir_path<P: AsRef<Path>>(mut self, s: P) -> Self {
     self.inner = self.inner.with_temp_dir_path(s);
     self
   }
 
   /// Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
-  pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
+  pub fn icon_as_template(mut self, is_template: bool) -> Self {
     self.inner = self.inner.with_icon_as_template(is_template);
     self
   }
 
   /// Whether to show the tray menu on left click or not, default is `true`. **macOS only**.
-  pub fn with_menu_on_left_click(mut self, enable: bool) -> Self {
+  pub fn menu_on_left_click(mut self, enable: bool) -> Self {
     self.inner = self.inner.with_menu_on_left_click(enable);
     self
   }
@@ -189,7 +190,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// Set a handler for menu events.
   ///
   /// Note that this handler is global and will be triggered for all menu events.
-  pub fn with_on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(
+  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -198,7 +199,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 
   /// Set a handler for this tray icon events.
-  pub fn with_on_tray_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(
+  pub fn on_tray_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {

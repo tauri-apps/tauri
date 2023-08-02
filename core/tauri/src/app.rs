@@ -1523,16 +1523,16 @@ impl<R: Runtime> Builder<R> {
     let config = app.config();
     if let Some(tray_config) = &config.tauri.tray_icon {
       let mut tray = TrayIconBuilder::new()
-        .with_icon_as_template(tray_config.icon_as_template)
-        .with_menu_on_left_click(tray_config.menu_on_left_click);
+        .icon_as_template(tray_config.icon_as_template)
+        .menu_on_left_click(tray_config.menu_on_left_click);
       if let Some(icon) = &app.manager.inner.tray_icon {
-        tray = tray.with_icon(icon.clone());
+        tray = tray.icon(icon.clone());
       }
       if let Some(title) = &tray_config.title {
-        tray = tray.with_title(title);
+        tray = tray.title(title);
       }
       if let Some(tooltip) = &tray_config.tooltip {
-        tray = tray.with_tooltip(tooltip);
+        tray = tray.tooltip(tooltip);
       }
       app
         .manager

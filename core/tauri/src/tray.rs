@@ -120,9 +120,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// Note that this handler is called for any menu event,
   /// whether it is coming from this window, another window or from the tray icon menu.
-  pub fn on_menu_event<
-    F: Fn(&AppHandle<R>, MenuEvent) -> crate::Result<()> + Sync + Send + 'static,
-  >(
+  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -131,9 +129,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 
   /// Set a handler for this tray icon events.
-  pub fn on_tray_event<
-    F: Fn(&TrayIcon<R>, TrayIconEvent) -> crate::Result<()> + Sync + Send + 'static,
-  >(
+  pub fn on_tray_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -235,12 +231,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// Note that this handler is called for any menu event,
   /// whether it is coming from this window, another window or from the tray icon menu.
-  pub fn on_menu_event<
-    F: Fn(&AppHandle<R>, MenuEvent) -> crate::Result<()> + Sync + Send + 'static,
-  >(
-    &self,
-    f: F,
-  ) {
+  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(&self, f: F) {
     self
       .app_handle
       .manager
@@ -252,12 +243,7 @@ impl<R: Runtime> TrayIcon<R> {
   }
 
   /// Register a handler for this tray icon events.
-  pub fn on_tray_event<
-    F: Fn(&TrayIcon<R>, TrayIconEvent) -> crate::Result<()> + Sync + Send + 'static,
-  >(
-    &self,
-    f: F,
-  ) {
+  pub fn on_tray_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(&self, f: F) {
     self
       .app_handle
       .manager

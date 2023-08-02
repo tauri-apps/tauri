@@ -338,8 +338,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///         if event.id == save_menu_item.id() {
   ///           // save menu item
   ///         }
-  ///
-  ///         Ok(())
   ///       })
   ///       .build()
   ///       .unwrap();
@@ -347,9 +345,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_menu_event<
-    F: Fn(&Window<R>, crate::menu::MenuEvent) -> crate::Result<()> + Send + Sync + 'static,
-  >(
+  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -1197,16 +1193,12 @@ impl<R: Runtime> Window<R> {
   ///       if event.id == save_menu_item.id() {
   ///           // save menu item
   ///       }
-  ///
-  ///       Ok(())
   ///     });
   ///
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_menu_event<
-    F: Fn(&Window<R>, crate::menu::MenuEvent) -> crate::Result<()> + Send + Sync + 'static,
-  >(
+  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     &self,
     f: F,
   ) {

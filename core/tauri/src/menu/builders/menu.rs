@@ -19,21 +19,21 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///     #   height: 0,
 ///     # };
 ///     # let icon2 = icon1.clone();
-///     let menu = MenuBuilder::new(&handle, "File")
-///       .item(&MenuItem::new(&handle, "MenuItem 1", true, None))?
+///     let menu = MenuBuilder::new(&handle)
+///       .item(&MenuItem::new(&handle, "MenuItem 1", true, None))
 ///       .items(&[
 ///         &CheckMenuItem::new(&handle, "CheckMenuItem 1", true, true, None),
 ///         &IconMenuItem::new(&handle, "IconMenuItem 1", true, Some(icon1), None),
-///       ])?
-///       .separator()?
-///       .cut()?
-///       .copy()?
-///       .paste()?
-///       .separator()?
-///       .text("MenuItem 2")?
-///       .check("CheckMenuItem 2")?
-///       .icon("IconMenuItem 2", icon2)?
-///       .build();
+///       ])
+///       .separator()
+///       .cut()
+///       .copy()
+///       .paste()
+///       .separator()
+///       .text("MenuItem 2")
+///       .check("CheckMenuItem 2")
+///       .icon("IconMenuItem 2", icon2)
+///       .build()?;
 ///     app.set_menu(menu);
 ///     Ok(())
 ///   });
@@ -45,7 +45,7 @@ pub struct MenuBuilder<'m, R: Runtime, M: Manager<R>> {
 
 impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   /// Create a new menu builder.
-  pub fn new<S: AsRef<str>>(manager: &'m M) -> Self {
+  pub fn new(manager: &'m M) -> Self {
     Self {
       items: Vec::new(),
       manager,

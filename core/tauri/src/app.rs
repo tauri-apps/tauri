@@ -53,12 +53,10 @@ use crate::{
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
 
-pub(crate) type GlobalMenuEventListener<T> =
-  Box<dyn Fn(&T, crate::menu::MenuEvent) -> crate::Result<()> + Send + Sync>;
+pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync>;
 pub(crate) type GlobalTrayIconEventListener<T> =
-  Box<dyn Fn(&T, crate::tray::TrayIconEvent) -> crate::Result<()> + Send + Sync>;
-pub(crate) type GlobalWindowEventListener<R> =
-  Box<dyn Fn(GlobalWindowEvent<R>) -> crate::Result<()> + Send + Sync>;
+  Box<dyn Fn(&T, crate::tray::TrayIconEvent) + Send + Sync>;
+pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -473,9 +471,7 @@ macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
       /// Registers a global menu event listener.
-      pub fn on_menu_event<
-        F: Fn(&AppHandle<R>, MenuEvent) -> crate::Result<()> + Send + Sync + 'static,
-      >(
+      pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
         &self,
         handler: F,
       ) {
@@ -489,9 +485,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Registers a global tray icon menu event listener.
-      pub fn on_tray_icon_event<
-        F: Fn(&AppHandle<R>, TrayIconEvent) -> crate::Result<()> + Send + Sync + 'static,
-      >(
+      pub fn on_tray_icon_event<F: Fn(&AppHandle<R>, TrayIconEvent) + Send + Sync + 'static>(
         &self,
         handler: F,
       ) {
@@ -849,7 +843,7 @@ impl<R: Runtime> App<R> {
   ///   .expect("error while building tauri application");
   /// #[cfg(target_os = "macos")]
   /// app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-  /// app.run(|_app_handle, _event| Ok(()));
+  /// app.run(|_app_handle, _event| {});
   /// ```
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
@@ -878,7 +872,7 @@ impl<R: Runtime> App<R> {
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
   /// app.set_device_event_filter(tauri::DeviceEventFilter::Always);
-  /// app.run(|_app_handle, _event| Ok(()));
+  /// app.run(|_app_handle, _event| {});
   /// ```
   ///
   /// [`tao`]: https://crates.io/crates/tao
@@ -898,20 +892,14 @@ impl<R: Runtime> App<R> {
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
-  /// app.run(|_app_handle, event| {
-  ///   match event {
-  ///     tauri::RunEvent::ExitRequested { api, .. } => {
-  ///       api.prevent_exit();
-  ///     }
-  ///     _ => {}
+  /// app.run(|_app_handle, event| match event {
+  ///   tauri::RunEvent::ExitRequested { api, .. } => {
+  ///     api.prevent_exit();
   ///   }
-  ///   Ok(())
+  ///   _ => {}
   /// });
   /// ```
-  pub fn run<F: FnMut(&AppHandle<R>, RunEvent) -> crate::Result<()> + 'static>(
-    mut self,
-    mut callback: F,
-  ) {
+  pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
@@ -969,7 +957,7 @@ impl<R: Runtime> App<R> {
         &app_handle,
         event,
         &manager,
-        Option::<&mut Box<dyn FnMut(&AppHandle<R>, RunEvent) -> crate::Result<()>>>::None,
+        Option::<&mut Box<dyn FnMut(&AppHandle<R>, RunEvent)>>::None,
       )
     })
   }
@@ -1322,23 +1310,18 @@ impl<R: Runtime> Builder<R> {
   /// # Examples
   /// ```
   /// tauri::Builder::default()
-  ///   .on_window_event(|event| {
-  ///     match event.event() {
-  ///       tauri::WindowEvent::Focused(focused) => {
-  ///         // hide window whenever it loses focus
-  ///         if !focused {
-  ///           event.window().hide().unwrap();
-  ///         }
+  ///   .on_window_event(|event| match event.event() {
+  ///     tauri::WindowEvent::Focused(focused) => {
+  ///       // hide window whenever it loses focus
+  ///       if !focused {
+  ///         event.window().hide().unwrap();
   ///       }
-  ///       _ => {}
   ///     }
-  ///     Ok(())
+  ///     _ => {}
   ///   });
   /// ```
   #[must_use]
-  pub fn on_window_event<
-    F: Fn(GlobalWindowEvent<R>) -> crate::Result<()> + Send + Sync + 'static,
-  >(
+  pub fn on_window_event<F: Fn(GlobalWindowEvent<R>) + Send + Sync + 'static>(
     mut self,
     handler: F,
   ) -> Self {
@@ -1571,7 +1554,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Runs the configured Tauri application.
   pub fn run<A: Assets>(self, context: Context<A>) -> crate::Result<()> {
-    self.build(context)?.run(|_, _| Ok(()));
+    self.build(context)?.run(|_, _| {});
     Ok(())
   }
 }
@@ -1641,10 +1624,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   Ok(())
 }
 
-fn on_event_loop_event<
-  R: Runtime,
-  F: FnMut(&AppHandle<R>, RunEvent) -> crate::Result<()> + 'static,
->(
+fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
   app_handle: &AppHandle<R>,
   event: RuntimeRunEvent<EventLoopMessage>,
   manager: &WindowManager<R>,
@@ -1702,7 +1682,7 @@ fn on_event_loop_event<
             .lock()
             .unwrap()
           {
-            let _ = listener(app_handle, e);
+            listener(app_handle, e);
           }
           for (label, listener) in &*app_handle
             .manager
@@ -1712,7 +1692,7 @@ fn on_event_loop_event<
             .unwrap()
           {
             if let Some(w) = app_handle.get_window(label) {
-              let _ = listener(&w, e);
+              listener(&w, e);
             }
           }
         }
@@ -1724,7 +1704,7 @@ fn on_event_loop_event<
             .lock()
             .unwrap()
           {
-            let _ = listener(app_handle, e);
+            listener(app_handle, e);
           }
 
           for (id, listener) in &*app_handle
@@ -1736,7 +1716,7 @@ fn on_event_loop_event<
           {
             if e.id == *id {
               if let Some(tray) = app_handle.tray_by_id(*id) {
-                let _ = listener(&tray, e);
+                listener(&tray, e);
               }
             }
           }
@@ -1758,7 +1738,7 @@ fn on_event_loop_event<
     .on_event(app_handle, &event);
 
   if let Some(c) = callback {
-    let _ = c(app_handle, event);
+    c(app_handle, event);
   }
 }
 

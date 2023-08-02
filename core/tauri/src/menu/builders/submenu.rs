@@ -21,21 +21,21 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///     # let icon2 = icon1.clone();
 ///     let menu = Menu::new(&handle);
 ///     let submenu = SubmenuBuilder::new(&handle, "File")
-///       .item(&MenuItem::new(&handle, "MenuItem 1", true, None))?
+///       .item(&MenuItem::new(&handle, "MenuItem 1", true, None))
 ///       .items(&[
 ///         &CheckMenuItem::new(&handle, "CheckMenuItem 1", true, true, None),
 ///         &IconMenuItem::new(&handle, "IconMenuItem 1", true, Some(icon1), None),
-///       ])?
-///       .separator()?
-///       .cut()?
-///       .copy()?
-///       .paste()?
-///       .separator()?
-///       .text("MenuItem 2")?
-///       .check("CheckMenuItem 2")?
-///       .icon("IconMenuItem 2", icon2)?
-///       .build();
-///     menu.append(&submenu);
+///       ])
+///       .separator()
+///       .cut()
+///       .copy()
+///       .paste()
+///       .separator()
+///       .text("MenuItem 2")
+///       .check("CheckMenuItem 2")
+///       .icon("IconMenuItem 2", icon2)
+///       .build()?;
+///     menu.append(&submenu)?;
 ///     app.set_menu(menu);
 ///     Ok(())
 ///   });

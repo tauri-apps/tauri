@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Position, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
 use tauri_runtime::menu::AboutMetadata;
 
@@ -79,21 +79,21 @@ impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
 
 impl<R: Runtime> Menu<R> {
   /// Creates a new menu.
-  pub fn new(app_handle: &AppHandle<R>) -> Self {
+  pub fn new<M: Manager<R>>(manager: &M) -> Self {
     let menu = muda::Menu::new();
     Self {
       id: menu.id(),
       inner: menu,
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
   /// Creates a new menu with given `items`. It calls [`Menu::new`] and [`Menu::append_items`] internally.
-  pub fn with_items(
-    app_handle: &AppHandle<R>,
+  pub fn with_items<M: Manager<R>>(
+    manager: &M,
     items: &[&dyn IsMenuItem<R>],
   ) -> crate::Result<Self> {
-    let menu = Self::new(app_handle);
+    let menu = Self::new(manager);
     menu.append_items(items)?;
     Ok(menu)
   }

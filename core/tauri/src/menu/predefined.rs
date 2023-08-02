@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::AboutMetadata;
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Manager, Runtime};
 
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 pub struct PredefinedMenuItem<R: Runtime> {
@@ -44,42 +44,42 @@ impl<R: Runtime> super::IsMenuItem<R> for PredefinedMenuItem<R> {
 
 impl<R: Runtime> PredefinedMenuItem<R> {
   /// Separator menu item
-  pub fn separator(app_handle: &AppHandle<R>) -> Self {
+  pub fn separator<M: Manager<R>>(manager: &M) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::separator(),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
   /// Copy menu item
-  pub fn copy(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn copy<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::copy(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
   /// Cut menu item
-  pub fn cut(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn cut<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::cut(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
   /// Paste menu item
-  pub fn paste(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn paste<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::paste(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
   /// SelectAll menu item
-  pub fn select_all(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn select_all<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::select_all(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -88,10 +88,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn undo(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn undo<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::undo(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
   /// Redo menu item
@@ -99,10 +99,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn redo(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn redo<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::redo(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -111,10 +111,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn minimize(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn minimize<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::minimize(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -123,10 +123,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn maximize(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn maximize<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::maximize(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -135,10 +135,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn fullscreen(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn fullscreen<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::fullscreen(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -147,10 +147,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn hide(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn hide<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::hide(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -159,10 +159,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn hide_others(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn hide_others<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::hide_others(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -171,10 +171,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn show_all(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn show_all<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::show_all(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -183,10 +183,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn close_window(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn close_window<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::show_all(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -195,22 +195,22 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Unsupported.
-  pub fn quit(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn quit<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::quit(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
   /// About app menu item
-  pub fn about(
-    app_handle: &AppHandle<R>,
+  pub fn about<M: Manager<R>>(
+    manager: &M,
     text: Option<&str>,
     metadata: Option<AboutMetadata>,
   ) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::about(text, metadata),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -219,10 +219,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux:** Unsupported.
-  pub fn services(app_handle: &AppHandle<R>, text: Option<&str>) -> Self {
+  pub fn services<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
     Self {
       inner: muda::PredefinedMenuItem::services(text),
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 

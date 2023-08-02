@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{IsMenuItem, MenuItemKind};
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Position, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
 
 /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
@@ -96,23 +96,23 @@ impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
 
 impl<R: Runtime> Submenu<R> {
   /// Creates a new submenu.
-  pub fn new<S: AsRef<str>>(app_handle: &AppHandle<R>, text: S, enabled: bool) -> Self {
+  pub fn new<M: Manager<R>, S: AsRef<str>>(manager: &M, text: S, enabled: bool) -> Self {
     let submenu = muda::Submenu::new(text, enabled);
     Self {
       id: submenu.id(),
       inner: submenu,
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
   /// Creates a new menu with given `items`. It calls [`Submenu::new`] and [`Submenu::append_items`] internally.
-  pub fn with_items<S: AsRef<str>>(
-    app_handle: &AppHandle<R>,
+  pub fn with_items<M: Manager<R>, S: AsRef<str>>(
+    manager: &M,
     text: S,
     enabled: bool,
     items: &[&dyn IsMenuItem<R>],
   ) -> crate::Result<Self> {
-    let menu = Self::new(app_handle, text, enabled);
+    let menu = Self::new(manager, text, enabled);
     menu.append_items(items)?;
     Ok(menu)
   }

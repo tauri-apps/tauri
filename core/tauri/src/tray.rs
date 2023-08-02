@@ -6,7 +6,7 @@
 
 use crate::menu::MenuEvent;
 use crate::{menu::ContextMenu, runtime::tray as tray_icon};
-use crate::{run_main_thread, AppHandle, Icon, Runtime};
+use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
 use std::path::{Path, PathBuf};
 pub use tray_icon::{ClickType, Rectangle, TrayIconEvent};
 
@@ -215,16 +215,16 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 
   /// Builds and adds a new [`TrayIcon`] to the system tray.
-  pub fn build(self, app_handle: &AppHandle<R>) -> crate::Result<TrayIcon<R>> {
+  pub fn build<M: Manager<R>>(self, manager: &M) -> crate::Result<TrayIcon<R>> {
     let id = self.id();
     let inner = self.inner.build()?;
     let icon = TrayIcon {
       id,
       inner,
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     };
 
-    icon.register(app_handle, self.on_menu_event, self.on_tray_event);
+    icon.register(&icon.app_handle, self.on_menu_event, self.on_tray_event);
 
     Ok(icon)
   }
@@ -297,7 +297,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
   /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
-  pub fn new(app_handle: &AppHandle<R>, mut attrs: TrayIconAttributes<R>) -> crate::Result<Self> {
+  pub fn new<M: Manager<R>>(manager: &M, mut attrs: TrayIconAttributes<R>) -> crate::Result<Self> {
     let on_menu_event = attrs.on_menu_event.take();
     let on_tray_event = attrs.on_tray_event.take();
 
@@ -305,10 +305,10 @@ impl<R: Runtime> TrayIcon<R> {
     let icon = Self {
       id: inner.id(),
       inner,
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     };
 
-    icon.register(app_handle, on_menu_event, on_tray_event);
+    icon.register(&icon.app_handle, on_menu_event, on_tray_event);
 
     Ok(icon)
   }

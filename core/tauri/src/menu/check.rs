@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Manager, Runtime};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///
@@ -51,8 +51,8 @@ impl<R: Runtime> CheckMenuItem<R> {
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
   /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
-  pub fn new<S: AsRef<str>>(
-    app_handle: &AppHandle<R>,
+  pub fn new<M: Manager<R>, S: AsRef<str>>(
+    manager: &M,
     text: S,
     enabled: bool,
     checked: bool,
@@ -67,7 +67,7 @@ impl<R: Runtime> CheckMenuItem<R> {
     Self {
       id: item.id(),
       inner: item,
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 

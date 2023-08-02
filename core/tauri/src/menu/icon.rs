@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::NativeIcon;
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Icon, Runtime};
+use crate::{run_main_thread, runtime::menu as muda, AppHandle, Icon, Manager, Runtime};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///
@@ -52,8 +52,8 @@ impl<R: Runtime> IconMenuItem<R> {
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
   /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
-  pub fn new<S: AsRef<str>>(
-    app_handle: &AppHandle<R>,
+  pub fn new<M: Manager<R>, S: AsRef<str>>(
+    manager: &M,
     text: S,
     enabled: bool,
     icon: Option<Icon>,
@@ -70,7 +70,7 @@ impl<R: Runtime> IconMenuItem<R> {
     Self {
       id: item.id(),
       inner: item,
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 
@@ -81,8 +81,8 @@ impl<R: Runtime> IconMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux**: Unsupported.
-  pub fn with_native_icon<S: AsRef<str>>(
-    app_handle: &AppHandle<R>,
+  pub fn with_native_icon<M: Manager<R>, S: AsRef<str>>(
+    manager: &M,
     text: S,
     enabled: bool,
     native_icon: Option<NativeIcon>,
@@ -97,7 +97,7 @@ impl<R: Runtime> IconMenuItem<R> {
     Self {
       id: item.id(),
       inner: item,
-      app_handle: app_handle.clone(),
+      app_handle: manager.app_handle(),
     }
   }
 

@@ -10,17 +10,17 @@ use tauri::{
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
-  let toggle_i = MenuItem::new(&app, "Toggle", true, None);
-  let new_window_i = MenuItem::new(&app, "New window", true, None);
-  let icon_i_1 = MenuItem::new(&app, "Icon 1", true, None);
-  let icon_i_2 = MenuItem::new(&app, "Icon 2", true, None);
+  let toggle_i = MenuItem::new(app, "Toggle", true, None);
+  let new_window_i = MenuItem::new(app, "New window", true, None);
+  let icon_i_1 = MenuItem::new(app, "Icon 1", true, None);
+  let icon_i_2 = MenuItem::new(app, "Icon 2", true, None);
   #[cfg(target_os = "macos")]
-  let set_title_i = MenuItem::new(&app, "Set Title", true, None);
-  let switch_i = MenuItem::new(&app, "Switch Menu", true, None);
-  let quit_i = MenuItem::new(&app, "Quit", true, None);
-  let remove_tray_i = MenuItem::new(&app, "Remove Tray icon", true, None);
+  let set_title_i = MenuItem::new(app, "Set Title", true, None);
+  let switch_i = MenuItem::new(app, "Switch Menu", true, None);
+  let quit_i = MenuItem::new(app, "Quit", true, None);
+  let remove_tray_i = MenuItem::new(app, "Remove Tray icon", true, None);
   let menu1 = Menu::with_items(
-    &app,
+    app,
     &[
       &toggle_i,
       &new_window_i,
@@ -34,7 +34,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     ],
   )?;
   let menu2 = Menu::with_items(
-    &app,
+    app,
     &[&toggle_i, &new_window_i, &switch_i, &quit_i, &remove_tray_i],
   )?;
 
@@ -116,7 +116,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         }
       }
     })
-    .build(&app);
+    .build(app);
 
   Ok(())
 }

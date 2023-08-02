@@ -1091,16 +1091,12 @@ impl<R: Runtime> Window<R> {
   /// If a position was not provided, the cursor position will be used.
   ///
   /// The position is relative to the window's top-left corner.
-  pub fn show_context_menu<M: ContextMenu, P: Into<Position>>(
+  pub fn popup_menu<M: ContextMenu, P: Into<Position>>(
     &self,
     menu: &M,
     position: Option<P>,
   ) -> crate::Result<()> {
-    let position = position.map(|p| p.into());
-
-    menu.popup(self.clone(), position)?;
-
-    Ok(())
+    menu.popup(self.clone(), position)
   }
 
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.

@@ -225,4 +225,27 @@ impl<R: Runtime> Submenu<R> {
         .collect::<Vec<_>>()
     })
   }
+
+  /// Get the text for this submenu.
+  pub fn text(&self) -> crate::Result<String> {
+    run_main_thread!(self, |self_: Self| self_.inner.text())
+  }
+
+  /// Set the text for this submenu. `text` could optionally contain
+  /// an `&` before a character to assign this character as the mnemonic
+  /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
+  pub fn set_text<S: AsRef<str>>(&self, text: S) -> crate::Result<()> {
+    let text = text.as_ref().to_string();
+    run_main_thread!(self, |self_: Self| self_.inner.set_text(text))
+  }
+
+  /// Get whether this submenu is enabled or not.
+  pub fn is_enabled(&self) -> crate::Result<bool> {
+    run_main_thread!(self, |self_: Self| self_.inner.is_enabled())
+  }
+
+  /// Enable or disable this submenu.
+  pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
+    run_main_thread!(self, |self_: Self| self_.inner.set_enabled(enabled))
+  }
 }

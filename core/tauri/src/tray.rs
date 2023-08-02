@@ -4,6 +4,7 @@
 
 //! Tray icon types and utility functions
 
+use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::MenuEvent;
 use crate::{menu::ContextMenu, runtime::tray as tray_icon};
 use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
@@ -30,12 +31,10 @@ pub struct TrayIconAttributes<R: Runtime> {
   menu: Option<Box<dyn crate::runtime::menu::ContextMenu>>,
 
   /// Set a handler for menu events
-  #[allow(clippy::type_complexity)]
-  on_menu_event: Option<Box<dyn Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>>,
+  on_menu_event: Option<GlobalMenuEventListener<AppHandle<R>>>,
 
   /// Set a handler for tray icon events
-  #[allow(clippy::type_complexity)]
-  on_tray_event: Option<Box<dyn Fn(&TrayIcon<R>, TrayIconEvent) + Send + Sync + 'static>>,
+  on_tray_event: Option<GlobalTrayIconEventListener<TrayIcon<R>>>,
 
   /// Tray icon
   ///
@@ -88,10 +87,8 @@ impl<R: Runtime> From<TrayIconAttributes<R>> for tray_icon::TrayIconAttributes {
 /// [`TrayIcon`] builder struct and associated methods.
 #[derive(Default)]
 pub struct TrayIconBuilder<R: Runtime> {
-  #[allow(clippy::type_complexity)]
-  on_menu_event: Option<Box<dyn Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>>,
-  #[allow(clippy::type_complexity)]
-  on_tray_event: Option<Box<dyn Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>>,
+  on_menu_event: Option<GlobalMenuEventListener<AppHandle<R>>>,
+  on_tray_event: Option<GlobalTrayIconEventListener<TrayIcon<R>>>,
   inner: tray_icon::TrayIconBuilder,
 }
 
@@ -191,7 +188,9 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// Note that this handler is called for any menu event,
   /// whether it is coming from this window, another window or from the tray icon menu.
-  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(
+  pub fn on_menu_event<
+    F: Fn(&AppHandle<R>, MenuEvent) -> crate::Result<()> + Sync + Send + 'static,
+  >(
     mut self,
     f: F,
   ) -> Self {
@@ -200,7 +199,9 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 
   /// Set a handler for this tray icon events.
-  pub fn on_tray_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(
+  pub fn on_tray_event<
+    F: Fn(&TrayIcon<R>, TrayIconEvent) -> crate::Result<()> + Sync + Send + 'static,
+  >(
     mut self,
     f: F,
   ) -> Self {
@@ -256,41 +257,6 @@ unsafe impl<R: Runtime> Sync for TrayIcon<R> {}
 unsafe impl<R: Runtime> Send for TrayIcon<R> {}
 
 impl<R: Runtime> TrayIcon<R> {
-  fn register(
-    &self,
-    app_handle: &AppHandle<R>,
-    on_menu_event: Option<Box<dyn Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>>,
-    on_tray_event: Option<Box<dyn Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>>,
-  ) {
-    if let Some(handler) = on_menu_event {
-      app_handle
-        .manager
-        .inner
-        .menu_event_listeners
-        .lock()
-        .unwrap()
-        .push(handler);
-    }
-
-    if let Some(handler) = on_tray_event {
-      app_handle
-        .manager
-        .inner
-        .tray_event_listeners
-        .lock()
-        .unwrap()
-        .insert(self.id, handler);
-    }
-
-    app_handle
-      .manager
-      .inner
-      .tray_icons
-      .lock()
-      .unwrap()
-      .push(self.clone());
-  }
-
   /// Builds and adds a new tray icon to the system tray.
   ///
   /// ## Platform-specific:
@@ -336,6 +302,41 @@ impl<R: Runtime> TrayIcon<R> {
     Ok(icon)
   }
 
+  fn register(
+    &self,
+    app_handle: &AppHandle<R>,
+    on_menu_event: Option<GlobalMenuEventListener<AppHandle<R>>>,
+    on_tray_event: Option<GlobalTrayIconEventListener<TrayIcon<R>>>,
+  ) {
+    if let Some(handler) = on_menu_event {
+      app_handle
+        .manager
+        .inner
+        .menu_event_listeners
+        .lock()
+        .unwrap()
+        .push(handler);
+    }
+
+    if let Some(handler) = on_tray_event {
+      app_handle
+        .manager
+        .inner
+        .tray_event_listeners
+        .lock()
+        .unwrap()
+        .insert(self.id, handler);
+    }
+
+    app_handle
+      .manager
+      .inner
+      .tray_icons
+      .lock()
+      .unwrap()
+      .push(self.clone());
+  }
+
   /// The application handle associated with this type.
   pub fn app_handle(&self) -> AppHandle<R> {
     self.app_handle.clone()
@@ -345,7 +346,12 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// Note that this handler is called for any menu event,
   /// whether it is coming from this window, another window or from the tray icon menu.
-  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(&self, f: F) {
+  pub fn on_menu_event<
+    F: Fn(&AppHandle<R>, MenuEvent) -> crate::Result<()> + Sync + Send + 'static,
+  >(
+    &self,
+    f: F,
+  ) {
     self
       .app_handle
       .manager
@@ -357,7 +363,12 @@ impl<R: Runtime> TrayIcon<R> {
   }
 
   /// Register a handler for this tray icon events.
-  pub fn on_tray_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(&self, f: F) {
+  pub fn on_tray_event<
+    F: Fn(&TrayIcon<R>, TrayIconEvent) -> crate::Result<()> + Sync + Send + 'static,
+  >(
+    &self,
+    f: F,
+  ) {
     self
       .app_handle
       .manager

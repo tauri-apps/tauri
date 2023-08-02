@@ -4,7 +4,7 @@
 
 //! The Tauri window types and functions.
 
-use crate::menu::ContextMenu;
+use crate::{app::GlobalMenuEventListener, menu::ContextMenu};
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -59,8 +59,6 @@ use std::{
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
-pub(crate) type MenuEventHandler<R> =
-  Box<dyn Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -122,7 +120,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
-  on_menu_event: Option<MenuEventHandler<R>>,
+  on_menu_event: Option<GlobalMenuEventListener<Window<R>>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
@@ -347,7 +345,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<
+    F: Fn(&Window<R>, crate::menu::MenuEvent) -> crate::Result<()> + Send + Sync + 'static,
+  >(
     mut self,
     f: F,
   ) -> Self {
@@ -1204,7 +1204,9 @@ impl<R: Runtime> Window<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<
+    F: Fn(&Window<R>, crate::menu::MenuEvent) -> crate::Result<()> + Send + Sync + 'static,
+  >(
     &self,
     f: F,
   ) {

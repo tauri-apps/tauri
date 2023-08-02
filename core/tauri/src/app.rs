@@ -53,10 +53,12 @@ use crate::{
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
 
-pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync>;
-pub(crate) type GlobalTrayIconEventListener<R> =
-  Box<dyn Fn(&AppHandle<R>, crate::tray::TrayIconEvent) + Send + Sync>;
-pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
+pub(crate) type GlobalMenuEventListener<T> =
+  Box<dyn Fn(&T, crate::menu::MenuEvent) -> crate::Result<()> + Send + Sync>;
+pub(crate) type GlobalTrayIconEventListener<T> =
+  Box<dyn Fn(&T, crate::tray::TrayIconEvent) -> crate::Result<()> + Send + Sync>;
+pub(crate) type GlobalWindowEventListener<R> =
+  Box<dyn Fn(GlobalWindowEvent<R>) -> crate::Result<()> + Send + Sync>;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -471,7 +473,9 @@ macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
       /// Registers a global menu event listener.
-      pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
+      pub fn on_menu_event<
+        F: Fn(&AppHandle<R>, MenuEvent) -> crate::Result<()> + Send + Sync + 'static,
+      >(
         &self,
         handler: F,
       ) {
@@ -485,7 +489,9 @@ macro_rules! shared_app_impl {
       }
 
       /// Registers a global tray icon menu event listener.
-      pub fn on_tray_icon_event<F: Fn(&AppHandle<R>, TrayIconEvent) + Send + Sync + 'static>(
+      pub fn on_tray_icon_event<
+        F: Fn(&AppHandle<R>, TrayIconEvent) -> crate::Result<()> + Send + Sync + 'static,
+      >(
         &self,
         handler: F,
       ) {
@@ -1317,7 +1323,9 @@ impl<R: Runtime> Builder<R> {
   ///   });
   /// ```
   #[must_use]
-  pub fn on_window_event<F: Fn(GlobalWindowEvent<R>) + Send + Sync + 'static>(
+  pub fn on_window_event<
+    F: Fn(GlobalWindowEvent<R>) -> crate::Result<()> + Send + Sync + 'static,
+  >(
     mut self,
     handler: F,
   ) -> Self {
@@ -1678,7 +1686,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
             .lock()
             .unwrap()
           {
-            listener(app_handle, e)
+            let _ = listener(app_handle, e);
           }
           for (label, listener) in &*app_handle
             .manager
@@ -1688,7 +1696,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
             .unwrap()
           {
             if let Some(w) = app_handle.get_window(label) {
-              listener(&w, e)
+              let _ = listener(&w, e);
             }
           }
         }
@@ -1700,7 +1708,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
             .lock()
             .unwrap()
           {
-            listener(app_handle, e)
+            let _ = listener(app_handle, e);
           }
 
           for (id, listener) in &*app_handle
@@ -1712,7 +1720,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
           {
             if e.id == *id {
               if let Some(tray) = app_handle.tray_by_id(*id) {
-                listener(&tray, e)
+                let _ = listener(&tray, e);
               }
             }
           }

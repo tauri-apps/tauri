@@ -47,7 +47,6 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     .icon(app.default_window_icon().unwrap().clone())
     .menu(&menu1)
     .on_menu_event(move |app, event| {
-      dbg!(event);
       match event.id {
         i if i == quit_i.id() => {
           app.exit(0);
@@ -57,37 +56,34 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         }
         i if i == toggle_i.id() => {
           if let Some(window) = app.get_window("main") {
-            let new_title = if window.is_visible().unwrap() {
-              window.hide().unwrap();
+            let new_title = if window.is_visible()? {
+              window.hide()?;
               "Show"
             } else {
-              window.show().unwrap();
+              window.show()?;
               "Hide"
             };
-            toggle_i.set_text(new_title).unwrap();
+            toggle_i.set_text(new_title)?;
           }
         }
         i if i == new_window_i.id() => {
           WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
             .title("Tauri")
-            .build()
-            .unwrap();
+            .build()?;
         }
         #[cfg(target_os = "macos")]
         i if i == set_title_i.id() => {
           if let Some(tray) = app.tray_by_id(TRAY_ID) {
-            tray.set_title(Some("Tauri")).unwrap();
+            tray.set_title(Some("Tauri"))?;
           }
         }
         i if i == icon_i_1.id() || i == icon_i_2.id() => {
           if let Some(tray) = app.tray_by_id(TRAY_ID) {
-            tray
-              .set_icon(Some(tauri::Icon::Raw(if i == icon_i_1.id() {
-                include_bytes!("../../../.icons/icon.ico").to_vec()
-              } else {
-                include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec()
-              })))
-              .unwrap();
+            tray.set_icon(Some(tauri::Icon::Raw(if i == icon_i_1.id() {
+              include_bytes!("../../../.icons/icon.ico").to_vec()
+            } else {
+              include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec()
+            })))?;
           }
         }
         i if i == switch_i.id() => {
@@ -98,14 +94,16 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
             (menu1.clone(), "Tauri")
           };
           if let Some(tray) = app.tray_by_id(TRAY_ID) {
-            tray.set_menu(Some(menu)).unwrap();
-            tray.set_tooltip(Some(tooltip)).unwrap();
+            tray.set_menu(Some(menu))?;
+            tray.set_tooltip(Some(tooltip))?;
           }
           is_menu1.store(!flag, Ordering::Relaxed);
         }
 
         _ => {}
       }
+
+      Ok(())
     })
     .on_tray_event(|tray, event| {
       if event.click_type == ClickType::Left {
@@ -115,6 +113,8 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
           window.set_focus().unwrap();
         }
       }
+
+      Ok(())
     })
     .build(app);
 

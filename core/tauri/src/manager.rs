@@ -15,6 +15,7 @@ use crate::{menu::Menu, window::WindowMenu};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+use tauri_runtime::window::RawWindow;
 use url::Url;
 
 use tauri_macros::default_runtime;
@@ -368,6 +369,45 @@ impl<R: Runtime> WindowManager<R> {
   /// State managed by the application.
   pub(crate) fn state(&self) -> Arc<StateManager> {
     self.inner.state.clone()
+  }
+
+  pub(crate) fn create_webview_before_creation_handler(
+    &self,
+    window_menu: Option<&WindowMenu<R>>,
+  ) -> Option<impl Fn(RawWindow<'_>)> {
+    #[cfg(not(target_os = "macos"))]
+    {
+      if let Some(menu) = window_menu {
+        self
+          .inner
+          .menus
+          .lock()
+          .unwrap()
+          .insert(menu.menu.id(), menu.menu.clone());
+      }
+    }
+
+    #[cfg(target_os = "macos")]
+    return None;
+
+    #[cfg(not(target_os = "macos"))]
+    if let Some(menu) = &window_menu {
+      let menu = menu.menu.clone();
+      Some(move |raw: RawWindow<'_>| {
+        #[cfg(target_os = "windows")]
+        let _ = menu.inner().init_for_hwnd(raw.hwnd as _);
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        let _ = menu.inner().init_for_gtk_window(raw.gtk_window);
+      })
+    } else {
+      None
+    }
   }
 
   /// App-wide menu.
@@ -1034,7 +1074,6 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
     mut pending: PendingWindow<EventLoopMessage, R>,
     window_labels: &[String],
-    #[cfg(not(target_os = "macos"))] menu: Option<Menu<R>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
@@ -1190,14 +1229,6 @@ impl<R: Runtime> WindowManager<R> {
         true
       }
     }));
-
-    #[cfg(not(target_os = "macos"))]
-    {
-      let menu = menu.or_else(|| self.menu_lock().clone());
-      if let Some(menu) = menu {
-        self.inner.menus.lock().unwrap().insert(menu.id(), menu);
-      }
-    }
 
     Ok(pending)
   }

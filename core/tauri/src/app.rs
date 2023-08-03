@@ -34,7 +34,7 @@ use tauri_macros::default_runtime;
 use tauri_runtime::{
   window::{
     dpi::{PhysicalPosition, PhysicalSize},
-    FileDropEvent, RawWindow,
+    FileDropEvent,
   },
   EventLoopProxy, RuntimeInitArgs,
 };
@@ -1582,40 +1582,15 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     let manager = app.manager();
 
     for pending in pending_windows {
+      let pending = manager.prepare_window(app_handle.clone(), pending, &window_labels)?;
+
       #[cfg(not(target_os = "macos"))]
-      let menu = app.manager.menu_lock().as_ref().map(|m| WindowMenu {
+      let window_menu = app.manager.menu_lock().as_ref().map(|m| WindowMenu {
         is_app_wide: true,
         menu: m.clone(),
       });
 
-      let pending = manager.prepare_window(
-        app_handle.clone(),
-        pending,
-        &window_labels,
-        #[cfg(not(target_os = "macos"))]
-        menu.as_ref().map(|m| m.menu.clone()),
-      )?;
-
-      #[cfg(target_os = "macos")]
-      let handler = None;
-      #[cfg(not(target_os = "macos"))]
-      let handler = if let Some(menu) = &menu {
-        let menu = menu.menu.clone();
-        Some(move |raw: RawWindow<'_>| {
-          #[cfg(target_os = "windows")]
-          let _ = menu.inner().init_for_hwnd(raw.hwnd as _).unwrap();
-          #[cfg(any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-          ))]
-          let _ = menu.inner().init_for_gtk_window(raw.gtk_window);
-        })
-      } else {
-        None
-      };
+      let handler = manager.create_webview_before_creation_handler(window_menu.as_ref());
 
       let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app_handle.runtime() {

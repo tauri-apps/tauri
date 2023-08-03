@@ -5,7 +5,6 @@
 //! The Tauri window types and functions.
 
 use crate::{app::GlobalMenuEventListener, menu::ContextMenu};
-use tauri_runtime::window::RawWindow;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -367,8 +366,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
+    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
+    let pending = self
+      .manager
+      .prepare_window(self.app_handle.clone(), pending, &labels)?;
+
     #[cfg(not(target_os = "macos"))]
-    let menu = {
+    let window_menu = {
       let is_app_wide = self.menu.is_none();
       self
         .menu
@@ -376,35 +380,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         .map(|menu| WindowMenu { is_app_wide, menu })
     };
 
-    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    let pending = self.manager.prepare_window(
-      self.app_handle.clone(),
-      pending,
-      &labels,
-      #[cfg(not(target_os = "macos"))]
-      menu.as_ref().map(|m| m.menu.clone()),
-    )?;
-
-    #[cfg(target_os = "macos")]
-    let handler = None;
-    #[cfg(not(target_os = "macos"))]
-    let handler = if let Some(menu) = &menu {
-      let menu = menu.menu.clone();
-      Some(move |raw: RawWindow<'_>| {
-        #[cfg(target_os = "windows")]
-        let _ = menu.inner().init_for_hwnd(raw.hwnd as _);
-        #[cfg(any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
-        ))]
-        let _ = menu.inner().init_for_gtk_window(raw.gtk_window);
-      })
-    } else {
-      None
-    };
+    let handler = self
+      .manager
+      .create_webview_before_creation_handler(window_menu.as_ref());
 
     let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
@@ -417,7 +395,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         self.app_handle.clone(),
         window,
         #[cfg(not(target_os = "macos"))]
-        menu,
+        window_menu,
       )
     })?;
 

@@ -670,6 +670,7 @@ macro_rules! shared_app_impl {
       #[cfg(desktop)]
       pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
         let menu = self.manager.menu_lock().as_ref().cloned();
+        #[allow(unused_variables)]
         if let Some(menu) = menu {
           // remove from windows that have the app-wide menu
           #[cfg(not(target_os = "macos"))]

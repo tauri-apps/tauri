@@ -1538,13 +1538,8 @@ impl<R: Runtime> Builder<R> {
       if let Some(tooltip) = &tray_config.tooltip {
         tray = tray.tooltip(tooltip);
       }
-      app
-        .manager
-        .inner
-        .tray_icons
-        .lock()
-        .unwrap()
-        .push(tray.build(&handle)?);
+      let tray = tray.build(&handle)?;
+      app.manager.inner.tray_icons.lock().unwrap().push(tray);
     }
 
     app.manager.initialize_plugins(&handle)?;

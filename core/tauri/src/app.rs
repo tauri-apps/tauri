@@ -669,7 +669,8 @@ macro_rules! shared_app_impl {
       /// this will remove the menu from it.
       #[cfg(desktop)]
       pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
-        if self.manager.menu_lock().is_some() {
+        let menu = self.manager.menu_lock().as_ref().cloned();
+        if let Some(menu) = menu {
           // remove from windows that have the app-wide menu
           #[cfg(not(target_os = "macos"))]
           {
@@ -691,9 +692,8 @@ macro_rules! shared_app_impl {
           // remove app-wide for macos
           #[cfg(target_os = "macos")]
           {
-            let menu_ = menu.clone();
             self.run_on_main_thread(move || {
-              menu_.inner().remove_for_nsapp();
+              menu.inner().remove_for_nsapp();
             })?;
           }
         }

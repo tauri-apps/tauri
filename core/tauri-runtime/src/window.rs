@@ -368,5 +368,13 @@ pub struct RawWindow<'a> {
     target_os = "openbsd"
   ))]
   pub gtk_window: &'a gtk::ApplicationWindow,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub default_vbox: Option<&'a gtk::Box>,
   pub _marker: &'a PhantomData<()>,
 }

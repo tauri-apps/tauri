@@ -2646,6 +2646,14 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         target_os = "openbsd"
       ))]
       gtk_window: window.gtk_window(),
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      default_vbox: window.default_vbox(),
       _marker: &std::marker::PhantomData,
     };
     handler(raw);

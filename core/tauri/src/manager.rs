@@ -403,7 +403,9 @@ impl<R: Runtime> WindowManager<R> {
           target_os = "netbsd",
           target_os = "openbsd"
         ))]
-        let _ = menu.inner().init_for_gtk_window(raw.gtk_window);
+        let _ = menu
+          .inner()
+          .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
       })
     } else {
       None

@@ -27,9 +27,9 @@ pub fn perform_request(endpoint: String, body: RequestBody) -> String {
 #[command]
 pub fn toggle_menu<R: Runtime>(window: tauri::Window<R>) {
   if window.is_menu_visible().unwrap_or_default() {
-    let _ = window.show_menu();
-  } else {
     let _ = window.hide_menu();
+  } else {
+    let _ = window.show_menu();
   }
 }
 

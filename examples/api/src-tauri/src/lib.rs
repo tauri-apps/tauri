@@ -12,8 +12,15 @@ mod cmd;
 mod tray;
 
 use serde::Serialize;
-use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, Runtime, WindowUrl};
+use tauri::{
+  menu::{builders::MenuBuilder, Menu},
+  window::WindowBuilder,
+  App, AppHandle, Manager, RunEvent, Runtime, WindowUrl,
+};
 use tauri_plugin_sample::{PingRequest, SampleExt};
+
+pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
+pub type OnEvent = Box<dyn FnMut(&AppHandle, RunEvent)>;
 
 #[derive(Clone, Serialize)]
 struct Reply {
@@ -23,8 +30,7 @@ struct Reply {
 #[cfg(target_os = "macos")]
 pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
 
-pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
-pub type OnEvent = Box<dyn FnMut(&AppHandle, RunEvent)>;
+pub struct PopupMenu<R: Runtime>(Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -52,10 +58,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       }
 
       #[cfg(target_os = "macos")]
-      {
-        use tauri::Manager;
-        app.manage(AppMenu::<R>(Default::default()));
-      }
+      app.manage(AppMenu::<R>(Default::default()));
+
+      app.manage(PopupMenu(
+        MenuBuilder::new(app)
+          .check("Tauri is awesome!")
+          .text("Do something")
+          .copy()
+          .build()?,
+      ));
 
       let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());
       #[cfg(desktop)]

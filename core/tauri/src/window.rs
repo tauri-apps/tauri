@@ -121,7 +121,6 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
-  #[cfg(not(target_os = "macos"))]
   on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
 }
 
@@ -198,7 +197,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
-      #[cfg(not(target_os = "macos"))]
       on_menu_event: None,
     }
   }
@@ -239,7 +237,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       web_resource_request_handler: None,
       menu: None,
       navigation_handler: None,
-      #[cfg(not(target_os = "macos"))]
       on_menu_event: None,
     };
 
@@ -351,8 +348,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     Ok(())
   ///   });
   /// ```
-  #[cfg(not(target_os = "macos"))]
-  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
   pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
@@ -376,7 +371,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       .manager
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
 
-    #[cfg(not(target_os = "macos"))]
     let window_menu = {
       let is_app_wide = self.menu.is_none();
       self
@@ -385,13 +379,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         .map(|menu| WindowMenu { is_app_wide, menu })
     };
 
-    #[cfg(not(target_os = "macos"))]
     let handler = self
       .manager
-      .create_webview_before_creation_handler(window_menu.as_ref());
-    #[cfg(target_os = "macos")]
-    #[allow(clippy::type_complexity)]
-    let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
+      .prepare_window_menu_creation_handler(window_menu.as_ref());
 
     let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
@@ -400,15 +390,11 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
     }
     .map(|window| {
-      self.manager.attach_window(
-        self.app_handle.clone(),
-        window,
-        #[cfg(not(target_os = "macos"))]
-        window_menu,
-      )
+      self
+        .manager
+        .attach_window(self.app_handle.clone(), window, window_menu)
     })?;
 
-    #[cfg(not(target_os = "macos"))]
     if let Some(handler) = self.on_menu_event {
       window.on_menu_event(handler);
     }
@@ -854,7 +840,6 @@ struct JsEventListenerKey {
 
 /// A wrapper struct to hold the window menu state
 /// and whether it is global per-app or specific to this window.
-#[cfg(not(target_os = "macos"))]
 pub(crate) struct WindowMenu<R: Runtime> {
   pub(crate) is_app_wide: bool,
   pub(crate) menu: Menu<R>,
@@ -874,8 +859,6 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
   // The menu set for this window
-  #[cfg(not(target_os = "macos"))]
-  #[allow(clippy::type_complexity)]
   pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
 }
 
@@ -903,7 +886,6 @@ impl<R: Runtime> Clone for Window<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       js_event_listeners: self.js_event_listeners.clone(),
-      #[cfg(not(target_os = "macos"))]
       menu: self.menu.clone(),
     }
   }
@@ -1051,14 +1033,13 @@ impl<R: Runtime> Window<R> {
     manager: WindowManager<R>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
-    #[cfg(not(target_os = "macos"))] menu: Option<WindowMenu<R>>,
+    menu: Option<WindowMenu<R>>,
   ) -> Self {
     Self {
       window,
       manager,
       app_handle,
       js_event_listeners: Default::default(),
-      #[cfg(not(target_os = "macos"))]
       menu: Arc::new(Mutex::new(menu)),
     }
   }
@@ -1183,8 +1164,6 @@ impl<R: Runtime> Window<R> {
 }
 
 /// Menu APIs
-#[cfg(not(target_os = "macos"))]
-#[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
 impl<R: Runtime> Window<R> {
   /// Registers a global menu event listener.
   ///

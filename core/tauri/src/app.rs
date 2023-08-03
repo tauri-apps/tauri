@@ -20,6 +20,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
+  window::WindowMenu,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
   Monitor, Runtime, Scopes, StateManager, Theme, Window,
 };
@@ -617,7 +618,6 @@ macro_rules! shared_app_impl {
         for window in self.manager.windows_lock().values() {
           let mut window_menu = window.menu_lock();
           if window_menu.as_ref().map(|m| m.is_app_wide).unwrap_or(true) {
-            #[cfg(not(target_os = "macos"))]
             let window = window.clone();
             let menu_ = menu.clone();
             self.run_on_main_thread(move || {
@@ -639,7 +639,7 @@ macro_rules! shared_app_impl {
                   .init_for_gtk_window(&gtk_window, Some(&gtk_box));
               }
             })?;
-            window_menu.replace(crate::window::WindowMenu {
+            window_menu.replace(WindowMenu {
               is_app_wide: true,
               menu: menu.clone(),
             });
@@ -670,7 +670,6 @@ macro_rules! shared_app_impl {
           #[cfg(not(target_os = "macos"))]
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
-              #[cfg(not(target_os = "macos"))]
               let window_ = window.clone();
               let menu_ = menu.clone();
               self.run_on_main_thread(move || {
@@ -719,9 +718,8 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will hide the menu from it.
-      #[cfg(not(target_os = "macos"))]
-      #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
       pub fn hide_menu(&self) -> crate::Result<()> {
+        #[cfg(not(target_os = "macos"))]
         if let Some(menu) = &*self.manager.menu_lock() {
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
@@ -754,9 +752,8 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will show the menu for it.
-      #[cfg(not(target_os = "macos"))]
-      #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
       pub fn show_menu(&self) -> crate::Result<()> {
+        #[cfg(not(target_os = "macos"))]
         if let Some(menu) = &*self.manager.menu_lock() {
           for window in self.manager.windows_lock().values() {
             if window.has_app_wide_menu() {
@@ -1583,21 +1580,12 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     for pending in pending_windows {
       let pending = manager.prepare_window(app_handle.clone(), pending, &window_labels)?;
 
-      #[cfg(not(target_os = "macos"))]
-      let window_menu = app
-        .manager
-        .menu_lock()
-        .as_ref()
-        .map(|m| crate::window::WindowMenu {
-          is_app_wide: true,
-          menu: m.clone(),
-        });
+      let window_menu = app.manager.menu_lock().as_ref().map(|m| WindowMenu {
+        is_app_wide: true,
+        menu: m.clone(),
+      });
 
-      #[cfg(not(target_os = "macos"))]
-      let handler = manager.create_webview_before_creation_handler(window_menu.as_ref());
-      #[cfg(target_os = "macos")]
-      #[allow(clippy::type_complexity)]
-      let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
+      let handler = manager.prepare_window_menu_creation_handler(window_menu.as_ref());
 
       let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app_handle.runtime() {
@@ -1606,12 +1594,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
         unreachable!()
       };
-      let window = manager.attach_window(
-        app_handle.clone(),
-        detached,
-        #[cfg(not(target_os = "macos"))]
-        None,
-      );
+      let window = manager.attach_window(app_handle.clone(), detached, None);
 
       if let Some(effects) = window_effects {
         crate::vibrancy::set_window_effects(&window, Some(effects))?;

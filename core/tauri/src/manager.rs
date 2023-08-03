@@ -370,21 +370,20 @@ impl<R: Runtime> WindowManager<R> {
     self.inner.state.clone()
   }
 
-  #[cfg(not(target_os = "macos"))]
-  pub(crate) fn create_webview_before_creation_handler(
+  pub(crate) fn prepare_window_menu_creation_handler(
     &self,
     window_menu: Option<&crate::window::WindowMenu<R>>,
   ) -> Option<impl Fn(tauri_runtime::window::RawWindow<'_>)> {
     {
       if let Some(menu) = window_menu {
         self
-          .inner
-          .menus
-          .lock()
-          .unwrap()
+          .menus_stash_lock()
           .insert(menu.menu.id(), menu.menu.clone());
       }
     }
+
+    #[cfg(target_os = "macos")]
+    return None;
 
     if let Some(menu) = &window_menu {
       let menu = menu.menu.clone();
@@ -432,9 +431,6 @@ impl<R: Runtime> WindowManager<R> {
 
   pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<u32>) {
     if let Some(id) = id {
-      #[cfg(target_os = "macos")]
-      let is_used_by_a_window = false;
-      #[cfg(not(target_os = "macos"))]
       let is_used_by_a_window = self.windows_lock().values().any(|w| w.is_menu_in_use(id));
       if !(self.is_menu_in_use(id) || is_used_by_a_window) {
         self.menus_stash_lock().remove(&id);
@@ -1234,15 +1230,9 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     app_handle: AppHandle<R>,
     window: DetachedWindow<EventLoopMessage, R>,
-    #[cfg(not(target_os = "macos"))] menu: Option<crate::window::WindowMenu<R>>,
+    menu: Option<crate::window::WindowMenu<R>>,
   ) -> Window<R> {
-    let window = Window::new(
-      self.clone(),
-      window,
-      app_handle,
-      #[cfg(not(target_os = "macos"))]
-      menu,
-    );
+    let window = Window::new(self.clone(), window, app_handle, menu);
 
     let window_ = window.clone();
     let window_event_listeners = self.inner.window_event_listeners.clone();

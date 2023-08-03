@@ -4,7 +4,6 @@
 
 //! Menu types and utility functions
 
-// TODO(muda-migration): look for a way to initalize menu for a window without routing through tauri-runtime-wry
 // TODO(muda-migration): figure out js events
 
 pub mod builders;

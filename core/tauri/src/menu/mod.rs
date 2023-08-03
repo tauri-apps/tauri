@@ -22,10 +22,8 @@ pub use normal::MenuItem;
 pub use predefined::PredefinedMenuItem;
 pub use submenu::Submenu;
 
-pub use crate::runtime::menu::{icon::NativeIcon, AboutMetadata, MenuEvent};
 use crate::Runtime;
-
-use crate::runtime::menu as muda;
+pub use muda::{icon::NativeIcon, AboutMetadata, MenuEvent};
 
 /// An enumeration of all menu item kinds that could be added to
 /// a [`Menu`] or [`Submenu`]
@@ -205,11 +203,39 @@ pub trait ContextMenu: sealed::ContextMenuBase + Send + Sync {
 pub(crate) mod sealed {
 
   pub trait IsMenuItemBase {
-    fn inner(&self) -> &dyn super::muda::IsMenuItem;
+    fn inner(&self) -> &dyn muda::IsMenuItem;
   }
 
   pub trait ContextMenuBase {
-    fn inner(&self) -> &dyn super::muda::ContextMenu;
-    fn inner_owned(&self) -> Box<dyn super::muda::ContextMenu>;
+    fn inner(&self) -> &dyn muda::ContextMenu;
+    fn inner_owned(&self) -> Box<dyn muda::ContextMenu>;
+  }
+}
+
+impl TryFrom<crate::Icon> for muda::icon::Icon {
+  type Error = crate::Error;
+
+  fn try_from(value: crate::Icon) -> Result<Self, Self::Error> {
+    let value: crate::runtime::Icon = value.try_into()?;
+    muda::icon::Icon::from_rgba(value.rgba, value.width, value.height).map_err(Into::into)
+  }
+}
+
+pub(crate) fn into_logical_position<P: crate::Pixel>(
+  p: crate::LogicalPosition<P>,
+) -> muda::LogicalPosition<P> {
+  muda::LogicalPosition { x: p.x, y: p.y }
+}
+
+pub(crate) fn into_physical_position<P: crate::Pixel>(
+  p: crate::PhysicalPosition<P>,
+) -> muda::PhysicalPosition<P> {
+  muda::PhysicalPosition { x: p.x, y: p.y }
+}
+
+pub(crate) fn into_position(p: crate::Position) -> muda::Position {
+  match p {
+    crate::Position::Physical(p) => muda::Position::Physical(into_physical_position(p)),
+    crate::Position::Logical(p) => muda::Position::Logical(into_logical_position(p)),
   }
 }

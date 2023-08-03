@@ -94,8 +94,14 @@ pub enum Error {
   FailedToReceiveMessage,
   /// Menu error.
   #[error("menu error: {0}")]
-  Menu(#[from] tauri_runtime::menu::Error),
+  Menu(#[from] muda::Error),
+  /// Bad menu icon error.
+  #[error(transparent)]
+  BadMenuIcon(#[from] muda::icon::BadIcon),
   /// Tray icon error.
   #[error("tray icon error: {0}")]
-  Tray(#[from] tauri_runtime::tray::Error),
+  Tray(#[from] tray_icon::Error),
+  /// Bad tray icon error.
+  #[error(transparent)]
+  BadTrayIcon(#[from] tray_icon::icon::BadIcon),
 }

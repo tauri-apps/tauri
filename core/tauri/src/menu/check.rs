@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Manager, Runtime};
+use crate::{run_main_thread, AppHandle, Manager, Runtime};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///

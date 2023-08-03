@@ -399,30 +399,3 @@ impl<P: Pixel> From<LogicalPosition<P>> for Position {
     Position::Logical(position.cast())
   }
 }
-
-impl<P> From<LogicalPosition<P>> for crate::menu::LogicalPosition<P> {
-  fn from(value: LogicalPosition<P>) -> Self {
-    Self {
-      x: value.x,
-      y: value.y,
-    }
-  }
-}
-
-impl<P> From<PhysicalPosition<P>> for crate::menu::PhysicalPosition<P> {
-  fn from(value: PhysicalPosition<P>) -> Self {
-    Self {
-      x: value.x,
-      y: value.y,
-    }
-  }
-}
-
-impl From<Position> for crate::menu::Position {
-  fn from(value: Position) -> Self {
-    match value {
-      Position::Physical(p) => Self::Physical(p.into()),
-      Position::Logical(p) => Self::Logical(p.into()),
-    }
-  }
-}

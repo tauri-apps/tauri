@@ -17,6 +17,7 @@ use url::Url;
 use std::{
   collections::HashMap,
   hash::{Hash, Hasher},
+  marker::PhantomData,
   path::PathBuf,
   sync::mpsc::Sender,
 };
@@ -224,9 +225,6 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
     Option<Box<dyn Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send>>,
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
-
-  /// Whether the menu set in the builder is app-wide
-  pub has_app_wide_menu: bool,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -240,28 +238,6 @@ pub fn assert_label_is_valid(label: &str) {
     is_label_valid(label),
     "Window label must include only alphanumeric characters, `-`, `/`, `:` and `_`."
   );
-}
-
-#[cfg(not(target_os = "macos"))]
-impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
-  #[must_use]
-  pub fn set_menu(mut self, menu: crate::menu::Menu) -> Self {
-    self.window_builder = self.window_builder.menu(menu);
-    self
-  }
-
-  #[must_use]
-  pub fn set_app_menu(mut self, menu: crate::menu::Menu) -> Self {
-    if !self.window_builder.has_menu() {
-      self.window_builder = self.window_builder.menu(menu);
-      self.has_app_wide_menu = true;
-    }
-    self
-  }
-
-  pub fn menu(&self) -> Option<&crate::menu::Menu> {
-    self.window_builder.get_menu()
-  }
 }
 
 impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
@@ -286,7 +262,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         #[cfg(target_os = "android")]
         on_webview_created: None,
         web_resource_request_handler: Default::default(),
-        has_app_wide_menu: false,
       })
     }
   }
@@ -315,7 +290,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         #[cfg(target_os = "android")]
         on_webview_created: None,
         web_resource_request_handler: Default::default(),
-        has_app_wide_menu: false,
       })
     }
   }
@@ -378,4 +352,21 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
   fn eq(&self, other: &Self) -> bool {
     self.label.eq(&other.label)
   }
+}
+
+/// A raw window type that contains fields to access
+/// the HWND on Windows, gtk::ApplicationWindow on Linux and
+/// NSView on macOS.
+pub struct RawWindow<'a> {
+  #[cfg(windows)]
+  pub hwnd: *mut std::ffi::c_void,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub gtk_window: &'a gtk::ApplicationWindow,
+  pub _marker: &'a PhantomData<()>,
 }

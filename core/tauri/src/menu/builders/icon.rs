@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri_runtime::menu::icon::NativeIcon;
+use muda::icon::NativeIcon;
 
 use crate::{menu::IconMenuItem, Icon, Manager, Runtime};
 

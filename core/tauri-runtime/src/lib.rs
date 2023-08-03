@@ -19,9 +19,6 @@ use tauri_utils::Theme;
 use url::Url;
 use uuid::Uuid;
 
-pub use muda as menu;
-pub use tray_icon as tray;
-
 pub mod http;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
@@ -32,7 +29,7 @@ use monitor::Monitor;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  CursorIcon, DetachedWindow, PendingWindow, WindowEvent,
+  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
 };
 
 use crate::http::{
@@ -114,14 +111,6 @@ pub enum Error {
   Infallible(#[from] std::convert::Infallible),
   #[error("the event loop has been closed")]
   EventLoopClosed,
-  #[error(transparent)]
-  BadMenuIcon(#[from] menu::icon::BadIcon),
-  #[error(transparent)]
-  BadTrayIcon(#[from] tray::icon::BadIcon),
-  #[error(transparent)]
-  MenuError(#[from] menu::Error),
-  #[error(transparent)]
-  TrayError(#[from] tray::Error),
 }
 
 /// Result type.
@@ -136,22 +125,6 @@ pub struct Icon {
   pub width: u32,
   /// Icon height.
   pub height: u32,
-}
-
-impl TryFrom<Icon> for menu::icon::Icon {
-  type Error = Error;
-
-  fn try_from(value: Icon) -> std::result::Result<Self, Self::Error> {
-    menu::icon::Icon::from_rgba(value.rgba, value.width, value.height).map_err(Into::into)
-  }
-}
-
-impl TryFrom<Icon> for tray::icon::Icon {
-  type Error = Error;
-
-  fn try_from(value: Icon) -> std::result::Result<Self, Self::Error> {
-    tray::icon::Icon::from_rgba(value.rgba, value.width, value.height).map_err(Into::into)
-  }
 }
 
 /// A type that can be used as an user event.
@@ -225,9 +198,10 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
 
   /// Create a new webview window.
-  fn create_window(
+  fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
+    before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Run a task on the main thread.
@@ -302,7 +276,11 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn handle(&self) -> Self::Handle;
 
   /// Create a new webview window.
-  fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>>;
+  fn create_window<F: Fn(RawWindow) + Send + 'static>(
+    &self,
+    pending: PendingWindow<T, Self>,
+    before_webview_creation: Option<F>,
+  ) -> Result<DetachedWindow<T, Self>>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
@@ -492,9 +470,10 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()>;
 
   /// Create a new webview window.
-  fn create_window(
+  fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
+    before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Updates the window resizable flag.

@@ -33,8 +33,6 @@ http-range = "0.1.4"
 raw-window-handle = "0.5"
 rand = "0.8"
 url = { version = "2" }
-muda = { version = "0.7", default-features = false }
-tray-icon = { version = "0.7", default-features = false }
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.48"
@@ -52,5 +50,4 @@ url = "2"
 [features]
 devtools = [ ]
 macos-private-api = [ ]
-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
-common-controls-v6 = ["tray-icon/common-controls-v6", "muda/common-controls-v6"]
+

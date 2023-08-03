@@ -4,7 +4,7 @@
 
 //! A module containting menu builder types
 
-pub use crate::runtime::menu::builders::AboutMetadataBuilder;
+pub use muda::builders::AboutMetadataBuilder;
 
 mod menu;
 pub use menu::MenuBuilder;

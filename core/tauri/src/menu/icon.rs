@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::NativeIcon;
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Icon, Manager, Runtime};
+use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///
@@ -62,9 +62,7 @@ impl<R: Runtime> IconMenuItem<R> {
     let item = muda::IconMenuItem::new(
       text,
       enabled,
-      icon
-        .and_then(|i| -> Option<crate::runtime::Icon> { i.try_into().ok() })
-        .and_then(|i| i.try_into().ok()),
+      icon.and_then(|i| i.try_into().ok()),
       acccelerator.and_then(|s| s.as_ref().parse().ok()),
     );
     Self {
@@ -142,11 +140,9 @@ impl<R: Runtime> IconMenuItem<R> {
 
   /// Change this menu item icon or remove it.
   pub fn set_icon(&self, icon: Option<Icon>) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| self_.inner.set_icon(
-      icon
-        .and_then(|i| -> Option<crate::runtime::Icon> { i.try_into().ok() })
-        .and_then(|i| i.try_into().ok())
-    ))
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .set_icon(icon.and_then(|i| i.try_into().ok())))
   }
 
   /// Change this menu item icon to a native image or remove it.

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::AboutMetadata;
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Manager, Runtime};
+use crate::{run_main_thread, AppHandle, Manager, Runtime};
 
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 pub struct PredefinedMenuItem<R: Runtime> {

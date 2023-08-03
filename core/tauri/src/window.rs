@@ -5,6 +5,7 @@
 //! The Tauri window types and functions.
 
 use crate::{app::GlobalMenuEventListener, menu::ContextMenu};
+use tauri_runtime::window::RawWindow;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -117,6 +118,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   app_handle: AppHandle<R>,
   label: String,
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
+  pub(crate) menu: Option<Menu<R>>,
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
@@ -192,6 +194,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       app_handle,
       label: label.into(),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
+      menu: None,
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
@@ -233,6 +236,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         config,
       ),
       web_resource_request_handler: None,
+      menu: None,
       navigation_handler: None,
       on_menu_event: None,
     };
@@ -363,28 +367,50 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
-    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    let pending = self
-      .manager
-      .prepare_window(self.app_handle.clone(), pending, &labels)?;
-
     #[cfg(not(target_os = "macos"))]
-    let menu = pending.menu().cloned().map(|m| {
-      (
-        pending.has_app_wide_menu,
-        Menu {
-          id: m.id(),
-          inner: m,
-          app_handle: self.app_handle.clone(),
-        },
-      )
-    });
+    let menu = {
+      let is_app_wide = self.menu.is_none();
+      self
+        .menu
+        .or_else(|| self.app_handle.menu())
+        .map(|menu| WindowMenu { is_app_wide, menu })
+    };
+
+    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
+    let pending = self.manager.prepare_window(
+      self.app_handle.clone(),
+      pending,
+      &labels,
+      #[cfg(not(target_os = "macos"))]
+      menu.as_ref().map(|m| m.menu.clone()),
+    )?;
+
+    #[cfg(target_os = "macos")]
+    let handler = None;
+    #[cfg(not(target_os = "macos"))]
+    let handler = if let Some(menu) = &menu {
+      let menu = menu.menu.clone();
+      Some(move |raw: RawWindow<'_>| {
+        #[cfg(target_os = "windows")]
+        let _ = menu.inner().init_for_hwnd(raw.hwnd as _);
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        let _ = menu.inner().init_for_gtk_window(raw.gtk_window);
+      })
+    } else {
+      None
+    };
 
     let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
-      RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
-      RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
-      RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending),
+      RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending, handler),
+      RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending, handler),
+      RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
     }
     .map(|window| {
       self.manager.attach_window(
@@ -426,7 +452,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Sets the menu for the window.
   #[must_use]
   pub fn menu(mut self, menu: Menu<R>) -> Self {
-    self.window_builder = self.window_builder.menu(menu.inner().clone());
+    self.menu.replace(menu);
     self
   }
 
@@ -838,6 +864,13 @@ struct JsEventListenerKey {
   pub event: String,
 }
 
+/// A wrapper struct to hold the window menu state
+/// and whether it is global per-app or specific to this window.
+pub(crate) struct WindowMenu<R: Runtime> {
+  pub(crate) is_app_wide: bool,
+  pub(crate) menu: Menu<R>,
+}
+
 // TODO: expand these docs since this is a pretty important type
 /// A webview window managed by Tauri.
 ///
@@ -854,7 +887,7 @@ pub struct Window<R: Runtime> {
   // The menu set for this window
   #[cfg(not(target_os = "macos"))]
   #[allow(clippy::type_complexity)]
-  pub(crate) menu: Arc<Mutex<Option<(bool, Menu<R>)>>>,
+  pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {
@@ -1029,7 +1062,7 @@ impl<R: Runtime> Window<R> {
     manager: WindowManager<R>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
-    #[cfg(not(target_os = "macos"))] menu: Option<(bool, Menu<R>)>,
+    #[cfg(not(target_os = "macos"))] menu: Option<WindowMenu<R>>,
   ) -> Self {
     Self {
       window,
@@ -1211,25 +1244,29 @@ impl<R: Runtime> Window<R> {
       .insert(self.label().to_string(), Box::new(f));
   }
 
-  pub(crate) fn menu_lock(&self) -> std::sync::MutexGuard<'_, Option<(bool, Menu<R>)>> {
+  pub(crate) fn menu_lock(&self) -> std::sync::MutexGuard<'_, Option<WindowMenu<R>>> {
     self.menu.lock().expect("poisoned window")
   }
 
   pub(crate) fn has_app_wide_menu(&self) -> bool {
-    self.menu_lock().as_ref().map(|m| m.0).unwrap_or(false)
+    self
+      .menu_lock()
+      .as_ref()
+      .map(|m| m.is_app_wide)
+      .unwrap_or(false)
   }
 
   pub(crate) fn is_menu_in_use(&self, id: u32) -> bool {
     self
       .menu_lock()
       .as_ref()
-      .map(|m| m.1.id() == id)
+      .map(|m| m.menu.id() == id)
       .unwrap_or(false)
   }
 
   /// Returns this window menu .
   pub fn menu(&self) -> Option<Menu<R>> {
-    self.menu_lock().as_ref().map(|m| m.1.clone())
+    self.menu_lock().as_ref().map(|m| m.menu.clone())
   }
 
   /// Sets the window menu and returns the previous one.
@@ -1264,7 +1301,10 @@ impl<R: Runtime> Window<R> {
       }
     })?;
 
-    self.menu_lock().replace((false, menu));
+    self.menu_lock().replace(WindowMenu {
+      is_app_wide: false,
+      menu,
+    });
 
     Ok(prev_menu)
   }
@@ -1279,9 +1319,9 @@ impl<R: Runtime> Window<R> {
     let mut current_menu = self.menu_lock();
 
     // remove from the window
-    if let Some((_, menu)) = &*current_menu {
+    if let Some(window_menu) = &*current_menu {
       let window = self.clone();
-      let menu_ = menu.clone();
+      let menu_ = window_menu.menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
@@ -1300,7 +1340,7 @@ impl<R: Runtime> Window<R> {
       })?;
     }
 
-    let prev_menu = current_menu.take().map(|m| m.1);
+    let prev_menu = current_menu.take().map(|m| m.menu);
 
     drop(current_menu);
 
@@ -1314,9 +1354,9 @@ impl<R: Runtime> Window<R> {
   /// Hides the window menu.
   pub fn hide_menu(&self) -> crate::Result<()> {
     // remove from the window
-    if let Some((_, menu)) = &*self.menu_lock() {
+    if let Some(window_menu) = &*self.menu_lock() {
       let window = self.clone();
-      let menu_ = menu.clone();
+      let menu_ = window_menu.menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
@@ -1341,9 +1381,9 @@ impl<R: Runtime> Window<R> {
   /// Shows the window menu.
   pub fn show_menu(&self) -> crate::Result<()> {
     // remove from the window
-    if let Some((_, menu)) = &*self.menu_lock() {
+    if let Some(window_menu) = &*self.menu_lock() {
       let window = self.clone();
-      let menu_ = menu.clone();
+      let menu_ = window_menu.menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
@@ -1368,10 +1408,10 @@ impl<R: Runtime> Window<R> {
   /// Shows the window menu.
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     // remove from the window
-    if let Some((_, menu)) = &*self.menu_lock() {
+    if let Some(window_menu) = &*self.menu_lock() {
       let (tx, rx) = std::sync::mpsc::channel();
       let window = self.clone();
-      let menu_ = menu.clone();
+      let menu_ = window_menu.menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {

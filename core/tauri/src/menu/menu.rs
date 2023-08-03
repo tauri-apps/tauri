@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::{IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Manager, Position, Runtime};
+use crate::{run_main_thread, AppHandle, Manager, Position, Runtime};
+use muda::AboutMetadata;
 use muda::ContextMenu;
-use tauri_runtime::menu::AboutMetadata;
 
 /// A type that is either a menu bar on the window
 /// on Windows and Linux or as a global menu in the menubar on macOS.
@@ -37,7 +37,7 @@ impl<R: Runtime> super::ContextMenu for Menu<R> {
     window: crate::Window<T>,
     position: Option<P>,
   ) -> crate::Result<()> {
-    let position = position.map(Into::into).map(Into::into);
+    let position = position.map(Into::into).map(super::into_position);
     run_main_thread!(self, |self_: Self| {
       #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {

@@ -10,8 +10,8 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
-use crate::menu::Menu;
 use crate::tray::TrayIcon;
+use crate::{menu::Menu, window::WindowMenu};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
@@ -1034,6 +1034,7 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
     mut pending: PendingWindow<EventLoopMessage, R>,
     window_labels: &[String],
+    #[cfg(not(target_os = "macos"))] menu: Option<Menu<R>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
@@ -1192,30 +1193,20 @@ impl<R: Runtime> WindowManager<R> {
 
     #[cfg(not(target_os = "macos"))]
     {
-      if let Some(menu) = &*self.menu_lock() {
-        pending = pending.set_app_menu(menu.inner().clone());
-      }
-
-      if let Some(menu) = pending.menu() {
-        self.inner.menus.lock().unwrap().insert(
-          menu.id(),
-          Menu {
-            id: menu.id(),
-            inner: menu.clone(),
-            app_handle,
-          },
-        );
+      let menu = menu.or_else(|| self.menu_lock().clone());
+      if let Some(menu) = menu {
+        self.inner.menus.lock().unwrap().insert(menu.id(), menu);
       }
     }
 
     Ok(pending)
   }
 
-  pub fn attach_window(
+  pub(crate) fn attach_window(
     &self,
     app_handle: AppHandle<R>,
     window: DetachedWindow<EventLoopMessage, R>,
-    #[cfg(not(target_os = "macos"))] menu: Option<(bool, Menu<R>)>,
+    #[cfg(not(target_os = "macos"))] menu: Option<WindowMenu<R>>,
   ) -> Window<R> {
     let window = Window::new(
       self.clone(),
@@ -1231,7 +1222,7 @@ impl<R: Runtime> WindowManager<R> {
     window.on_window_event(move |event| {
       let _ = on_window_event(&window_, &manager, event);
       for handler in window_event_listeners.iter() {
-        let _ = handler(GlobalWindowEvent {
+        handler(GlobalWindowEvent {
           window: window_.clone(),
           event: event.clone(),
         });

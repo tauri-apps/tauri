@@ -14,12 +14,11 @@
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
   http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
-  menu,
   monitor::Monitor,
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WindowEvent,
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
   RunEvent, RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
@@ -190,7 +189,11 @@ impl<T: UserEvent> Context<T> {
 }
 
 impl<T: UserEvent> Context<T> {
-  fn create_webview(&self, pending: PendingWindow<T, Wry<T>>) -> Result<DetachedWindow<T, Wry<T>>> {
+  fn create_webview<F: Fn(RawWindow) + Send + 'static>(
+    &self,
+    pending: PendingWindow<T, Wry<T>>,
+    before_webview_creation: Option<F>,
+  ) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
     let context = self.clone();
     let window_id = rand::random();
@@ -200,7 +203,14 @@ impl<T: UserEvent> Context<T> {
       Message::CreateWebview(
         window_id,
         Box::new(move |event_loop, web_context| {
-          create_webview(window_id, event_loop, web_context, context, pending)
+          create_webview(
+            window_id,
+            event_loop,
+            web_context,
+            context,
+            pending,
+            before_webview_creation,
+          )
         }),
       ),
     )?;
@@ -535,7 +545,6 @@ pub struct WindowBuilderWrapper {
   center: bool,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
-  menu: Option<menu::Menu>,
 }
 
 impl std::fmt::Debug for WindowBuilderWrapper {
@@ -628,11 +637,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     }
 
     window
-  }
-
-  fn menu(mut self, menu: menu::Menu) -> Self {
-    self.menu.replace(menu);
-    self
   }
 
   fn center(mut self) -> Self {
@@ -842,14 +846,6 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn has_icon(&self) -> bool {
     self.inner.window.window_icon.is_some()
-  }
-
-  fn has_menu(&self) -> bool {
-    self.menu.is_some()
-  }
-
-  fn get_menu(&self) -> Option<&menu::Menu> {
-    self.menu.as_ref()
   }
 }
 
@@ -1284,11 +1280,14 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
   // Creates a window by dispatching a message to the event loop.
   // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
-  fn create_window(
+  fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
+    before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    self.context.create_webview(pending)
+    self
+      .context
+      .create_webview(pending, before_webview_creation)
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -1726,11 +1725,14 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
 
   // Creates a window by dispatching a message to the event loop.
   // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
-  fn create_window(
+  fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
+    before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    self.context.create_webview(pending)
+    self
+      .context
+      .create_webview(pending, before_webview_creation)
   }
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
@@ -1877,7 +1879,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     }
   }
 
-  fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
+  fn create_window<F: Fn(RawWindow) + Send + 'static>(
+    &self,
+    pending: PendingWindow<T, Self>,
+    before_webview_creation: Option<F>,
+  ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
     let window_id = rand::random();
 
@@ -1887,6 +1893,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       &self.context.main_thread.web_context,
       self.context.clone(),
       pending,
+      before_webview_creation,
     )?;
 
     let dispatcher = WryDispatcher {
@@ -2572,12 +2579,13 @@ pub fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Resu
   }
 }
 
-fn create_webview<T: UserEvent>(
+fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   window_id: WebviewId,
   event_loop: &EventLoopWindowTarget<Message<T>>,
   web_context_store: &WebContextStore,
   context: Context<T>,
   pending: PendingWindow<T, Wry<T>>,
+  before_webview_creation: Option<F>,
 ) -> Result<WindowWrapper> {
   #[allow(unused_mut)]
   let PendingWindow {
@@ -2620,24 +2628,27 @@ fn create_webview<T: UserEvent>(
   let is_window_transparent = window_builder.inner.window.transparent;
   let window = window_builder.inner.build(event_loop).unwrap();
 
-  #[cfg(not(target_os = "macos"))]
-  if let Some(menu) = window_builder.menu {
-    #[cfg(windows)]
-    let _ = menu.init_for_hwnd(window.hwnd() as _);
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ))]
-    let _ = menu.init_for_gtk_window(window.gtk_window(), window.default_vbox());
-  }
-
   webview_id_map.insert(window.id(), window_id);
 
   if window_builder.center {
     let _ = center_window(&window, window.inner_size());
+  }
+
+  if let Some(handler) = before_webview_creation {
+    let raw = RawWindow {
+      #[cfg(windows)]
+      hwnd: window.hwnd(),
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      gtk_window: window.gtk_window(),
+      _marker: &std::marker::PhantomData,
+    };
+    handler(raw);
   }
 
   let mut webview_builder = WebViewBuilder::new(window)

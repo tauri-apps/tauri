@@ -6,7 +6,6 @@
 
 use crate::{window::DetachedWindow, Icon};
 
-use muda::Menu;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{
@@ -153,10 +152,6 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Initializes a new webview builder from a [`WindowConfig`]
   fn with_config(config: WindowConfig) -> Self;
-
-  /// Sets the menu for the window.
-  #[must_use]
-  fn menu(self, menu: crate::menu::Menu) -> Self;
 
   /// Show window in the center of the screen.
   #[must_use]
@@ -331,12 +326,6 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;
-
-  /// Whether the menu was set or not.
-  fn has_menu(&self) -> bool;
-
-  /// Whether the menu was set or not.
-  fn get_menu(&self) -> Option<&Menu>;
 }
 
 /// IPC handler.

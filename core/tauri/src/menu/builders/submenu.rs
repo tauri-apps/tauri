@@ -53,7 +53,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
     Self {
       items: Vec::new(),
       text: text.as_ref().to_string(),
-      enabled: false,
+      enabled: true,
       manager,
     }
   }

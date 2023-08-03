@@ -5,8 +5,8 @@
 //! Tray icon types and utility functions
 
 use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
+use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
-use crate::{menu::ContextMenu, runtime::tray as tray_icon};
 use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
 use std::path::Path;
 pub use tray_icon::{ClickType, Rectangle, TrayIconEvent};
@@ -60,10 +60,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
   /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
   pub fn icon(mut self, icon: Icon) -> Self {
-    let icon = icon
-      .try_into()
-      .ok()
-      .and_then(|i: crate::runtime::Icon| i.try_into().ok());
+    let icon = icon.try_into().ok();
     if let Some(icon) = icon {
       self.inner = self.inner.with_icon(icon);
     }
@@ -261,11 +258,7 @@ impl<R: Runtime> TrayIcon<R> {
 
   /// Set new tray icon. If `None` is provided, it will remove the icon.
   pub fn set_icon(&self, icon: Option<Icon>) -> crate::Result<()> {
-    let icon = icon.and_then(|i| {
-      i.try_into()
-        .ok()
-        .and_then(|i: crate::runtime::Icon| i.try_into().ok())
-    });
+    let icon = icon.and_then(|i| i.try_into().ok());
     run_main_thread!(self, |self_: Self| self_.inner.set_icon(icon))?.map_err(Into::into)
   }
 
@@ -338,5 +331,14 @@ impl<R: Runtime> TrayIcon<R> {
       .inner
       .set_show_menu_on_left_click(enable))?;
     Ok(())
+  }
+}
+
+impl TryFrom<Icon> for tray_icon::icon::Icon {
+  type Error = crate::Error;
+
+  fn try_from(value: Icon) -> Result<Self, Self::Error> {
+    let value: crate::runtime::Icon = value.try_into()?;
+    tray_icon::icon::Icon::from_rgba(value.rgba, value.width, value.height).map_err(Into::into)
   }
 }

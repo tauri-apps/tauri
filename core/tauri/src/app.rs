@@ -20,6 +20,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
+  window::WindowMenu,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
   Monitor, Runtime, Scopes, StateManager, Theme, Window,
 };
@@ -33,7 +34,7 @@ use tauri_macros::default_runtime;
 use tauri_runtime::{
   window::{
     dpi::{PhysicalPosition, PhysicalSize},
-    FileDropEvent,
+    FileDropEvent, RawWindow,
   },
   EventLoopProxy, RuntimeInitArgs,
 };
@@ -616,7 +617,7 @@ macro_rules! shared_app_impl {
         #[cfg(not(target_os = "macos"))]
         for window in self.manager.windows_lock().values() {
           let mut window_menu = window.menu_lock();
-          if window_menu.as_ref().map(|m| m.0).unwrap_or(true) {
+          if window_menu.as_ref().map(|m| m.is_app_wide).unwrap_or(true) {
             #[cfg(not(target_os = "macos"))]
             let window = window.clone();
             let menu_ = menu.clone();
@@ -639,7 +640,10 @@ macro_rules! shared_app_impl {
                   .init_for_gtk_window(&gtk_window, Some(&gtk_box));
               }
             })?;
-            window_menu.replace((true, menu.clone()));
+            window_menu.replace(WindowMenu {
+              is_app_wide: true,
+              menu: menu.clone(),
+            });
           }
         }
 
@@ -1578,23 +1582,44 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     let manager = app.manager();
 
     for pending in pending_windows {
-      let pending = manager.prepare_window(app_handle.clone(), pending, &window_labels)?;
-
       #[cfg(not(target_os = "macos"))]
-      let menu = pending.menu().cloned().map(|m| {
-        (
-          pending.has_app_wide_menu,
-          Menu {
-            id: m.id(),
-            inner: m,
-            app_handle: app_handle.clone(),
-          },
-        )
+      let menu = app.manager.menu_lock().as_ref().map(|m| WindowMenu {
+        is_app_wide: true,
+        menu: m.clone(),
       });
+
+      let pending = manager.prepare_window(
+        app_handle.clone(),
+        pending,
+        &window_labels,
+        #[cfg(not(target_os = "macos"))]
+        menu.as_ref().map(|m| m.menu.clone()),
+      )?;
+
+      #[cfg(target_os = "macos")]
+      let handler = None;
+      #[cfg(not(target_os = "macos"))]
+      let handler = if let Some(menu) = &menu {
+        let menu = menu.menu.clone();
+        Some(move |raw: RawWindow<'_>| {
+          #[cfg(target_os = "windows")]
+          let _ = menu.inner().init_for_hwnd(raw.hwnd as _).unwrap();
+          #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+          ))]
+          let _ = menu.inner().init_for_gtk_window(raw.gtk_window);
+        })
+      } else {
+        None
+      };
 
       let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app_handle.runtime() {
-        runtime.create_window(pending)?
+        runtime.create_window(pending, handler)?
       } else {
         // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
         unreachable!()
@@ -1603,7 +1628,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         app_handle.clone(),
         detached,
         #[cfg(not(target_os = "macos"))]
-        menu,
+        None,
       );
 
       if let Some(effects) = window_effects {

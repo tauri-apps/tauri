@@ -65,6 +65,8 @@ serialize-to-javascript = "=0.1.1"
 infer = { version = "0.9", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.2.0", optional = true }
+muda = { version = "0.7", default-features = false }
+tray-icon = { version = "0.7", default-features = false }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.16", features = [ "v3_24" ] }
@@ -112,13 +114,13 @@ tokio = { version = "1", features = [ "full" ] }
 cargo_toml = "0.15"
 
 [features]
-default = [ "wry", "compression", "objc-exception", "tauri-runtime/common-controls-v6" ]
+default = [ "wry", "compression", "objc-exception", "tray-icon/common-controls-v6", "muda/common-controls-v6" ]
 test = [ ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]
 linux-protocol-headers = [ "tauri-runtime-wry/linux-headers" ]
-linux-libxdo = [ "tauri-runtime/libxdo", ]
+linux-libxdo = [ "tray-icon/libxdo", "muda/libxdo" ]
 isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 native-tls = [ "reqwest/native-tls" ]

@@ -6,12 +6,11 @@
 #![allow(missing_docs)]
 
 use tauri_runtime::{
-  menu::Menu,
   monitor::Monitor,
   webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
   RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
@@ -101,9 +100,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   }
 
   /// Create a new webview window.
-  fn create_window(
+  fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
+    _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = rand::random();
     self.context.windows.borrow_mut().insert(id, Window);
@@ -205,10 +205,6 @@ impl WindowBuilder for MockWindowBuilder {
 
   fn with_config(config: WindowConfig) -> Self {
     Self {}
-  }
-
-  fn menu(self, menu: Menu) -> Self {
-    self
   }
 
   fn center(self) -> Self {
@@ -340,14 +336,6 @@ impl WindowBuilder for MockWindowBuilder {
 
   fn has_icon(&self) -> bool {
     false
-  }
-
-  fn has_menu(&self) -> bool {
-    false
-  }
-
-  fn get_menu(&self) -> Option<&Menu> {
-    None
   }
 }
 
@@ -525,9 +513,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
-  fn create_window(
+  fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
+    _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = rand::random();
     self.context.windows.borrow_mut().insert(id, Window);
@@ -740,7 +729,11 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     }
   }
 
-  fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
+  fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
+    &self,
+    pending: PendingWindow<T, Self>,
+    _before_webview_creation: Option<F>,
+  ) -> Result<DetachedWindow<T, Self>> {
     let id = rand::random();
     self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{IsMenuItem, MenuItemKind};
-use crate::{run_main_thread, runtime::menu as muda, AppHandle, Manager, Position, Runtime};
+use crate::{run_main_thread, AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
 
 /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
@@ -54,7 +54,7 @@ impl<R: Runtime> super::ContextMenu for Submenu<R> {
     window: crate::Window<T>,
     position: Option<P>,
   ) -> crate::Result<()> {
-    let position = position.map(Into::into).map(Into::into);
+    let position = position.map(Into::into).map(super::into_position);
     run_main_thread!(self, move |self_: Self| {
       #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {

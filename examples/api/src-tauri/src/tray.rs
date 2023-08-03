@@ -61,6 +61,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
             "Show"
           } else {
             let _ = window.show();
+            let _ = window.set_focus();
             "Hide"
           };
           toggle_i.set_text(new_title).unwrap();

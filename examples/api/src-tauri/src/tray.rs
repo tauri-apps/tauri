@@ -46,6 +46,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     .tooltip("Tauri")
     .icon(app.default_window_icon().unwrap().clone())
     .menu(&menu1)
+    .menu_on_left_click(false)
     .on_menu_event(move |app, event| match event.id {
       i if i == quit_i.id() => {
         app.exit(0);

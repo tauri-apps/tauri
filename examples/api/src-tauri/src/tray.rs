@@ -46,75 +46,69 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     .tooltip("Tauri")
     .icon(app.default_window_icon().unwrap().clone())
     .menu(&menu1)
-    .on_menu_event(move |app, event| {
-      match event.id {
-        i if i == quit_i.id() => {
-          app.exit(0);
-        }
-        i if i == remove_tray_i.id() => {
-          app.remove_tray_by_id(TRAY_ID);
-        }
-        i if i == toggle_i.id() => {
-          if let Some(window) = app.get_window("main") {
-            let new_title = if window.is_visible()? {
-              window.hide()?;
-              "Show"
-            } else {
-              window.show()?;
-              "Hide"
-            };
-            toggle_i.set_text(new_title)?;
-          }
-        }
-        i if i == new_window_i.id() => {
-          WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
-            .title("Tauri")
-            .build()?;
-        }
-        #[cfg(target_os = "macos")]
-        i if i == set_title_i.id() => {
-          if let Some(tray) = app.tray_by_id(TRAY_ID) {
-            tray.set_title(Some("Tauri"))?;
-          }
-        }
-        i if i == icon_i_1.id() || i == icon_i_2.id() => {
-          if let Some(tray) = app.tray_by_id(TRAY_ID) {
-            tray.set_icon(Some(tauri::Icon::Raw(if i == icon_i_1.id() {
-              include_bytes!("../../../.icons/icon.ico").to_vec()
-            } else {
-              include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec()
-            })))?;
-          }
-        }
-        i if i == switch_i.id() => {
-          let flag = is_menu1.load(Ordering::Relaxed);
-          let (menu, tooltip) = if flag {
-            (menu2.clone(), "Menu 2")
+    .on_menu_event(move |app, event| match event.id {
+      i if i == quit_i.id() => {
+        app.exit(0);
+      }
+      i if i == remove_tray_i.id() => {
+        app.remove_tray_by_id(TRAY_ID);
+      }
+      i if i == toggle_i.id() => {
+        if let Some(window) = app.get_window("main") {
+          let new_title = if window.is_visible().unwrap_or_default() {
+            let _ = window.hide();
+            "Show"
           } else {
-            (menu1.clone(), "Tauri")
+            let _ = window.show();
+            "Hide"
           };
-          if let Some(tray) = app.tray_by_id(TRAY_ID) {
-            tray.set_menu(Some(menu))?;
-            tray.set_tooltip(Some(tooltip))?;
-          }
-          is_menu1.store(!flag, Ordering::Relaxed);
+          toggle_i.set_text(new_title).unwrap();
         }
-
-        _ => {}
+      }
+      i if i == new_window_i.id() => {
+        let _ = WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
+          .title("Tauri")
+          .build();
+      }
+      #[cfg(target_os = "macos")]
+      i if i == set_title_i.id() => {
+        if let Some(tray) = app.tray_by_id(TRAY_ID) {
+          let _ = tray.set_title(Some("Tauri"));
+        }
+      }
+      i if i == icon_i_1.id() || i == icon_i_2.id() => {
+        if let Some(tray) = app.tray_by_id(TRAY_ID) {
+          let _ = tray.set_icon(Some(tauri::Icon::Raw(if i == icon_i_1.id() {
+            include_bytes!("../../../.icons/icon.ico").to_vec()
+          } else {
+            include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec()
+          })));
+        }
+      }
+      i if i == switch_i.id() => {
+        let flag = is_menu1.load(Ordering::Relaxed);
+        let (menu, tooltip) = if flag {
+          (menu2.clone(), "Menu 2")
+        } else {
+          (menu1.clone(), "Tauri")
+        };
+        if let Some(tray) = app.tray_by_id(TRAY_ID) {
+          let _ = tray.set_menu(Some(menu));
+          let _ = tray.set_tooltip(Some(tooltip));
+        }
+        is_menu1.store(!flag, Ordering::Relaxed);
       }
 
-      Ok(())
+      _ => {}
     })
     .on_tray_event(|tray, event| {
       if event.click_type == ClickType::Left {
         let app = tray.app_handle();
         if let Some(window) = app.get_window("main") {
-          window.show().unwrap();
-          window.set_focus().unwrap();
+          let _ = window.show();
+          let _ = window.set_focus();
         }
       }
-
-      Ok(())
     })
     .build(app);
 

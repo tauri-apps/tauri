@@ -1295,17 +1295,16 @@ impl<R: Runtime> Window<R> {
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
   pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
-    let mut current_menu = self.menu_lock();
+    let current_menu = self.menu_lock().as_ref().map(|m| m.menu.clone());
 
     // remove from the window
     #[cfg_attr(target_os = "macos", allow(unused_variables))]
-    if let Some(window_menu) = &*current_menu {
+    if let Some(menu) = current_menu {
       let window = self.clone();
-      let menu_ = window_menu.menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
-          let _ = menu_.inner().remove_for_hwnd(hwnd.0);
+          let _ = menu.inner().remove_for_hwnd(hwnd.0);
         }
         #[cfg(any(
           target_os = "linux",
@@ -1315,14 +1314,12 @@ impl<R: Runtime> Window<R> {
           target_os = "openbsd"
         ))]
         if let Ok(gtk_window) = window.gtk_window() {
-          let _ = menu_.inner().remove_for_gtk_window(&gtk_window);
+          let _ = menu.inner().remove_for_gtk_window(&gtk_window);
         }
       })?;
     }
 
-    let prev_menu = current_menu.take().map(|m| m.menu);
-
-    drop(current_menu);
+    let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
     self
       .manager

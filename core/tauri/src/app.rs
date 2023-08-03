@@ -632,34 +632,22 @@ macro_rules! shared_app_impl {
 
         // set it on all windows that don't have one or previously had the app-wide menu
         #[cfg(not(target_os = "macos"))]
-        for window in self.manager.windows_lock().values() {
-          let mut window_menu = window.menu_lock();
-          if window_menu.as_ref().map(|m| m.is_app_wide).unwrap_or(true) {
-            let window = window.clone();
-            let menu_ = menu.clone();
-            self.run_on_main_thread(move || {
-              #[cfg(windows)]
-              if let Ok(hwnd) = window.hwnd() {
-                let _ = menu_.inner().init_for_hwnd(hwnd.0);
-              }
-
-              #[cfg(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-              ))]
-              if let (Ok(gtk_window), Ok(gtk_box)) = (window.gtk_window(), window.default_vbox()) {
-                let _ = menu_
-                  .inner()
-                  .init_for_gtk_window(&gtk_window, Some(&gtk_box));
-              }
-            })?;
-            window_menu.replace(WindowMenu {
-              is_app_wide: true,
-              menu: menu.clone(),
-            });
+        {
+          let windows = self
+            .manager
+            .windows_lock()
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+          for window in windows {
+            let has_app_wide_menu = window.has_app_wide_menu() || window.menu().is_none();
+            if has_app_wide_menu {
+              window.set_menu(menu.clone())?;
+              window.menu_lock().replace(WindowMenu {
+                is_app_wide: true,
+                menu: menu.clone(),
+              });
+            }
           }
         }
 
@@ -681,33 +669,22 @@ macro_rules! shared_app_impl {
       /// this will remove the menu from it.
       #[cfg(desktop)]
       pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
-        let mut current_menu = self.manager.menu_lock();
-
-        if let Some(menu) = &*current_menu {
+        if self.manager.menu_lock().is_some() {
           // remove from windows that have the app-wide menu
           #[cfg(not(target_os = "macos"))]
-          for window in self.manager.windows_lock().values() {
-            if window.has_app_wide_menu() {
-              let window_ = window.clone();
-              let menu_ = menu.clone();
-              self.run_on_main_thread(move || {
-                #[cfg(windows)]
-                if let Ok(hwnd) = window_.hwnd() {
-                  let _ = menu_.inner().remove_for_hwnd(hwnd.0);
-                }
-
-                #[cfg(any(
-                  target_os = "linux",
-                  target_os = "dragonfly",
-                  target_os = "freebsd",
-                  target_os = "netbsd",
-                  target_os = "openbsd"
-                ))]
-                if let Ok(gtk_window) = window_.gtk_window() {
-                  let _ = menu_.inner().remove_for_gtk_window(&gtk_window);
-                }
-              })?;
-              *window.menu_lock() = None;
+          {
+            let windows = self
+              .manager
+              .windows_lock()
+              .values()
+              .cloned()
+              .collect::<Vec<_>>();
+            for window in windows {
+              let has_app_wide_menu = window.has_app_wide_menu();
+              if has_app_wide_menu {
+                window.remove_menu()?;
+                *window.menu_lock() = None;
+              }
             }
           }
 
@@ -721,9 +698,7 @@ macro_rules! shared_app_impl {
           }
         }
 
-        let prev_menu = current_menu.take();
-
-        drop(current_menu);
+        let prev_menu = self.manager.menu_lock().take();
 
         self
           .manager
@@ -739,27 +714,19 @@ macro_rules! shared_app_impl {
       #[cfg(desktop)]
       pub fn hide_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
-        if let Some(menu) = &*self.manager.menu_lock() {
-          for window in self.manager.windows_lock().values() {
-            if window.has_app_wide_menu() {
-              let window = window.clone();
-              let menu_ = menu.clone();
-              self.run_on_main_thread(move || {
-                #[cfg(windows)]
-                if let Ok(hwnd) = window.hwnd() {
-                  let _ = menu_.inner().hide_for_hwnd(hwnd.0);
-                }
-                #[cfg(any(
-                  target_os = "linux",
-                  target_os = "dragonfly",
-                  target_os = "freebsd",
-                  target_os = "netbsd",
-                  target_os = "openbsd"
-                ))]
-                if let Ok(gtk_window) = window.gtk_window() {
-                  let _ = menu_.inner().hide_for_gtk_window(&gtk_window);
-                }
-              })?;
+        {
+          let is_app_menu_set = self.manager.menu_lock().is_some();
+          if is_app_menu_set {
+            let windows = self
+              .manager
+              .windows_lock()
+              .values()
+              .cloned()
+              .collect::<Vec<_>>();
+            for window in windows {
+              if window.has_app_wide_menu() {
+                window.hide_menu()?;
+              }
             }
           }
         }
@@ -774,27 +741,19 @@ macro_rules! shared_app_impl {
       #[cfg(desktop)]
       pub fn show_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
-        if let Some(menu) = &*self.manager.menu_lock() {
-          for window in self.manager.windows_lock().values() {
-            if window.has_app_wide_menu() {
-              let window = window.clone();
-              let menu_ = menu.clone();
-              self.run_on_main_thread(move || {
-                #[cfg(windows)]
-                if let Ok(hwnd) = window.hwnd() {
-                  let _ = menu_.inner().show_for_hwnd(hwnd.0);
-                }
-                #[cfg(any(
-                  target_os = "linux",
-                  target_os = "dragonfly",
-                  target_os = "freebsd",
-                  target_os = "netbsd",
-                  target_os = "openbsd"
-                ))]
-                if let Ok(gtk_window) = window.gtk_window() {
-                  let _ = menu_.inner().show_for_gtk_window(&gtk_window);
-                }
-              })?;
+        {
+          let is_app_menu_set = self.manager.menu_lock().is_some();
+          if is_app_menu_set {
+            let windows = self
+              .manager
+              .windows_lock()
+              .values()
+              .cloned()
+              .collect::<Vec<_>>();
+            for window in windows {
+              if window.has_app_wide_menu() {
+                window.show_menu()?;
+              }
             }
           }
         }

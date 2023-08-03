@@ -10,12 +10,11 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
+use crate::menu::Menu;
 use crate::tray::TrayIcon;
-use crate::{menu::Menu, window::WindowMenu};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
-use tauri_runtime::window::RawWindow;
 use url::Url;
 
 use tauri_macros::default_runtime;
@@ -371,11 +370,11 @@ impl<R: Runtime> WindowManager<R> {
     self.inner.state.clone()
   }
 
+  #[cfg(not(target_os = "macos"))]
   pub(crate) fn create_webview_before_creation_handler(
     &self,
-    window_menu: Option<&WindowMenu<R>>,
-  ) -> Option<impl Fn(RawWindow<'_>)> {
-    #[cfg(not(target_os = "macos"))]
+    window_menu: Option<&crate::window::WindowMenu<R>>,
+  ) -> Option<impl Fn(tauri_runtime::window::RawWindow<'_>)> {
     {
       if let Some(menu) = window_menu {
         self
@@ -387,13 +386,9 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    #[cfg(target_os = "macos")]
-    return None;
-
-    #[cfg(not(target_os = "macos"))]
     if let Some(menu) = &window_menu {
       let menu = menu.menu.clone();
-      Some(move |raw: RawWindow<'_>| {
+      Some(move |raw: tauri_runtime::window::RawWindow<'_>| {
         #[cfg(target_os = "windows")]
         let _ = menu.inner().init_for_hwnd(raw.hwnd as _);
         #[cfg(any(
@@ -1239,7 +1234,7 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     app_handle: AppHandle<R>,
     window: DetachedWindow<EventLoopMessage, R>,
-    #[cfg(not(target_os = "macos"))] menu: Option<WindowMenu<R>>,
+    #[cfg(not(target_os = "macos"))] menu: Option<crate::window::WindowMenu<R>>,
   ) -> Window<R> {
     let window = Window::new(
       self.clone(),

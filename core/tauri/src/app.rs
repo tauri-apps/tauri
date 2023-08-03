@@ -20,7 +20,6 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
-  window::WindowMenu,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
   Monitor, Runtime, Scopes, StateManager, Theme, Window,
 };
@@ -640,7 +639,7 @@ macro_rules! shared_app_impl {
                   .init_for_gtk_window(&gtk_window, Some(&gtk_box));
               }
             })?;
-            window_menu.replace(WindowMenu {
+            window_menu.replace(crate::window::WindowMenu {
               is_app_wide: true,
               menu: menu.clone(),
             });
@@ -1585,12 +1584,20 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
       let pending = manager.prepare_window(app_handle.clone(), pending, &window_labels)?;
 
       #[cfg(not(target_os = "macos"))]
-      let window_menu = app.manager.menu_lock().as_ref().map(|m| WindowMenu {
-        is_app_wide: true,
-        menu: m.clone(),
-      });
+      let window_menu = app
+        .manager
+        .menu_lock()
+        .as_ref()
+        .map(|m| crate::window::WindowMenu {
+          is_app_wide: true,
+          menu: m.clone(),
+        });
 
+      #[cfg(not(target_os = "macos"))]
       let handler = manager.create_webview_before_creation_handler(window_menu.as_ref());
+      #[cfg(target_os = "macos")]
+      #[allow(clippy::type_complexity)]
+      let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
 
       let window_effects = pending.webview_attributes.window_effects.clone();
       let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app_handle.runtime() {

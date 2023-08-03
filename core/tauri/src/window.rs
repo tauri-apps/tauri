@@ -4,7 +4,7 @@
 
 //! The Tauri window types and functions.
 
-use crate::{app::GlobalMenuEventListener, menu::ContextMenu};
+use crate::menu::ContextMenu;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -121,7 +121,8 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
-  on_menu_event: Option<GlobalMenuEventListener<Window<R>>>,
+  #[cfg(not(target_os = "macos"))]
+  on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
@@ -197,6 +198,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      #[cfg(not(target_os = "macos"))]
       on_menu_event: None,
     }
   }
@@ -237,6 +239,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       web_resource_request_handler: None,
       menu: None,
       navigation_handler: None,
+      #[cfg(not(target_os = "macos"))]
       on_menu_event: None,
     };
 
@@ -348,6 +351,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     Ok(())
   ///   });
   /// ```
+  #[cfg(not(target_os = "macos"))]
+  #[cfg_attr(doc_cfg, doc(cfg(not(target_os = "macos"))))]
   pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
@@ -380,9 +385,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         .map(|menu| WindowMenu { is_app_wide, menu })
     };
 
+    #[cfg(not(target_os = "macos"))]
     let handler = self
       .manager
       .create_webview_before_creation_handler(window_menu.as_ref());
+    #[cfg(target_os = "macos")]
+    #[allow(clippy::type_complexity)]
+    let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
 
     let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
@@ -399,6 +408,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       )
     })?;
 
+    #[cfg(not(target_os = "macos"))]
     if let Some(handler) = self.on_menu_event {
       window.on_menu_event(handler);
     }
@@ -844,6 +854,7 @@ struct JsEventListenerKey {
 
 /// A wrapper struct to hold the window menu state
 /// and whether it is global per-app or specific to this window.
+#[cfg(not(target_os = "macos"))]
 pub(crate) struct WindowMenu<R: Runtime> {
   pub(crate) is_app_wide: bool,
   pub(crate) menu: Menu<R>,

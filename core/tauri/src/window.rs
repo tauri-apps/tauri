@@ -1415,16 +1415,22 @@ impl<R: Runtime> Window<R> {
     Ok(false)
   }
 
-  /// Shows the specified menu as a context menu at the specified position.
-  /// If a position was not provided, the cursor position will be used.
+  /// Shows the specified menu as a context menu at the cursor position.
   ///
   /// The position is relative to the window's top-left corner.
-  pub fn popup_menu<M: ContextMenu, P: Into<Position>>(
+  pub fn popup_menu<M: ContextMenu>(&self, menu: &M) -> crate::Result<()> {
+    menu.popup(self.clone(), Option::<PhysicalPosition<i32>>::None)
+  }
+
+  /// Shows the specified menu as a context menu at the specified position.
+  ///
+  /// The position is relative to the window's top-left corner.
+  pub fn popup_menu_at<M: ContextMenu, P: Into<Position>>(
     &self,
     menu: &M,
-    position: Option<P>,
+    position: P,
   ) -> crate::Result<()> {
-    menu.popup(self.clone(), position)
+    menu.popup(self.clone(), Some(position))
   }
 }
 

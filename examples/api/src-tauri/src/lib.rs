@@ -20,6 +20,9 @@ struct Reply {
   data: String,
 }
 
+#[cfg(target_os = "macos")]
+pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
+
 pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
 pub type OnEvent = Box<dyn FnMut(&AppHandle, RunEvent)>;
 
@@ -46,6 +49,12 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         let handle = app.handle();
         tray::create_tray(&handle)?;
         handle.plugin(tauri_plugin_cli::init())?;
+      }
+
+      #[cfg(target_os = "macos")]
+      {
+        use tauri::Manager;
+        app.manage(AppMenu::<R>(Default::default()));
       }
 
       let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());
@@ -120,6 +129,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request,
+      cmd::toggle_menu
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");

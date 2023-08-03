@@ -49,14 +49,6 @@ fn main() {
   let mobile = target_os == "ios" || target_os == "android";
   alias("desktop", !mobile);
   alias("mobile", mobile);
-  alias(
-    "linux",
-    target_os == "linux"
-      || target_os == "dragonfly"
-      || target_os == "freebsd"
-      || target_os == "netbsd"
-      || target_os == "openbsd",
-  );
 
   let checked_features_out_path = Path::new(&var("OUT_DIR").unwrap()).join("checked_features");
   std::fs::write(

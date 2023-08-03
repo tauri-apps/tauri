@@ -4,7 +4,6 @@
 
 //! The Tauri window types and functions.
 
-use crate::menu::ContextMenu;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -35,7 +34,7 @@ use crate::{
 };
 #[cfg(desktop)]
 use crate::{
-  menu::Menu,
+  menu::{ContextMenu, Menu},
   runtime::{
     window::dpi::{Position, Size},
     UserAttentionType,
@@ -117,10 +116,12 @@ pub struct WindowBuilder<'a, R: Runtime> {
   app_handle: AppHandle<R>,
   label: String,
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
+  #[cfg(desktop)]
   pub(crate) menu: Option<Menu<R>>,
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
+  #[cfg(desktop)]
   on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
 }
 
@@ -193,10 +194,12 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       app_handle,
       label: label.into(),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
+      #[cfg(desktop)]
       menu: None,
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      #[cfg(desktop)]
       on_menu_event: None,
     }
   }
@@ -235,8 +238,10 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         config,
       ),
       web_resource_request_handler: None,
+      #[cfg(desktop)]
       menu: None,
       navigation_handler: None,
+      #[cfg(desktop)]
       on_menu_event: None,
     };
 
@@ -348,6 +353,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     Ok(())
   ///   });
   /// ```
+  #[cfg(desktop)]
   pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
@@ -371,6 +377,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       .manager
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
 
+    #[cfg(desktop)]
     let window_menu = {
       let is_app_wide = self.menu.is_none();
       self
@@ -379,9 +386,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         .map(|menu| WindowMenu { is_app_wide, menu })
     };
 
+    #[cfg(desktop)]
     let handler = self
       .manager
       .prepare_window_menu_creation_handler(window_menu.as_ref());
+    #[cfg(not(desktop))]
+    #[allow(clippy::type_complexity)]
+    let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
 
     let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
@@ -390,11 +401,15 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
     }
     .map(|window| {
-      self
-        .manager
-        .attach_window(self.app_handle.clone(), window, window_menu)
+      self.manager.attach_window(
+        self.app_handle.clone(),
+        window,
+        #[cfg(desktop)]
+        window_menu,
+      )
     })?;
 
+    #[cfg(desktop)]
     if let Some(handler) = self.on_menu_event {
       window.on_menu_event(handler);
     }
@@ -840,6 +855,7 @@ struct JsEventListenerKey {
 
 /// A wrapper struct to hold the window menu state
 /// and whether it is global per-app or specific to this window.
+#[cfg(desktop)]
 pub(crate) struct WindowMenu<R: Runtime> {
   pub(crate) is_app_wide: bool,
   pub(crate) menu: Menu<R>,
@@ -859,6 +875,7 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
   // The menu set for this window
+  #[cfg(desktop)]
   pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
 }
 
@@ -886,6 +903,7 @@ impl<R: Runtime> Clone for Window<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       js_event_listeners: self.js_event_listeners.clone(),
+      #[cfg(desktop)]
       menu: self.menu.clone(),
     }
   }
@@ -1033,13 +1051,14 @@ impl<R: Runtime> Window<R> {
     manager: WindowManager<R>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
-    menu: Option<WindowMenu<R>>,
+    #[cfg(desktop)] menu: Option<WindowMenu<R>>,
   ) -> Self {
     Self {
       window,
       manager,
       app_handle,
       js_event_listeners: Default::default(),
+      #[cfg(desktop)]
       menu: Arc::new(Mutex::new(menu)),
     }
   }
@@ -1084,18 +1103,6 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .on_window_event(move |event| f(&event.clone().into()));
-  }
-
-  /// Shows the specified menu as a context menu at the specified position.
-  /// If a position was not provided, the cursor position will be used.
-  ///
-  /// The position is relative to the window's top-left corner.
-  pub fn popup_menu<M: ContextMenu, P: Into<Position>>(
-    &self,
-    menu: &M,
-    position: Option<P>,
-  ) -> crate::Result<()> {
-    menu.popup(self.clone(), position)
   }
 
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
@@ -1164,6 +1171,7 @@ impl<R: Runtime> Window<R> {
 }
 
 /// Menu APIs
+#[cfg(desktop)]
 impl<R: Runtime> Window<R> {
   /// Registers a global menu event listener.
   ///
@@ -1380,7 +1388,6 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Shows the window menu.
-
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     // remove from the window
     #[cfg_attr(target_os = "macos", allow(unused_variables))]
@@ -1409,6 +1416,18 @@ impl<R: Runtime> Window<R> {
     }
 
     Ok(false)
+  }
+
+  /// Shows the specified menu as a context menu at the specified position.
+  /// If a position was not provided, the cursor position will be used.
+  ///
+  /// The position is relative to the window's top-left corner.
+  pub fn popup_menu<M: ContextMenu, P: Into<Position>>(
+    &self,
+    menu: &M,
+    position: Option<P>,
+  ) -> crate::Result<()> {
+    menu.popup(self.clone(), position)
   }
 }
 

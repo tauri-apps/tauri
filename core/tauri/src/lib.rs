@@ -92,6 +92,7 @@ use tauri_runtime as runtime;
 mod ios;
 #[cfg(target_os = "android")]
 mod jni_helpers;
+#[cfg(desktop)]
 pub mod menu;
 /// Path APIs.
 pub mod path;
@@ -100,6 +101,7 @@ pub mod process;
 pub mod scope;
 mod state;
 
+#[cfg(desktop)]
 pub mod tray;
 pub use tauri_utils as utils;
 
@@ -243,8 +245,10 @@ pub fn log_stdout() {
 #[derive(Debug, Clone)]
 pub enum EventLoopMessage {
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  #[cfg(desktop)]
   MenuEvent(menu::MenuEvent),
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  #[cfg(desktop)]
   TrayIconEvent(tray::TrayIconEvent),
 }
 
@@ -892,10 +896,10 @@ mod tests {
   }
 }
 
+#[allow(unused)]
 macro_rules! run_main_thread {
   ($self:ident, $ex:expr) => {{
     use std::sync::mpsc::channel;
-
     let (tx, rx) = channel();
     let self_ = $self.clone();
     let task = move || {
@@ -906,6 +910,7 @@ macro_rules! run_main_thread {
   }};
 }
 
+#[allow(unused)]
 pub(crate) use run_main_thread;
 
 #[cfg(test)]

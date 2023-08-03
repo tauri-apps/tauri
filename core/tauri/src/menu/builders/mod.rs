@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![cfg(desktop)]
+
 //! A module containting menu builder types
 
 pub use muda::builders::AboutMetadataBuilder;

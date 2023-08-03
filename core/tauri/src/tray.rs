@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![cfg(desktop)]
+
 //! Tray icon types and utility functions
 
 use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};

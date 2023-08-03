@@ -10,8 +10,8 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
-use crate::menu::Menu;
-use crate::tray::TrayIcon;
+#[cfg(desktop)]
+use crate::{menu::Menu, tray::TrayIcon};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
@@ -51,10 +51,10 @@ use crate::{
   Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
 };
-use crate::{
-  app::{GlobalMenuEventListener, GlobalTrayIconEventListener},
-  pattern::PatternJavascript,
-};
+
+#[cfg(desktop)]
+use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
+use crate::pattern::PatternJavascript;
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::path::BaseDirectory;
@@ -226,22 +226,29 @@ pub struct InnerWindowManager<R: Runtime> {
   ///
   /// This should be mainly used to acceess [`Menu::haccel`]
   /// to setup the accelerator handling in the event loop
+  #[cfg(desktop)]
   pub menus: Arc<Mutex<HashMap<u32, Menu<R>>>>,
   /// The menu set to all windows.
+  #[cfg(desktop)]
   pub(crate) menu: Arc<Mutex<Option<Menu<R>>>>,
   /// Menu event listeners to all windows.
+  #[cfg(desktop)]
   pub(crate) menu_event_listeners: Arc<Mutex<Vec<GlobalMenuEventListener<AppHandle<R>>>>>,
   /// Menu event listeners to specific windows.
+  #[cfg(desktop)]
   pub(crate) window_menu_event_listeners:
     Arc<Mutex<HashMap<String, GlobalMenuEventListener<Window<R>>>>>,
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
   /// Tray icons
+  #[cfg(desktop)]
   pub(crate) tray_icons: Arc<Mutex<Vec<TrayIcon<R>>>>,
   /// Global Tray icon event listeners.
+  #[cfg(desktop)]
   pub(crate) global_tray_event_listeners:
     Arc<Mutex<Vec<GlobalTrayIconEventListener<AppHandle<R>>>>>,
   /// Tray icon event listeners.
+  #[cfg(desktop)]
   pub(crate) tray_event_listeners:
     Arc<Mutex<HashMap<u32, GlobalTrayIconEventListener<TrayIcon<R>>>>>,
   /// Responder for invoke calls.
@@ -316,7 +323,10 @@ impl<R: Runtime> WindowManager<R> {
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
-    window_menu_event_listeners: HashMap<String, GlobalMenuEventListener<Window<R>>>,
+    #[cfg(desktop)] window_menu_event_listeners: HashMap<
+      String,
+      GlobalMenuEventListener<Window<R>>,
+    >,
     (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
   ) -> Self {
     // generate a random isolation key at runtime
@@ -342,13 +352,20 @@ impl<R: Runtime> WindowManager<R> {
         package_info: context.package_info,
         pattern: context.pattern,
         uri_scheme_protocols,
+        #[cfg(desktop)]
         menus: Default::default(),
+        #[cfg(desktop)]
         menu: Default::default(),
+        #[cfg(desktop)]
         menu_event_listeners: Default::default(),
+        #[cfg(desktop)]
         window_menu_event_listeners: Arc::new(Mutex::new(window_menu_event_listeners)),
         window_event_listeners: Arc::new(window_event_listeners),
+        #[cfg(desktop)]
         tray_icons: Default::default(),
+        #[cfg(desktop)]
         global_tray_event_listeners: Default::default(),
+        #[cfg(desktop)]
         tray_event_listeners: Default::default(),
         invoke_responder,
         invoke_initialization_script,
@@ -370,6 +387,7 @@ impl<R: Runtime> WindowManager<R> {
     self.inner.state.clone()
   }
 
+  #[cfg(desktop)]
   pub(crate) fn prepare_window_menu_creation_handler(
     &self,
     window_menu: Option<&crate::window::WindowMenu<R>>,
@@ -408,15 +426,18 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   /// App-wide menu.
+  #[cfg(desktop)]
   pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<Menu<R>>> {
     self.inner.menu.lock().expect("poisoned window manager")
   }
 
   /// Menus stash.
+  #[cfg(desktop)]
   pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<u32, Menu<R>>> {
     self.inner.menus.lock().expect("poisoned window manager")
   }
 
+  #[cfg(desktop)]
   pub(crate) fn is_menu_in_use(&self, id: u32) -> bool {
     self
       .menu_lock()
@@ -426,10 +447,12 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   /// Menus stash.
+  #[cfg(desktop)]
   pub(crate) fn insert_menu_into_stash(&self, menu: &Menu<R>) {
     self.menus_stash_lock().insert(menu.id(), menu.clone());
   }
 
+  #[cfg(desktop)]
   pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<u32>) {
     if let Some(id) = id {
       let is_used_by_a_window = self.windows_lock().values().any(|w| w.is_menu_in_use(id));
@@ -1231,9 +1254,15 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     app_handle: AppHandle<R>,
     window: DetachedWindow<EventLoopMessage, R>,
-    menu: Option<crate::window::WindowMenu<R>>,
+    #[cfg(desktop)] menu: Option<crate::window::WindowMenu<R>>,
   ) -> Window<R> {
-    let window = Window::new(self.clone(), window, app_handle, menu);
+    let window = Window::new(
+      self.clone(),
+      window,
+      app_handle,
+      #[cfg(desktop)]
+      menu,
+    );
 
     let window_ = window.clone();
     let window_event_listeners = self.inner.window_event_listeners.clone();

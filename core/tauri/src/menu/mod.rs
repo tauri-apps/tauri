@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![cfg(desktop)]
+
 //! Menu types and utility functions
 
 // TODO(muda-migration): figure out js events

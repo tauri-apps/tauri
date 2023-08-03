@@ -385,6 +385,7 @@ impl<R: Runtime> WindowManager<R> {
     #[cfg(target_os = "macos")]
     return None;
 
+    #[cfg_attr(target_os = "macos", allow(unused_variables, unreachable_code))]
     if let Some(menu) = &window_menu {
       let menu = menu.menu.clone();
       Some(move |raw: tauri_runtime::window::RawWindow<'_>| {

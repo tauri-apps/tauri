@@ -1216,6 +1216,7 @@ impl<R: Runtime> Window<R> {
     self.menu.lock().expect("poisoned window")
   }
 
+  #[cfg_attr(target_os = "macos", allow(dead_code))]
   pub(crate) fn has_app_wide_menu(&self) -> bool {
     self
       .menu_lock()
@@ -1224,6 +1225,7 @@ impl<R: Runtime> Window<R> {
       .unwrap_or(false)
   }
 
+  #[cfg_attr(target_os = "macos", allow(dead_code))]
   pub(crate) fn is_menu_in_use(&self, id: u32) -> bool {
     self
       .menu_lock()
@@ -1243,6 +1245,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
+  #[cfg_attr(target_os = "macos", allow(unused_variables))]
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
 
@@ -1287,6 +1290,7 @@ impl<R: Runtime> Window<R> {
     let mut current_menu = self.menu_lock();
 
     // remove from the window
+    #[cfg_attr(target_os = "macos", allow(unused_variables))]
     if let Some(window_menu) = &*current_menu {
       let window = self.clone();
       let menu_ = window_menu.menu.clone();
@@ -1322,6 +1326,7 @@ impl<R: Runtime> Window<R> {
   /// Hides the window menu.
   pub fn hide_menu(&self) -> crate::Result<()> {
     // remove from the window
+    #[cfg_attr(target_os = "macos", allow(unused_variables))]
     if let Some(window_menu) = &*self.menu_lock() {
       let window = self.clone();
       let menu_ = window_menu.menu.clone();
@@ -1349,6 +1354,7 @@ impl<R: Runtime> Window<R> {
   /// Shows the window menu.
   pub fn show_menu(&self) -> crate::Result<()> {
     // remove from the window
+    #[cfg_attr(target_os = "macos", allow(unused_variables))]
     if let Some(window_menu) = &*self.menu_lock() {
       let window = self.clone();
       let menu_ = window_menu.menu.clone();
@@ -1374,8 +1380,10 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Shows the window menu.
+
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     // remove from the window
+    #[cfg_attr(target_os = "macos", allow(unused_variables))]
     if let Some(window_menu) = &*self.menu_lock() {
       let (tx, rx) = std::sync::mpsc::channel();
       let window = self.clone();

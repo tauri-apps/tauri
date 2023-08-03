@@ -69,7 +69,7 @@ ico = { version = "0.2.0", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.7.2", default-features = false }
-tray-icon = { version = "0.7.6", default-features = false }
+tray-icon = { version = "0.7.7", default-features = false }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.16", features = [ "v3_24" ] }

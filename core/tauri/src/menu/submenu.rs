@@ -245,4 +245,30 @@ impl<R: Runtime> Submenu<R> {
   pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
     run_main_thread!(self, |self_: Self| self_.inner.set_enabled(enabled))
   }
+
+  /// Set this submenu as the Window menu for the application on macOS.
+  ///
+  /// This will cause macOS to automatically add window-switching items and
+  /// certain other items to the menu.
+  #[cfg(target_os = "macos")]
+  pub fn set_as_windows_menu_for_nsapp(&self) -> crate::Result<()> {
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .set_windows_menu_for_nsapp(enabled))?;
+    Ok(())
+  }
+
+  /// Set this submenu as the Help menu for the application on macOS.
+  ///
+  /// This will cause macOS to automatically add a search box to the menu.
+  ///
+  /// If no menu is set as the Help menu, macOS will automatically use any menu
+  /// which has a title matching the localized word "Help".
+  pub fn set_as_help_menu_for_nsapp(&self) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .set_help_menu_for_nsapp(enabled))?;
+    Ok(())
+  }
 }

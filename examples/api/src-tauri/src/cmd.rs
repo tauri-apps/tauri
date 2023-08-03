@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use serde::Deserialize;
-use tauri::{command, Runtime};
+use tauri::{command, menu::builders::MenuBuilder, Runtime, Window};
 
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
@@ -25,7 +25,7 @@ pub fn perform_request(endpoint: String, body: RequestBody) -> String {
 
 #[cfg(not(target_os = "macos"))]
 #[command]
-pub fn toggle_menu<R: Runtime>(window: tauri::Window<R>) {
+pub fn toggle_menu<R: Runtime>(window: Window<R>) {
   if window.is_menu_visible().unwrap_or_default() {
     let _ = window.hide_menu();
   } else {
@@ -46,4 +46,18 @@ pub fn toggle_menu<R: Runtime>(
       .set_menu(app_menu.0.lock().unwrap().clone().expect("no app menu"))
       .unwrap();
   }
+}
+
+#[command]
+pub fn popup_context_menu<R: Runtime>(window: Window<R>) {
+  window
+    .popup_menu(
+      &MenuBuilder::new(&window)
+        .check("Tauri is awesome!")
+        .text("Do something")
+        .copy()
+        .build()
+        .unwrap(),
+    )
+    .unwrap();
 }

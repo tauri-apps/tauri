@@ -130,7 +130,8 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request,
-      cmd::toggle_menu
+      cmd::toggle_menu,
+      cmd::popup_context_menu
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");

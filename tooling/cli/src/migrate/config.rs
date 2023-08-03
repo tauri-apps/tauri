@@ -47,6 +47,10 @@ fn migrate_config(config: &mut Value) -> Result<()> {
         process_allowlist(tauri_config, &mut plugins, allowlist)?;
       }
 
+      if let Some(tray) = tauri_config.remove("systemTray") {
+        tauri_config.insert("trayIcon".into(), tray);
+      }
+
       // cli
       if let Some(cli) = tauri_config.remove("cli") {
         process_cli(&mut plugins, cli)?;

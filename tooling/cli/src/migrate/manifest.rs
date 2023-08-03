@@ -89,6 +89,7 @@ fn features_to_remove() -> Vec<&'static str> {
   features_to_remove.push("shell-open-api");
   features_to_remove.push("windows7-compat");
   features_to_remove.push("updater");
+  features_to_remove.push("system-tray");
 
   // this allowlist feature was not removed
   let index = features_to_remove

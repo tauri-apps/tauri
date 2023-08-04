@@ -3364,6 +3364,7 @@ dependencies = [
  "cargo_toml",
  "heck",
  "json-patch",
+ "plist",
  "quote",
  "semver",
  "serde",

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::sealed::ContextMenuBase;
 use super::{IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
+use crate::Window;
 use crate::{run_main_thread, AppHandle, Manager, Position, Runtime};
 use muda::AboutMetadata;
 use muda::ContextMenu;
@@ -32,13 +34,27 @@ impl<R: Runtime> Clone for Menu<R> {
 }
 
 impl<R: Runtime> super::ContextMenu for Menu<R> {
-  fn popup<T: Runtime, P: Into<Position>>(
+  fn popup<T: Runtime>(&self, window: Window<T>) -> crate::Result<()> {
+    self.popup_inner(window, None::<Position>)
+  }
+
+  fn popup_at<T: Runtime, P: Into<Position>>(
+    &self,
+    window: Window<T>,
+    position: P,
+  ) -> crate::Result<()> {
+    self.popup_inner(window, Some(position))
+  }
+}
+
+impl<R: Runtime> ContextMenuBase for Menu<R> {
+  fn popup_inner<T: Runtime, P: Into<crate::Position>>(
     &self,
     window: crate::Window<T>,
     position: Option<P>,
   ) -> crate::Result<()> {
     let position = position.map(Into::into).map(super::into_position);
-    run_main_thread!(self, |self_: Self| {
+    run_main_thread!(self, move |self_: Self| {
       #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {
         self_
@@ -53,20 +69,16 @@ impl<R: Runtime> super::ContextMenu for Menu<R> {
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      if let Ok(gtk_window) = window.gtk_window() {
-        self_
-          .inner()
-          .show_context_menu_for_gtk_window(&gtk_window, position);
+      if let Ok(w) = window.gtk_window() {
+        self_.inner().show_context_menu_for_gtk_window(&w, position);
       }
 
       #[cfg(windows)]
       if let Ok(hwnd) = window.hwnd() {
-        self_.inner().show_context_menu_for_hwnd(hwnd.0, position);
+        self_.inner().show_context_menu_for_hwnd(hwnd.0, position)
       }
     })
   }
-}
-impl<R: Runtime> super::sealed::ContextMenuBase for Menu<R> {
   fn inner(&self) -> &dyn muda::ContextMenu {
     &self.inner
   }

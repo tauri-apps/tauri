@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{IsMenuItem, MenuItemKind};
-use crate::{run_main_thread, AppHandle, Manager, Position, Runtime};
+use super::{sealed::ContextMenuBase, IsMenuItem, MenuItemKind};
+use crate::{run_main_thread, AppHandle, Manager, Position, Runtime, Window};
 use muda::ContextMenu;
 
 /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
@@ -49,7 +49,21 @@ impl<R: Runtime> super::IsMenuItem<R> for Submenu<R> {
 }
 
 impl<R: Runtime> super::ContextMenu for Submenu<R> {
-  fn popup<T: Runtime, P: Into<Position>>(
+  fn popup<T: Runtime>(&self, window: Window<T>) -> crate::Result<()> {
+    self.popup_inner(window, None::<Position>)
+  }
+
+  fn popup_at<T: Runtime, P: Into<Position>>(
+    &self,
+    window: Window<T>,
+    position: P,
+  ) -> crate::Result<()> {
+    self.popup_inner(window, Some(position))
+  }
+}
+
+impl<R: Runtime> ContextMenuBase for Submenu<R> {
+  fn popup_inner<T: Runtime, P: Into<crate::Position>>(
     &self,
     window: crate::Window<T>,
     position: Option<P>,
@@ -80,8 +94,7 @@ impl<R: Runtime> super::ContextMenu for Submenu<R> {
       }
     })
   }
-}
-impl<R: Runtime> super::sealed::ContextMenuBase for Submenu<R> {
+
   fn inner(&self) -> &dyn muda::ContextMenu {
     &self.inner
   }

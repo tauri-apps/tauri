@@ -121,7 +121,21 @@ impl<R: Runtime> Menu<R> {
       ..Default::default()
     };
 
-    Menu::with_items(
+    let window_menu = Submenu::with_items(
+      app_handle,
+      "Window",
+      true,
+      &[
+        &PredefinedMenuItem::minimize(app_handle, None),
+        &PredefinedMenuItem::maximize(app_handle, None),
+        #[cfg(target_os = "macos")]
+        &PredefinedMenuItem::separator(app_handle),
+        &PredefinedMenuItem::close_window(app_handle, None),
+        &PredefinedMenuItem::about(app_handle, None, Some(about_metadata)),
+      ],
+    )?;
+
+    let menu = Menu::with_items(
       app_handle,
       &[
         #[cfg(target_os = "macos")]
@@ -178,21 +192,14 @@ impl<R: Runtime> Menu<R> {
           true,
           &[&PredefinedMenuItem::fullscreen(app_handle, None)],
         )?,
-        &Submenu::with_items(
-          app_handle,
-          "Window",
-          true,
-          &[
-            &PredefinedMenuItem::minimize(app_handle, None),
-            &PredefinedMenuItem::maximize(app_handle, None),
-            #[cfg(target_os = "macos")]
-            &PredefinedMenuItem::separator(app_handle),
-            &PredefinedMenuItem::close_window(app_handle, None),
-            &PredefinedMenuItem::about(app_handle, None, Some(about_metadata)),
-          ],
-        )?,
+        &window_menu,
       ],
-    )
+    )?;
+
+    #[cfg(target_os = "macos")]
+    window_menu.set_as_windows_menu_for_nsapp()?;
+
+    Ok(menu)
   }
 
   pub(crate) fn inner(&self) -> &muda::Menu {

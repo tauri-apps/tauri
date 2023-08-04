@@ -785,7 +785,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Runs necessary cleanup tasks before exiting the process.
-      /// **You should always exit the process immediately after this function returns.**
+      /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
         #[cfg(desktop)]
         self.manager.inner.tray_icons.lock().unwrap().clear()

@@ -12,12 +12,6 @@ pub struct CheckMenuItemBuilder {
   accelerator: Option<String>,
 }
 
-impl Default for CheckMenuItemBuilder {
-  fn default() -> Self {
-    Self::new("")
-  }
-}
-
 impl CheckMenuItemBuilder {
   /// Create a new menu item builder.
   pub fn new<S: AsRef<str>>(text: S) -> Self {
@@ -27,12 +21,6 @@ impl CheckMenuItemBuilder {
       checked: true,
       accelerator: None,
     }
-  }
-
-  /// Set the text for this menu item.
-  pub fn text<S: AsRef<str>>(mut self, text: S) -> Self {
-    self.text = text.as_ref().to_string();
-    self
   }
 
   /// Set the enabled state for this menu item.

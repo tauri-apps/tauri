@@ -33,7 +33,7 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///       .separator()
 ///       .text("MenuItem 2")
 ///       .check("CheckMenuItem 2")
-///       .icon("IconMenuItem 2", icon2)
+///       .icon("IconMenuItem 2", app.default_window_icon().cloned().unwrap())
 ///       .build()?;
 ///     menu.append(&submenu)?;
 ///     app.set_menu(menu);

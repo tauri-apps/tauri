@@ -18,7 +18,6 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///     #   width: 0,
 ///     #   height: 0,
 ///     # };
-///     # let icon2 = icon1.clone();
 ///     let menu = MenuBuilder::new(&handle)
 ///       .item(&MenuItem::new(&handle, "MenuItem 1", true, None))
 ///       .items(&[
@@ -32,7 +31,7 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///       .separator()
 ///       .text("MenuItem 2")
 ///       .check("CheckMenuItem 2")
-///       .icon("IconMenuItem 2", icon2)
+///       .icon("IconMenuItem 2", app.default_window_icon().cloned().unwrap())
 ///       .build()?;
 ///     app.set_menu(menu);
 ///     Ok(())

@@ -13,7 +13,7 @@ mod tray;
 
 use serde::Serialize;
 use tauri::{
-  menu::{builders::MenuBuilder, Menu},
+  menu::{Menu, MenuBuilder},
   window::WindowBuilder,
   App, AppHandle, Manager, RunEvent, Runtime, WindowUrl,
 };

@@ -8,7 +8,7 @@
 
 // TODO(muda-migration): figure out js events
 
-pub mod builders;
+mod builders;
 mod check;
 mod icon;
 #[allow(clippy::module_inception)]
@@ -16,6 +16,7 @@ mod menu;
 mod normal;
 mod predefined;
 mod submenu;
+pub use builders::*;
 pub use check::CheckMenuItem;
 pub use icon::IconMenuItem;
 pub use menu::Menu;

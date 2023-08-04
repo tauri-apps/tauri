@@ -9,7 +9,7 @@ use crate::{menu::*, Icon, Manager, Runtime};
 /// # Example
 ///
 /// ```no_run
-/// # use tauri::menu::{*, builders::*};
+/// use tauri::menu::*;
 /// tauri::Builder::default()
 ///   .setup(move |app| {
 ///     let handle = app.handle();

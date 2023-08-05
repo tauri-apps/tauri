@@ -633,13 +633,7 @@ macro_rules! shared_app_impl {
         // set it on all windows that don't have one or previously had the app-wide menu
         #[cfg(not(target_os = "macos"))]
         {
-          let windows = self
-            .manager
-            .windows_lock()
-            .values()
-            .cloned()
-            .collect::<Vec<_>>();
-          for window in windows {
+          for window in self.manager.windows().values() {
             let has_app_wide_menu = window.has_app_wide_menu() || window.menu().is_none();
             if has_app_wide_menu {
               window.set_menu(menu.clone())?;
@@ -675,13 +669,7 @@ macro_rules! shared_app_impl {
           // remove from windows that have the app-wide menu
           #[cfg(not(target_os = "macos"))]
           {
-            let windows = self
-              .manager
-              .windows_lock()
-              .values()
-              .cloned()
-              .collect::<Vec<_>>();
-            for window in windows {
+            for window in self.manager.windows().values() {
               let has_app_wide_menu = window.has_app_wide_menu();
               if has_app_wide_menu {
                 window.remove_menu()?;
@@ -718,13 +706,7 @@ macro_rules! shared_app_impl {
         {
           let is_app_menu_set = self.manager.menu_lock().is_some();
           if is_app_menu_set {
-            let windows = self
-              .manager
-              .windows_lock()
-              .values()
-              .cloned()
-              .collect::<Vec<_>>();
-            for window in windows {
+            for window in self.manager.windows().values() {
               if window.has_app_wide_menu() {
                 window.hide_menu()?;
               }
@@ -745,13 +727,7 @@ macro_rules! shared_app_impl {
         {
           let is_app_menu_set = self.manager.menu_lock().is_some();
           if is_app_menu_set {
-            let windows = self
-              .manager
-              .windows_lock()
-              .values()
-              .cloned()
-              .collect::<Vec<_>>();
-            for window in windows {
+            for window in self.manager.windows().values() {
               if window.has_app_wide_menu() {
                 window.show_menu()?;
               }

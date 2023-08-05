@@ -131,7 +131,7 @@ impl<R: Runtime> Menu<R> {
         #[cfg(target_os = "macos")]
         &PredefinedMenuItem::separator(app_handle),
         &PredefinedMenuItem::close_window(app_handle, None),
-        &PredefinedMenuItem::about(app_handle, None, Some(about_metadata)),
+        &PredefinedMenuItem::about(app_handle, None, Some(about_metadata.clone())),
       ],
     )?;
 
@@ -144,7 +144,7 @@ impl<R: Runtime> Menu<R> {
           pkg_info.name.clone(),
           true,
           &[
-            &PredefinedMenuItem::about(app_handle, None, Some(about_metadata.clone())),
+            &PredefinedMenuItem::about(app_handle, None, Some(about_metadata)),
             &PredefinedMenuItem::separator(app_handle),
             &PredefinedMenuItem::services(app_handle, None),
             &PredefinedMenuItem::separator(app_handle),

@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::PopupMenu;
 use serde::Deserialize;
-use tauri::{command, Runtime, State, Window};
+use tauri::command;
 
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
@@ -24,9 +23,9 @@ pub fn perform_request(endpoint: String, body: RequestBody) -> String {
   "message response".into()
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(desktop, not(target_os = "macos")))]
 #[command]
-pub fn toggle_menu<R: Runtime>(window: Window<R>) {
+pub fn toggle_menu<R: tauri::Runtime>(window: tauri::Window<R>) {
   if window.is_menu_visible().unwrap_or_default() {
     let _ = window.hide_menu();
   } else {
@@ -36,7 +35,10 @@ pub fn toggle_menu<R: Runtime>(window: Window<R>) {
 
 #[cfg(target_os = "macos")]
 #[command]
-pub fn toggle_menu<R: Runtime>(app: tauri::AppHandle<R>, app_menu: State<'_, crate::AppMenu<R>>) {
+pub fn toggle_menu<R: tauri::Runtime>(
+  app: tauri::AppHandle<R>,
+  app_menu: tauri::State<'_, crate::AppMenu<R>>,
+) {
   if let Some(menu) = app.remove_menu().unwrap() {
     app_menu.0.lock().unwrap().replace(menu);
   } else {
@@ -46,7 +48,11 @@ pub fn toggle_menu<R: Runtime>(app: tauri::AppHandle<R>, app_menu: State<'_, cra
   }
 }
 
+#[cfg(desktop)]
 #[command]
-pub fn popup_context_menu<R: Runtime>(window: Window<R>, popup_menu: State<'_, PopupMenu<R>>) {
+pub fn popup_context_menu<R: tauri::Runtime>(
+  window: tauri::Window<R>,
+  popup_menu: tauri::State<'_, crate::PopupMenu<R>>,
+) {
   window.popup_menu(&popup_menu.0).unwrap();
 }

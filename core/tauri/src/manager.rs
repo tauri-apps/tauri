@@ -25,7 +25,6 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::{app::{GlobalMenuEventListener, WindowMenuEvent}, window::WindowEmitArgs};
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
@@ -50,6 +49,10 @@ use crate::{
   },
   Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
+};
+use crate::{
+  app::{GlobalMenuEventListener, WindowMenuEvent},
+  window::WindowEmitArgs,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -1105,7 +1108,7 @@ impl<R: Runtime> WindowManager<R> {
     let emit_args = WindowEmitArgs::from(event, source_window_label, payload)?;
     assert_event_name_is_valid(event);
     self
-      .windows_lock()
+      .windows()
       .values()
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit_internal(&emit_args))

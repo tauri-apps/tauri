@@ -66,14 +66,14 @@ impl WindowEmitArgs {
   pub fn from<S: Serialize>(
     event: &str,
     source_window_label: Option<&str>,
-    payload: S)
-    -> crate::Result<Self> {
-      Ok(WindowEmitArgs {
-        event: serde_json::to_string(event)?,
-        source_window_label: serde_json::to_string(&source_window_label)?,
-        payload: serde_json::to_string(&payload)?
-      })
-    }
+    payload: S,
+  ) -> crate::Result<Self> {
+    Ok(WindowEmitArgs {
+      event: serde_json::to_string(event)?,
+      source_window_label: serde_json::to_string(&source_window_label)?,
+      payload: serde_json::to_string(&payload)?,
+    })
+  }
 }
 
 /// Monitor descriptor.
@@ -1784,10 +1784,7 @@ impl<R: Runtime> Window<R> {
     self.emit(event, payload)
   }
 
-  pub(crate) fn emit_internal(
-    &self,
-    emit_args: &WindowEmitArgs,
-  ) -> crate::Result<()> {
+  pub(crate) fn emit_internal(&self, emit_args: &WindowEmitArgs) -> crate::Result<()> {
     self.eval(&format!(
       "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
       self.manager.event_emit_function_name(),

@@ -642,9 +642,9 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// }
   /// ```
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
-    where
-      S: Serialize + Clone,
-      F: Fn(&Window<R>) -> bool,
+  where
+    S: Serialize + Clone,
+    F: Fn(&Window<R>) -> bool,
   {
     self.manager().emit_filter(event, None, payload, filter)
   }

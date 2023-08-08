@@ -1,22 +1,15 @@
 <script>
-  import { type } from '@tauri-apps/api/os'
+  import { sendNotification as notify } from '@tauri-apps/api/notification'
 
   export let onMessage
 
   // send the notification directly
   // the backend is responsible for checking the permission
   async function _sendNotification() {
-    const osType = await type()
-    new Notification('Notification title', {
+    notify({
+      title: 'Notification title',
       body: 'This is the notification body',
-      sound:
-        osType === 'Windows_NT'
-          ? 'Default'
-          : osType === 'Linux'
-          ? 'dialog-information'
-          : osType === 'Darwin'
-          ? 'NSUserNotificationDefaultSoundName'
-          : undefined
+      sound: 'default'
     })
   }
 

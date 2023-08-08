@@ -6,7 +6,7 @@
 
 use super::InvokeContext;
 use crate::Runtime;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(notification_all)]
@@ -17,8 +17,37 @@ const PERMISSION_GRANTED: &str = "granted";
 // `Denied` response from `request_permission`. Matches the Web API return value.
 const PERMISSION_DENIED: &str = "denied";
 
+#[derive(Debug)]
+pub enum SoundDto {
+  Default,
+  Custom(String),
+}
+
+impl From<SoundDto> for crate::api::notification::Sound {
+  fn from(sound: SoundDto) -> Self {
+    match sound {
+      SoundDto::Default => crate::api::notification::Sound::Default,
+      SoundDto::Custom(s) => crate::api::notification::Sound::Custom(s),
+    }
+  }
+}
+
+impl<'de> Deserialize<'de> for SoundDto {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    if s.to_lowercase() == "default" {
+      Ok(Self::Default)
+    } else {
+      Ok(Self::Custom(s))
+    }
+  }
+}
+
 /// The options for the notification API.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct NotificationOptions {
   /// The notification title.
   pub title: String,
@@ -27,7 +56,7 @@ pub struct NotificationOptions {
   /// The notification icon.
   pub icon: Option<String>,
   /// The notification sound.
-  pub sound: Option<String>,
+  pub sound: Option<SoundDto>,
 }
 
 /// The API descriptor.

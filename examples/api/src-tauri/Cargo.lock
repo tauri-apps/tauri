@@ -2185,9 +2185,9 @@ dependencies = [
 
 [[package]]
 name = "muda"
-version = "0.8.0"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed8a1fd60c7b522b2e5c14c059195f16aa94d826e4549dfbedef5fbbc015a243"
+checksum = "47e33f46fb20f85553edb85e30a6a5231567f4103276ccdb5a2050613d253b1d"
 dependencies = [
  "cocoa 0.25.0",
  "crossbeam-channel",
@@ -3913,9 +3913,9 @@ dependencies = [
 
 [[package]]
 name = "tray-icon"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25ac0bf931ce61a25e0bfcaffbbcd619c8489c3947df98dbf369bb55a90e18a3"
+checksum = "e3b0e5bec13da15e62330e9bcf8b9fd42489b5acfe29ac8fec7ed659dbee21d9"
 dependencies = [
  "cocoa 0.25.0",
  "core-graphics 0.23.1",

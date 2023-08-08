@@ -23,6 +23,7 @@ pub enum SoundDto {
   Custom(String),
 }
 
+#[cfg(notification_all)]
 impl From<SoundDto> for crate::api::notification::Sound {
   fn from(sound: SoundDto) -> Self {
     match sound {

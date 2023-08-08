@@ -6,7 +6,7 @@
 
 use super::InvokeContext;
 use crate::Runtime;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(notification_all)]
@@ -17,6 +17,36 @@ const PERMISSION_GRANTED: &str = "granted";
 // `Denied` response from `request_permission`. Matches the Web API return value.
 const PERMISSION_DENIED: &str = "denied";
 
+#[derive(Debug, Clone)]
+pub enum SoundDto {
+  Default,
+  Custom(String),
+}
+
+#[cfg(notification_all)]
+impl From<SoundDto> for crate::api::notification::Sound {
+  fn from(sound: SoundDto) -> Self {
+    match sound {
+      SoundDto::Default => crate::api::notification::Sound::Default,
+      SoundDto::Custom(s) => crate::api::notification::Sound::Custom(s),
+    }
+  }
+}
+
+impl<'de> Deserialize<'de> for SoundDto {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    if s.to_lowercase() == "default" {
+      Ok(Self::Default)
+    } else {
+      Ok(Self::Custom(s))
+    }
+  }
+}
+
 /// The options for the notification API.
 #[derive(Debug, Clone, Deserialize)]
 pub struct NotificationOptions {
@@ -26,6 +56,8 @@ pub struct NotificationOptions {
   pub body: Option<String>,
   /// The notification icon.
   pub icon: Option<String>,
+  /// The notification sound.
+  pub sound: Option<SoundDto>,
 }
 
 /// The API descriptor.
@@ -56,6 +88,9 @@ impl Cmd {
     if let Some(icon) = options.icon {
       notification = notification.icon(icon);
     }
+    if let Some(sound) = options.sound {
+      notification = notification.sound(sound);
+    }
     #[cfg(feature = "windows7-compat")]
     {
       notification.notify(&context.window.app_handle)?;
@@ -84,9 +119,19 @@ impl Cmd {
 
 #[cfg(test)]
 mod tests {
-  use super::NotificationOptions;
+  use super::{NotificationOptions, SoundDto};
 
   use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for SoundDto {
+    fn arbitrary(g: &mut Gen) -> Self {
+      if bool::arbitrary(g) {
+        Self::Default
+      } else {
+        Self::Custom(String::arbitrary(g))
+      }
+    }
+  }
 
   impl Arbitrary for NotificationOptions {
     fn arbitrary(g: &mut Gen) -> Self {
@@ -94,6 +139,7 @@ mod tests {
         title: String::arbitrary(g),
         body: Option::arbitrary(g),
         icon: Option::arbitrary(g),
+        sound: Option::arbitrary(g),
       }
     }
   }

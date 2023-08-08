@@ -1,11 +1,15 @@
 <script>
+  import { sendNotification as notify } from '@tauri-apps/api/notification'
+
   export let onMessage
 
   // send the notification directly
   // the backend is responsible for checking the permission
-  function _sendNotification() {
-    new Notification('Notification title', {
-      body: 'This is the notification body'
+  async function _sendNotification() {
+    notify({
+      title: 'Notification title',
+      body: 'This is the notification body',
+      sound: 'default'
     })
   }
 
@@ -29,6 +33,6 @@
   }
 </script>
 
-<button class="btn" id="notification" on:click={_sendNotification}>
+<button class="btn" id="notification" on:click={sendNotification}>
   Send test notification
 </button>

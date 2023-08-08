@@ -153,6 +153,15 @@ impl<R: Runtime> Menu<R> {
         #[cfg(target_os = "macos")]
         &PredefinedMenuItem::separator(app_handle),
         &PredefinedMenuItem::close_window(app_handle, None),
+      ],
+    )?;
+
+    let help_menu = Submenu::with_items(
+      app_handle,
+      "Help",
+      true,
+      &[
+        #[cfg(not(target_os = "macos"))]
         &PredefinedMenuItem::about(app_handle, None, Some(about_metadata)),
       ],
     )?;
@@ -215,11 +224,15 @@ impl<R: Runtime> Menu<R> {
           &[&PredefinedMenuItem::fullscreen(app_handle, None)],
         )?,
         &window_menu,
+        &help_menu,
       ],
     )?;
 
     #[cfg(target_os = "macos")]
-    window_menu.set_as_windows_menu_for_nsapp()?;
+    {
+      window_menu.set_as_windows_menu_for_nsapp()?;
+      help_menu.set_as_help_menu_for_nsapp()?;
+    }
 
     Ok(menu)
   }

@@ -103,7 +103,7 @@ objc = "0.2"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"
-win7-notifications = { version = "0.3.1", optional = true }
+win7-notifications = { version = "0.4", optional = true }
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.39.0"

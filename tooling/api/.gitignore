@@ -65,4 +65,3 @@ package-lock.json
 
 # Documentation output
 docs/*
-!docs/js-api.json

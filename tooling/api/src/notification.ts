@@ -38,6 +38,31 @@ interface Options {
   body?: string
   /** Optional notification icon. */
   icon?: string
+  /**
+   * Optional notification sound.
+   *
+   * #### Platform-specific
+   *
+   * Each OS has a different sound name so you will need to conditionally specify an appropriate sound
+   * based on the OS in use, 'default' represents the default system sound. For a list of sounds see:
+   * - **Linux**: can be one of the sounds listed in {@link https://0pointer.de/public/sound-naming-spec.html}
+   * - **Windows**: can be one of the sounds listed in {@link https://learn.microsoft.com/en-us/uwp/schemas/tiles/toastschema/element-audio}
+   *   but without the prefix, for example, if `ms-winsoundevent:Notification.Default` you would use `Default` and
+   *   if `ms-winsoundevent:Notification.Looping.Alarm2`, you would use `Alarm2`.
+   *   Windows 7 is not supported, if a sound is provided, it will play the default sound, otherwise it will be silent.
+   * - **macOS**: you can specify the name of the sound you'd like to play when the notification is shown.
+   * Any of the default sounds (under System Preferences > Sound) can be used, in addition to custom sound files.
+   * Be sure that the sound file is copied under the app bundle (e.g., `YourApp.app/Contents/Resources`), or one of the following locations:
+   *   - `~/Library/Sounds`
+   *   - `/Library/Sounds`
+   *   - `/Network/Library/Sounds`
+   *   - `/System/Library/Sounds`
+   *
+   *   See the {@link https://developer.apple.com/documentation/appkit/nssound | NSSound} docs for more information.
+   *
+   * @since 1.5.0
+   */
+  sound?: 'default' | string
 }
 
 /** Possible permission values. */

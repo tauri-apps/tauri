@@ -7,15 +7,6 @@
 #[cfg(windows)]
 use std::path::MAIN_SEPARATOR as SEP;
 
-#[cfg(target_os = "macos")]
-use objc::runtime::Object;
-
-#[cfg(target_os = "macos")]
-#[link(name = "AppKit", kind = "framework")]
-extern "C" {
-  static NSUserNotificationDefaultSoundName: *const Object;
-}
-
 /// The desktop notification definition.
 ///
 /// Allows you to construct a Notification data and send it.
@@ -108,28 +99,7 @@ impl Notification {
   /// [`NSSound`]: https://developer.apple.com/documentation/appkit/nssound
   #[must_use]
   pub fn sound(mut self, sound: impl Into<String>) -> Self {
-    let sound = sound.into();
-    #[cfg(target_os = "macos")]
-    {
-      if sound == "NSUserNotificationDefaultSoundName" {
-        let sound = unsafe {
-          const UTF8_ENCODING: usize = 4;
-          use objc::*;
-
-          let bytes: *const std::ffi::c_char =
-            msg_send![NSUserNotificationDefaultSoundName, UTF8String];
-          let len = msg_send![
-            NSUserNotificationDefaultSoundName,
-            lengthOfBytesUsingEncoding: UTF8_ENCODING
-          ];
-          let bytes = std::slice::from_raw_parts(bytes as *const u8, len);
-          std::str::from_utf8_unchecked(bytes)
-        };
-        self.sound.replace(sound.into());
-        return self;
-      }
-    }
-    self.sound.replace(sound);
+    self.sound.replace(sound.into());
     self
   }
 

@@ -541,7 +541,7 @@ macro_rules! shared_app_impl {
       #[cfg(desktop)]
       pub fn tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
       where
-        I: PartialEq + ?Sized,
+        I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
         self
@@ -561,7 +561,7 @@ macro_rules! shared_app_impl {
       #[cfg(desktop)]
       pub fn remove_tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
       where
-        I: PartialEq + ?Sized,
+        I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
         let mut tray_icons = self.manager.inner.tray_icons.lock().unwrap();

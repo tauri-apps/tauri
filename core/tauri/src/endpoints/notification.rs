@@ -17,7 +17,7 @@ const PERMISSION_GRANTED: &str = "granted";
 // `Denied` response from `request_permission`. Matches the Web API return value.
 const PERMISSION_DENIED: &str = "denied";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SoundDto {
   Default,
   Custom(String),
@@ -48,7 +48,7 @@ impl<'de> Deserialize<'de> for SoundDto {
 }
 
 /// The options for the notification API.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct NotificationOptions {
   /// The notification title.
   pub title: String,
@@ -119,9 +119,19 @@ impl Cmd {
 
 #[cfg(test)]
 mod tests {
-  use super::NotificationOptions;
+  use super::{NotificationOptions, SoundDto};
 
   use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for SoundDto {
+    fn arbitrary(g: &mut Gen) -> Self {
+      if bool::arbitrary(g) {
+        Self::Default
+      } else {
+        Self::Custom(String::arbitrary(g))
+      }
+    }
+  }
 
   impl Arbitrary for NotificationOptions {
     fn arbitrary(g: &mut Gen) -> Self {

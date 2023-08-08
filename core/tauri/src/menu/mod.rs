@@ -194,7 +194,7 @@ pub trait IsMenuItem<R: Runtime>: sealed::IsMenuItemBase {
 ///
 /// This trait is ONLY meant to be implemented internally by the crate.
 pub trait ContextMenu: sealed::ContextMenuBase + Send + Sync {
-  /// Popup this menu as a context menu on the specified window at the specified position.
+  /// Popup this menu as a context menu on the specified window at the cursor position.
   fn popup<R: crate::Runtime>(&self, window: crate::Window<R>) -> crate::Result<()>;
 
   /// Popup this menu as a context menu on the specified window at the specified position.

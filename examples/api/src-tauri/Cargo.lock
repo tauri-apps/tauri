@@ -3525,7 +3525,7 @@ dependencies = [
  "gtk",
  "http",
  "http-range",
- "jni 0.20.0",
+ "jni 0.21.1",
  "rand 0.8.5",
  "raw-window-handle",
  "serde",
@@ -3543,7 +3543,7 @@ version = "0.13.0-alpha.6"
 dependencies = [
  "cocoa 0.24.1",
  "gtk",
- "jni 0.20.0",
+ "jni 0.21.1",
  "percent-encoding",
  "rand 0.8.5",
  "raw-window-handle",

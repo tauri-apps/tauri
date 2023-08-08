@@ -16,7 +16,7 @@ fn json_to_java<'a, R: Runtime>(
   activity: JObject<'a>,
   runtime_handle: &R::Handle,
   json: &JsonValue,
-) -> Result<(&'static str, JValue<'a>), JniError> {
+) -> Result<(&'static str, JValue<'a, 'a>), JniError> {
   let (class, v) = match json {
     JsonValue::Null => ("Ljava/lang/Object;", JObject::null().into()),
     JsonValue::Bool(val) => ("Z", (*val).into()),
@@ -75,7 +75,7 @@ pub fn to_jsobject<'a, R: Runtime>(
   activity: JObject<'a>,
   runtime_handle: &R::Handle,
   json: &JsonValue,
-) -> Result<JValue<'a>, JniError> {
+) -> Result<JValue<'a, 'a>, JniError> {
   if let JsonValue::Object(_) = json {
     json_to_java::<R>(env, activity, runtime_handle, json).map(|(_class, data)| data)
   } else {

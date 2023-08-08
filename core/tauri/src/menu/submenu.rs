@@ -295,7 +295,9 @@ impl<R: Runtime> Submenu<R> {
   /// certain other items to the menu.
   #[cfg(target_os = "macos")]
   pub fn set_as_windows_menu_for_nsapp(&self) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| self_.inner.set_windows_menu_for_nsapp())?;
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .set_as_windows_menu_for_nsapp())?;
     Ok(())
   }
 
@@ -307,7 +309,7 @@ impl<R: Runtime> Submenu<R> {
   /// which has a title matching the localized word "Help".
   pub fn set_as_help_menu_for_nsapp(&self) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    run_main_thread!(self, |self_: Self| self_.inner.set_help_menu_for_nsapp())?;
+    run_main_thread!(self, |self_: Self| self_.inner.set_as_help_menu_for_nsapp())?;
     Ok(())
   }
 }

@@ -40,6 +40,50 @@ pub struct Notification {
   icon: Option<String>,
   /// The notification identifier
   identifier: String,
+  /// The notification sound
+  sound: Option<Sound>,
+}
+
+/// Notification sound.
+#[derive(Debug)]
+pub enum Sound {
+  /// The default notification sound.
+  Default,
+  /// A custom notification sound.
+  ///
+  /// ## Platform-specific
+  ///
+  /// Each OS has a different sound name so you will need to conditionally specify an appropriate sound
+  /// based on the OS in use, for a list of sounds see:
+  /// - **Linux**: can be one of the sounds listed in <https://0pointer.de/public/sound-naming-spec.html>
+  /// - **Windows**: can be one of the sounds listed in <https://learn.microsoft.com/en-us/uwp/schemas/tiles/toastschema/element-audio>
+  ///   but without the prefix, for example, if `ms-winsoundevent:Notification.Default` you would use `Default` and
+  ///   if `ms-winsoundevent:Notification.Looping.Alarm2`, you would use `Alarm2`.
+  ///   Windows 7 is not supported, if a sound is provided, it will play the default sound, otherwise it will be silent.
+  /// - **macOS**: you can specify the name of the sound you'd like to play when the notification is shown.
+  /// Any of the default sounds (under System Preferences > Sound) can be used, in addition to custom sound files.
+  /// Be sure that the sound file is under one of the following locations:
+  ///   - `~/Library/Sounds`
+  ///   - `/Library/Sounds`
+  ///   - `/Network/Library/Sounds`
+  ///   - `/System/Library/Sounds`
+  ///
+  ///   See the [`NSSound`] docs for more information.
+  ///
+  /// [`NSSound`]: https://developer.apple.com/documentation/appkit/nssound
+  Custom(String),
+}
+
+impl From<String> for Sound {
+  fn from(value: String) -> Self {
+    Self::Custom(value)
+  }
+}
+
+impl From<&str> for Sound {
+  fn from(value: &str) -> Self {
+    Self::Custom(value.into())
+  }
 }
 
 impl Notification {
@@ -69,6 +113,15 @@ impl Notification {
   #[must_use]
   pub fn icon(mut self, icon: impl Into<String>) -> Self {
     self.icon = Some(icon.into());
+    self
+  }
+
+  /// Sets the notification sound. By default the notification has no sound.
+  ///
+  /// See [`Sound`] for more information.
+  #[must_use]
+  pub fn sound(mut self, sound: impl Into<Sound>) -> Self {
+    self.sound.replace(sound.into());
     self
   }
 
@@ -107,6 +160,17 @@ impl Notification {
       notification.icon(&icon);
     } else {
       notification.auto_icon();
+    }
+    if let Some(sound) = self.sound {
+      notification.sound_name(&match sound {
+        #[cfg(target_os = "macos")]
+        Sound::Default => "NSUserNotificationDefaultSoundName".to_string(),
+        #[cfg(windows)]
+        Sound::Default => "Default".to_string(),
+        #[cfg(all(unix, not(target_os = "macos")))]
+        Sound::Default => "message-new-instant".to_string(),
+        Sound::Custom(c) => c,
+      });
     }
     #[cfg(windows)]
     {
@@ -191,6 +255,7 @@ impl Notification {
       if let Some(title) = self.title {
         notification.summary(&title);
       }
+      notification.silent(self.sound.is_none());
       if let Some(crate::Icon::Rgba {
         rgba,
         width,

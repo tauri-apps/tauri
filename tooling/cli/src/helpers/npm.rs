@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fmt::Display, path::Path};
+use crate::{helpers::cross_command, Result};
+use std::{fmt::Display, path::Path, process::ExitStatus};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PackageManager {
@@ -64,5 +65,42 @@ impl PackageManager {
     }
 
     found
+  }
+
+  pub fn install(&self, dependencies: &[String]) -> Result<ExitStatus> {
+    match self {
+      PackageManager::Yarn => {
+        let mut cmd = cross_command("yarn");
+        cmd
+          .arg("add")
+          .args(dependencies)
+          .status()
+          .map_err(Into::into)
+      }
+      PackageManager::YarnBerry => {
+        let mut cmd = cross_command("yarn");
+        cmd
+          .arg("add")
+          .args(dependencies)
+          .status()
+          .map_err(Into::into)
+      }
+      PackageManager::Npm => {
+        let mut cmd = cross_command("npm");
+        cmd
+          .arg("install")
+          .args(dependencies)
+          .status()
+          .map_err(Into::into)
+      }
+      PackageManager::Pnpm => {
+        let mut cmd = cross_command("pnpm");
+        cmd
+          .arg("install")
+          .args(dependencies)
+          .status()
+          .map_err(Into::into)
+      }
+    }
   }
 }

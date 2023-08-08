@@ -4,7 +4,6 @@
 
 //! The Tauri window types and functions.
 
-use muda::MenuId;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -35,7 +34,7 @@ use crate::{
 };
 #[cfg(desktop)]
 use crate::{
-  menu::{ContextMenu, Menu},
+  menu::{ContextMenu, Menu, MenuId},
   runtime::{
     window::dpi::{Position, Size},
     UserAttentionType,

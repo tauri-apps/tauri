@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use muda::MenuId;
-
 use super::AboutMetadata;
-use crate::{run_main_thread, AppHandle, Manager, Runtime};
+use crate::{menu::MenuId, run_main_thread, AppHandle, Manager, Runtime};
 
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 pub struct PredefinedMenuItem<R: Runtime> {

@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use muda::MenuId;
-
-use crate::{menu::MenuItem, Manager, Runtime};
+use crate::{menu::MenuId, menu::MenuItem, Manager, Runtime};
 
 /// A builder type for [`MenuItem`]
 pub struct MenuItemBuilder {

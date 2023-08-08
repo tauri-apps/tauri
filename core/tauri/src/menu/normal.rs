@@ -65,13 +65,13 @@ impl<R: Runtime> MenuItem<R> {
     Self {
       id: item.id(),
       inner: item,
-      app_handle: manager.app_handle(),
+      app_handle: manager.app_handle().clone(),
     }
   }
 
   /// The application handle associated with this type.
-  pub fn app_handle(&self) -> AppHandle<R> {
-    self.app_handle.clone()
+  pub fn app_handle(&self) -> &AppHandle<R> {
+    &self.app_handle
   }
 
   /// Returns a unique identifier associated with this menu item.

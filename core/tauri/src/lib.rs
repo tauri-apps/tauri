@@ -525,7 +525,7 @@ impl<A: Assets> Context<A> {
 /// Manages a running application.
 pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// The application handle associated with this manager.
-  fn app_handle(&self) -> AppHandle<R> {
+  fn app_handle(&self) -> &AppHandle<R> {
     self.managed_app_handle()
   }
 
@@ -649,7 +649,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let handle = app.handle();
+  ///     let handle = app.handle().clone();
   ///     let handler = app.listen_global("ready", move |event| {
   ///       println!("app is ready");
   ///
@@ -846,7 +846,7 @@ pub(crate) mod sealed {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<R>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
-    fn managed_app_handle(&self) -> AppHandle<R>;
+    fn managed_app_handle(&self) -> &AppHandle<R>;
   }
 }
 

@@ -149,7 +149,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
     let icon = TrayIcon {
       id,
       inner,
-      app_handle: manager.app_handle(),
+      app_handle: manager.app_handle().clone(),
     };
 
     icon.register(&icon.app_handle, self.on_menu_event, self.on_tray_event);
@@ -222,8 +222,8 @@ impl<R: Runtime> TrayIcon<R> {
   }
 
   /// The application handle associated with this type.
-  pub fn app_handle(&self) -> AppHandle<R> {
-    self.app_handle.clone()
+  pub fn app_handle(&self) -> &AppHandle<R> {
+    &self.app_handle
   }
 
   /// Register a handler for menu events.

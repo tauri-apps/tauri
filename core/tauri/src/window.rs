@@ -163,7 +163,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let handle = app.handle();
+  ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
   ///       let window = tauri::WindowBuilder::new(&handle, "label", tauri::WindowUrl::App("index.html".into()))
   ///         .build()
@@ -187,7 +187,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
     let runtime = manager.runtime();
-    let app_handle = manager.app_handle();
+    let app_handle = manager.app_handle().clone();
     Self {
       manager: manager.manager().clone(),
       runtime,
@@ -231,7 +231,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let builder = Self {
       manager: manager.manager().clone(),
       runtime: manager.runtime(),
-      app_handle: manager.app_handle(),
+      app_handle: manager.app_handle().clone(),
       label: config.label.clone(),
       webview_attributes: WebviewAttributes::from(&config),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
@@ -334,9 +334,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(&handle, "Save", true, None);
-  ///     let menu = Menu::with_items(&handle, &[
-  ///       &Submenu::with_items(&handle, "File", true, &[
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let menu = Menu::with_items(handle, &[
+  ///       &Submenu::with_items(handle, "File", true, &[
   ///         &save_menu_item,
   ///       ])?,
   ///     ])?;
@@ -951,8 +951,8 @@ impl<R: Runtime> ManagerBase<R> for Window<R> {
     RuntimeOrDispatch::Dispatch(self.dispatcher())
   }
 
-  fn managed_app_handle(&self) -> AppHandle<R> {
-    self.app_handle.clone()
+  fn managed_app_handle(&self) -> &AppHandle<R> {
+    &self.app_handle
   }
 }
 
@@ -1187,9 +1187,9 @@ impl<R: Runtime> Window<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(&handle, "Save", true, None);
-  ///     let menu = Menu::with_items(&handle, &[
-  ///       &Submenu::with_items(&handle, "File", true, &[
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let menu = Menu::with_items(handle, &[
+  ///       &Submenu::with_items(handle, "File", true, &[
   ///         &save_menu_item,
   ///       ])?,
   ///     ])?;

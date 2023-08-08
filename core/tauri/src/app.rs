@@ -324,7 +324,7 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// tauri::Builder::default()
   ///   .setup(move |app| {
-  ///     let handle = app.handle();
+  ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
   ///       handle.plugin(init_plugin());
   ///     });
@@ -372,7 +372,7 @@ impl<R: Runtime> AppHandle<R> {
   /// tauri::Builder::default()
   ///   .plugin(plugin)
   ///   .setup(move |app| {
-  ///     let handle = app.handle();
+  ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
   ///       handle.remove_plugin(plugin_name);
   ///     });
@@ -413,8 +413,8 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
     RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
 
-  fn managed_app_handle(&self) -> AppHandle<R> {
-    self.clone()
+  fn managed_app_handle(&self) -> &AppHandle<R> {
+    &self
   }
 }
 
@@ -454,7 +454,7 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
     }
   }
 
-  fn managed_app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> &AppHandle<R> {
     self.handle()
   }
 }
@@ -786,8 +786,8 @@ impl<R: Runtime> App<R> {
   }
 
   /// Gets a handle to the application instance.
-  pub fn handle(&self) -> AppHandle<R> {
-    self.handle.clone()
+  pub fn handle(&self) -> &AppHandle<R> {
+    &self.handle
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
@@ -857,7 +857,7 @@ impl<R: Runtime> App<R> {
   /// });
   /// ```
   pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
-    let app_handle = self.handle();
+    let app_handle = self.handle().clone();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
       RuntimeRunEvent::Ready => {
@@ -908,7 +908,7 @@ impl<R: Runtime> App<R> {
   #[cfg(desktop)]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
-    let app_handle = self.handle();
+    let app_handle = self.handle().clone();
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
       on_event_loop_event(
         &app_handle,
@@ -1505,7 +1505,7 @@ impl<R: Runtime> Builder<R> {
         if let Some(tooltip) = &tray_config.tooltip {
           tray = tray.tooltip(tooltip);
         }
-        let tray = tray.build(&handle)?;
+        let tray = tray.build(handle)?;
         app.manager.inner.tray_icons.lock().unwrap().push(tray);
       }
     }

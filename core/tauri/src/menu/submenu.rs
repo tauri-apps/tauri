@@ -111,7 +111,7 @@ impl<R: Runtime> Submenu<R> {
     Self {
       id: submenu.id(),
       inner: submenu,
-      app_handle: manager.app_handle(),
+      app_handle: manager.app_handle().clone(),
     }
   }
 
@@ -132,8 +132,8 @@ impl<R: Runtime> Submenu<R> {
   }
 
   /// The application handle associated with this type.
-  pub fn app_handle(&self) -> AppHandle<R> {
-    self.app_handle.clone()
+  pub fn app_handle(&self) -> &AppHandle<R> {
+    &self.app_handle
   }
 
   /// Returns a unique identifier associated with this submenu.

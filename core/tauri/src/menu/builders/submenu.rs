@@ -19,12 +19,12 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///     #   height: 0,
 ///     # };
 ///     # let icon2 = icon1.clone();
-///     let menu = Menu::new(&handle);
-///     let submenu = SubmenuBuilder::new(&handle, "File")
-///       .item(&MenuItem::new(&handle, "MenuItem 1", true, None))
+///     let menu = Menu::new(handle);
+///     let submenu = SubmenuBuilder::new(handle, "File")
+///       .item(&MenuItem::new(handle, "MenuItem 1", true, None))
 ///       .items(&[
-///         &CheckMenuItem::new(&handle, "CheckMenuItem 1", true, true, None),
-///         &IconMenuItem::new(&handle, "IconMenuItem 1", true, Some(icon1), None),
+///         &CheckMenuItem::new(handle, "CheckMenuItem 1", true, true, None),
+///         &IconMenuItem::new(handle, "IconMenuItem 1", true, Some(icon1), None),
 ///       ])
 ///       .separator()
 ///       .cut()

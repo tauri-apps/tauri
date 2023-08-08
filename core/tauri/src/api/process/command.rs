@@ -468,7 +468,7 @@ mod test {
             assert_eq!(payload.code, Some(1));
           }
           CommandEvent::Stderr(line) => {
-            assert_eq!(line, "cat: test/api/: Is a directory".to_string());
+            assert_eq!(line, "cat: test/api/: Is a directory\n".to_string());
           }
           _ => {}
         }

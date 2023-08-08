@@ -411,8 +411,6 @@ pub fn build_wix_app_installer(
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let app_exe_source = settings.binary_path(main_binary);
 
-  try_sign(&app_exe_source, settings)?;
-
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   if output_path.exists() {

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use muda::icon::NativeIcon;
+use muda::{MenuId, NativeIcon};
 
 use crate::{menu::IconMenuItem, Icon, Manager, Runtime};
 
 /// A builder type for [`IconMenuItem`]
 pub struct IconMenuItemBuilder {
+  id: Option<MenuId>,
   text: String,
   enabled: bool,
   icon: Option<Icon>,
@@ -17,14 +18,39 @@ pub struct IconMenuItemBuilder {
 
 impl IconMenuItemBuilder {
   /// Create a new menu item builder.
+  ///
+  /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn new<S: AsRef<str>>(text: S) -> Self {
     Self {
+      id: None,
       text: text.as_ref().to_string(),
       enabled: true,
       icon: None,
       native_icon: None,
       accelerator: None,
     }
+  }
+
+  /// Create a new menu item builder with the specified id.
+  ///
+  /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(id: I, text: S) -> Self {
+    Self {
+      id: Some(id.into()),
+      text: text.as_ref().to_string(),
+      enabled: true,
+      icon: None,
+      native_icon: None,
+      accelerator: None,
+    }
+  }
+
+  /// Set the id for this menu item.
+  pub fn id<I: Into<MenuId>>(mut self, id: I) -> Self {
+    self.id.replace(id.into());
+    self
   }
 
   /// Set the enabled state for this menu item.
@@ -62,11 +88,31 @@ impl IconMenuItemBuilder {
   /// Build the menu item
   pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> IconMenuItem<R> {
     if self.icon.is_some() {
-      IconMenuItem::new(
+      if let Some(id) = self.id {
+        IconMenuItem::with_id(
+          manager,
+          id,
+          self.text,
+          self.enabled,
+          self.icon,
+          self.accelerator,
+        )
+      } else {
+        IconMenuItem::new(
+          manager,
+          self.text,
+          self.enabled,
+          self.icon,
+          self.accelerator,
+        )
+      }
+    } else if let Some(id) = self.id {
+      IconMenuItem::with_id_and_native_icon(
         manager,
+        id,
         self.text,
         self.enabled,
-        self.icon,
+        self.native_icon,
         self.accelerator,
       )
     } else {

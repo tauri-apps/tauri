@@ -6,13 +6,13 @@ use super::sealed::ContextMenuBase;
 use super::{IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use crate::Window;
 use crate::{run_main_thread, AppHandle, Manager, Position, Runtime};
-use muda::AboutMetadata;
 use muda::ContextMenu;
+use muda::{AboutMetadata, MenuId};
 
 /// A type that is either a menu bar on the window
 /// on Windows and Linux or as a global menu in the menubar on macOS.
 pub struct Menu<R: Runtime> {
-  pub(crate) id: u32,
+  pub(crate) id: MenuId,
   pub(crate) inner: muda::Menu,
   pub(crate) app_handle: AppHandle<R>,
 }
@@ -26,7 +26,7 @@ unsafe impl<R: Runtime> Send for Menu<R> {}
 impl<R: Runtime> Clone for Menu<R> {
   fn clone(&self) -> Self {
     Self {
-      id: self.id,
+      id: self.id.clone(),
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -93,7 +93,17 @@ impl<R: Runtime> Menu<R> {
   pub fn new<M: Manager<R>>(manager: &M) -> Self {
     let menu = muda::Menu::new();
     Self {
-      id: menu.id(),
+      id: menu.id().clone(),
+      inner: menu,
+      app_handle: manager.app_handle().clone(),
+    }
+  }
+
+  /// Creates a new menu with the specified id.
+  pub fn with_id<M: Manager<R>, I: Into<MenuId>>(manager: &M, id: I) -> Self {
+    let menu = muda::Menu::with_id(id);
+    Self {
+      id: menu.id().clone(),
       inner: menu,
       app_handle: manager.app_handle().clone(),
     }
@@ -105,6 +115,18 @@ impl<R: Runtime> Menu<R> {
     items: &[&dyn IsMenuItem<R>],
   ) -> crate::Result<Self> {
     let menu = Self::new(manager);
+    menu.append_items(items)?;
+    Ok(menu)
+  }
+
+  /// Creates a new menu with the specified id and given `items`.
+  /// It calls [`Menu::new`] and [`Menu::append_items`] internally.
+  pub fn with_id_and_items<M: Manager<R>, I: Into<MenuId>>(
+    manager: &M,
+    id: I,
+    items: &[&dyn IsMenuItem<R>],
+  ) -> crate::Result<Self> {
+    let menu = Self::with_id(manager, id);
     menu.append_items(items)?;
     Ok(menu)
   }
@@ -131,7 +153,7 @@ impl<R: Runtime> Menu<R> {
         #[cfg(target_os = "macos")]
         &PredefinedMenuItem::separator(app_handle),
         &PredefinedMenuItem::close_window(app_handle, None),
-        &PredefinedMenuItem::about(app_handle, None, Some(about_metadata.clone())),
+        &PredefinedMenuItem::about(app_handle, None, Some(about_metadata)),
       ],
     )?;
 
@@ -212,8 +234,8 @@ impl<R: Runtime> Menu<R> {
   }
 
   /// Returns a unique identifier associated with this menu.
-  pub fn id(&self) -> u32 {
-    self.id
+  pub fn id(&self) -> &MenuId {
+    &self.id
   }
 
   /// Add a menu item to the end of this menu.
@@ -316,28 +338,29 @@ impl<R: Runtime> Menu<R> {
       .into_iter()
       .map(|i| match i {
         muda::MenuItemKind::MenuItem(i) => super::MenuItemKind::MenuItem(super::MenuItem {
-          id: i.id(),
+          id: i.id().clone(),
           inner: i,
           app_handle: handle.clone(),
         }),
         muda::MenuItemKind::Submenu(i) => super::MenuItemKind::Submenu(super::Submenu {
-          id: i.id(),
+          id: i.id().clone(),
           inner: i,
           app_handle: handle.clone(),
         }),
         muda::MenuItemKind::Predefined(i) => {
           super::MenuItemKind::Predefined(super::PredefinedMenuItem {
+            id: i.id().clone(),
             inner: i,
             app_handle: handle.clone(),
           })
         }
         muda::MenuItemKind::Check(i) => super::MenuItemKind::Check(super::CheckMenuItem {
-          id: i.id(),
+          id: i.id().clone(),
           inner: i,
           app_handle: handle.clone(),
         }),
         muda::MenuItemKind::Icon(i) => super::MenuItemKind::Icon(super::IconMenuItem {
-          id: i.id(),
+          id: i.id().clone(),
           inner: i,
           app_handle: handle.clone(),
         }),

@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use muda::MenuId;
+
 use crate::{menu::CheckMenuItem, Manager, Runtime};
 
 /// A builder type for [`CheckMenuItem`]
 pub struct CheckMenuItemBuilder {
+  id: Option<MenuId>,
   text: String,
   enabled: bool,
   checked: bool,
@@ -14,13 +17,37 @@ pub struct CheckMenuItemBuilder {
 
 impl CheckMenuItemBuilder {
   /// Create a new menu item builder.
+  ///
+  /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn new<S: AsRef<str>>(text: S) -> Self {
     Self {
+      id: None,
       text: text.as_ref().to_string(),
       enabled: true,
       checked: true,
       accelerator: None,
     }
+  }
+
+  /// Create a new menu item builder with the specified id.
+  ///
+  /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(id: I, text: S) -> Self {
+    Self {
+      id: Some(id.into()),
+      text: text.as_ref().to_string(),
+      enabled: true,
+      checked: true,
+      accelerator: None,
+    }
+  }
+
+  /// Set the id for this menu item.
+  pub fn id<I: Into<MenuId>>(mut self, id: I) -> Self {
+    self.id.replace(id.into());
+    self
   }
 
   /// Set the enabled state for this menu item.
@@ -43,12 +70,23 @@ impl CheckMenuItemBuilder {
 
   /// Build the menu item
   pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> CheckMenuItem<R> {
-    CheckMenuItem::new(
-      manager,
-      self.text,
-      self.enabled,
-      self.checked,
-      self.accelerator,
-    )
+    if let Some(id) = self.id {
+      CheckMenuItem::with_id(
+        manager,
+        id,
+        self.text,
+        self.enabled,
+        self.checked,
+        self.accelerator,
+      )
+    } else {
+      CheckMenuItem::new(
+        manager,
+        self.text,
+        self.enabled,
+        self.checked,
+        self.accelerator,
+      )
+    }
   }
 }

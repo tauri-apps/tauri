@@ -30,7 +30,7 @@ use crate::scope::FsScope;
 #[cfg(desktop)]
 use crate::menu::{Menu, MenuEvent};
 #[cfg(desktop)]
-use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent};
+use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 #[cfg(desktop)]
 use crate::window::WindowMenu;
 use raw_window_handle::HasRawDisplayHandle;
@@ -414,7 +414,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   }
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
-    &self
+    self
   }
 }
 
@@ -539,7 +539,11 @@ macro_rules! shared_app_impl {
 
       /// Gets a tray icon using the provided id.
       #[cfg(desktop)]
-      pub fn tray_by_id(&self, id: u32) -> Option<TrayIcon<R>> {
+      pub fn tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
+      where
+        I: PartialEq + ?Sized,
+        TrayIconId: PartialEq<&'a I>,
+      {
         self
           .manager
           .inner
@@ -547,7 +551,7 @@ macro_rules! shared_app_impl {
           .lock()
           .unwrap()
           .iter()
-          .find(|t| t.id() == id)
+          .find(|t| t.id().eq(&id))
           .cloned()
       }
 
@@ -555,15 +559,16 @@ macro_rules! shared_app_impl {
       ///
       /// Note that dropping the returned icon, will cause the tray icon to disappear.
       #[cfg(desktop)]
-      pub fn remove_tray_by_id(&self, id: u32) -> Option<TrayIcon<R>> {
+      pub fn remove_tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
+      where
+        I: PartialEq + ?Sized,
+        TrayIconId: PartialEq<&'a I>,
+      {
         let mut tray_icons = self.manager.inner.tray_icons.lock().unwrap();
-
-        let idx = tray_icons.iter().position(|t| t.id() == id);
-
+        let idx = tray_icons.iter().position(|t| t.id().eq(&id));
         if let Some(idx) = idx {
           return Some(tray_icons.swap_remove(idx));
         }
-
         None
       }
 
@@ -1443,7 +1448,7 @@ impl<R: Runtime> Builder<R> {
       app
         .manager
         .menus_stash_lock()
-        .insert(menu.id(), menu.clone());
+        .insert(menu.id().clone(), menu.clone());
 
       #[cfg(target_os = "macos")]
       menu.inner().init_for_nsapp();
@@ -1510,7 +1515,7 @@ impl<R: Runtime> Builder<R> {
       }
     }
 
-    app.manager.initialize_plugins(&handle)?;
+    app.manager.initialize_plugins(handle)?;
 
     Ok(app)
   }
@@ -1638,7 +1643,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::UserEvent(t) => {
       match t {
         #[cfg(desktop)]
-        EventLoopMessage::MenuEvent(e) => {
+        EventLoopMessage::MenuEvent(ref e) => {
           for listener in &*app_handle
             .manager
             .inner
@@ -1646,7 +1651,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
             .lock()
             .unwrap()
           {
-            listener(app_handle, e);
+            listener(app_handle, e.clone());
           }
           for (label, listener) in &*app_handle
             .manager
@@ -1656,12 +1661,12 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
             .unwrap()
           {
             if let Some(w) = app_handle.get_window(label) {
-              listener(&w, e);
+              listener(&w, e.clone());
             }
           }
         }
         #[cfg(desktop)]
-        EventLoopMessage::TrayIconEvent(e) => {
+        EventLoopMessage::TrayIconEvent(ref e) => {
           for listener in &*app_handle
             .manager
             .inner
@@ -1669,7 +1674,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
             .lock()
             .unwrap()
           {
-            listener(app_handle, e);
+            listener(app_handle, e.clone());
           }
 
           for (id, listener) in &*app_handle
@@ -1679,9 +1684,9 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
             .lock()
             .unwrap()
           {
-            if e.id == *id {
-              if let Some(tray) = app_handle.tray_by_id(*id) {
-                listener(&tray, e);
+            if e.id == id {
+              if let Some(tray) = app_handle.tray_by_id(id) {
+                listener(&tray, e.clone());
               }
             }
           }

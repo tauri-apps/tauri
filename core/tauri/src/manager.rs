@@ -11,7 +11,10 @@ use std::{
 };
 
 #[cfg(desktop)]
-use crate::{menu::Menu, tray::TrayIcon};
+use crate::{
+  menu::{Menu, MenuId},
+  tray::{TrayIcon, TrayIconId},
+};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
@@ -227,7 +230,7 @@ pub struct InnerWindowManager<R: Runtime> {
   /// This should be mainly used to acceess [`Menu::haccel`]
   /// to setup the accelerator handling in the event loop
   #[cfg(desktop)]
-  pub menus: Arc<Mutex<HashMap<u32, Menu<R>>>>,
+  pub menus: Arc<Mutex<HashMap<MenuId, Menu<R>>>>,
   /// The menu set to all windows.
   #[cfg(desktop)]
   pub(crate) menu: Arc<Mutex<Option<Menu<R>>>>,
@@ -250,7 +253,7 @@ pub struct InnerWindowManager<R: Runtime> {
   /// Tray icon event listeners.
   #[cfg(desktop)]
   pub(crate) tray_event_listeners:
-    Arc<Mutex<HashMap<u32, GlobalTrayIconEventListener<TrayIcon<R>>>>>,
+    Arc<Mutex<HashMap<TrayIconId, GlobalTrayIconEventListener<TrayIcon<R>>>>>,
   /// Responder for invoke calls.
   invoke_responder: Arc<InvokeResponder<R>>,
   /// The script that initializes the invoke system.
@@ -396,7 +399,7 @@ impl<R: Runtime> WindowManager<R> {
       if let Some(menu) = window_menu {
         self
           .menus_stash_lock()
-          .insert(menu.menu.id(), menu.menu.clone());
+          .insert(menu.menu.id().clone(), menu.menu.clone());
       }
     }
 
@@ -433,31 +436,33 @@ impl<R: Runtime> WindowManager<R> {
 
   /// Menus stash.
   #[cfg(desktop)]
-  pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<u32, Menu<R>>> {
+  pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<MenuId, Menu<R>>> {
     self.inner.menus.lock().expect("poisoned window manager")
   }
 
   #[cfg(desktop)]
-  pub(crate) fn is_menu_in_use(&self, id: u32) -> bool {
+  pub(crate) fn is_menu_in_use<I: PartialEq<MenuId>>(&self, id: &I) -> bool {
     self
       .menu_lock()
       .as_ref()
-      .map(|m| m.id() == id)
+      .map(|m| PartialEq::eq(id, m.id()))
       .unwrap_or(false)
   }
 
   /// Menus stash.
   #[cfg(desktop)]
   pub(crate) fn insert_menu_into_stash(&self, menu: &Menu<R>) {
-    self.menus_stash_lock().insert(menu.id(), menu.clone());
+    self
+      .menus_stash_lock()
+      .insert(menu.id().clone(), menu.clone());
   }
 
   #[cfg(desktop)]
-  pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<u32>) {
+  pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<&MenuId>) {
     if let Some(id) = id {
       let is_used_by_a_window = self.windows_lock().values().any(|w| w.is_menu_in_use(id));
       if !(self.is_menu_in_use(id) || is_used_by_a_window) {
-        self.menus_stash_lock().remove(&id);
+        self.menus_stash_lock().remove(id);
       }
     }
   }

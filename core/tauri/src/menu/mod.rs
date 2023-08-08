@@ -25,7 +25,7 @@ pub use predefined::PredefinedMenuItem;
 pub use submenu::Submenu;
 
 use crate::Runtime;
-pub use muda::{icon::NativeIcon, AboutMetadata, MenuEvent};
+pub use muda::{AboutMetadata, MenuEvent, MenuId, NativeIcon};
 
 /// An enumeration of all menu item kinds that could be added to
 /// a [`Menu`] or [`Submenu`]
@@ -44,7 +44,7 @@ pub enum MenuItemKind<R: Runtime> {
 
 impl<R: Runtime> MenuItemKind<R> {
   /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> u32 {
+  pub fn id(&self) -> &MenuId {
     match self {
       MenuItemKind::MenuItem(i) => i.id(),
       MenuItemKind::Submenu(i) => i.id(),
@@ -168,7 +168,7 @@ impl<R: Runtime> IsMenuItem<R> for MenuItemKind<R> {
     self.clone()
   }
 
-  fn id(&self) -> u32 {
+  fn id(&self) -> &MenuId {
     self.id()
   }
 }
@@ -183,9 +183,7 @@ pub trait IsMenuItem<R: Runtime>: sealed::IsMenuItemBase {
   fn kind(&self) -> MenuItemKind<R>;
 
   /// Returns a unique identifier associated with this menu.
-  fn id(&self) -> u32 {
-    self.kind().id()
-  }
+  fn id(&self) -> &MenuId;
 }
 
 /// A helper trait with methods to help creating a context menu.
@@ -224,12 +222,12 @@ pub(crate) mod sealed {
   }
 }
 
-impl TryFrom<crate::Icon> for muda::icon::Icon {
+impl TryFrom<crate::Icon> for muda::Icon {
   type Error = crate::Error;
 
   fn try_from(value: crate::Icon) -> Result<Self, Self::Error> {
     let value: crate::runtime::Icon = value.try_into()?;
-    muda::icon::Icon::from_rgba(value.rgba, value.width, value.height).map_err(Into::into)
+    muda::Icon::from_rgba(value.rgba, value.width, value.height).map_err(Into::into)
   }
 }
 

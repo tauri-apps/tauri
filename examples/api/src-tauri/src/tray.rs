@@ -10,15 +10,15 @@ use tauri::{
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
-  let toggle_i = MenuItem::new(app, "Toggle", true, None);
-  let new_window_i = MenuItem::new(app, "New window", true, None);
-  let icon_i_1 = MenuItem::new(app, "Icon 1", true, None);
-  let icon_i_2 = MenuItem::new(app, "Icon 2", true, None);
+  let toggle_i = MenuItem::with_id(app, "toggle", "Toggle", true, None);
+  let new_window_i = MenuItem::with_id(app, "new-window", "New window", true, None);
+  let icon_i_1 = MenuItem::with_id(app, "icon-1", "Icon 1", true, None);
+  let icon_i_2 = MenuItem::with_id(app, "icon-2", "Icon 2", true, None);
   #[cfg(target_os = "macos")]
-  let set_title_i = MenuItem::new(app, "Set Title", true, None);
-  let switch_i = MenuItem::new(app, "Switch Menu", true, None);
-  let quit_i = MenuItem::new(app, "Quit", true, None);
-  let remove_tray_i = MenuItem::new(app, "Remove Tray icon", true, None);
+  let set_title_i = MenuItem::with_id(app, "set-title", "Set Title", true, None);
+  let switch_i = MenuItem::with_id(app, "switch-menu", "Switch Menu", true, None);
+  let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None);
+  let remove_tray_i = MenuItem::with_id(app, "remove-tray", "Remove Tray icon", true, None);
   let menu1 = Menu::with_items(
     app,
     &[
@@ -40,21 +40,19 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
 
   let is_menu1 = AtomicBool::new(true);
 
-  const TRAY_ID: u32 = 21937;
-
-  let _ = TrayIconBuilder::with_id(TRAY_ID)
+  let _ = TrayIconBuilder::with_id("tray-1")
     .tooltip("Tauri")
     .icon(app.default_window_icon().unwrap().clone())
     .menu(&menu1)
     .menu_on_left_click(false)
-    .on_menu_event(move |app, event| match event.id {
-      i if i == quit_i.id() => {
+    .on_menu_event(move |app, event| match event.id.as_ref() {
+      "quit" => {
         app.exit(0);
       }
-      i if i == remove_tray_i.id() => {
-        app.remove_tray_by_id(TRAY_ID);
+      "remove-tray" => {
+        app.remove_tray_by_id("tray-1");
       }
-      i if i == toggle_i.id() => {
+      "toggle" => {
         if let Some(window) = app.get_window("main") {
           let new_title = if window.is_visible().unwrap_or_default() {
             let _ = window.hide();
@@ -67,34 +65,34 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
           toggle_i.set_text(new_title).unwrap();
         }
       }
-      i if i == new_window_i.id() => {
+      "new-window" => {
         let _ = WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
           .title("Tauri")
           .build();
       }
       #[cfg(target_os = "macos")]
-      i if i == set_title_i.id() => {
-        if let Some(tray) = app.tray_by_id(TRAY_ID) {
+      "set-title" => {
+        if let Some(tray) = app.tray_by_id("tray-1") {
           let _ = tray.set_title(Some("Tauri"));
         }
       }
-      i if i == icon_i_1.id() || i == icon_i_2.id() => {
-        if let Some(tray) = app.tray_by_id(TRAY_ID) {
-          let _ = tray.set_icon(Some(tauri::Icon::Raw(if i == icon_i_1.id() {
+      i @ "icon-1" | i @ "icon-2" => {
+        if let Some(tray) = app.tray_by_id("tray-1") {
+          let _ = tray.set_icon(Some(tauri::Icon::Raw(if i == "icon-1" {
             include_bytes!("../../../.icons/icon.ico").to_vec()
           } else {
             include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec()
           })));
         }
       }
-      i if i == switch_i.id() => {
+      "switch-menu" => {
         let flag = is_menu1.load(Ordering::Relaxed);
         let (menu, tooltip) = if flag {
           (menu2.clone(), "Menu 2")
         } else {
           (menu1.clone(), "Tauri")
         };
-        if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        if let Some(tray) = app.tray_by_id("tray-1") {
           let _ = tray.set_menu(Some(menu));
           let _ = tray.set_tooltip(Some(tooltip));
         }

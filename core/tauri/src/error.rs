@@ -99,7 +99,7 @@ pub enum Error {
   /// Bad menu icon error.
   #[error(transparent)]
   #[cfg(desktop)]
-  BadMenuIcon(#[from] muda::icon::BadIcon),
+  BadMenuIcon(#[from] muda::BadIcon),
   /// Tray icon error.
   #[error("tray icon error: {0}")]
   #[cfg(desktop)]
@@ -107,5 +107,5 @@ pub enum Error {
   /// Bad tray icon error.
   #[error(transparent)]
   #[cfg(desktop)]
-  BadTrayIcon(#[from] tray_icon::icon::BadIcon),
+  BadTrayIcon(#[from] tray_icon::BadIcon),
 }

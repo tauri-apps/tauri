@@ -38,6 +38,7 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///   });
 /// ```
 pub struct MenuBuilder<'m, R: Runtime, M: Manager<R>> {
+  id: Option<MenuId>,
   manager: &'m M,
   items: Vec<MenuItemKind<R>>,
 }
@@ -46,9 +47,25 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   /// Create a new menu builder.
   pub fn new(manager: &'m M) -> Self {
     Self {
+      id: None,
       items: Vec::new(),
       manager,
     }
+  }
+
+  /// Create a new menu builder with the specified id.
+  pub fn with_id<I: Into<MenuId>>(manager: &'m M, id: I) -> Self {
+    Self {
+      id: Some(id.into()),
+      items: Vec::new(),
+      manager,
+    }
+  }
+
+  /// Set the id for this menu.
+  pub fn id<I: Into<MenuId>>(mut self, id: I) -> Self {
+    self.id.replace(id.into());
+    self
   }
 
   /// Add this item to the menu.
@@ -283,14 +300,22 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   /// Builds this menu
   pub fn build(self) -> crate::Result<Menu<R>> {
     if self.items.is_empty() {
-      Ok(Menu::new(self.manager))
+      Ok(if let Some(id) = self.id {
+        Menu::with_id(self.manager, id)
+      } else {
+        Menu::new(self.manager)
+      })
     } else {
       let items = self
         .items
         .iter()
         .map(|i| i as &dyn IsMenuItem<R>)
         .collect::<Vec<_>>();
-      Menu::with_items(self.manager, &items)
+      if let Some(id) = self.id {
+        Menu::with_id_and_items(self.manager, id, &items)
+      } else {
+        Menu::with_items(self.manager, &items)
+      }
     }
   }
 }

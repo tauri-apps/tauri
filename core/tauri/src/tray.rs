@@ -11,7 +11,7 @@ use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
 use std::path::Path;
-pub use tray_icon::{ClickType, Rectangle, TrayIconEvent};
+pub use tray_icon::{ClickType, Rectangle, TrayIconEvent, TrayIconId};
 
 // TODO(muda-migration): figure out js events
 
@@ -38,8 +38,13 @@ impl<R: Runtime> TrayIconBuilder<R> {
     }
   }
 
-  /// Sets the unique id to build the tray icon with.
-  pub fn with_id(id: u32) -> Self {
+  /// Creates a new tray icon builder with the specified id.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
+  /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
+  pub fn with_id<I: Into<TrayIconId>>(id: I) -> Self {
     let mut builder = Self::new();
     builder.inner = builder.inner.with_id(id);
     builder
@@ -138,13 +143,13 @@ impl<R: Runtime> TrayIconBuilder<R> {
 
   /// Access the unique id that will be assigned to the tray icon
   /// this builder will create.
-  pub fn id(&self) -> u32 {
+  pub fn id(&self) -> &TrayIconId {
     self.inner.id()
   }
 
   /// Builds and adds a new [`TrayIcon`] to the system tray.
   pub fn build<M: Manager<R>>(self, manager: &M) -> crate::Result<TrayIcon<R>> {
-    let id = self.id();
+    let id = self.id().clone();
     let inner = self.inner.build()?;
     let icon = TrayIcon {
       id,
@@ -164,7 +169,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
 ///
 /// See [TrayIconBuilder] to construct this type.
 pub struct TrayIcon<R: Runtime> {
-  id: u32,
+  id: TrayIconId,
   inner: tray_icon::TrayIcon,
   app_handle: AppHandle<R>,
 }
@@ -172,7 +177,7 @@ pub struct TrayIcon<R: Runtime> {
 impl<R: Runtime> Clone for TrayIcon<R> {
   fn clone(&self) -> Self {
     Self {
-      id: self.id,
+      id: self.id.clone(),
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -209,7 +214,7 @@ impl<R: Runtime> TrayIcon<R> {
         .tray_event_listeners
         .lock()
         .unwrap()
-        .insert(self.id, handler);
+        .insert(self.id.clone(), handler);
     }
 
     app_handle
@@ -250,12 +255,12 @@ impl<R: Runtime> TrayIcon<R> {
       .tray_event_listeners
       .lock()
       .unwrap()
-      .insert(self.id, Box::new(f));
+      .insert(self.id.clone(), Box::new(f));
   }
 
   /// Returns the id associated with this tray icon.
-  pub fn id(&self) -> u32 {
-    self.id
+  pub fn id(&self) -> &TrayIconId {
+    &self.id
   }
 
   /// Set new tray icon. If `None` is provided, it will remove the icon.
@@ -336,11 +341,11 @@ impl<R: Runtime> TrayIcon<R> {
   }
 }
 
-impl TryFrom<Icon> for tray_icon::icon::Icon {
+impl TryFrom<Icon> for tray_icon::Icon {
   type Error = crate::Error;
 
   fn try_from(value: Icon) -> Result<Self, Self::Error> {
     let value: crate::runtime::Icon = value.try_into()?;
-    tray_icon::icon::Icon::from_rgba(value.rgba, value.width, value.height).map_err(Into::into)
+    tray_icon::Icon::from_rgba(value.rgba, value.width, value.height).map_err(Into::into)
   }
 }

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use muda::MenuId;
+
 use crate::{run_main_thread, AppHandle, Manager, Runtime};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
@@ -9,7 +11,7 @@ use crate::{run_main_thread, AppHandle, Manager, Runtime};
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
 pub struct CheckMenuItem<R: Runtime> {
-  pub(crate) id: u32,
+  pub(crate) id: MenuId,
   pub(crate) inner: muda::CheckMenuItem,
   pub(crate) app_handle: AppHandle<R>,
 }
@@ -17,7 +19,7 @@ pub struct CheckMenuItem<R: Runtime> {
 impl<R: Runtime> Clone for CheckMenuItem<R> {
   fn clone(&self) -> Self {
     Self {
-      id: self.id,
+      id: self.id.clone(),
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -41,8 +43,8 @@ impl<R: Runtime> super::IsMenuItem<R> for CheckMenuItem<R> {
     super::MenuItemKind::Check(self.clone())
   }
 
-  fn id(&self) -> u32 {
-    self.id
+  fn id(&self) -> &MenuId {
+    &self.id
   }
 }
 
@@ -65,7 +67,33 @@ impl<R: Runtime> CheckMenuItem<R> {
       acccelerator.and_then(|s| s.as_ref().parse().ok()),
     );
     Self {
-      id: item.id(),
+      id: item.id().clone(),
+      inner: item,
+      app_handle: manager.app_handle().clone(),
+    }
+  }
+
+  /// Create a new menu item with the specified id.
+  ///
+  /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  pub fn with_id<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
+    manager: &M,
+    id: I,
+    text: S,
+    enabled: bool,
+    checked: bool,
+    acccelerator: Option<S>,
+  ) -> Self {
+    let item = muda::CheckMenuItem::with_id(
+      id,
+      text,
+      enabled,
+      checked,
+      acccelerator.and_then(|s| s.as_ref().parse().ok()),
+    );
+    Self {
+      id: item.id().clone(),
       inner: item,
       app_handle: manager.app_handle().clone(),
     }
@@ -77,8 +105,8 @@ impl<R: Runtime> CheckMenuItem<R> {
   }
 
   /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> u32 {
-    self.id
+  pub fn id(&self) -> &MenuId {
+    &self.id
   }
 
   /// Get the text for this menu item.

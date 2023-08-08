@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use muda::MenuId;
+
 use super::AboutMetadata;
 use crate::{run_main_thread, AppHandle, Manager, Runtime};
 
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 pub struct PredefinedMenuItem<R: Runtime> {
+  pub(crate) id: MenuId,
   pub(crate) inner: muda::PredefinedMenuItem,
   pub(crate) app_handle: AppHandle<R>,
 }
@@ -14,6 +17,7 @@ pub struct PredefinedMenuItem<R: Runtime> {
 impl<R: Runtime> Clone for PredefinedMenuItem<R> {
   fn clone(&self) -> Self {
     Self {
+      id: self.id.clone(),
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -37,7 +41,7 @@ impl<R: Runtime> super::IsMenuItem<R> for PredefinedMenuItem<R> {
     super::MenuItemKind::Predefined(self.clone())
   }
 
-  fn id(&self) -> u32 {
+  fn id(&self) -> &MenuId {
     self.id()
   }
 }
@@ -45,40 +49,50 @@ impl<R: Runtime> super::IsMenuItem<R> for PredefinedMenuItem<R> {
 impl<R: Runtime> PredefinedMenuItem<R> {
   /// Separator menu item
   pub fn separator<M: Manager<R>>(manager: &M) -> Self {
+    let inner = muda::PredefinedMenuItem::separator();
     Self {
-      inner: muda::PredefinedMenuItem::separator(),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
 
   /// Copy menu item
   pub fn copy<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::copy(text);
     Self {
-      inner: muda::PredefinedMenuItem::copy(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
 
   /// Cut menu item
   pub fn cut<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::cut(text);
     Self {
-      inner: muda::PredefinedMenuItem::cut(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
 
   /// Paste menu item
   pub fn paste<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::paste(text);
     Self {
-      inner: muda::PredefinedMenuItem::paste(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
 
   /// SelectAll menu item
   pub fn select_all<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::select_all(text);
     Self {
-      inner: muda::PredefinedMenuItem::select_all(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -89,8 +103,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Windows / Linux:** Unsupported.
   pub fn undo<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::undo(text);
     Self {
-      inner: muda::PredefinedMenuItem::undo(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -100,8 +116,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Windows / Linux:** Unsupported.
   pub fn redo<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::redo(text);
     Self {
-      inner: muda::PredefinedMenuItem::redo(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -112,8 +130,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Linux:** Unsupported.
   pub fn minimize<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::minimize(text);
     Self {
-      inner: muda::PredefinedMenuItem::minimize(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -124,8 +144,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Linux:** Unsupported.
   pub fn maximize<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::maximize(text);
     Self {
-      inner: muda::PredefinedMenuItem::maximize(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -136,8 +158,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Windows / Linux:** Unsupported.
   pub fn fullscreen<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::fullscreen(text);
     Self {
-      inner: muda::PredefinedMenuItem::fullscreen(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -148,8 +172,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Linux:** Unsupported.
   pub fn hide<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::hide(text);
     Self {
-      inner: muda::PredefinedMenuItem::hide(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -160,8 +186,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Linux:** Unsupported.
   pub fn hide_others<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::hide_others(text);
     Self {
-      inner: muda::PredefinedMenuItem::hide_others(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -172,8 +200,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Windows / Linux:** Unsupported.
   pub fn show_all<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::show_all(text);
     Self {
-      inner: muda::PredefinedMenuItem::show_all(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -184,8 +214,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Linux:** Unsupported.
   pub fn close_window<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::show_all(text);
     Self {
-      inner: muda::PredefinedMenuItem::show_all(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -196,8 +228,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Linux:** Unsupported.
   pub fn quit<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::quit(text);
     Self {
-      inner: muda::PredefinedMenuItem::quit(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -208,8 +242,10 @@ impl<R: Runtime> PredefinedMenuItem<R> {
     text: Option<&str>,
     metadata: Option<AboutMetadata>,
   ) -> Self {
+    let inner = muda::PredefinedMenuItem::about(text, metadata);
     Self {
-      inner: muda::PredefinedMenuItem::about(text, metadata),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -220,15 +256,17 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Windows / Linux:** Unsupported.
   pub fn services<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
+    let inner = muda::PredefinedMenuItem::services(text);
     Self {
-      inner: muda::PredefinedMenuItem::services(text),
+      id: inner.id().clone(),
+      inner,
       app_handle: manager.app_handle().clone(),
     }
   }
 
   /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> u32 {
-    0
+  pub fn id(&self) -> &MenuId {
+    &self.id
   }
 
   /// Get the text for this menu item.

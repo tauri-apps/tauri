@@ -4,6 +4,7 @@
 
 //! The Tauri window types and functions.
 
+use muda::MenuId;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -1234,11 +1235,11 @@ impl<R: Runtime> Window<R> {
   }
 
   #[cfg_attr(target_os = "macos", allow(dead_code))]
-  pub(crate) fn is_menu_in_use(&self, id: u32) -> bool {
+  pub(crate) fn is_menu_in_use<I: PartialEq<MenuId>>(&self, id: &I) -> bool {
     self
       .menu_lock()
       .as_ref()
-      .map(|m| m.menu.id() == id)
+      .map(|m| PartialEq::eq(id, m.menu.id()))
       .unwrap_or(false)
   }
 

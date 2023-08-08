@@ -41,6 +41,7 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///   });
 /// ```
 pub struct SubmenuBuilder<'m, R: Runtime, M: Manager<R>> {
+  id: Option<MenuId>,
   manager: &'m M,
   text: String,
   enabled: bool,
@@ -49,13 +50,37 @@ pub struct SubmenuBuilder<'m, R: Runtime, M: Manager<R>> {
 
 impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   /// Create a new submenu builder.
+  ///
+  /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn new<S: AsRef<str>>(manager: &'m M, text: S) -> Self {
     Self {
+      id: None,
       items: Vec::new(),
       text: text.as_ref().to_string(),
       enabled: true,
       manager,
     }
+  }
+
+  /// Create a new submenu builder with the specified id.
+  ///
+  /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(manager: &'m M, id: I, text: S) -> Self {
+    Self {
+      id: Some(id.into()),
+      text: text.as_ref().to_string(),
+      enabled: true,
+      items: Vec::new(),
+      manager,
+    }
+  }
+
+  /// Set the id for this submenu.
+  pub fn id<I: Into<MenuId>>(mut self, id: I) -> Self {
+    self.id.replace(id.into());
+    self
   }
 
   /// Set the enabled state for the submenu.
@@ -296,14 +321,22 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   /// Builds this submenu
   pub fn build(self) -> crate::Result<Submenu<R>> {
     if self.items.is_empty() {
-      Ok(Submenu::new(self.manager, self.text, self.enabled))
+      Ok(if let Some(id) = self.id {
+        Submenu::with_id(self.manager, id, self.text, self.enabled)
+      } else {
+        Submenu::new(self.manager, self.text, self.enabled)
+      })
     } else {
       let items = self
         .items
         .iter()
         .map(|i| i as &dyn IsMenuItem<R>)
         .collect::<Vec<_>>();
-      Submenu::with_items(self.manager, self.text, self.enabled, &items)
+      if let Some(id) = self.id {
+        Submenu::with_id_and_items(self.manager, id, self.text, self.enabled, &items)
+      } else {
+        Submenu::with_items(self.manager, self.text, self.enabled, &items)
+      }
     }
   }
 }

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use muda::MenuId;
+
 use super::NativeIcon;
 use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
 
@@ -10,7 +12,7 @@ use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
 pub struct IconMenuItem<R: Runtime> {
-  pub(crate) id: u32,
+  pub(crate) id: MenuId,
   pub(crate) inner: muda::IconMenuItem,
   pub(crate) app_handle: AppHandle<R>,
 }
@@ -18,7 +20,7 @@ pub struct IconMenuItem<R: Runtime> {
 impl<R: Runtime> Clone for IconMenuItem<R> {
   fn clone(&self) -> Self {
     Self {
-      id: self.id,
+      id: self.id.clone(),
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -42,8 +44,8 @@ impl<R: Runtime> super::IsMenuItem<R> for IconMenuItem<R> {
     super::MenuItemKind::Icon(self.clone())
   }
 
-  fn id(&self) -> u32 {
-    self.id
+  fn id(&self) -> &MenuId {
+    &self.id
   }
 }
 
@@ -66,7 +68,33 @@ impl<R: Runtime> IconMenuItem<R> {
       acccelerator.and_then(|s| s.as_ref().parse().ok()),
     );
     Self {
-      id: item.id(),
+      id: item.id().clone(),
+      inner: item,
+      app_handle: manager.app_handle().clone(),
+    }
+  }
+
+  /// Create a new menu item with the specified id.
+  ///
+  /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  pub fn with_id<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
+    manager: &M,
+    id: I,
+    text: S,
+    enabled: bool,
+    icon: Option<Icon>,
+    acccelerator: Option<S>,
+  ) -> Self {
+    let item = muda::IconMenuItem::with_id(
+      id,
+      text,
+      enabled,
+      icon.and_then(|i| i.try_into().ok()),
+      acccelerator.and_then(|s| s.as_ref().parse().ok()),
+    );
+    Self {
+      id: item.id().clone(),
       inner: item,
       app_handle: manager.app_handle().clone(),
     }
@@ -93,7 +121,36 @@ impl<R: Runtime> IconMenuItem<R> {
       acccelerator.and_then(|s| s.as_ref().parse().ok()),
     );
     Self {
-      id: item.id(),
+      id: item.id().clone(),
+      inner: item,
+      app_handle: manager.app_handle().clone(),
+    }
+  }
+
+  /// Create a new icon menu item with the specified id but with a native icon.
+  ///
+  /// See [`IconMenuItem::new`] for more info.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux**: Unsupported.
+  pub fn with_id_and_native_icon<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
+    manager: &M,
+    id: I,
+    text: S,
+    enabled: bool,
+    native_icon: Option<NativeIcon>,
+    acccelerator: Option<S>,
+  ) -> Self {
+    let item = muda::IconMenuItem::with_id_and_native_icon(
+      id,
+      text,
+      enabled,
+      native_icon,
+      acccelerator.and_then(|s| s.as_ref().parse().ok()),
+    );
+    Self {
+      id: item.id().clone(),
       inner: item,
       app_handle: manager.app_handle().clone(),
     }
@@ -105,8 +162,8 @@ impl<R: Runtime> IconMenuItem<R> {
   }
 
   /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> u32 {
-    self.id
+  pub fn id(&self) -> &MenuId {
+    &self.id
   }
 
   /// Get the text for this menu item.

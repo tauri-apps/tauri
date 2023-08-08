@@ -4,14 +4,14 @@
 
 use super::{sealed::ContextMenuBase, IsMenuItem, MenuItemKind};
 use crate::{run_main_thread, AppHandle, Manager, Position, Runtime, Window};
-use muda::ContextMenu;
+use muda::{ContextMenu, MenuId};
 
 /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
 ///
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
 pub struct Submenu<R: Runtime> {
-  pub(crate) id: u32,
+  pub(crate) id: MenuId,
   pub(crate) inner: muda::Submenu,
   pub(crate) app_handle: AppHandle<R>,
 }
@@ -25,7 +25,7 @@ unsafe impl<R: Runtime> Send for Submenu<R> {}
 impl<R: Runtime> Clone for Submenu<R> {
   fn clone(&self) -> Self {
     Self {
-      id: self.id,
+      id: self.id.clone(),
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
@@ -43,8 +43,8 @@ impl<R: Runtime> super::IsMenuItem<R> for Submenu<R> {
     super::MenuItemKind::Submenu(self.clone())
   }
 
-  fn id(&self) -> u32 {
-    self.id
+  fn id(&self) -> &MenuId {
+    &self.id
   }
 }
 
@@ -109,8 +109,23 @@ impl<R: Runtime> Submenu<R> {
   pub fn new<M: Manager<R>, S: AsRef<str>>(manager: &M, text: S, enabled: bool) -> Self {
     let submenu = muda::Submenu::new(text, enabled);
     Self {
-      id: submenu.id(),
+      id: submenu.id().clone(),
       inner: submenu,
+      app_handle: manager.app_handle().clone(),
+    }
+  }
+
+  /// Creates a new submenu with the specified id.
+  pub fn with_id<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
+    manager: &M,
+    id: I,
+    text: S,
+    enabled: bool,
+  ) -> Self {
+    let menu = muda::Submenu::with_id(id, text, enabled);
+    Self {
+      id: menu.id().clone(),
+      inner: menu,
       app_handle: manager.app_handle().clone(),
     }
   }
@@ -127,6 +142,20 @@ impl<R: Runtime> Submenu<R> {
     Ok(menu)
   }
 
+  /// Creates a new menu with the specified id and given `items`.
+  /// It calls [`Submenu::new`] and [`Submenu::append_items`] internally.
+  pub fn with_id_and_items<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
+    manager: &M,
+    id: I,
+    text: S,
+    enabled: bool,
+    items: &[&dyn IsMenuItem<R>],
+  ) -> crate::Result<Self> {
+    let menu = Self::with_id(manager, id, text, enabled);
+    menu.append_items(items)?;
+    Ok(menu)
+  }
+
   pub(crate) fn inner(&self) -> &muda::Submenu {
     &self.inner
   }
@@ -137,8 +166,8 @@ impl<R: Runtime> Submenu<R> {
   }
 
   /// Returns a unique identifier associated with this submenu.
-  pub fn id(&self) -> u32 {
-    self.id
+  pub fn id(&self) -> &MenuId {
+    &self.id
   }
 
   /// Add a menu item to the end of this submenu.
@@ -206,28 +235,29 @@ impl<R: Runtime> Submenu<R> {
         .into_iter()
         .map(|i| match i {
           muda::MenuItemKind::MenuItem(i) => super::MenuItemKind::MenuItem(super::MenuItem {
-            id: i.id(),
+            id: i.id().clone(),
             inner: i,
             app_handle: handle.clone(),
           }),
           muda::MenuItemKind::Submenu(i) => super::MenuItemKind::Submenu(super::Submenu {
-            id: i.id(),
+            id: i.id().clone(),
             inner: i,
             app_handle: handle.clone(),
           }),
           muda::MenuItemKind::Predefined(i) => {
             super::MenuItemKind::Predefined(super::PredefinedMenuItem {
+              id: i.id().clone(),
               inner: i,
               app_handle: handle.clone(),
             })
           }
           muda::MenuItemKind::Check(i) => super::MenuItemKind::Check(super::CheckMenuItem {
-            id: i.id(),
+            id: i.id().clone(),
             inner: i,
             app_handle: handle.clone(),
           }),
           muda::MenuItemKind::Icon(i) => super::MenuItemKind::Icon(super::IconMenuItem {
-            id: i.id(),
+            id: i.id().clone(),
             inner: i,
             app_handle: handle.clone(),
           }),

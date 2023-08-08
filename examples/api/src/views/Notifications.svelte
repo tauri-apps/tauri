@@ -7,16 +7,16 @@
   // the backend is responsible for checking the permission
   async function _sendNotification() {
     const osType = await type()
-    console.log(osType)
     new Notification('Notification title', {
       body: 'This is the notification body',
-      sound: osType === 'Windows_NT'
-        ? 'Default'
-        : osType === 'Linux'
+      sound:
+        osType === 'Windows_NT'
+          ? 'Default'
+          : osType === 'Linux'
           ? 'dialog-information'
           : osType === 'Darwin'
-            ? 'NSUserNotificationDefaultSoundName'
-            : undefined
+          ? 'NSUserNotificationDefaultSoundName'
+          : undefined
     })
   }
 

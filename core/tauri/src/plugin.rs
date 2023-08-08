@@ -11,8 +11,9 @@ use crate::{
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
+use url::Url;
 
-use std::{collections::HashMap, fmt, result::Result as StdResult, sync::Arc};
+use std::{fmt, result::Result as StdResult, sync::Arc};
 
 /// Mobile APIs.
 #[cfg(mobile)]
@@ -48,6 +49,12 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn created(&mut self, window: Window<R>) {}
 
+  /// Callback invoked when webview tries to navigate to the given Url. Returning falses cancels navigation.
+  #[allow(unused_variables)]
+  fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
+    true
+  }
+
   /// Callback invoked when the webview performs a navigation to a page.
   #[allow(unused_variables)]
   fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {}
@@ -66,6 +73,7 @@ pub trait Plugin<R: Runtime>: Send {
 type SetupHook<R, C> = dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send;
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
+type OnNavigation<R> = dyn Fn(&Window<R>, &Url) -> bool + Send;
 type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
@@ -192,6 +200,7 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
   js_init_script: Option<String>,
+  on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
@@ -206,6 +215,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       setup: None,
       js_init_script: None,
       invoke_handler: Box::new(|_| false),
+      on_navigation: Box::new(|_, _| true),
       on_page_load: Box::new(|_, _| ()),
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
@@ -310,6 +320,31 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     F: FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send + 'static,
   {
     self.setup.replace(Box::new(setup));
+    self
+  }
+
+  /// Callback invoked when the webview tries to navigate to a URL. Returning false cancels the navigation.
+  ///
+  /// #Example
+  ///
+  /// ```
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_navigation(|window, url| {
+  ///       // allow the production URL or localhost on dev
+  ///       url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
+  #[must_use]
+  pub fn on_navigation<F>(mut self, on_navigation: F) -> Self
+  where
+    F: Fn(&Window<R>, &Url) -> bool + Send + 'static,
+  {
+    self.on_navigation = Box::new(on_navigation);
     self
   }
 
@@ -426,6 +461,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       js_init_script: self.js_init_script,
+      on_navigation: self.on_navigation,
       on_page_load: self.on_page_load,
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
@@ -441,6 +477,7 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
   js_init_script: Option<String>,
+  on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
@@ -484,6 +521,10 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     (self.on_webview_ready)(window)
   }
 
+  fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
+    (self.on_navigation)(window, url)
+  }
+
   fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
     (self.on_page_load)(window, payload)
   }
@@ -500,22 +541,21 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
 /// Plugin collection type.
 #[default_runtime(crate::Wry, wry)]
 pub(crate) struct PluginStore<R: Runtime> {
-  store: HashMap<&'static str, Box<dyn Plugin<R>>>,
+  store: Vec<Box<dyn Plugin<R>>>,
 }
 
 impl<R: Runtime> fmt::Debug for PluginStore<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let plugins: Vec<&str> = self.store.iter().map(|plugins| plugins.name()).collect();
     f.debug_struct("PluginStore")
-      .field("plugins", &self.store.keys())
+      .field("plugins", &plugins)
       .finish()
   }
 }
 
 impl<R: Runtime> Default for PluginStore<R> {
   fn default() -> Self {
-    Self {
-      store: HashMap::new(),
-    }
+    Self { store: Vec::new() }
   }
 }
 
@@ -524,12 +564,18 @@ impl<R: Runtime> PluginStore<R> {
   ///
   /// Returns `true` if a plugin with the same name is already in the store.
   pub fn register<P: Plugin<R> + 'static>(&mut self, plugin: P) -> bool {
-    self.store.insert(plugin.name(), Box::new(plugin)).is_some()
+    let len = self.store.len();
+    self.store.retain(|p| p.name() != plugin.name());
+    let result = len != self.store.len();
+    self.store.push(Box::new(plugin));
+    result
   }
 
   /// Removes the plugin with the given name from the store.
   pub fn unregister(&mut self, plugin: &'static str) -> bool {
-    self.store.remove(plugin).is_some()
+    let len = self.store.len();
+    self.store.retain(|p| p.name() != plugin);
+    len != self.store.len()
   }
 
   /// Initializes all plugins in the store.
@@ -538,7 +584,7 @@ impl<R: Runtime> PluginStore<R> {
     app: &AppHandle<R>,
     config: &PluginConfig,
   ) -> crate::Result<()> {
-    self.store.values_mut().try_for_each(|plugin| {
+    self.store.iter_mut().try_for_each(|plugin| {
       plugin
         .initialize(
           app,
@@ -552,7 +598,7 @@ impl<R: Runtime> PluginStore<R> {
   pub(crate) fn initialization_script(&self) -> String {
     self
       .store
-      .values()
+      .iter()
       .filter_map(|p| p.initialization_script())
       .fold(String::new(), |acc, script| {
         format!("{acc}\n(function () {{ {script} }})();")
@@ -563,15 +609,24 @@ impl<R: Runtime> PluginStore<R> {
   pub(crate) fn created(&mut self, window: Window<R>) {
     self
       .store
-      .values_mut()
+      .iter_mut()
       .for_each(|plugin| plugin.created(window.clone()))
+  }
+
+  pub(crate) fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
+    for plugin in self.store.iter_mut() {
+      if !plugin.on_navigation(window, url) {
+        return false;
+      }
+    }
+    true
   }
 
   /// Runs the on_page_load hook for all plugins in the store.
   pub(crate) fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
     self
       .store
-      .values_mut()
+      .iter_mut()
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
   }
 
@@ -579,7 +634,7 @@ impl<R: Runtime> PluginStore<R> {
   pub(crate) fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
     self
       .store
-      .values_mut()
+      .iter_mut()
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
@@ -587,11 +642,12 @@ impl<R: Runtime> PluginStore<R> {
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
   pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
-    if let Some(plugin) = self.store.get_mut(plugin) {
-      plugin.extend_api(invoke)
-    } else {
-      invoke.resolver.reject(format!("plugin {plugin} not found"));
-      true
+    for p in self.store.iter_mut() {
+      if p.name() == plugin {
+        return p.extend_api(invoke);
+      }
     }
+    invoke.resolver.reject(format!("plugin {plugin} not found"));
+    true
   }
 }

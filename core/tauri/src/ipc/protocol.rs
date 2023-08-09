@@ -16,6 +16,9 @@ use crate::{
 
 use super::{CallbackFn, InvokeBody, InvokeResponse};
 
+const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
+const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
+
 #[cfg(not(ipc_custom_protocol))]
 pub fn message_handler<R: Runtime>(
   manager: WindowManager<R>,
@@ -221,22 +224,22 @@ fn handle_ipc_request<R: Runtime>(
     let callback = CallbackFn(
       request
         .headers()
-        .get("Tauri-Callback")
+        .get(TAURI_CALLBACK_HEADER_NAME)
         .ok_or("missing Tauri-Callback header")?
         .to_str()
-        .map_err(|_| "Tauri-Callback header value must be a string")?
+        .map_err(|_| "Tauri callback header value must be a string")?
         .parse()
-        .map_err(|_| "Tauri-Callback header value must be a numeric string")?,
+        .map_err(|_| "Tauri callback header value must be a numeric string")?,
     );
     let error = CallbackFn(
       request
         .headers()
-        .get("Tauri-Error")
+        .get(TAURI_ERROR_HEADER_NAME)
         .ok_or("missing Tauri-Error header")?
         .to_str()
-        .map_err(|_| "Tauri-Error header value must be a string")?
+        .map_err(|_| "Tauri error header value must be a string")?
         .parse()
-        .map_err(|_| "Tauri-Error header value must be a numeric string")?,
+        .map_err(|_| "Tauri error header value must be a numeric string")?,
     );
 
     let content_type = request

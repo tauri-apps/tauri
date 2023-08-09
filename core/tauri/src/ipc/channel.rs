@@ -23,8 +23,9 @@ pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
 // TODO: ideally this const references CHANNEL_PLUGIN_NAME
 pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
 
+/// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
 #[derive(Default, Clone)]
-pub struct ChannelDataCache(pub(crate) Arc<Mutex<HashMap<u32, InvokeBody>>>);
+pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeBody>>>);
 
 /// An IPC channel.
 #[derive(Clone)]
@@ -70,7 +71,7 @@ impl Channel {
     Channel::_new(callback.0, move |body| {
       let data_id = rand::random();
       window
-        .state::<ChannelDataCache>()
+        .state::<ChannelDataIpcQueue>()
         .0
         .lock()
         .unwrap()
@@ -124,7 +125,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel {
 #[command(root = "crate")]
 fn fetch(
   request: Request<'_>,
-  cache: State<'_, ChannelDataCache>,
+  cache: State<'_, ChannelDataIpcQueue>,
 ) -> Result<Response, &'static str> {
   if let Some(id) = request
     .headers()

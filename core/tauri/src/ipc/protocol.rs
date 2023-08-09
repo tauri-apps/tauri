@@ -211,14 +211,9 @@ fn handle_ipc_request<R: Runtime>(
     // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
     #[cfg(all(feature = "isolation", ipc_custom_protocol))]
     if let crate::Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-      match crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
+      body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
         .and_then(|raw| crypto_keys.decrypt(raw))
-      {
-        Ok(data) => body = data,
-        Err(e) => {
-          return Err(e.to_string());
-        }
-      }
+        .map_err(|e| e.to_string())?;
     }
 
     let callback = CallbackFn(

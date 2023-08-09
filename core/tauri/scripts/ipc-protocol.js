@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-(function () {
+;(function () {
   const processIpcMessage = __RAW_process_ipc_message_fn__
   const osName = __TEMPLATE_os_name__
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
@@ -13,7 +13,7 @@
       const { cmd, callback, error, payload, options } = message
 
       // use custom protocol for IPC if the flag is set to true, the command is the fetch data command or when not on Linux/Android
-      if (useCustomProtocol || cmd == fetchChannelDataCommand || (osName !== 'linux' && osName !== 'android')) {
+      if (useCustomProtocol || cmd === fetchChannelDataCommand || (osName !== 'linux' && osName !== 'android')) {
         const { contentType, data } = processIpcMessage(payload)
         fetch(window.__TAURI__.convertFileSrc(cmd, 'ipc'), {
           method: 'POST',

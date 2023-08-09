@@ -246,17 +246,22 @@ fn handle_ipc_request<R: Runtime>(
       .headers()
       .get(reqwest::header::CONTENT_TYPE)
       .and_then(|h| h.to_str().ok())
-      .unwrap_or("application/octet-stream");
-    let body = match content_type {
-      "application/octet-stream" => body.into(),
-      // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
-      #[cfg(not(ipc_custom_protocol))]
-      "application/json" => serde_json::Value::Object(Default::default()).into(),
-      #[cfg(ipc_custom_protocol)]
-      "application/json" => serde_json::from_slice::<serde_json::Value>(&body)
-        .map_err(|e| e.to_string())?
-        .into(),
-      _ => return Err(format!("unknown content type {content_type}")),
+      .map(|mime| mime.parse())
+      .unwrap_or(Ok(mime::APPLICATION_OCTET_STREAM))
+      .map_err(|_| "unknown content type")?;
+    let body = if content_type == mime::APPLICATION_OCTET_STREAM {
+      body.into()
+    } else if content_type == mime::APPLICATION_JSON {
+      if cfg!(ipc_custom_protocol) {
+        serde_json::from_slice::<serde_json::Value>(&body)
+          .map_err(|e| e.to_string())?
+          .into()
+      } else {
+        // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
+        serde_json::Value::Object(Default::default()).into()
+      }
+    } else {
+      return Err(format!("content type {content_type} is not implemented"));
     };
 
     let payload = InvokeRequest {

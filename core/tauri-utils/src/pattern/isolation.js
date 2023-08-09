@@ -103,7 +103,14 @@
       data = await window.__TAURI_ISOLATION_HOOK__(data)
     }
 
-    const { cmd, callback, error, payload, options } = data
+    const message = Object.create(null)
+    message.cmd = data.cmd
+    message.callback = data.callback
+    message.error = data.error
+    message.options = data.options
+    message.payload = await encrypt(data.payload)
+    sendMessage(message)
+
     sendMessage({
       cmd,
       callback,

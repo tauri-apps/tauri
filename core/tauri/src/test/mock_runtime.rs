@@ -300,6 +300,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn visible_on_all_workspaces(self, visible_on_all_workspaces: bool) -> Self {
+    self
+  }
+
   fn content_protected(self, protected: bool) -> Self {
     self
   }
@@ -619,6 +623,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> Result<()> {
     Ok(())
   }
 

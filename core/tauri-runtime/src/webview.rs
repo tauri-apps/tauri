@@ -248,6 +248,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn always_on_top(self, always_on_top: bool) -> Self;
 
+  /// Whether the window should be visible on all workspaces or virtual desktops.
+  #[must_use]
+  fn visible_on_all_workspaces(self, visible_on_all_workspaces: bool) -> Self;
+
   /// Prevents the window contents from being captured by other apps.
   #[must_use]
   fn content_protected(self, protected: bool) -> Self;

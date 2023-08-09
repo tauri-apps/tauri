@@ -962,6 +962,9 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
+  /// Whether the window should be visible on all workspaces or virtual desktops.
+  #[serde(default, alias = "all-workspaces")]
+  pub visible_on_all_workspaces: bool,
   /// Prevents the window contents from being captured by other apps.
   #[serde(default, alias = "content-protected")]
   pub content_protected: bool,
@@ -1049,6 +1052,7 @@ impl Default for WindowConfig {
       visible: true,
       decorations: true,
       always_on_top: false,
+      visible_on_all_workspaces: false,
       content_protected: false,
       skip_taskbar: false,
       theme: None,
@@ -2233,6 +2237,7 @@ mod build {
       let visible = self.visible;
       let decorations = self.decorations;
       let always_on_top = self.always_on_top;
+      let visible_on_all_workspaces = self.visible_on_all_workspaces;
       let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
       let theme = opt_lit(self.theme.as_ref());
@@ -2273,6 +2278,7 @@ mod build {
         visible,
         decorations,
         always_on_top,
+        visible_on_all_workspaces,
         content_protected,
         skip_taskbar,
         theme,

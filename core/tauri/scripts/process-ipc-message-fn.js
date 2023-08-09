@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-(function (message) {
+;(function (message) {
   if (message instanceof ArrayBuffer || ArrayBuffer.isView(message) || Array.isArray(message)) {
     return {
       contentType: 'application/octet-stream',

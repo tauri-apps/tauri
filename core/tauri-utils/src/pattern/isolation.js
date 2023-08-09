@@ -8,7 +8,8 @@
  * isolation frame -> main frame = isolation message
  */
 
-;(async function () {
+;
+(async function () {
   /**
    * Sends the message to the isolation frame.
    * @param {any} message
@@ -110,14 +111,6 @@
     message.options = data.options
     message.payload = await encrypt(data.payload)
     sendMessage(message)
-
-    sendMessage({
-      cmd,
-      callback,
-      error,
-      payload: await encrypt(payload),
-      options
-    })
   }
 
   window.addEventListener('message', payloadHandler, false)

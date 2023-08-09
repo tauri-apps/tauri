@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-(function () {
+;(function () {
   const processIpcMessage = __RAW_process_ipc_message_fn__
   const osName = __TEMPLATE_os_name__
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__

@@ -34,25 +34,25 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
           Ok(data) => match data {
             InvokeResponse::Ok(InvokeBody::Json(v)) => (
               HttpResponse::new(serde_json::to_vec(&v)?.into()),
-              "application/json",
+              mime::APPLICATION_JSON,
             ),
             InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-              (HttpResponse::new(v.into()), "application/octet-stream")
+              (HttpResponse::new(v.into()), mime::APPLICATION_OCTET_STREAM)
             }
             InvokeResponse::Err(e) => {
               let mut response = HttpResponse::new(serde_json::to_vec(&e.0)?.into());
               response.set_status(StatusCode::BAD_REQUEST);
-              (response, "text/plain")
+              (response, mime::TEXT_PLAIN)
             }
           },
           Err(e) => {
             let mut response = HttpResponse::new(e.as_bytes().to_vec().into());
             response.set_status(StatusCode::BAD_REQUEST);
-            (response, "text/plain")
+            (response, mime::TEXT_PLAIN)
           }
         };
 
-        response.set_mimetype(Some(content_type.into()));
+        response.set_mimetype(Some(content_type.essence_str().into()));
 
         response
       }

@@ -31,7 +31,7 @@ tauri-winres = "0.1"
 semver = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-swift-rs = { version = "1.0.5", features = [ "build" ] }
+swift-rs = { version = "1.0.6", features = [ "build" ] }
 plist = "1"
 
 [features]

@@ -2,82 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Types and functions related to Inter Procedure Call(IPC).
-//!
-//! This module includes utilities to send messages to the JS layer of the webview.
-
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::value::RawValue;
-pub use serialize_to_javascript::Options as SerializeOptions;
 use serialize_to_javascript::Serialized;
-use tauri_macros::default_runtime;
 
-use crate::{
-  command::{CommandArg, CommandItem},
-  InvokeError, Runtime, Window,
-};
-
-const CHANNEL_PREFIX: &str = "__CHANNEL__:";
-
-/// An IPC channel.
-#[default_runtime(crate::Wry, wry)]
-pub struct Channel<R: Runtime> {
-  id: CallbackFn,
-  window: Window<R>,
-}
-
-impl<R: Runtime> Clone for Channel<R> {
-  fn clone(&self) -> Self {
-    Self {
-      id: self.id,
-      window: self.window.clone(),
-    }
-  }
-}
-
-impl Serialize for Channel {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    serializer.serialize_str(&format!("{CHANNEL_PREFIX}{}", self.id.0))
-  }
-}
-
-impl<R: Runtime> Channel<R> {
-  /// Sends the given data through the channel.
-  pub fn send<S: Serialize>(&self, data: &S) -> crate::Result<()> {
-    let js = format_callback(self.id, data)?;
-    self.window.eval(&js)
-  }
-}
-
-impl<'de, R: Runtime> CommandArg<'de, R> for Channel<R> {
-  /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`Channel`].
-  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    let name = command.name;
-    let arg = command.key;
-    let window = command.message.window();
-    let value: String =
-      Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
-    if let Some(callback_id) = value
-      .split_once(CHANNEL_PREFIX)
-      .and_then(|(_prefix, id)| id.parse().ok())
-    {
-      return Ok(Channel {
-        id: CallbackFn(callback_id),
-        window,
-      });
-    }
-    Err(InvokeError::from_anyhow(anyhow::anyhow!(
-      "invalid channel value `{value}`, expected a string in the `{CHANNEL_PREFIX}ID` format"
-    )))
-  }
-}
-
-/// The `Callback` type is the return value of the `transformCallback` JavaScript function.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct CallbackFn(pub usize);
+use super::CallbackFn;
 
 /// The information about this is quite limited. On Chrome/Edge and Firefox, [the maximum string size is approximately 1 GB](https://stackoverflow.com/a/34958490).
 ///
@@ -111,22 +40,9 @@ const MIN_JSON_PARSE_LEN: usize = 10_240;
 /// 1. `serde_json`'s ability to correctly escape and format json into a string.
 /// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
 ///     character to end a string that was opened with it.
-///
-/// # Examples
-///
-/// ```
-/// use tauri::api::ipc::{serialize_js_with, SerializeOptions};
-/// #[derive(serde::Serialize)]
-/// struct Foo {
-///   bar: String,
-/// }
-/// let foo = Foo { bar: "x".repeat(20_000).into() };
-/// let value = serialize_js_with(&foo, SerializeOptions::default(), |v| format!("console.log({v})")).unwrap();
-/// assert_eq!(value, format!("console.log(JSON.parse('{{\"bar\":\"{}\"}}'))", foo.bar));
-/// ```
-pub fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
+fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
   value: &T,
-  options: SerializeOptions,
+  options: serialize_to_javascript::Options,
   cb: F,
 ) -> crate::api::Result<String> {
   // get a raw &str representation of a serialized json value.
@@ -161,80 +77,13 @@ pub fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
   Ok(return_val)
 }
 
-/// Transforms & escapes a JSON value.
-///
-/// This is a convenience function for [`serialize_js_with`], simply allocating the result to a String.
-///
-/// For usage in functions where performance is more important than code readability, see [`serialize_js_with`].
-///
-/// # Examples
-/// ```rust,no_run
-/// use tauri::{Manager, api::ipc::serialize_js};
-/// use serde::Serialize;
-///
-/// #[derive(Serialize)]
-/// struct Foo {
-///   bar: String,
-/// }
-///
-/// #[derive(Serialize)]
-/// struct Bar {
-///   baz: u32,
-/// }
-///
-/// tauri::Builder::default()
-///   .setup(|app| {
-///     let window = app.get_window("main").unwrap();
-///     window.eval(&format!(
-///       "console.log({}, {})",
-///       serialize_js(&Foo { bar: "bar".to_string() }).unwrap(),
-///       serialize_js(&Bar { baz: 0 }).unwrap()),
-///     )?;
-///     Ok(())
-///   });
-/// ```
-pub fn serialize_js<T: Serialize>(value: &T) -> crate::api::Result<String> {
-  serialize_js_with(value, Default::default(), |v| v.into())
-}
-
 /// Formats a function name and argument to be evaluated as callback.
 ///
 /// This will serialize primitive JSON types (e.g. booleans, strings, numbers, etc.) as JavaScript literals,
 /// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB and larger
 /// than 10 KiB with `JSON.parse('...')`.
 /// See [json-parse-benchmark](https://github.com/GoogleChromeLabs/json-parse-benchmark).
-///
-/// # Examples
-/// - With string literals:
-/// ```
-/// use tauri::api::ipc::{CallbackFn, format_callback};
-/// // callback with a string argument
-/// let cb = format_callback(CallbackFn(12345), &"the string response").unwrap();
-/// assert!(cb.contains(r#"window["_12345"]("the string response")"#));
-/// ```
-///
-/// - With types implement [`serde::Serialize`]:
-/// ```
-/// use tauri::api::ipc::{CallbackFn, format_callback};
-/// use serde::Serialize;
-///
-/// // callback with large JSON argument
-/// #[derive(Serialize)]
-/// struct MyResponse {
-///   value: String
-/// }
-///
-/// let cb = format_callback(
-///   CallbackFn(6789),
-///   &MyResponse { value: String::from_utf8(vec![b'X'; 10_240]).unwrap()
-/// }).expect("failed to serialize");
-///
-/// assert!(cb.contains(r#"window["_6789"](JSON.parse('{"value":"XXXXXXXXX"#));
-/// ```
-pub fn format_callback<T: Serialize>(
-  function_name: CallbackFn,
-  arg: &T,
-) -> crate::api::Result<String> {
+pub fn format<T: Serialize>(function_name: CallbackFn, arg: &T) -> crate::api::Result<String> {
   serialize_js_with(arg, Default::default(), |arg| {
     format!(
       r#"
@@ -258,40 +107,31 @@ pub fn format_callback<T: Serialize>(
 /// * `error_callback` the function name of the Err callback. Usually the `reject` of the JS Promise.
 ///
 /// Note that the callback strings are automatically generated by the `invoke` helper.
-///
-/// # Examples
-/// ```
-/// use tauri::api::ipc::{CallbackFn, format_callback_result};
-/// let res: Result<u8, &str> = Ok(5);
-/// let cb = format_callback_result(res, CallbackFn(145), CallbackFn(0)).expect("failed to format");
-/// assert!(cb.contains(r#"window["_145"](5)"#));
-///
-/// let res: Result<&str, &str> = Err("error message here");
-/// let cb = format_callback_result(res, CallbackFn(2), CallbackFn(1)).expect("failed to format");
-/// assert!(cb.contains(r#"window["_1"]("error message here")"#));
-/// ```
-// TODO: better example to explain
-pub fn format_callback_result<T: Serialize, E: Serialize>(
+pub fn format_result<T: Serialize, E: Serialize>(
   result: Result<T, E>,
   success_callback: CallbackFn,
   error_callback: CallbackFn,
 ) -> crate::api::Result<String> {
   match result {
-    Ok(res) => format_callback(success_callback, &res),
-    Err(err) => format_callback(error_callback, &err),
+    Ok(res) => format(success_callback, &res),
+    Err(err) => format(error_callback, &err),
   }
 }
 
 #[cfg(test)]
 mod test {
-  use crate::api::ipc::*;
+  use super::*;
   use quickcheck::{Arbitrary, Gen};
   use quickcheck_macros::quickcheck;
 
   impl Arbitrary for CallbackFn {
     fn arbitrary(g: &mut Gen) -> CallbackFn {
-      CallbackFn(usize::arbitrary(g))
+      CallbackFn(u32::arbitrary(g))
     }
+  }
+
+  fn serialize_js<T: Serialize>(value: &T) -> crate::api::Result<String> {
+    serialize_js_with(value, Default::default(), |v| v.into())
   }
 
   #[test]
@@ -346,7 +186,7 @@ mod test {
   #[quickcheck]
   fn qc_formatting(f: CallbackFn, a: String) -> bool {
     // call format callback
-    let fc = format_callback(f, &a).unwrap();
+    let fc = format(f, &a).unwrap();
     fc.contains(&format!(
       r#"window["_{}"](JSON.parse('{}'))"#,
       f.0,
@@ -358,11 +198,10 @@ mod test {
     ))
   }
 
-  // check arbitrary strings in format_callback_result
+  // check arbitrary strings in format_result
   #[quickcheck]
   fn qc_format_res(result: Result<String, String>, c: CallbackFn, ec: CallbackFn) -> bool {
-    let resp =
-      format_callback_result(result.clone(), c, ec).expect("failed to format callback result");
+    let resp = format_result(result.clone(), c, ec).expect("failed to format callback result");
     let (function, value) = match result {
       Ok(v) => (c, v),
       Err(e) => (ec, e),

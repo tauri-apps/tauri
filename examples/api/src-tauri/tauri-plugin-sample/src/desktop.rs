@@ -17,8 +17,14 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 /// A helper class to access the sample APIs.
 pub struct Sample<R: Runtime>(AppHandle<R>);
 
+#[derive(serde::Serialize)]
+struct Event {
+  kind: &'static str,
+}
+
 impl<R: Runtime> Sample<R> {
   pub fn ping(&self, payload: PingRequest) -> crate::Result<PingResponse> {
+    let _ = payload.on_event.send(Event { kind: "ping" });
     Ok(PingResponse {
       value: payload.value,
     })

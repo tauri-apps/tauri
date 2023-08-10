@@ -11,36 +11,32 @@ use std::{
 };
 
 use serde::Serialize;
-use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
 
 use tauri_macros::default_runtime;
 use tauri_utils::debug_eprintln;
-#[cfg(feature = "isolation")]
-use tauri_utils::pattern::isolation::RawIsolationPayload;
 use tauri_utils::{
   assets::{AssetKey, CspHash},
   config::{Csp, CspDirectiveSources},
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
-use crate::hooks::IpcJavascript;
-#[cfg(feature = "isolation")]
-use crate::hooks::IsolationJavascript;
-use crate::pattern::PatternJavascript;
 use crate::{
-  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
+  app::{
+    AppHandle, GlobalMenuEventListener, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad,
+    PageLoadPayload, WindowMenuEvent,
+  },
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
-  hooks::{InvokeHandler, InvokePayload, InvokeResponder, OnPageLoad, PageLoadPayload},
+  ipc::{Invoke, InvokeHandler, InvokeResponder},
+  pattern::PatternJavascript,
   plugin::PluginStore,
   runtime::{
     http::{
       MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
-    webview::{WebviewIpcHandler, WindowBuilder},
+    webview::WindowBuilder,
     window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow},
   },
   utils::{
@@ -48,7 +44,8 @@ use crate::{
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
+  window::{UriSchemeProtocolHandler, WebResourceRequestHandler},
+  Context, EventLoopMessage, Icon, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
 };
 
@@ -70,14 +67,28 @@ const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
-pub(crate) const STRINGIFY_IPC_MESSAGE_FN: &str =
-  include_str!("../scripts/stringify-ipc-message-fn.js");
+pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
+  include_str!("../scripts/process-ipc-message-fn.js");
 
 // we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
 // and we do not get a secure context without the custom protocol that proxies to the dev server
 // additionally, we need the custom protocol to inject the initialization scripts on Android
 // must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
 const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
+
+#[cfg(feature = "isolation")]
+#[derive(Template)]
+#[default_template("../scripts/isolation.js")]
+pub(crate) struct IsolationJavascript<'a> {
+  pub(crate) isolation_src: &'a str,
+  pub(crate) style: &'a str,
+}
+
+#[derive(Template)]
+#[default_template("../scripts/ipc.js")]
+pub(crate) struct IpcJavascript<'a> {
+  pub(crate) isolation_origin: &'a str,
+}
 
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
@@ -229,7 +240,7 @@ pub struct InnerWindowManager<R: Runtime> {
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
   /// Responder for invoke calls.
-  invoke_responder: Arc<InvokeResponder<R>>,
+  invoke_responder: Option<Arc<InvokeResponder<R>>>,
   /// The script that initializes the invoke system.
   invoke_initialization_script: String,
   /// Application pattern.
@@ -302,7 +313,7 @@ impl<R: Runtime> WindowManager<R> {
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
-    (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
+    (invoke_responder, invoke_initialization_script): (Option<Arc<InvokeResponder<R>>>, String),
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
@@ -353,7 +364,7 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   /// The invoke responder.
-  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
+  pub(crate) fn invoke_responder(&self) -> Option<Arc<InvokeResponder<R>>> {
     self.inner.invoke_responder.clone()
   }
 
@@ -506,6 +517,14 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push("tauri".into());
     }
 
+    if !registered_scheme_protocols.contains(&"ipc".into()) {
+      pending.register_uri_scheme_protocol(
+        "ipc",
+        crate::ipc::protocol::get(self.clone(), pending.label.clone()),
+      );
+      registered_scheme_protocols.push("ipc".into());
+    }
+
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
@@ -538,7 +557,7 @@ impl<R: Runtime> WindowManager<R> {
               let asset = String::from_utf8_lossy(asset.as_ref());
               let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
                 runtime_aes_gcm_key: &aes_gcm_key,
-                stringify_ipc_message_fn: STRINGIFY_IPC_MESSAGE_FN,
+                process_ipc_message_fn: PROCESS_IPC_MESSAGE_FN,
               };
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponseBuilder::new()
@@ -567,43 +586,6 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  fn prepare_ipc_handler(&self) -> WebviewIpcHandler<EventLoopMessage, R> {
-    let manager = self.clone();
-    Box::new(move |window, #[allow(unused_mut)] mut request| {
-      if let Some(window) = manager.get_window(&window.label) {
-        #[cfg(feature = "isolation")]
-        if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-          match RawIsolationPayload::try_from(request.as_str())
-            .and_then(|raw| crypto_keys.decrypt(raw))
-          {
-            Ok(json) => request = json,
-            Err(e) => {
-              let error: crate::Error = e.into();
-              let _ = window.eval(&format!(
-                r#"console.error({})"#,
-                JsonValue::String(error.to_string())
-              ));
-              return;
-            }
-          }
-        }
-
-        match serde_json::from_str::<InvokePayload>(&request) {
-          Ok(message) => {
-            let _ = window.on_message(message);
-          }
-          Err(e) => {
-            let error: crate::Error = e.into();
-            let _ = window.eval(&format!(
-              r#"console.error({})"#,
-              JsonValue::String(error.to_string())
-            ));
-          }
-        }
-      }
-    })
-  }
-
   pub fn get_asset(&self, mut path: String) -> Result<Asset, Box<dyn std::error::Error>> {
     let assets = &self.inner.assets;
     if path.ends_with('/') {
@@ -625,7 +607,7 @@ impl<R: Runtime> WindowManager<R> {
     let asset_response = assets
       .get(&path.as_str().into())
       .or_else(|| {
-        eprintln!("Asset `{path}` not found; fallback to {path}.html");
+        debug_eprintln!("Asset `{path}` not found; fallback to {path}.html");
         let fallback = format!("{}.html", path.as_str()).into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -687,15 +669,11 @@ impl<R: Runtime> WindowManager<R> {
     }
   }
 
-  #[allow(clippy::type_complexity)]
   fn prepare_uri_scheme_protocol(
     &self,
     window_origin: &str,
-    web_resource_request_handler: Option<
-      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
-    >,
-  ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
-  {
+    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+  ) -> UriSchemeProtocolHandler {
     #[cfg(all(dev, mobile))]
     let url = {
       let mut url = self.get_url().as_str().to_string();
@@ -740,7 +718,6 @@ impl<R: Runtime> WindowManager<R> {
 
       #[cfg(all(dev, mobile))]
       let mut response = {
-        use reqwest::StatusCode;
         let decoded_path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
@@ -762,7 +739,7 @@ impl<R: Runtime> WindowManager<R> {
           Ok(r) => {
             let mut response_cache_ = response_cache.lock().unwrap();
             let mut response = None;
-            if r.status() == StatusCode::NOT_MODIFIED {
+            if r.status() == http::StatusCode::NOT_MODIFIED {
               response = response_cache_.get(&url);
             }
             let response = if let Some(r) = response {
@@ -846,6 +823,12 @@ impl<R: Runtime> WindowManager<R> {
       freeze_prototype: &'a str,
     }
 
+    #[derive(Template)]
+    #[default_template("../scripts/core.js")]
+    struct CoreJavascript<'a> {
+      os_name: &'a str,
+    }
+
     let bundle_script = if with_global_tauri {
       include_str!("../scripts/bundle.global.js")
     } else {
@@ -872,7 +855,11 @@ impl<R: Runtime> WindowManager<R> {
           "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
         )
       ),
-      core_script: include_str!("../scripts/core.js"),
+      core_script: &CoreJavascript {
+        os_name: std::env::consts::OS,
+      }
+      .render_default(&Default::default())?
+      .into_string(),
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,
@@ -923,7 +910,7 @@ mod test {
       StateManager::new(),
       Default::default(),
       Default::default(),
-      (std::sync::Arc::new(|_, _, _, _| ()), "".into()),
+      (None, "".into()),
     );
 
     #[cfg(custom_protocol)]
@@ -1089,7 +1076,10 @@ impl<R: Runtime> WindowManager<R> {
       #[allow(clippy::redundant_clone)]
       app_handle.clone(),
     )?;
-    pending.ipc_handler = Some(self.prepare_ipc_handler());
+    #[cfg(not(ipc_custom_protocol))]
+    {
+      pending.ipc_handler = Some(crate::ipc::protocol::message_handler(self.clone()));
+    }
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification

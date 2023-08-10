@@ -9,7 +9,11 @@ mod commands;
 use commands::{cmd, invoke, message, resolver};
 
 use serde::Deserialize;
-use tauri::{command, State, Window};
+use tauri::{
+  command,
+  ipc::{Request, Response},
+  State, Window,
+};
 
 #[derive(Debug)]
 pub struct MyState {
@@ -213,6 +217,12 @@ fn borrow_cmd_async(the_argument: &str) -> &str {
   the_argument
 }
 
+#[command]
+fn raw_request(request: Request<'_>) -> Response {
+  println!("{:?}", request);
+  Response::new(include_bytes!("./README.md").to_vec())
+}
+
 fn main() {
   tauri::Builder::default()
     .manage(MyState {
@@ -222,6 +232,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       borrow_cmd,
       borrow_cmd_async,
+      raw_request,
       window_label,
       force_async,
       force_async_with_result,

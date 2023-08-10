@@ -16,7 +16,7 @@
 //! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
-//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
+//! - **linux-ipc-protocol**: Use custom protocol for faster IPC on Linux. Requires webkit2gtk v2.40 or above.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
@@ -81,7 +81,7 @@ pub mod async_runtime;
 pub mod command;
 mod error;
 mod event;
-mod hooks;
+pub mod ipc;
 mod manager;
 mod pattern;
 pub mod plugin;
@@ -120,23 +120,31 @@ macro_rules! android_binding {
       handlePluginResponse,
       [i32, JString, JString],
     );
+    ::tauri::wry::application::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      sendChannelData,
+      [i64, JString],
+    );
 
+    // this function is a glue between PluginManager.kt > handlePluginResponse and Rust
     #[allow(non_snake_case)]
-    pub unsafe fn handlePluginResponse(
-      env: JNIEnv,
-      _: JClass,
-      id: i32,
-      success: JString,
-      error: JString,
-    ) {
+    pub fn handlePluginResponse(env: JNIEnv, _: JClass, id: i32, success: JString, error: JString) {
       ::tauri::handle_android_plugin_response(env, id, success, error);
+    }
+
+    // this function is a glue between PluginManager.kt > sendChannelData and Rust
+    #[allow(non_snake_case)]
+    pub fn sendChannelData(env: JNIEnv, _: JClass, id: i64, data: JString) {
+      ::tauri::send_channel_data(env, id, data);
     }
   };
 }
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
-pub use plugin::mobile::handle_android_plugin_response;
+pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;
@@ -179,10 +187,6 @@ pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
     WindowEvent,
-  },
-  self::hooks::{
-    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokePayload, InvokeResolver,
-    InvokeResponder, InvokeResponse, OnPageLoad, PageLoadPayload, SetupHook,
   },
   self::manager::Asset,
   self::runtime::{

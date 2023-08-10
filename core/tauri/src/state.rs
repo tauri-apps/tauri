@@ -4,7 +4,8 @@
 
 use crate::{
   command::{CommandArg, CommandItem},
-  InvokeError, Runtime,
+  ipc::InvokeError,
+  Runtime,
 };
 use state::TypeMap;
 

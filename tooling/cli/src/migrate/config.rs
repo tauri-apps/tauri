@@ -47,6 +47,13 @@ fn migrate_config(config: &mut Value) -> Result<()> {
         process_allowlist(tauri_config, &mut plugins, allowlist)?;
       }
 
+      if let Some(security) = tauri_config
+        .get_mut("security")
+        .and_then(|c| c.as_object_mut())
+      {
+        process_security(security)?;
+      }
+
       // cli
       if let Some(cli) = tauri_config.remove("cli") {
         process_cli(&mut plugins, cli)?;
@@ -61,6 +68,44 @@ fn migrate_config(config: &mut Value) -> Result<()> {
     config.insert("plugins".into(), plugins.into());
   }
 
+  Ok(())
+}
+
+fn process_security(security: &mut Map<String, Value>) -> Result<()> {
+  // migrate CSP: add `ipc:` to `connect-src`
+  if let Some(csp_value) = security.remove("csp") {
+    let csp = if csp_value.is_null() {
+      csp_value
+    } else {
+      let mut csp: tauri_utils_v1::config::Csp = serde_json::from_value(csp_value)?;
+      match &mut csp {
+        tauri_utils_v1::config::Csp::Policy(csp) => {
+          if csp.contains("connect-src") {
+            *csp = csp.replace("connect-src", "connect-src ipc: https://ipc.localhost");
+          } else {
+            *csp = format!("{csp}; connect-src ipc: https://ipc.localhost");
+          }
+        }
+        tauri_utils_v1::config::Csp::DirectiveMap(csp) => {
+          if let Some(connect_src) = csp.get_mut("connect-src") {
+            if !connect_src.contains("ipc: https://ipc.localhost") {
+              connect_src.push("ipc: https://ipc.localhost");
+            }
+          } else {
+            csp.insert(
+              "connect-src".into(),
+              tauri_utils_v1::config::CspDirectiveSources::List(vec![
+                "ipc: https://ipc.localhost".to_string()
+              ]),
+            );
+          }
+        }
+      }
+      serde_json::to_value(csp)?
+    };
+
+    security.insert("csp".into(), csp);
+  }
   Ok(())
 }
 
@@ -142,8 +187,19 @@ fn process_updater(
 
 #[cfg(test)]
 mod test {
+  fn migrate(original: &serde_json::Value) -> serde_json::Value {
+    let mut migrated = original.clone();
+    super::migrate_config(&mut migrated).expect("failed to migrate config");
+
+    if let Err(e) = serde_json::from_value::<tauri_utils::config::Config>(migrated.clone()) {
+      panic!("migrated config is not valid: {e}");
+    }
+
+    migrated
+  }
+
   #[test]
-  fn migrate() {
+  fn migrate_full() {
     let original = serde_json::json!({
       "tauri": {
         "bundle": {
@@ -199,16 +255,14 @@ mod test {
           "http": {
             "scope": ["http://localhost:3003/"]
           }
+        },
+        "security": {
+          "csp": "default-src: 'self' tauri:"
         }
       }
     });
 
-    let mut migrated = original.clone();
-    super::migrate_config(&mut migrated).expect("failed to migrate config");
-
-    if let Err(e) = serde_json::from_value::<tauri_utils::config::Config>(migrated.clone()) {
-      panic!("migrated config is not valid: {e}");
-    }
+    let migrated = migrate(&original);
 
     // bundle > updater
     assert_eq!(
@@ -267,6 +321,106 @@ mod test {
     assert_eq!(
       migrated["tauri"]["security"]["assetProtocol"]["scope"],
       original["tauri"]["allowlist"]["protocol"]["assetScope"]
+    );
+
+    // security CSP
+    assert_eq!(
+      migrated["tauri"]["security"]["csp"],
+      format!(
+        "{}; connect-src ipc: https://ipc.localhost",
+        original["tauri"]["security"]["csp"].as_str().unwrap()
+      )
+    );
+  }
+
+  #[test]
+  fn migrate_csp_object() {
+    let original = serde_json::json!({
+      "tauri": {
+        "security": {
+          "csp": {
+            "default-src": ["self", "tauri:"]
+          }
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+
+    assert_eq!(
+      migrated["tauri"]["security"]["csp"]["default-src"],
+      original["tauri"]["security"]["csp"]["default-src"]
+    );
+    assert!(migrated["tauri"]["security"]["csp"]["connect-src"]
+      .as_array()
+      .expect("connect-src isn't an array")
+      .contains(&"ipc: https://ipc.localhost".into()));
+  }
+
+  #[test]
+  fn migrate_csp_existing_connect_src_string() {
+    let original = serde_json::json!({
+      "tauri": {
+        "security": {
+          "csp": {
+            "default-src": ["self", "tauri:"],
+            "connect-src": "self"
+          }
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+
+    assert_eq!(
+      migrated["tauri"]["security"]["csp"]["default-src"],
+      original["tauri"]["security"]["csp"]["default-src"]
+    );
+    assert_eq!(
+      migrated["tauri"]["security"]["csp"]["connect-src"]
+        .as_str()
+        .expect("connect-src isn't a string"),
+      format!(
+        "{} ipc: https://ipc.localhost",
+        original["tauri"]["security"]["csp"]["connect-src"]
+          .as_str()
+          .unwrap()
+      )
+    );
+  }
+
+  #[test]
+  fn migrate_csp_existing_connect_src_array() {
+    let original = serde_json::json!({
+      "tauri": {
+        "security": {
+          "csp": {
+            "default-src": ["self", "tauri:"],
+            "connect-src": ["self", "asset:"]
+          }
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+
+    assert_eq!(
+      migrated["tauri"]["security"]["csp"]["default-src"],
+      original["tauri"]["security"]["csp"]["default-src"]
+    );
+
+    let migrated_connect_src = migrated["tauri"]["security"]["csp"]["connect-src"]
+      .as_array()
+      .expect("connect-src isn't an array");
+    let original_connect_src = original["tauri"]["security"]["csp"]["connect-src"]
+      .as_array()
+      .unwrap();
+    assert!(
+      migrated_connect_src
+        .iter()
+        .zip(original_connect_src.iter())
+        .all(|(a, b)| a == b),
+      "connect-src migration failed"
     );
   }
 }

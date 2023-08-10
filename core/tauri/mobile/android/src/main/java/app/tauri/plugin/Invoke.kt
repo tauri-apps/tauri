@@ -14,6 +14,7 @@ class Invoke(
   val callback: Long,
   val error: Long,
   private val sendResponse: (callback: Long, data: PluginResult?) -> Unit,
+  private val sendChannelData: (channelId: Long, data: PluginResult) -> Unit,
   val data: JSObject) {
 
   fun resolve(data: JSObject?) {
@@ -205,6 +206,6 @@ class Invoke(
   fun getChannel(name: String): Channel? {
     val channelDef = getString(name, "")
     val callback = channelDef.substring(CHANNEL_PREFIX.length).toLongOrNull() ?: return null
-    return Channel(callback) { res -> sendResponse(callback, PluginResult(res)) }
+    return Channel(callback) { res -> sendChannelData(callback, PluginResult(res)) }
   }
 }

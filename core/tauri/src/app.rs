@@ -6,10 +6,10 @@
 pub(crate) mod tray;
 
 use crate::{
-  api::ipc::CallbackFn,
   command::{CommandArg, CommandItem},
-  hooks::{
-    window_invoke_responder, InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook,
+  ipc::{
+    channel::ChannelDataIpcQueue, CallbackFn, Invoke, InvokeError, InvokeHandler, InvokeResponder,
+    InvokeResponse,
   },
   manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
@@ -23,14 +23,16 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
-  Context, DeviceEventFilter, EventLoopMessage, Icon, Invoke, InvokeError, InvokeResponse, Manager,
-  Monitor, Runtime, Scopes, StateManager, Theme, Window,
+  Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
+  StateManager, Theme, Window,
 };
 
 #[cfg(feature = "protocol-asset")]
 use crate::scope::FsScope;
 
 use raw_window_handle::HasRawDisplayHandle;
+use serde::Deserialize;
+use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
 use tauri_runtime::window::{
   dpi::{PhysicalPosition, PhysicalSize},
@@ -55,6 +57,24 @@ pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Se
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
 #[cfg(all(desktop, feature = "system-tray"))]
 type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
+/// A closure that is run when the Tauri application is setting up.
+pub type SetupHook<R> =
+  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
+/// A closure that is run once every time a window is created and loaded.
+pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
+
+/// The payload for the [`OnPageLoad`] hook.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PageLoadPayload {
+  url: String,
+}
+
+impl PageLoadPayload {
+  /// The page URL.
+  pub fn url(&self) -> &str {
+    &self.url
+  }
+}
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -799,7 +819,7 @@ pub struct Builder<R: Runtime> {
   invoke_handler: Box<InvokeHandler<R>>,
 
   /// The JS message responder.
-  pub(crate) invoke_responder: Arc<InvokeResponder<R>>,
+  invoke_responder: Option<Arc<InvokeResponder<R>>>,
 
   /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
   invoke_initialization_script: String,
@@ -847,6 +867,17 @@ pub struct Builder<R: Runtime> {
   device_event_filter: DeviceEventFilter,
 }
 
+#[derive(Template)]
+#[default_template("../scripts/ipc-protocol.js")]
+struct InvokeInitializationScript<'a> {
+  /// The function that processes the IPC message.
+  #[raw]
+  process_ipc_message_fn: &'a str,
+  os_name: &'a str,
+  fetch_channel_data_command: &'a str,
+  use_custom_protocol: bool,
+}
+
 impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
@@ -855,9 +886,16 @@ impl<R: Runtime> Builder<R> {
       runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| false),
-      invoke_responder: Arc::new(window_invoke_responder),
-      invoke_initialization_script:
-        format!("Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {{ value: (message) => window.ipc.postMessage({}(message)) }})", crate::manager::STRINGIFY_IPC_MESSAGE_FN),
+      invoke_responder: None,
+      invoke_initialization_script: InvokeInitializationScript {
+        process_ipc_message_fn: crate::manager::PROCESS_IPC_MESSAGE_FN,
+        os_name: std::env::consts::OS,
+        fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
+        use_custom_protocol: cfg!(ipc_custom_protocol),
+      }
+      .render_default(&Default::default())
+      .unwrap()
+      .into_string(),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -916,14 +954,14 @@ impl<R: Runtime> Builder<R> {
   /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
   ///
   /// The `initialization_script` is a script that initializes `window.__TAURI_POST_MESSAGE__`.
-  /// That function must take the `message: object` argument and send it to the backend.
+  /// That function must take the `(message: object, options: object)` arguments and send it to the backend.
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
-    F: Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
+    F: Fn(Window<R>, String, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
     self.invoke_initialization_script = initialization_script;
-    self.invoke_responder = Arc::new(responder);
+    self.invoke_responder.replace(Arc::new(responder));
     self
   }
 
@@ -1367,6 +1405,9 @@ impl<R: Runtime> Builder<R> {
       #[cfg(feature = "protocol-asset")]
       asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
     });
+
+    app.manage(ChannelDataIpcQueue::default());
+    app.handle.plugin(crate::ipc::channel::plugin())?;
 
     #[cfg(windows)]
     {

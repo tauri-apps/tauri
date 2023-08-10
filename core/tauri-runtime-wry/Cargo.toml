@@ -48,4 +48,4 @@ macos-private-api = [
   "tauri-runtime/macos-private-api"
 ]
 objc-exception = [ "wry/objc-exception" ]
-linux-headers = [ ]
+linux-protocol-body = [ "wry/linux-body", "webkit2gtk/v2_40" ]

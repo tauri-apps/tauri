@@ -3085,17 +3085,14 @@ fn create_webview<T: UserEvent>(
     webview_attributes,
     uri_scheme_protocols,
     mut window_builder,
-    ipc_handler,
     label,
+    ipc_handler,
     url,
     menu_ids,
     #[cfg(target_os = "android")]
     on_webview_created,
     ..
   } = pending;
-  let webview_id_map = context.webview_id_map.clone();
-  #[cfg(windows)]
-  let proxy = context.proxy.clone();
 
   let window_event_listeners = WindowEventListeners::default();
 
@@ -3108,6 +3105,8 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(windows)]
   let window_theme = window_builder.inner.window.preferred_theme;
+  #[cfg(windows)]
+  let proxy = context.proxy.clone();
 
   #[cfg(target_os = "macos")]
   {
@@ -3130,7 +3129,7 @@ fn create_webview<T: UserEvent>(
   };
   let window = window_builder.inner.build(event_loop).unwrap();
 
-  webview_id_map.insert(window.id(), window_id);
+  context.webview_id_map.insert(window.id(), window_id);
 
   if window_builder.center {
     let _ = center_window(&window, window.inner_size());
@@ -3157,17 +3156,18 @@ fn create_webview<T: UserEvent>(
   }
 
   #[cfg(windows)]
-  if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
-    webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
-  }
+  {
+    if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
+      webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
+    }
 
-  #[cfg(windows)]
-  if let Some(theme) = window_theme {
-    webview_builder = webview_builder.with_theme(match theme {
-      WryTheme::Dark => wry::webview::Theme::Dark,
-      WryTheme::Light => wry::webview::Theme::Light,
-      _ => wry::webview::Theme::Light,
-    });
+    if let Some(theme) = window_theme {
+      webview_builder = webview_builder.with_theme(match theme {
+        WryTheme::Dark => wry::webview::Theme::Dark,
+        WryTheme::Light => wry::webview::Theme::Light,
+        _ => wry::webview::Theme::Light,
+      });
+    }
   }
 
   if let Some(handler) = ipc_handler {
@@ -3178,6 +3178,7 @@ fn create_webview<T: UserEvent>(
       handler,
     ));
   }
+
   for (scheme, protocol) in uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |wry_request| {
       protocol(&HttpRequestWrapper::from(wry_request).0)
@@ -3254,7 +3255,7 @@ fn create_webview<T: UserEvent>(
     unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy_.send_event(Message::Webview(
+          let _ = proxy.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
           ));
@@ -3267,7 +3268,7 @@ fn create_webview<T: UserEvent>(
     unsafe {
       controller.add_LostFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy.send_event(Message::Webview(
+          let _ = proxy_.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
           ));

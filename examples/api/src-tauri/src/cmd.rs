@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::command;
 
 #[derive(Debug, Deserialize)]
@@ -17,8 +17,15 @@ pub fn log_operation(event: String, payload: Option<String>) {
   log::info!("{} {:?}", event, payload);
 }
 
+#[derive(Serialize)]
+pub struct ApiResponse {
+  message: String,
+}
+
 #[command]
-pub fn perform_request(endpoint: String, body: RequestBody) -> String {
+pub fn perform_request(endpoint: String, body: RequestBody) -> ApiResponse {
   println!("{} {:?}", endpoint, body);
-  "message response".into()
+  ApiResponse {
+    message: "message response".into(),
+  }
 }

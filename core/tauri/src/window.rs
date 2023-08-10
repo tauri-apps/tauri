@@ -1238,7 +1238,7 @@ impl<R: Runtime> Window<R> {
     self
       .menu_lock()
       .as_ref()
-      .map(|m| PartialEq::eq(id, m.menu.id()))
+      .map(|m| id.eq(m.menu.id()))
       .unwrap_or(false)
   }
 

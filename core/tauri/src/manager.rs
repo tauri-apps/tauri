@@ -445,7 +445,7 @@ impl<R: Runtime> WindowManager<R> {
     self
       .menu_lock()
       .as_ref()
-      .map(|m| PartialEq::eq(id, m.id()))
+      .map(|m| id.eq(m.id()))
       .unwrap_or(false)
   }
 

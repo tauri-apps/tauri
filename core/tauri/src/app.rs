@@ -551,7 +551,7 @@ macro_rules! shared_app_impl {
           .lock()
           .unwrap()
           .iter()
-          .find(|t| t.id().eq(&id))
+          .find(|t| t.id() == &id)
           .cloned()
       }
 
@@ -565,7 +565,7 @@ macro_rules! shared_app_impl {
         TrayIconId: PartialEq<&'a I>,
       {
         let mut tray_icons = self.manager.inner.tray_icons.lock().unwrap();
-        let idx = tray_icons.iter().position(|t| t.id().eq(&id));
+        let idx = tray_icons.iter().position(|t| t.id() == &id);
         if let Some(idx) = idx {
           return Some(tray_icons.swap_remove(idx));
         }

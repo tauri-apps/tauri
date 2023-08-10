@@ -74,7 +74,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
             .into(),
         );
         r.set_status(StatusCode::METHOD_NOT_ALLOWED);
-        r.set_mimetype(Some("text/plain".into()));
+        r.set_mimetype(Some(mime::TEXT_PLAIN.essence_str().into()));
         r
       }
     };

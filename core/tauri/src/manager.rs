@@ -11,10 +11,9 @@ use std::{
 };
 
 #[cfg(desktop)]
-use crate::{
-  menu::{Menu, MenuId},
-  tray::{TrayIcon, TrayIconId},
-};
+use crate::menu::{Menu, MenuId};
+#[cfg(all(desktop, feature = "tray-icon"))]
+use crate::tray::{TrayIcon, TrayIconId};
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
@@ -52,7 +51,9 @@ use crate::{
 };
 
 #[cfg(desktop)]
-use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
+use crate::app::GlobalMenuEventListener;
+#[cfg(all(desktop, feature = "tray-icon"))]
+use crate::app::GlobalTrayIconEventListener;
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::path::BaseDirectory;
@@ -227,7 +228,7 @@ pub struct InnerWindowManager<R: Runtime> {
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
@@ -253,14 +254,14 @@ pub struct InnerWindowManager<R: Runtime> {
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
   /// Tray icons
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   pub(crate) tray_icons: Arc<Mutex<Vec<TrayIcon<R>>>>,
   /// Global Tray icon event listeners.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   pub(crate) global_tray_event_listeners:
     Arc<Mutex<Vec<GlobalTrayIconEventListener<AppHandle<R>>>>>,
   /// Tray icon event listeners.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   pub(crate) tray_event_listeners:
     Arc<Mutex<HashMap<TrayIconId, GlobalTrayIconEventListener<TrayIcon<R>>>>>,
   /// Responder for invoke calls.
@@ -283,7 +284,7 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
 
-    #[cfg(desktop)]
+    #[cfg(all(desktop, feature = "tray-icon"))]
     d.field("tray_icon", &self.tray_icon);
 
     d.finish()
@@ -359,7 +360,7 @@ impl<R: Runtime> WindowManager<R> {
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
-        #[cfg(desktop)]
+        #[cfg(all(desktop, feature = "tray-icon"))]
         tray_icon: context.tray_icon,
         package_info: context.package_info,
         pattern: context.pattern,
@@ -373,11 +374,11 @@ impl<R: Runtime> WindowManager<R> {
         #[cfg(desktop)]
         window_menu_event_listeners: Arc::new(Mutex::new(window_menu_event_listeners)),
         window_event_listeners: Arc::new(window_event_listeners),
-        #[cfg(desktop)]
+        #[cfg(all(desktop, feature = "tray-icon"))]
         tray_icons: Default::default(),
-        #[cfg(desktop)]
+        #[cfg(all(desktop, feature = "tray-icon"))]
         global_tray_event_listeners: Default::default(),
-        #[cfg(desktop)]
+        #[cfg(all(desktop, feature = "tray-icon"))]
         tray_event_listeners: Default::default(),
         invoke_responder,
         invoke_initialization_script,

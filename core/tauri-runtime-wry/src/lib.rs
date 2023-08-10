@@ -763,7 +763,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(windows)]
   fn parent_window(mut self, parent: HWND) -> Self {
-    self.inner = self.inner.with_parent_window(parent);
+    self.inner = self.inner.with_parent_window(parent.0);
     self
   }
 
@@ -775,7 +775,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(windows)]
   fn owner_window(mut self, owner: HWND) -> Self {
-    self.inner = self.inner.with_owner_window(owner);
+    self.inner = self.inner.with_owner_window(owner.0);
     self
   }
 

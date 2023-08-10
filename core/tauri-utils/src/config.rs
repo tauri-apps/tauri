@@ -1427,12 +1427,20 @@ pub struct TauriConfig {
 impl TauriConfig {
   /// Returns all Cargo features.
   pub fn all_features() -> Vec<&'static str> {
-    vec!["macos-private-api", "isolation", "protocol-asset"]
+    vec![
+      "tray-icon",
+      "macos-private-api",
+      "isolation",
+      "protocol-asset",
+    ]
   }
 
   /// Returns the enabled Cargo features.
   pub fn features(&self) -> Vec<&str> {
     let mut features = Vec::new();
+    if self.tray_icon.is_some() {
+      features.push("tray-icon");
+    }
     if self.macos_private_api {
       features.push("macos-private-api");
     }

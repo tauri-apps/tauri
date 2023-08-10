@@ -26,6 +26,7 @@
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
+//! - **tray-icon**: Enables application tray icon APIs. Enabled by default if the `trayIcon` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
@@ -101,7 +102,7 @@ pub mod process;
 pub mod scope;
 mod state;
 
-#[cfg(desktop)]
+#[cfg(all(desktop, feature = "tray-icon"))]
 pub mod tray;
 pub use tauri_utils as utils;
 
@@ -252,7 +253,7 @@ pub enum EventLoopMessage {
   #[cfg(desktop)]
   MenuEvent(menu::MenuEvent),
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   TrayIconEvent(tray::TrayIconEvent),
 }
 
@@ -393,7 +394,7 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   pub(crate) tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
@@ -409,7 +410,7 @@ impl<A: Assets> fmt::Debug for Context<A> {
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
 
-    #[cfg(desktop)]
+    #[cfg(all(desktop, feature = "tray-icon"))]
     d.field("tray_icon", &self.tray_icon);
 
     d.finish()
@@ -454,14 +455,14 @@ impl<A: Assets> Context<A> {
   }
 
   /// The icon to use on the system tray UI.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   #[inline(always)]
   pub fn tray_icon(&self) -> Option<&Icon> {
     self.tray_icon.as_ref()
   }
 
   /// A mutable reference to the icon to use on the tray icon.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   #[inline(always)]
   pub fn tray_icon_mut(&mut self) -> &mut Option<Icon> {
     &mut self.tray_icon
@@ -502,7 +503,7 @@ impl<A: Assets> Context<A> {
       assets,
       default_window_icon,
       app_icon,
-      #[cfg(desktop)]
+      #[cfg(all(desktop, feature = "tray-icon"))]
       tray_icon: None,
       package_info,
       _info_plist: info_plist,
@@ -511,7 +512,7 @@ impl<A: Assets> Context<A> {
   }
 
   /// Sets the app tray icon.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   #[inline(always)]
   pub fn set_tray_icon(&mut self, icon: Icon) {
     self.tray_icon.replace(icon);

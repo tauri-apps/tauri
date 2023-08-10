@@ -29,7 +29,7 @@ use crate::scope::FsScope;
 
 #[cfg(desktop)]
 use crate::menu::{Menu, MenuEvent};
-#[cfg(desktop)]
+#[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 #[cfg(desktop)]
 use crate::window::WindowMenu;
@@ -61,12 +61,10 @@ use crate::ActivationPolicy;
 
 #[cfg(desktop)]
 pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync>;
-#[cfg(desktop)]
+#[cfg(all(desktop, feature = "tray-icon"))]
 pub(crate) type GlobalTrayIconEventListener<T> =
   Box<dyn Fn(&T, crate::tray::TrayIconEvent) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
-#[cfg(all(desktop, feature = "system-tray"))]
-type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
@@ -216,8 +214,8 @@ pub enum RunEvent {
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
   #[cfg(desktop)]
   MenuEvent(crate::menu::MenuEvent),
-  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
-  #[cfg(desktop)]
+  /// An event from a tray icon.
+  #[cfg(all(desktop, feature = "tray-icon"))]
   TrayIconEvent(crate::tray::TrayIconEvent),
 }
 
@@ -226,7 +224,7 @@ impl From<EventLoopMessage> for RunEvent {
     match event {
       #[cfg(desktop)]
       EventLoopMessage::MenuEvent(e) => Self::MenuEvent(e),
-      #[cfg(desktop)]
+      #[cfg(all(desktop, feature = "tray-icon"))]
       EventLoopMessage::TrayIconEvent(e) => Self::TrayIconEvent(e),
     }
   }
@@ -518,7 +516,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Registers a global tray icon menu event listener.
-      #[cfg(desktop)]
+      #[cfg(all(desktop, feature = "tray-icon"))]
       pub fn on_tray_icon_event<F: Fn(&AppHandle<R>, TrayIconEvent) + Send + Sync + 'static>(
         &self,
         handler: F,
@@ -534,7 +532,7 @@ macro_rules! shared_app_impl {
 
       /// Gets the first tray icon registerd, usually the one configured in
       /// tauri config file.
-      #[cfg(desktop)]
+      #[cfg(all(desktop, feature = "tray-icon"))]
       pub fn tray(&self) -> Option<TrayIcon<R>> {
         self
           .manager
@@ -550,7 +548,7 @@ macro_rules! shared_app_impl {
       /// tauri config file, from tauri's internal state and returns it.
       ///
       /// Note that dropping the returned icon, will cause the tray icon to disappear.
-      #[cfg(desktop)]
+      #[cfg(all(desktop, feature = "tray-icon"))]
       pub fn remove_tray(&self) -> Option<TrayIcon<R>> {
         let mut tray_icons = self.manager.inner.tray_icons.lock().unwrap();
         if !tray_icons.is_empty() {
@@ -560,7 +558,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Gets a tray icon using the provided id.
-      #[cfg(desktop)]
+      #[cfg(all(desktop, feature = "tray-icon"))]
       pub fn tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
       where
         I: ?Sized,
@@ -580,7 +578,7 @@ macro_rules! shared_app_impl {
       /// Removes a tray icon using the provided id from tauri's internal state and returns it.
       ///
       /// Note that dropping the returned icon, will cause the tray icon to disappear.
-      #[cfg(desktop)]
+      #[cfg(all(desktop, feature = "tray-icon"))]
       pub fn remove_tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
       where
         I: ?Sized,
@@ -790,7 +788,7 @@ macro_rules! shared_app_impl {
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
-        #[cfg(desktop)]
+        #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.inner.tray_icons.lock().unwrap().clear()
       }
     }
@@ -1460,10 +1458,13 @@ impl<R: Runtime> Builder<R> {
       }));
 
       // setup tray event handler
-      let proxy = runtime.create_proxy();
-      crate::tray::TrayIconEvent::set_event_handler(Some(move |e| {
-        let _ = proxy.send_event(EventLoopMessage::TrayIconEvent(e));
-      }));
+      #[cfg(feature = "tray-icon")]
+      {
+        let proxy = runtime.create_proxy();
+        crate::tray::TrayIconEvent::set_event_handler(Some(move |e| {
+          let _ = proxy.send_event(EventLoopMessage::TrayIconEvent(e));
+        }));
+      }
     }
 
     runtime.set_device_event_filter(self.device_event_filter);
@@ -1536,9 +1537,9 @@ impl<R: Runtime> Builder<R> {
 
     let handle = app.handle();
 
-    #[cfg(desktop)]
+    // initialize default tray icon if defined
+    #[cfg(all(desktop, feature = "tray-icon"))]
     {
-      // initialize default tray icon if defined
       let config = app.config();
       if let Some(tray_config) = &config.tauri.tray_icon {
         let mut tray = TrayIconBuilder::new()
@@ -1726,7 +1727,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
             }
           }
         }
-        #[cfg(desktop)]
+        #[cfg(all(desktop, feature = "tray-icon"))]
         EventLoopMessage::TrayIconEvent(ref e) => {
           for listener in &*app_handle
             .manager

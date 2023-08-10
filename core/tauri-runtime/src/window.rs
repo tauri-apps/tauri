@@ -359,7 +359,7 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
 /// NSView on macOS.
 pub struct RawWindow<'a> {
   #[cfg(windows)]
-  pub hwnd: *mut std::ffi::c_void,
+  pub hwnd: isize,
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",

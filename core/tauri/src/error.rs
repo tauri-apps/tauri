@@ -102,10 +102,10 @@ pub enum Error {
   BadMenuIcon(#[from] muda::BadIcon),
   /// Tray icon error.
   #[error("tray icon error: {0}")]
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   Tray(#[from] tray_icon::Error),
   /// Bad tray icon error.
   #[error(transparent)]
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   BadTrayIcon(#[from] tray_icon::BadIcon),
 }

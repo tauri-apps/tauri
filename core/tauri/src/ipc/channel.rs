@@ -22,6 +22,7 @@ pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
 pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
 // TODO: ideally this const references CHANNEL_PLUGIN_NAME
 pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
+pub(crate) const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
 
 /// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
 #[derive(Default, Clone)]
@@ -77,7 +78,7 @@ impl Channel {
         .unwrap()
         .insert(data_id, body);
       window.eval(&format!(
-        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ 'Tauri-Channel-Id': {data_id} }} }}).then(window['_' + {}]).catch(console.error)",
+        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': {data_id} }} }}).then(window['_' + {}]).catch(console.error)",
         callback.0
       ))
     })
@@ -129,7 +130,7 @@ fn fetch(
 ) -> Result<Response, &'static str> {
   if let Some(id) = request
     .headers()
-    .get("Tauri-Channel-Id")
+    .get(CHANNEL_ID_HEADER_NAME)
     .and_then(|v| v.to_str().ok())
     .and_then(|id| id.parse().ok())
   {
@@ -139,7 +140,7 @@ fn fetch(
       Err("data not found")
     }
   } else {
-    Err("missing Tauri-Channel-Id header")
+    Err("missing channel id header")
   }
 }
 

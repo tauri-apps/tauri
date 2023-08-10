@@ -17,6 +17,11 @@ class ExamplePlugin(private val activity: Activity): Plugin(activity) {
 
     @Command
     fun ping(invoke: Invoke) {
+        val onEvent = invoke.getChannel("onEvent")
+        val event = JSObject()
+        event.put("kind", "ping")
+        onEvent?.send(event)
+
         val value = invoke.getString("value") ?: ""
         val ret = JSObject()
         ret.put("value", implementation.pong(value))

@@ -4,8 +4,6 @@
 
 //! The Tauri API interface.
 
-pub mod ipc;
-
 mod error;
 
 pub use error::{Error, Result};

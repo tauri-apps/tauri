@@ -31,7 +31,7 @@ fn json_to_java<'a, R: Runtime>(
     }
     JsonValue::String(val) => (
       "Ljava/lang/Object;",
-      JObject::from(env.new_string(&val)?).into(),
+      JObject::from(env.new_string(val)?).into(),
     ),
     JsonValue::Array(val) => {
       let js_array_class = runtime_handle.find_class(env, activity, "app/tauri/plugin/JSArray")?;
@@ -60,7 +60,7 @@ fn json_to_java<'a, R: Runtime>(
           data,
           "put",
           format!("(Ljava/lang/String;{signature})Lapp/tauri/plugin/JSObject;"),
-          &[env.new_string(&key)?.into(), val],
+          &[env.new_string(key)?.into(), val],
         )?;
       }
 

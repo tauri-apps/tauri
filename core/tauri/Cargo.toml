@@ -60,6 +60,7 @@ reqwest = { version = "0.11", default-features = false, features = [ "json", "st
 bytes = { version = "1", features = [ "serde" ] }
 raw-window-handle = "0.5"
 glob = "0.3"
+mime = "0.3"
 data-url = { version = "0.2", optional = true }
 serialize-to-javascript = "=0.1.1"
 infer = { version = "0.9", optional = true }
@@ -122,7 +123,7 @@ test = [ ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]
-linux-protocol-headers = [ "tauri-runtime-wry/linux-headers" ]
+linux-ipc-protocol = [ "tauri-runtime-wry/linux-protocol-body", "webkit2gtk/v2_40" ]
 linux-libxdo = [ "tray-icon/libxdo", "muda/libxdo" ]
 isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]

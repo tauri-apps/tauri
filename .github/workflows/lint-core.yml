@@ -50,7 +50,7 @@ jobs:
         clippy:
           - { args: '', key: 'empty' }
           - {
-              args: '--features compression,wry,linux-protocol-headers,isolation,custom-protocol,test',
+              args: '--features compression,wry,linux-ipc-protocol,isolation,custom-protocol,test',
               key: 'all'
             }
           - { args: '--features custom-protocol', key: 'custom-protocol' }

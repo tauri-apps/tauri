@@ -12,7 +12,7 @@ mod cmd;
 mod tray;
 
 use serde::Serialize;
-use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, Runtime, WindowUrl};
+use tauri::{ipc::Channel, window::WindowBuilder, App, AppHandle, RunEvent, Runtime, WindowUrl};
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
 #[cfg(desktop)]
@@ -88,6 +88,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {
         value: value.clone(),
+        on_event: Channel::new(|event| {
+          println!("got channel event: {:?}", event);
+          Ok(())
+        }),
       });
       log::info!("got response: {:?}", response);
       if let Ok(res) = response {

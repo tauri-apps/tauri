@@ -655,7 +655,7 @@ macro_rules! shared_app_impl {
         {
           let menu_ = menu.clone();
           self.run_on_main_thread(move || {
-            menu_.inner().init_for_nsapp();
+            let _ = init_app_menu(&menu_);
           })?;
         }
 
@@ -1451,7 +1451,7 @@ impl<R: Runtime> Builder<R> {
         .insert(menu.id().clone(), menu.clone());
 
       #[cfg(target_os = "macos")]
-      menu.inner().init_for_nsapp();
+      init_app_menu(&menu)?;
 
       app.manager.menu_lock().replace(menu);
     }
@@ -1525,6 +1525,24 @@ impl<R: Runtime> Builder<R> {
     self.build(context)?.run(|_, _| {});
     Ok(())
   }
+}
+
+#[cfg(target_os = "macos")]
+fn init_app_menu<R: Runtime>(menu: &Menu<R>) -> crate::Result<()> {
+  menu.inner().init_for_nsapp();
+
+  if let Some(window_menu) = menu.get(crate::menu::WINDOW_SUBMENU_ID) {
+    if let Some(m) = window_menu.as_submenu() {
+      m.set_as_windows_menu_for_nsapp()?;
+    }
+  }
+  if let Some(help_menu) = menu.get(crate::menu::HELP_SUBMENU_ID) {
+    if let Some(m) = help_menu.as_submenu() {
+      m.set_as_help_menu_for_nsapp()?;
+    }
+  }
+
+  Ok(())
 }
 
 unsafe impl<R: Runtime> HasRawDisplayHandle for AppHandle<R> {

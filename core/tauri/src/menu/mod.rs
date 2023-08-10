@@ -19,7 +19,7 @@ mod submenu;
 pub use builders::*;
 pub use check::CheckMenuItem;
 pub use icon::IconMenuItem;
-pub use menu::Menu;
+pub use menu::{Menu, HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 pub use normal::MenuItem;
 pub use predefined::PredefinedMenuItem;
 pub use submenu::Submenu;

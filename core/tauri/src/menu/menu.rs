@@ -9,6 +9,11 @@ use crate::{run_main_thread, AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
 use muda::{AboutMetadata, MenuId};
 
+/// Expected submenu id of the Window menu for macOS.
+pub const WINDOW_SUBMENU_ID: &str = "__tauri_window_menu__";
+/// Expected submenu id of the Help menu for macOS.
+pub const HELP_SUBMENU_ID: &str = "__tauri_help_menu__";
+
 /// A type that is either a menu bar on the window
 /// on Windows and Linux or as a global menu in the menubar on macOS.
 pub struct Menu<R: Runtime> {
@@ -143,8 +148,9 @@ impl<R: Runtime> Menu<R> {
       ..Default::default()
     };
 
-    let window_menu = Submenu::with_items(
+    let window_menu = Submenu::with_id_and_items(
       app_handle,
+      WINDOW_SUBMENU_ID,
       "Window",
       true,
       &[
@@ -156,8 +162,9 @@ impl<R: Runtime> Menu<R> {
       ],
     )?;
 
-    let help_menu = Submenu::with_items(
+    let help_menu = Submenu::with_id_and_items(
       app_handle,
+      HELP_SUBMENU_ID,
       "Help",
       true,
       &[
@@ -227,12 +234,6 @@ impl<R: Runtime> Menu<R> {
         &help_menu,
       ],
     )?;
-
-    #[cfg(target_os = "macos")]
-    {
-      window_menu.set_as_windows_menu_for_nsapp()?;
-      help_menu.set_as_help_menu_for_nsapp()?;
-    }
 
     Ok(menu)
   }
@@ -340,6 +341,16 @@ impl<R: Runtime> Menu<R> {
     let kind = item.kind();
     run_main_thread!(self, |self_: Self| self_.inner.remove(kind.inner().inner()))?
       .map_err(Into::into)
+  }
+
+  /// Retrieves the menu item matching the given identifier.
+  pub fn get<I: Into<MenuId>>(&self, id: I) -> Option<MenuItemKind<R>> {
+    let id = id.into();
+    self
+      .items()
+      .unwrap_or_default()
+      .into_iter()
+      .find(|i| i.id() == &id)
   }
 
   /// Returns a list of menu items that has been added to this menu.

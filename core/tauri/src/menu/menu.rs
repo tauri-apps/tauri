@@ -344,8 +344,11 @@ impl<R: Runtime> Menu<R> {
   }
 
   /// Retrieves the menu item matching the given identifier.
-  pub fn get<I: Into<MenuId>>(&self, id: I) -> Option<MenuItemKind<R>> {
-    let id = id.into();
+  pub fn get<'a, I>(&self, id: &'a I) -> Option<MenuItemKind<R>>
+  where
+    I: ?Sized,
+    MenuId: PartialEq<&'a I>,
+  {
     self
       .items()
       .unwrap_or_default()

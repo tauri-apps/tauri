@@ -312,4 +312,17 @@ impl<R: Runtime> Submenu<R> {
     run_main_thread!(self, |self_: Self| self_.inner.set_as_help_menu_for_nsapp())?;
     Ok(())
   }
+
+  /// Retrieves the menu item matching the given identifier.
+  pub fn get<'a, I>(&self, id: &'a I) -> Option<MenuItemKind<R>>
+  where
+    I: ?Sized,
+    MenuId: PartialEq<&'a I>,
+  {
+    self
+      .items()
+      .unwrap_or_default()
+      .into_iter()
+      .find(|i| i.id() == &id)
+  }
 }

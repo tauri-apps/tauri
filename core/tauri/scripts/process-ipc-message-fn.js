@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+// this is a function and not an iife so use it carefully
+
 (function (message) {
   if (message instanceof ArrayBuffer || ArrayBuffer.isView(message) || Array.isArray(message)) {
     return {

@@ -199,7 +199,7 @@ impl RemoteRelease {
   }
 }
 
-pub struct UpdateBuilder<R: Runtime> {
+pub(crate) struct UpdateBuilder<R: Runtime> {
   /// Application handle.
   pub app: AppHandle<R>,
   /// Current version we are running to compare with announced version
@@ -255,17 +255,13 @@ impl<R: Runtime> UpdateBuilder<R> {
     self
   }
 
-  /// Add multiple URLS at once inside a Vec for future reference
+  /// Add multiple URLs at once inside a Vec for future reference
   pub fn urls(mut self, urls: &[String]) -> Self {
-    let mut formatted_vec: Vec<String> = Vec::new();
-    for url in urls {
-      formatted_vec.push(
-        percent_encoding::percent_decode(url.as_bytes())
-          .decode_utf8_lossy()
-          .to_string(),
-      );
-    }
-    self.urls = formatted_vec;
+    self.urls.extend(urls.iter().map(|url| {
+      percent_encoding::percent_decode(url.as_bytes())
+        .decode_utf8_lossy()
+        .to_string()
+    }));
     self
   }
 
@@ -447,12 +443,12 @@ impl<R: Runtime> UpdateBuilder<R> {
   }
 }
 
-pub fn builder<R: Runtime>(app: AppHandle<R>) -> UpdateBuilder<R> {
+pub(crate) fn builder<R: Runtime>(app: AppHandle<R>) -> UpdateBuilder<R> {
   UpdateBuilder::new(app)
 }
 
 #[derive(Debug)]
-pub struct Update<R: Runtime> {
+pub(crate) struct Update<R: Runtime> {
   /// Application handle.
   pub app: AppHandle<R>,
   /// Update description
@@ -506,9 +502,32 @@ impl<R: Runtime> Clone for Update<R> {
 }
 
 impl<R: Runtime> Update<R> {
+  pub fn header<K, V>(mut self, key: K, value: V) -> Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+    HeaderValue: TryFrom<V>,
+    <HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+  {
+    let key: std::result::Result<HeaderName, http::Error> = key.try_into().map_err(Into::into);
+    let value: std::result::Result<HeaderValue, http::Error> = value.try_into().map_err(Into::into);
+    self.headers.insert(key?, value?);
+    Ok(self)
+  }
+
+  pub fn remove_header<K>(mut self, key: K) -> Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+  {
+    let key: std::result::Result<HeaderName, http::Error> = key.try_into().map_err(Into::into);
+    self.headers.remove(key?);
+    Ok(self)
+  }
+
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
-  pub(crate) async fn download_and_install<C: Fn(usize, Option<u64>), D: FnOnce()>(
+  pub async fn download_and_install<C: Fn(usize, Option<u64>), D: FnOnce()>(
     &self,
     pub_key: String,
     on_chunk: C,
@@ -1324,7 +1343,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .urls(&["http://badurl.www.tld/1".into(), mockito::server_url(),])
+      .urls(&["http://badurl.www.tld/1".into(), mockito::server_url()])
       .current_version("0.0.1".parse().unwrap())
       .build());
 

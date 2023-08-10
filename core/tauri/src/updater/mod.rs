@@ -263,7 +263,7 @@ impl<R: Runtime> UpdateBuilder<R> {
     self
   }
 
-  /// Add a `Header` to the request.
+  /// Adds a header for the requests to the updater endpoints.
   pub fn header<K, V>(mut self, key: K, value: V) -> Result<Self>
   where
     HeaderName: TryFrom<K>,
@@ -273,6 +273,12 @@ impl<R: Runtime> UpdateBuilder<R> {
   {
     self.inner = self.inner.header(key, value)?;
     Ok(self)
+  }
+
+  /// Adds a list of endpoints to fetch the update.
+  pub fn endpoints(mut self, urls: &[String]) -> Self {
+    self.inner = self.inner.urls(urls);
+    self
   }
 
   /// Check if an update is available.
@@ -302,6 +308,7 @@ impl<R: Runtime> UpdateBuilder<R> {
   /// If ther server responds with status code `204`, this method will return [`Error::UpToDate`]
   pub async fn check(self) -> Result<UpdateResponse<R>> {
     let handle = self.inner.app.clone();
+
     // check updates
     match self.inner.build().await {
       Ok(update) => {
@@ -395,6 +402,28 @@ impl<R: Runtime> UpdateResponse<R> {
     self.update.body.as_ref()
   }
 
+  /// Add a header to the download request.
+  pub fn header<K, V>(mut self, key: K, value: V) -> Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+    HeaderValue: TryFrom<V>,
+    <HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+  {
+    self.update = self.update.header(key, value)?;
+    Ok(self)
+  }
+
+  /// Removes a header from the download request.
+  pub fn remove_header<K>(mut self, key: K) -> Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+  {
+    self.update = self.update.remove_header(key)?;
+    Ok(self)
+  }
+
   /// Downloads and installs the update.
   pub async fn download_and_install(self) -> Result<()> {
     download_and_install(self.update).await
@@ -405,7 +434,7 @@ impl<R: Runtime> UpdateResponse<R> {
 pub(crate) async fn check_update_with_dialog<R: Runtime>(handle: AppHandle<R>) {
   let updater_config = handle.config().tauri.updater.clone();
   let package_info = handle.package_info().clone();
-  if let Some(endpoints) = updater_config.endpoints.clone() {
+  if let Some(endpoints) = &updater_config.endpoints {
     let endpoints = endpoints
       .iter()
       .map(|e| e.to_string())
@@ -502,13 +531,11 @@ pub fn builder<R: Runtime>(handle: AppHandle<R>) -> UpdateBuilder<R> {
   let package_info = handle.package_info().clone();
 
   // prepare our endpoints
-  let endpoints = updater_config
+  let endpoints: Vec<String> = updater_config
     .endpoints
     .as_ref()
-    .expect("Something wrong with endpoints")
-    .iter()
-    .map(|e| e.to_string())
-    .collect::<Vec<String>>();
+    .map(|endpoints| endpoints.iter().map(|e| e.to_string()).collect())
+    .unwrap_or_default();
 
   let mut builder = self::core::builder(handle.clone())
     .urls(&endpoints[..])

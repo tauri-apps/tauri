@@ -191,10 +191,10 @@ impl<'de> Deserialize<'de> for CursorIcon {
 }
 
 #[cfg(target_os = "android")]
-pub struct CreationContext<'a> {
-  pub env: jni::JNIEnv<'a>,
-  pub activity: &'a jni::objects::JObject<'a>,
-  pub webview: &'a jni::objects::JObject<'a>,
+pub struct CreationContext<'a, 'b> {
+  pub env: &'a mut jni::JNIEnv<'b>,
+  pub activity: &'a jni::objects::JObject<'b>,
+  pub webview: &'a jni::objects::JObject<'b>,
 }
 
 /// A webview window that has yet to be built.
@@ -222,7 +222,7 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   #[cfg(target_os = "android")]
   #[allow(clippy::type_complexity)]
   pub on_webview_created:
-    Option<Box<dyn Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send>>,
+    Option<Box<dyn Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send>>,
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 }
@@ -310,7 +310,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
 
   #[cfg(target_os = "android")]
   pub fn on_webview_created<
-    F: Fn(CreationContext<'_>) -> Result<(), jni::errors::Error> + Send + 'static,
+    F: Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send + 'static,
   >(
     mut self,
     f: F,

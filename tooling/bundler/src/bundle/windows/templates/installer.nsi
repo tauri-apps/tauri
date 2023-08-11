@@ -647,6 +647,7 @@ Section Uninstall
 
   ; Delete app data
   ${If} $DeleteAppDataCheckboxState == 1
+    SetShellVarContext current
     RmDir /r "$APPDATA\${BUNDLEID}"
     RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
   ${EndIf}

@@ -161,8 +161,8 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   #[cfg(target_os = "android")]
   fn find_class<'a>(
     &'a self,
-    env: jni::JNIEnv<'a>,
-    activity: jni::objects::JObject<'a>,
+    env: &'a mut jni::JNIEnv<'a>,
+    activity: &'a jni::objects::JObject<'a>,
     name: impl Into<String>,
   ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
     todo!()
@@ -171,9 +171,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   #[cfg(target_os = "android")]
   fn run_on_android_context<F>(&self, f: F)
   where
-    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
-      + Send
-      + 'static,
+    F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
   {
     todo!()
   }

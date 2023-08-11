@@ -60,29 +60,29 @@ pub(crate) fn register_channel(channel: Channel) {
 /// Glue between Rust and the Kotlin code that sends the plugin response back.
 #[cfg(target_os = "android")]
 pub fn handle_android_plugin_response(
-  env: jni::JNIEnv<'_>,
+  env: &mut jni::JNIEnv<'_>,
   id: i32,
   success: jni::objects::JString<'_>,
   error: jni::objects::JString<'_>,
 ) {
   let (payload, is_ok): (serde_json::Value, bool) = match (
     env
-      .is_same_object(success, jni::objects::JObject::default())
+      .is_same_object(&success, jni::objects::JObject::default())
       .unwrap_or_default(),
     env
-      .is_same_object(error, jni::objects::JObject::default())
+      .is_same_object(&error, jni::objects::JObject::default())
       .unwrap_or_default(),
   ) {
     // both null
     (true, true) => (serde_json::Value::Null, true),
     // error null
     (false, true) => (
-      serde_json::from_str(env.get_string(success).unwrap().to_str().unwrap()).unwrap(),
+      serde_json::from_str(env.get_string(&success).unwrap().to_str().unwrap()).unwrap(),
       true,
     ),
     // success null
     (true, false) => (
-      serde_json::from_str(env.get_string(error).unwrap().to_str().unwrap()).unwrap(),
+      serde_json::from_str(env.get_string(&error).unwrap().to_str().unwrap()).unwrap(),
       false,
     ),
     // both are set - impossible in the Kotlin code
@@ -102,12 +102,12 @@ pub fn handle_android_plugin_response(
 /// Glue between Rust and the Kotlin code that sends the channel data.
 #[cfg(target_os = "android")]
 pub fn send_channel_data(
-  env: jni::JNIEnv<'_>,
+  env: &mut jni::JNIEnv<'_>,
   channel_id: i64,
   data_str: jni::objects::JString<'_>,
 ) {
   let data: serde_json::Value =
-    serde_json::from_str(env.get_string(data_str).unwrap().to_str().unwrap()).unwrap();
+    serde_json::from_str(env.get_string(&data_str).unwrap().to_str().unwrap()).unwrap();
 
   if let Some(channel) = CHANNELS
     .get_or_init(Default::default)
@@ -196,24 +196,15 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   ) -> Result<PluginHandle<R>, PluginInvokeError> {
     use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
 
-    fn initialize_plugin<'a, R: Runtime>(
-      env: JNIEnv<'a>,
-      activity: JObject<'a>,
-      webview: JObject<'a>,
+    fn initialize_plugin<R: Runtime>(
+      env: &mut JNIEnv<'_>,
+      activity: &JObject<'_>,
+      webview: &JObject<'_>,
       runtime_handle: &R::Handle,
       plugin_name: &'static str,
       plugin_class: String,
       plugin_config: &serde_json::Value,
     ) -> Result<(), JniError> {
-      let plugin_manager = env
-        .call_method(
-          activity,
-          "getPluginManager",
-          "()Lapp/tauri/plugin/PluginManager;",
-          &[],
-        )?
-        .l()?;
-
       // instantiate plugin
       let plugin_class = runtime_handle.find_class(env, activity, plugin_class)?;
       let plugin = env.new_object(
@@ -223,15 +214,28 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       )?;
 
       // load plugin
+
+      let plugin_manager = env
+        .call_method(
+          activity,
+          "getPluginManager",
+          "()Lapp/tauri/plugin/PluginManager;",
+          &[],
+        )?
+        .l()?;
+
+      let plugin_name = env.new_string(plugin_name)?;
+      let config =
+        crate::jni_helpers::to_jsobject::<R>(env, activity, &runtime_handle, plugin_config)?;
       env.call_method(
         plugin_manager,
         "load",
         "(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;Lapp/tauri/plugin/JSObject;)V",
         &[
           webview.into(),
-          env.new_string(plugin_name)?.into(),
-          plugin.into(),
-          crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, plugin_config)?
+          (&plugin_name).into(),
+          (&plugin).into(),
+          config.borrow()
         ],
       )?;
 
@@ -393,11 +397,13 @@ pub(crate) fn run_command<
     plugin: &str,
     command: String,
     payload: &serde_json::Value,
-    runtime_handle: &R::Handle,
-    env: JNIEnv<'_>,
-    activity: JObject<'_>,
+    runtime_handle: R::Handle,
+    env: &mut JNIEnv<'_>,
+    activity: &JObject<'_>,
   ) -> Result<(), JniError> {
-    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, payload)?;
+    let plugin = env.new_string(plugin)?;
+    let command = env.new_string(&command)?;
+    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, &runtime_handle, payload)?;
     let plugin_manager = env
       .call_method(
         activity,
@@ -413,9 +419,9 @@ pub(crate) fn run_command<
       "(ILjava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;)V",
       &[
         id.into(),
-        env.new_string(plugin)?.into(),
-        env.new_string(&command)?.into(),
-        data,
+        (&plugin).into(),
+        (&command).into(),
+        data.borrow(),
       ],
     )?;
 
@@ -440,7 +446,7 @@ pub(crate) fn run_command<
     .insert(id, Box::new(handler.clone()));
 
   handle.run_on_android_context(move |env, activity, _webview| {
-    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, &handle_, env, activity) {
+    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, handle_, env, activity) {
       handler(Err(e.to_string().into()));
     }
   });

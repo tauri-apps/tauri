@@ -1780,9 +1780,9 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
 
   #[cfg(target_os = "android")]
   fn find_class<'a>(
-    &'a self,
-    env: jni::JNIEnv<'a>,
-    activity: jni::objects::JObject<'a>,
+    &self,
+    env: &mut jni::JNIEnv<'a>,
+    activity: &jni::objects::JObject<'_>,
     name: impl Into<String>,
   ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
     find_class(env, activity, name.into())
@@ -1791,9 +1791,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   #[cfg(target_os = "android")]
   fn run_on_android_context<F>(&self, f: F)
   where
-    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
-      + Send
-      + 'static,
+    F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
   {
     dispatch(f)
   }

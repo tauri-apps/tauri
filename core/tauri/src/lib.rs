@@ -135,14 +135,20 @@ macro_rules! android_binding {
 
     // this function is a glue between PluginManager.kt > handlePluginResponse and Rust
     #[allow(non_snake_case)]
-    pub fn handlePluginResponse(env: JNIEnv, _: JClass, id: i32, success: JString, error: JString) {
-      ::tauri::handle_android_plugin_response(env, id, success, error);
+    pub fn handlePluginResponse(
+      mut env: JNIEnv,
+      _: JClass,
+      id: i32,
+      success: JString,
+      error: JString,
+    ) {
+      ::tauri::handle_android_plugin_response(&mut env, id, success, error);
     }
 
     // this function is a glue between PluginManager.kt > sendChannelData and Rust
     #[allow(non_snake_case)]
-    pub fn sendChannelData(env: JNIEnv, _: JClass, id: i64, data: JString) {
-      ::tauri::send_channel_data(env, id, data);
+    pub fn sendChannelData(mut env: JNIEnv, _: JClass, id: i64, data: JString) {
+      ::tauri::send_channel_data(&mut env, id, data);
     }
   };
 }

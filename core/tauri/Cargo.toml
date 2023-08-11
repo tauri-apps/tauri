@@ -94,7 +94,7 @@ log = "0.4"
 heck = "0.4"
 
 [target."cfg(target_os = \"android\")".dependencies]
-jni = "0.20"
+jni = "0.21"
 
 [target."cfg(target_os = \"ios\")".dependencies]
 libc = "0.2"

@@ -1153,7 +1153,7 @@ impl<R: Runtime> WindowManager<R> {
 
     #[cfg(target_os = "android")]
     {
-      pending = pending.on_webview_created(move |ctx| {
+      pending = pending.on_webview_created(move |mut ctx| {
         let plugin_manager = ctx
           .env
           .call_method(

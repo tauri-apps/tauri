@@ -36,7 +36,7 @@ percent-encoding = "2.1"
 cocoa = "0.24"
 
 [target."cfg(target_os = \"android\")".dependencies]
-jni = "0.20"
+jni = "0.21"
 
 [features]
 dox = [ "wry/dox" ]

@@ -225,9 +225,9 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Finds an Android class in the project scope.
   #[cfg(target_os = "android")]
   fn find_class<'a>(
-    &'a self,
-    env: jni::JNIEnv<'a>,
-    activity: jni::objects::JObject<'a>,
+    &self,
+    env: &mut jni::JNIEnv<'a>,
+    activity: &jni::objects::JObject<'_>,
     name: impl Into<String>,
   ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error>;
 
@@ -237,9 +237,7 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   #[cfg(target_os = "android")]
   fn run_on_android_context<F>(&self, f: F)
   where
-    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
-      + Send
-      + 'static;
+    F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static;
 }
 
 pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {

@@ -193,8 +193,8 @@ impl<'de> Deserialize<'de> for CursorIcon {
 #[cfg(target_os = "android")]
 pub struct CreationContext<'a> {
   pub env: jni::JNIEnv<'a>,
-  pub activity: jni::objects::JObject<'a>,
-  pub webview: jni::objects::JObject<'a>,
+  pub activity: &'a jni::objects::JObject<'a>,
+  pub webview: &'a jni::objects::JObject<'a>,
 }
 
 /// A webview window that has yet to be built.

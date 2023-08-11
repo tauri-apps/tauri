@@ -10,7 +10,6 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
-use mime::{TEXT_HTML, TEXT_PLAIN};
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
@@ -562,23 +561,23 @@ impl<R: Runtime> WindowManager<R> {
               };
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponseBuilder::new()
-                  .mimetype(TEXT_HTML.as_ref())
+                  .mimetype(mime::TEXT_HTML.as_ref())
                   .body(asset.into_string().as_bytes().to_vec()),
                 Err(_) => HttpResponseBuilder::new()
                   .status(500)
-                  .mimetype(TEXT_PLAIN.as_ref())
+                  .mimetype(mime::TEXT_PLAIN.as_ref())
                   .body(Vec::new()),
               }
             }
 
             None => HttpResponseBuilder::new()
               .status(404)
-              .mimetype(TEXT_PLAIN.as_ref())
+              .mimetype(mime::TEXT_PLAIN.as_ref())
               .body(Vec::new()),
           },
           _ => HttpResponseBuilder::new()
             .status(404)
-            .mimetype(TEXT_PLAIN.as_ref())
+            .mimetype(mime::TEXT_PLAIN.as_ref())
             .body(Vec::new()),
         }
       });
@@ -1022,7 +1021,7 @@ impl<R: Runtime> WindowManager<R> {
           if html.contains('<') && html.contains('>') {
             let mut document = tauri_utils::html::parse(html);
             tauri_utils::html::inject_csp(&mut document, &csp.to_string());
-            url.set_path(&format!("{TEXT_HTML},{}", document.to_string()));
+            url.set_path(&format!("{},{}", mime::TEXT_HTML, document.to_string()));
           }
         }
       }

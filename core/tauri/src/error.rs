@@ -103,9 +103,11 @@ pub enum Error {
   /// Tray icon error.
   #[error("tray icon error: {0}")]
   #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   Tray(#[from] tray_icon::Error),
   /// Bad tray icon error.
   #[error(transparent)]
   #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   BadTrayIcon(#[from] tray_icon::BadIcon),
 }

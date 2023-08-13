@@ -103,6 +103,7 @@ pub mod scope;
 mod state;
 
 #[cfg(all(desktop, feature = "tray-icon"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
 pub mod tray;
 pub use tauri_utils as utils;
 
@@ -260,6 +261,7 @@ pub enum EventLoopMessage {
   MenuEvent(menu::MenuEvent),
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
   #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   TrayIconEvent(tray::TrayIconEvent),
 }
 
@@ -462,6 +464,7 @@ impl<A: Assets> Context<A> {
 
   /// The icon to use on the system tray UI.
   #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
   pub fn tray_icon(&self) -> Option<&Icon> {
     self.tray_icon.as_ref()
@@ -469,6 +472,7 @@ impl<A: Assets> Context<A> {
 
   /// A mutable reference to the icon to use on the tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
   pub fn tray_icon_mut(&mut self) -> &mut Option<Icon> {
     &mut self.tray_icon
@@ -519,6 +523,7 @@ impl<A: Assets> Context<A> {
 
   /// Sets the app tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
   pub fn set_tray_icon(&mut self, icon: Icon) {
     self.tray_icon.replace(icon);

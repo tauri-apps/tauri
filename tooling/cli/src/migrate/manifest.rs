@@ -153,6 +153,8 @@ fn migrate_dependency_table<D: TableLike>(dep: &mut D, version: String, remove: 
           features_array.remove(index);
           if f == "reqwest-native-tls-vendored" {
             add_features.push("native-tls-vendored");
+          } else if f == "system-tray" {
+            add_features.push("tray-icon");
           }
         }
       }

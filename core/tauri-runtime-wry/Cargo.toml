@@ -12,6 +12,9 @@ license = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
 
+[package.metadata.docs.rs]
+features = [ "dox" ]
+
 [dependencies]
 wry = { version = "0.30", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.13.0-alpha.6", path = "../tauri-runtime" }

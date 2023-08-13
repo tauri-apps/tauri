@@ -118,7 +118,7 @@ tokio = { version = "1", features = [ "full" ] }
 cargo_toml = "0.15"
 
 [features]
-default = [ "wry", "compression", "objc-exception", "tray-icon/common-controls-v6", "muda/common-controls-v6" ]
+default = [ "wry", "compression", "objc-exception", "tray-icon?/common-controls-v6", "muda/common-controls-v6" ]
 tray-icon = [ "dep:tray-icon" ]
 test = [ ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]

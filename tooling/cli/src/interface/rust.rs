@@ -697,12 +697,7 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(
-      &self.manifest,
-      features,
-      config.tauri.bundle.clone(),
-      config.tauri.tray_icon.clone(),
-    )
+    tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone())
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
@@ -1045,7 +1040,6 @@ fn tauri_config_to_bundle_settings(
   manifest: &Manifest,
   features: &[String],
   config: crate::helpers::config::BundleConfig,
-  tray_icon_config: Option<crate::helpers::config::TrayIconConfig>,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
 
@@ -1066,14 +1060,35 @@ fn tauri_config_to_bundle_settings(
   #[allow(unused_mut)]
   let mut depends = config.deb.depends.unwrap_or_default();
 
+  // set env vars used by the bundler and inject dependencies
   #[cfg(target_os = "linux")]
   {
-    if let Some(tray_icon_config) = &tray_icon_config {
+    if enabled_features.contains(&"tray-icon".into())
+      || enabled_features.contains(&"tauri/tray-icon".into())
+    {
       let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
       if tray == "ayatana" {
         depends.push("libayatana-appindicator3-1".into());
+
+        std::env::set_var(
+          "TRAY_LIBRARY_PATH",
+          format!(
+            "{}/libayatana-appindicator3.so.1",
+            pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
+              .expect("failed to get ayatana-appindicator library path using pkg-config.")
+          ),
+        );
       } else {
         depends.push("libappindicator3-1".into());
+
+        std::env::set_var(
+          "TRAY_LIBRARY_PATH",
+          format!(
+            "{}/libappindicator3.so.1",
+            pkgconfig_utils::get_library_path("appindicator3-0.1")
+              .expect("failed to get libappindicator-gtk library path using pkg-config.")
+          ),
+        );
       }
     }
 
@@ -1183,4 +1198,38 @@ fn tauri_config_to_bundle_settings(
     }),
     ..Default::default()
   })
+}
+
+#[cfg(target_os = "linux")]
+mod pkgconfig_utils {
+  use std::{path::PathBuf, process::Command};
+
+  pub fn get_appindicator_library_path() -> PathBuf {
+    match get_library_path("ayatana-appindicator3-0.1") {
+      Some(p) => format!("{p}/libayatana-appindicator3.so.1").into(),
+      None => match get_library_path("appindicator3-0.1") {
+        Some(p) => format!("{p}/libappindicator3.so.1").into(),
+        None => panic!("Can't detect any appindicator library"),
+      },
+    }
+  }
+
+  /// Gets the folder in which a library is located using `pkg-config`.
+  pub fn get_library_path(name: &str) -> Option<String> {
+    let mut cmd = Command::new("pkg-config");
+    cmd.env("PKG_CONFIG_ALLOW_SYSTEM_LIBS", "1");
+    cmd.arg("--libs-only-L");
+    cmd.arg(name);
+    if let Ok(output) = cmd.output() {
+      if !output.stdout.is_empty() {
+        // output would be "-L/path/to/library\n"
+        let word = output.stdout[2..].to_vec();
+        return Some(String::from_utf8_lossy(&word).trim().to_string());
+      } else {
+        None
+      }
+    } else {
+      None
+    }
+  }
 }

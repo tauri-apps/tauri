@@ -1066,30 +1066,39 @@ fn tauri_config_to_bundle_settings(
     if enabled_features.contains(&"tray-icon".into())
       || enabled_features.contains(&"tauri/tray-icon".into())
     {
-      let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
-      if tray == "ayatana" {
-        depends.push("libayatana-appindicator3-1".into());
-
-        std::env::set_var(
-          "TRAY_LIBRARY_PATH",
-          format!(
-            "{}/libayatana-appindicator3.so.1",
-            pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
-              .expect("failed to get ayatana-appindicator library path using pkg-config.")
-          ),
-        );
-      } else {
-        depends.push("libappindicator3-1".into());
-
-        std::env::set_var(
-          "TRAY_LIBRARY_PATH",
-          format!(
-            "{}/libappindicator3.so.1",
-            pkgconfig_utils::get_library_path("appindicator3-0.1")
-              .expect("failed to get libappindicator-gtk library path using pkg-config.")
-          ),
-        );
+      let (tray_kind, path) = std::env::var("TAURI_TRAY")
+        .map(|kind| {
+          if kind == "ayatana" {
+            (
+              pkgconfig_utils::TrayKind::Ayatana,
+              format!(
+                "{}/libayatana-appindicator3.so.1",
+                pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
+                  .expect("failed to get ayatana-appindicator library path using pkg-config.")
+              ),
+            )
+          } else {
+            (
+              pkgconfig_utils::TrayKind::Libappindicator,
+              format!(
+                "{}/libappindicator3.so.1",
+                pkgconfig_utils::get_library_path("appindicator3-0.1")
+                  .expect("failed to get libappindicator-gtk library path using pkg-config.")
+              ),
+            )
+          }
+        })
+        .unwrap_or_else(|_| pkgconfig_utils::get_appindicator_library_path());
+      match tray_kind {
+        pkgconfig_utils::TrayKind::Ayatana => {
+          depends.push("libayatana-appindicator3-1".into());
+        }
+        pkgconfig_utils::TrayKind::Libappindicator => {
+          depends.push("libappindicator3-1".into());
+        }
       }
+
+      std::env::set_var("TRAY_LIBRARY_PATH", path);
     }
 
     // provides `libwebkit2gtk-4.1.so.37` and all `4.0` versions have the -37 package name
@@ -1202,13 +1211,24 @@ fn tauri_config_to_bundle_settings(
 
 #[cfg(target_os = "linux")]
 mod pkgconfig_utils {
-  use std::{path::PathBuf, process::Command};
+  use std::process::Command;
 
-  pub fn get_appindicator_library_path() -> PathBuf {
+  pub enum TrayKind {
+    Ayatana,
+    Libappindicator,
+  }
+
+  pub fn get_appindicator_library_path() -> (TrayKind, String) {
     match get_library_path("ayatana-appindicator3-0.1") {
-      Some(p) => format!("{p}/libayatana-appindicator3.so.1").into(),
+      Some(p) => (
+        TrayKind::Ayatana,
+        format!("{p}/libayatana-appindicator3.so.1"),
+      ),
       None => match get_library_path("appindicator3-0.1") {
-        Some(p) => format!("{p}/libappindicator3.so.1").into(),
+        Some(p) => (
+          TrayKind::Libappindicator,
+          format!("{p}/libappindicator3.so.1"),
+        ),
         None => panic!("Can't detect any appindicator library"),
       },
     }

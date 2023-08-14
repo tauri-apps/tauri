@@ -675,23 +675,23 @@ impl<R: Runtime> WindowManager<R> {
               };
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponseBuilder::new()
-                  .mimetype("text/html")
+                  .mimetype(mime::TEXT_HTML.as_ref())
                   .body(asset.into_string().as_bytes().to_vec()),
                 Err(_) => HttpResponseBuilder::new()
                   .status(500)
-                  .mimetype("text/plain")
+                  .mimetype(mime::TEXT_PLAIN.as_ref())
                   .body(Vec::new()),
               }
             }
 
             None => HttpResponseBuilder::new()
               .status(404)
-              .mimetype("text/plain")
+              .mimetype(mime::TEXT_PLAIN.as_ref())
               .body(Vec::new()),
           },
           _ => HttpResponseBuilder::new()
             .status(404)
-            .mimetype("text/plain")
+            .mimetype(mime::TEXT_PLAIN.as_ref())
             .body(Vec::new()),
         }
       });
@@ -1135,7 +1135,7 @@ impl<R: Runtime> WindowManager<R> {
           if html.contains('<') && html.contains('>') {
             let mut document = tauri_utils::html::parse(html);
             tauri_utils::html::inject_csp(&mut document, &csp.to_string());
-            url.set_path(&format!("text/html,{}", document.to_string()));
+            url.set_path(&format!("{},{}", mime::TEXT_HTML, document.to_string()));
           }
         }
       }

@@ -102,9 +102,6 @@ cc = "1"
 [target."cfg(unix)".dependencies]
 libc = "0.2"
 
-[profile.release]
-lto = true
-
 [features]
 default = [ "rustls" ]
 native-tls = [
@@ -118,3 +115,10 @@ native-tls-vendored = [
   "tauri-mobile/openssl-vendored"
 ]
 rustls = [ "tauri-bundler/rustls", "tauri-mobile/rustls", "ureq/tls" ]
+
+[profile.release-size-optimized]
+inherits = "release"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "s"

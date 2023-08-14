@@ -289,7 +289,10 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
   dependencies.push(DependencyAllowlist {
     name: "tauri".into(),
     kind: DependencyKind::Normal,
-    all_cli_managed_features: crate::helpers::config::TauriConfig::all_features(),
+    all_cli_managed_features: crate::helpers::config::TauriConfig::all_features()
+      .into_iter()
+      .filter(|f| f != &"tray-icon")
+      .collect(),
     features: tauri_features,
   });
 

@@ -1,5 +1,26 @@
 # Changelog
 
+## \[1.0.0-alpha.0]
+
+### New Features
+
+- [`4db363a0`](https://www.github.com/tauri-apps/tauri/commit/4db363a03c182349f8491f46ced258d84723b11f)([#6589](https://www.github.com/tauri-apps/tauri/pull/6589)) Added `visible_on_all_workspaces` configuration option to `WindowBuilder`, `Window`, and `WindowConfig`.
+- [`84c41597`](https://www.github.com/tauri-apps/tauri/commit/84c4159754b2e59244211ed9e1fc702d851a0562)([#6394](https://www.github.com/tauri-apps/tauri/pull/6394)) Added `primary_monitor` and `available_monitors` to `Runtime` and `RuntimeHandle`.
+- [`2a000e15`](https://www.github.com/tauri-apps/tauri/commit/2a000e150d02dff28c8b20ad097b29e209160045)([#7235](https://www.github.com/tauri-apps/tauri/pull/7235)) Added `navigate` function to `Dispatch` trait.
+- [`3b98141a`](https://www.github.com/tauri-apps/tauri/commit/3b98141aa26f74c641a4090874247b97079bd58a)([#3736](https://www.github.com/tauri-apps/tauri/pull/3736)) Added the `Opened` variant to `RunEvent`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.7`
+
+### Breaking Changes
+
+- [`7fb419c3`](https://www.github.com/tauri-apps/tauri/commit/7fb419c326aaf72ecd556d8404377444ebb200e7)([#7535](https://www.github.com/tauri-apps/tauri/pull/7535)) `Dispatch::create_window`, `Runtime::create_window` and `RuntimeHandle::create_window` has been changed to accept a 3rd parameter which is a closure that takes `RawWindow` and to be executed right after the window is created and before the webview is added to the window.
+- [`7fb419c3`](https://www.github.com/tauri-apps/tauri/commit/7fb419c326aaf72ecd556d8404377444ebb200e7)([#7535](https://www.github.com/tauri-apps/tauri/pull/7535)) System tray and menu related APIs and structs have all been removed and are now implemented in tauri outside of the runtime-space.
+- [`3a2c3e74`](https://www.github.com/tauri-apps/tauri/commit/3a2c3e74710bef9a14932dce74c351cca6215429)([#7306](https://www.github.com/tauri-apps/tauri/pull/7306)) The `PendingWindow#navigation_handler` closure now receives a `&Url` argument instead of `Url`.
+- [`7fb419c3`](https://www.github.com/tauri-apps/tauri/commit/7fb419c326aaf72ecd556d8404377444ebb200e7)([#7535](https://www.github.com/tauri-apps/tauri/pull/7535)) `Runtime::new` and `Runtime::new_any_thread` now accept a `RuntimeInitArgs`.
+- [`7fb419c3`](https://www.github.com/tauri-apps/tauri/commit/7fb419c326aaf72ecd556d8404377444ebb200e7)([#7535](https://www.github.com/tauri-apps/tauri/pull/7535)) Removed `system-tray` feature flag
+
 ## \[0.13.0-alpha.6]
 
 ### New Features

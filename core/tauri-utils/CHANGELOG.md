@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.0.0-alpha.7]
+
+### New Features
+
+- [`4db363a0`](https://www.github.com/tauri-apps/tauri/commit/4db363a03c182349f8491f46ced258d84723b11f)([#6589](https://www.github.com/tauri-apps/tauri/pull/6589)) Added `visible_on_all_workspaces` configuration option to `WindowBuilder`, `Window`, and `WindowConfig`.
+- [`7fb419c3`](https://www.github.com/tauri-apps/tauri/commit/7fb419c326aaf72ecd556d8404377444ebb200e7)([#7535](https://www.github.com/tauri-apps/tauri/pull/7535)) Add option to specify a tooltip text for the tray icon in the config.
+- [`74b1f4fc`](https://www.github.com/tauri-apps/tauri/commit/74b1f4fc6625d5b4f9b86f70e4eebd6551c61809)([#7384](https://www.github.com/tauri-apps/tauri/pull/7384)) Add `WindowEffect::MicaDark` and `WindowEffect::MicaLight`
+- [`3b98141a`](https://www.github.com/tauri-apps/tauri/commit/3b98141aa26f74c641a4090874247b97079bd58a)([#3736](https://www.github.com/tauri-apps/tauri/pull/3736)) Add a configuration object for file associations under `BundleConfig`.
+
+### Enhancements
+
+- [`fbeb5b91`](https://www.github.com/tauri-apps/tauri/commit/fbeb5b9185baeda19e865228179e3e44c165f1d9)([#7170](https://www.github.com/tauri-apps/tauri/pull/7170)) Use custom protocols on the IPC implementation to enhance performance.
+
+### Security fixes
+
+- [`43c6285e`](https://www.github.com/tauri-apps/tauri/commit/43c6285e9006fb84066461d57fe09ea8db76d636)([#7359](https://www.github.com/tauri-apps/tauri/pull/7359)) Changed HTML implementation from unmaintained `kuchiki` to `kuchikiki`.
+
+### Breaking Changes
+
+- [`7fb419c3`](https://www.github.com/tauri-apps/tauri/commit/7fb419c326aaf72ecd556d8404377444ebb200e7)([#7535](https://www.github.com/tauri-apps/tauri/pull/7535)) `systemTray` config option has been renamed to `trayIcon`.
+
 ## \[2.0.0-alpha.6]
 
 ### New Features

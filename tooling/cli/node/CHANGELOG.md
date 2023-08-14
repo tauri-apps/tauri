@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-alpha.11]
+
+### New Features
+
+- [`522de0e7`](https://www.github.com/tauri-apps/tauri/commit/522de0e78891d0bdf6387a5118985fc41a11baeb)([#7447](https://www.github.com/tauri-apps/tauri/pull/7447)) Expose an environment variable `TAURI_${PLUGIN_NAME}_PLUGIN_CONFIG` for each defined plugin configuration object.
+- [`c7dacca4`](https://www.github.com/tauri-apps/tauri/commit/c7dacca4661c6ddf937c1a3dd3ace896d5baf40c)([#7446](https://www.github.com/tauri-apps/tauri/pull/7446)) Expose the `TAURI_IOS_PROJECT_PATH` and `TAURI_IOS_APP_NAME` environment variables when using `ios` commands.
+- [`aa94f719`](https://www.github.com/tauri-apps/tauri/commit/aa94f7197e4345a7cab1617272b10895859674f9)([#7445](https://www.github.com/tauri-apps/tauri/pull/7445)) Generate empty entitlements file for the iOS project.
+- [`d010bc07`](https://www.github.com/tauri-apps/tauri/commit/d010bc07b81116bef769b64cdc19b23dff762d48)([#7554](https://www.github.com/tauri-apps/tauri/pull/7554)) Set the iOS project PRODUCT_NAME value to the string under `tauri.conf.json > package > productName` if it is set.
+- [`8af24974`](https://www.github.com/tauri-apps/tauri/commit/8af2497496f11ee481472dfdc3125757346c1a3e)([#7561](https://www.github.com/tauri-apps/tauri/pull/7561)) The `migrate` command now automatically reads all JavaScript files and updates `@tauri-apps/api` import paths and install the missing plugins.
+
+### Enhancements
+
+- [`fbeb5b91`](https://www.github.com/tauri-apps/tauri/commit/fbeb5b9185baeda19e865228179e3e44c165f1d9)([#7170](https://www.github.com/tauri-apps/tauri/pull/7170)) Update migrate command to update the configuration CSP to include `ipc:` on the `connect-src` directive, needed by the new IPC using custom protocols.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.11`
+
 ## \[2.0.0-alpha.10]
 
 ### New Features

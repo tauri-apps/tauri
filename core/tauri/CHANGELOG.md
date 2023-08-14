@@ -1,11 +1,5 @@
 # Changelog
 
-## \[2.0.0-alpha.12]
-
-### Dependencies
-
-- Upgraded to `tauri-build@2.0.0-alpha.8`
-
 ## \[2.0.0-alpha.11]
 
 ### New Features

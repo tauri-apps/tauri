@@ -3,18 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, device_prompt, ensure_init, env, open_and_wait, setup_dev_config, with_config,
-  MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
+  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, open_and_wait,
+  setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
   dev::Options as DevOptions,
-  helpers::{config::get as get_config, flock},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{get as get_tauri_config, ConfigHandle},
+    flock, resolve_merge_config,
+  },
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
 };
 use clap::{ArgAction, Parser};
 
+use anyhow::Context;
 use dialoguer::{theme::ColorfulTheme, Select};
 use tauri_mobile::{
   apple::{config::Config as AppleConfig, device::Device, teams::find_development_teams},
@@ -23,7 +28,7 @@ use tauri_mobile::{
   opts::{NoiseLevel, Profile},
 };
 
-use std::env::{set_var, var_os};
+use std::env::{set_current_dir, set_var, var_os};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "iOS dev")]
@@ -79,6 +84,14 @@ impl From<Options> for DevOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  let result = run_command(options, noise_level);
+  if result.is_err() {
+    crate::dev::kill_before_dev_process();
+  }
+  result
+}
+
+fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   if var_os(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME).is_none() {
     if let Ok(teams) = find_development_teams() {
       let index = match teams.len() {
@@ -109,17 +122,29 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }
     }
   }
-  with_config(
-    Some(Default::default()),
-    |app, config, _metadata, _cli_options| {
-      ensure_init(config.project_dir(), MobileTarget::Ios)?;
-      run_dev(options, app, config, noise_level).map_err(Into::into)
-    },
-  )
+
+  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
+  options.config = merge_config;
+
+  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let (app, config) = {
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    let app = get_app(tauri_config_);
+    let (config, _metadata) = get_config(&app, tauri_config_, &Default::default());
+    (app, config)
+  };
+
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+
+  ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  run_dev(options, tauri_config, &app, &config, noise_level)
 }
 
 fn run_dev(
   mut options: Options,
+  tauri_config: ConfigHandle,
   app: &App,
   config: &AppleConfig,
   noise_level: NoiseLevel,
@@ -177,7 +202,7 @@ fn run_dev(
         vars: Default::default(),
       };
       let _handle = write_options(
-        &get_config(options.config.as_deref())?
+        &tauri_config
           .lock()
           .unwrap()
           .as_ref()

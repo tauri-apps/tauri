@@ -14,7 +14,7 @@ tauri-build = { path = "../../../../core/tauri-build", features = [] }
 
 [dependencies]
 api = { path = "../api" }
-tauri = { path = "../../../../core/tauri", features = ["dialog"] }
+tauri = { path = "../../../../core/tauri" }
 
 [features]
 custom-protocol = [ "tauri/custom-protocol" ]

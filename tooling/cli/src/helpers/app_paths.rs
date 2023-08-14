@@ -18,7 +18,7 @@ use tauri_utils::config::parse::{
 
 const TAURI_GITIGNORE: &[u8] = include_bytes!("../../tauri.gitignore");
 
-fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
+pub fn walk_builder(path: &Path) -> WalkBuilder {
   let mut default_gitignore = std::env::temp_dir();
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
@@ -28,9 +28,14 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
     }
   }
 
-  let mut builder = WalkBuilder::new(dir);
+  let mut builder = WalkBuilder::new(path);
   builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
+  builder
+}
+
+fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
+  let mut builder = walk_builder(dir);
   builder
     .require_git(false)
     .ignore(false)

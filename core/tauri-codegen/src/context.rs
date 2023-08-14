@@ -184,10 +184,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .tauri
       .security
       .dev_csp
-      .clone()
-      .or_else(|| config.tauri.security.csp.clone())
+      .as_ref()
+      .or(config.tauri.security.csp.as_ref())
   } else {
-    config.tauri.security.csp.clone()
+    config.tauri.security.csp.as_ref()
   };
   if csp.is_some() {
     options = options.with_csp();
@@ -264,8 +264,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         );
         png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
       }
-    } else if target == Target::Linux {
-      // handle default window icons for Linux targets
+    } else {
+      // handle default window icons for Unix targets
       let icon_path = find_icon(
         &config,
         &config_parent,
@@ -273,8 +273,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         "icons/icon.png",
       );
       png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
-    } else {
-      quote!(::std::option::Option::None)
     }
   };
 
@@ -319,16 +317,16 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   );
 
-  let with_system_tray_icon_code = if target.is_desktop() {
-    if let Some(tray) = &config.tauri.system_tray {
-      let system_tray_icon_path = config_parent.join(&tray.icon_path);
-      let ext = system_tray_icon_path.extension();
+  let with_tray_icon_code = if target.is_desktop() {
+    if let Some(tray) = &config.tauri.tray_icon {
+      let tray_icon_icon_path = config_parent.join(&tray.icon_path);
+      let ext = tray_icon_icon_path.extension();
       if ext.map_or(false, |e| e == "ico") {
-        ico_icon(&root, &out_dir, system_tray_icon_path)
-          .map(|i| quote!(context.set_system_tray_icon(#i);))?
+        ico_icon(&root, &out_dir, tray_icon_icon_path)
+          .map(|i| quote!(context.set_tray_icon(#i);))?
       } else if ext.map_or(false, |e| e == "png") {
-        png_icon(&root, &out_dir, system_tray_icon_path)
-          .map(|i| quote!(context.set_system_tray_icon(#i);))?
+        png_icon(&root, &out_dir, tray_icon_icon_path)
+          .map(|i| quote!(context.set_tray_icon(#i);))?
       } else {
         quote!(compile_error!(
           "The tray icon extension must be either `.ico` or `.png`."
@@ -432,7 +430,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #info_plist,
       #pattern,
     );
-    #with_system_tray_icon_code
+    #with_tray_icon_code
     context
   }))
 }
@@ -502,6 +500,13 @@ fn png_icon<P: AsRef<Path>>(
   let mut reader = decoder
     .read_info()
     .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
+
+  let (color_type, _) = reader.output_color_type();
+
+  if color_type != png::ColorType::Rgba {
+    panic!("icon {} is not RGBA", path.display());
+  }
+
   let mut buffer: Vec<u8> = Vec::new();
   while let Ok(Some(row)) = reader.next_row() {
     buffer.extend(row.data());

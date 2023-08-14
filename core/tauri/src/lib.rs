@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
 //! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
@@ -11,9 +13,11 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
-//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
+//! - **linux-ipc-protocol**: Use custom protocol for faster IPC on Linux. Requires webkit2gtk v2.40 or above.
+//! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
@@ -22,7 +26,7 @@
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
-//! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
+//! - **tray-icon**: Enables application tray icon APIs. Enabled by default if the `trayIcon` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
@@ -40,6 +44,10 @@
 //!
 //! - **protocol-asset**: Enables the `asset` custom protocol.
 
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
@@ -68,11 +76,13 @@ pub use tauri_macros::{command, generate_handler};
 
 pub mod api;
 pub(crate) mod app;
+#[cfg(feature = "protocol-asset")]
+pub(crate) mod asset_protocol;
 pub mod async_runtime;
 pub mod command;
 mod error;
 mod event;
-mod hooks;
+pub mod ipc;
 mod manager;
 mod pattern;
 pub mod plugin;
@@ -83,6 +93,8 @@ use tauri_runtime as runtime;
 mod ios;
 #[cfg(target_os = "android")]
 mod jni_helpers;
+#[cfg(desktop)]
+pub mod menu;
 /// Path APIs.
 pub mod path;
 pub mod process;
@@ -90,6 +102,9 @@ pub mod process;
 pub mod scope;
 mod state;
 
+#[cfg(all(desktop, feature = "tray-icon"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+pub mod tray;
 pub use tauri_utils as utils;
 
 /// A Tauri [`Runtime`] wrapper around wry.
@@ -111,23 +126,37 @@ macro_rules! android_binding {
       handlePluginResponse,
       [i32, JString, JString],
     );
+    ::tauri::wry::application::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      sendChannelData,
+      [i64, JString],
+    );
 
+    // this function is a glue between PluginManager.kt > handlePluginResponse and Rust
     #[allow(non_snake_case)]
-    pub unsafe fn handlePluginResponse(
-      env: JNIEnv,
+    pub fn handlePluginResponse(
+      mut env: JNIEnv,
       _: JClass,
       id: i32,
       success: JString,
       error: JString,
     ) {
-      ::tauri::handle_android_plugin_response(env, id, success, error);
+      ::tauri::handle_android_plugin_response(&mut env, id, success, error);
+    }
+
+    // this function is a glue between PluginManager.kt > sendChannelData and Rust
+    #[allow(non_snake_case)]
+    pub fn sendChannelData(mut env: JNIEnv, _: JClass, id: i64, data: JString) {
+      ::tauri::send_channel_data(&mut env, id, data);
     }
   };
 }
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
-pub use plugin::mobile::handle_android_plugin_response;
+pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;
@@ -139,37 +168,31 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use serde::Serialize;
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{
+  collections::HashMap,
+  fmt::{self, Debug},
+  sync::Arc,
+};
 
 // Export types likely to be used by the application.
 pub use runtime::http;
 
+#[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+pub use tauri_runtime_wry::webview_version;
+
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-pub use runtime::{menu::NativeImage, ActivationPolicy};
+pub use runtime::ActivationPolicy;
 
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
-#[cfg(all(desktop, feature = "system-tray"))]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
-  self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
-};
-pub use {
-  self::app::WindowMenuEvent,
-  self::event::{Event, EventHandler},
-  self::runtime::menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu},
-  self::window::menu::MenuEvent,
-};
+
+pub use self::event::{Event, EventHandler};
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
     WindowEvent,
-  },
-  self::hooks::{
-    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokePayload, InvokeResolver,
-    InvokeResponder, InvokeResponse, OnPageLoad, PageLoadPayload, SetupHook,
   },
   self::manager::Asset,
   self::runtime::{
@@ -232,7 +255,15 @@ pub fn log_stdout() {
 
 /// The user event type.
 #[derive(Debug, Clone)]
-pub enum EventLoopMessage {}
+pub enum EventLoopMessage {
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  #[cfg(desktop)]
+  MenuEvent(menu::MenuEvent),
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  TrayIconEvent(tray::TrayIconEvent),
+}
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
@@ -371,8 +402,8 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
-  #[cfg(desktop)]
-  pub(crate) system_tray_icon: Option<Icon>,
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  pub(crate) tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
@@ -387,8 +418,8 @@ impl<A: Assets> fmt::Debug for Context<A> {
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
 
-    #[cfg(desktop)]
-    d.field("system_tray_icon", &self.system_tray_icon);
+    #[cfg(all(desktop, feature = "tray-icon"))]
+    d.field("tray_icon", &self.tray_icon);
 
     d.finish()
   }
@@ -432,17 +463,19 @@ impl<A: Assets> Context<A> {
   }
 
   /// The icon to use on the system tray UI.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn system_tray_icon(&self) -> Option<&Icon> {
-    self.system_tray_icon.as_ref()
+  pub fn tray_icon(&self) -> Option<&Icon> {
+    self.tray_icon.as_ref()
   }
 
-  /// A mutable reference to the icon to use on the system tray UI.
-  #[cfg(desktop)]
+  /// A mutable reference to the icon to use on the tray icon.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
-    &mut self.system_tray_icon
+  pub fn tray_icon_mut(&mut self) -> &mut Option<Icon> {
+    &mut self.tray_icon
   }
 
   /// Package information.
@@ -480,8 +513,8 @@ impl<A: Assets> Context<A> {
       assets,
       default_window_icon,
       app_icon,
-      #[cfg(desktop)]
-      system_tray_icon: None,
+      #[cfg(all(desktop, feature = "tray-icon"))]
+      tray_icon: None,
       package_info,
       _info_plist: info_plist,
       pattern,
@@ -489,10 +522,11 @@ impl<A: Assets> Context<A> {
   }
 
   /// Sets the app tray icon.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn set_system_tray_icon(&mut self, icon: Icon) {
-    self.system_tray_icon.replace(icon);
+  pub fn set_tray_icon(&mut self, icon: Icon) {
+    self.tray_icon.replace(icon);
   }
 
   /// Sets the app shell scope.
@@ -507,7 +541,7 @@ impl<A: Assets> Context<A> {
 /// Manages a running application.
 pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// The application handle associated with this manager.
-  fn app_handle(&self) -> AppHandle<R> {
+  fn app_handle(&self) -> &AppHandle<R> {
     self.managed_app_handle()
   }
 
@@ -522,18 +556,66 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Emits a event to all windows.
+  ///
+  /// Only the webviews receives this event.
+  /// To trigger Rust listeners, use [`Self::trigger_global`], [`Window::trigger`] or [`Window::emit_and_trigger`].
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(app: tauri::AppHandle) {
+  ///   // emits the synchronized event to all windows
+  ///   app.emit_all("synchronized", ());
+  /// }
+  /// ```
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, None, payload, |_| true)
   }
 
-  /// Emits an event to a window with the specified label.
+  /// Emits an event to the window with the specified label.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(app: tauri::AppHandle) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to the updater window
+  ///     app.emit_to("updater", "download-progress", i);
+  ///   }
+  /// }
+  /// ```
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
       .emit_filter(event, None, payload, |w| label == w.label())
   }
 
-  /// Listen to a global event.
+  /// Listen to a event triggered on any window ([`Window::trigger`] or [`Window::emit_and_trigger`]) or with [`Self::trigger_global`].
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(window: tauri::Window) {
+  ///   // emits the synchronized event to all windows
+  ///   window.emit_and_trigger("synchronized", ());
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     app.listen_global("synchronized", |event| {
+  ///       println!("app is in sync");
+  ///     });
+  ///     Ok(())
+  ///   })
+  ///   .invoke_handler(tauri::generate_handler![synchronize]);
+  /// ```
   fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -542,6 +624,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Listen to a global event only once.
+  ///
+  /// See [`Self::listen_global`] for more information.
   fn once_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: FnOnce(Event) + Send + 'static,
@@ -549,12 +633,54 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().once(event.into(), None, handler)
   }
 
-  /// Trigger a global event.
+  /// Trigger a global event to Rust listeners.
+  /// To send the events to the webview, see [`Self::emit_all`] and [`Self::emit_to`].
+  /// To trigger listeners registed on an specific window, see [`Window::trigger`].
+  /// To trigger all listeners, see [`Window::emit_and_trigger`].
+  ///
+  /// A global event does not have a source or target window attached.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(app: tauri::AppHandle) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners registed in Rust
+  ///     app.trigger_global("download-progress", Some(i.to_string()));
+  ///   }
+  /// }
+  /// ```
   fn trigger_global(&self, event: &str, data: Option<String>) {
     self.manager().trigger(event, None, data)
   }
 
   /// Remove an event listener.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle().clone();
+  ///     let handler = app.listen_global("ready", move |event| {
+  ///       println!("app is ready");
+  ///
+  ///       // we no longer need to listen to the event
+  ///       // we also could have used `app.once_global` instead
+  ///       handle.unlisten(event.id());
+  ///     });
+  ///
+  ///     // stop listening to the event when you do not need it anymore
+  ///     app.unlisten(handler);
+  ///
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
   fn unlisten(&self, handler_id: EventHandler) {
     self.manager().unlisten(handler_id)
   }
@@ -562,6 +688,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Fetch a single window from the manager.
   fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
+  }
+  /// Fetch the focused window. Returns `None` if there is not any focused window.
+  fn get_focused_window(&self) -> Option<Window<R>> {
+    self.manager().get_focused_window()
   }
 
   /// Fetch all managed windows.
@@ -571,18 +701,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Add `state` to the state managed by the application.
   ///
-  /// This method can be called any number of times as long as each call
-  /// refers to a different `T`.
-  /// If a state for `T` is already managed, the function returns false and the value is ignored.
+  /// If the state for the `T` type has previously been set, the state is unchanged and false is returned. Otherwise true is returned.
   ///
   /// Managed state can be retrieved by any command handler via the
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
-  ///
-  /// # Panics
-  ///
-  /// Panics if state of type `T` is already being managed.
+  /// Additionally, [`state`](Self#method.state) can be used to retrieve the value manually.
   ///
   /// # Mutability
   ///
@@ -737,12 +862,12 @@ pub(crate) mod sealed {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<R>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
-    fn managed_app_handle(&self) -> AppHandle<R>;
+    fn managed_app_handle(&self) -> &AppHandle<R>;
   }
 }
 
-/// Utilities for unit testing on Tauri applications.
-#[cfg(test)]
+#[cfg(any(test, feature = "test"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "test")))]
 pub mod test;
 
 #[cfg(test)]
@@ -786,6 +911,23 @@ mod tests {
     }
   }
 }
+
+#[allow(unused)]
+macro_rules! run_main_thread {
+  ($self:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+    let self_ = $self.clone();
+    let task = move || {
+      let _ = tx.send($ex(self_));
+    };
+    $self.app_handle.run_on_main_thread(Box::new(task))?;
+    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
+  }};
+}
+
+#[allow(unused)]
+pub(crate) use run_main_thread;
 
 #[cfg(test)]
 mod test_utils {

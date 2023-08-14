@@ -1,5 +1,5 @@
 ---
-"tauri": patch
+"tauri": 'patch:enhance'
 ---
 
 Expose `SafePathBuf` type in `tauri::path`.

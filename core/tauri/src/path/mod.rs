@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  env::temp_dir,
-  path::{Component, Display, Path, PathBuf},
-};
+use std::path::{Component, Display, Path, PathBuf};
 
 use crate::{
   plugin::{Builder, TauriPlugin},
@@ -14,8 +11,8 @@ use crate::{
 
 use serde::{de::Error as DeError, Deserialize, Deserializer};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 
-#[cfg(any(path_all, test))]
 mod commands;
 mod error;
 pub use error::*;
@@ -26,9 +23,9 @@ mod android;
 mod desktop;
 
 #[cfg(target_os = "android")]
-pub(crate) use android::PathResolver;
+pub use android::PathResolver;
 #[cfg(not(target_os = "android"))]
-pub(crate) use desktop::PathResolver;
+pub use desktop::PathResolver;
 
 /// A wrapper for [`PathBuf`] that prevents path traversal.
 #[derive(Clone, Debug)]
@@ -68,7 +65,7 @@ impl<'de> Deserialize<'de> for SafePathBuf {
   }
 }
 
-/// A base directory to be used in [`resolve_directory`].
+/// A base directory for a path.
 ///
 /// The base directory is the optional root of a file system operation.
 /// If informed by the API call, all paths will be relative to the path of the given directory.
@@ -100,8 +97,7 @@ pub enum BaseDirectory {
   Video,
   /// The Resource directory.
   Resource,
-  /// A temporary directory.
-  /// Resolves to [`temp_dir`].
+  /// A temporary directory. Resolves to [`std::env::temp_dir`].
   Temp,
   /// The default app config directory.
   /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
@@ -293,7 +289,7 @@ fn resolve_path<R: Runtime>(
     BaseDirectory::Public => resolver.public_dir(),
     BaseDirectory::Video => resolver.video_dir(),
     BaseDirectory::Resource => resolver.resource_dir(),
-    BaseDirectory::Temp => Ok(temp_dir()),
+    BaseDirectory::Temp => resolver.temp_dir(),
     BaseDirectory::AppConfig => resolver.app_config_dir(),
     BaseDirectory::AppData => resolver.app_data_dir(),
     BaseDirectory::AppLocalData => resolver.app_local_data_dir(),
@@ -335,14 +331,27 @@ fn resolve_path<R: Runtime>(
   Ok(base_dir_path)
 }
 
+#[derive(Template)]
+#[default_template("./init.js")]
+struct InitJavascript {
+  sep: &'static str,
+  delimiter: &'static str,
+}
+
 /// Initializes the plugin.
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
-  #[allow(unused_mut)]
-  let mut builder = Builder::new("path");
+  #[cfg(windows)]
+  let (sep, delimiter) = ("\\", ";");
+  #[cfg(not(windows))]
+  let (sep, delimiter) = ("/", ":");
 
-  #[cfg(any(path_all, test))]
-  {
-    builder = builder.invoke_handler(crate::generate_handler![
+  let init_js = InitJavascript { sep, delimiter }
+    .render_default(&Default::default())
+    // this will never fail with the above sep and delimiter values
+    .unwrap();
+
+  Builder::new("path")
+    .invoke_handler(crate::generate_handler![
       commands::resolve_directory,
       commands::resolve,
       commands::normalize,
@@ -351,10 +360,8 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::extname,
       commands::basename,
       commands::is_absolute
-    ]);
-  }
-
-  builder
+    ])
+    .js_init_script(init_js.to_string())
     .setup(|app, _api| {
       #[cfg(target_os = "android")]
       {

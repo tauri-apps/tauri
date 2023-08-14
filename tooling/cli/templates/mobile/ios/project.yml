@@ -10,7 +10,7 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: {{app.name}}
+      PRODUCT_NAME: {{app.stylized-name}}
       PRODUCT_BUNDLE_IDENTIFIER: {{reverse-domain app.domain}}.{{app.name}}
       DEVELOPMENT_TEAM: {{apple.development-team}}
 targetTemplates:
@@ -32,6 +32,7 @@ targets:
       - path: Sources
       - path: Assets.xcassets
       - path: Externals
+      - path: {{app.name}}_iOS
       - path: {{app.asset-dir}}
         buildPhase: resources
         type: folder
@@ -58,6 +59,8 @@ targets:
         CFBundleVersion: {{apple.bundle-version}}
         {{~#each apple.plist-pairs}}
         {{this.key}}: {{this.value}}{{/each}}
+    entitlements:
+      path: {{app.name}}_iOS/{{app.name}}_iOS.entitlements
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full

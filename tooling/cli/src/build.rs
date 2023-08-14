@@ -7,6 +7,7 @@ use crate::{
     app_paths::{app_dir, tauri_dir},
     command_env,
     config::{get as get_config, AppUrl, HookCommand, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
+    resolve_merge_config,
     updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -142,31 +143,6 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     // set env vars used by the bundler
     #[cfg(target_os = "linux")]
     {
-      if config_.tauri.system_tray.is_some() {
-        if let Ok(tray) = std::env::var("TAURI_TRAY") {
-          std::env::set_var(
-            "TRAY_LIBRARY_PATH",
-            if tray == "ayatana" {
-              format!(
-                "{}/libayatana-appindicator3.so.1",
-                pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
-                  .expect("failed to get ayatana-appindicator library path using pkg-config.")
-              )
-            } else {
-              format!(
-                "{}/libappindicator3.so.1",
-                pkgconfig_utils::get_library_path("appindicator3-0.1")
-                  .expect("failed to get libappindicator-gtk library path using pkg-config.")
-              )
-            },
-          );
-        } else {
-          std::env::set_var(
-            "TRAY_LIBRARY_PATH",
-            pkgconfig_utils::get_appindicator_library_path(),
-          );
-        }
-      }
       if config_.tauri.bundle.appimage.bundle_media_framework {
         std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
       }
@@ -233,21 +209,13 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 }
 
 pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
-  let (merge_config, merge_config_path) = match &options.config {
-    Some(config) if config.starts_with('{') => (Some(config.to_string()), None),
-    Some(config) => (
-      Some(std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?),
-      Some(config.clone()),
-    ),
-    None => (None, None),
-  };
-
+  let (merge_config, merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
+
+  let config = get_config(options.config.as_deref())?;
 
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
-
-  let config = get_config(options.config.as_deref())?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
@@ -276,7 +244,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
     error!(
-      "The bundle identifier \"{}\" set in `{} > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).",
+      "The bundle identifier \"{}\" set in `{} > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
       config_.tauri.bundle.identifier,
       bundle_identifier_source
     );
@@ -382,55 +350,22 @@ fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool
 }
 
 fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
-  let pluralised = if output_paths.len() == 1 {
-    "updater archive"
-  } else {
-    "updater archives"
-  };
-  let msg = format!("{} {} at:", output_paths.len(), pluralised);
-  info!("{}", msg);
-  for path in output_paths {
-    #[cfg(unix)]
-    info!("        {}", path.display());
-    #[cfg(windows)]
-    info!(
-      "        {}",
-      tauri_utils::display_path(path).replacen(r"\\?\", "", 1)
-    );
+  use std::fmt::Write;
+  if !output_paths.is_empty() {
+    let pluralised = if output_paths.len() == 1 {
+      "updater signature"
+    } else {
+      "updater signatures"
+    };
+    let mut printable_paths = String::new();
+    for path in output_paths {
+      writeln!(
+        printable_paths,
+        "        {}",
+        tauri_utils::display_path(path)
+      )?;
+    }
+    info!( action = "Finished"; "{} {} at:\n{}", output_paths.len(), pluralised, printable_paths);
   }
   Ok(())
-}
-
-#[cfg(target_os = "linux")]
-mod pkgconfig_utils {
-  use std::{path::PathBuf, process::Command};
-
-  pub fn get_appindicator_library_path() -> PathBuf {
-    match get_library_path("ayatana-appindicator3-0.1") {
-      Some(p) => format!("{p}/libayatana-appindicator3.so.1").into(),
-      None => match get_library_path("appindicator3-0.1") {
-        Some(p) => format!("{p}/libappindicator3.so.1").into(),
-        None => panic!("Can't detect any appindicator library"),
-      },
-    }
-  }
-
-  /// Gets the folder in which a library is located using `pkg-config`.
-  pub fn get_library_path(name: &str) -> Option<String> {
-    let mut cmd = Command::new("pkg-config");
-    cmd.env("PKG_CONFIG_ALLOW_SYSTEM_LIBS", "1");
-    cmd.arg("--libs-only-L");
-    cmd.arg(name);
-    if let Ok(output) = cmd.output() {
-      if !output.stdout.is_empty() {
-        // output would be "-L/path/to/library\n"
-        let word = output.stdout[2..].to_vec();
-        return Some(String::from_utf8_lossy(&word).trim().to_string());
-      } else {
-        None
-      }
-    } else {
-      None
-    }
-  }
 }

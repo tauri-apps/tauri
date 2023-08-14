@@ -12,7 +12,7 @@ pub use tauri_utils::config::*;
 
 use std::{
   collections::HashMap,
-  env::{set_var, var_os},
+  env::{current_dir, set_current_dir, set_var, var_os},
   ffi::OsStr,
   process::exit,
   sync::{Arc, Mutex},
@@ -99,12 +99,14 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
 
 pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
   tauri_bundler::NsisSettings {
+    template: config.template,
     license: config.license,
     header_image: config.header_image,
     sidebar_image: config.sidebar_image,
     installer_icon: config.installer_icon,
     install_mode: config.install_mode,
     languages: config.languages,
+    custom_language_files: config.custom_language_files,
     display_language_selector: config.display_language_selector,
   }
 }
@@ -165,7 +167,23 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     }
   }
 
+  // the `Config` deserializer for `package > version` can resolve the version from a path relative to the config path
+  // so we actually need to change the current working directory here
+  let current_dir = current_dir()?;
+  set_current_dir(config_path.parent().unwrap())?;
   let config: Config = serde_json::from_value(config)?;
+  // revert to previous working directory
+  set_current_dir(current_dir)?;
+
+  for (plugin, conf) in &config.plugins.0 {
+    set_var(
+      format!(
+        "TAURI_{}_PLUGIN_CONFIG",
+        plugin.to_uppercase().replace('-', "_")
+      ),
+      serde_json::to_string(&conf)?,
+    );
+  }
 
   *config_handle().lock().unwrap() = Some(ConfigMetadata {
     inner: config,

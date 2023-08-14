@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, NSISInstallerMode},
+  config::{BundleType, FileAssociation, NSISInstallerMode},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -152,6 +152,15 @@ pub struct DebianSettings {
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  ///
+  /// Default file contents:
+  /// ```text
+  #[doc = include_str!("./linux/templates/main.desktop")]
+  /// ```
+  pub desktop_template: Option<PathBuf>,
 }
 
 /// The macOS bundle settings.
@@ -248,6 +257,8 @@ pub struct WixSettings {
 /// Settings specific to the NSIS implementation.
 #[derive(Clone, Debug, Default)]
 pub struct NsisSettings {
+  /// A custom .nsi template to use.
+  pub template: Option<PathBuf>,
   /// The path to the license file to render on the installer.
   pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
@@ -268,6 +279,13 @@ pub struct NsisSettings {
   ///
   /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
+  /// An key-value pair where the key is the language and the
+  /// value is the path to a custom `.nsi` file that holds the translated text for tauri's custom messages.
+  ///
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/tooling/bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsi` file.
+  ///
+  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`]languages array,
+  pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
@@ -344,6 +362,8 @@ pub struct BundleSettings {
   pub copyright: Option<String>,
   /// the app's category.
   pub category: Option<AppCategory>,
+  /// the file associations
+  pub file_associations: Option<Vec<FileAssociation>>,
   /// the app's short description.
   pub short_description: Option<String>,
   /// the app's long description.
@@ -766,6 +786,11 @@ impl Settings {
   /// Returns the app's category.
   pub fn app_category(&self) -> Option<AppCategory> {
     self.bundle_settings.category
+  }
+
+  /// Return file associations.
+  pub fn file_associations(&self) -> &Option<Vec<FileAssociation>> {
+    &self.bundle_settings.file_associations
   }
 
   /// Returns the app's short description.

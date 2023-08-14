@@ -12,7 +12,6 @@
  */
 
 import { invoke } from './tauri'
-import { isWindows } from './helpers/os-check'
 
 /**
  * @since 2.0.0
@@ -525,23 +524,42 @@ async function appLogDir(): Promise<string> {
 }
 
 /**
- * Provides the platform-specific path segment separator:
+ * Returns a temporary directory.
+ * @example
+ * ```typescript
+ * import { tempDir } from '@tauri-apps/api/path';
+ * const temp = await tempDir();
+ * ```
+ *
+ * @since 2.0.0
+ */
+async function tempDir(path: string): Promise<string> {
+  return invoke('plugin:path|resolve_directory', {
+    directory: BaseDirectory.Temp
+  })
+}
+
+/**
+ * Returns the platform-specific path segment separator:
  * - `\` on Windows
  * - `/` on POSIX
  *
- * @since 1.0.0
+ * @since 2.0.0
  */
-const sep = isWindows() ? '\\' : '/'
+function sep(): string {
+  return window.__TAURI__.path.__sep
+}
 
 /**
- * Provides the platform-specific path segment delimiter:
+ * Returns the platform-specific path segment delimiter:
  * - `;` on Windows
  * - `:` on POSIX
  *
- * @since 1.0.0
+ * @since 2.0.0
  */
-const delimiter = isWindows() ? ';' : ':'
-
+function delimiter(): string {
+  return window.__TAURI__.path.__delimiter
+}
 /**
  * Resolves a sequence of `paths` or `path` segments into an absolute path.
  * @example
@@ -683,5 +701,6 @@ export {
   dirname,
   extname,
   basename,
-  isAbsolute
+  isAbsolute,
+  tempDir
 }

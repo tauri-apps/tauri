@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.0.0-alpha.10]
+
+### New Features
+
+- [`7e5905ae`](https://www.github.com/tauri-apps/tauri/commit/7e5905ae1d56b920de0e821be28036cbbe302518)([#7023](https://www.github.com/tauri-apps/tauri/pull/7023)) Added `tauri plugin add` command to add a plugin to the Tauri project.
+- [`b0f94775`](https://www.github.com/tauri-apps/tauri/commit/b0f947752a315b7b89c5979de50157f997f1dd6e)([#7008](https://www.github.com/tauri-apps/tauri/pull/7008)) Added `migrate` command.
+
+### Enhancements
+
+- [`aa6c9164`](https://www.github.com/tauri-apps/tauri/commit/aa6c9164e63b5316d690f25b1c118f1b12310570)([#7007](https://www.github.com/tauri-apps/tauri/pull/7007)) Don't build library files when building desktop targets.
+- [`a28fdf7e`](https://www.github.com/tauri-apps/tauri/commit/a28fdf7ec71bf6db2498569004de83318b6d25ac)([#7044](https://www.github.com/tauri-apps/tauri/pull/7044)) Skip Rust target installation if they are already installed.
+- [`735db1ce`](https://www.github.com/tauri-apps/tauri/commit/735db1ce839a16ba998c9e6786c441e3bf6c90b3)([#7044](https://www.github.com/tauri-apps/tauri/pull/7044)) Add `--skip-targets-install` flag for `tauri android init` and `tauri ios init` to skip installing needed rust targets vie rustup.
+
+### Bug Fixes
+
+- [`1ed2600d`](https://www.github.com/tauri-apps/tauri/commit/1ed2600da67715908af857255305eaeb293d8791)([#6771](https://www.github.com/tauri-apps/tauri/pull/6771)) Set current directory to tauri directory before reading config file.
+- [`4847b87b`](https://www.github.com/tauri-apps/tauri/commit/4847b87b1067dd8c6e73986059f51e6eee1f1121)([#7209](https://www.github.com/tauri-apps/tauri/pull/7209)) Fix `tauri (android|ios) (dev|build)` failing when using `npx tauri`
+- [`655c714e`](https://www.github.com/tauri-apps/tauri/commit/655c714e4100f69d4265c5ea3f08f5bc11709446)([#7240](https://www.github.com/tauri-apps/tauri/pull/7240)) Fixes panic when exiting the `ios dev` command with Ctrl + C.
+- [`6252380f`](https://www.github.com/tauri-apps/tauri/commit/6252380f4447c66913b0f06611e5949005b1eec2)([#7241](https://www.github.com/tauri-apps/tauri/pull/7241)) Exit `beforeDevCommand` process if the android or iOS `dev` command fails.
+
 ## \[2.0.0-alpha.9]
 
 - [`19cd0e49`](https://www.github.com/tauri-apps/tauri/commit/19cd0e49603ad3500cd2180bfa16e1649e3a771a)([#6811](https://www.github.com/tauri-apps/tauri/pull/6811)) Add `key.properties` file to android's `.gitignore`.
@@ -121,6 +141,50 @@
   - [a9c8e565](https://www.github.com/tauri-apps/tauri/commit/a9c8e565c6495961940877df7090f307be16b554) feat: add `android open` and `ios open` commands ([#4946](https://www.github.com/tauri-apps/tauri/pull/4946)) on 2022-08-15
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.4.0]
+
+### New Features
+
+- [`0ddbb3a1`](https://www.github.com/tauri-apps/tauri/commit/0ddbb3a1dc1961ba5c6c1a60081513c1380c8af1)([#7015](https://www.github.com/tauri-apps/tauri/pull/7015)) Provide prebuilt CLIs for Windows ARM64 targets.
+- [`35cd751a`](https://www.github.com/tauri-apps/tauri/commit/35cd751adc6fef1f792696fa0cfb471b0bf99374)([#5176](https://www.github.com/tauri-apps/tauri/pull/5176)) Added the `desktop_template` option on `tauri.conf.json > tauri > bundle > deb`.
+- [`6c5ade08`](https://www.github.com/tauri-apps/tauri/commit/6c5ade08d97844bb685789d30e589400bbe3e04c)([#4537](https://www.github.com/tauri-apps/tauri/pull/4537)) Added `tauri completions` to generate shell completions scripts.
+- [`e092f799`](https://www.github.com/tauri-apps/tauri/commit/e092f799469ff32c7d1595d0f07d06fd2dab5c29)([#6887](https://www.github.com/tauri-apps/tauri/pull/6887)) Add `nsis > template` option to specify custom NSIS installer template.
+
+### Enhancements
+
+- [`d75c1b82`](https://www.github.com/tauri-apps/tauri/commit/d75c1b829bd96d9e3a672bcc79120597d5ada4a0)([#7181](https://www.github.com/tauri-apps/tauri/pull/7181)) Print a useful error when `updater` bundle target is specified without an updater-enabled target.
+- [`52474e47`](https://www.github.com/tauri-apps/tauri/commit/52474e479d695865299d8c8d868fb98b99731020)([#7141](https://www.github.com/tauri-apps/tauri/pull/7141)) Enhance injection of Cargo features.
+- [`2659ca1a`](https://www.github.com/tauri-apps/tauri/commit/2659ca1ab4799a5bda65c229c149e98bd01eb1ee)([#6900](https://www.github.com/tauri-apps/tauri/pull/6900)) Add `rustls` as default Cargo feature.
+
+### Bug Fixes
+
+- [`3cb7a3e6`](https://www.github.com/tauri-apps/tauri/commit/3cb7a3e642bb10ee90dc1d24daa48b8c8c15c9ce)([#6997](https://www.github.com/tauri-apps/tauri/pull/6997)) Fix built-in devserver adding hot-reload code to non-html files.
+- [`fb7ef8da`](https://www.github.com/tauri-apps/tauri/commit/fb7ef8dacd9ade96976c84d22507782cdaf38acf)([#6667](https://www.github.com/tauri-apps/tauri/pull/6667)) Fix nodejs binary regex when `0` is in the version name, for example `node-20`
+- [`1253bbf7`](https://www.github.com/tauri-apps/tauri/commit/1253bbf7ae11a87887e0b3bd98cc26dbb98c8130)([#7013](https://www.github.com/tauri-apps/tauri/pull/7013)) Fixes Cargo.toml feature rewriting.
+
+## \[1.3.1]
+
+- Correctly escape XML for resource files in WiX bundler.
+  - Bumped due to a bump in tauri-bundler.
+    - Bumped due to a bump in cli.rs.
+  - [6a6b1388](https://www.github.com/tauri-apps/tauri/commit/6a6b1388ea5787aea4c0e0b0701a4772087bbc0f) fix(bundler): correctly escape resource xml, fixes [#6853](https://www.github.com/tauri-apps/tauri/pull/6853) ([#6855](https://www.github.com/tauri-apps/tauri/pull/6855)) on 2023-05-04
+
+- Added the following languages to the NSIS bundler:
+
+- `Spanish`
+
+- `SpanishInternational`
+
+- Bumped due to a bump in tauri-bundler.
+  - Bumped due to a bump in cli.rs.
+
+- [422b4817](https://www.github.com/tauri-apps/tauri/commit/422b48179856504e980a156500afa8e22c44d357) Add Spanish and SpanishInternational languages ([#6871](https://www.github.com/tauri-apps/tauri/pull/6871)) on 2023-05-06
+
+- Correctly escape arguments in NSIS script to fix bundling apps that use non-default WebView2 install modes.
+  - Bumped due to a bump in tauri-bundler.
+    - Bumped due to a bump in cli.rs.
+  - [2915bd06](https://www.github.com/tauri-apps/tauri/commit/2915bd068ed40dc01a363b69212c6b6f2d3ec01e) fix(bundler): Fix webview install modes in NSIS bundler ([#6854](https://www.github.com/tauri-apps/tauri/pull/6854)) on 2023-05-04
 
 ## \[1.3.0]
 

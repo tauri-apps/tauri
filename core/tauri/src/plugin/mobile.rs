@@ -4,7 +4,7 @@
 
 use super::{PluginApi, PluginHandle};
 
-use crate::Runtime;
+use crate::{ipc::Channel, AppHandle, Runtime};
 #[cfg(target_os = "android")]
 use crate::{
   runtime::RuntimeHandle,
@@ -12,7 +12,7 @@ use crate::{
 };
 
 use once_cell::sync::OnceCell;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 
 use std::{
   collections::HashMap,
@@ -20,11 +20,13 @@ use std::{
   sync::{mpsc::channel, Mutex},
 };
 
-type PendingPluginCallHandler =
-  Box<dyn FnOnce(Result<serde_json::Value, serde_json::Value>) + Send + 'static>;
+type PluginResponse = Result<serde_json::Value, serde_json::Value>;
+
+type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>;
 
 static PENDING_PLUGIN_CALLS: OnceCell<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
   OnceCell::new();
+static CHANNELS: OnceCell<Mutex<HashMap<u32, Channel>>> = OnceCell::new();
 
 /// Possible errors when invoking a plugin.
 #[derive(Debug, thiserror::Error)]
@@ -42,34 +44,45 @@ pub enum PluginInvokeError {
   /// Failed to deserialize response.
   #[error("failed to deserialize response: {0}")]
   CannotDeserializeResponse(serde_json::Error),
+  /// Failed to serialize request payload.
+  #[error("failed to serialize payload: {0}")]
+  CannotSerializePayload(serde_json::Error),
+}
+
+pub(crate) fn register_channel(channel: Channel) {
+  CHANNELS
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .insert(channel.id(), channel);
 }
 
 /// Glue between Rust and the Kotlin code that sends the plugin response back.
 #[cfg(target_os = "android")]
 pub fn handle_android_plugin_response(
-  env: jni::JNIEnv<'_>,
+  env: &mut jni::JNIEnv<'_>,
   id: i32,
   success: jni::objects::JString<'_>,
   error: jni::objects::JString<'_>,
 ) {
   let (payload, is_ok): (serde_json::Value, bool) = match (
     env
-      .is_same_object(success, jni::objects::JObject::default())
+      .is_same_object(&success, jni::objects::JObject::default())
       .unwrap_or_default(),
     env
-      .is_same_object(error, jni::objects::JObject::default())
+      .is_same_object(&error, jni::objects::JObject::default())
       .unwrap_or_default(),
   ) {
     // both null
     (true, true) => (serde_json::Value::Null, true),
     // error null
     (false, true) => (
-      serde_json::from_str(env.get_string(success).unwrap().to_str().unwrap()).unwrap(),
+      serde_json::from_str(env.get_string(&success).unwrap().to_str().unwrap()).unwrap(),
       true,
     ),
     // success null
     (true, false) => (
-      serde_json::from_str(env.get_string(error).unwrap().to_str().unwrap()).unwrap(),
+      serde_json::from_str(env.get_string(&error).unwrap().to_str().unwrap()).unwrap(),
       false,
     ),
     // both are set - impossible in the Kotlin code
@@ -83,6 +96,26 @@ pub fn handle_android_plugin_response(
     .remove(&id)
   {
     handler(if is_ok { Ok(payload) } else { Err(payload) });
+  }
+}
+
+/// Glue between Rust and the Kotlin code that sends the channel data.
+#[cfg(target_os = "android")]
+pub fn send_channel_data(
+  env: &mut jni::JNIEnv<'_>,
+  channel_id: i64,
+  data_str: jni::objects::JString<'_>,
+) {
+  let data: serde_json::Value =
+    serde_json::from_str(env.get_string(&data_str).unwrap().to_str().unwrap()).unwrap();
+
+  if let Some(channel) = CHANNELS
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .get(&(channel_id as u32))
+  {
+    let _ = channel.send(data);
   }
 }
 
@@ -163,24 +196,15 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   ) -> Result<PluginHandle<R>, PluginInvokeError> {
     use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
 
-    fn initialize_plugin<'a, R: Runtime>(
-      env: JNIEnv<'a>,
-      activity: JObject<'a>,
-      webview: JObject<'a>,
+    fn initialize_plugin<R: Runtime>(
+      env: &mut JNIEnv<'_>,
+      activity: &JObject<'_>,
+      webview: &JObject<'_>,
       runtime_handle: &R::Handle,
       plugin_name: &'static str,
       plugin_class: String,
       plugin_config: &serde_json::Value,
     ) -> Result<(), JniError> {
-      let plugin_manager = env
-        .call_method(
-          activity,
-          "getPluginManager",
-          "()Lapp/tauri/plugin/PluginManager;",
-          &[],
-        )?
-        .l()?;
-
       // instantiate plugin
       let plugin_class = runtime_handle.find_class(env, activity, plugin_class)?;
       let plugin = env.new_object(
@@ -190,15 +214,28 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       )?;
 
       // load plugin
+
+      let plugin_manager = env
+        .call_method(
+          activity,
+          "getPluginManager",
+          "()Lapp/tauri/plugin/PluginManager;",
+          &[],
+        )?
+        .l()?;
+
+      let plugin_name = env.new_string(plugin_name)?;
+      let config =
+        crate::jni_helpers::to_jsobject::<R>(env, activity, &runtime_handle, plugin_config)?;
       env.call_method(
         plugin_manager,
         "load",
         "(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;Lapp/tauri/plugin/JSObject;)V",
         &[
           webview.into(),
-          env.new_string(plugin_name)?.into(),
-          plugin.into(),
-          crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, plugin_config)?
+          (&plugin_name).into(),
+          (&plugin).into(),
+          config.borrow()
         ],
       )?;
 
@@ -236,81 +273,22 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
 }
 
 impl<R: Runtime> PluginHandle<R> {
-  /// Executes the given mobile method.
-  pub fn run_mobile_plugin<T: serde::de::DeserializeOwned>(
+  /// Executes the given mobile command.
+  pub fn run_mobile_plugin<T: DeserializeOwned>(
     &self,
-    method: impl AsRef<str>,
-    payload: impl serde::Serialize,
+    command: impl AsRef<str>,
+    payload: impl Serialize,
   ) -> Result<T, PluginInvokeError> {
-    #[cfg(target_os = "ios")]
-    {
-      self.run_ios_plugin(method, payload).map_err(Into::into)
-    }
-    #[cfg(target_os = "android")]
-    {
-      self.run_android_plugin(method, payload).map_err(Into::into)
-    }
-  }
-
-  // Executes the given iOS method.
-  #[cfg(target_os = "ios")]
-  fn run_ios_plugin<T: serde::de::DeserializeOwned>(
-    &self,
-    method: impl AsRef<str>,
-    payload: impl serde::Serialize,
-  ) -> Result<T, PluginInvokeError> {
-    use std::{
-      ffi::CStr,
-      os::raw::{c_char, c_int},
-    };
-
-    let id: i32 = rand::random();
     let (tx, rx) = channel();
-    PENDING_PLUGIN_CALLS
-      .get_or_init(Default::default)
-      .lock()
-      .unwrap()
-      .insert(
-        id,
-        Box::new(move |arg| {
-          tx.send(arg).unwrap();
-        }),
-      );
-
-    unsafe {
-      extern "C" fn plugin_method_response_handler(
-        id: c_int,
-        success: c_int,
-        payload: *const c_char,
-      ) {
-        let payload = unsafe {
-          assert!(!payload.is_null());
-          CStr::from_ptr(payload)
-        };
-
-        if let Some(handler) = PENDING_PLUGIN_CALLS
-          .get_or_init(Default::default)
-          .lock()
-          .unwrap()
-          .remove(&id)
-        {
-          let payload = serde_json::from_str(payload.to_str().unwrap()).unwrap();
-          handler(if success == 1 {
-            Ok(payload)
-          } else {
-            Err(payload)
-          });
-        }
-      }
-
-      crate::ios::run_plugin_method(
-        id,
-        &self.name.into(),
-        &method.as_ref().into(),
-        crate::ios::json_to_dictionary(&serde_json::to_value(payload).unwrap()) as _,
-        crate::ios::PluginMessageCallback(plugin_method_response_handler),
-      );
-    }
+    run_command(
+      self.name,
+      &self.handle,
+      command,
+      serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
+      move |response| {
+        tx.send(response).unwrap();
+      },
+    )?;
 
     let response = rx.recv().unwrap();
     match response {
@@ -322,89 +300,156 @@ impl<R: Runtime> PluginHandle<R> {
       ),
     }
   }
+}
 
-  // Executes the given Android method.
-  #[cfg(target_os = "android")]
-  fn run_android_plugin<T: serde::de::DeserializeOwned>(
-    &self,
-    method: impl AsRef<str>,
-    payload: impl serde::Serialize,
-  ) -> Result<T, PluginInvokeError> {
-    use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
+#[cfg(target_os = "ios")]
+pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) + Send + 'static>(
+  name: &str,
+  _handle: &AppHandle<R>,
+  command: C,
+  payload: serde_json::Value,
+  handler: F,
+) -> Result<(), PluginInvokeError> {
+  use std::{
+    ffi::CStr,
+    os::raw::{c_char, c_int, c_ulonglong},
+  };
 
-    fn run<R: Runtime>(
-      id: i32,
-      plugin: &'static str,
-      method: String,
-      payload: &serde_json::Value,
-      runtime_handle: &R::Handle,
-      env: JNIEnv<'_>,
-      activity: JObject<'_>,
-    ) -> Result<(), JniError> {
-      let data = crate::jni_helpers::to_jsobject::<R>(env, activity, runtime_handle, payload)?;
-      let plugin_manager = env
-        .call_method(
-          activity,
-          "getPluginManager",
-          "()Lapp/tauri/plugin/PluginManager;",
-          &[],
-        )?
-        .l()?;
+  let id: i32 = rand::random();
+  PENDING_PLUGIN_CALLS
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .insert(id, Box::new(handler));
 
-      env.call_method(
-        plugin_manager,
-        "runCommand",
-        "(ILjava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;)V",
-        &[
-          id.into(),
-          env.new_string(plugin)?.into(),
-          env.new_string(&method)?.into(),
-          data,
-        ],
-      )?;
+  unsafe {
+    extern "C" fn plugin_command_response_handler(
+      id: c_int,
+      success: c_int,
+      payload: *const c_char,
+    ) {
+      let payload = unsafe {
+        assert!(!payload.is_null());
+        CStr::from_ptr(payload)
+      };
 
-      Ok(())
-    }
-
-    let handle = match self.handle.runtime() {
-      RuntimeOrDispatch::Runtime(r) => r.handle(),
-      RuntimeOrDispatch::RuntimeHandle(h) => h,
-      _ => unreachable!(),
-    };
-
-    let id: i32 = rand::random();
-    let plugin_name = self.name;
-    let method = method.as_ref().to_string();
-    let payload = serde_json::to_value(payload).unwrap();
-    let handle_ = handle.clone();
-
-    let (tx, rx) = channel();
-    let tx_ = tx.clone();
-    PENDING_PLUGIN_CALLS
-      .get_or_init(Default::default)
-      .lock()
-      .unwrap()
-      .insert(
-        id,
-        Box::new(move |arg| {
-          tx.send(Ok(arg)).unwrap();
-        }),
-      );
-
-    handle.run_on_android_context(move |env, activity, _webview| {
-      if let Err(e) = run::<R>(id, plugin_name, method, &payload, &handle_, env, activity) {
-        tx_.send(Err(e)).unwrap();
+      if let Some(handler) = PENDING_PLUGIN_CALLS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap()
+        .remove(&id)
+      {
+        let payload = serde_json::from_str(payload.to_str().unwrap()).unwrap();
+        handler(if success == 1 {
+          Ok(payload)
+        } else {
+          Err(payload)
+        });
       }
-    });
-
-    let response = rx.recv().unwrap()?;
-    match response {
-      Ok(r) => serde_json::from_value(r).map_err(PluginInvokeError::CannotDeserializeResponse),
-      Err(r) => Err(
-        serde_json::from_value::<ErrorResponse>(r)
-          .map(Into::into)
-          .map_err(PluginInvokeError::CannotDeserializeResponse)?,
-      ),
     }
+
+    extern "C" fn send_channel_data_handler(id: c_ulonglong, payload: *const c_char) {
+      let payload = unsafe {
+        assert!(!payload.is_null());
+        CStr::from_ptr(payload)
+      };
+
+      if let Some(channel) = CHANNELS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap()
+        .get(&(id as u32))
+      {
+        let payload: serde_json::Value = serde_json::from_str(payload.to_str().unwrap()).unwrap();
+        let _ = channel.send(payload);
+      }
+    }
+
+    crate::ios::run_plugin_command(
+      id,
+      &name.into(),
+      &command.as_ref().into(),
+      crate::ios::json_to_dictionary(&payload) as _,
+      crate::ios::PluginMessageCallback(plugin_command_response_handler),
+      crate::ios::ChannelSendDataCallback(send_channel_data_handler),
+    );
   }
+
+  Ok(())
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn run_command<
+  R: Runtime,
+  C: AsRef<str>,
+  F: FnOnce(PluginResponse) + Send + Clone + 'static,
+>(
+  name: &str,
+  handle: &AppHandle<R>,
+  command: C,
+  payload: serde_json::Value,
+  handler: F,
+) -> Result<(), PluginInvokeError> {
+  use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
+
+  fn run<R: Runtime>(
+    id: i32,
+    plugin: &str,
+    command: String,
+    payload: &serde_json::Value,
+    runtime_handle: R::Handle,
+    env: &mut JNIEnv<'_>,
+    activity: &JObject<'_>,
+  ) -> Result<(), JniError> {
+    let plugin = env.new_string(plugin)?;
+    let command = env.new_string(&command)?;
+    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, &runtime_handle, payload)?;
+    let plugin_manager = env
+      .call_method(
+        activity,
+        "getPluginManager",
+        "()Lapp/tauri/plugin/PluginManager;",
+        &[],
+      )?
+      .l()?;
+
+    env.call_method(
+      plugin_manager,
+      "runCommand",
+      "(ILjava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;)V",
+      &[
+        id.into(),
+        (&plugin).into(),
+        (&command).into(),
+        data.borrow(),
+      ],
+    )?;
+
+    Ok(())
+  }
+
+  let handle = match handle.runtime() {
+    RuntimeOrDispatch::Runtime(r) => r.handle(),
+    RuntimeOrDispatch::RuntimeHandle(h) => h,
+    _ => unreachable!(),
+  };
+
+  let id: i32 = rand::random();
+  let plugin_name = name.to_string();
+  let command = command.as_ref().to_string();
+  let handle_ = handle.clone();
+
+  PENDING_PLUGIN_CALLS
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .insert(id, Box::new(handler.clone()));
+
+  handle.run_on_android_context(move |env, activity, _webview| {
+    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, handle_, env, activity) {
+      handler(Err(e.to_string().into()));
+    }
+  });
+
+  Ok(())
 }

@@ -9,15 +9,41 @@
  * @module
  */
 
-import * as eventApi from './helpers/event'
-import type { EventCallback, UnlistenFn, Event } from './helpers/event'
+import { invoke, transformCallback } from './tauri'
 
-export type EventName = `${TauriEvent}` | (string & Record<never, never>)
+interface Event<T> {
+  /** Event name */
+  event: EventName
+  /** The label of the window that emitted this event. */
+  windowLabel: string
+  /** Event identifier used to unlisten */
+  id: number
+  /** Event payload */
+  payload: T
+}
+
+type EventCallback<T> = (event: Event<T>) => void
+
+type UnlistenFn = () => void
+
+type EventName = `${TauriEvent}` | (string & Record<never, never>)
+
+interface Options {
+  /**
+   * Label of the window the function targets.
+   *
+   * When listening to events and using this value,
+   * only events triggered by the window with the given label are received.
+   *
+   * When emitting events, only the window with the given label will receive it.
+   */
+  target?: string
+}
 
 /**
  * @since 1.1.0
  */
-export enum TauriEvent {
+enum TauriEvent {
   WINDOW_RESIZED = 'tauri://resize',
   WINDOW_MOVED = 'tauri://move',
   WINDOW_CLOSE_REQUESTED = 'tauri://close-requested',
@@ -34,7 +60,23 @@ export enum TauriEvent {
 }
 
 /**
- * Listen to an event from the backend.
+ * Unregister the event listener associated with the given name and id.
+ *
+ * @ignore
+ * @param event The event name
+ * @param eventId Event identifier
+ * @returns
+ */
+async function _unlisten(event: string, eventId: number): Promise<void> {
+  await invoke('plugin:event|unlisten', {
+    event,
+    eventId
+  })
+}
+
+/**
+ * Listen to an event. The event can be either global or window-specific.
+ * See {@link Event.windowLabel} to check the event source.
  *
  * @example
  * ```typescript
@@ -56,13 +98,20 @@ export enum TauriEvent {
  */
 async function listen<T>(
   event: EventName,
-  handler: EventCallback<T>
+  handler: EventCallback<T>,
+  options?: Options
 ): Promise<UnlistenFn> {
-  return eventApi.listen(event, null, handler)
+  return invoke<number>('plugin:event|listen', {
+    event,
+    windowLabel: options?.target,
+    handler: transformCallback(handler)
+  }).then((eventId) => {
+    return async () => _unlisten(event, eventId)
+  })
 }
 
 /**
- * Listen to an one-off event from the backend.
+ * Listen to an one-off event. See {@link listen} for more information.
  *
  * @example
  * ```typescript
@@ -87,13 +136,21 @@ async function listen<T>(
  */
 async function once<T>(
   event: EventName,
-  handler: EventCallback<T>
+  handler: EventCallback<T>,
+  options?: Options
 ): Promise<UnlistenFn> {
-  return eventApi.once(event, null, handler)
+  return listen<T>(
+    event,
+    (eventData) => {
+      handler(eventData)
+      _unlisten(event, eventData.id).catch(() => {})
+    },
+    options
+  )
 }
 
 /**
- * Emits an event to the backend.
+ * Emits an event to the backend and all Tauri windows.
  * @example
  * ```typescript
  * import { emit } from '@tauri-apps/api/event';
@@ -104,10 +161,18 @@ async function once<T>(
  *
  * @since 1.0.0
  */
-async function emit(event: string, payload?: unknown): Promise<void> {
-  return eventApi.emit(event, undefined, payload)
+async function emit(
+  event: string,
+  payload?: unknown,
+  options?: Options
+): Promise<void> {
+  await invoke('plugin:event|emit', {
+    event,
+    windowLabel: options?.target,
+    payload
+  })
 }
 
-export type { Event, EventCallback, UnlistenFn }
+export type { Event, EventCallback, UnlistenFn, EventName, Options }
 
-export { listen, once, emit }
+export { listen, once, emit, TauriEvent }

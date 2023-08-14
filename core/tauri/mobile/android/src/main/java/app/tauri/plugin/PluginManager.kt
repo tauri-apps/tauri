@@ -86,15 +86,6 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun postIpcMessage(webView: WebView, pluginId: String, command: String, data: JSObject, callback: Long, error: Long) {
-    val invoke = Invoke(callback, command, callback, error, { fn, result ->
-      webView.evaluateJavascript("window['_$fn']($result)", null)
-    }, data)
-
-    dispatchPluginMessage(invoke, pluginId)
-  }
-
-  @JniMethod
   fun runCommand(id: Int, pluginId: String, command: String, data: JSObject) {
     val successId = 0L
     val errorId = 1L
@@ -107,6 +98,8 @@ class PluginManager(val activity: AppCompatActivity) {
         error = result
       }
       handlePluginResponse(id, success?.toString(), error?.toString())
+    }, { channelId, payload ->
+      sendChannelData(channelId, payload.toString())
     }, data)
 
     dispatchPluginMessage(invoke, pluginId)
@@ -140,4 +133,5 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   private external fun handlePluginResponse(id: Int, success: String?, error: String?)
+  private external fun sendChannelData(id: Long, data: String)
 }

@@ -1,16 +1,16 @@
 [package]
 name = "tauri-codegen"
-version = "2.0.0-alpha.5"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
-categories = [ "gui", "web-programming" ]
-license = "Apache-2.0 OR MIT"
-homepage = "https://tauri.app"
-repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-codegen"
+version = "2.0.0-alpha.6"
 description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
-edition = "2021"
-rust-version = "1.65"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
+authors = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+categories = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 
 [dependencies]
 sha2 = "0.10"
@@ -19,7 +19,7 @@ proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
-tauri-utils = { version = "2.0.0-alpha.5", path = "../tauri-utils", features = [ "build" ] }
+tauri-utils = { version = "2.0.0-alpha.6", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }

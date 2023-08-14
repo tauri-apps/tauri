@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.0.0-alpha.5]
+
+### New Features
+
+- [`e0f0dce2`](https://www.github.com/tauri-apps/tauri/commit/e0f0dce220730e2822fc202463aedf0166145de7)([#6442](https://www.github.com/tauri-apps/tauri/pull/6442)) Added the `windowEffects` option when creating a window and `setWindowEffects` method to change it at runtime.
+
+### Enhancements
+
+- [`9e3a18e0`](https://www.github.com/tauri-apps/tauri/commit/9e3a18e04672edad15d0ec654bd8632544871967)([#7132](https://www.github.com/tauri-apps/tauri/pull/7132)) Expose the window target option on event APIs.
+- [`6d3f3138`](https://www.github.com/tauri-apps/tauri/commit/6d3f3138b9e2f41cda712c7d9caba0f0e65dfd3c)([#7160](https://www.github.com/tauri-apps/tauri/pull/7160)) Changed `sep` and `delimiter` from `path` module into functions to fix import in frameworks like `next.js`
+- [`4652c446`](https://www.github.com/tauri-apps/tauri/commit/4652c446b361a801252bcf45e9da39813bf85482)([#7144](https://www.github.com/tauri-apps/tauri/pull/7144)) Add `tempDir` function to `path` module
+
 ## \[2.0.0-alpha.4]
 
 - [`0ab5f40d`](https://www.github.com/tauri-apps/tauri/commit/0ab5f40d3a4207f20e4440587b41c4e78f91d233)([#6813](https://www.github.com/tauri-apps/tauri/pull/6813)) Add channel API for sending data across the IPC.
@@ -38,6 +50,15 @@
 
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.4.0]
+
+### New Features
+
+- [`359058ce`](https://www.github.com/tauri-apps/tauri/commit/359058cecca44a9c30b65140c44a8bb3a6dd3be8)([#5939](https://www.github.com/tauri-apps/tauri/pull/5939)) Add `locale` function in the `os` module to get the system locale.
+- [`c4d6fb4b`](https://www.github.com/tauri-apps/tauri/commit/c4d6fb4b1ea8acf02707a9fe5dcab47c1c5bae7b)([#2353](https://www.github.com/tauri-apps/tauri/pull/2353)) Added the `maximizable`, `minimizable` and `closable` fields on `WindowOptions`.
+- [`c4d6fb4b`](https://www.github.com/tauri-apps/tauri/commit/c4d6fb4b1ea8acf02707a9fe5dcab47c1c5bae7b)([#2353](https://www.github.com/tauri-apps/tauri/pull/2353)) Added the `setMaximizable`, `setMinimizable`, `setClosable`, `isMaximizable`, `isMinimizable` and `isClosable` methods.
+- [`000104bc`](https://www.github.com/tauri-apps/tauri/commit/000104bc3bc0c9ff3d20558ab9cf2080f126e9e0)([#6472](https://www.github.com/tauri-apps/tauri/pull/6472)) Add `WebviewWindow.is_focused` and `WebviewWindow.getFocusedWindow` getters.
 
 ## \[1.3.0]
 

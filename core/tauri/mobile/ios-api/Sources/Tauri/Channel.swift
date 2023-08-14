@@ -6,8 +6,8 @@ public class Channel {
   public let id: UInt64
   let handler: (JsonValue) -> Void
 
-  public init(callback: UInt64, handler: @escaping (JsonValue) -> Void) {
-    self.id = callback
+  public init(id: UInt64, handler: @escaping (JsonValue) -> Void) {
+    self.id = id
     self.handler = handler
   }
 

@@ -34,9 +34,25 @@ pub fn gen(
   metadata: &Metadata,
   (handlebars, mut map): (Handlebars, template::JsonMap),
   wrapper: &TextWrapper,
+  skip_targets_install: bool,
 ) -> Result<()> {
-  println!("Installing Android toolchains...");
-  Target::install_all().with_context(|| "failed to run rustup")?;
+  if !skip_targets_install {
+    let installed_targets =
+      crate::interface::rust::installation::installed_targets().unwrap_or_default();
+    let missing_targets = Target::all()
+      .values()
+      .filter(|t| !installed_targets.contains(&t.triple().into()))
+      .collect::<Vec<&Target>>();
+
+    if !missing_targets.is_empty() {
+      println!("Installing Android Rust toolchains...");
+      for target in missing_targets {
+        target
+          .install()
+          .context("failed to install target with rustup")?;
+      }
+    }
+  }
   println!("Generating Android Studio project...");
   let dest = config.project_dir();
   let asset_packs = metadata.asset_packs().unwrap_or_default();

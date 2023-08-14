@@ -12,7 +12,9 @@ use std::ffi::c_void;
 use crate::utils::config::WindowEffectsConfig;
 use crate::window::{Color, Effect};
 use tauri_utils::platform::{get_function_impl, is_windows_7, windows_version};
-use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE};
+use windows::Win32::Graphics::Dwm::{
+  DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE, DWMWINDOWATTRIBUTE,
+};
 use windows::Win32::{
   Foundation::{BOOL, HWND},
   Graphics::{
@@ -23,10 +25,12 @@ use windows::Win32::{
 
 pub fn apply_effects(window: HWND, effects: WindowEffectsConfig) {
   let WindowEffectsConfig { effects, color, .. } = effects;
-  let effect = if let Some(effect) = effects
-    .iter()
-    .find(|e| matches!(e, Effect::Mica | Effect::Acrylic | Effect::Blur))
-  {
+  let effect = if let Some(effect) = effects.iter().find(|e| {
+    matches!(
+      e,
+      Effect::Mica | Effect::MicaDark | Effect::MicaLight | Effect::Acrylic | Effect::Blur
+    )
+  }) {
     effect
   } else {
     return;
@@ -35,7 +39,9 @@ pub fn apply_effects(window: HWND, effects: WindowEffectsConfig) {
   match effect {
     Effect::Blur => apply_blur(window, color),
     Effect::Acrylic => apply_acrylic(window, color),
-    Effect::Mica => apply_mica(window),
+    Effect::Mica => apply_mica(window, None),
+    Effect::MicaDark => apply_mica(window, Some(true)),
+    Effect::MicaLight => apply_mica(window, Some(false)),
     _ => unreachable!(),
   }
 }
@@ -114,7 +120,18 @@ pub fn clear_acrylic(hwnd: HWND) {
   }
 }
 
-pub fn apply_mica(hwnd: HWND) {
+pub fn apply_mica(hwnd: HWND, dark: Option<bool>) {
+  if let Some(dark) = dark {
+    unsafe {
+      DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_USE_IMMERSIVE_DARK_MODE,
+        &(dark as u32) as *const _ as _,
+        4,
+      );
+    }
+  }
+
   if is_backdroptype_supported() {
     unsafe {
       let _ = DwmSetWindowAttribute(

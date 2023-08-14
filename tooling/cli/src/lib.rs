@@ -2,9 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
+//! This Rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
+
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
+
 pub use anyhow::Result;
 
 mod build;
+mod completions;
 mod dev;
 mod helpers;
 mod icon;
@@ -77,7 +87,7 @@ pub struct PackageJson {
   propagate_version(true),
   no_binary_name(true)
 )]
-struct Cli {
+pub(crate) struct Cli {
   /// Enables verbose logging
   #[clap(short, long, global = true, action = ArgAction::Count)]
   verbose: u8,
@@ -94,6 +104,7 @@ enum Commands {
   Init(init::Options),
   Plugin(plugin::Cli),
   Signer(signer::Cli),
+  Completions(completions::Options),
   Android(mobile::android::Cli),
   #[cfg(target_os = "macos")]
   Ios(mobile::ios::Cli),
@@ -137,11 +148,12 @@ where
   I: IntoIterator<Item = A>,
   A: Into<OsString> + Clone,
 {
-  let matches = match bin_name {
+  let cli = match bin_name {
     Some(bin_name) => Cli::command().bin_name(bin_name),
     None => Cli::command(),
-  }
-  .get_matches_from(args);
+  };
+  let cli_ = cli.clone();
+  let matches = cli.get_matches_from(args);
 
   let res = Cli::from_arg_matches(&matches).map_err(format_error::<Cli>);
   let cli = match res {
@@ -198,6 +210,7 @@ where
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
+    Commands::Completions(options) => completions::command(options, cli_)?,
     Commands::Android(c) => mobile::android::command(c, cli.verbose)?,
     #[cfg(target_os = "macos")]
     Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,

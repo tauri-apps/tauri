@@ -98,7 +98,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
     let _ = remove_dir_all(&template_target_path);
     let mut handlebars = Handlebars::new();
-    handlebars.register_escape_fn(|s| s.into());
+    handlebars.register_escape_fn(handlebars::no_escape);
 
     let mut data = BTreeMap::new();
     plugin_name_data(&mut data, &options.plugin_name);
@@ -201,7 +201,8 @@ pub fn plugin_name_data(data: &mut BTreeMap<&'static str, serde_json::Value>, pl
 }
 
 pub fn crates_metadata() -> Result<VersionMetadata> {
-  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json")).map_err(Into::into)
+  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
+    .map_err(Into::into)
 }
 
 pub fn generate_android_out_file(

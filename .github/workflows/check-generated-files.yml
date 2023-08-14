@@ -2,20 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: Check generated files
+name: check generated files
 
 on:
   pull_request:
-    paths:
-      - '.github/workflows/check-generated-files.yml'
-      - 'tooling/api/src/**'
-      - 'core/tauri/scripts/bundle.global.js'
-      - 'core/tauri-utils/src/config.rs'
-      - 'tooling/cli/schema.json'
-      - 'core/tauri-config-schema/schema.json'
-  push:
-    branches:
-      - dev
     paths:
       - '.github/workflows/check-generated-files.yml'
       - 'tooling/api/src/**'
@@ -49,7 +39,7 @@ jobs:
               - 'tooling/cli/schema.json'
               - 'core/tauri-config-schema/schema.json'
 
-  check-api:
+  api:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.api == 'true'
@@ -64,7 +54,7 @@ jobs:
           git restore tooling/api/docs/js-api.json
           ./.scripts/ci/has-diff.sh
 
-  check-schema:
+  schema:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.schema == 'true'

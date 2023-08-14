@@ -8,7 +8,7 @@ When you select the version bump required, you do *not* need to consider depende
 Use the following format:
 ```md
 ---
-"tauri-plugin-{{ plugin_name }}": patch
+"tauri-plugin-{{ plugin_name }}": 'patch:enhance'
 ---
 
 Change summary goes here

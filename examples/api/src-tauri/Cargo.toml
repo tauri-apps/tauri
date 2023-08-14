@@ -40,8 +40,12 @@ features = [
   "icon-png",
   "isolation",
   "macos-private-api",
-  "system-tray"
+  "tray-icon"
 ]
+
+[dev-dependencies.tauri]
+path = "../../../core/tauri"
+features = ["test"]
 
 [target."cfg(target_os = \"windows\")".dependencies]
 window-shadows= "0.2"

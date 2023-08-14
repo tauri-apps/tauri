@@ -38,6 +38,10 @@ use crate::{TitleBarStyle, WindowEffect, WindowEffectState};
 
 pub use self::parse::parse;
 
+fn default_true() -> bool {
+  true
+}
+
 /// An URL to open on a Tauri webview window.
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -272,6 +276,10 @@ pub struct DebConfig {
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -435,6 +443,8 @@ pub struct WixConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NsisConfig {
+  /// A custom .nsi template to use.
+  pub template: Option<PathBuf>,
   /// The path to the license file to render on the installer.
   pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
@@ -459,6 +469,13 @@ pub struct NsisConfig {
   ///
   /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
+  /// A key-value pair where the key is the language and the
+  /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
+  ///
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/tooling/bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.
+  ///
+  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
+  pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   #[serde(default, alias = "display-language-selector")]
@@ -542,9 +559,7 @@ pub enum WebviewInstallMode {
 
 impl Default for WebviewInstallMode {
   fn default() -> Self {
-    Self::DownloadBootstrapper {
-      silent: default_true(),
-    }
+    Self::DownloadBootstrapper { silent: true }
   }
 }
 
@@ -602,11 +617,83 @@ impl Default for WindowsConfig {
       tsp: false,
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
-      allow_downgrades: default_true(),
+      allow_downgrades: true,
       wix: None,
       nsis: None,
     }
   }
+}
+
+/// macOS-only. Corresponds to CFBundleTypeRole
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum BundleTypeRole {
+  /// CFBundleTypeRole.Editor. Files can be read and edited.
+  #[default]
+  Editor,
+  /// CFBundleTypeRole.Viewer. Files can be read.
+  Viewer,
+  /// CFBundleTypeRole.Shell
+  Shell,
+  /// CFBundleTypeRole.QLGenerator
+  QLGenerator,
+  /// CFBundleTypeRole.None
+  None,
+}
+
+impl Display for BundleTypeRole {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Editor => write!(f, "Editor"),
+      Self::Viewer => write!(f, "Viewer"),
+      Self::Shell => write!(f, "Shell"),
+      Self::QLGenerator => write!(f, "QLGenerator"),
+      Self::None => write!(f, "None"),
+    }
+  }
+}
+
+/// An extension for a [`FileAssociation`].
+///
+/// A leading `.` is automatically stripped.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct AssociationExt(pub String);
+
+impl fmt::Display for AssociationExt {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
+
+impl<'d> serde::Deserialize<'d> for AssociationExt {
+  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<Self, D::Error> {
+    let ext = String::deserialize(deserializer)?;
+    if let Some(ext) = ext.strip_prefix('.') {
+      Ok(AssociationExt(ext.into()))
+    } else {
+      Ok(AssociationExt(ext))
+    }
+  }
+}
+
+/// File association
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FileAssociation {
+  /// File extensions to associate with this app. e.g. 'png'
+  pub ext: Vec<AssociationExt>,
+  /// The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]
+  pub name: Option<String>,
+  /// The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.
+  pub description: Option<String>,
+  /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
+  #[serde(default)]
+  pub role: BundleTypeRole,
+  /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
+  #[serde(alias = "mime-type")]
+  pub mime_type: Option<String>,
 }
 
 /// The Updater configuration object.
@@ -705,6 +792,8 @@ pub struct BundleConfig {
   /// Should be one of the following:
   /// Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.
   pub category: Option<String>,
+  /// File associations to application.
+  pub file_associations: Option<Vec<FileAssociation>>,
   /// A short description of your application.
   #[serde(alias = "short-description")]
   pub short_description: Option<String>,
@@ -748,7 +837,7 @@ pub struct BundleConfig {
 }
 
 /// a tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
@@ -766,7 +855,7 @@ pub struct WindowEffectsConfig {
   pub state: Option<WindowEffectState>,
   /// Window effect corner radius **macOS Only**
   pub radius: Option<f64>,
-  /// Window effect color. Affects [`WindowEffects::Blur`] and [`WindowEffects::Acrylic`] only
+  /// Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
   /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
   pub color: Option<Color>,
 }
@@ -818,9 +907,34 @@ pub struct WindowConfig {
   /// The max window height.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
-  /// Whether the window is resizable or not.
+  /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_true")]
   pub resizable: bool,
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub maximizable: bool,
+  /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub minimizable: bool,
+  /// Whether the window's native close button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[serde(default = "default_true")]
+  pub closable: bool,
   /// The window title.
   #[serde(default = "default_title")]
   pub title: String,
@@ -848,6 +962,9 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
+  /// Whether the window should be visible on all workspaces or virtual desktops.
+  #[serde(default, alias = "all-workspaces")]
+  pub visible_on_all_workspaces: bool,
   /// Prevents the window contents from being captured by other apps.
   #[serde(default, alias = "content-protected")]
   pub content_protected: bool,
@@ -898,6 +1015,13 @@ pub struct WindowConfig {
   /// - **Linux**: Unsupported
   #[serde(default, alias = "window-effects")]
   pub window_effects: Option<WindowEffectsConfig>,
+  /// Whether or not the webview should be launched in incognito  mode.
+  ///
+  ///  ## Platform-specific:
+  ///
+  ///  - **Android**: Unsupported.
+  #[serde(default)]
+  pub incognito: bool,
 }
 
 impl Default for WindowConfig {
@@ -906,7 +1030,7 @@ impl Default for WindowConfig {
       label: default_window_label(),
       url: WindowUrl::default(),
       user_agent: None,
-      file_drop_enabled: default_true(),
+      file_drop_enabled: true,
       center: false,
       x: None,
       y: None,
@@ -916,15 +1040,19 @@ impl Default for WindowConfig {
       min_height: None,
       max_width: None,
       max_height: None,
-      resizable: default_true(),
+      resizable: true,
+      maximizable: true,
+      minimizable: true,
+      closable: true,
       title: default_title(),
       fullscreen: false,
       focus: false,
       transparent: false,
       maximized: false,
-      visible: default_true(),
-      decorations: default_true(),
+      visible: true,
+      decorations: true,
       always_on_top: false,
+      visible_on_all_workspaces: false,
       content_protected: false,
       skip_taskbar: false,
       theme: None,
@@ -935,6 +1063,7 @@ impl Default for WindowConfig {
       additional_browser_args: None,
       shadow: true,
       window_effects: None,
+      incognito: false,
     }
   }
 }
@@ -949,10 +1078,6 @@ fn default_width() -> f64 {
 
 fn default_height() -> f64 {
   600f64
-}
-
-fn default_true() -> bool {
-  true
 }
 
 fn default_title() -> String {
@@ -1127,12 +1252,13 @@ pub struct RemoteDomainAccessScope {
 /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
 /// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum FsScope {
   /// A list of paths that are allowed by this scope.
   AllowedPaths(Vec<PathBuf>),
   /// A complete scope configuration.
+  #[serde(rename_all = "camelCase")]
   Scope {
     /// A list of paths that are allowed by this scope.
     #[serde(default)]
@@ -1141,6 +1267,16 @@ pub enum FsScope {
     /// This gets precedence over the [`Self::Scope::allow`] list.
     #[serde(default)]
     deny: Vec<PathBuf>,
+    /// Whether or not paths that contain components that start with a `.`
+    /// will require that `.` appears literally in the pattern; `*`, `?`, `**`,
+    /// or `[...]` will not match. This is useful because such files are
+    /// conventionally considered hidden on Unix systems and it might be
+    /// desirable to skip them when listing files.
+    ///
+    /// Defaults to `true` on Unix systems and `false` on Windows
+    // dotfiles are not supposed to be exposed by default on unix
+    #[serde(alias = "require-literal-leading-dot")]
+    require_literal_leading_dot: Option<bool>,
   },
 }
 
@@ -1280,9 +1416,9 @@ pub struct TauriConfig {
   /// Security configuration.
   #[serde(default)]
   pub security: SecurityConfig,
-  /// Configuration for app system tray.
-  #[serde(alias = "system-tray")]
-  pub system_tray: Option<SystemTrayConfig>,
+  /// Configuration for app tray icon.
+  #[serde(alias = "tray-icon")]
+  pub tray_icon: Option<TrayIconConfig>,
   /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
   #[serde(rename = "macOSPrivateApi", alias = "macos-private-api", default)]
   pub macos_private_api: bool,
@@ -1290,10 +1426,9 @@ pub struct TauriConfig {
 
 impl TauriConfig {
   /// Returns all Cargo features.
-  #[allow(dead_code)]
   pub fn all_features() -> Vec<&'static str> {
     vec![
-      "system-tray",
+      "tray-icon",
       "macos-private-api",
       "isolation",
       "protocol-asset",
@@ -1301,11 +1436,10 @@ impl TauriConfig {
   }
 
   /// Returns the enabled Cargo features.
-  #[allow(dead_code)]
   pub fn features(&self) -> Vec<&str> {
     let mut features = Vec::new();
-    if self.system_tray.is_some() {
-      features.push("system-tray");
+    if self.tray_icon.is_some() {
+      features.push("tray-icon");
     }
     if self.macos_private_api {
       features.push("macos-private-api");
@@ -1329,7 +1463,7 @@ pub enum WindowsUpdateInstallMode {
   /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
   BasicUi,
   /// The quiet mode means there's no user interaction required.
-  /// Requires admin privileges if the installer does (WiX).
+  /// Requires admin privileges if the installer does.
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
   Passive,
@@ -1344,6 +1478,15 @@ impl WindowsUpdateInstallMode {
       Self::BasicUi => &["/qb+"],
       Self::Quiet => &["/quiet"],
       Self::Passive => &["/passive"],
+    }
+  }
+
+  /// Returns the associated nsis arguments.
+  pub fn nsis_args(&self) -> &'static [&'static str] {
+    match self {
+      Self::Passive => &["/P", "/R"],
+      Self::Quiet => &["/S", "/R"],
+      _ => &[],
     }
   }
 }
@@ -1407,15 +1550,15 @@ pub struct UpdaterWindowsConfig {
   pub install_mode: WindowsUpdateInstallMode,
 }
 
-/// Configuration for application system tray icon.
+/// Configuration for application tray icon.
 ///
-/// See more: https://tauri.app/v1/api/config#systemtrayconfig
+/// See more: https://tauri.app/v1/api/config#trayiconconfig
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct SystemTrayConfig {
-  /// Path to the default icon to use on the system tray.
+pub struct TrayIconConfig {
+  /// Path to the default icon to use for the tray icon.
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
@@ -1426,6 +1569,8 @@ pub struct SystemTrayConfig {
   pub menu_on_left_click: bool,
   /// Title for MacOS tray
   pub title: Option<String>,
+  /// Tray icon tooltip on Windows and macOS
+  pub tooltip: Option<String>,
 }
 
 /// General configuration for the iOS target.
@@ -1603,7 +1748,7 @@ fn default_dist_dir() -> AppUrl {
 struct PackageVersion(String);
 
 impl<'d> serde::Deserialize<'d> for PackageVersion {
-  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<PackageVersion, D::Error> {
+  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<Self, D::Error> {
     struct PackageVersionVisitor;
 
     impl<'d> Visitor<'d> for PackageVersionVisitor {
@@ -1666,7 +1811,7 @@ pub struct PackageConfig {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
 }
@@ -1695,7 +1840,7 @@ impl PackageConfig {
 
 /// The Tauri configuration object.
 /// It is read from a file where you can define your frontend assets,
-/// configure the bundler and define a system tray.
+/// configure the bundler and define a tray icon.
 ///
 /// The configuration file is generated by the
 /// [`tauri init`](https://tauri.app/v1/api/cli#init) command that lives in
@@ -2046,6 +2191,8 @@ mod build {
         WindowEffect::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
         WindowEffect::UnderPageBackground => quote! { #prefix::UnderPageBackground},
         WindowEffect::Mica => quote! { #prefix::Mica},
+        WindowEffect::MicaDark => quote! { #prefix::MicaDark},
+        WindowEffect::MicaLight => quote! { #prefix::MicaLight},
         WindowEffect::Blur => quote! { #prefix::Blur},
         WindowEffect::Acrylic => quote! { #prefix::Acrylic},
       })
@@ -2081,6 +2228,9 @@ mod build {
       let max_width = opt_lit(self.max_width.as_ref());
       let max_height = opt_lit(self.max_height.as_ref());
       let resizable = self.resizable;
+      let maximizable = self.maximizable;
+      let minimizable = self.minimizable;
+      let closable = self.closable;
       let title = str_lit(&self.title);
       let fullscreen = self.fullscreen;
       let focus = self.focus;
@@ -2089,6 +2239,7 @@ mod build {
       let visible = self.visible;
       let decorations = self.decorations;
       let always_on_top = self.always_on_top;
+      let visible_on_all_workspaces = self.visible_on_all_workspaces;
       let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
       let theme = opt_lit(self.theme.as_ref());
@@ -2099,6 +2250,7 @@ mod build {
       let additional_browser_args = opt_str_lit(self.additional_browser_args.as_ref());
       let shadow = self.shadow;
       let window_effects = opt_lit(self.window_effects.as_ref());
+      let incognito = self.incognito;
 
       literal_struct!(
         tokens,
@@ -2117,6 +2269,9 @@ mod build {
         max_width,
         max_height,
         resizable,
+        maximizable,
+        minimizable,
+        closable,
         title,
         fullscreen,
         focus,
@@ -2125,6 +2280,7 @@ mod build {
         visible,
         decorations,
         always_on_top,
+        visible_on_all_workspaces,
         content_protected,
         skip_taskbar,
         theme,
@@ -2134,7 +2290,8 @@ mod build {
         tabbing_identifier,
         additional_browser_args,
         shadow,
-        window_effects
+        window_effects,
+        incognito
       );
     }
   }
@@ -2216,6 +2373,7 @@ mod build {
       let resources = quote!(None);
       let copyright = quote!(None);
       let category = quote!(None);
+      let file_associations = quote!(None);
       let short_description = quote!(None);
       let long_description = quote!(None);
       let appimage = quote!(Default::default());
@@ -2238,6 +2396,7 @@ mod build {
         resources,
         copyright,
         category,
+        file_associations,
         short_description,
         long_description,
         appimage,
@@ -2409,19 +2568,21 @@ mod build {
     }
   }
 
-  impl ToTokens for SystemTrayConfig {
+  impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let icon_as_template = self.icon_as_template;
       let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
       let title = opt_str_lit(self.title.as_ref());
+      let tooltip = opt_str_lit(self.tooltip.as_ref());
       literal_struct!(
         tokens,
-        SystemTrayConfig,
+        TrayIconConfig,
         icon_path,
         icon_as_template,
         menu_on_left_click,
-        title
+        title,
+        tooltip
       );
     }
   }
@@ -2435,10 +2596,11 @@ mod build {
           let allowed_paths = vec_lit(allow, path_buf_lit);
           quote! { #prefix::AllowedPaths(#allowed_paths) }
         }
-        Self::Scope { allow, deny } => {
+        Self::Scope { allow, deny , require_literal_leading_dot} => {
           let allow = vec_lit(allow, path_buf_lit);
           let deny = vec_lit(deny, path_buf_lit);
-          quote! { #prefix::Scope { allow: #allow, deny: #deny } }
+          let  require_literal_leading_dot = opt_lit(require_literal_leading_dot.as_ref());
+          quote! { #prefix::Scope { allow: #allow, deny: #deny, require_literal_leading_dot: #require_literal_leading_dot } }
         }
       });
     }
@@ -2457,7 +2619,7 @@ mod build {
       let windows = vec_lit(&self.windows, identity);
       let bundle = &self.bundle;
       let security = &self.security;
-      let system_tray = opt_lit(self.system_tray.as_ref());
+      let tray_icon = opt_lit(self.tray_icon.as_ref());
       let macos_private_api = self.macos_private_api;
 
       literal_struct!(
@@ -2467,7 +2629,7 @@ mod build {
         windows,
         bundle,
         security,
-        system_tray,
+        tray_icon,
         macos_private_api
       );
     }
@@ -2540,6 +2702,7 @@ mod test {
         resources: None,
         copyright: None,
         category: None,
+        file_associations: None,
         short_description: None,
         long_description: None,
         appimage: Default::default(),
@@ -2559,7 +2722,7 @@ mod test {
         dangerous_remote_domain_ipc_access: Vec::new(),
         asset_protocol: AssetProtocolConfig::default(),
       },
-      system_tray: None,
+      tray_icon: None,
       macos_private_api: false,
     };
 

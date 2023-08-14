@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Tauri utility helpers
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
+//! This crate contains common code that is reused in many places and offers useful utilities like parsing configuration files, detecting platform triples, injecting the CSP, and managing assets.
+
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![allow(clippy::deprecated_semver)]
 
@@ -111,8 +118,12 @@ mod window_effects {
     UnderWindowBackground,
     /// **macOS 10.14+**
     UnderPageBackground,
-    /// **Windows 11 Only**
+    /// Mica effect that matches the system dark perefence **Windows 11 Only**
     Mica,
+    /// Mica effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
+    MicaDark,
+    /// Mica effect with light mode **Windows 11 Only**
+    MicaLight,
     /// **Windows 7/10/11(22H1) Only**
     ///
     /// ## Notes
@@ -390,11 +401,9 @@ macro_rules! debug_eprintln {
   };
 }
 
-/// Reconstructs a path from its components using the platform separator then converts it to String
+/// Reconstructs a path from its components using the platform separator then converts it to String and removes UNC prefixes on Windows if it exists.
 pub fn display_path<P: AsRef<Path>>(p: P) -> String {
-  p.as_ref()
-    .components()
-    .collect::<PathBuf>()
+  dunce::simplified(&p.as_ref().components().collect::<PathBuf>())
     .display()
     .to_string()
 }

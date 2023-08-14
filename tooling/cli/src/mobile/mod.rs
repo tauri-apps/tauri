@@ -262,7 +262,7 @@ fn read_options(identifier: &str) -> CliOptions {
   options
 }
 
-fn get_app(config: &TauriConfig) -> App {
+pub fn get_app(config: &TauriConfig) -> App {
   let mut s = config.tauri.bundle.identifier.rsplit('.');
   let app_name = s.next().unwrap_or("app").to_string();
   let mut domain = String::new();

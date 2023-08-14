@@ -156,7 +156,7 @@ pub fn command(mut options: Options) -> Result<()> {
   options = options.load()?;
 
   let template_target_path = PathBuf::from(&options.directory).join("src-tauri");
-  let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
+  let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata-v2.json"))?;
 
   if template_target_path.exists() && !options.force {
     warn!(
@@ -184,7 +184,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
     let _ = remove_dir_all(&template_target_path);
     let mut handlebars = Handlebars::new();
-    handlebars.register_escape_fn(|s| s.into());
+    handlebars.register_escape_fn(handlebars::no_escape);
 
     let mut data = BTreeMap::new();
     data.insert("tauri_dep", to_json(tauri_dep));

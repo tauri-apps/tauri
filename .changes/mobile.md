@@ -1,13 +1,13 @@
 ---
-"api": major
-"tauri-utils": major
-"tauri-bundler": major
-"tauri-codegen": major
-"tauri-macros": major
-"tauri-build": major
-"tauri": major
-"cli.rs": major
-"cli.js": major
+"api": major:feat
+"tauri-utils": major:feat
+"tauri-bundler": major:feat
+"tauri-codegen": major:feat
+"tauri-macros": major:feat
+"tauri-build": major:feat
+"tauri": major:feat
+"tauri-cli": major:feat
+"@tauri-apps/cli": major:feat
 ---
 
 First mobile alpha release!

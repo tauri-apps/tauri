@@ -143,31 +143,6 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     // set env vars used by the bundler
     #[cfg(target_os = "linux")]
     {
-      if config_.tauri.system_tray.is_some() {
-        if let Ok(tray) = std::env::var("TAURI_TRAY") {
-          std::env::set_var(
-            "TRAY_LIBRARY_PATH",
-            if tray == "ayatana" {
-              format!(
-                "{}/libayatana-appindicator3.so.1",
-                pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
-                  .expect("failed to get ayatana-appindicator library path using pkg-config.")
-              )
-            } else {
-              format!(
-                "{}/libappindicator3.so.1",
-                pkgconfig_utils::get_library_path("appindicator3-0.1")
-                  .expect("failed to get libappindicator-gtk library path using pkg-config.")
-              )
-            },
-          );
-        } else {
-          std::env::set_var(
-            "TRAY_LIBRARY_PATH",
-            pkgconfig_utils::get_appindicator_library_path(),
-          );
-        }
-      }
       if config_.tauri.bundle.appimage.bundle_media_framework {
         std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
       }
@@ -393,38 +368,4 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
     info!( action = "Finished"; "{} {} at:\n{}", output_paths.len(), pluralised, printable_paths);
   }
   Ok(())
-}
-
-#[cfg(target_os = "linux")]
-mod pkgconfig_utils {
-  use std::{path::PathBuf, process::Command};
-
-  pub fn get_appindicator_library_path() -> PathBuf {
-    match get_library_path("ayatana-appindicator3-0.1") {
-      Some(p) => format!("{p}/libayatana-appindicator3.so.1").into(),
-      None => match get_library_path("appindicator3-0.1") {
-        Some(p) => format!("{p}/libappindicator3.so.1").into(),
-        None => panic!("Can't detect any appindicator library"),
-      },
-    }
-  }
-
-  /// Gets the folder in which a library is located using `pkg-config`.
-  pub fn get_library_path(name: &str) -> Option<String> {
-    let mut cmd = Command::new("pkg-config");
-    cmd.env("PKG_CONFIG_ALLOW_SYSTEM_LIBS", "1");
-    cmd.arg("--libs-only-L");
-    cmd.arg(name);
-    if let Ok(output) = cmd.output() {
-      if !output.stdout.is_empty() {
-        // output would be "-L/path/to/library\n"
-        let word = output.stdout[2..].to_vec();
-        return Some(String::from_utf8_lossy(&word).trim().to_string());
-      } else {
-        None
-      }
-    } else {
-      None
-    }
-  }
 }

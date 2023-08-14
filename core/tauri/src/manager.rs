@@ -10,6 +10,10 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
+#[cfg(desktop)]
+use crate::menu::{Menu, MenuId};
+#[cfg(all(desktop, feature = "tray-icon"))]
+use crate::tray::{TrayIcon, TrayIconId};
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
@@ -23,10 +27,7 @@ use tauri_utils::{
 };
 
 use crate::{
-  app::{
-    AppHandle, GlobalMenuEventListener, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad,
-    PageLoadPayload, WindowMenuEvent,
-  },
+  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload},
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
@@ -49,10 +50,13 @@ use crate::{
   WindowEvent,
 };
 
+#[cfg(desktop)]
+use crate::app::GlobalMenuEventListener;
+#[cfg(all(desktop, feature = "tray-icon"))]
+use crate::app::GlobalTrayIconEventListener;
+
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::path::BaseDirectory;
-
-use crate::{runtime::menu::Menu, MenuEvent};
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
@@ -65,7 +69,6 @@ const WINDOW_THEME_CHANGED: &str = "tauri://theme-changed";
 const WINDOW_FILE_DROP_EVENT: &str = "tauri://file-drop";
 const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
-const MENU_EVENT: &str = "tauri://menu";
 
 pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
   include_str!("../scripts/process-ipc-message-fn.js");
@@ -210,9 +213,7 @@ fn replace_csp_nonce(
 
 #[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
-  windows: Mutex<HashMap<String, Window<R>>>,
-  #[cfg(all(desktop, feature = "system-tray"))]
-  pub(crate) trays: Mutex<HashMap<String, crate::SystemTrayHandle<R>>>,
+  pub(crate) windows: Mutex<HashMap<String, Window<R>>>,
   pub(crate) plugins: Mutex<PluginStore<R>>,
   listeners: Listeners,
   pub(crate) state: Arc<StateManager>,
@@ -227,18 +228,42 @@ pub struct InnerWindowManager<R: Runtime> {
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
   pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
   /// The webview protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+  /// A set containing a reference to the active menus, including
+  /// the app-wide menu and the window-specific menus
+  ///
+  /// This should be mainly used to acceess [`Menu::haccel`]
+  /// to setup the accelerator handling in the event loop
+  #[cfg(desktop)]
+  pub menus: Arc<Mutex<HashMap<MenuId, Menu<R>>>>,
   /// The menu set to all windows.
-  menu: Option<Menu>,
+  #[cfg(desktop)]
+  pub(crate) menu: Arc<Mutex<Option<Menu<R>>>>,
   /// Menu event listeners to all windows.
-  menu_event_listeners: Arc<Vec<GlobalMenuEventListener<R>>>,
+  #[cfg(desktop)]
+  pub(crate) menu_event_listeners: Arc<Mutex<Vec<GlobalMenuEventListener<AppHandle<R>>>>>,
+  /// Menu event listeners to specific windows.
+  #[cfg(desktop)]
+  pub(crate) window_menu_event_listeners:
+    Arc<Mutex<HashMap<String, GlobalMenuEventListener<Window<R>>>>>,
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
+  /// Tray icons
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  pub(crate) tray_icons: Arc<Mutex<Vec<TrayIcon<R>>>>,
+  /// Global Tray icon event listeners.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  pub(crate) global_tray_event_listeners:
+    Arc<Mutex<Vec<GlobalTrayIconEventListener<AppHandle<R>>>>>,
+  /// Tray icon event listeners.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  pub(crate) tray_event_listeners:
+    Arc<Mutex<HashMap<TrayIconId, GlobalTrayIconEventListener<TrayIcon<R>>>>>,
   /// Responder for invoke calls.
   invoke_responder: Option<Arc<InvokeResponder<R>>>,
   /// The script that initializes the invoke system.
@@ -257,10 +282,9 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
       .field("package_info", &self.package_info)
-      .field("menu", &self.menu)
       .field("pattern", &self.pattern);
 
-    #[cfg(desktop)]
+    #[cfg(all(desktop, feature = "tray-icon"))]
     d.field("tray_icon", &self.tray_icon);
 
     d.finish()
@@ -303,7 +327,7 @@ impl<R: Runtime> Clone for WindowManager<R> {
 }
 
 impl<R: Runtime> WindowManager<R> {
-  #[allow(clippy::too_many_arguments)]
+  #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
     #[allow(unused_mut)] mut context: Context<impl Assets>,
     plugins: PluginStore<R>,
@@ -312,7 +336,10 @@ impl<R: Runtime> WindowManager<R> {
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
-    (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
+    #[cfg(desktop)] window_menu_event_listeners: HashMap<
+      String,
+      GlobalMenuEventListener<Window<R>>,
+    >,
     (invoke_responder, invoke_initialization_script): (Option<Arc<InvokeResponder<R>>>, String),
   ) -> Self {
     // generate a random isolation key at runtime
@@ -324,8 +351,6 @@ impl<R: Runtime> WindowManager<R> {
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
-        #[cfg(all(desktop, feature = "system-tray"))]
-        trays: Default::default(),
         plugins: Mutex::new(plugins),
         listeners: Listeners::default(),
         state: Arc::new(state),
@@ -335,14 +360,26 @@ impl<R: Runtime> WindowManager<R> {
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
-        #[cfg(desktop)]
-        tray_icon: context.system_tray_icon,
+        #[cfg(all(desktop, feature = "tray-icon"))]
+        tray_icon: context.tray_icon,
         package_info: context.package_info,
         pattern: context.pattern,
         uri_scheme_protocols,
-        menu,
-        menu_event_listeners: Arc::new(menu_event_listeners),
+        #[cfg(desktop)]
+        menus: Default::default(),
+        #[cfg(desktop)]
+        menu: Default::default(),
+        #[cfg(desktop)]
+        menu_event_listeners: Default::default(),
+        #[cfg(desktop)]
+        window_menu_event_listeners: Arc::new(Mutex::new(window_menu_event_listeners)),
         window_event_listeners: Arc::new(window_event_listeners),
+        #[cfg(all(desktop, feature = "tray-icon"))]
+        tray_icons: Default::default(),
+        #[cfg(all(desktop, feature = "tray-icon"))]
+        global_tray_event_listeners: Default::default(),
+        #[cfg(all(desktop, feature = "tray-icon"))]
+        tray_event_listeners: Default::default(),
         invoke_responder,
         invoke_initialization_script,
       }),
@@ -361,6 +398,83 @@ impl<R: Runtime> WindowManager<R> {
   /// State managed by the application.
   pub(crate) fn state(&self) -> Arc<StateManager> {
     self.inner.state.clone()
+  }
+
+  #[cfg(desktop)]
+  pub(crate) fn prepare_window_menu_creation_handler(
+    &self,
+    window_menu: Option<&crate::window::WindowMenu<R>>,
+  ) -> Option<impl Fn(tauri_runtime::window::RawWindow<'_>)> {
+    {
+      if let Some(menu) = window_menu {
+        self
+          .menus_stash_lock()
+          .insert(menu.menu.id().clone(), menu.menu.clone());
+      }
+    }
+
+    #[cfg(target_os = "macos")]
+    return None;
+
+    #[cfg_attr(target_os = "macos", allow(unused_variables, unreachable_code))]
+    if let Some(menu) = &window_menu {
+      let menu = menu.menu.clone();
+      Some(move |raw: tauri_runtime::window::RawWindow<'_>| {
+        #[cfg(target_os = "windows")]
+        let _ = menu.inner().init_for_hwnd(raw.hwnd as _);
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        let _ = menu
+          .inner()
+          .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
+      })
+    } else {
+      None
+    }
+  }
+
+  /// App-wide menu.
+  #[cfg(desktop)]
+  pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<Menu<R>>> {
+    self.inner.menu.lock().expect("poisoned window manager")
+  }
+
+  /// Menus stash.
+  #[cfg(desktop)]
+  pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<MenuId, Menu<R>>> {
+    self.inner.menus.lock().expect("poisoned window manager")
+  }
+
+  #[cfg(desktop)]
+  pub(crate) fn is_menu_in_use<I: PartialEq<MenuId>>(&self, id: &I) -> bool {
+    self
+      .menu_lock()
+      .as_ref()
+      .map(|m| id.eq(m.id()))
+      .unwrap_or(false)
+  }
+
+  /// Menus stash.
+  #[cfg(desktop)]
+  pub(crate) fn insert_menu_into_stash(&self, menu: &Menu<R>) {
+    self
+      .menus_stash_lock()
+      .insert(menu.id().clone(), menu.clone());
+  }
+
+  #[cfg(desktop)]
+  pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<&MenuId>) {
+    if let Some(id) = id {
+      let is_used_by_a_window = self.windows_lock().values().any(|w| w.is_menu_in_use(id));
+      if !(self.is_menu_in_use(id) || is_used_by_a_window) {
+        self.menus_stash_lock().remove(id);
+      }
+    }
   }
 
   /// The invoke responder.
@@ -1037,12 +1151,6 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    if pending.window_builder.get_menu().is_none() {
-      if let Some(menu) = &self.inner.menu {
-        pending = pending.set_menu(menu.clone());
-      }
-    }
-
     #[cfg(target_os = "android")]
     {
       pending = pending.on_webview_created(move |ctx| {
@@ -1136,12 +1244,19 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  pub fn attach_window(
+  pub(crate) fn attach_window(
     &self,
     app_handle: AppHandle<R>,
     window: DetachedWindow<EventLoopMessage, R>,
+    #[cfg(desktop)] menu: Option<crate::window::WindowMenu<R>>,
   ) -> Window<R> {
-    let window = Window::new(self.clone(), window, app_handle);
+    let window = Window::new(
+      self.clone(),
+      window,
+      app_handle,
+      #[cfg(desktop)]
+      menu,
+    );
 
     let window_ = window.clone();
     let window_event_listeners = self.inner.window_event_listeners.clone();
@@ -1155,19 +1270,6 @@ impl<R: Runtime> WindowManager<R> {
         });
       }
     });
-    {
-      let window_ = window.clone();
-      let menu_event_listeners = self.inner.menu_event_listeners.clone();
-      window.on_menu_event(move |event| {
-        let _ = on_menu_event(&window_, &event);
-        for handler in menu_event_listeners.iter() {
-          handler(WindowMenuEvent {
-            window: window_.clone(),
-            menu_item_id: event.menu_item_id.clone(),
-          });
-        }
-      });
-    }
 
     // insert the window into our manager
     {
@@ -1297,33 +1399,6 @@ impl<R: Runtime> WindowManager<R> {
   }
 }
 
-/// Tray APIs
-#[cfg(all(desktop, feature = "system-tray"))]
-impl<R: Runtime> WindowManager<R> {
-  pub fn get_tray(&self, id: &str) -> Option<crate::SystemTrayHandle<R>> {
-    self.inner.trays.lock().unwrap().get(id).cloned()
-  }
-
-  pub fn trays(&self) -> HashMap<String, crate::SystemTrayHandle<R>> {
-    self.inner.trays.lock().unwrap().clone()
-  }
-
-  pub fn attach_tray(&self, id: String, tray: crate::SystemTrayHandle<R>) {
-    self.inner.trays.lock().unwrap().insert(id, tray);
-  }
-
-  pub fn get_tray_by_runtime_id(&self, id: u16) -> Option<(String, crate::SystemTrayHandle<R>)> {
-    let trays = self.inner.trays.lock().unwrap();
-    let iter = trays.iter();
-    for (tray_id, tray) in iter {
-      if tray.id == id {
-        return Some((tray_id.clone(), tray.clone()));
-      }
-    }
-    None
-  }
-}
-
 fn on_window_event<R: Runtime>(
   window: &Window<R>,
   manager: &WindowManager<R>,
@@ -1394,10 +1469,6 @@ fn on_window_event<R: Runtime>(
 struct ScaleFactorChanged {
   scale_factor: f64,
   size: PhysicalSize<u32>,
-}
-
-fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
-  window.emit(MENU_EVENT, event.menu_item_id.clone())
 }
 
 #[cfg(feature = "isolation")]

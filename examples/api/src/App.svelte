@@ -1,13 +1,17 @@
 <script>
   import { onMount } from 'svelte'
   import { writable } from 'svelte/store'
+  import { invoke } from '@tauri-apps/api/tauri'
 
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'
   import WebRTC from './views/WebRTC.svelte'
 
-  const userAgent = navigator.userAgent.toLowerCase()
-  const isMobile = userAgent.includes('android') || userAgent.includes('iphone')
+  document.addEventListener('keydown', (event) => {
+    if (event.ctrlKey && event.key === 'b') {
+      invoke('toggle_menu')
+    }
+  })
 
   const views = [
     {

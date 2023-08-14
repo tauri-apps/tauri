@@ -40,7 +40,7 @@ features = [
   "icon-png",
   "isolation",
   "macos-private-api",
-  "system-tray"
+  "tray-icon"
 ]
 
 [dev-dependencies.tauri]

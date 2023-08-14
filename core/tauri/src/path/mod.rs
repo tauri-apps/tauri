@@ -65,7 +65,7 @@ impl<'de> Deserialize<'de> for SafePathBuf {
   }
 }
 
-/// A base directory to be used in [`resolve_directory`].
+/// A base directory for a path.
 ///
 /// The base directory is the optional root of a file system operation.
 /// If informed by the API call, all paths will be relative to the path of the given directory.

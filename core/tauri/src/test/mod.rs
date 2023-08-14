@@ -124,7 +124,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
         windows: Vec::new(),
         bundle: Default::default(),
         security: Default::default(),
-        system_tray: None,
+        tray_icon: None,
         macos_private_api: false,
       },
       build: Default::default(),
@@ -133,8 +133,8 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     assets: Arc::new(assets),
     default_window_icon: None,
     app_icon: None,
-    #[cfg(desktop)]
-    system_tray_icon: None,
+    #[cfg(all(desktop, feature = "tray-icon"))]
+    tray_icon: None,
     package_info: crate::PackageInfo {
       name: "test".into(),
       version: "0.1.0".parse().unwrap(),
@@ -163,7 +163,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
 /// }
 /// ```
 pub fn mock_builder() -> Builder<MockRuntime> {
-  Builder::<MockRuntime>::new()
+  Builder::<MockRuntime>::new().enable_macos_default_menu(false)
 }
 
 /// Creates a new [`App`] for testing using the [`mock_context`] with a [`noop_assets`].

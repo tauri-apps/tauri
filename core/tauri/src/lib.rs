@@ -17,6 +17,7 @@
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
 //! - **linux-ipc-protocol**: Use custom protocol for faster IPC on Linux. Requires webkit2gtk v2.40 or above.
+//! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
@@ -25,7 +26,7 @@
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
-//! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
+//! - **tray-icon**: Enables application tray icon APIs. Enabled by default if the `trayIcon` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
@@ -92,6 +93,8 @@ use tauri_runtime as runtime;
 mod ios;
 #[cfg(target_os = "android")]
 mod jni_helpers;
+#[cfg(desktop)]
+pub mod menu;
 /// Path APIs.
 pub mod path;
 pub mod process;
@@ -99,6 +102,9 @@ pub mod process;
 pub mod scope;
 mod state;
 
+#[cfg(all(desktop, feature = "tray-icon"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+pub mod tray;
 pub use tauri_utils as utils;
 
 /// A Tauri [`Runtime`] wrapper around wry.
@@ -130,14 +136,20 @@ macro_rules! android_binding {
 
     // this function is a glue between PluginManager.kt > handlePluginResponse and Rust
     #[allow(non_snake_case)]
-    pub fn handlePluginResponse(env: JNIEnv, _: JClass, id: i32, success: JString, error: JString) {
-      ::tauri::handle_android_plugin_response(env, id, success, error);
+    pub fn handlePluginResponse(
+      mut env: JNIEnv,
+      _: JClass,
+      id: i32,
+      success: JString,
+      error: JString,
+    ) {
+      ::tauri::handle_android_plugin_response(&mut env, id, success, error);
     }
 
     // this function is a glue between PluginManager.kt > sendChannelData and Rust
     #[allow(non_snake_case)]
-    pub fn sendChannelData(env: JNIEnv, _: JClass, id: i64, data: JString) {
-      ::tauri::send_channel_data(env, id, data);
+    pub fn sendChannelData(mut env: JNIEnv, _: JClass, id: i64, data: JString) {
+      ::tauri::send_channel_data(&mut env, id, data);
     }
   };
 }
@@ -156,7 +168,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use serde::Serialize;
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{
+  collections::HashMap,
+  fmt::{self, Debug},
+  sync::Arc,
+};
 
 // Export types likely to be used by the application.
 pub use runtime::http;
@@ -167,22 +183,12 @@ pub use tauri_runtime_wry::webview_version;
 
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-pub use runtime::{menu::NativeImage, ActivationPolicy};
+pub use runtime::ActivationPolicy;
 
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
-#[cfg(all(desktop, feature = "system-tray"))]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle, SystemTrayMenuItemHandle},
-  self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
-};
-pub use {
-  self::app::WindowMenuEvent,
-  self::event::{Event, EventHandler},
-  self::runtime::menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu},
-  self::window::menu::MenuEvent,
-};
+
+pub use self::event::{Event, EventHandler};
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
@@ -249,7 +255,15 @@ pub fn log_stdout() {
 
 /// The user event type.
 #[derive(Debug, Clone)]
-pub enum EventLoopMessage {}
+pub enum EventLoopMessage {
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  #[cfg(desktop)]
+  MenuEvent(menu::MenuEvent),
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  TrayIconEvent(tray::TrayIconEvent),
+}
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
@@ -388,8 +402,8 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
-  #[cfg(desktop)]
-  pub(crate) system_tray_icon: Option<Icon>,
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  pub(crate) tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
@@ -404,8 +418,8 @@ impl<A: Assets> fmt::Debug for Context<A> {
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
 
-    #[cfg(desktop)]
-    d.field("system_tray_icon", &self.system_tray_icon);
+    #[cfg(all(desktop, feature = "tray-icon"))]
+    d.field("tray_icon", &self.tray_icon);
 
     d.finish()
   }
@@ -449,17 +463,19 @@ impl<A: Assets> Context<A> {
   }
 
   /// The icon to use on the system tray UI.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn system_tray_icon(&self) -> Option<&Icon> {
-    self.system_tray_icon.as_ref()
+  pub fn tray_icon(&self) -> Option<&Icon> {
+    self.tray_icon.as_ref()
   }
 
-  /// A mutable reference to the icon to use on the system tray UI.
-  #[cfg(desktop)]
+  /// A mutable reference to the icon to use on the tray icon.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
-    &mut self.system_tray_icon
+  pub fn tray_icon_mut(&mut self) -> &mut Option<Icon> {
+    &mut self.tray_icon
   }
 
   /// Package information.
@@ -497,8 +513,8 @@ impl<A: Assets> Context<A> {
       assets,
       default_window_icon,
       app_icon,
-      #[cfg(desktop)]
-      system_tray_icon: None,
+      #[cfg(all(desktop, feature = "tray-icon"))]
+      tray_icon: None,
       package_info,
       _info_plist: info_plist,
       pattern,
@@ -506,10 +522,11 @@ impl<A: Assets> Context<A> {
   }
 
   /// Sets the app tray icon.
-  #[cfg(desktop)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn set_system_tray_icon(&mut self, icon: Icon) {
-    self.system_tray_icon.replace(icon);
+  pub fn set_tray_icon(&mut self, icon: Icon) {
+    self.tray_icon.replace(icon);
   }
 
   /// Sets the app shell scope.
@@ -524,7 +541,7 @@ impl<A: Assets> Context<A> {
 /// Manages a running application.
 pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// The application handle associated with this manager.
-  fn app_handle(&self) -> AppHandle<R> {
+  fn app_handle(&self) -> &AppHandle<R> {
     self.managed_app_handle()
   }
 
@@ -648,7 +665,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let handle = app.handle();
+  ///     let handle = app.handle().clone();
   ///     let handler = app.listen_global("ready", move |event| {
   ///       println!("app is ready");
   ///
@@ -845,7 +862,7 @@ pub(crate) mod sealed {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<R>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
-    fn managed_app_handle(&self) -> AppHandle<R>;
+    fn managed_app_handle(&self) -> &AppHandle<R>;
   }
 }
 
@@ -894,6 +911,23 @@ mod tests {
     }
   }
 }
+
+#[allow(unused)]
+macro_rules! run_main_thread {
+  ($self:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+    let self_ = $self.clone();
+    let task = move || {
+      let _ = tx.send($ex(self_));
+    };
+    $self.app_handle.run_on_main_thread(Box::new(task))?;
+    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
+  }};
+}
+
+#[allow(unused)]
+pub(crate) use run_main_thread;
 
 #[cfg(test)]
 mod test_utils {

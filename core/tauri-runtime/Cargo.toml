@@ -42,12 +42,12 @@ features = [ "Win32_Foundation" ]
 gtk = { version = "0.16", features = [ "v3_24" ] }
 
 [target."cfg(target_os = \"android\")".dependencies]
-jni = "0.20"
+jni = "0.21"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 url = "2"
 
 [features]
 devtools = [ ]
-system-tray = [ ]
 macos-private-api = [ ]
+

@@ -15,13 +15,22 @@ use serde::Serialize;
 use tauri::{ipc::Channel, window::WindowBuilder, App, AppHandle, RunEvent, Runtime, WindowUrl};
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
+#[cfg(desktop)]
+use tauri::Manager;
+
+pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
+pub type OnEvent = Box<dyn FnMut(&AppHandle, RunEvent)>;
+
 #[derive(Clone, Serialize)]
 struct Reply {
   data: String,
 }
 
-pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
-pub type OnEvent = Box<dyn FnMut(&AppHandle, RunEvent)>;
+#[cfg(target_os = "macos")]
+pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
+
+#[cfg(desktop)]
+pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -43,10 +52,22 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     .setup(move |app| {
       #[cfg(desktop)]
       {
-        tray::create_tray(app)?;
-
-        app.handle().plugin(tauri_plugin_cli::init())?;
+        let handle = app.handle();
+        tray::create_tray(&handle)?;
+        handle.plugin(tauri_plugin_cli::init())?;
       }
+
+      #[cfg(target_os = "macos")]
+      app.manage(AppMenu::<R>(Default::default()));
+
+      #[cfg(desktop)]
+      app.manage(PopupMenu(
+        tauri::menu::MenuBuilder::new(app)
+          .check("Tauri is awesome!")
+          .text("Do something")
+          .copy()
+          .build()?,
+      ));
 
       let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());
       #[cfg(desktop)]
@@ -55,7 +76,8 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
-          .content_protected(true);
+          .content_protected(true)
+          .menu(tauri::menu::Menu::default(&app.handle())?);
       }
 
       let window = window_builder.build().unwrap();
@@ -119,16 +141,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       });
     });
 
-  #[cfg(target_os = "macos")]
-  {
-    builder = builder.menu(tauri::Menu::os_default("Tauri API Validation"));
-  }
-
   #[allow(unused_mut)]
   let mut app = builder
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request,
+      #[cfg(desktop)]
+      cmd::toggle_menu,
+      #[cfg(desktop)]
+      cmd::popup_context_menu
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");
@@ -140,7 +161,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     #[cfg(all(desktop, not(test)))]
     if let RunEvent::ExitRequested { api, .. } = &_event {
       // Keep the event loop running even if all windows are closed
-      // This allow us to catch system tray events when there is no window
+      // This allow us to catch tray icon events when there is no window
       api.prevent_exit();
     }
   })

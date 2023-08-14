@@ -4,10 +4,7 @@
 
 //! The Tauri window types and functions.
 
-pub(crate) mod menu;
-
 use http::HeaderMap;
-pub use menu::{MenuEvent, MenuHandle};
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -38,8 +35,8 @@ use crate::{
 };
 #[cfg(desktop)]
 use crate::{
+  menu::{ContextMenu, Menu, MenuId},
   runtime::{
-    menu::Menu,
     window::dpi::{Position, Size},
     UserAttentionType,
   },
@@ -125,9 +122,13 @@ pub struct WindowBuilder<'a, R: Runtime> {
   app_handle: AppHandle<R>,
   label: String,
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
+  #[cfg(desktop)]
+  pub(crate) menu: Option<Menu<R>>,
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
+  #[cfg(desktop)]
+  on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
@@ -168,7 +169,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let handle = app.handle();
+  ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
   ///       let window = tauri::WindowBuilder::new(&handle, "label", tauri::WindowUrl::App("index.html".into()))
   ///         .build()
@@ -192,16 +193,20 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
     let runtime = manager.runtime();
-    let app_handle = manager.app_handle();
+    let app_handle = manager.app_handle().clone();
     Self {
       manager: manager.manager().clone(),
       runtime,
       app_handle,
       label: label.into(),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
+      #[cfg(desktop)]
+      menu: None,
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      #[cfg(desktop)]
+      on_menu_event: None,
     }
   }
 
@@ -232,14 +237,18 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let builder = Self {
       manager: manager.manager().clone(),
       runtime: manager.runtime(),
-      app_handle: manager.app_handle(),
+      app_handle: manager.app_handle().clone(),
       label: config.label.clone(),
       webview_attributes: WebviewAttributes::from(&config),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
         config,
       ),
       web_resource_request_handler: None,
+      #[cfg(desktop)]
+      menu: None,
       navigation_handler: None,
+      #[cfg(desktop)]
+      on_menu_event: None,
     };
 
     builder
@@ -317,6 +326,48 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Registers a global menu event listener.
+  ///
+  /// Note that this handler is called for any menu event,
+  /// whether it is coming from this window, another window or from the tray icon menu.
+  ///
+  /// Also note that this handler will not be called if
+  /// the window used to register it was closed.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::menu::{Menu, Submenu, MenuItem};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let menu = Menu::with_items(handle, &[
+  ///       &Submenu::with_items(handle, "File", true, &[
+  ///         &save_menu_item,
+  ///       ])?,
+  ///     ])?;
+  ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
+  ///       .menu(menu)
+  ///       .on_menu_event(move |window, event| {
+  ///         if event.id == save_menu_item.id() {
+  ///           // save menu item
+  ///         }
+  ///       })
+  ///       .build()
+  ///       .unwrap();
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(desktop)]
+  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.on_menu_event.replace(Box::new(f));
+    self
+  }
+
   /// Creates a new webview window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
     let mut pending = PendingWindow::new(
@@ -331,13 +382,43 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let pending = self
       .manager
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
+
+    #[cfg(desktop)]
+    let window_menu = {
+      let is_app_wide = self.menu.is_none();
+      self
+        .menu
+        .or_else(|| self.app_handle.menu())
+        .map(|menu| WindowMenu { is_app_wide, menu })
+    };
+
+    #[cfg(desktop)]
+    let handler = self
+      .manager
+      .prepare_window_menu_creation_handler(window_menu.as_ref());
+    #[cfg(not(desktop))]
+    #[allow(clippy::type_complexity)]
+    let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
+
     let window_effects = pending.webview_attributes.window_effects.clone();
     let window = match &mut self.runtime {
-      RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
-      RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
-      RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending),
+      RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending, handler),
+      RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending, handler),
+      RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
     }
-    .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
+    .map(|window| {
+      self.manager.attach_window(
+        self.app_handle.clone(),
+        window,
+        #[cfg(desktop)]
+        window_menu,
+      )
+    })?;
+
+    #[cfg(desktop)]
+    if let Some(handler) = self.on_menu_event {
+      window.on_menu_event(handler);
+    }
 
     if let Some(effects) = window_effects {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
@@ -365,8 +446,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Sets the menu for the window.
   #[must_use]
-  pub fn menu(mut self, menu: Menu) -> Self {
-    self.window_builder = self.window_builder.menu(menu);
+  pub fn menu(mut self, menu: Menu<R>) -> Self {
+    self.menu.replace(menu);
     self
   }
 
@@ -659,7 +740,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891>
   /// - **Linux**: Unsupported
   pub fn effects(mut self, effects: WindowEffectsConfig) -> Self {
     self.webview_attributes = self.webview_attributes.window_effects(effects);
@@ -793,13 +874,20 @@ pub struct InvokeRequest {
   pub headers: HeaderMap,
 }
 
+/// A wrapper struct to hold the window menu state
+/// and whether it is global per-app or specific to this window.
+#[cfg(desktop)]
+pub(crate) struct WindowMenu<R: Runtime> {
+  pub(crate) is_app_wide: bool,
+  pub(crate) menu: Menu<R>,
+}
+
 // TODO: expand these docs since this is a pretty important type
 /// A webview window managed by Tauri.
 ///
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
 #[default_runtime(crate::Wry, wry)]
-#[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
@@ -807,6 +895,20 @@ pub struct Window<R: Runtime> {
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
+  // The menu set for this window
+  #[cfg(desktop)]
+  pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
+}
+
+impl<R: Runtime> std::fmt::Debug for Window<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Window")
+      .field("window", &self.window)
+      .field("manager", &self.manager)
+      .field("app_handle", &self.app_handle)
+      .field("js_event_listeners", &self.js_event_listeners)
+      .finish()
+  }
 }
 
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
@@ -822,6 +924,8 @@ impl<R: Runtime> Clone for Window<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       js_event_listeners: self.js_event_listeners.clone(),
+      #[cfg(desktop)]
+      menu: self.menu.clone(),
     }
   }
 }
@@ -868,8 +972,8 @@ impl<R: Runtime> ManagerBase<R> for Window<R> {
     RuntimeOrDispatch::Dispatch(self.dispatcher())
   }
 
-  fn managed_app_handle(&self) -> AppHandle<R> {
-    self.app_handle.clone()
+  fn managed_app_handle(&self) -> &AppHandle<R> {
+    &self.app_handle
   }
 }
 
@@ -968,12 +1072,15 @@ impl<R: Runtime> Window<R> {
     manager: WindowManager<R>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
+    #[cfg(desktop)] menu: Option<WindowMenu<R>>,
   ) -> Self {
     Self {
       window,
       manager,
       app_handle,
       js_event_listeners: Default::default(),
+      #[cfg(desktop)]
+      menu: Arc::new(Mutex::new(menu)),
     }
   }
 
@@ -1013,20 +1120,6 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .on_window_event(move |event| f(&event.clone().into()));
-  }
-
-  /// Registers a menu event listener.
-  pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
-    let menu_ids = self.window.menu_ids.clone();
-    self.window.dispatcher.on_menu_event(move |event| {
-      let id = menu_ids
-        .lock()
-        .unwrap()
-        .get(&event.menu_item_id)
-        .unwrap()
-        .clone();
-      f(MenuEvent { menu_item_id: id })
-    })
   }
 
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
@@ -1094,16 +1187,270 @@ impl<R: Runtime> Window<R> {
   }
 }
 
-/// Window getters.
+/// Menu APIs
+#[cfg(desktop)]
 impl<R: Runtime> Window<R> {
-  /// Gets a handle to the window menu.
-  pub fn menu_handle(&self) -> MenuHandle<R> {
-    MenuHandle {
-      ids: self.window.menu_ids.clone(),
-      dispatcher: self.dispatcher(),
-    }
+  /// Registers a global menu event listener.
+  ///
+  /// Note that this handler is called for any menu event,
+  /// whether it is coming from this window, another window or from the tray icon menu.
+  ///
+  /// Also note that this handler will not be called if
+  /// the window used to register it was closed.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::menu::{Menu, Submenu, MenuItem};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let menu = Menu::with_items(handle, &[
+  ///       &Submenu::with_items(handle, "File", true, &[
+  ///         &save_menu_item,
+  ///       ])?,
+  ///     ])?;
+  ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
+  ///       .menu(menu)
+  ///       .build()
+  ///       .unwrap();
+  ///
+  ///     window.on_menu_event(move |window, event| {
+  ///       if event.id == save_menu_item.id() {
+  ///           // save menu item
+  ///       }
+  ///     });
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+    &self,
+    f: F,
+  ) {
+    self
+      .manager
+      .inner
+      .window_menu_event_listeners
+      .lock()
+      .unwrap()
+      .insert(self.label().to_string(), Box::new(f));
   }
 
+  pub(crate) fn menu_lock(&self) -> std::sync::MutexGuard<'_, Option<WindowMenu<R>>> {
+    self.menu.lock().expect("poisoned window")
+  }
+
+  #[cfg_attr(target_os = "macos", allow(dead_code))]
+  pub(crate) fn has_app_wide_menu(&self) -> bool {
+    self
+      .menu_lock()
+      .as_ref()
+      .map(|m| m.is_app_wide)
+      .unwrap_or(false)
+  }
+
+  #[cfg_attr(target_os = "macos", allow(dead_code))]
+  pub(crate) fn is_menu_in_use<I: PartialEq<MenuId>>(&self, id: &I) -> bool {
+    self
+      .menu_lock()
+      .as_ref()
+      .map(|m| id.eq(m.menu.id()))
+      .unwrap_or(false)
+  }
+
+  /// Returns this window menu .
+  pub fn menu(&self) -> Option<Menu<R>> {
+    self.menu_lock().as_ref().map(|m| m.menu.clone())
+  }
+
+  /// Sets the window menu and returns the previous one.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
+  /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
+  #[cfg_attr(target_os = "macos", allow(unused_variables))]
+  pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
+    let prev_menu = self.remove_menu()?;
+
+    self.manager.insert_menu_into_stash(&menu);
+
+    let window = self.clone();
+    let menu_ = menu.clone();
+    self.run_on_main_thread(move || {
+      #[cfg(windows)]
+      if let Ok(hwnd) = window.hwnd() {
+        let _ = menu_.inner().init_for_hwnd(hwnd.0);
+      }
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      if let (Ok(gtk_window), Ok(gtk_box)) = (window.gtk_window(), window.default_vbox()) {
+        let _ = menu_
+          .inner()
+          .init_for_gtk_window(&gtk_window, Some(&gtk_box));
+      }
+    })?;
+
+    self.menu_lock().replace(WindowMenu {
+      is_app_wide: false,
+      menu,
+    });
+
+    Ok(prev_menu)
+  }
+
+  /// Removes the window menu and returns it.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
+  /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
+  pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
+    let current_menu = self.menu_lock().as_ref().map(|m| m.menu.clone());
+
+    // remove from the window
+    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    if let Some(menu) = current_menu {
+      let window = self.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = menu.inner().remove_for_hwnd(hwnd.0);
+        }
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = menu.inner().remove_for_gtk_window(&gtk_window);
+        }
+      })?;
+    }
+
+    let prev_menu = self.menu_lock().take().map(|m| m.menu);
+
+    self
+      .manager
+      .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
+
+    Ok(prev_menu)
+  }
+
+  /// Hides the window menu.
+  pub fn hide_menu(&self) -> crate::Result<()> {
+    // remove from the window
+    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    if let Some(window_menu) = &*self.menu_lock() {
+      let window = self.clone();
+      let menu_ = window_menu.menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = menu_.inner().hide_for_hwnd(hwnd.0);
+        }
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = menu_.inner().hide_for_gtk_window(&gtk_window);
+        }
+      })?;
+    }
+
+    Ok(())
+  }
+
+  /// Shows the window menu.
+  pub fn show_menu(&self) -> crate::Result<()> {
+    // remove from the window
+    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    if let Some(window_menu) = &*self.menu_lock() {
+      let window = self.clone();
+      let menu_ = window_menu.menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = menu_.inner().show_for_hwnd(hwnd.0);
+        }
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = menu_.inner().show_for_gtk_window(&gtk_window);
+        }
+      })?;
+    }
+
+    Ok(())
+  }
+
+  /// Shows the window menu.
+  pub fn is_menu_visible(&self) -> crate::Result<bool> {
+    // remove from the window
+    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    if let Some(window_menu) = &*self.menu_lock() {
+      let (tx, rx) = std::sync::mpsc::channel();
+      let window = self.clone();
+      let menu_ = window_menu.menu.clone();
+      self.run_on_main_thread(move || {
+        #[cfg(windows)]
+        if let Ok(hwnd) = window.hwnd() {
+          let _ = tx.send(menu_.inner().is_visible_on_hwnd(hwnd.0));
+        }
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        if let Ok(gtk_window) = window.gtk_window() {
+          let _ = tx.send(menu_.inner().is_visible_on_gtk_window(&gtk_window));
+        }
+      })?;
+
+      return Ok(rx.recv().unwrap_or(false));
+    }
+
+    Ok(false)
+  }
+
+  /// Shows the specified menu as a context menu at the cursor position.
+  pub fn popup_menu<M: ContextMenu>(&self, menu: &M) -> crate::Result<()> {
+    menu.popup(self.clone())
+  }
+
+  /// Shows the specified menu as a context menu at the specified position.
+  ///
+  /// The position is relative to the window's top-left corner.
+  pub fn popup_menu_at<M: ContextMenu, P: Into<Position>>(
+    &self,
+    menu: &M,
+    position: P,
+  ) -> crate::Result<()> {
+    menu.popup_at(self.clone(), position)
+  }
+}
+
+/// Window getters.
+impl<R: Runtime> Window<R> {
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   pub fn scale_factor(&self) -> crate::Result<f64> {
     self.window.dispatcher.scale_factor().map_err(Into::into)
@@ -1251,6 +1598,23 @@ impl<R: Runtime> Window<R> {
       })
   }
 
+  /// Returns the pointer to the content view of this window.
+  #[cfg(target_os = "macos")]
+  pub fn ns_view(&self) -> crate::Result<*mut std::ffi::c_void> {
+    self
+      .window
+      .dispatcher
+      .raw_window_handle()
+      .map_err(Into::into)
+      .and_then(|handle| {
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
+          Ok(h.ns_view)
+        } else {
+          Err(crate::Error::InvalidWindowHandle)
+        }
+      })
+  }
+
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<HWND> {
@@ -1270,7 +1634,7 @@ impl<R: Runtime> Window<R> {
 
   /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   ///
-  /// Note that this can only be used on the main thread.
+  /// Note that this type can only be used on the main thread.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1280,6 +1644,20 @@ impl<R: Runtime> Window<R> {
   ))]
   pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
     self.window.dispatcher.gtk_window().map_err(Into::into)
+  }
+
+  /// Returns the vertical [`gtk::Box`] that is added by default as the sole child of this window.
+  ///
+  /// Note that this type can only be used on the main thread.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn default_vbox(&self) -> crate::Result<gtk::Box> {
+    self.window.dispatcher.default_vbox().map_err(Into::into)
   }
 
   /// Returns the current window theme.
@@ -1486,7 +1864,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891>
   /// - **Linux**: Unsupported
   pub fn set_effects<E: Into<Option<WindowEffectsConfig>>>(&self, effects: E) -> crate::Result<()> {
     let effects = effects.into();

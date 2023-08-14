@@ -1,5 +1,18 @@
 # Changelog
 
+## \[2.0.0-alpha.7]
+
+### New Features
+
+- [`522de0e7`](https://www.github.com/tauri-apps/tauri/commit/522de0e78891d0bdf6387a5118985fc41a11baeb)([#7447](https://www.github.com/tauri-apps/tauri/pull/7447)) Added the `config::plugin_config` function to read the plugin configuration set from the CLI.
+- [`1e1d839e`](https://www.github.com/tauri-apps/tauri/commit/1e1d839e7e3d9496f71b6bc1336ced01f2965541)([#7450](https://www.github.com/tauri-apps/tauri/pull/7450)) Added the `mobile::update_android_manifest` function.
+- [`aba04fa8`](https://www.github.com/tauri-apps/tauri/commit/aba04fa823d70ff8df9bd22f8e6a25184689c3cb)([#7448](https://www.github.com/tauri-apps/tauri/pull/7448)) Added the `mobile::update_entitlements` function for iOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.7`
+- Upgraded to `tauri-codegen@2.0.0-alpha.7`
+
 ## \[2.0.0-alpha.6]
 
 ### Bug Fixes

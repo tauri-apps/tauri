@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-alpha.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.7`
+- Upgraded to `tauri-codegen@2.0.0-alpha.7`
+
+### Breaking Changes
+
+- [`fbeb5b91`](https://www.github.com/tauri-apps/tauri/commit/fbeb5b9185baeda19e865228179e3e44c165f1d9)([#7170](https://www.github.com/tauri-apps/tauri/pull/7170)) Moved `tauri::api::ipc` to `tauri::ipc` and refactored all types.
+
 ## \[2.0.0-alpha.6]
 
 ### Dependencies

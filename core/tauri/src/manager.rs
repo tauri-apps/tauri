@@ -7,6 +7,7 @@ use std::{
   collections::{HashMap, HashSet},
   fmt,
   fs::create_dir_all,
+  path::PathBuf,
   sync::{Arc, Mutex, MutexGuard},
 };
 
@@ -38,7 +39,10 @@ use crate::{
       ResponseBuilder as HttpResponseBuilder,
     },
     webview::WindowBuilder,
-    window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow},
+    window::{
+      dpi::{PhysicalPosition, PhysicalSize},
+      DetachedWindow, FileDropEvent, PendingWindow,
+    },
   },
   utils::{
     assets::Assets,
@@ -1399,6 +1403,12 @@ impl<R: Runtime> WindowManager<R> {
   }
 }
 
+#[derive(Serialize, Clone)]
+struct FileDropPayload<'a> {
+  paths: &'a Vec<PathBuf>,
+  position: &'a PhysicalPosition<f64>,
+}
+
 fn on_window_event<R: Runtime>(
   window: &Window<R>,
   manager: &WindowManager<R>,
@@ -1444,8 +1454,11 @@ fn on_window_event<R: Runtime>(
       },
     )?,
     WindowEvent::FileDrop(event) => match event {
-      FileDropEvent::Hovered(paths) => window.emit(WINDOW_FILE_DROP_HOVER_EVENT, paths)?,
-      FileDropEvent::Dropped(paths) => {
+      FileDropEvent::Hovered { paths, position } => {
+        let payload = FileDropPayload { paths, position };
+        window.emit(WINDOW_FILE_DROP_HOVER_EVENT, payload)?
+      }
+      FileDropEvent::Dropped { paths, position } => {
         let scopes = window.state::<Scopes>();
         for path in paths {
           if path.is_file() {
@@ -1454,7 +1467,8 @@ fn on_window_event<R: Runtime>(
             let _ = scopes.allow_directory(path, false);
           }
         }
-        window.emit(WINDOW_FILE_DROP_EVENT, paths)?
+        let payload = FileDropPayload { paths, position };
+        window.emit(WINDOW_FILE_DROP_EVENT, payload)?
       }
       FileDropEvent::Cancelled => window.emit(WINDOW_FILE_DROP_CANCELLED_EVENT, ())?,
       _ => unimplemented!(),

@@ -168,9 +168,10 @@ impl Scope {
 mod tests {
   use super::RemoteDomainAccessScope;
   use crate::{
-    api::ipc::CallbackFn,
+    ipc::CallbackFn,
     test::{assert_ipc_response, mock_app, MockRuntime},
-    App, InvokePayload, Manager, Window, WindowBuilder,
+    window::InvokeRequest,
+    App, Manager, Window, WindowBuilder,
   };
 
   const PLUGIN_NAME: &str = "test";
@@ -188,7 +189,7 @@ mod tests {
     (app, window)
   }
 
-  fn path_is_absolute_payload() -> InvokePayload {
+  fn path_is_absolute_request() -> InvokeRequest {
     let callback = CallbackFn(0);
     let error = CallbackFn(1);
 
@@ -198,23 +199,25 @@ mod tests {
       serde_json::Value::String(std::env::current_dir().unwrap().display().to_string()),
     );
 
-    InvokePayload {
+    InvokeRequest {
       cmd: "plugin:path|is_absolute".into(),
       callback,
       error,
-      inner: serde_json::Value::Object(payload),
+      body: serde_json::Value::Object(payload).into(),
+      headers: Default::default(),
     }
   }
 
-  fn plugin_test_payload() -> InvokePayload {
+  fn plugin_test_request() -> InvokeRequest {
     let callback = CallbackFn(0);
     let error = CallbackFn(1);
 
-    InvokePayload {
+    InvokeRequest {
       cmd: format!("plugin:{PLUGIN_NAME}|doSomething"),
       callback,
       error,
-      inner: Default::default(),
+      body: Default::default(),
+      headers: Default::default(),
     }
   }
 
@@ -227,7 +230,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_not_found_error_message(
         "main",
         "https://tauri.app/",
@@ -244,7 +247,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_window_error_message("main")),
     );
   }
@@ -258,7 +261,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_domain_error_message(
         "https://tauri.app/",
       )),
@@ -277,25 +280,25 @@ mod tests {
     ]);
 
     window.navigate("https://tauri.app".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_payload(), Ok(true));
+    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
 
     window.navigate("https://blog.tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_domain_error_message(
         "https://blog.tauri.app/",
       )),
     );
 
     window.navigate("https://sub.tauri.app".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_payload(), Ok(true));
+    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
 
     window.window.label = "test".into();
     window.navigate("https://dev.tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(&crate::window::ipc_scope_not_found_error_message(
         "test",
         "https://dev.tauri.app/",
@@ -310,7 +313,7 @@ mod tests {
       .add_plugin("path")]);
 
     window.navigate("https://tauri.app/inner/path".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_payload(), Ok(true));
+    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
   }
 
   #[test]
@@ -322,7 +325,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_payload(),
+      path_is_absolute_request(),
       Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }
@@ -336,7 +339,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      plugin_test_payload(),
+      plugin_test_request(),
       Err(&format!("plugin {PLUGIN_NAME} not found")),
     );
   }
@@ -350,7 +353,7 @@ mod tests {
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      plugin_test_payload(),
+      plugin_test_request(),
       Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }

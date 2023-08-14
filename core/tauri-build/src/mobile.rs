@@ -222,7 +222,7 @@ fn insert_into_xml(xml: &str, block_identifier: &str, parent_tag: &str, contents
     rewritten.push(line.to_string());
   }
 
-  rewritten.join("\n").to_string()
+  rewritten.join("\n")
 }
 
 pub fn update_android_manifest(block_identifier: &str, parent: &str, insert: String) -> Result<()> {
@@ -294,16 +294,14 @@ dependencies {"
 mod tests {
   #[test]
   fn insert_into_xml() {
-    let manifest = format!(
-      r#"<manifest>
+    let manifest = r#"<manifest>
     <application>
         <intent-filter>
         </intent-filter>
     </application>
-</manifest>"#
-    );
+</manifest>"#;
     let id = "tauritest";
-    let new = super::insert_into_xml(&manifest, id, "application", "<something></something>");
+    let new = super::insert_into_xml(manifest, id, "application", "<something></something>");
 
     let block_id_comment = super::xml_block_comment(id);
     let expected = format!(

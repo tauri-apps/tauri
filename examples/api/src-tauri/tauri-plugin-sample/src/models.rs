@@ -3,10 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use serde::{Deserialize, Serialize};
+use tauri::ipc::Channel;
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 pub struct PingRequest {
   pub value: Option<String>,
+  #[serde(rename = "onEvent")]
+  pub on_event: Channel,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

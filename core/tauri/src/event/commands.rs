@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{api::ipc::CallbackFn, command, Manager, Result, Runtime, Window};
+use crate::{command, ipc::CallbackFn, Manager, Result, Runtime, Window};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value as JsonValue;
 use tauri_runtime::window::is_label_valid;

@@ -43,17 +43,6 @@ enum BaseDirectory {
   Template
 }
 
-declare global {
-  interface Window {
-    __TAURI__: {
-      path: {
-        __sep: string
-        __delimiter: string
-      }
-    }
-  }
-}
-
 /**
  * Returns the path to the suggested directory for your app's config files.
  * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.

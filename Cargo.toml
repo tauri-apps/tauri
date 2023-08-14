@@ -18,7 +18,6 @@ exclude = [
   # examples that can be compiled with the tauri CLI
   "examples/api/src-tauri",
   "examples/resources/src-tauri",
-  "examples/sidecar/src-tauri",
   "examples/web/core",
   "examples/file-associations/src-tauri",
   "examples/workspace",

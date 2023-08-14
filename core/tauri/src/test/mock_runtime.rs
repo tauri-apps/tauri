@@ -6,21 +6,16 @@
 #![allow(missing_docs)]
 
 use tauri_runtime::{
-  menu::{Menu, MenuUpdate},
   monitor::Monitor,
   webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
-  RunEvent, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
+  RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
 };
-#[cfg(all(desktop, feature = "system-tray"))]
-use tauri_runtime::{
-  menu::{SystemTrayMenu, TrayHandle},
-  SystemTray, SystemTrayEvent, TrayId,
-};
+
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, Theme};
@@ -105,9 +100,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   }
 
   /// Create a new webview window.
-  fn create_window(
+  fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
+    _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = rand::random();
     self.context.windows.borrow_mut().insert(id, Window);
@@ -119,24 +115,12 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
         last_evaluated_script: Default::default(),
         url: Arc::new(Mutex::new(pending.url)),
       },
-      menu_ids: Default::default(),
     })
   }
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_message(Message::Task(Box::new(f)))
-  }
-
-  #[cfg(all(desktop, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "system-tray"))))]
-  fn system_tray(
-    &self,
-    system_tray: SystemTray,
-  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler> {
-    Ok(MockTrayHandler {
-      context: self.context.clone(),
-    })
   }
 
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
@@ -177,8 +161,8 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   #[cfg(target_os = "android")]
   fn find_class<'a>(
     &'a self,
-    env: jni::JNIEnv<'a>,
-    activity: jni::objects::JObject<'a>,
+    env: &'a mut jni::JNIEnv<'a>,
+    activity: &'a jni::objects::JObject<'a>,
     name: impl Into<String>,
   ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
     todo!()
@@ -187,9 +171,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   #[cfg(target_os = "android")]
   fn run_on_android_context<F>(&self, f: F)
   where
-    F: FnOnce(jni::JNIEnv<'_>, jni::objects::JObject<'_>, jni::objects::JObject<'_>)
-      + Send
-      + 'static,
+    F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
   {
     todo!()
   }
@@ -221,10 +203,6 @@ impl WindowBuilder for MockWindowBuilder {
 
   fn with_config(config: WindowConfig) -> Self {
     Self {}
-  }
-
-  fn menu(self, menu: Menu) -> Self {
-    self
   }
 
   fn center(self) -> Self {
@@ -357,10 +335,6 @@ impl WindowBuilder for MockWindowBuilder {
   fn has_icon(&self) -> bool {
     false
   }
-
-  fn get_menu(&self) -> Option<&Menu> {
-    None
-  }
 }
 
 impl<T: UserEvent> Dispatch<T> for MockDispatcher {
@@ -373,10 +347,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
-    Uuid::new_v4()
-  }
-
-  fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> Uuid {
     Uuid::new_v4()
   }
 
@@ -474,10 +444,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(String::new())
   }
 
-  fn is_menu_visible(&self) -> Result<bool> {
-    Ok(true)
-  }
-
   fn current_monitor(&self) -> Result<Option<Monitor>> {
     Ok(None)
   }
@@ -502,6 +468,17 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
+    unimplemented!()
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn default_vbox(&self) -> Result<gtk::Box> {
     unimplemented!()
   }
 
@@ -534,9 +511,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
-  fn create_window(
+  fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
+    _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = rand::random();
     self.context.windows.borrow_mut().insert(id, Window);
@@ -548,7 +526,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
         last_evaluated_script: Default::default(),
         url: Arc::new(Mutex::new(pending.url)),
       },
-      menu_ids: Default::default(),
     })
   }
 
@@ -590,14 +567,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn unminimize(&self) -> Result<()> {
-    Ok(())
-  }
-
-  fn show_menu(&self) -> Result<()> {
-    Ok(())
-  }
-
-  fn hide_menu(&self) -> Result<()> {
     Ok(())
   }
 
@@ -698,46 +667,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
       .replace(script.into());
     Ok(())
   }
-
-  fn update_menu_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
-    Ok(())
-  }
-}
-
-#[cfg(all(desktop, feature = "system-tray"))]
-#[derive(Debug, Clone)]
-pub struct MockTrayHandler {
-  context: RuntimeContext,
-}
-
-#[cfg(all(desktop, feature = "system-tray"))]
-impl TrayHandle for MockTrayHandler {
-  fn set_icon(&self, icon: Icon) -> Result<()> {
-    Ok(())
-  }
-  fn set_menu(&self, menu: SystemTrayMenu) -> Result<()> {
-    Ok(())
-  }
-  fn update_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
-    Ok(())
-  }
-  #[cfg(target_os = "macos")]
-  fn set_icon_as_template(&self, is_template: bool) -> Result<()> {
-    Ok(())
-  }
-
-  #[cfg(target_os = "macos")]
-  fn set_title(&self, title: &str) -> tauri_runtime::Result<()> {
-    Ok(())
-  }
-
-  fn set_tooltip(&self, tooltip: &str) -> Result<()> {
-    Ok(())
-  }
-
-  fn destroy(&self) -> Result<()> {
-    Ok(())
-  }
 }
 
 #[derive(Debug, Clone)]
@@ -753,8 +682,6 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy {
 pub struct MockRuntime {
   is_running: Arc<AtomicBool>,
   pub context: RuntimeContext,
-  #[cfg(all(desktop, feature = "system-tray"))]
-  tray_handler: MockTrayHandler,
   run_rx: Receiver<Message>,
 }
 
@@ -770,10 +697,6 @@ impl MockRuntime {
     };
     Self {
       is_running,
-      #[cfg(all(desktop, feature = "system-tray"))]
-      tray_handler: MockTrayHandler {
-        context: context.clone(),
-      },
       context,
       run_rx: rx,
     }
@@ -783,16 +706,14 @@ impl MockRuntime {
 impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Dispatcher = MockDispatcher;
   type Handle = MockRuntimeHandle;
-  #[cfg(all(desktop, feature = "system-tray"))]
-  type TrayHandler = MockTrayHandler;
   type EventLoopProxy = EventProxy;
 
-  fn new() -> Result<Self> {
+  fn new(_args: RuntimeInitArgs) -> Result<Self> {
     Ok(Self::init())
   }
 
   #[cfg(any(windows, target_os = "linux"))]
-  fn new_any_thread() -> Result<Self> {
+  fn new_any_thread(_args: RuntimeInitArgs) -> Result<Self> {
     Ok(Self::init())
   }
 
@@ -806,7 +727,11 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     }
   }
 
-  fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
+  fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
+    &self,
+    pending: PendingWindow<T, Self>,
+    _before_webview_creation: Option<F>,
+  ) -> Result<DetachedWindow<T, Self>> {
     let id = rand::random();
     self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {
@@ -817,19 +742,8 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
         last_evaluated_script: Default::default(),
         url: Arc::new(Mutex::new(pending.url)),
       },
-      menu_ids: Default::default(),
     })
   }
-
-  #[cfg(all(desktop, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
-    Ok(self.tray_handler.clone())
-  }
-
-  #[cfg(all(desktop, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F) {}
 
   fn primary_monitor(&self) -> Option<Monitor> {
     unimplemented!()

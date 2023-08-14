@@ -9,7 +9,7 @@ use swift_rs::{swift, SRString, SwiftArg};
 
 use std::{
   ffi::c_void,
-  os::raw::{c_char, c_int},
+  os::raw::{c_char, c_int, c_ulonglong},
 };
 
 type PluginMessageCallbackFn = unsafe extern "C" fn(c_int, c_int, *const c_char);
@@ -23,20 +23,24 @@ impl<'a> SwiftArg<'a> for PluginMessageCallback {
   }
 }
 
-swift!(pub fn post_ipc_message(
-  webview: *const c_void,
-  name: &SRString,
-  method: &SRString,
-  data: *const c_void,
-  callback: usize,
-  error: usize
-));
-swift!(pub fn run_plugin_method(
+type ChannelSendDataCallbackFn = unsafe extern "C" fn(c_ulonglong, *const c_char);
+pub struct ChannelSendDataCallback(pub ChannelSendDataCallbackFn);
+
+impl<'a> SwiftArg<'a> for ChannelSendDataCallback {
+  type ArgType = ChannelSendDataCallbackFn;
+
+  unsafe fn as_arg(&'a self) -> Self::ArgType {
+    self.0
+  }
+}
+
+swift!(pub fn run_plugin_command(
   id: i32,
   name: &SRString,
   method: &SRString,
   data: *const c_void,
-  callback: PluginMessageCallback
+  callback: PluginMessageCallback,
+  send_channel_data_callback: ChannelSendDataCallback
 ));
 swift!(pub fn register_plugin(
   name: &SRString,
@@ -108,7 +112,7 @@ unsafe fn add_json_value_to_array(array: id, value: &JsonValue) {
       let () = msg_send![array, addObject: number];
     }
     JsonValue::String(val) => {
-      let () = msg_send![array, addObject: NSString::new(&val)];
+      let () = msg_send![array, addObject: NSString::new(val)];
     }
     JsonValue::Array(val) => {
       let nsarray: id = msg_send![class!(NSMutableArray), alloc];
@@ -130,7 +134,7 @@ unsafe fn add_json_value_to_array(array: id, value: &JsonValue) {
 }
 
 unsafe fn add_json_entry_to_dictionary(data: id, key: &str, value: &JsonValue) {
-  let key = NSString::new(&key);
+  let key = NSString::new(key);
   match value {
     JsonValue::Null => {
       let null: id = msg_send![class!(NSNull), null];
@@ -154,7 +158,7 @@ unsafe fn add_json_entry_to_dictionary(data: id, key: &str, value: &JsonValue) {
       let () = msg_send![data, setObject:number forKey: key];
     }
     JsonValue::String(val) => {
-      let () = msg_send![data, setObject:NSString::new(&val) forKey: key];
+      let () = msg_send![data, setObject:NSString::new(val) forKey: key];
     }
     JsonValue::Array(val) => {
       let nsarray: id = msg_send![class!(NSMutableArray), alloc];

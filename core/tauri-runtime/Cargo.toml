@@ -49,5 +49,5 @@ url = "2"
 
 [features]
 devtools = [ ]
-system-tray = [ ]
 macos-private-api = [ ]
+

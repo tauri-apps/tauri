@@ -104,7 +104,7 @@ swift-rs = "1.0.5"
 [build-dependencies]
 heck = "0.4"
 once_cell = "1"
-tauri-build = { path = "../tauri-build/", version = "2.0.0-alpha.7" }
+tauri-build = { path = "../tauri-build/", version = "2.0.0-alpha.8" }
 
 [dev-dependencies]
 proptest = "1.2.0"

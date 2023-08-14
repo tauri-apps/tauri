@@ -4,5 +4,5 @@
     "node": ">= 10.0.0"
   },
   "tauri": "2.0.0-alpha.11",
-  "tauri-build": "2.0.0-alpha.7"
+  "tauri-build": "2.0.0-alpha.8"
 }

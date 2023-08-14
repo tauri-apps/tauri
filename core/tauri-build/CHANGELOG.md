@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.8]
+
+### Bug Fixes
+
+- [`560b34dd`](https://www.github.com/tauri-apps/tauri/commit/560b34dd2a194ad62db09b3e9e41a2cfff4e5710)([#7610](https://www.github.com/tauri-apps/tauri/pull/7610)) Skip validation of the `tray-icon` feature flag.
+
 ## \[2.0.0-alpha.7]
 
 ### New Features

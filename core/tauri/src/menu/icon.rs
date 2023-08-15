@@ -209,7 +209,7 @@ impl<R: Runtime> IconMenuItem<R> {
     #[cfg(target_os = "macos")]
     return run_main_thread!(self, |mut self_: Self| self_
       .inner
-      .set_native_icon(_icon.into()));
+      .set_native_icon(_icon.map(Into::into)));
     #[allow(unreachable_code)]
     Ok(())
   }

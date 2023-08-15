@@ -1993,7 +1993,7 @@
           }
         },
         "plugins": {
-          "description": "The list of plugins that are allowed in this scope.",
+          "description": "The list of plugins that are allowed in this scope. The names should be without the `tauri-plugin-` prefix, for example `\"store\"` for `tauri-plugin-store`.",
           "default": [],
           "type": "array",
           "items": {

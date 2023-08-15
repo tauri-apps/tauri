@@ -602,6 +602,7 @@ fn get_lang_data(
   let lang_path = PathBuf::from(format!("{lang}.nsh"));
   let lang_content = match lang.to_lowercase().as_str() {
     "arabic" => Some(include_str!("./templates/nsis-languages/Arabic.nsh")),
+    "bulgarian" => Some(include_str!("./templates/nsis-languages/Bulgarian.nsh")),
     "dutch" => Some(include_str!("./templates/nsis-languages/Dutch.nsh")),
     "english" => Some(include_str!("./templates/nsis-languages/English.nsh")),
     "japanese" => Some(include_str!("./templates/nsis-languages/Japanese.nsh")),

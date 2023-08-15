@@ -1248,6 +1248,7 @@ pub struct RemoteDomainAccessScope {
   /// The list of window labels this scope applies to.
   pub windows: Vec<String>,
   /// The list of plugins that are allowed in this scope.
+  /// The names should be without the `tauri-plugin-` prefix, for example `"store"` for `tauri-plugin-store`.
   #[serde(default)]
   pub plugins: Vec<String>,
   /// Enables access to the Tauri API.

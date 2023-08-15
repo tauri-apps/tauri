@@ -53,6 +53,7 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
         .tauri
         .features()
         .into_iter()
+        .filter(|f| f != &"tray-icon")
         .map(|f| f.to_string())
         .collect::<Vec<String>>(),
     },

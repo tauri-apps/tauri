@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.6]
+
+### New Features
+
+- [`4af5c5a8`](https://www.github.com/tauri-apps/tauri/commit/4af5c5a8293263c16f8a65e8d232f2de52f41701)([#7170](https://www.github.com/tauri-apps/tauri/pull/7170)) Change the IPC call to align with the new format for the custom protocol based API.
+
 ## \[2.0.0-alpha.5]
 
 ### New Features

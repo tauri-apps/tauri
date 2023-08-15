@@ -652,12 +652,6 @@ Section Uninstall
   ; Remove desktop shortcuts
   Delete "$DESKTOP\${MAINBINARYNAME}.lnk"
 
-  ; Delete app data
-  ${If} $DeleteAppDataCheckboxState == 1
-    RmDir /r "$APPDATA\${BUNDLEID}"
-    RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
-  ${EndIf}
-
   ; Remove registry information for add/remove programs
   !if "${INSTALLMODE}" == "both"
     DeleteRegKey SHCTX "${UNINSTKEY}"
@@ -668,6 +662,13 @@ Section Uninstall
   !endif
 
   DeleteRegValue HKCU "${MANUPRODUCTKEY}" "Installer Language"
+
+  ; Delete app data
+  ${If} $DeleteAppDataCheckboxState == 1
+    SetShellVarContext current
+    RmDir /r "$APPDATA\${BUNDLEID}"
+    RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
+  ${EndIf}
 
   ${GetOptions} $CMDLINE "/P" $R0
   IfErrors +2 0

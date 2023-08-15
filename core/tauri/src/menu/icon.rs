@@ -115,7 +115,7 @@ impl<R: Runtime> IconMenuItem<R> {
     let item = muda::IconMenuItem::with_native_icon(
       text,
       enabled,
-      native_icon,
+      native_icon.map(Into::into),
       acccelerator.and_then(|s| s.as_ref().parse().ok()),
     );
     Self {
@@ -144,7 +144,7 @@ impl<R: Runtime> IconMenuItem<R> {
       id,
       text,
       enabled,
-      native_icon,
+      native_icon.map(Into::into),
       acccelerator.and_then(|s| s.as_ref().parse().ok()),
     );
     Self {

@@ -11,9 +11,99 @@ use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
 use std::path::Path;
-pub use tray_icon::{ClickType, Rectangle, TrayIconEvent, TrayIconId};
+pub use tray_icon::TrayIconId;
 
 // TODO(muda-migration): figure out js events
+
+/// Describes a rectangle including position (x - y axis) and size.
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
+pub struct Rectangle {
+  /// The x-coordinate of the upper-left corner of the rectangle.
+  pub left: f64,
+  /// The y-coordinate of the upper-left corner of the rectangle.
+  pub top: f64,
+  /// The x-coordinate of the lower-right corner of the rectangle.
+  pub right: f64,
+  /// The y-coordinate of the lower-right corner of the rectangle.
+  pub bottom: f64,
+}
+
+/// Describes the click type that triggered this tray icon event.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ClickType {
+  /// Left mouse click.
+  Left,
+  /// Right mouse click.
+  Right,
+  /// Double left mouse click.
+  Double,
+}
+
+impl Default for ClickType {
+  fn default() -> Self {
+    Self::Left
+  }
+}
+
+/// Describes a tray event emitted when a tray icon is clicked
+///
+/// ## Platform-specific:
+///
+/// - **Linux**: Unsupported. The event is not emmited even though the icon is shown,
+/// the icon will still show a context menu on right click.
+#[derive(Debug, Clone, Default)]
+pub struct TrayIconEvent {
+  /// Id of the tray icon which triggered this event.
+  pub id: TrayIconId,
+  /// Physical X Position of the click the triggered this event.
+  pub x: f64,
+  /// Physical Y Position of the click the triggered this event.
+  pub y: f64,
+  /// Position and size of the tray icon
+  pub icon_rect: Rectangle,
+  /// The click type that triggered this event.
+  pub click_type: ClickType,
+}
+
+impl TrayIconEvent {
+  /// Returns the id of the tray icon which triggered this event.
+  pub fn id(&self) -> &TrayIconId {
+    &self.id
+  }
+}
+
+impl From<tray_icon::Rectangle> for Rectangle {
+  fn from(value: tray_icon::Rectangle) -> Self {
+    Self {
+      bottom: value.bottom,
+      left: value.left,
+      top: value.top,
+      right: value.right,
+    }
+  }
+}
+
+impl From<tray_icon::ClickType> for ClickType {
+  fn from(value: tray_icon::ClickType) -> Self {
+    match value {
+      tray_icon::ClickType::Left => Self::Left,
+      tray_icon::ClickType::Right => Self::Right,
+      tray_icon::ClickType::Double => Self::Double,
+    }
+  }
+}
+
+impl From<tray_icon::TrayIconEvent> for TrayIconEvent {
+  fn from(value: tray_icon::TrayIconEvent) -> Self {
+    Self {
+      id: value.id,
+      x: value.x,
+      y: value.y,
+      icon_rect: value.icon_rect.into(),
+      click_type: value.click_type.into(),
+    }
+  }
+}
 
 /// [`TrayIcon`] builder struct and associated methods.
 #[derive(Default)]

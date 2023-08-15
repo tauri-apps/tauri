@@ -240,7 +240,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
     text: Option<&str>,
     metadata: Option<AboutMetadata>,
   ) -> Self {
-    let inner = muda::PredefinedMenuItem::about(text, metadata);
+    let inner = muda::PredefinedMenuItem::about(text, metadata.map(Into::into));
     Self {
       id: inner.id().clone(),
       inner,

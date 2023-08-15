@@ -18,6 +18,7 @@ no-default-features = true
 features = [
   "wry",
   "custom-protocol",
+  "tray-icon",
   "devtools",
   "icon-png",
   "protocol-asset",

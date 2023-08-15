@@ -997,7 +997,7 @@ pub struct Builder<R: Runtime> {
 
   /// A closure that returns the menu set to all windows.
   #[cfg(desktop)]
-  menu: Option<Box<dyn FnOnce(&AppHandle<R>) -> crate::Result<Menu<R>>>>,
+  menu: Option<Box<dyn FnOnce(&AppHandle<R>) -> crate::Result<Menu<R>> + Send>>,
 
   /// Enable macOS default menu creation.
   #[allow(unused)]
@@ -1295,7 +1295,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   #[must_use]
   #[cfg(desktop)]
-  pub fn menu<F: FnOnce(&AppHandle<R>) -> crate::Result<Menu<R>> + 'static>(
+  pub fn menu<F: FnOnce(&AppHandle<R>) -> crate::Result<Menu<R>> + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {

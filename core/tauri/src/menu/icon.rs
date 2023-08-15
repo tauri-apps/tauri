@@ -207,7 +207,9 @@ impl<R: Runtime> IconMenuItem<R> {
   /// - **Windows / Linux**: Unsupported.
   pub fn set_native_icon(&mut self, _icon: Option<NativeIcon>) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    return run_main_thread!(self, |mut self_: Self| self_.inner.set_native_icon(_icon));
+    return run_main_thread!(self, |mut self_: Self| self_
+      .inner
+      .set_native_icon(_icon.into()));
     #[allow(unreachable_code)]
     Ok(())
   }

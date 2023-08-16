@@ -881,12 +881,14 @@ fn decode_path(path: PathBuf) -> PathBuf {
 impl From<FileDropEventWrapper> for FileDropEvent {
   fn from(event: FileDropEventWrapper) -> Self {
     match event.0 {
-      WryFileDropEvent::Hovered { paths, position: _ } => {
-        FileDropEvent::Hovered(paths.into_iter().map(decode_path).collect())
-      }
-      WryFileDropEvent::Dropped { paths, position: _ } => {
-        FileDropEvent::Dropped(paths.into_iter().map(decode_path).collect())
-      }
+      WryFileDropEvent::Hovered { paths, position } => FileDropEvent::Hovered {
+        paths: paths.into_iter().map(decode_path).collect(),
+        position: PhysicalPositionWrapper(position).into(),
+      },
+      WryFileDropEvent::Dropped { paths, position } => FileDropEvent::Dropped {
+        paths: paths.into_iter().map(decode_path).collect(),
+        position: PhysicalPositionWrapper(position).into(),
+      },
       // default to cancelled
       // FIXME(maybe): Add `FileDropEvent::Unknown` event?
       _ => FileDropEvent::Cancelled,

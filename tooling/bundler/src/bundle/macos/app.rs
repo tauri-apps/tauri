@@ -25,7 +25,7 @@
 use super::{
   super::common,
   icon::create_icns_file,
-  sign::{notarize, notarize_auth_args, sign},
+  sign::{notarize, notarize_auth, sign},
 };
 use crate::Settings;
 
@@ -87,9 +87,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     // sign application
     sign(app_bundle_path.clone(), identity, settings, true)?;
     // notarization is required for distribution
-    match notarize_auth_args() {
-      Ok(args) => {
-        notarize(app_bundle_path.clone(), args, settings)?;
+    match notarize_auth() {
+      Ok(auth) => {
+        notarize(app_bundle_path.clone(), auth, settings)?;
       }
       Err(e) => {
         warn!("skipping app notarization, {}", e.to_string());

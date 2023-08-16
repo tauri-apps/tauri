@@ -1461,16 +1461,16 @@ impl<R: Runtime> Builder<R> {
     {
       // setup menu event handler
       let proxy = runtime.create_proxy();
-      crate::menu::MenuEvent::set_event_handler(Some(move |e| {
-        let _ = proxy.send_event(EventLoopMessage::MenuEvent(e));
+      muda::MenuEvent::set_event_handler(Some(move |e: muda::MenuEvent| {
+        let _ = proxy.send_event(EventLoopMessage::MenuEvent(e.into()));
       }));
 
       // setup tray event handler
       #[cfg(feature = "tray-icon")]
       {
         let proxy = runtime.create_proxy();
-        crate::tray::TrayIconEvent::set_event_handler(Some(move |e| {
-          let _ = proxy.send_event(EventLoopMessage::TrayIconEvent(e));
+        tray_icon::TrayIconEvent::set_event_handler(Some(move |e: tray_icon::TrayIconEvent| {
+          let _ = proxy.send_event(EventLoopMessage::TrayIconEvent(e.into()));
         }));
       }
     }

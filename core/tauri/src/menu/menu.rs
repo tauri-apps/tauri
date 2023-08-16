@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use super::sealed::ContextMenuBase;
-use super::{IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
+use super::{AboutMetadata, IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use crate::Window;
 use crate::{run_main_thread, AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
-use muda::{AboutMetadata, MenuId};
+use muda::MenuId;
 
 /// Expected submenu id of the Window menu for macOS.
 pub const WINDOW_SUBMENU_ID: &str = "__tauri_window_menu__";

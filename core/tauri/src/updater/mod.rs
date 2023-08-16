@@ -446,6 +446,13 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(handle: AppHandle<R>) {
     if let Some(target) = &handle.updater_settings.target {
       builder = builder.target(target);
     }
+    if let Some(headers) = &handle.updater_settings.headers {
+      for (key, value) in headers {
+        builder = builder
+          .header(key, value)
+          .expect("unwrapping because key/value are valid headers");
+      }
+    }
 
     // check updates
     match builder.build().await {
@@ -542,6 +549,13 @@ pub fn builder<R: Runtime>(handle: AppHandle<R>) -> UpdateBuilder<R> {
     .current_version(package_info.version);
   if let Some(target) = &handle.updater_settings.target {
     builder = builder.target(target);
+  }
+  if let Some(headers) = &handle.updater_settings.headers {
+    for (key, value) in headers {
+      builder = builder
+        .header(key, value)
+        .expect("unwrapping because key/value are valid headers");
+    }
   }
   UpdateBuilder {
     inner: builder,

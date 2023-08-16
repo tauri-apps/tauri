@@ -239,6 +239,7 @@ impl<R: Runtime> GlobalWindowEvent<R> {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct UpdaterSettings {
   pub(crate) target: Option<String>,
+  pub(crate) headers: Option<HashMap<http::HeaderName, http::HeaderValue>>,
 }
 
 /// The path resolver is a helper for the application-specific [`crate::api::path`] APIs.
@@ -1520,6 +1521,36 @@ impl<R: Runtime> Builder<R> {
   pub fn updater_target<T: Into<String>>(mut self, target: T) -> Self {
     self.updater_settings.target.replace(target.into());
     self
+  }
+
+  /// Adds a header to the updater request.
+  ///
+  /// See [`UpdateBuilder::header`](crate::updater::UpdateBuilder#method.header) for more information.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// let mut builder = tauri::Builder::default();
+  /// builder = builder.updater_header("X-My-Header", "my-value").unwrap();
+  /// builder = builder.updater_header("X-My-Other-Header", "my-other-value").unwrap();
+  /// ```
+  #[cfg(updater)]
+  pub fn updater_header<K, V>(mut self, key: K, value: V) -> Result<Self, http::Error>
+  where
+    http::HeaderName: TryFrom<K>,
+    <http::HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+    http::HeaderValue: TryFrom<V>,
+    <http::HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+  {
+    let key = key.try_into().map_err(Into::into)?;
+    let value = value.try_into().map_err(Into::into)?;
+
+    self
+      .updater_settings
+      .headers
+      .get_or_insert(Default::default())
+      .insert(key, value);
+    Ok(self)
   }
 
   /// Change the device event filter mode.

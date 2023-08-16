@@ -4,7 +4,7 @@
 
 #![cfg(desktop)]
 
-//! Menu types and utility functions
+//! Menu types and utilities.
 
 // TODO(muda-migration): figure out js events
 
@@ -14,6 +14,7 @@ mod icon;
 #[allow(clippy::module_inception)]
 mod menu;
 mod normal;
+pub(crate) mod plugin;
 mod predefined;
 mod submenu;
 pub use builders::*;

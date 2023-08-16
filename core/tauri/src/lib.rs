@@ -86,6 +86,7 @@ pub mod ipc;
 mod manager;
 mod pattern;
 pub mod plugin;
+mod resources;
 mod vibrancy;
 pub mod window;
 use tauri_runtime as runtime;

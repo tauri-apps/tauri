@@ -56,7 +56,8 @@ enum TauriEvent {
   WINDOW_FILE_DROP = 'tauri://file-drop',
   WINDOW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
   WINDOW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
-  MENU = 'tauri://menu'
+  MENU = 'tauri://menu',
+  TRAY = 'tauri://tray'
 }
 
 /**

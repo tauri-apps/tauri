@@ -33,6 +33,7 @@ use crate::{
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
   plugin::PluginStore,
+  resources::ResourceTable,
   runtime::{
     http::{
       MimeType, Request as HttpRequest, Response as HttpResponse,
@@ -274,6 +275,8 @@ pub struct InnerWindowManager<R: Runtime> {
   invoke_initialization_script: String,
   /// Application pattern.
   pub(crate) pattern: Pattern,
+  /// Application Resources Table
+  resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -368,6 +371,7 @@ impl<R: Runtime> WindowManager<R> {
         tray_icon: context.tray_icon,
         package_info: context.package_info,
         pattern: context.pattern,
+        resources_table: Arc::default(),
         uri_scheme_protocols,
         #[cfg(desktop)]
         menus: Default::default(),
@@ -392,6 +396,15 @@ impl<R: Runtime> WindowManager<R> {
 
   pub(crate) fn pattern(&self) -> &Pattern {
     &self.inner.pattern
+  }
+
+  /// Resources table managed by the application.
+  pub(crate) fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .inner
+      .resources_table
+      .lock()
+      .expect("poisoned window manager")
   }
 
   /// Get a locked handle to the windows.

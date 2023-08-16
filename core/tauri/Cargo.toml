@@ -69,8 +69,8 @@ png = { version = "0.17", optional = true }
 ico = { version = "0.3.0", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-muda = { version = "0.8", default-features = false }
-tray-icon = { version = "0.8", default-features = false, optional = true }
+muda = { version = "0.8", default-features = false, features = [ "serde" ]}
+tray-icon = { version = "0.8", default-features = false, features = [ "serde" ], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.16", features = [ "v3_24" ] }

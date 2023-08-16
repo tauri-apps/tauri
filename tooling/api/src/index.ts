@@ -16,8 +16,9 @@
 import * as event from './event'
 import * as tauri from './tauri'
 import * as path from './path'
+import * as tray from './tray'
 
 /** @ignore */
 const invoke = tauri.invoke
 
-export { invoke, event, path, tauri }
+export { invoke, event, path, tauri, tray }

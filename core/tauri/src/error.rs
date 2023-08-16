@@ -110,4 +110,7 @@ pub enum Error {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   BadTrayIcon(#[from] tray_icon::BadIcon),
+  /// The resource id is invalid.
+  #[error("The resource id {0} is invalid.")]
+  BadResourceId(crate::resources::ResourceId),
 }

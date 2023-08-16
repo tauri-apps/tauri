@@ -24,7 +24,7 @@ icon = [
 tauri-build = { path = "../../../../../../../../core/tauri-build", features = [] }
 
 [dependencies]
-serde_json = "1.0.96"
+serde_json = "1.0.105"
 serde = "1.0"
 serde_derive = "1.0"
 tauri = { path = "../../../../../../../../core/tauri", features = ["api-all"] }

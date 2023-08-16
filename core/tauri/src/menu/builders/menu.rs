@@ -29,9 +29,9 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///       .copy()
 ///       .paste()
 ///       .separator()
-///       .text("item2","MenuItem 2")
-///       .check("checkitem2","CheckMenuItem 2")
-///       .icon("iconitem2","IconMenuItem 2", app.default_window_icon().cloned().unwrap())
+///       .text("item2", "MenuItem 2")
+///       .check("checkitem2", "CheckMenuItem 2")
+///       .icon("iconitem2", "IconMenuItem 2", app.default_window_icon().cloned().unwrap())
 ///       .build()?;
 ///     app.set_menu(menu);
 ///     Ok(())

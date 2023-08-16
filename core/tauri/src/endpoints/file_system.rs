@@ -173,8 +173,7 @@ impl Cmd {
   ) -> super::Result<()> {
     let append = options
       .as_ref()
-      .map(|opt| opt.append)
-      .flatten()
+      .and_then(|opt| opt.append)
       .unwrap_or_default();
 
     let resolved_path = resolve_path(

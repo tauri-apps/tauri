@@ -110,6 +110,12 @@ export enum BaseDirectory {
  */
 interface FsOptions {
   dir?: BaseDirectory
+  /**
+   * Whether the content should overwrite the content of the file or append to it.
+   *
+   * @since 1.5.0
+   */
+  append?: boolean
   // note that adding fields here needs a change in the writeBinaryFile check
 }
 

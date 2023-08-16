@@ -52,7 +52,7 @@ pub struct FileOperationOptions {
   /// The base directory of the operation.
   /// The directory path of the BaseDirectory will be the prefix of the defined file path.
   pub dir: Option<BaseDirectory>,
-  /// Whether writeFile should append to or truncate the file
+  /// Whether writeFile should append to a file or truncate it.
   pub append: Option<bool>,
 }
 

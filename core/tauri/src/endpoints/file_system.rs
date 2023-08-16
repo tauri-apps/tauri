@@ -23,7 +23,10 @@ use serde::{
 };
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
-use std::fmt::{Debug, Formatter};
+use std::{
+  fmt::{Debug, Formatter},
+  fs::OpenOptions,
+};
 use std::{
   fs,
   fs::File,
@@ -49,6 +52,8 @@ pub struct FileOperationOptions {
   /// The base directory of the operation.
   /// The directory path of the BaseDirectory will be the prefix of the defined file path.
   pub dir: Option<BaseDirectory>,
+  /// Whether writeFile should append to or truncate the file
+  pub append: Option<bool>,
 }
 
 /// The API descriptor.
@@ -166,6 +171,12 @@ impl Cmd {
     contents: Vec<u8>,
     options: Option<FileOperationOptions>,
   ) -> super::Result<()> {
+    let append = options
+      .as_ref()
+      .map(|opt| opt.append)
+      .flatten()
+      .unwrap_or_default();
+
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -173,7 +184,12 @@ impl Cmd {
       path,
       options.and_then(|o| o.dir),
     )?;
-    File::create(&resolved_path)
+
+    OpenOptions::new()
+      .append(append)
+      .write(true)
+      .create(true)
+      .open(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(Into::into)
       .and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
@@ -409,6 +425,7 @@ mod tests {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
         dir: Option::arbitrary(g),
+        append: Option::arbitrary(g),
       }
     }
   }

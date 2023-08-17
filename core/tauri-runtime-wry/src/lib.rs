@@ -3185,6 +3185,11 @@ fn create_webview<T: UserEvent>(
   }
 
   #[cfg(windows)]
+  {
+    webview_builder = webview_builder.with_https_scheme(!webview_attributes.http_scheme);
+  }
+
+  #[cfg(windows)]
   if let Some(theme) = window_theme {
     webview_builder = webview_builder.with_theme(match theme {
       WryTheme::Dark => wry::webview::Theme::Dark,

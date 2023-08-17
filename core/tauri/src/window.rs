@@ -683,6 +683,22 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Set whether the custom protocols should use `http://<scheme>.localhost` instead of the default `https://<scheme>.localhost`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux / Android / iOS**: Unsupported.
+  ///
+  /// ## Warning
+  ///
+  /// Using a `http` scheme will allow mixed content when trying to fetch `http` endpoints
+  /// and is therefore less secure but will match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+  #[must_use]
+  pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
+    self.webview_attributes.additional_browser_args = Some(additional_args.to_string());
+    self
+  }
+
   /// Data directory for the webview.
   #[must_use]
   pub fn data_directory(mut self, data_directory: PathBuf) -> Self {

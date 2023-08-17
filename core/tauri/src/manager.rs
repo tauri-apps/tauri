@@ -142,6 +142,7 @@ fn set_csp<R: Runtime>(
     let default_src = csp
       .entry("default-src".into())
       .or_insert_with(Default::default);
+    // FIXME: access to the window's scheme needed here.
     default_src.push(crate::pattern::format_real_schema(schema));
   }
 
@@ -429,16 +430,18 @@ impl<R: Runtime> WindowManager<R> {
     }
     .render_default(&Default::default())?;
 
+    let mut webview_attributes = pending.webview_attributes;
+
     let ipc_init = IpcJavascript {
       isolation_origin: &match self.pattern() {
         #[cfg(feature = "isolation")]
-        Pattern::Isolation { schema, .. } => crate::pattern::format_real_schema(schema),
+        Pattern::Isolation { schema, .. } => {
+          crate::pattern::format_real_schema(schema, webview_attributes.http_scheme)
+        }
         _ => "".to_string(),
       },
     }
     .render_default(&Default::default())?;
-
-    let mut webview_attributes = pending.webview_attributes;
 
     let mut window_labels = window_labels.to_vec();
     let l = label.to_string();
@@ -466,7 +469,10 @@ impl<R: Runtime> WindowManager<R> {
     if let Pattern::Isolation { schema, .. } = self.pattern() {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
-          isolation_src: &crate::pattern::format_real_schema(schema),
+          isolation_src: &crate::pattern::format_real_schema(
+            schema,
+            webview_attributes.http_scheme,
+          ),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
         .render_default(&Default::default())?
@@ -491,7 +497,12 @@ impl<R: Runtime> WindowManager<R> {
     let window_origin = if window_url.scheme() == "data" {
       "null".into()
     } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-      format!("https://{}.localhost", window_url.scheme())
+      let scheme = if webview_attributes.http_scheme {
+        "http"
+      } else {
+        "https"
+      };
+      format!("{scheme}://{}.localhost", window_url.scheme())
     } else {
       format!(
         "{}://{}{}",

@@ -1035,6 +1035,11 @@ pub struct WindowConfig {
   /// so if you use this method, you also need to disable these components by yourself if you want.
   #[serde(default, alias = "additional-browser-args")]
   pub additional_browser_args: Option<String>,
+  /// Sets whether the custom protocols should use `http://<scheme>.localhost` instead of the default `https://<scheme>.localhost` on Windows.
+  ///
+  /// **WARNING:** Using a `http` scheme will allow mixed content when trying to fetch `http` endpoints and is therefore less secure but will match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+  #[serde(default, alias = "dangerous-use-http-scheme")]
+  pub http_scheme: bool,
 }
 
 impl Default for WindowConfig {
@@ -1073,6 +1078,7 @@ impl Default for WindowConfig {
       accept_first_mouse: false,
       tabbing_identifier: None,
       additional_browser_args: None,
+      http_scheme: false,
     }
   }
 }

@@ -3193,6 +3193,12 @@ fn create_webview<T: UserEvent>(
     });
   }
 
+  #[cfg(windows)]
+  {
+    dbg!(&pending.http_scheme);
+    webview_builder = webview_builder.with_https_scheme(!pending.http_scheme);
+  }
+
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,

@@ -106,6 +106,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  *
  * @param  filePath The file path.
  * @param  protocol The protocol to use. Defaults to `asset`. You only need to set this when using a custom protocol.
+ * @param  http Whether to use `http://<scheme>.localhost/` as the base instead of `https://<scheme>.localhost`. Must match the value of `dangerousUseHttpScheme` in tauri.conf.json.
  * @example
  * ```typescript
  * import { appDataDir, join } from '@tauri-apps/api/path';
@@ -126,10 +127,15 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  *
  * @since 1.0.0
  */
-function convertFileSrc(filePath: string, protocol = 'asset'): string {
+function convertFileSrc(
+  filePath: string,
+  protocol = 'asset',
+  http = false
+): string {
   const path = encodeURIComponent(filePath)
+  const scheme = http ? 'http' : 'https'
   return navigator.userAgent.includes('Windows')
-    ? `https://${protocol}.localhost/${path}`
+    ? `${scheme}://${protocol}.localhost/${path}`
     : `${protocol}://localhost/${path}`
 }
 

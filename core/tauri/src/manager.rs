@@ -391,7 +391,14 @@ impl<R: Runtime> WindowManager<R> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
       #[cfg(windows)]
-      _ => Cow::Owned(Url::parse("https://tauri.localhost").unwrap()),
+      _ => {
+        let scheme = if self.inner.config.tauri.security.dangerous_use_http_scheme {
+          "http"
+        } else {
+          "https"
+        };
+        Cow::Owned(Url::parse(&format!("{scheme}://tauri.localhost")).unwrap())
+      }
       #[cfg(not(windows))]
       _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
     }

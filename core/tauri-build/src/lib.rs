@@ -408,7 +408,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {
-          res.set_toolkit_path(sdk_dir_str);
+          // res.set_toolkit_path(sdk_dir_str);
         } else {
           return Err(anyhow!(
             "sdk_dir path is not valid; only UTF-8 characters are allowed"

@@ -29,7 +29,6 @@ pub struct WebviewAttributes {
   pub clipboard: bool,
   pub accept_first_mouse: bool,
   pub additional_browser_args: Option<String>,
-  pub http_scheme: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -61,7 +60,6 @@ impl WebviewAttributes {
       clipboard: false,
       accept_first_mouse: false,
       additional_browser_args: None,
-      http_scheme: false,
     }
   }
 
@@ -114,13 +112,6 @@ impl WebviewAttributes {
   #[must_use]
   pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
     self.additional_browser_args = Some(additional_args.to_string());
-    self
-  }
-
-  /// Sets whether the custom protocols should use `http://<scheme>.localhost` instead of the default `https://<scheme>.localhost`. **Windows Only**
-  #[must_use]
-  pub fn http_scheme(mut self, http_scheme: bool) -> Self {
-    self.http_scheme = http_scheme;
     self
   }
 }

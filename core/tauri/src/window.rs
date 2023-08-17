@@ -329,6 +329,12 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     )?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
+    pending.http_scheme = self
+      .manager
+      .config()
+      .tauri
+      .security
+      .dangerous_use_http_scheme;
 
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
     let pending = self
@@ -677,22 +683,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///
   /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
   /// so if you use this method, you also need to disable these components by yourself if you want.
-  #[must_use]
-  pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
-    self.webview_attributes.additional_browser_args = Some(additional_args.to_string());
-    self
-  }
-
-  /// Set whether the custom protocols should use `http://<scheme>.localhost` instead of the default `https://<scheme>.localhost`.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Linux / Android / iOS**: Unsupported.
-  ///
-  /// ## Warning
-  ///
-  /// Using a `http` scheme will allow mixed content when trying to fetch `http` endpoints
-  /// and is therefore less secure but will match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
   #[must_use]
   pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
     self.webview_attributes.additional_browser_args = Some(additional_args.to_string());

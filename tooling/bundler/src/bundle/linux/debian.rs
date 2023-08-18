@@ -168,15 +168,39 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
     icon: &'a str,
     name: &'a str,
     mime_type: Option<String>,
+    url_schema: Option<String>,
   }
 
-  let mime_type = if let Some(associations) = settings.file_associations() {
+  let mut mime_type = if let Some(associations) = settings.file_associations() {
     let mime_types: Vec<&str> = associations
       .iter()
       .filter_map(|association| association.mime_type.as_ref())
       .map(|s| s.as_str())
       .collect();
     Some(mime_types.join(";"))
+  } else {
+    None
+  };
+
+  let url_schema = if let Some(associations) = settings.scheme_associations() {
+    let schemas: Vec<String> = associations
+        .iter()
+        .map(|association| association.scheme.iter())
+        .flatten()
+        .map(|s |format!("x-scheme-handler/{s}"))
+        .collect();
+
+    mime_type = Some(
+      mime_type.map_or("".to_string(), |mime_type| mime_type+";") + &schemas.join(";")
+    );
+
+    let schemas: Vec<String> = associations
+        .iter()
+        .map(|association| association.scheme.iter())
+        .flatten()
+        .map(|s |s.to_string())
+        .collect();
+    Some(schemas.join(";"))
   } else {
     None
   };
@@ -197,6 +221,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
       icon: bin_name,
       name: settings.product_name(),
       mime_type,
+      url_schema,
     },
     file,
   )?;

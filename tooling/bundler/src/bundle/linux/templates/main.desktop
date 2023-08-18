@@ -3,11 +3,14 @@ Categories={{categories}}
 {{#if comment}}
 Comment={{comment}}
 {{/if}}
-Exec={{exec}}
+Exec={{exec}} %U
 Icon={{icon}}
 Name={{name}}
 Terminal=false
 Type=Application
 {{#if mime_type}}
 MimeType={{mime_type}}
+{{/if}}
+{{#if url_schema}}
+X-KDE-Protocols={{url_schema}};
 {{/if}}

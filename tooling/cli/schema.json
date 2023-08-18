@@ -940,6 +940,16 @@
             "$ref": "#/definitions/FileAssociation"
           }
         },
+        "schemeAssociations": {
+          "description": "Scheme associations to application.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/SchemeAssociation"
+          }
+        },
         "shortDescription": {
           "description": "A short description of your application.",
           "type": [
@@ -1227,6 +1237,36 @@
           ]
         }
       ]
+    },
+    "SchemeAssociation": {
+      "description": "Schema association",
+      "type": "object",
+      "required": [
+        "scheme"
+      ],
+      "properties": {
+        "scheme": {
+          "description": "Schema name to associate with this app. e.g. 'https'",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Scheme"
+          }
+        },
+        "role": {
+          "description": "The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.",
+          "default": "Editor",
+          "allOf": [
+            {
+              "$ref": "#/definitions/BundleTypeRole"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Scheme": {
+      "description": "An extension for a [`SchemaAssociation`].",
+      "type": "string"
     },
     "AppImageConfig": {
       "description": "Configuration for AppImage bundles.\n\nSee more: https://tauri.app/v1/api/config#appimageconfig",

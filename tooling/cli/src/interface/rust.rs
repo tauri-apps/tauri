@@ -1155,6 +1155,7 @@ fn tauri_config_to_bundle_settings(
       None => None,
     },
     file_associations: config.file_associations,
+    scheme_associations: config.scheme_associations,
     short_description: config.short_description,
     long_description: config.long_description,
     external_bin: config.external_bin,

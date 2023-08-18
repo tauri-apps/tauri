@@ -202,6 +202,39 @@ fn create_info_plist(
     );
   }
 
+  if let Some(associations) = settings.scheme_associations() {
+    plist.insert(
+      "CFBundleURLTypes".into(),
+      plist::Value::Array(
+        associations
+            .iter()
+            .map(|association| {
+              let mut dict = plist::Dictionary::new();
+              dict.insert(
+                "CFBundleURLSchemes".into(),
+                plist::Value::Array(
+                  association
+                      .scheme
+                      .iter()
+                      .map(|url| url.to_string().into())
+                      .collect(),
+                ),
+              );
+              dict.insert(
+                "CFBundleURLName".into(),
+                settings.bundle_identifier().into()
+              );
+              dict.insert(
+                "CFBundleTypeRole".into(),
+                association.role.to_string().into(),
+              );
+              plist::Value::Dictionary(dict)
+            })
+            .collect(),
+      ),
+    );
+  }
+
   plist.insert("LSRequiresCarbon".into(), true.into());
   plist.insert("NSHighResolutionCapable".into(), true.into());
   if let Some(copyright) = settings.copyright_string() {

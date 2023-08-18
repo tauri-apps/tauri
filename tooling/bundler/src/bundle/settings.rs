@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, FileAssociation, NSISInstallerMode},
+  config::{BundleType, FileAssociation, SchemeAssociation, NSISInstallerMode},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -364,6 +364,8 @@ pub struct BundleSettings {
   pub category: Option<AppCategory>,
   /// the file associations
   pub file_associations: Option<Vec<FileAssociation>>,
+  /// the scheme associations
+  pub scheme_associations: Option<Vec<SchemeAssociation>>,
   /// the app's short description.
   pub short_description: Option<String>,
   /// the app's long description.
@@ -791,6 +793,11 @@ impl Settings {
   /// Return file associations.
   pub fn file_associations(&self) -> &Option<Vec<FileAssociation>> {
     &self.bundle_settings.file_associations
+  }
+
+  /// Return scheme associations.
+  pub fn scheme_associations(&self) -> &Option<Vec<SchemeAssociation>> {
+    &self.bundle_settings.scheme_associations
   }
 
   /// Returns the app's short description.

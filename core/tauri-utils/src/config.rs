@@ -696,6 +696,28 @@ pub struct FileAssociation {
   pub mime_type: Option<String>,
 }
 
+/// An extension for a [`SchemaAssociation`].
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct Scheme(pub String);
+
+impl fmt::Display for Scheme {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
+
+/// Schema association
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SchemeAssociation {
+  /// Schema name to associate with this app. e.g. 'https'
+  pub scheme: Vec<Scheme>,
+  /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
+  #[serde(default)]
+  pub role: BundleTypeRole,
+}
 /// The Updater configuration object.
 ///
 /// See more: https://tauri.app/v1/api/config#updaterconfig
@@ -794,6 +816,8 @@ pub struct BundleConfig {
   pub category: Option<String>,
   /// File associations to application.
   pub file_associations: Option<Vec<FileAssociation>>,
+  /// Scheme associations to application.
+  pub scheme_associations: Option<Vec<SchemeAssociation>>,
   /// A short description of your application.
   #[serde(alias = "short-description")]
   pub short_description: Option<String>,
@@ -2374,6 +2398,7 @@ mod build {
       let copyright = quote!(None);
       let category = quote!(None);
       let file_associations = quote!(None);
+      let scheme_associations = quote!(None);
       let short_description = quote!(None);
       let long_description = quote!(None);
       let appimage = quote!(Default::default());
@@ -2397,6 +2422,7 @@ mod build {
         copyright,
         category,
         file_associations,
+        scheme_associations,
         short_description,
         long_description,
         appimage,
@@ -2703,6 +2729,7 @@ mod test {
         copyright: None,
         category: None,
         file_associations: None,
+        scheme_associations: None,
         short_description: None,
         long_description: None,
         appimage: Default::default(),

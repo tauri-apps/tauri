@@ -2,58 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 use serde::Deserialize;
 
 use crate::{
   command,
+  menu::{plugin::ItemKind, Menu, Submenu},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
-  AppHandle, Icon, Manager, Runtime,
+  AppHandle, IconDto, Manager, Runtime,
 };
 
 use super::TrayIcon;
 
 #[derive(Deserialize)]
-#[serde(untagged)]
-pub enum IconDto {
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  File(std::path::PathBuf),
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  Raw(Vec<u8>),
-  Rgba {
-    rgba: Vec<u8>,
-    width: u32,
-    height: u32,
-  },
-}
-
-impl From<IconDto> for Icon {
-  fn from(icon: IconDto) -> Self {
-    match icon {
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::File(path) => Self::File(path),
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::Raw(raw) => Self::Raw(raw),
-      IconDto::Rgba {
-        rgba,
-        width,
-        height,
-      } => Self::Rgba {
-        rgba,
-        width,
-        height,
-      },
-    }
-  }
-}
-
-#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct TrayIconOptions {
   id: Option<String>,
-  menu: Option<ResourceId>,
+  menu: Option<(ResourceId, ItemKind)>,
   icon: Option<IconDto>,
   tooltip: Option<String>,
   title: Option<String>,
@@ -77,8 +45,20 @@ fn new<R: Runtime>(
     let _ = tray.app_handle().emit_all("tauri://tray", e);
   });
 
-  if let Some(_menu) = options.menu {
-    // builder = builder.menu(menu.into()); TODO
+  let mut resources_table = app.manager.resources_table();
+
+  if let Some((rid, kind)) = options.menu {
+    match kind {
+      ItemKind::Menu => {
+        let menu = resources_table.get::<Menu<R>>(rid)?;
+        builder = builder.menu(&*menu);
+      }
+      ItemKind::Submenu => {
+        let submenu = resources_table.get::<Submenu<R>>(rid)?;
+        builder = builder.menu(&*submenu);
+      }
+      _ => unreachable!(),
+    };
   }
   if let Some(icon) = options.icon {
     builder = builder.icon(icon.into());
@@ -101,20 +81,9 @@ fn new<R: Runtime>(
 
   let tray = builder.build(&app)?;
   let id = tray.id().as_ref().to_string();
-  let mut resources_table = app.manager.resources_table();
   let rid = resources_table.add(tray);
 
   Ok((rid, id))
-}
-
-fn with_tray<R: Runtime, T, F: FnOnce(Arc<TrayIcon<R>>) -> crate::Result<T>>(
-  app: &AppHandle<R>,
-  rid: ResourceId,
-  f: F,
-) -> crate::Result<T> {
-  let resources_table = app.manager.resources_table();
-  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
-  f(tray)
 }
 
 #[command(root = "crate")]
@@ -123,16 +92,34 @@ fn set_icon<R: Runtime>(
   rid: ResourceId,
   icon: Option<IconDto>,
 ) -> crate::Result<()> {
-  with_tray(&app, rid, |tray| tray.set_icon(icon.map(Into::into)))
+  let resources_table = app.manager.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_icon(icon.map(Into::into))
 }
 
 #[command(root = "crate")]
 fn set_menu<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
-  menu: Option<ResourceId>,
+  menu: Option<(ResourceId, ItemKind)>,
 ) -> crate::Result<()> {
-  // TODO
+  let resources_table = app.manager.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  if let Some((rid, kind)) = menu {
+    match kind {
+      ItemKind::Menu => {
+        let menu = resources_table.get::<Menu<R>>(rid)?;
+        tray.set_menu(Some((*menu).clone()))?;
+      }
+      ItemKind::Submenu => {
+        let submenu = resources_table.get::<Submenu<R>>(rid)?;
+        tray.set_menu(Some((*submenu).clone()))?;
+      }
+      _ => unreachable!(),
+    };
+  } else {
+    tray.set_menu(None::<Menu<R>>)?;
+  }
   Ok(())
 }
 
@@ -142,7 +129,9 @@ fn set_tooltip<R: Runtime>(
   rid: ResourceId,
   tooltip: Option<String>,
 ) -> crate::Result<()> {
-  with_tray(&app, rid, |tray| tray.set_tooltip(tooltip))
+  let resources_table = app.manager.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_tooltip(tooltip)
 }
 
 #[command(root = "crate")]
@@ -151,12 +140,16 @@ fn set_title<R: Runtime>(
   rid: ResourceId,
   title: Option<String>,
 ) -> crate::Result<()> {
-  with_tray(&app, rid, |tray| tray.set_title(title))
+  let resources_table = app.manager.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_title(title)
 }
 
 #[command(root = "crate")]
 fn set_visible<R: Runtime>(app: AppHandle<R>, rid: ResourceId, visible: bool) -> crate::Result<()> {
-  with_tray(&app, rid, |tray| tray.set_visible(visible))
+  let resources_table = app.manager.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_visible(visible)
 }
 
 #[command(root = "crate")]
@@ -165,7 +158,9 @@ fn set_temp_dir_path<R: Runtime>(
   rid: ResourceId,
   path: Option<PathBuf>,
 ) -> crate::Result<()> {
-  with_tray(&app, rid, |tray| tray.set_temp_dir_path(path))
+  let resources_table = app.manager.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_temp_dir_path(path)
 }
 
 #[command(root = "crate")]
@@ -174,7 +169,9 @@ fn set_icon_as_template<R: Runtime>(
   rid: ResourceId,
   as_template: bool,
 ) -> crate::Result<()> {
-  with_tray(&app, rid, |tray| tray.set_icon_as_template(as_template))
+  let resources_table = app.manager.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_icon_as_template(as_template)
 }
 
 #[command(root = "crate")]
@@ -183,12 +180,9 @@ fn set_show_menu_on_left_click<R: Runtime>(
   rid: ResourceId,
   on_left: bool,
 ) -> crate::Result<()> {
-  with_tray(&app, rid, |tray| tray.set_show_menu_on_left_click(on_left))
-}
-
-#[command(root = "crate")]
-fn destroy<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<()> {
-  app.manager.resources_table().close(rid)
+  let resources_table = app.manager.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_show_menu_on_left_click(on_left)
 }
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
@@ -203,7 +197,6 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_temp_dir_path,
       set_icon_as_template,
       set_show_menu_on_left_click,
-      destroy
     ])
     .build()
 }

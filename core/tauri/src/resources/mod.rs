@@ -5,6 +5,8 @@
 
 // a modified version of https://github.com/denoland/deno/blob/0ae83847f498a2886ae32172e50fd5bdbab2f524/core/resources.rs#L220
 
+pub(crate) mod plugin;
+
 use crate::error::Error;
 use std::{
   any::{type_name, Any, TypeId},

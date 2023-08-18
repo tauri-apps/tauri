@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::MenuId, run_main_thread, AppHandle, Manager, Runtime};
+use crate::{menu::MenuId, resources::Resource, run_main_thread, AppHandle, Manager, Runtime};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///
@@ -31,7 +31,7 @@ unsafe impl<R: Runtime> Sync for MenuItem<R> {}
 unsafe impl<R: Runtime> Send for MenuItem<R> {}
 
 impl<R: Runtime> super::sealed::IsMenuItemBase for MenuItem<R> {
-  fn inner(&self) -> &dyn muda::IsMenuItem {
+  fn inner_muda(&self) -> &dyn muda::IsMenuItem {
     &self.inner
   }
 }
@@ -132,3 +132,5 @@ impl<R: Runtime> MenuItem<R> {
     run_main_thread!(self, |self_: Self| self_.inner.set_accelerator(accel))?.map_err(Into::into)
   }
 }
+
+impl<R: Runtime> Resource for MenuItem<R> {}

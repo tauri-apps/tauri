@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+import { Menu } from './menu'
 import { EventCallback, EventName, UnlistenFn, listen, once } from './event'
-import { ContextMenu } from './menu'
+import { Resource } from './internal'
+import { Submenu } from './menu'
 import { invoke } from './tauri'
 
 /**
@@ -48,7 +50,7 @@ export interface TrayIconOptions {
   /** The tray icon id. If undefined, a random one will be assigend */
   id?: string
   /** The tray icon menu */
-  menu?: ContextMenu
+  menu?: Menu | Submenu
   /**
    * The tray icon which could be icon bytes or path to the icon file.
    *
@@ -99,7 +101,7 @@ export interface TrayIconOptions {
  * Unlike Rust, javascript does not have any way to run cleanup code
  * when an object is being removed by garbage collection, but this tray icon
  * will be cleaned up when the tauri app exists, however if you want to cleanup
- * this object early, you need to call {@linkcode TrayIcon.destroy}.
+ * this object early, you need to call {@linkcode TrayIcon.close}.
  *
  * @example
  * ```ts
@@ -108,13 +110,13 @@ export interface TrayIconOptions {
  * tray.set_tooltip('new tooltip');
  * ```
  */
-export class TrayIcon {
-  _rid: number
-  _id: string
+export class TrayIcon extends Resource {
+  /** The id associated with this tray icon.   */
+  public id: string
 
   private constructor(rid: number, id: string) {
-    this._rid = rid
-    this._id = id
+    super(rid)
+    this.id = id
   }
 
   /**
@@ -126,23 +128,18 @@ export class TrayIcon {
    * Setting an empty {@linkcode Menu} is enough.
    */
   static async new(options?: TrayIconOptions): Promise<TrayIcon> {
-    if (options) {
-      // @ts-expect-error we only need the rid
-      options.menu = options.menu?.rid
+    if (options?.menu) {
+      // @ts-expect-error we only need the rid and kind
+      options.menu = [options.menu.rid, options.menu.kind]
     }
     return invoke<[number, string]>('plugin:tray|new', {
       options: options ?? {}
     }).then(([rid, id]) => new TrayIcon(rid, id))
   }
 
-  /** Returns the id associated with this tray icon.   */
-  id(): string {
-    return this._id
-  }
-
   /** Sets a new tray icon. If `null` is provided, it will remove the icon. */
   async setIcon(icon: string | Uint8Array | null) {
-    return invoke('plugin:tray|set_icon', { rid: this._rid, icon })
+    return invoke('plugin:tray|set_icon', { rid: this.rid, icon })
   }
 
   /**
@@ -152,8 +149,12 @@ export class TrayIcon {
    *
    * - **Linux**: once a menu is set it cannot be removed so `null` has no effect
    */
-  async setMenu(menu: ContextMenu | null) {
-    return invoke('plugin:tray|set_menu', { rid: this._rid, menu: menu?.rid })
+  async setMenu(menu: Menu | Submenu | null) {
+    if (menu) {
+      // @ts-expect-error we only need the rid and kind
+      menu = [menu.rid, menu.kind]
+    }
+    return invoke('plugin:tray|set_menu', { rid: this.rid, menu })
   }
 
   /**
@@ -164,7 +165,7 @@ export class TrayIcon {
    * - **Linux:** Unsupported
    */
   async setTooltip(tooltip: string | null) {
-    return invoke('plugin:tray|set_tooltip', { rid: this._rid, tooltip })
+    return invoke('plugin:tray|set_tooltip', { rid: this.rid, tooltip })
   }
 
   /**
@@ -180,12 +181,12 @@ export class TrayIcon {
    * - **Windows:** Unsupported
    */
   async setTitle(title: string | null) {
-    return invoke('plugin:tray|set_title', { rid: this._rid, title })
+    return invoke('plugin:tray|set_title', { rid: this.rid, title })
   }
 
   /** Show or hide this tray icon. */
   async setVisible(visible: boolean) {
-    return invoke('plugin:tray|set_visible', { rid: this._rid, visible })
+    return invoke('plugin:tray|set_visible', { rid: this.rid, visible })
   }
 
   /**
@@ -195,13 +196,13 @@ export class TrayIcon {
    * be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
    */
   async setTempDirPath(path: string | null) {
-    return invoke('plugin:tray|set_temp_dir_path', { rid: this._rid, path })
+    return invoke('plugin:tray|set_temp_dir_path', { rid: this.rid, path })
   }
 
   /** Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only** */
   async setIconAsTemplate(asTemplate: boolean) {
     return invoke('plugin:tray|set_icon_as_template', {
-      rid: this._rid,
+      rid: this.rid,
       asTemplate
     })
   }
@@ -209,22 +210,8 @@ export class TrayIcon {
   /** Disable or enable showing the tray menu on left click. **macOS only**. */
   async setMenuOnLeftClick(onLeft: boolean) {
     return invoke('plugin:tray|set_show_menu_on_left_click', {
-      rid: this._rid,
+      rid: this.rid,
       onLeft
-    })
-  }
-
-  /**
-   *  Destroys and removes this tray icon from the system tray. See {@linkcode TrayIcon} docs for more info.
-   *
-   * #### Warning
-   *
-   * You should not call any method on this object anymore and should drop any reference to it,
-   * otherwise the methods will throw errors when used.
-   */
-  async destroy() {
-    return invoke('plugin:tray|destroy', {
-      rid: this._rid
     })
   }
 
@@ -234,7 +221,7 @@ export class TrayIcon {
    * @example
    * ```typescript
    * import { TrayIcon } from '@tauri-apps/api/tray';
-   * let tray = await TrayIcon.new();
+   * const tray = await TrayIcon.new();
    * const unlisten = await tray.listen<string>('state-changed', (event) => {
    *   console.log(`Got error: ${payload}`);
    * });
@@ -265,7 +252,7 @@ export class TrayIcon {
    * @example
    * ```typescript
    * import { TrayIcon } from '@tauri-apps/api/tray';
-   * let tray = await TrayIcon.new();
+   * const tray = await TrayIcon.new();
    * const unlisten = await tray.once<string>('state-initalized', (event) => {
    *   console.log(`State initalized`);
    * });
@@ -296,7 +283,7 @@ export class TrayIcon {
    * @example
    * ```typescript
    * import { TrayIcon } from '@tauri-apps/api/tray';
-   * let tray = await TrayIcon.new();
+   * const tray = await TrayIcon.new();
    * const unlisten = await tray.onTrayIconEvent((event) => {
    *   console.log(event)
    * });

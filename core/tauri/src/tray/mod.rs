@@ -148,7 +148,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// - **Linux**: once a menu is set, it cannot be removed or replaced but you can change its content.
   pub fn menu<M: ContextMenu>(mut self, menu: &M) -> Self {
-    self.inner = self.inner.with_menu(menu.inner_owned());
+    self.inner = self.inner.with_menu(menu.inner_context_owned());
     self
   }
 
@@ -369,7 +369,7 @@ impl<R: Runtime> TrayIcon<R> {
   pub fn set_menu<M: ContextMenu + 'static>(&self, menu: Option<M>) -> crate::Result<()> {
     run_main_thread!(self, |self_: Self| self_
       .inner
-      .set_menu(menu.map(|m| m.inner_owned())))
+      .set_menu(menu.map(|m| m.inner_context_owned())))
   }
 
   /// Sets the tooltip for this tray icon.

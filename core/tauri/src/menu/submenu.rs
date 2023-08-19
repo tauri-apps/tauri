@@ -303,8 +303,8 @@ impl<R: Runtime> Submenu<R> {
   ///
   /// If no menu is set as the Help menu, macOS will automatically use any menu
   /// which has a title matching the localized word "Help".
+  #[cfg(target_os = "macos")]
   pub fn set_as_help_menu_for_nsapp(&self) -> crate::Result<()> {
-    #[cfg(target_os = "macos")]
     run_main_thread!(self, |self_: Self| self_.inner.set_as_help_menu_for_nsapp())?;
     Ok(())
   }

@@ -295,11 +295,11 @@ class MenuBase extends MenuItemBase {
     | IconMenuItem
     | null
   > {
-    return invoke<[number, string, ItemKind]>('plugin:menu|append', {
+    return invoke<[number, string, ItemKind] | null>('plugin:menu|append', {
       rid: this.rid,
       kind: this.kind,
       id
-    }).then(itemFromKind)
+    }).then((r) => (r ? itemFromKind(r) : null))
   }
 
   // TODO: change to logical position
@@ -340,24 +340,26 @@ class Menu extends MenuBase {
     )
   }
 
-  async setAsAppMenu() {
-    return invoke('plugin:menu|set_as_app_menu', {
-      rid: this.rid,
-      kind: this.kind
-    })
+  async setAsAppMenu(): Promise<Menu | null> {
+    return invoke<[number, string] | null>('plugin:menu|set_as_app_menu', {
+      rid: this.rid
+    }).then((r) => (r ? new Menu(r[0], r[1]) : null))
   }
 
   // TODO use window type after migrating window back to core
-  async setAsWindowMenu(window: string) {
-    return invoke('plugin:menu|set_as_window_menu', {
+  async setAsWindowMenu(window: string): Promise<Menu | null> {
+    return invoke<[number, string] | null>('plugin:menu|set_as_window_menu', {
       rid: this.rid,
-      kind: this.kind,
       window
-    })
+    }).then((r) => (r ? new Menu(r[0], r[1]) : null))
   }
 }
 
 class MenuItemBase2 extends MenuItemBase {
+  async text(): Promise<string> {
+    return invoke('plugin:menu|text', { rid: this.rid, kind: this.kind })
+  }
+
   async setText(text: string) {
     return invoke('plugin:menu|set_text', {
       rid: this.rid,
@@ -365,13 +367,13 @@ class MenuItemBase2 extends MenuItemBase {
       text
     })
   }
-
-  async text(): Promise<string> {
-    return invoke('plugin:menu|text', { rid: this.rid, kind: this.kind })
-  }
 }
 
 class MenuItemBase3 extends MenuItemBase2 {
+  async isEnabled(): Promise<boolean> {
+    return invoke('plugin:menu|is_enabled', { rid: this.rid, kind: this.kind })
+  }
+
   async setEnabled(enabled: boolean) {
     return invoke('plugin:menu|set_enabled', {
       rid: this.rid,
@@ -379,14 +381,10 @@ class MenuItemBase3 extends MenuItemBase2 {
       enabled
     })
   }
-
-  async isEnabled(): Promise<boolean> {
-    return invoke('plugin:menu|is_enabled', { rid: this.rid, kind: this.kind })
-  }
 }
 
 class MenuItemBase4 extends MenuItemBase3 {
-  async setAccelerator(accelerator: string) {
+  async setAccelerator(accelerator: string | null) {
     return invoke('plugin:menu|set_accelerator', {
       rid: this.rid,
       kind: this.kind,
@@ -428,15 +426,13 @@ class Submenu extends MenuBase {
 
   async setAsWindowsMenuForNSApp() {
     return invoke('plugin:menu|set_as_windows_menu_for_nsapp', {
-      rid: this.rid,
-      kind: this.kind
+      rid: this.rid
     })
   }
 
   async setAsHelpMenuForNSApp() {
     return invoke('plugin:menu|set_as_help_menu_for_nsapp', {
-      rid: this.rid,
-      kind: this.kind
+      rid: this.rid
     })
   }
 }
@@ -508,15 +504,15 @@ class CheckMenuItem extends MenuItemBase4 {
       .then(([rid, id]) => new CheckMenuItem(rid, id))
   }
 
+  async isChecked(): Promise<boolean> {
+    return invoke('plugin:menu|is_checked', { rid: this.rid })
+  }
+
   async setChecked(checked: boolean) {
     return invoke('plugin:menu|set_checked', {
       rid: this.rid,
-      kind: this.kind,
       checked
     })
-  }
-  async isChecked(): Promise<boolean> {
-    return invoke('plugin:menu|is_checked', { rid: this.rid, kind: this.kind })
   }
 }
 

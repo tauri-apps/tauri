@@ -238,73 +238,68 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
   }
 
   if let Ok(rust_cli) = std::process::Command::new("cargo")
-  .arg("tauri")
-  .arg("-V")
-  .output() {
+    .arg("tauri")
+    .arg("-V")
+    .output()
+  {
     if rust_cli.status.success() {
       let stdout = String::from_utf8_lossy(rust_cli.stdout.as_slice()).to_string();
       let mut output = stdout.split(' ');
-      let dep = output.next()
-        .unwrap_or_default().to_string();
-      let version_string = output.next()
+      let dep = output.next().unwrap_or_default().to_string();
+      let version_string = output
+        .next()
         .unwrap_or_default()
         .strip_suffix('\n')
-        .unwrap_or_default().to_string();
+        .unwrap_or_default()
+        .to_string();
 
-        let version_suffix = match crate_latest_version(&dep) {
-          Some(target_version) => {
-            let version = semver::Version::parse(&version_string).unwrap();
-            let target_version = semver::Version::parse(&target_version).unwrap();
-            if version < target_version {
-              Some(format!(
-                " ({}, latest: {})",
-                "outdated".yellow(),
-                target_version.to_string().green()
-              ))
-            } else {
-              None
-            }
-          }
-          None => None
-        };
-
-        items.push(
-          SectionItem::new(
-            move || {
-              Some((
-                format!(
-                  "{} {}: {}{}",
-                  dep,
-                  "[RUST]".dimmed(),
-                  version_string,
-                  version_suffix
-                    .clone()
-                    .map(|s| format!(", {s}"))
-                    .unwrap_or_else(|| "".into())
-                ),
-                Status::Neutral,
-              ))
-            },
-            || None,
-            false,
-          )
-        );
-    } else {
-      items.push(
-        SectionItem::new(
-          move || {
-            Some((
-              format!(
-                "tauri-cli {}: not installed!",
-                "[RUST]".dimmed(),
-              ),
-              Status::Neutral,
+      let version_suffix = match crate_latest_version(&dep) {
+        Some(target_version) => {
+          let version = semver::Version::parse(&version_string).unwrap();
+          let target_version = semver::Version::parse(&target_version).unwrap();
+          if version < target_version {
+            Some(format!(
+              " ({}, latest: {})",
+              "outdated".yellow(),
+              target_version.to_string().green()
             ))
-          },
-          || None,
-          false,
-        )
-      );
+          } else {
+            None
+          }
+        }
+        None => None,
+      };
+
+      items.push(SectionItem::new(
+        move || {
+          Some((
+            format!(
+              "{} {}: {}{}",
+              dep,
+              "[RUST]".dimmed(),
+              version_string,
+              version_suffix
+                .clone()
+                .map(|s| format!(", {s}"))
+                .unwrap_or_else(|| "".into())
+            ),
+            Status::Neutral,
+          ))
+        },
+        || None,
+        false,
+      ));
+    } else {
+      items.push(SectionItem::new(
+        move || {
+          Some((
+            format!("tauri-cli {}: not installed!", "[RUST]".dimmed()),
+            Status::Neutral,
+          ))
+        },
+        || None,
+        false,
+      ));
     }
   }
 

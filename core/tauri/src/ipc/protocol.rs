@@ -92,6 +92,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
   if let Some(window) = manager.get_window(label) {
     use serde::{Deserialize, Deserializer};
 
+    #[derive(Default)]
     pub(crate) struct HeaderMap(http::HeaderMap);
 
     impl<'de> Deserialize<'de> for HeaderMap {
@@ -119,6 +120,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
 
     #[derive(Deserialize)]
     struct RequestOptions {
+      #[serde(default)]
       headers: HeaderMap,
     }
 

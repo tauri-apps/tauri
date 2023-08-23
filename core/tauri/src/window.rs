@@ -7,6 +7,7 @@
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
+use tauri_runtime::{window::dpi::Rect, ParticularRectKind};
 use url::Url;
 
 #[cfg(target_os = "macos")]
@@ -1407,6 +1408,19 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_position(position.into())
+      .map_err(Into::into)
+  }
+
+  /// Specify particular behavior for rect
+  pub fn set_particular_rect<Re: Into<Rect>>(
+    &self,
+    kind: ParticularRectKind,
+    rect: Option<Re>,
+  ) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_particular_rect(kind, rect.map(|r| r.into()))
       .map_err(Into::into)
   }
 

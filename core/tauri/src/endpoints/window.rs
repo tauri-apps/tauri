@@ -17,6 +17,7 @@ use crate::{
 };
 use serde::Deserialize;
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
+use tauri_runtime::{window::dpi::Rect, ParticularRectKind};
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -143,6 +144,8 @@ pub enum WindowManagerCmd {
   SetCursorPosition(Position),
   #[cfg(window_set_ignore_cursor_events)]
   SetIgnoreCursorEvents(bool),
+  // todo maybe cfg
+  SetParticularRect(ParticularRectKind, Option<Rect>),
   #[cfg(window_start_dragging)]
   StartDragging,
   #[cfg(window_print)]
@@ -370,6 +373,7 @@ impl Cmd {
           window.open_devtools();
         }
       }
+      WindowManagerCmd::SetParticularRect(kind, rect) => window.set_particular_rect(kind, rect)?,
     }
     #[allow(unreachable_code)]
     Ok(().into())

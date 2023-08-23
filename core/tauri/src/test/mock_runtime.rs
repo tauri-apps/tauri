@@ -706,6 +706,14 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   fn update_menu_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
     Ok(())
   }
+
+  fn set_particular_rect(
+    &self,
+    kind: tauri_runtime::ParticularRectKind,
+    rect: Option<tauri_runtime::window::dpi::Rect>,
+  ) -> Result<()> {
+    Ok(())
+  }
 }
 
 #[cfg(all(desktop, feature = "system-tray"))]

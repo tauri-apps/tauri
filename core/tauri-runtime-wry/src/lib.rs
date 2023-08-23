@@ -11,11 +11,12 @@ use tauri_runtime::{
   monitor::Monitor,
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
-    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Rect, Size},
     CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
-  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
-  RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
+  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
+  ParticularRectKind, Result, RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
+  UserEvent,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -1118,6 +1119,7 @@ pub enum WindowMessage {
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
   SetPosition(Position),
+  SetParticularRect(ParticularRectKind, Option<Rect>),
   SetFullscreen(bool),
   SetFocus,
   SetIcon(WryWindowIcon),
@@ -1664,6 +1666,17 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::UpdateMenuItem(id, update)),
+    )
+  }
+
+  fn set_particular_rect(
+    &self,
+    kind: tauri_runtime::ParticularRectKind,
+    rect: Option<tauri_runtime::window::dpi::Rect>,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetParticularRect(kind, rect)),
     )
   }
 }
@@ -2584,6 +2597,8 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::RequestRedraw => {
               window.request_redraw();
             }
+            // todo write in tao
+            WindowMessage::SetParticularRect(_, _) => todo!("todo write in tao"),
           }
         }
       }

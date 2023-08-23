@@ -24,7 +24,7 @@ pub mod window;
 use monitor::Monitor;
 use webview::WindowBuilder;
 use window::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   CursorIcon, DetachedWindow, PendingWindow, WindowEvent,
 };
 
@@ -779,4 +779,16 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Applies the specified `update` to the menu item associated with the given `id`.
   fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> Result<()>;
+
+  /// Specify particular behavior for rect
+  fn set_particular_rect(&self, kind: ParticularRectKind, rect: Option<Rect>) -> Result<()>;
+}
+
+/// Particular rect kind
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ParticularRectKind {
+  MinButton,
+  MaxButton,
+  CloseButton,
 }

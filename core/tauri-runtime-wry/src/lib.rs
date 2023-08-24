@@ -3195,7 +3195,6 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(windows)]
   {
-    dbg!(&pending.http_scheme);
     webview_builder = webview_builder.with_https_scheme(!pending.http_scheme);
   }
 

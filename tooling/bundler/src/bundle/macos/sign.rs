@@ -14,7 +14,8 @@ use std::{
 
 use crate::{bundle::common::CommandExt, Settings};
 use anyhow::Context;
-use log::info;
+
+use log::{error, info};
 use serde::Deserialize;
 
 const KEYCHAIN_ID: &str = "tauri-build.keychain";
@@ -164,6 +165,38 @@ pub fn sign(
     false
   };
 
+  // Sign frameworks first
+  if is_an_executable {
+    if let Some(frameworks) = settings.macos().frameworks.as_ref() {
+      for framework in frameworks.iter() {
+        // If the framework ends with .framework, we need to sign it since its not a system framework
+        if framework.ends_with(".framework") {
+          let path = PathBuf::from(framework);
+          match path.file_name() {
+            Some(name) => {
+              let framework_path = path_to_sign.join("Contents/Frameworks").join(name);
+              info!("Signing framework: {:?}", framework_path);
+              try_sign(
+                framework_path,
+                identity,
+                settings,
+                is_an_executable,
+                setup_keychain,
+              )?;
+            }
+            None => {
+              error!(
+                "Failed to sign framework: {} because it has no filename",
+                framework
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Sign the app bundle
   let res = try_sign(
     path_to_sign,
     identity,
@@ -329,6 +362,7 @@ pub enum NotarizeAuth {
   AppleId {
     apple_id: String,
     password: String,
+    team_id: String,
   },
   ApiKey {
     key: String,
@@ -344,11 +378,17 @@ pub trait NotarytoolCmdExt {
 impl NotarytoolCmdExt for Command {
   fn notarytool_args(&mut self, auth: &NotarizeAuth) -> &mut Self {
     match auth {
-      NotarizeAuth::AppleId { apple_id, password } => self
+      NotarizeAuth::AppleId {
+        apple_id,
+        password,
+        team_id,
+      } => self
         .arg("--apple-id")
         .arg(apple_id)
         .arg("--password")
-        .arg(password),
+        .arg(password)
+        .arg("--team-id")
+        .arg(team_id),
       NotarizeAuth::ApiKey {
         key,
         key_path,
@@ -365,8 +405,12 @@ impl NotarytoolCmdExt for Command {
 }
 
 pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
-  match (var_os("APPLE_ID"), var_os("APPLE_PASSWORD")) {
-    (Some(apple_id), Some(apple_password)) => {
+  match (
+    var_os("APPLE_ID"),
+    var_os("APPLE_PASSWORD"),
+    var_os("APPLE_TEAM_ID"),
+  ) {
+    (Some(apple_id), Some(apple_password), Some(apple_team_id)) => {
       let apple_id = apple_id
         .to_str()
         .expect("failed to convert APPLE_ID to string")
@@ -375,7 +419,15 @@ pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
         .to_str()
         .expect("failed to convert APPLE_PASSWORD to string")
         .to_string();
-      Ok(NotarizeAuth::AppleId { apple_id, password })
+      let team_id = apple_team_id
+        .to_str()
+        .expect("failed to convert APPLE_TEAM_ID to string")
+        .to_string();
+      Ok(NotarizeAuth::AppleId {
+        apple_id,
+        password,
+        team_id,
+      })
     }
     _ => {
       match (var_os("APPLE_API_KEY"), var_os("APPLE_API_ISSUER"), var("APPLE_API_KEY_PATH")) {

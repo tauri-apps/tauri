@@ -153,6 +153,10 @@ pub fn sign(
 ) -> crate::Result<()> {
   info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
 
+  // Remove extra attributes, which could cause codesign to fail
+  // https://developer.apple.com/library/archive/qa/qa1940/_index.html
+  remove_extra_attr(&path_to_sign)?;
+
   let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
     var_os("APPLE_CERTIFICATE"),
     var_os("APPLE_CERTIFICATE_PASSWORD"),
@@ -196,6 +200,7 @@ pub fn sign(
     }
   }
 
+  info!("Signing app bundle...");
   // Sign the app bundle
   let res = try_sign(
     path_to_sign,
@@ -248,6 +253,15 @@ fn try_sign(
     .output_ok()
     .context("failed to sign app")?;
 
+  Ok(())
+}
+
+fn remove_extra_attr(app_bundle_path: &PathBuf) -> crate::Result<()> {
+  Command::new("xattr")
+    .arg("-cr")
+    .arg(app_bundle_path)
+    .output_ok()
+    .context("failed to remove extra attributes from app bundle")?;
   Ok(())
 }
 

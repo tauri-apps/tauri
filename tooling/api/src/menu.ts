@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+import { TauriEvent, listen } from './event'
 import { Resource, applyMixins } from './internal'
 import { invoke } from './tauri'
 
@@ -17,6 +18,42 @@ import { invoke } from './tauri'
 
 interface MenuEvent {
   id: string
+}
+
+declare global {
+  interface Window {
+    __TAURI_MENU__: {
+      handlers?: { [key: string]: (() => void)[] }
+    }
+  }
+}
+
+async function addEventListener(id: string, handler: () => void) {
+  if (!window.__TAURI_MENU__.handlers) {
+    window.__TAURI_MENU__.handlers = {}
+    const unlisten = await listen<MenuEvent>(
+      TauriEvent.MENU,
+      (e) => {
+        const handlers = window.__TAURI_MENU__.handlers?.[e.payload.id]
+        if (handlers) {
+          for (handler of handlers) {
+            handler()
+          }
+        }
+      },
+      {
+        target: window.__TAURI_METADATA__.__currentWindow.label
+      }
+    )
+
+    window.addEventListener('unload', () => unlisten())
+  }
+
+  if (!window.__TAURI_MENU__.handlers[id]) {
+    window.__TAURI_MENU__.handlers[id] = []
+  }
+
+  window.__TAURI_MENU__.handlers[id].push(handler)
 }
 
 enum NativeIcon {
@@ -185,7 +222,21 @@ class MenuItemBase extends Resource {
     kind: ItemKind,
     opts?: unknown
   ): Promise<[number, string]> {
-    return invoke('plugin:menu|new', { kind, opts })
+    let handler: null | (() => void)
+    // @ts-expect-error
+    if ('action' in opts) {
+      handler = opts.action as () => void
+      delete opts.action
+    }
+
+    return invoke<[number, string]>('plugin:menu|new', { kind, opts }).then(
+      (ret) => {
+        if (handler) {
+          addEventListener(ret[1], handler)
+        }
+        return ret
+      }
+    )
   }
 }
 
@@ -398,6 +449,7 @@ interface MenuItemOptions {
   text?: string
   enabled?: boolean
   accelerator?: string
+  action?: () => void
 }
 
 class MenuItem extends MenuItemBase4 {
@@ -412,7 +464,8 @@ class MenuItem extends MenuItemBase4 {
   }
 }
 
-type SubmenuOptions = Omit<MenuItemOptions, 'accelerator'> & MenuOptions
+type SubmenuOptions = Omit<MenuItemOptions, 'accelerator' | 'action'> &
+  MenuOptions
 
 interface Submenu extends MenuItemBase3 {}
 class Submenu extends MenuBase {
@@ -441,7 +494,7 @@ applyMixins(Submenu, MenuItemBase3)
 
 type PredefinedMenuItemOptions = Omit<
   MenuItemOptions,
-  'enabled' | 'accelerator' | 'id'
+  'enabled' | 'accelerator' | 'id' | 'action'
 > & {
   item:
     | 'Separator'

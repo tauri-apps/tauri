@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { Menu } from './menu'
-import { EventCallback, EventName, UnlistenFn, listen, once } from './event'
+import { TauriEvent, UnlistenFn, listen } from './event'
 import { Resource } from './internal'
 import { Submenu } from './menu'
 import { invoke } from './tauri'
@@ -216,75 +216,13 @@ export class TrayIcon extends Resource {
   }
 
   /**
-   * Listen to an event emitted by the backend that is tied to the current webview window.
-   *
-   * @example
-   * ```typescript
-   * import { TrayIcon } from '@tauri-apps/api/tray';
-   * const tray = await TrayIcon.new();
-   * const unlisten = await tray.listen<string>('state-changed', (event) => {
-   *   console.log(`Got error: ${payload}`);
-   * });
-   *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
-   * ```
-   *
-   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
-   * @param handler Event handler.
-   * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
-   */
-  async listen<T>(
-    event: EventName,
-    handler: EventCallback<T>
-  ): Promise<UnlistenFn> {
-    return listen(event, handler, {
-      target: window.__TAURI_METADATA__.__currentWindow.label
-    })
-  }
-
-  /**
-   * Listen to an one-off event emitted by the backend that is tied to the current webview window.
-   *
-   * @example
-   * ```typescript
-   * import { TrayIcon } from '@tauri-apps/api/tray';
-   * const tray = await TrayIcon.new();
-   * const unlisten = await tray.once<string>('state-initalized', (event) => {
-   *   console.log(`State initalized`);
-   * });
-   *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
-   * ```
-   *
-   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
-   * @param handler Event handler.
-   * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
-   */
-  async once<T>(
-    event: EventName,
-    handler: EventCallback<T>
-  ): Promise<UnlistenFn> {
-    return once(event, handler, {
-      target: window.__TAURI_METADATA__.__currentWindow.label
-    })
-  }
-
-  /**
    * Listen to this tray icon events.
    *
    * @example
    * ```typescript
    * import { TrayIcon } from '@tauri-apps/api/tray';
    * const tray = await TrayIcon.new();
-   * const unlisten = await tray.onTrayIconEvent((event) => {
+   * const unlisten = await tray.on((event) => {
    *   console.log(event)
    * });
    *
@@ -298,11 +236,17 @@ export class TrayIcon extends Resource {
    *
    * @since 2.0.0
    */
-  async onTrayIconEvent(
-    handler: EventCallback<TrayIconEvent>
-  ): Promise<UnlistenFn> {
-    return listen('tauri://tray', handler, {
-      target: window.__TAURI_METADATA__.__currentWindow.label
-    })
+  async on(handler: (event: TrayIconEvent) => void): Promise<UnlistenFn> {
+    return listen<TrayIconEvent>(
+      TauriEvent.TRAY,
+      (e) => {
+        if (e.payload.id == this.id) {
+          handler(e.payload)
+        }
+      },
+      {
+        target: window.__TAURI_METADATA__.__currentWindow.label
+      }
+    )
   }
 }

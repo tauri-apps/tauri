@@ -247,7 +247,7 @@ fn handle_ipc_request<R: Runtime>(
     let body = if content_type == mime::APPLICATION_OCTET_STREAM {
       body.into()
     } else if content_type == mime::APPLICATION_JSON {
-      if cfg!(ipc_custom_protocol) {
+      if cfg!(ipc_custom_protocol) && !body.is_empty() {
         serde_json::from_slice::<serde_json::Value>(&body)
           .map_err(|e| e.to_string())?
           .into()

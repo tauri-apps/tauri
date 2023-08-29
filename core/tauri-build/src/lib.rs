@@ -370,6 +370,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   if target_triple.contains("darwin") {
+    // If we have frameworks, we need to set the @rpath
+    // https://github.com/tauri-apps/tauri/issues/7710
+    let frameworks = &config.tauri.bundle.macos.frameworks;
+    if frameworks
+      .as_ref()
+      .and_then(|f| Some(!f.is_empty()))
+      .is_some()
+    {
+      println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Frameworks");
+    }
+
     if let Some(version) = &config.tauri.bundle.macos.minimum_system_version {
       println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
     }

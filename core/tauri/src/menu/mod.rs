@@ -23,14 +23,14 @@ pub use icon::IconMenuItem;
 pub use menu::{Menu, HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 pub use normal::MenuItem;
 pub use predefined::PredefinedMenuItem;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 pub use submenu::Submenu;
 
 use crate::{AppHandle, Icon, Runtime};
 pub use muda::MenuId;
 
 /// Describes a menu event emitted when a menu item is activated
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MenuEvent {
   /// Id of the menu item which triggered this event
   pub id: MenuId,

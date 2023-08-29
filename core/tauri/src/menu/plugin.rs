@@ -4,12 +4,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::*;
+use super::{sealed::ContextMenuBase, *};
 use crate::{
   command,
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
-  AppHandle, IconDto, Manager, Runtime,
+  AppHandle, IconDto, Manager, RunEvent, Runtime,
 };
 use tauri_macros::do_menu_item;
 
@@ -101,7 +101,7 @@ fn new<R: Runtime>(
   let options = options.unwrap_or_default();
   let mut resources_table = app.manager.resources_table();
 
-  match kind {
+  let ret = match kind {
     ItemKind::Menu => {
       let mut builder = MenuBuilder::new(&app);
       if let Some(id) = options.id {
@@ -214,7 +214,7 @@ fn new<R: Runtime>(
     }
   };
 
-  Ok((0, "".into()))
+  ret.ok_or_else(|| anyhow::anyhow!("Unkown menu item kind").into())
 }
 
 #[command(root = "crate")]
@@ -420,19 +420,19 @@ fn popup<R: Runtime>(
   rid: ResourceId,
   kind: ItemKind,
   window: String,
-  position: (u32, u32),
+  position: Option<(u32, u32)>,
 ) -> crate::Result<()> {
   if let Some(window) = app.get_window(&window) {
-    let position = crate::Position::Logical(position.into());
+    let position = position.map(|p| crate::Position::Logical(p.into()));
     let resources_table = app.manager.resources_table();
     match kind {
       ItemKind::Menu => {
         let menu = resources_table.get::<Menu<R>>(rid)?;
-        menu.popup_at(window, position)?;
+        menu.popup_inner(window, position)?;
       }
       ItemKind::Submenu => {
         let submenu = resources_table.get::<Submenu<R>>(rid)?;
-        submenu.popup_at(window, position)?;
+        submenu.popup_inner(window, position)?;
       }
       _ => unreachable!(),
     };
@@ -451,7 +451,7 @@ fn default<R: Runtime>(app: AppHandle<R>) -> crate::Result<(ResourceId, MenuId)>
 }
 
 #[command(root = "crate")]
-fn set_as_app_menu<R: Runtime>(
+async fn set_as_app_menu<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
 ) -> crate::Result<Option<(ResourceId, MenuId)>> {
@@ -466,7 +466,7 @@ fn set_as_app_menu<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn set_as_window_menu<R: Runtime>(
+async fn set_as_window_menu<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
   window: String,
@@ -602,6 +602,11 @@ fn set_native_icon<R: Runtime>(
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("menu")
+    .on_event(|app, e| {
+      if let RunEvent::MenuEvent(e) = e {
+        let _ = app.emit_all("tauri://menu", e);
+      }
+    })
     .invoke_handler(crate::generate_handler![
       new,
       append,

@@ -90,7 +90,7 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
   }
 
   fn inner_context_owned(&self) -> Box<dyn muda::ContextMenu> {
-    Box::new(self.clone().inner)
+    Box::new(self.inner.clone())
   }
 }
 

@@ -33,8 +33,6 @@ async function addEventListener(id: string, handler: () => void) {
     const unlisten = await listen<MenuEvent>(
       TauriEvent.MENU,
       (e) => {
-        console.log(e)
-
         const handlers = window.__TAURI_MENU__?.handlers[e.payload.id]
         if (handlers) {
           for (handler of handlers) {

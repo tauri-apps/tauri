@@ -169,11 +169,12 @@ pub fn sign(
     false
   };
 
-  // Sign frameworks first
+  // Sign frameworks first, per apple, signing must be done inside out, so frameworks need to be signed first
+  // https://developer.apple.com/forums/thread/701514
   if is_an_executable {
     if let Some(frameworks) = settings.macos().frameworks.as_ref() {
       for framework in frameworks.iter() {
-        // If the framework ends with .framework, we need to sign it since its not a system framework
+        // If the framework ends with .framework, then its not a system framework. We don't want to sign system frameworks!
         if framework.ends_with(".framework") {
           let path = PathBuf::from(framework);
           match path.file_name() {

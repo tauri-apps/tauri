@@ -4,7 +4,9 @@
 
 use crate::{menu::MenuId, resources::Resource, run_main_thread, AppHandle, Manager, Runtime};
 
-/// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
+/// A menu item inside a [`Menu`] or [`Submenu`]
+/// and usually contains a text and a check mark or a similar toggle
+/// that corresponds to a checked and unchecked states.
 ///
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu

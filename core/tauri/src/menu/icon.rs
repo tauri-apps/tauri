@@ -7,7 +7,8 @@ use crate::{
   menu::MenuId, resources::Resource, run_main_thread, AppHandle, Icon, Manager, Runtime,
 };
 
-/// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
+/// A menu item inside a [`Menu`] or [`Submenu`]
+/// and usually contains an icon and a text.
 ///
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu

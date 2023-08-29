@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { Menu } from './menu'
-import { TauriEvent, UnlistenFn, listen } from './event'
+import type { Menu, Submenu } from './menu'
+import { TauriEvent, listen, type UnlistenFn } from './event'
 import { Resource } from './internal'
-import { Submenu } from './menu'
 import { invoke } from './tauri'
 
 /**
@@ -138,7 +137,7 @@ export class TrayIcon extends Resource {
   }
 
   /** Sets a new tray icon. If `null` is provided, it will remove the icon. */
-  async setIcon(icon: string | Uint8Array | null) {
+  async setIcon(icon: string | Uint8Array | null): Promise<void> {
     return invoke('plugin:tray|set_icon', { rid: this.rid, icon })
   }
 
@@ -149,7 +148,7 @@ export class TrayIcon extends Resource {
    *
    * - **Linux**: once a menu is set it cannot be removed so `null` has no effect
    */
-  async setMenu(menu: Menu | Submenu | null) {
+  async setMenu(menu: Menu | Submenu | null): Promise<void> {
     if (menu) {
       // @ts-expect-error we only need the rid and kind
       menu = [menu.rid, menu.kind]
@@ -164,7 +163,7 @@ export class TrayIcon extends Resource {
    *
    * - **Linux:** Unsupported
    */
-  async setTooltip(tooltip: string | null) {
+  async setTooltip(tooltip: string | null): Promise<void> {
     return invoke('plugin:tray|set_tooltip', { rid: this.rid, tooltip })
   }
 
@@ -180,12 +179,12 @@ export class TrayIcon extends Resource {
    * on the user's panel.  This may not be shown in all visualizations.
    * - **Windows:** Unsupported
    */
-  async setTitle(title: string | null) {
+  async setTitle(title: string | null): Promise<void> {
     return invoke('plugin:tray|set_title', { rid: this.rid, title })
   }
 
   /** Show or hide this tray icon. */
-  async setVisible(visible: boolean) {
+  async setVisible(visible: boolean): Promise<void> {
     return invoke('plugin:tray|set_visible', { rid: this.rid, visible })
   }
 
@@ -195,12 +194,12 @@ export class TrayIcon extends Resource {
    * On Linux, we need to write the icon to the disk and usually it will
    * be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
    */
-  async setTempDirPath(path: string | null) {
+  async setTempDirPath(path: string | null): Promise<void> {
     return invoke('plugin:tray|set_temp_dir_path', { rid: this.rid, path })
   }
 
   /** Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only** */
-  async setIconAsTemplate(asTemplate: boolean) {
+  async setIconAsTemplate(asTemplate: boolean): Promise<void> {
     return invoke('plugin:tray|set_icon_as_template', {
       rid: this.rid,
       asTemplate
@@ -208,7 +207,7 @@ export class TrayIcon extends Resource {
   }
 
   /** Disable or enable showing the tray menu on left click. **macOS only**. */
-  async setMenuOnLeftClick(onLeft: boolean) {
+  async setMenuOnLeftClick(onLeft: boolean): Promise<void> {
     return invoke('plugin:tray|set_show_menu_on_left_click', {
       rid: this.rid,
       onLeft
@@ -240,7 +239,7 @@ export class TrayIcon extends Resource {
     return listen<TrayIconEvent>(
       TauriEvent.TRAY,
       (e) => {
-        if (e.payload.id == this.id) {
+        if (e.payload.id === this.id) {
           handler(e.payload)
         }
       },

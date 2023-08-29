@@ -22,12 +22,15 @@ interface MenuEvent {
 declare global {
   interface Window {
     __TAURI_MENU__?: {
-      handlers: { [key: string]: (() => void)[] }
+      handlers: Record<string, Array<() => void>>
     }
   }
 }
 
-async function addEventListener(id: string, handler: () => void) {
+async function addEventListener(
+  id: string,
+  handler: () => void
+): Promise<void> {
   if (!window.__TAURI_MENU__) {
     window.__TAURI_MENU__ = { handlers: {} }
     const unlisten = await listen<MenuEvent>(
@@ -45,13 +48,16 @@ async function addEventListener(id: string, handler: () => void) {
       }
     )
 
-    window.addEventListener('unload', () => unlisten())
+    window.addEventListener('unload', unlisten)
   }
 
+  // eslint-disable-next-line
   if (!window.__TAURI_MENU__.handlers[id]) {
+    // eslint-disable-next-line
     window.__TAURI_MENU__.handlers[id] = []
   }
 
+  // eslint-disable-next-line
   window.__TAURI_MENU__.handlers[id].push(handler)
 }
 
@@ -201,14 +207,16 @@ function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
 
 async function newMenu(kind: ItemKind, opts?: any): Promise<[number, string]> {
   let handler: null | (() => void) = null
-  let items: null | [number, string][] = null
+  let items: null | Array<[number, string]> = null
   if (opts) {
     if ('action' in opts) {
-      handler = opts.action as () => void
+      // eslint-disable-next-line
+      handler = opts.action
     }
 
     if ('items' in opts) {
-      // @ts-expect-error
+      // @ts-expect-error items should all have rid and kind accessors
+      // eslint-disable-next-line
       items = opts.items.map((i) => [i.rid, i.kind])
     }
   }
@@ -218,7 +226,7 @@ async function newMenu(kind: ItemKind, opts?: any): Promise<[number, string]> {
     options: opts ? { ...opts, items } : undefined
   }).then((ret) => {
     if (handler) {
-      addEventListener(ret[1], handler)
+      void addEventListener(ret[1], handler)
     }
     return ret
   })
@@ -241,19 +249,9 @@ class MenuItemBase extends Resource {
     this.#id = id
     this.#kind = kind
   }
-
-  async close() {
-    return invoke('plugin:resources|close', {
-      rid: this.rid
-    })
-  }
 }
 
 class MenuBase extends MenuItemBase {
-  constructor(rid: number, id: string, kind: ItemKind) {
-    super(rid, id, kind)
-  }
-
   async append<
     T extends
       | Submenu
@@ -261,7 +259,7 @@ class MenuBase extends MenuItemBase {
       | PredefinedMenuItem
       | CheckMenuItem
       | IconMenuItem
-  >(items: T | T[]) {
+  >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|append', {
       rid: this.rid,
       kind: this.kind,
@@ -279,7 +277,7 @@ class MenuBase extends MenuItemBase {
       | PredefinedMenuItem
       | CheckMenuItem
       | IconMenuItem
-  >(items: T | T[]) {
+  >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
       kind: this.kind,
@@ -297,7 +295,7 @@ class MenuBase extends MenuItemBase {
       | PredefinedMenuItem
       | CheckMenuItem
       | IconMenuItem
-  >(items: T | T[], position: number) {
+  >(items: T | T[], position: number): Promise<void> {
     return invoke('plugin:menu|insert', {
       rid: this.rid,
       kind: this.kind,
@@ -311,7 +309,7 @@ class MenuBase extends MenuItemBase {
 
   async remove(
     item: Submenu | MenuItem | PredefinedMenuItem | CheckMenuItem | IconMenuItem
-  ) {
+  ): Promise<void> {
     return invoke('plugin:menu|remove', {
       rid: this.rid,
       kind: this.kind,
@@ -337,9 +335,11 @@ class MenuBase extends MenuItemBase {
   }
 
   async items(): Promise<
-    (Submenu | MenuItem | PredefinedMenuItem | CheckMenuItem | IconMenuItem)[]
+    Array<
+      Submenu | MenuItem | PredefinedMenuItem | CheckMenuItem | IconMenuItem
+    >
   > {
-    return invoke<[number, string, ItemKind][]>('plugin:menu|append', {
+    return invoke<Array<[number, string, ItemKind]>>('plugin:menu|append', {
       rid: this.rid,
       kind: this.kind
     }).then((i) => i.map(itemFromKind))
@@ -364,7 +364,7 @@ class MenuBase extends MenuItemBase {
 
   // TODO change to logical position
   // TODO use window type after migrating window back to core
-  async popup(window: string, position?: [number, number]) {
+  async popup(window: string, position?: [number, number]): Promise<void> {
     return invoke('plugin:menu|popup', {
       rid: this.rid,
       kind: this.kind,
@@ -376,13 +376,9 @@ class MenuBase extends MenuItemBase {
 
 interface MenuOptions {
   id?: string
-  items?: (
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
-  )[]
+  items?: Array<
+    Submenu | MenuItem | PredefinedMenuItem | CheckMenuItem | IconMenuItem
+  >
 }
 
 class Menu extends MenuBase {
@@ -390,11 +386,11 @@ class Menu extends MenuBase {
     super(rid, id, 'Menu')
   }
 
-  static async new(opts?: MenuOptions) {
+  static async new(opts?: MenuOptions): Promise<Menu> {
     return newMenu('Menu', opts).then(([rid, id]) => new Menu(rid, id))
   }
 
-  static async default() {
+  static async default(): Promise<Menu> {
     return invoke<[number, string]>('plugin:menu|default').then(
       ([rid, id]) => new Menu(rid, id)
     )
@@ -420,7 +416,7 @@ class MenuItemBase2 extends MenuItemBase {
     return invoke('plugin:menu|text', { rid: this.rid, kind: this.kind })
   }
 
-  async setText(text: string) {
+  async setText(text: string): Promise<void> {
     return invoke('plugin:menu|set_text', {
       rid: this.rid,
       kind: this.kind,
@@ -434,7 +430,7 @@ class MenuItemBase3 extends MenuItemBase2 {
     return invoke('plugin:menu|is_enabled', { rid: this.rid, kind: this.kind })
   }
 
-  async setEnabled(enabled: boolean) {
+  async setEnabled(enabled: boolean): Promise<void> {
     return invoke('plugin:menu|set_enabled', {
       rid: this.rid,
       kind: this.kind,
@@ -444,7 +440,7 @@ class MenuItemBase3 extends MenuItemBase2 {
 }
 
 class MenuItemBase4 extends MenuItemBase3 {
-  async setAccelerator(accelerator: string | null) {
+  async setAccelerator(accelerator: string | null): Promise<void> {
     return invoke('plugin:menu|set_accelerator', {
       rid: this.rid,
       kind: this.kind,
@@ -466,7 +462,7 @@ class MenuItem extends MenuItemBase4 {
     super(rid, id, 'MenuItem')
   }
 
-  static async new(opts: MenuItemOptions) {
+  static async new(opts: MenuItemOptions): Promise<MenuItem> {
     return newMenu('MenuItem', opts).then(([rid, id]) => new MenuItem(rid, id))
   }
 }
@@ -480,17 +476,17 @@ class Submenu extends MenuBase {
     super(rid, id, 'Submenu')
   }
 
-  static async new(opts: SubmenuOptions) {
+  static async new(opts: SubmenuOptions): Promise<Submenu> {
     return newMenu('Submenu', opts).then(([rid, id]) => new Submenu(rid, id))
   }
 
-  async setAsWindowsMenuForNSApp() {
+  async setAsWindowsMenuForNSApp(): Promise<void> {
     return invoke('plugin:menu|set_as_windows_menu_for_nsapp', {
       rid: this.rid
     })
   }
 
-  async setAsHelpMenuForNSApp() {
+  async setAsHelpMenuForNSApp(): Promise<void> {
     return invoke('plugin:menu|set_as_help_menu_for_nsapp', {
       rid: this.rid
     })
@@ -499,7 +495,7 @@ class Submenu extends MenuBase {
 
 applyMixins(Submenu, MenuItemBase3)
 
-type PredefinedMenuItemOptions = {
+interface PredefinedMenuItemOptions {
   text?: string
   item:
     | 'Separator'
@@ -540,8 +536,12 @@ class PredefinedMenuItem extends MenuItemBase2 {
     super(rid, id, 'MenuItem')
   }
 
-  static async new(opts?: PredefinedMenuItemOptions) {
-    return newMenu('MenuItem', opts).then(([rid, id]) => new MenuItem(rid, id))
+  static async new(
+    opts?: PredefinedMenuItemOptions
+  ): Promise<PredefinedMenuItem> {
+    return newMenu('MenuItem', opts).then(
+      ([rid, id]) => new PredefinedMenuItem(rid, id)
+    )
   }
 }
 
@@ -554,7 +554,7 @@ class CheckMenuItem extends MenuItemBase4 {
     super(rid, id, 'Check')
   }
 
-  static async new(opts: MenuItemOptions) {
+  static async new(opts: MenuItemOptions): Promise<CheckMenuItem> {
     return newMenu('Check', opts).then(
       ([rid, id]) => new CheckMenuItem(rid, id)
     )
@@ -564,7 +564,7 @@ class CheckMenuItem extends MenuItemBase4 {
     return invoke('plugin:menu|is_checked', { rid: this.rid })
   }
 
-  async setChecked(checked: boolean) {
+  async setChecked(checked: boolean): Promise<void> {
     return invoke('plugin:menu|set_checked', {
       rid: this.rid,
       checked
@@ -581,15 +581,15 @@ class IconMenuItem extends MenuItemBase4 {
     super(rid, id, 'Icon')
   }
 
-  static async new(opts: IconMenuItemOptions) {
+  static async new(opts: IconMenuItemOptions): Promise<IconMenuItem> {
     return newMenu('Icon', opts).then(([rid, id]) => new IconMenuItem(rid, id))
   }
 
-  async setIcon(icon: string | Uint8Array | null) {
+  async setIcon(icon: string | Uint8Array | null): Promise<void> {
     return invoke('plugin:menu|set_icon', { rid: this.rid, icon })
   }
 
-  async setNativeIcon(icon: NativeIcon | null) {
+  async setNativeIcon(icon: NativeIcon | null): Promise<void> {
     return invoke('plugin:menu|set_native_icon', { rid: this.rid, icon })
   }
 }

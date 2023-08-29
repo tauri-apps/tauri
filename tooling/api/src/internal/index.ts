@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 import { invoke } from '../tauri'
 
 /**
@@ -22,7 +26,7 @@ export class Resource {
    * Destroys and cleans up this resource from memory.
    * **You should not call any method on this object anymore and should drop any reference to it.**
    */
-  async close() {
+  async close(): Promise<void> {
     return invoke('plugin:resources|close', {
       rid: this.rid
     })
@@ -30,16 +34,20 @@ export class Resource {
 }
 
 /** Extends a base class by other specifed classes */
-export function applyMixins(baseClass: any, extendedClasses: any | any[]) {
+export function applyMixins(
+  baseClass: { prototype: any },
+  extendedClasses: any | any[]
+): void {
   ;(Array.isArray(extendedClasses)
     ? extendedClasses
     : [extendedClasses]
-  ).forEach((extendedClass) => {
+  ).forEach((extendedClass: { prototype: any }) => {
     Object.getOwnPropertyNames(extendedClass.prototype).forEach((name) => {
       Object.defineProperty(
         baseClass.prototype,
         name,
-        Object.getOwnPropertyDescriptor(extendedClass.prototype, name) ||
+        // eslint-disable-next-line
+        Object.getOwnPropertyDescriptor(extendedClass.prototype, name) ??
           Object.create(null)
       )
     })

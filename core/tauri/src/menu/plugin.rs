@@ -56,6 +56,7 @@ impl From<AboutMetadata> for super::AboutMetadata {
   }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Deserialize)]
 enum Predefined {
   Separator,
@@ -202,7 +203,7 @@ fn new<R: Runtime>(
         builder = builder.enabled(enabled);
       }
       if let Some(native_icon) = options.native_icon {
-        builder = builder.native_icon(native_icon.into());
+        builder = builder.native_icon(native_icon);
       }
       if let Some(icon) = options.icon {
         builder = builder.icon(icon.into());

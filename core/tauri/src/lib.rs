@@ -954,6 +954,7 @@ macro_rules! run_main_thread {
     let (tx, rx) = channel();
     let self_ = $self.clone();
     let task = move || {
+      #[allow(clippy::redundant_closure_call)]
       let _ = tx.send($ex(self_));
     };
     $self.app_handle.run_on_main_thread(Box::new(task))?;

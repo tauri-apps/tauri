@@ -812,6 +812,7 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::path::init())?;
     self.handle.plugin(crate::event::init())?;
     self.handle.plugin(crate::resources::plugin::init())?;
+    #[cfg(desktop)]
     self.handle.plugin(crate::menu::plugin::init())?;
     #[cfg(all(desktop, feature = "tray-icon"))]
     self.handle.plugin(crate::tray::plugin::init())?;

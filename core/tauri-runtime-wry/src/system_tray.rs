@@ -44,7 +44,7 @@ pub type GlobalSystemTrayEventListeners = Arc<Mutex<Vec<Arc<GlobalSystemTrayEven
 
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
 pub type SystemTrayEventListeners = Rc<RefCell<Vec<Rc<SystemTrayEventHandler>>>>;
-pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
+pub type SystemTrayItems = Rc<RefCell<HashMap<u16, WryCustomMenuItem>>>;
 
 #[derive(Clone, Default)]
 pub struct TrayContext {

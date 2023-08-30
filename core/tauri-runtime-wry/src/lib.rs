@@ -2104,7 +2104,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         TrayContext {
           tray: Rc::new(Mutex::new(Some(tray))),
           listeners: Rc::new(RefCell::new(listeners)),
-          items: Arc::new(Mutex::new(items)),
+          items: Rc::new(RefCell::new(items)),
         },
       );
 
@@ -2655,7 +2655,7 @@ fn handle_user_message<T: UserEvent>(
               TrayContext {
                 tray: Rc::new(Mutex::new(Some(tray))),
                 listeners: Rc::new(RefCell::new(listeners)),
-                items: Arc::new(Mutex::new(items)),
+                items: Rc::new(RefCell::new(items)),
               },
             );
 
@@ -2669,7 +2669,7 @@ fn handle_user_message<T: UserEvent>(
       } else if let Some(tray_context) = trays.get(&tray_id) {
         match tray_message {
           TrayMessage::UpdateItem(menu_id, update) => {
-            let mut tray = tray_context.items.as_ref().lock().unwrap();
+            let mut tray = tray_context.items.as_ref().borrow_mut();
             let item = tray.get_mut(&menu_id).expect("menu item not found");
             match update {
               MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
@@ -2685,7 +2685,7 @@ fn handle_user_message<T: UserEvent>(
             if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
               let mut items = HashMap::new();
               tray.set_menu(&to_wry_context_menu(&mut items, menu));
-              *tray_context.items.lock().unwrap() = items;
+              *tray_context.items.borrow_mut() = items;
             }
           }
           TrayMessage::UpdateIcon(icon) => {
@@ -2718,7 +2718,7 @@ fn handle_user_message<T: UserEvent>(
           TrayMessage::Destroy(tx) => {
             *tray_context.tray.lock().unwrap() = None;
             tray_context.listeners.borrow_mut().clear();
-            tray_context.items.lock().unwrap().clear();
+            tray_context.items.borrow_mut().clear();
             tx.send(Ok(())).unwrap();
           }
         }
@@ -2844,7 +2844,7 @@ fn handle_event_loop<T: UserEvent>(
       let (mut listeners, mut tray_id) = (None, 0);
       for (id, tray_context) in trays_iter {
         let has_menu = {
-          let items = tray_context.items.lock().unwrap();
+          let items = tray_context.items.borrow();
           items.contains_key(&menu_id.0)
         };
         if has_menu {

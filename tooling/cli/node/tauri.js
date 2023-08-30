@@ -7,7 +7,7 @@
 const cli = require('./main')
 const path = require('path')
 
-const [bin, script, ...arguments] = process.argv
+const [bin, script, ...args] = process.argv
 const binStem = path.parse(bin).name.toLowerCase()
 
 // We want to make a helpful binary name for the underlying CLI helper, if we
@@ -20,7 +20,7 @@ if (bin === '@tauri-apps/cli') {
 }
 // Even if started by a package manager, the binary will be NodeJS.
 // Some distribution still use "nodejs" as the binary name.
-else if (binStem.match(/(nodejs|node)\-?([0-9]*)*$/g)) {
+else if (binStem.match(/(nodejs|node|bun)\-?([0-9]*)*$/g)) {
   const managerStem = process.env.npm_execpath
     ? path.parse(process.env.npm_execpath).name.toLowerCase()
     : null
@@ -32,7 +32,7 @@ else if (binStem.match(/(nodejs|node)\-?([0-9]*)*$/g)) {
         manager = 'npm'
         break
 
-      // Yarn and pnpm have the same stem name as their bin.
+      // Yarn, pnpm, and bun have the same stem name as their bin.
       // We assume all unknown package managers do as well.
       default:
         manager = managerStem
@@ -48,10 +48,10 @@ else if (binStem.match(/(nodejs|node)\-?([0-9]*)*$/g)) {
   }
 } else {
   // We don't know what started it, assume it's already stripped.
-  arguments.unshift(bin)
+  args.unshift(bin)
 }
 
-cli.run(arguments, binName).catch((err) => {
+cli.run(args, binName).catch((err) => {
   cli.logError(err.message)
   process.exit(1)
 })

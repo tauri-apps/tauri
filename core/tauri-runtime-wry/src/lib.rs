@@ -3153,6 +3153,7 @@ fn create_webview<T: UserEvent>(
   } else {
     None
   };
+  let focused = window_builder.inner.window.focused;
   let window = window_builder.inner.build(event_loop).unwrap();
 
   webview_id_map.insert(window.id(), window_id);
@@ -3162,6 +3163,7 @@ fn create_webview<T: UserEvent>(
   }
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
+    .with_focused(focused)
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent)

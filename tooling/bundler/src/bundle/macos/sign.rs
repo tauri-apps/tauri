@@ -169,9 +169,28 @@ pub fn sign(
     false
   };
 
-  // Sign frameworks first, per apple, signing must be done inside out, so frameworks need to be signed first
+  // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
   // https://developer.apple.com/forums/thread/701514
   if is_an_executable {
+    // Sign any sidecar binaries
+    for src in settings.external_binaries() {
+      let src = src?;
+      let binary_path = path_to_sign.join(
+        src
+          .file_name()
+          .expect("failed to extract external binary filename")
+          .to_string_lossy()
+          .replace(&format!("-{}", settings.target()), ""),
+      );
+      try_sign(
+        binary_path,
+        identity,
+        settings,
+        is_an_executable,
+        setup_keychain,
+      )?;
+    }
+
     if let Some(frameworks) = settings.macos().frameworks.as_ref() {
       for framework in frameworks.iter() {
         // If the framework ends with .framework, then its not a system framework. We don't want to sign system frameworks!
@@ -242,10 +261,6 @@ fn try_sign(
   if is_an_executable {
     args.push("--options");
     args.push("runtime");
-  }
-
-  if path_to_sign.is_dir() {
-    args.push("--deep");
   }
 
   Command::new("codesign")

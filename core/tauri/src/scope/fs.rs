@@ -36,6 +36,8 @@ pub struct Scope {
   forbidden_patterns: Arc<Mutex<HashSet<Pattern>>>,
   event_listeners: Arc<Mutex<HashMap<Uuid, EventListener>>>,
   match_options: glob::MatchOptions,
+  default_allowed: HashSet<Pattern>,
+  default_forbidden: HashSet<Pattern>,
 }
 
 impl fmt::Debug for Scope {
@@ -84,13 +86,13 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 }
 
 impl Scope {
-  /// Creates a new scope from a `FsAllowlistScope` configuration.
-  pub(crate) fn for_fs_api(
+  /// Gets allowed and forbidden patterns from a `FsAllowlistScope` configuration
+  fn patterns(
     config: &Config,
     package_info: &PackageInfo,
     env: &Env,
     scope: &FsAllowlistScope,
-  ) -> crate::Result<Self> {
+  ) -> crate::Result<(HashSet<Pattern>, HashSet<Pattern>)> {
     let mut allowed_patterns = HashSet::new();
     for path in scope.allowed_paths() {
       if let Ok(path) = parse_path(config, package_info, env, path) {
@@ -107,17 +109,30 @@ impl Scope {
       }
     }
 
+    Ok((allowed_patterns, forbidden_patterns))
+  }
+
+  /// Creates a new scope from a `FsAllowlistScope` configuration.
+  #[allow(unused)]
+  pub(crate) fn for_fs_api(
+    config: &Config,
+    package_info: &PackageInfo,
+    env: &Env,
+    scope: &FsAllowlistScope,
+  ) -> crate::Result<Self> {
+    let (allowed_patterns, forbidden_patterns) = Self::patterns(config, package_info, env, scope)?;
+
     let require_literal_leading_dot = match scope {
       FsAllowlistScope::Scope {
         require_literal_leading_dot: Some(require),
         ..
       } => *require,
       // dotfiles are not supposed to be exposed by default on unix
-      #[cfg(unix)]
-      _ => true,
-      #[cfg(windows)]
-      _ => false,
+      _ => cfg!(unix),
     };
+
+    let default_allowed = allowed_patterns.clone();
+    let default_forbidden = forbidden_patterns.clone();
 
     Ok(Self {
       allowed_patterns: Arc::new(Mutex::new(allowed_patterns)),
@@ -130,6 +145,8 @@ impl Scope {
         require_literal_leading_dot,
         ..Default::default()
       },
+      default_allowed,
+      default_forbidden,
     })
   }
 
@@ -258,6 +275,86 @@ impl Scope {
       false
     }
   }
+
+  /// This removes any allowed or forbidden paths by resetting
+  /// the scope to its initial state which matches the scope defined in the configuration file.
+  ///
+  /// Returns the removed allowed and forbidden patterns.
+  pub fn reset(&self) -> ResetScope {
+    let mut allowed_patterns = self.allowed_patterns.lock().unwrap();
+    let mut forbidden_patterns = self.forbidden_patterns.lock().unwrap();
+    let allowed_diff = allowed_patterns
+      .difference(&self.default_allowed)
+      .cloned()
+      .collect();
+    let forbidden_diff = forbidden_patterns
+      .difference(&self.default_forbidden)
+      .cloned()
+      .collect();
+    *allowed_patterns = self.default_allowed.clone();
+    *forbidden_patterns = self.default_forbidden.clone();
+
+    ResetScope {
+      allowed_patterns: allowed_diff,
+      forbidden_patterns: forbidden_diff,
+    }
+  }
+
+  /// Extend the list of allowed patterns with the given iterator.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let scope = app.fs_scope();
+  ///     let reset = scope.reset();
+  ///     scope.extend_allowed(reset.allowed_patterns().into_iter().cloned());
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn extend_allowed<I: IntoIterator<Item = Pattern>>(&self, patterns: I) {
+    self.allowed_patterns.lock().unwrap().extend(patterns);
+  }
+
+  /// Extend the list of forbidden patterns with the given iterator.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let scope = app.fs_scope();
+  ///     let reset = scope.reset();
+  ///     scope.extend_forbidden(reset.forbidden_patterns().into_iter().cloned());
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn extend_forbidden<I: IntoIterator<Item = Pattern>>(&self, patterns: I) {
+    self.forbidden_patterns.lock().unwrap().extend(patterns);
+  }
+}
+
+/// Contains the scope information that was reset after calling [`reset`](`Scope#method.reset`).
+pub struct ResetScope {
+  allowed_patterns: HashSet<Pattern>,
+  forbidden_patterns: HashSet<Pattern>,
+}
+
+impl ResetScope {
+  /// The list of allowed patterns that were reset.
+  pub fn allowed_patterns(&self) -> &HashSet<Pattern> {
+    &self.allowed_patterns
+  }
+
+  /// The list of forbidden patterns that were reset.
+  pub fn forbidden_patterns(&self) -> &HashSet<Pattern> {
+    &self.forbidden_patterns
+  }
 }
 
 fn escaped_pattern(p: &str) -> Result<Pattern, glob::PatternError> {
@@ -274,7 +371,12 @@ fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternE
 
 #[cfg(test)]
 mod tests {
-  use super::Scope;
+  use std::{collections::HashSet, path::PathBuf};
+
+  use super::{escaped_pattern, escaped_pattern_with, push_pattern, Scope};
+  use crate::{test::mock_app, App};
+
+  use tauri_utils::{config::FsAllowlistScope, Env};
 
   fn new_scope() -> Scope {
     Scope {
@@ -286,109 +388,169 @@ mod tests {
         // see: https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5
         require_literal_separator: true,
         // dotfiles are not supposed to be exposed by default on unix
-        #[cfg(unix)]
-        require_literal_leading_dot: true,
-        #[cfg(windows)]
-        require_literal_leading_dot: false,
+        require_literal_leading_dot: cfg!(unix),
         ..Default::default()
       },
+      default_allowed: Default::default(),
+      default_forbidden: Default::default(),
     }
+  }
+
+  fn new_scope_from_allowlist<R: crate::Runtime>(app: &App<R>, scope: &FsAllowlistScope) -> Scope {
+    let env = Env::default();
+    Scope::for_fs_api(&app.config(), app.package_info(), &env, scope).unwrap()
   }
 
   #[test]
   fn path_is_escaped() {
     let scope = new_scope();
+
     #[cfg(unix)]
-    {
-      scope.allow_directory("/home/tauri/**", false).unwrap();
-      assert!(scope.is_allowed("/home/tauri/**"));
-      assert!(scope.is_allowed("/home/tauri/**/file"));
-      assert!(!scope.is_allowed("/home/tauri/anyfile"));
-    }
+    let home = PathBuf::from("/home/tauri");
     #[cfg(windows)]
-    {
-      scope.allow_directory("C:\\home\\tauri\\**", false).unwrap();
-      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+    let home = PathBuf::from("C:\\home\\tauri");
+
+    scope.allow_directory(home.join("**"), false).unwrap();
+    assert!(scope.is_allowed(home.join("**")));
+    assert!(scope.is_allowed(home.join("**").join("file")));
+    assert!(!scope.is_allowed(home.join("anyfile")));
 
     let scope = new_scope();
-    #[cfg(unix)]
-    {
-      scope.allow_file("/home/tauri/**").unwrap();
-      assert!(scope.is_allowed("/home/tauri/**"));
-      assert!(!scope.is_allowed("/home/tauri/**/file"));
-      assert!(!scope.is_allowed("/home/tauri/anyfile"));
-    }
-    #[cfg(windows)]
-    {
-      scope.allow_file("C:\\home\\tauri\\**").unwrap();
-      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+    scope.allow_file(home.join("**")).unwrap();
+    assert!(scope.is_allowed(home.join("**")));
+    assert!(!scope.is_allowed(home.join("**").join("file")));
+    assert!(!scope.is_allowed(home.join("anyfile")));
 
     let scope = new_scope();
-    #[cfg(unix)]
-    {
-      scope.allow_directory("/home/tauri", true).unwrap();
-      scope.forbid_directory("/home/tauri/**", false).unwrap();
-      assert!(!scope.is_allowed("/home/tauri/**"));
-      assert!(!scope.is_allowed("/home/tauri/**/file"));
-      assert!(scope.is_allowed("/home/tauri/**/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/inner/folder/anyfile"));
-      assert!(scope.is_allowed("/home/tauri/anyfile"));
-    }
-    #[cfg(windows)]
-    {
-      scope.allow_directory("C:\\home\\tauri", true).unwrap();
-      scope
-        .forbid_directory("C:\\home\\tauri\\**", false)
-        .unwrap();
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\inner\\folder\\anyfile"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+
+    scope.allow_directory(&home, true).unwrap();
+    scope.forbid_directory(home.join("**"), false).unwrap();
+    assert!(!scope.is_allowed(home.join("**")));
+    assert!(!scope.is_allowed(home.join("**").join("file")));
+    assert!(scope.is_allowed(home.join("**").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("inner").join("folder").join("anyfile")));
+    assert!(scope.is_allowed(home.join("anyfile")));
 
     let scope = new_scope();
-    #[cfg(unix)]
-    {
-      scope.allow_directory("/home/tauri", true).unwrap();
-      scope.forbid_file("/home/tauri/**").unwrap();
-      assert!(!scope.is_allowed("/home/tauri/**"));
-      assert!(scope.is_allowed("/home/tauri/**/file"));
-      assert!(scope.is_allowed("/home/tauri/**/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/anyfile"));
-    }
-    #[cfg(windows)]
-    {
-      scope.allow_directory("C:\\home\\tauri", true).unwrap();
-      scope.forbid_file("C:\\home\\tauri\\**").unwrap();
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+
+    scope.allow_directory(&home, true).unwrap();
+    scope.forbid_file(home.join("**")).unwrap();
+    assert!(!scope.is_allowed(home.join("**")));
+    assert!(scope.is_allowed(home.join("**").join("file")));
+    assert!(scope.is_allowed(home.join("**").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("anyfile")));
 
     let scope = new_scope();
+
+    scope.allow_directory(&home, false).unwrap();
+    assert!(scope.is_allowed(home.join("**")));
+    assert!(!scope.is_allowed(home.join("**").join("file")));
+    assert!(!scope.is_allowed(home.join("**").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("anyfile")));
+  }
+
+  fn patterns(path: PathBuf, directory: bool, recursive: bool) -> HashSet<glob::Pattern> {
+    let mut set = HashSet::new();
+    push_pattern(&mut set, &path, escaped_pattern).unwrap();
+    if directory {
+      push_pattern(&mut set, path, |p| {
+        escaped_pattern_with(p, if recursive { "**" } else { "*" })
+      })
+      .unwrap();
+    }
+    set
+  }
+
+  #[test]
+  fn reset() {
+    let app = mock_app();
+
     #[cfg(unix)]
-    {
-      scope.allow_directory("/home/tauri", false).unwrap();
-      assert!(scope.is_allowed("/home/tauri/**"));
-      assert!(!scope.is_allowed("/home/tauri/**/file"));
-      assert!(!scope.is_allowed("/home/tauri/**/inner/file"));
-      assert!(scope.is_allowed("/home/tauri/anyfile"));
-    }
+    let home = PathBuf::from("/home/tauri");
     #[cfg(windows)]
-    {
-      scope.allow_directory("C:\\home\\tauri", false).unwrap();
-      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
-      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
-      assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
-    }
+    let home = PathBuf::from("C:\\home\\tauri");
+
+    let allowlist = FsAllowlistScope::Scope {
+      allow: vec![home.join("allowed"), home.join("allowed").join("**")],
+      deny: vec![home.join("forbidden"), home.join("forbidden/**")],
+      require_literal_leading_dot: Some(cfg!(unix)),
+    };
+
+    let scope = new_scope_from_allowlist(&app, &allowlist);
+
+    assert!(scope.is_allowed(home.join("allowed")));
+    assert!(scope.is_allowed(home.join("allowed").join("file")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("allowed").join("**")));
+
+    assert!(!scope.is_allowed(home.join("forbidden")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("**")));
+
+    let scope = new_scope_from_allowlist(&app, &allowlist);
+
+    scope.allow_directory(&home, true).unwrap();
+    assert!(scope.is_allowed(home.join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("**")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
+
+    let reset = scope.reset();
+    assert_eq!(reset.allowed_patterns, patterns(home.clone(), true, true),);
+    assert_eq!(reset.forbidden_patterns, vec![].into_iter().collect());
+
+    assert!(!scope.is_allowed(home.join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("**")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
+
+    scope.allow_file(home.join("allowed_file")).unwrap();
+    scope.allow_directory(home.join("workspace"), true).unwrap();
+    scope.forbid_file(home.join("forbidden_file")).unwrap();
+    scope.forbid_directory(home.join("ignored"), true).unwrap();
+    assert!(scope.is_allowed(home.join("allowed_file")));
+    assert!(scope.is_allowed(home.join("workspace").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden_file")));
+    assert!(!scope.is_allowed(home.join("ignored").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
+
+    let reset = scope.reset();
+    let mut new_allowed = patterns(home.join("allowed_file"), false, false);
+    new_allowed.extend(patterns(home.join("workspace"), true, true));
+    let mut new_forbidden = patterns(home.join("forbidden_file"), false, false);
+    new_forbidden.extend(patterns(home.join("ignored"), true, true));
+    assert_eq!(reset.allowed_patterns, new_allowed);
+    assert_eq!(reset.forbidden_patterns, new_forbidden);
+
+    assert!(!scope.is_allowed(home.join("allowed_file")));
+    assert!(!scope.is_allowed(home.join("workspace").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden_file")));
+    assert!(!scope.is_allowed(home.join("ignored").join("inner").join("file")));
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
+
+    scope
+      .forbid_directory(home.join("allowed").join("inner"), true)
+      .unwrap();
+    scope
+      .allow_directory(home.join("forbidden").join("inner"), true)
+      .unwrap();
+    assert!(!scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
+
+    let reset = scope.reset();
+    assert_eq!(
+      reset.allowed_patterns,
+      patterns(home.join("forbidden").join("inner"), true, true)
+    );
+    assert_eq!(
+      reset.forbidden_patterns,
+      patterns(home.join("allowed").join("inner"), true, true)
+    );
+
+    assert!(scope.is_allowed(home.join("allowed").join("inner").join("file")));
+    assert!(!scope.is_allowed(home.join("forbidden").join("inner").join("file")));
   }
 }

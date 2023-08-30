@@ -102,6 +102,8 @@ jobs:
           cargo update -p serde_with:3.3.0 --precise 3.0.0
           cargo update -p tokio --precise 1.29.0
           cargo update -p flate2 --precise 1.0.26
+          cargo update -p h2 --precise 0.3.20
+          cargo update -p reqwest --precise 0.11.18
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

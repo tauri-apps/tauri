@@ -11,12 +11,13 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Webdriver server for Tauri applications"
 readme = "README.md"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.60"
 
 [dependencies]
 anyhow = "1"
 hyper = { version = "0.14", features = [ "client", "http1", "runtime", "server", "stream", "tcp" ] }
 futures = "0.3"
+futures-util = "0.3"
 pico-args = "0.4"
 serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"

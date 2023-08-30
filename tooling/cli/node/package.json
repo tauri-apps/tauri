@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Command line interface for building Tauri apps",
   "funding": {
     "type": "opencollective",
@@ -32,7 +32,8 @@
         "aarch64-unknown-linux-musl",
         "armv7-unknown-linux-gnueabihf",
         "x86_64-unknown-linux-musl",
-        "i686-pc-windows-msvc"
+        "i686-pc-windows-msvc",
+        "aarch64-pc-windows-msvc"
       ]
     }
   },
@@ -46,7 +47,7 @@
     "prettier": "2.8.8"
   },
   "resolutions": {
-    "json5": "2.2.3"
+    "semver": ">=7.5.2"
   },
   "engines": {
     "node": ">= 10"

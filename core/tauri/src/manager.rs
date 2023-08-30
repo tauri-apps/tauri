@@ -25,7 +25,6 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
@@ -50,6 +49,10 @@ use crate::{
   },
   Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
+};
+use crate::{
+  app::{GlobalMenuEventListener, WindowMenuEvent},
+  window::WindowEmitArgs,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -219,7 +222,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   package_info: PackageInfo,
   /// The webview protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+  uri_scheme_protocols: Mutex<HashMap<String, Arc<CustomProtocol<R>>>>,
   /// The menu set to all windows.
   menu: Option<Menu>,
   /// Menu event listeners to all windows.
@@ -321,7 +324,7 @@ impl<R: Runtime> WindowManager<R> {
         tray_icon: context.system_tray_icon,
         package_info: context.package_info,
         pattern: context.pattern,
-        uri_scheme_protocols,
+        uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         menu,
         menu_event_listeners: Arc::new(menu_event_listeners),
         window_event_listeners: Arc::new(window_event_listeners),
@@ -348,6 +351,20 @@ impl<R: Runtime> WindowManager<R> {
   /// The invoke responder.
   pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
     self.inner.invoke_responder.clone()
+  }
+
+  pub(crate) fn register_uri_scheme_protocol<N: Into<String>>(
+    &self,
+    uri_scheme: N,
+    protocol: Arc<CustomProtocol<R>>,
+  ) {
+    let uri_scheme = uri_scheme.into();
+    self
+      .inner
+      .uri_scheme_protocols
+      .lock()
+      .unwrap()
+      .insert(uri_scheme, protocol);
   }
 
   /// Get the base path to serve data from.
@@ -461,7 +478,7 @@ impl<R: Runtime> WindowManager<R> {
 
     let mut registered_scheme_protocols = Vec::new();
 
-    for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
+    for (uri_scheme, protocol) in &*self.inner.uri_scheme_protocols.lock().unwrap() {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
       let app_handle = Mutex::new(app_handle.clone());
@@ -778,30 +795,7 @@ impl<R: Runtime> WindowManager<R> {
     };
 
     #[cfg(any(debug_assertions, feature = "devtools"))]
-    let hotkeys = &format!(
-      "
-      {};
-      window.hotkeys('{}', () => {{
-        window.__TAURI_INVOKE__('tauri', {{
-          __tauriModule: 'Window',
-          message: {{
-            cmd: 'manage',
-            data: {{
-              cmd: {{
-                type: '__toggleDevtools'
-              }}
-            }}
-          }}
-        }});
-      }});
-    ",
-      include_str!("../scripts/hotkey.js"),
-      if cfg!(target_os = "macos") {
-        "command+option+i"
-      } else {
-        "ctrl+shift+i"
-      }
-    );
+    let hotkeys = include_str!("../scripts/toggle-devtools.js");
     #[cfg(not(any(debug_assertions, feature = "devtools")))]
     let hotkeys = "";
 
@@ -1111,12 +1105,13 @@ impl<R: Runtime> WindowManager<R> {
     S: Serialize + Clone,
     F: Fn(&Window<R>) -> bool,
   {
+    let emit_args = WindowEmitArgs::from(event, source_window_label, payload)?;
     assert_event_name_is_valid(event);
     self
-      .windows_lock()
+      .windows()
       .values()
       .filter(|&w| filter(w))
-      .try_for_each(|window| window.emit_internal(event, source_window_label, payload.clone()))
+      .try_for_each(|window| window.emit_internal(&emit_args))
   }
 
   pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {

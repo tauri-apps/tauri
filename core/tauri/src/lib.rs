@@ -610,7 +610,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().config()
   }
 
-  /// Emits a event to all windows.
+  /// Emits an event to all windows.
   ///
   /// Only the webviews receives this event.
   /// To trigger Rust listeners, use [`Self::trigger_global`], [`Window::trigger`] or [`Window::emit_and_trigger`].
@@ -627,6 +627,26 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// ```
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, None, payload, |_| true)
+  }
+
+  /// Emits an event to windows matching the filter critera.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(app: tauri::AppHandle) {
+  ///   // emits the synchronized event to all windows
+  ///   app.emit_filter("synchronized", (), |w| w.label().starts_with("foo-"));
+  /// }
+  /// ```
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&Window<R>) -> bool,
+  {
+    self.manager().emit_filter(event, None, payload, filter)
   }
 
   /// Emits an event to the window with the specified label.
@@ -756,18 +776,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Add `state` to the state managed by the application.
   ///
-  /// This method can be called any number of times as long as each call
-  /// refers to a different `T`.
-  /// If a state for `T` is already managed, the function returns false and the value is ignored.
+  /// If the state for the `T` type has previously been set, the state is unchanged and false is returned. Otherwise true is returned.
   ///
   /// Managed state can be retrieved by any command handler via the
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
-  ///
-  /// # Panics
-  ///
-  /// Panics if state of type `T` is already being managed.
+  /// Additionally, [`state`](Self#method.state) can be used to retrieve the value manually.
   ///
   /// # Mutability
   ///

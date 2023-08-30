@@ -3,13 +3,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ffi::OsString;
-use std::{fs::File, io::prelude::*, path::PathBuf, process::Command};
+use std::{
+  env::{var, var_os},
+  ffi::OsString,
+  fs::File,
+  io::prelude::*,
+  path::PathBuf,
+  process::Command,
+};
 
 use crate::{bundle::common::CommandExt, Settings};
 use anyhow::Context;
 use log::info;
-use regex::Regex;
+use serde::Deserialize;
 
 const KEYCHAIN_ID: &str = "tauri-build.keychain";
 const KEYCHAIN_PWD: &str = "tauri-build";
@@ -147,8 +153,8 @@ pub fn sign(
   info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
 
   let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
-    std::env::var_os("APPLE_CERTIFICATE"),
-    std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
+    var_os("APPLE_CERTIFICATE"),
+    var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
     // setup keychain allow you to import your certificate
     // for CI build
@@ -212,13 +218,18 @@ fn try_sign(
   Ok(())
 }
 
+#[derive(Deserialize)]
+struct NotarytoolSubmitOutput {
+  id: String,
+  status: String,
+  message: String,
+}
+
 pub fn notarize(
   app_bundle_path: PathBuf,
-  auth_args: Vec<String>,
+  auth: NotarizeAuth,
   settings: &Settings,
 ) -> crate::Result<()> {
-  let identifier = settings.bundle_identifier();
-
   let bundle_stem = app_bundle_path
     .file_stem()
     .expect("failed to get bundle filename");
@@ -252,55 +263,47 @@ pub fn notarize(
     sign(zip_path.clone(), identity, settings, false)?;
   };
 
-  let mut notarize_args = vec![
-    "altool",
-    "--notarize-app",
-    "-f",
+  let notarize_args = vec![
+    "notarytool",
+    "submit",
     zip_path
       .to_str()
       .expect("failed to convert zip_path to string"),
-    "--primary-bundle-id",
-    identifier,
+    "--wait",
+    "--output-format",
+    "json",
   ];
-
-  if let Some(provider_short_name) = &settings.macos().provider_short_name {
-    notarize_args.push("--asc-provider");
-    notarize_args.push(provider_short_name);
-  }
 
   info!(action = "Notarizing"; "{}", app_bundle_path.display());
 
   let output = Command::new("xcrun")
     .args(notarize_args)
-    .args(auth_args.clone())
+    .notarytool_args(&auth)
     .output_ok()
     .context("failed to upload app to Apple's notarization servers.")?;
 
-  // combine both stdout and stderr to support macOS below 10.15
-  let mut notarize_response = std::str::from_utf8(&output.stdout)?.to_string();
-  notarize_response.push('\n');
-  notarize_response.push_str(std::str::from_utf8(&output.stderr)?);
-  notarize_response.push('\n');
-  if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
-    .captures_iter(&notarize_response)
-    .next()
-  {
-    info!("notarization started; waiting for Apple response...");
-
-    let uuid = uuid[1].to_string();
-    get_notarization_status(uuid, auth_args)?;
-    staple_app(app_bundle_path.clone())?;
-  } else {
-    return Err(
-      anyhow::anyhow!(
-        "failed to parse RequestUUID from upload output. {}",
-        notarize_response
-      )
-      .into(),
-    );
+  if !output.status.success() {
+    return Err(anyhow::anyhow!("failed to notarize app").into());
   }
 
-  Ok(())
+  let output_str = String::from_utf8_lossy(&output.stdout);
+  if let Ok(submit_output) = serde_json::from_str::<NotarytoolSubmitOutput>(&output_str) {
+    let log_message = format!(
+      "Finished with status {} for id {} ({})",
+      submit_output.status, submit_output.id, submit_output.message
+    );
+    if submit_output.status == "Accepted" {
+      log::info!(action = "Notarizing"; "{}", log_message);
+      staple_app(app_bundle_path)?;
+      Ok(())
+    } else {
+      Err(anyhow::anyhow!("{log_message}").into())
+    }
+  } else {
+    return Err(
+      anyhow::anyhow!("failed to parse notarytool output as JSON: `{output_str}`").into(),
+    );
+  }
 }
 
 fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
@@ -322,82 +325,66 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
   Ok(())
 }
 
-fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Result<()> {
-  std::thread::sleep(std::time::Duration::from_secs(10));
-  let result = Command::new("xcrun")
-    .args(vec!["altool", "--notarization-info", &uuid])
-    .args(auth_args.clone())
-    .output_ok();
+pub enum NotarizeAuth {
+  AppleId {
+    apple_id: String,
+    password: String,
+  },
+  ApiKey {
+    key: String,
+    key_path: PathBuf,
+    issuer: String,
+  },
+}
 
-  if let Ok(output) = result {
-    // combine both stdout and stderr to support macOS below 10.15
-    let mut notarize_status = std::str::from_utf8(&output.stdout)?.to_string();
-    notarize_status.push('\n');
-    notarize_status.push_str(std::str::from_utf8(&output.stderr)?);
-    notarize_status.push('\n');
-    if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
-      .captures_iter(&notarize_status)
-      .next()
-    {
-      let status = status[1].to_string();
-      if status == "in progress" {
-        get_notarization_status(uuid, auth_args)
-      } else if status == "invalid" {
-        Err(
-          anyhow::anyhow!(format!(
-            "Apple failed to notarize your app. {}",
-            notarize_status
-          ))
-          .into(),
-        )
-      } else if status != "success" {
-        Err(
-          anyhow::anyhow!(format!(
-            "Unknown notarize status {}. {}",
-            status, notarize_status
-          ))
-          .into(),
-        )
-      } else {
-        Ok(())
-      }
-    } else {
-      get_notarization_status(uuid, auth_args)
+pub trait NotarytoolCmdExt {
+  fn notarytool_args(&mut self, auth: &NotarizeAuth) -> &mut Self;
+}
+
+impl NotarytoolCmdExt for Command {
+  fn notarytool_args(&mut self, auth: &NotarizeAuth) -> &mut Self {
+    match auth {
+      NotarizeAuth::AppleId { apple_id, password } => self
+        .arg("--apple-id")
+        .arg(apple_id)
+        .arg("--password")
+        .arg(password),
+      NotarizeAuth::ApiKey {
+        key,
+        key_path,
+        issuer,
+      } => self
+        .arg("--key-id")
+        .arg(key)
+        .arg("--key")
+        .arg(key_path)
+        .arg("--issuer")
+        .arg(issuer),
     }
-  } else {
-    get_notarization_status(uuid, auth_args)
   }
 }
 
-pub fn notarize_auth_args() -> crate::Result<Vec<String>> {
-  match (
-    std::env::var_os("APPLE_ID"),
-    std::env::var_os("APPLE_PASSWORD"),
-  ) {
+pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
+  match (var_os("APPLE_ID"), var_os("APPLE_PASSWORD")) {
     (Some(apple_id), Some(apple_password)) => {
       let apple_id = apple_id
         .to_str()
         .expect("failed to convert APPLE_ID to string")
         .to_string();
-      let apple_password = apple_password
+      let password = apple_password
         .to_str()
         .expect("failed to convert APPLE_PASSWORD to string")
         .to_string();
-      Ok(vec![
-        "-u".to_string(),
-        apple_id,
-        "-p".to_string(),
-        apple_password,
-      ])
+      Ok(NotarizeAuth::AppleId { apple_id, password })
     }
     _ => {
-      match (std::env::var_os("APPLE_API_KEY"), std::env::var_os("APPLE_API_ISSUER")) {
-        (Some(api_key), Some(api_issuer)) => {
-          let api_key = api_key.to_str().expect("failed to convert APPLE_API_KEY to string").to_string();
-          let api_issuer = api_issuer.to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
-          Ok(vec!["--apiKey".to_string(), api_key, "--apiIssuer".to_string(), api_issuer])
+      match (var_os("APPLE_API_KEY"), var_os("APPLE_API_ISSUER"), var("APPLE_API_KEY_PATH")) {
+        (Some(api_key), Some(api_issuer), Ok(key_path)) => {
+          let key = api_key.to_str().expect("failed to convert APPLE_API_KEY to string").to_string();
+          let issuer = api_issuer.to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
+          Ok(NotarizeAuth::ApiKey { key, key_path: key_path.into(), issuer })
         },
-        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER environment variables found").into())
+        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
       }
     }
   }

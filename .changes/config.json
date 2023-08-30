@@ -7,7 +7,9 @@
     "bug": "Bug Fixes",
     "pref": "Performance Improvements",
     "changes": "What's Changed",
-    "deps": "Dependencies"
+    "sec": "Security fixes",
+    "deps": "Dependencies",
+    "breaking": "Breaking Changes"
   },
   "defaultChangeTag": "changes",
   "pkgManagers": {

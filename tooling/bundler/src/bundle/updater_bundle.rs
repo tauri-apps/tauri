@@ -238,12 +238,22 @@ fn create_tar(src_dir: &Path, dest_path: &Path) -> crate::Result<PathBuf> {
   let gzip_encoder = libflate::gzip::Encoder::new(dest_file)?;
 
   let gzip_encoder = create_tar_from_src(src_dir, gzip_encoder)?;
+
   let mut dest_file = gzip_encoder.finish().into_result()?;
   dest_file.flush()?;
   Ok(dest_path.to_owned())
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "macos")]
+fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
+  let src_dir = src_dir.as_ref();
+  let mut builder = tar::Builder::new(dest_file);
+  builder.follow_symlinks(false);
+  builder.append_dir_all(src_dir.file_name().expect("Path has no file_name"), src_dir)?;
+  builder.into_inner().map_err(Into::into)
+}
+
+#[cfg(target_os = "linux")]
 fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
   let src_dir = src_dir.as_ref();
   let mut tar_builder = tar::Builder::new(dest_file);

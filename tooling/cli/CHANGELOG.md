@@ -1,5 +1,28 @@
 # Changelog
 
+## \[1.4.0]
+
+### New Features
+
+- [`0ddbb3a1`](https://www.github.com/tauri-apps/tauri/commit/0ddbb3a1dc1961ba5c6c1a60081513c1380c8af1)([#7015](https://www.github.com/tauri-apps/tauri/pull/7015)) Provide prebuilt CLIs for Windows ARM64 targets.
+- [`35cd751a`](https://www.github.com/tauri-apps/tauri/commit/35cd751adc6fef1f792696fa0cfb471b0bf99374)([#5176](https://www.github.com/tauri-apps/tauri/pull/5176)) Added the `desktop_template` option on `tauri.conf.json > tauri > bundle > deb`.
+- [`6c5ade08`](https://www.github.com/tauri-apps/tauri/commit/6c5ade08d97844bb685789d30e589400bbe3e04c)([#4537](https://www.github.com/tauri-apps/tauri/pull/4537)) Added `tauri completions` to generate shell completions scripts.
+- [`29488205`](https://www.github.com/tauri-apps/tauri/commit/2948820579d20dfaa0861c2f0a58bd7737a7ffd1)([#6867](https://www.github.com/tauri-apps/tauri/pull/6867)) Allow specifying custom language files of Tauri's custom messages for the NSIS installer
+- [`e092f799`](https://www.github.com/tauri-apps/tauri/commit/e092f799469ff32c7d1595d0f07d06fd2dab5c29)([#6887](https://www.github.com/tauri-apps/tauri/pull/6887)) Add `nsis > template` option to specify custom NSIS installer template.
+
+### Enhancements
+
+- [`d75c1b82`](https://www.github.com/tauri-apps/tauri/commit/d75c1b829bd96d9e3a672bcc79120597d5ada4a0)([#7181](https://www.github.com/tauri-apps/tauri/pull/7181)) Print a useful error when `updater` bundle target is specified without an updater-enabled target.
+- [`52474e47`](https://www.github.com/tauri-apps/tauri/commit/52474e479d695865299d8c8d868fb98b99731020)([#7141](https://www.github.com/tauri-apps/tauri/pull/7141)) Enhance injection of Cargo features.
+- [`2659ca1a`](https://www.github.com/tauri-apps/tauri/commit/2659ca1ab4799a5bda65c229c149e98bd01eb1ee)([#6900](https://www.github.com/tauri-apps/tauri/pull/6900)) Add `rustls` as default Cargo feature.
+- [`c7056d1b`](https://www.github.com/tauri-apps/tauri/commit/c7056d1b202927d025aa479818c2fb20bf5d6113)([#6982](https://www.github.com/tauri-apps/tauri/pull/6982)) Improve Visual Studio installation detection in `tauri info` command to check for the necessary components instead of whole workloads. This also fixes the detection of minimal installations and auto-installations done by `rustup`.
+
+### Bug Fixes
+
+- [`3cb7a3e6`](https://www.github.com/tauri-apps/tauri/commit/3cb7a3e642bb10ee90dc1d24daa48b8c8c15c9ce)([#6997](https://www.github.com/tauri-apps/tauri/pull/6997)) Fix built-in devserver adding hot-reload code to non-html files.
+- [`fd3b5a16`](https://www.github.com/tauri-apps/tauri/commit/fd3b5a16b13d62f62c850e68763401916dde26f2)([#6954](https://www.github.com/tauri-apps/tauri/pull/6954)) Fix building with a custom cargo profile
+- [`1253bbf7`](https://www.github.com/tauri-apps/tauri/commit/1253bbf7ae11a87887e0b3bd98cc26dbb98c8130)([#7013](https://www.github.com/tauri-apps/tauri/pull/7013)) Fixes Cargo.toml feature rewriting.
+
 ## \[1.3.1]
 
 - Correctly escape XML for resource files in WiX bundler.

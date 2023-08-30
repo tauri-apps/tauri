@@ -62,10 +62,21 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
 fn get_tauri_dir() -> PathBuf {
   let cwd = current_dir().expect("failed to read cwd");
 
-  if cwd.join("src-tauri/tauri.conf.json").exists()
-    || cwd.join("src-tauri/tauri.conf.json5").exists()
+  if cwd.join(ConfigFormat::Json.into_file_name()).exists()
+    || cwd.join(ConfigFormat::Json5.into_file_name()).exists()
+    || cwd.join(ConfigFormat::Toml.into_file_name()).exists()
   {
-    return cwd.join("src-tauri/");
+    return cwd;
+  }
+
+  let src_tauri = cwd.join("src-tauri");
+  if src_tauri.join(ConfigFormat::Json.into_file_name()).exists()
+    || src_tauri
+      .join(ConfigFormat::Json5.into_file_name())
+      .exists()
+    || src_tauri.join(ConfigFormat::Toml.into_file_name()).exists()
+  {
+    return src_tauri;
   }
 
   lookup(&cwd, |path| folder_has_configuration_file(path) || is_configuration_file(path))
@@ -80,7 +91,13 @@ fn get_tauri_dir() -> PathBuf {
 }
 
 fn get_app_dir() -> Option<PathBuf> {
-  lookup(&current_dir().expect("failed to read cwd"), |path| {
+  let cwd = current_dir().expect("failed to read cwd");
+
+  if cwd.join("package.json").exists() {
+    return Some(cwd);
+  }
+
+  lookup(&cwd, |path| {
     if let Some(file_name) = path.file_name() {
       file_name == OsStr::new("package.json")
     } else {

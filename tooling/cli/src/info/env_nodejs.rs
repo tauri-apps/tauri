@@ -68,6 +68,7 @@ pub fn items(metadata: &VersionMetadata) -> (Vec<SectionItem>, Option<String>) {
       }),
       SectionItem::new().description_opt(yarn.as_ref().map(|v| (format!("yarn: {v}")))),
       SectionItem::new().action(|| manager_version("npm").map(|v| format!("npm: {}", v)).into()),
+      SectionItem::new().action(|| manager_version("bun").map(|v| format!("bun: {}", v)).into()),
     ],
     yarn,
   )

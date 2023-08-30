@@ -20,6 +20,7 @@ enum PackageManager {
   Pnpm,
   Yarn,
   YarnBerry,
+  Bun,
 }
 
 impl Display for PackageManager {
@@ -32,6 +33,7 @@ impl Display for PackageManager {
         PackageManager::Pnpm => "pnpm",
         PackageManager::Yarn => "yarn",
         PackageManager::YarnBerry => "yarn berry",
+        PackageManager::Bun => "bun",
       }
     )
   }
@@ -94,6 +96,18 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
         Ok(None)
       }
     }
+    // Bun doesn't support `info` command
+    PackageManager::Bun => {
+      let mut cmd = cross_command("npm");
+
+      let output = cmd.arg("show").arg(name).arg("version").output()?;
+      if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        Ok(Some(stdout.replace('\n', "")))
+      } else {
+        Ok(None)
+      }
+    }
   }
 }
 
@@ -139,6 +153,16 @@ fn npm_package_version<P: AsRef<Path>>(
         .output()?,
       None,
     ),
+    // Bun doesn't support `list` command
+    PackageManager::Bun => (
+      cross_command("npm")
+        .arg("list")
+        .arg(name)
+        .args(["version", "--depth", "0"])
+        .current_dir(app_dir)
+        .output()?,
+      None,
+    ),
   };
   if output.status.success() {
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -158,6 +182,7 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
   let mut use_npm = false;
   let mut use_pnpm = false;
   let mut use_yarn = false;
+  let mut use_bun = false;
 
   for name in app_dir_entries {
     if name.as_ref() == "package-lock.json" {
@@ -166,10 +191,12 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
       use_pnpm = true;
     } else if name.as_ref() == "yarn.lock" {
       use_yarn = true;
+    } else if name.as_ref() == "bun.lockb" {
+      use_bun = true;
     }
   }
 
-  if !use_npm && !use_pnpm && !use_yarn {
+  if !use_npm && !use_pnpm && !use_yarn && !use_bun {
     println!(
       "{}: no lock files found, defaulting to npm",
       "WARNING".yellow()
@@ -188,6 +215,9 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
   if use_yarn {
     found.push(PackageManager::Yarn);
   }
+  if use_bun {
+    found.push(PackageManager::Bun);
+  }
 
   if found.len() > 1 {
     let pkg_manger = found[0];
@@ -204,6 +234,8 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
     PackageManager::Npm
   } else if use_pnpm {
     PackageManager::Pnpm
+  } else if use_bun {
+    PackageManager::Bun
   } else {
     PackageManager::Yarn
   }

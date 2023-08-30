@@ -734,6 +734,10 @@ fn copy_files_and_run<R: Read + Seek>(
     |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
   );
 
+  let current_args = std::env::args_os()
+    .skip(1)
+    .collect::<Vec<std::ffi::OsString>>();
+
   for path in paths {
     let found_path = path?.path();
     // we support 2 type of files exe & msi for now
@@ -747,28 +751,35 @@ fn copy_files_and_run<R: Read + Seek>(
 
       // Run the EXE
       Command::new(powershell_path)
-        .args(["-NoProfile", "-WindowStyle", "Hidden"])
-        .args(["Start-Process"])
+        .args(["-NoProfile", "-WindowStyle", "Hidden", "Start-Process"])
         .arg(found_path)
         .arg("-ArgumentList")
         .arg(
           [
-            config.tauri.updater.windows.install_mode.nsis_args(),
+            config
+              .tauri
+              .updater
+              .windows
+              .install_mode
+              .nsis_args()
+              .iter()
+              .map(Into::into)
+              .collect(),
+            current_args,
             config
               .tauri
               .updater
               .windows
               .installer_args
               .iter()
-              .map(AsRef::as_ref)
-              .collect::<Vec<_>>()
-              .as_slice(),
+              .map(Into::into)
+              .collect::<Vec<_>>(),
           ]
           .concat()
-          .join(", "),
+          .join(std::ffi::OsStr::new(", ")),
         )
         .spawn()
-        .expect("installer failed to start");
+        .expect("Running NSIS installer from powershell has failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -848,6 +859,8 @@ fn copy_files_and_run<R: Read + Seek>(
         .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
         .arg("Start-Process")
         .arg(current_exe_arg)
+        .arg("-ArgumentList")
+        .arg(current_args.join(std::ffi::OsStr::new(", ")))
         .spawn();
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available

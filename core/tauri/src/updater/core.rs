@@ -831,7 +831,7 @@ fn copy_files_and_run<R: Read + Seek>(
       // we need to wrap the current exe path in quotes for Start-Process
       let mut current_executable = std::ffi::OsString::new();
       current_executable.push("\"");
-      current_executable.push(current_exe()?);
+      current_executable.push(dunce::simplified(&current_exe()?));
       current_executable.push("\"");
 
       let mut mis_path = std::ffi::OsString::new();

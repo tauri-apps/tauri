@@ -736,7 +736,7 @@ fn copy_files_and_run<R: Read + Seek>(
     |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
   );
 
-  let current_args = std::env::args_os()
+  let current_exe_args = std::env::args_os()
     .skip(1)
     .collect::<Vec<std::ffi::OsString>>();
 
@@ -762,7 +762,7 @@ fn copy_files_and_run<R: Read + Seek>(
           .iter()
           .map(Into::into)
           .collect(),
-        current_args,
+        current_exe_args,
         config
           .tauri
           .updater
@@ -829,15 +829,15 @@ fn copy_files_and_run<R: Read + Seek>(
       }
 
       // we need to wrap the current exe path in quotes for Start-Process
-      let mut current_exe_arg = std::ffi::OsString::new();
-      current_exe_arg.push("\"");
-      current_exe_arg.push(current_exe()?);
-      current_exe_arg.push("\"");
+      let mut current_executable = std::ffi::OsString::new();
+      current_executable.push("\"");
+      current_executable.push(current_exe()?);
+      current_executable.push("\"");
 
-      let mut msi_path_arg = std::ffi::OsString::new();
-      msi_path_arg.push("\"\"\"");
-      msi_path_arg.push(&found_path);
-      msi_path_arg.push("\"\"\"");
+      let mut mis_path = std::ffi::OsString::new();
+      mis_path.push("\"\"\"");
+      mis_path.push(&found_path);
+      mis_path.push("\"\"\"");
 
       let mut msiexec_args = config
         .tauri
@@ -850,6 +850,12 @@ fn copy_files_and_run<R: Read + Seek>(
         .collect::<Vec<String>>();
       msiexec_args.extend(config.tauri.updater.windows.installer_args.clone());
 
+      let mut current_args = OsString::new();
+      for arg in current_exe_args {
+        current_args.push(arg);
+        current_args.push(", ");
+      }
+
       // run the installer and relaunch the application
       let powershell_install_res = Command::new(powershell_path)
         .args(["-NoProfile", "-WindowStyle", "Hidden"])
@@ -861,12 +867,12 @@ fn copy_files_and_run<R: Read + Seek>(
           "-ArgumentList",
         ])
         .arg("/i,")
-        .arg(msi_path_arg)
+        .arg(mis_path)
         .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
         .arg("Start-Process")
-        .arg(current_exe_arg)
+        .arg(current_executable)
         .arg("-ArgumentList")
-        .arg(current_args.join(std::ffi::OsStr::new(", ")))
+        .arg(current_args)
         .spawn();
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available

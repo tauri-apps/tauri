@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, FileAssociation, NSISInstallerMode, NsisCompressor},
+  config::{BundleType, FileAssociation, NSISInstallerMode, NsisCompression},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -290,7 +290,7 @@ pub struct NsisSettings {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
-  pub compression: Option<NsisCompressor>,
+  pub compression: Option<NsisCompression>,
 }
 
 /// The Windows bundle settings.

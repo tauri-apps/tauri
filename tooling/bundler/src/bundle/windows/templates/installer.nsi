@@ -36,7 +36,11 @@ OutFile "${OUTFILE}"
 Unicode true
 
 ; Set the compression algorithm. Default is LZMA.
-SetCompressor /SOLID "${SETCOMPRESSOR}"
+!if "${COMPRESSION}" == ""
+  SetCompressor /SOLID lzma
+!else
+  SetCompressor /SOLID "${COMPRESSION}"
+!endif
 
 VIProductVersion "${VERSIONWITHBUILD}"
 VIAddVersionKey "ProductName" "${PRODUCTNAME}"

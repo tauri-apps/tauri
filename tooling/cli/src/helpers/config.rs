@@ -108,7 +108,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     languages: config.languages,
     custom_language_files: config.custom_language_files,
     display_language_selector: config.display_language_selector,
-    set_compressor: config.set_compressor,
+    compression: config.compression,
   }
 }
 

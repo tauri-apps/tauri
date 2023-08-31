@@ -717,6 +717,8 @@ fn copy_files_and_run<R: Read + Seek>(
   // shouldn't drop but we should be able to pass the reference so we can drop it once the installation
   // is done, otherwise we have a huge memory leak.
 
+  use std::ffi::OsString;
+
   let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
 
   // extract the buffer to the tmp_dir
@@ -744,40 +746,44 @@ fn copy_files_and_run<R: Read + Seek>(
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // we need to wrap the installer path in quotes for Start-Process
-      let mut installer_arg = std::ffi::OsString::new();
-      installer_arg.push("\"");
-      installer_arg.push(&found_path);
-      installer_arg.push("\"");
+      let mut installer_path = std::ffi::OsString::new();
+      installer_path.push("\"");
+      installer_path.push(&found_path);
+      installer_path.push("\"");
+
+      let mut installer_args = OsString::new();
+      for arg in [
+        config
+          .tauri
+          .updater
+          .windows
+          .install_mode
+          .nsis_args()
+          .iter()
+          .map(Into::into)
+          .collect(),
+        current_args,
+        config
+          .tauri
+          .updater
+          .windows
+          .installer_args
+          .iter()
+          .map(Into::into)
+          .collect::<Vec<_>>(),
+      ]
+      .concat()
+      {
+        installer_args.push(arg);
+        installer_args.push(", ");
+      }
 
       // Run the EXE
       Command::new(powershell_path)
         .args(["-NoProfile", "-WindowStyle", "Hidden", "Start-Process"])
-        .arg(found_path)
+        .arg(installer_path)
         .arg("-ArgumentList")
-        .arg(
-          [
-            config
-              .tauri
-              .updater
-              .windows
-              .install_mode
-              .nsis_args()
-              .iter()
-              .map(Into::into)
-              .collect(),
-            current_args,
-            config
-              .tauri
-              .updater
-              .windows
-              .installer_args
-              .iter()
-              .map(Into::into)
-              .collect::<Vec<_>>(),
-          ]
-          .concat()
-          .join(std::ffi::OsStr::new(", ")),
-        )
+        .arg(installer_args)
         .spawn()
         .expect("Running NSIS installer from powershell has failed to start");
 

@@ -21,7 +21,7 @@ use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
 use tauri_utils::{
-  config::{NSISInstallerMode, WebviewInstallMode},
+  config::{NSISInstallerMode, NsisCompressor, WebviewInstallMode},
   resources::resource_relpath,
 };
 
@@ -241,6 +241,16 @@ fn build_nsis_app_installer(
       data.insert(
         "sidebar_image",
         to_json(dunce::canonicalize(sidebar_image)?),
+      );
+    }
+    if let Some(compressor) = &nsis.set_compressor {
+      data.insert(
+        "set_compressor",
+        to_json(match compressor {
+          NsisCompressor::Zlib => "zlib",
+          NsisCompressor::Bzip2 => "bzip2",
+          NsisCompressor::Lzma => "lzma",
+        }),
       );
     }
 

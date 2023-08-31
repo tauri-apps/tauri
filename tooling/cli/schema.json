@@ -1727,6 +1727,17 @@
           "description": "Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not. By default the OS language is selected, with a fallback to the first language in the `languages` array.",
           "default": false,
           "type": "boolean"
+        },
+        "setCompressor": {
+          "description": "Set the compression algorithm used to compress files in the installer.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NsisCompressor"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1753,6 +1764,32 @@
           "type": "string",
           "enum": [
             "both"
+          ]
+        }
+      ]
+    },
+    "NsisCompressor": {
+      "description": "Compression algorithms used in the NSIS installer.",
+      "oneOf": [
+        {
+          "description": "ZLIB compressor",
+          "type": "string",
+          "enum": [
+            "zlib"
+          ]
+        },
+        {
+          "description": "BZIP2 compressor",
+          "type": "string",
+          "enum": [
+            "bzip2"
+          ]
+        },
+        {
+          "description": "LZMA compressor (default)",
+          "type": "string",
+          "enum": [
+            "lzma"
           ]
         }
       ]

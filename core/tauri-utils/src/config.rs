@@ -438,6 +438,19 @@ pub struct WixConfig {
   pub dialog_image_path: Option<PathBuf>,
 }
 
+/// Compression algorithms used in the NSIS installer.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum NsisCompressor {
+  /// ZLIB compressor
+  Zlib,
+  /// BZIP2 compressor
+  Bzip2,
+  /// LZMA compressor (default)
+  Lzma,
+}
+
 /// Configuration for the Installer bundle using NSIS.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -480,6 +493,8 @@ pub struct NsisConfig {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   #[serde(default, alias = "display-language-selector")]
   pub display_language_selector: bool,
+  /// Set the compression algorithm used to compress files in the installer.
+  pub set_compressor: Option<NsisCompressor>,
 }
 
 /// Install Modes for the NSIS installer.

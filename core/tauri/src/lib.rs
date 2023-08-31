@@ -242,7 +242,7 @@ pub fn log_stdout() {
       if let Ok(len) = reader.read_line(&mut buffer) {
         if len == 0 {
           break;
-        } else if let Ok(msg) = CString::new(buffer.clone())
+        } else if let Ok(msg) = CString::new(buffer.as_bytes())
           .map_err(|_| ())
           .and_then(|c| c.into_string().map_err(|_| ()))
         {

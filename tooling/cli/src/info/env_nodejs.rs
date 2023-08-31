@@ -89,6 +89,28 @@ pub fn items(metadata: &VersionMetadata) -> (Vec<SectionItem>, Option<String>) {
         false,
       ),
       SectionItem::new(
+        || {
+          cross_command("bun")
+            .arg("-v")
+            .output()
+            .map(|o| {
+              if o.status.success() {
+                let v = String::from_utf8_lossy(o.stdout.as_slice()).to_string();
+                Some((
+                  format!("bun: {}", v.split('\n').next().unwrap()),
+                  Status::Neutral,
+                ))
+              } else {
+                None
+              }
+            })
+            .ok()
+            .unwrap_or_default()
+        },
+        || None,
+        false,
+      ),
+      SectionItem::new(
         move || {
           yarn_version_c
             .as_ref()

@@ -289,8 +289,8 @@ pub struct NsisSettings {
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
-  /// Set compression algorithm used in the installer.
-  pub set_compressor: Option<NsisCompressor>,
+  /// Set compression algorithm used to compress files in the installer.
+  pub compression: Option<NsisCompressor>,
 }
 
 /// The Windows bundle settings.

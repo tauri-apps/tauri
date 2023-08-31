@@ -439,6 +439,8 @@ pub struct WixConfig {
 }
 
 /// Compression algorithms used in the NSIS installer.
+///
+/// See <https://nsis.sourceforge.io/Reference/SetCompressor>
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -494,7 +496,9 @@ pub struct NsisConfig {
   #[serde(default, alias = "display-language-selector")]
   pub display_language_selector: bool,
   /// Set the compression algorithm used to compress files in the installer.
-  pub set_compressor: Option<NsisCompressor>,
+  ///
+  /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
+  pub compression: Option<NsisCompressor>,
 }
 
 /// Install Modes for the NSIS installer.

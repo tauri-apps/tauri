@@ -243,16 +243,15 @@ fn build_nsis_app_installer(
         to_json(dunce::canonicalize(sidebar_image)?),
       );
     }
-    if let Some(compressor) = &nsis.set_compressor {
-      data.insert(
-        "set_compressor",
-        to_json(match compressor {
-          NsisCompressor::Zlib => "zlib",
-          NsisCompressor::Bzip2 => "bzip2",
-          NsisCompressor::Lzma => "lzma",
-        }),
-      );
-    }
+    data.insert(
+      "set_compressor",
+      to_json(match compressor.unwrap_or(NsisCompressor::Lzma) {
+        NsisCompressor::Zlib => "zlib",
+        NsisCompressor::Bzip2 => "bzip2",
+        NsisCompressor::Lzma => "lzma",
+      }),
+    );
+    
 
     data.insert(
       "display_language_selector",

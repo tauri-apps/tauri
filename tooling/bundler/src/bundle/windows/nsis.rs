@@ -21,7 +21,7 @@ use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
 use tauri_utils::{
-  config::{NSISInstallerMode, WebviewInstallMode},
+  config::{NSISInstallerMode, NsisCompression, WebviewInstallMode},
   resources::resource_relpath,
 };
 
@@ -243,6 +243,15 @@ fn build_nsis_app_installer(
         to_json(dunce::canonicalize(sidebar_image)?),
       );
     }
+
+    data.insert(
+      "compression",
+      to_json(match &nsis.compression.unwrap_or(NsisCompression::Lzma) {
+        NsisCompression::Zlib => "zlib",
+        NsisCompression::Bzip2 => "bzip2",
+        NsisCompression::Lzma => "lzma",
+      }),
+    );
 
     data.insert(
       "display_language_selector",

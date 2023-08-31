@@ -28,12 +28,19 @@
 !define WEBVIEW2INSTALLERPATH "{{webview2_installer_path}}"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
+!define COMPRESSION "{{compression}}"
 
 Name "${PRODUCTNAME}"
 BrandingText "{{copyright}}"
 OutFile "${OUTFILE}"
 Unicode true
-SetCompressor /SOLID lzma
+
+; Set the compression algorithm. Default is LZMA.
+!if "${COMPRESSION}" == ""
+  SetCompressor /SOLID lzma
+!else
+  SetCompressor /SOLID "${COMPRESSION}"
+!endif
 
 VIProductVersion "${VERSIONWITHBUILD}"
 VIAddVersionKey "ProductName" "${PRODUCTNAME}"

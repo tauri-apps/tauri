@@ -134,7 +134,7 @@
 
   // drag region
   document.addEventListener('mousedown', (e) => {
-    if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
+    if (e.target.hasAttribute('data-tauri-drag-region') && e.button === 0) {
       // prevents text cursor
       e.preventDefault()
       // fix #2549: double click on drag region edge causes content to maximize without window sizing change

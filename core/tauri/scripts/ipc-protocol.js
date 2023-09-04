@@ -44,7 +44,7 @@
         })
       } else {
         // otherwise use the postMessage interface
-        const { data } = processIpcMessage({ cmd, callback, error, options, ...payload })
+        const { data } = processIpcMessage({ cmd, callback, error, options, payload })
         window.ipc.postMessage(data)
       }
     }

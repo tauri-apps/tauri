@@ -127,7 +127,6 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
       cmd: String,
       callback: CallbackFn,
       error: CallbackFn,
-      #[serde(flatten)]
       payload: serde_json::Value,
       options: Option<RequestOptions>,
     }
@@ -142,7 +141,6 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
         cmd: String,
         callback: CallbackFn,
         error: CallbackFn,
-        #[serde(flatten)]
         payload: crate::utils::pattern::isolation::RawIsolationPayload<'a>,
         options: Option<RequestOptions>,
       }

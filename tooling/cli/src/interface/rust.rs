@@ -96,7 +96,7 @@ pub struct Target {
 }
 
 pub struct Rust {
-  app_settings: RustAppSettings,
+  app_settings: Arc<RustAppSettings>,
   config_features: Vec<String>,
   product_name: Option<String>,
   available_targets: Option<Vec<Target>>,
@@ -138,15 +138,15 @@ impl Interface for Rust {
     let app_settings = RustAppSettings::new(config, manifest, target)?;
 
     Ok(Self {
-      app_settings,
+      app_settings: Arc::new(app_settings),
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
       available_targets: None,
     })
   }
 
-  fn app_settings(&self) -> &Self::AppSettings {
-    &self.app_settings
+  fn app_settings(&self) -> Arc<Self::AppSettings> {
+    self.app_settings.clone()
   }
 
   fn build(&mut self, options: Options) -> crate::Result<()> {
@@ -360,6 +360,8 @@ fn shared_options(
     args.push("--bins".into());
     let all_features = app_settings
       .manifest
+      .lock()
+      .unwrap()
       .all_enabled_features(if let Some(f) = features { f } else { &[] });
     if !all_features.contains(&"tauri/rustls-tls".into()) {
       features
@@ -392,7 +394,7 @@ fn dev_options(
   shared_options(mobile, args, features, app_settings);
 
   if !args.contains(&"--no-default-features".into()) {
-    let manifest_features = app_settings.manifest.features();
+    let manifest_features = app_settings.manifest.lock().unwrap().features();
     let enable_features: Vec<String> = manifest_features
       .get("default")
       .cloned()
@@ -514,7 +516,7 @@ impl Rust {
               match reload_config(config.as_deref()) {
                 Ok(config) => {
                   info!("Tauri configuration changed. Rewriting manifest...");
-                  self.app_settings.manifest =
+                  *self.app_settings.manifest.lock().unwrap() =
                     rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?
                 }
                 Err(err) => {
@@ -679,7 +681,7 @@ impl CargoSettings {
 }
 
 pub struct RustAppSettings {
-  manifest: Manifest,
+  manifest: Mutex<Manifest>,
   cargo_settings: CargoSettings,
   cargo_package_settings: CargoPackageSettings,
   package_settings: PackageSettings,
@@ -697,7 +699,11 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone())
+    tauri_config_to_bundle_settings(
+      &self.manifest.lock().unwrap(),
+      features,
+      config.tauri.bundle.clone(),
+    )
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
@@ -831,6 +837,8 @@ impl AppSettings for RustAppSettings {
   fn app_name(&self) -> Option<String> {
     self
       .manifest
+      .lock()
+      .unwrap()
       .inner
       .as_table()
       .get("package")
@@ -843,6 +851,8 @@ impl AppSettings for RustAppSettings {
   fn lib_name(&self) -> Option<String> {
     self
       .manifest
+      .lock()
+      .unwrap()
       .inner
       .as_table()
       .get("lib")
@@ -956,7 +966,7 @@ impl RustAppSettings {
     });
 
     Ok(Self {
-      manifest,
+      manifest: Mutex::new(manifest),
       cargo_settings,
       cargo_package_settings,
       package_settings,

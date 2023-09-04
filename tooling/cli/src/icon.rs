@@ -4,6 +4,7 @@
 
 use crate::{
   helpers::{app_paths::tauri_dir, config::get as get_tauri_config},
+  interface::{AppInterface, Interface},
   Result,
 };
 
@@ -367,7 +368,7 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     crate::mobile::android::get_config(
-      &crate::mobile::get_app(tauri_config_),
+      &crate::mobile::get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?),
       tauri_config_,
       &Default::default(),
     )

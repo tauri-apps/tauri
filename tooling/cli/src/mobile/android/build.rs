@@ -13,7 +13,7 @@ use crate::{
     config::{get as get_tauri_config, ConfigHandle},
     flock, resolve_merge_config,
   },
-  interface::{AppSettings, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
 };
@@ -84,13 +84,25 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
+  let mut build_options: BuildOptions = options.clone().into();
+  build_options.target = Some(
+    Target::all()
+      .get(Target::DEFAULT_KEY)
+      .unwrap()
+      .triple
+      .into(),
+  );
+
   let tauri_config = get_tauri_config(options.config.as_deref())?;
-  let (app, config, metadata) = {
+  let (interface, app, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let app = get_app(tauri_config_);
+
+    let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
+
+    let app = get_app(tauri_config_, &interface);
     let (config, metadata) = get_config(&app, tauri_config_, &Default::default());
-    (app, config, metadata)
+    (interface, app, config, metadata)
   };
 
   set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
@@ -126,7 +138,9 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let open = options.open;
   run_build(
+    interface,
     options,
+    build_options,
     tauri_config,
     profile,
     &config,
@@ -141,8 +155,11 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_build(
+  interface: AppInterface,
   mut options: Options,
+  mut build_options: BuildOptions,
   tauri_config: ConfigHandle,
   profile: Profile,
   config: &AndroidConfig,
@@ -155,15 +172,7 @@ fn run_build(
     options.aab = true;
   }
 
-  let mut build_options: BuildOptions = options.clone().into();
-  build_options.target = Some(
-    Target::all()
-      .get(Target::DEFAULT_KEY)
-      .unwrap()
-      .triple
-      .into(),
-  );
-  let interface = crate::build::setup(&mut build_options, true)?;
+  crate::build::setup(&interface, &mut build_options, true)?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,
@@ -194,7 +203,7 @@ fn run_build(
     cli_options,
   )?;
 
-  options
+  build_options
     .features
     .get_or_insert(Vec::new())
     .push("custom-protocol".into());

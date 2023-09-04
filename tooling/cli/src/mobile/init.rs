@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use super::{get_app, Target};
-use crate::helpers::{config::get as get_tauri_config, template::JsonMap};
-use crate::Result;
+use crate::{
+  helpers::{config::get as get_tauri_config, template::JsonMap},
+  interface::{AppInterface, Interface},
+  Result,
+};
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 use tauri_mobile::{
   android::{
@@ -93,7 +96,7 @@ pub fn exec(
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-  let app = get_app(tauri_config_);
+  let app = get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?);
 
   let (handlebars, mut map) = handlebars(&app);
 
@@ -163,7 +166,6 @@ pub fn exec(
     // Generate Android Studio project
     Target::Android => match AndroidEnv::new() {
       Ok(_env) => {
-        let app = get_app(tauri_config_);
         let (config, metadata) =
           super::android::get_config(&app, tauri_config_, &Default::default());
         map.insert("android", &config);

@@ -13,6 +13,7 @@
 
 pub use anyhow::Result;
 
+mod add;
 mod build;
 mod completions;
 mod dev;
@@ -99,6 +100,7 @@ pub(crate) struct Cli {
 enum Commands {
   Build(build::Options),
   Dev(dev::Options),
+  Add(add::Options),
   Icon(icon::Options),
   Info(info::Options),
   Init(init::Options),
@@ -205,6 +207,7 @@ where
   match cli.command {
     Commands::Build(options) => build::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
+    Commands::Add(options) => add::command(options)?,
     Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,

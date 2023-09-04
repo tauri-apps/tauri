@@ -2099,7 +2099,8 @@ impl<R: Runtime> Window<R> {
       Arc::new(
         #[allow(unused_variables)]
         move |window: Window<R>, cmd, response, callback, error| {
-          #[cfg(not(ipc_custom_protocol))]
+          if (cfg!(target_os = "macos") && window.url().scheme() == "https")
+            || !cfg!(ipc_custom_protocol)
           {
             use crate::ipc::{
               format_callback::{

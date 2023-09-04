@@ -5,7 +5,7 @@
 use super::{env, get_app, get_config, read_options};
 use crate::{
   helpers::config::get as get_tauri_config,
-  interface::{AppInterface, AppSettings, Interface, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   Result,
 };
 

@@ -203,11 +203,6 @@ fn run_build(
     cli_options,
   )?;
 
-  build_options
-    .features
-    .get_or_insert(Vec::new())
-    .push("custom-protocol".into());
-
   inject_assets(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let apk_outputs = if options.apk {

@@ -79,12 +79,25 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   options.config = merge_config;
 
   let tauri_config = get_tauri_config(options.config.as_deref())?;
-  let (app, config) = {
+
+  let mut build_options: BuildOptions = options.clone().into();
+  build_options.target = Some(
+    Target::all()
+      .get(Target::DEFAULT_KEY)
+      .unwrap()
+      .triple
+      .into(),
+  );
+
+  let (interface, app, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let app = get_app(tauri_config_);
+
+    let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
+
+    let app = get_app(tauri_config_, &interface);
     let (config, _metadata) = get_config(&app, tauri_config_, &Default::default());
-    (app, config)
+    (interface, app, config)
   };
 
   let tauri_path = tauri_dir();
@@ -96,7 +109,15 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   configure_cargo(&app, None)?;
 
   let open = options.open;
-  run_build(options, tauri_config, &config, &mut env, noise_level)?;
+  run_build(
+    interface,
+    options,
+    build_options,
+    tauri_config,
+    &config,
+    &mut env,
+    noise_level,
+  )?;
 
   if open {
     open_and_wait(&config, &env);
@@ -106,7 +127,9 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
 }
 
 fn run_build(
-  mut options: Options,
+  interface: AppInterface,
+  options: Options,
+  mut build_options: BuildOptions,
   tauri_config: ConfigHandle,
   config: &AppleConfig,
   env: &mut Env,
@@ -118,15 +141,7 @@ fn run_build(
     Profile::Release
   };
 
-  let mut build_options: BuildOptions = options.clone().into();
-  build_options.target = Some(
-    Target::all()
-      .get(Target::DEFAULT_KEY)
-      .unwrap()
-      .triple
-      .into(),
-  );
-  let interface = crate::build::setup(&mut build_options, true)?;
+  crate::build::setup(&interface, &mut build_options, true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
@@ -154,11 +169,6 @@ fn run_build(
       .identifier,
     cli_options,
   )?;
-
-  options
-    .features
-    .get_or_insert(Vec::new())
-    .push("custom-protocol".into());
 
   let mut out_files = Vec::new();
 

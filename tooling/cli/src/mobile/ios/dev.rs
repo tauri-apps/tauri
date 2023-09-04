@@ -13,7 +13,7 @@ use crate::{
     config::{get as get_tauri_config, ConfigHandle},
     flock, resolve_merge_config,
   },
-  interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
 };
@@ -126,30 +126,6 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let tauri_config = get_tauri_config(options.config.as_deref())?;
-  let (app, config) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let app = get_app(tauri_config_);
-    let (config, _metadata) = get_config(&app, tauri_config_, &Default::default());
-    (app, config)
-  };
-
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
-
-  ensure_init(config.project_dir(), MobileTarget::Ios)?;
-  run_dev(options, tauri_config, &app, &config, noise_level)
-}
-
-fn run_dev(
-  mut options: Options,
-  tauri_config: ConfigHandle,
-  app: &App,
-  config: &AppleConfig,
-  noise_level: NoiseLevel,
-) -> Result<()> {
-  setup_dev_config(&mut options.config, options.force_ip_prompt)?;
   let env = env()?;
   let device = if options.open {
     None
@@ -170,7 +146,51 @@ fn run_dev(
       .map(|d| d.target().triple.to_string())
       .unwrap_or_else(|| "aarch64-apple-ios".into()),
   );
-  let mut interface = crate::dev::setup(&mut dev_options, true)?;
+
+  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let (interface, app, config) = {
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+
+    let interface = AppInterface::new(tauri_config_, dev_options.target.clone())?;
+
+    let app = get_app(tauri_config_, &interface);
+    let (config, _metadata) = get_config(&app, tauri_config_, &Default::default());
+    (interface, app, config)
+  };
+
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+
+  ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  run_dev(
+    interface,
+    options,
+    dev_options,
+    tauri_config,
+    device,
+    env,
+    &app,
+    &config,
+    noise_level,
+  )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_dev(
+  mut interface: AppInterface,
+  options: Options,
+  mut dev_options: DevOptions,
+  tauri_config: ConfigHandle,
+  device: Option<Device>,
+  env: Env,
+  app: &App,
+  config: &AppleConfig,
+  noise_level: NoiseLevel,
+) -> Result<()> {
+  setup_dev_config(&mut dev_options.config, options.force_ip_prompt)?;
+
+  crate::dev::setup(&interface, &mut dev_options, true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

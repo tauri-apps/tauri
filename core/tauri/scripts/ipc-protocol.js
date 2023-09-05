@@ -18,8 +18,6 @@
         options
       } = message
 
-      console.log(osName, location.protocol)
-
       // use custom protocol for IPC if:
       // - the flag is set to true or
       // - the command is the fetch data command or

@@ -225,7 +225,7 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
   request: InvokeRequest,
   expected: Result<T, T>,
 ) {
-  let (tx, rx) = std::sync::mpsc::channel();
+  let (tx, rx) = std::sync::mpsc::sync_channel(1);
   window.clone().on_message(
     request,
     Box::new(move |_window, _cmd, response, _callback, _error| {

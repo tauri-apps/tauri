@@ -193,7 +193,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
       .unwrap_or_else(|| serde_json::from_str::<Message>(&message).map_err(Into::into))
     {
       Ok(message) => {
-        let _ = window.on_message(
+        window.on_message(
           InvokeRequest {
             cmd: message.cmd,
             callback: message.callback,

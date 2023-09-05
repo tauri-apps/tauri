@@ -19,6 +19,7 @@ use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
 
+use http::{header::CONTENT_TYPE, Request as HttpRequest, Response as HttpResponse};
 use tauri_macros::default_runtime;
 use tauri_utils::debug_eprintln;
 use tauri_utils::{
@@ -34,10 +35,6 @@ use crate::{
   pattern::PatternJavascript,
   plugin::PluginStore,
   runtime::{
-    http::{
-      MimeType, Request as HttpRequest, Response as HttpResponse,
-      ResponseBuilder as HttpResponseBuilder,
-    },
     webview::WindowBuilder,
     window::{
       dpi::{PhysicalPosition, PhysicalSize},
@@ -312,8 +309,8 @@ pub struct CustomProtocol<R: Runtime> {
   pub protocol: Box<
     dyn Fn(
         &AppHandle<R>,
-        HttpRequest,
-        Box<dyn FnOnce(HttpResponse) + Send + Sync>,
+        HttpRequest<Vec<u8>>,
+        Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send + Sync>,
       ) -> Result<(), Box<dyn std::error::Error>>
       + Send
       + Sync,
@@ -686,7 +683,7 @@ impl<R: Runtime> WindowManager<R> {
                 process_ipc_message_fn: PROCESS_IPC_MESSAGE_FN,
               };
               match template.render(asset.as_ref(), &Default::default()) {
-                Ok(asset) => HttpResponseBuilder::new()
+                Ok(asset) => HttpResponse::builder()
                   .mimetype(mime::TEXT_HTML.as_ref())
                   .body(asset.into_string().as_bytes().to_vec()),
                 Err(_) => HttpResponseBuilder::new()
@@ -696,12 +693,12 @@ impl<R: Runtime> WindowManager<R> {
               }
             }
 
-            None => HttpResponseBuilder::new()
+            None => HttpResponse::builder()
               .status(404)
               .mimetype(mime::TEXT_PLAIN.as_ref())
               .body(Vec::new()),
           },
-          _ => HttpResponseBuilder::new()
+          _ => HttpResponse::builder()
             .status(404)
             .mimetype(mime::TEXT_PLAIN.as_ref())
             .body(Vec::new()),
@@ -785,7 +782,7 @@ impl<R: Runtime> WindowManager<R> {
         } else {
           asset
         };
-        let mime_type = MimeType::parse(&final_data, &path);
+        let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
         Ok(Asset {
           bytes: final_data.to_vec(),
           mime_type,
@@ -830,10 +827,16 @@ impl<R: Runtime> WindowManager<R> {
     Box::new(move |request, responder| {
       // use the entire URI as we are going to proxy the request
       let path = if PROXY_DEV_SERVER {
-        request.uri()
+        request.uri().to_string()
       } else {
         // ignore query string and fragment
-        request.uri().split(&['?', '#'][..]).next().unwrap()
+        request
+          .uri()
+          .to_string()
+          .split(&['?', '#'][..])
+          .next()
+          .unwrap()
+          .into()
       };
 
       let path = path
@@ -844,7 +847,7 @@ impl<R: Runtime> WindowManager<R> {
         .unwrap_or_else(|| "".to_string());
 
       let mut builder =
-        HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
+        HttpResponse::builder().header("Access-Control-Allow-Origin", &window_origin);
 
       #[cfg(all(dev, mobile))]
       let mut response = {
@@ -903,11 +906,11 @@ impl<R: Runtime> WindowManager<R> {
       #[cfg(not(all(dev, mobile)))]
       let mut response = {
         let asset = manager.get_asset(path)?;
-        builder = builder.mimetype(&asset.mime_type);
+        builder = builder.header(CONTENT_TYPE, &asset.mime_type);
         if let Some(csp) = &asset.csp_header {
           builder = builder.header("Content-Security-Policy", csp);
         }
-        builder.body(asset.bytes)?
+        builder.body(asset.bytes.into())?
       };
       if let Some(handler) = &web_resource_request_handler {
         handler(request, &mut response);
@@ -1502,7 +1505,7 @@ struct ScaleFactorChanged {
 }
 
 #[cfg(feature = "isolation")]
-fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> String {
+fn request_to_path(request: &http::Request, base_url: &str) -> String {
   let mut path = request
     .uri()
     .split(&['?', '#'][..])

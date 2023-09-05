@@ -20,7 +20,6 @@ use crate::{
   },
   manager::WindowManager,
   runtime::{
-    http::{Request as HttpRequest, Response as HttpResponse},
     monitor::Monitor as RuntimeMonitor,
     webview::{WebviewAttributes, WindowBuilder as _},
     window::{
@@ -44,6 +43,7 @@ use crate::{
   CursorIcon, Icon,
 };
 
+use http::{Request as HttpRequest, Response as HttpResponse};
 use serde::Serialize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -51,6 +51,7 @@ use windows::Win32::Foundation::HWND;
 use tauri_macros::default_runtime;
 
 use std::{
+  borrow::Cow,
   collections::{HashMap, HashSet},
   fmt,
   hash::{Hash, Hasher},
@@ -58,12 +59,13 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-pub(crate) type WebResourceRequestHandler = dyn Fn(HttpRequest, &mut HttpResponse) + Send + Sync;
+pub(crate) type WebResourceRequestHandler =
+  dyn Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 pub(crate) type UriSchemeProtocolHandler = Box<
   dyn Fn(
-      HttpRequest,
-      Box<dyn FnOnce(HttpResponse) + Send + Sync>,
+      HttpRequest<Vec<u8>>,
+      Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send + Sync>,
     ) -> Result<(), Box<dyn std::error::Error>>
     + Send
     + Sync,
@@ -270,15 +272,15 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```rust,no_run
   /// use tauri::{
   ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
-  ///   http::header::HeaderValue,
   ///   window::WindowBuilder,
   /// };
+  /// use http::header::HeaderValue;
   /// use std::collections::HashMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
   ///       .on_web_resource_request(|request, response| {
-  ///         if request.uri().starts_with("tauri://") {
+  ///         if request.uri().scheme_str() == Some("tauri") {
   ///           // if we have a CSP header, Tauri is loading an HTML file
   ///           //  for this example, let's dynamically change the CSP
   ///           if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
@@ -295,7 +297,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_web_resource_request<F: Fn(HttpRequest, &mut HttpResponse) + Send + Sync + 'static>(
+  pub fn on_web_resource_request<
+    F: Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync + 'static,
+  >(
     mut self,
     f: F,
   ) -> Self {
@@ -310,9 +314,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```rust,no_run
   /// use tauri::{
   ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
-  ///   http::header::HeaderValue,
   ///   window::WindowBuilder,
   /// };
+  /// use http::header::HeaderValue;
   /// use std::collections::HashMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {

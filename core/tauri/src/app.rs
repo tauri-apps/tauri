@@ -11,7 +11,6 @@ use crate::{
   manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
-    http::{Request as HttpRequest, Response as HttpResponse},
     webview::WebviewAttributes,
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
@@ -33,6 +32,7 @@ use crate::menu::{Menu, MenuEvent};
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 #[cfg(desktop)]
 use crate::window::WindowMenu;
+use http::{Request as HttpRequest, Response as HttpResponse};
 use raw_window_handle::HasRawDisplayHandle;
 use serde::Deserialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
@@ -49,6 +49,7 @@ use tauri_runtime::{
 use tauri_utils::PackageInfo;
 
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fmt,
   sync::{mpsc::Sender, Arc, Weak},
@@ -1354,8 +1355,8 @@ impl<R: Runtime> Builder<R> {
     N: Into<String>,
     H: Fn(
         &AppHandle<R>,
-        HttpRequest,
-        Box<dyn FnOnce(HttpResponse) + Send + Sync>,
+        HttpRequest<Vec<u8>>,
+        Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send + Sync>,
       ) -> Result<(), Box<dyn std::error::Error>>
       + Send
       + Sync

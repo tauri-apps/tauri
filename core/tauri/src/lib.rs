@@ -174,9 +174,6 @@ use std::{
   sync::Arc,
 };
 
-// Export types likely to be used by the application.
-pub use runtime::http;
-
 #[cfg(feature = "wry")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub use tauri_runtime_wry::webview_version;

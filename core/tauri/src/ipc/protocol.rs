@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::borrow::Cow;
+
 use http::{
-  header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN},
-  HeaderValue, Method, StatusCode,
+  header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
+  HeaderValue, Method, Request as HttpRequest, Response as HttpResponse, StatusCode,
 };
 
 use crate::{
   manager::WindowManager,
-  runtime::http::{Request as HttpRequest, Response as HttpResponse},
   window::{InvokeRequest, UriSchemeProtocolHandler},
   Runtime,
 };
@@ -31,7 +32,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
     let manager = manager.clone();
     let label = label.clone();
 
-    let respond = move |mut response: tauri_runtime::http::Response| {
+    let respond = move |mut response: http::Response<Cow<'static, [u8]>>| {
       response
         .headers_mut()
         .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
@@ -57,34 +58,43 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
                     InvokeResponse::Err(e) => {
                       let mut response =
                         HttpResponse::new(serde_json::to_vec(&e.0).unwrap().into());
-                      response.set_status(StatusCode::BAD_REQUEST);
+                      *response.status_mut() = StatusCode::BAD_REQUEST;
                       (response, mime::TEXT_PLAIN)
                     }
                   };
 
-                  response.set_mimetype(Some(mime_type.essence_str().into()));
+                  response.headers_mut().insert(
+                    CONTENT_TYPE,
+                    HeaderValue::from_str(mime_type.essence_str()).unwrap(),
+                  );
 
                   respond(response);
                 }),
               );
             }
             Err(e) => {
-              let mut response = HttpResponse::new(e.as_bytes().to_vec().into());
-              response.set_status(StatusCode::BAD_REQUEST);
-              response.set_mimetype(Some(mime::TEXT_PLAIN.essence_str().into()));
-              respond(response);
+              respond(
+                HttpResponse::builder()
+                  .status(StatusCode::BAD_REQUEST)
+                  .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+                  .body(e.as_bytes().to_vec().into())
+                  .unwrap(),
+              );
             }
           }
         } else {
-          let mut response = HttpResponse::new(
-            "failed to acquire window reference"
-              .as_bytes()
-              .to_vec()
-              .into(),
+          respond(
+            HttpResponse::builder()
+              .status(StatusCode::BAD_REQUEST)
+              .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+              .body(
+                "failed to acquire window reference"
+                  .as_bytes()
+                  .to_vec()
+                  .into(),
+              )
+              .unwrap(),
           );
-          response.set_status(StatusCode::BAD_REQUEST);
-          response.set_mimetype(Some(mime::TEXT_PLAIN.essence_str().into()));
-          respond(response);
         }
       }
 
@@ -104,8 +114,11 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
             .to_vec()
             .into(),
         );
-        r.set_status(StatusCode::METHOD_NOT_ALLOWED);
-        r.set_mimetype(Some(mime::TEXT_PLAIN.essence_str().into()));
+        *r.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
+        r.headers_mut().insert(
+          CONTENT_TYPE,
+          HeaderValue::from_str(mime::TEXT_PLAIN.essence_str()).unwrap(),
+        );
         respond(r);
       }
     }
@@ -266,19 +279,12 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
 
 fn parse_invoke_request<R: Runtime>(
   #[allow(unused_variables)] manager: &WindowManager<R>,
-  request: HttpRequest,
+  request: HttpRequest<Vec<u8>>,
 ) -> std::result::Result<InvokeRequest, String> {
   #[allow(unused_mut)]
   let (parts, mut body) = request.into_parts();
 
-  let cmd = parts
-    .uri
-    .strip_prefix("ipc://localhost/")
-    .map(|c| c.to_string())
-    // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
-    // where `$P` is not `localhost/*`
-    // in this case the IPC call is considered invalid
-    .unwrap_or_else(|| "".to_string());
+  let cmd = parts.uri.path();
   let cmd = percent_encoding::percent_decode(cmd.as_bytes())
     .decode_utf8_lossy()
     .to_string();

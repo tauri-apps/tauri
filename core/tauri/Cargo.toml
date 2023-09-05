@@ -116,6 +116,7 @@ serde_json = "1.0"
 tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio = { version = "1", features = [ "full" ] }
 cargo_toml = "0.15"
+http-range = "0.1.4"
 
 [features]
 default = [

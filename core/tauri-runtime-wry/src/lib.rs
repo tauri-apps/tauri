@@ -261,14 +261,15 @@ impl<T: UserEvent> fmt::Debug for Context<T> {
 
 struct HttpRequestWrapper(HttpRequest);
 
-impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
-  fn from(req: &WryRequest<Vec<u8>>) -> Self {
+impl From<WryRequest<Vec<u8>>> for HttpRequestWrapper {
+  fn from(req: WryRequest<Vec<u8>>) -> Self {
+    let (parts, body) = req.into_parts();
     let parts = RequestParts {
-      uri: req.uri().to_string(),
-      method: req.method().clone(),
-      headers: req.headers().clone(),
+      uri: parts.uri.to_string(),
+      method: parts.method,
+      headers: parts.headers,
     };
-    Self(HttpRequest::new_internal(parts, req.body().clone()))
+    Self(HttpRequest::new_internal(parts, body))
   }
 }
 
@@ -2701,11 +2702,14 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   for (scheme, protocol) in uri_scheme_protocols {
-    webview_builder = webview_builder.with_custom_protocol(scheme, move |wry_request| {
-      protocol(&HttpRequestWrapper::from(wry_request).0)
-        .map(|tauri_response| HttpResponseWrapper::from(tauri_response).0)
+    webview_builder =
+      webview_builder.with_custom_protocol(scheme, move |wry_request: WryRequest<Vec<u8>>, api| {
+        protocol(
+          HttpRequestWrapper::from(wry_request).0,
+          Box::new(move |response| api.respond(HttpResponseWrapper::from(response).0)),
+        )
         .map_err(|_| wry::Error::InitScriptError)
-    });
+      });
   }
 
   for script in webview_attributes.initialization_scripts {

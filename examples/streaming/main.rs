@@ -41,7 +41,7 @@ fn main() {
 
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![video_uri])
-    .register_uri_scheme_protocol("stream", move |_app, request| {
+    .register_uri_scheme_protocol("stream", move |_app, request, responder| {
       // get the file path
       let path = request.uri().strip_prefix("stream://localhost/").unwrap();
       let path = percent_encoding::percent_decode(path.as_bytes())
@@ -50,7 +50,8 @@ fn main() {
 
       if path != "test_video.mp4" {
         // return error 404 if it's not our video
-        return ResponseBuilder::new().status(404).body(Vec::new());
+        responder(ResponseBuilder::new().status(404).body(Vec::new())?);
+        return Ok(());
       }
 
       let mut file = std::fs::File::open(&path)?;
@@ -83,7 +84,8 @@ fn main() {
             .map(|r| (r.start, r.start + r.length - 1))
             .collect::<Vec<_>>()
         } else {
-          return not_satisfiable();
+          responder(not_satisfiable()?);
+          return Ok(());
         };
 
         /// The Maximum bytes we send in one range
@@ -97,7 +99,8 @@ fn main() {
           // this should be already taken care of by HttpRange::parse
           // but checking here again for extra assurance
           if start >= len || end >= len || end < start {
-            return not_satisfiable();
+            responder(not_satisfiable()?);
+            return Ok(());
           }
 
           // adjust end byte for MAX_LEN
@@ -178,7 +181,9 @@ fn main() {
         resp.body(buf)
       };
 
-      response
+      responder(response?);
+
+      Ok(())
     })
     .run(tauri::generate_context!(
       "../../examples/streaming/tauri.conf.json"

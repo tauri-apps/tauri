@@ -1097,7 +1097,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
-    F: Fn(Window<R>, String, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
+    F: Fn(&Window<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
     self.invoke_initialization_script = initialization_script;
     self.invoke_responder.replace(Arc::new(responder));
@@ -1352,7 +1352,11 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&AppHandle<R>, &HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>>
+    H: Fn(
+        &AppHandle<R>,
+        HttpRequest,
+        Box<dyn FnOnce(HttpResponse) + Send + Sync>,
+      ) -> Result<(), Box<dyn std::error::Error>>
       + Send
       + Sync
       + 'static,

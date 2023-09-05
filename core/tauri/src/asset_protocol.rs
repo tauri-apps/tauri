@@ -17,7 +17,7 @@ use url::Position;
 use url::Url;
 
 pub fn asset_protocol_handler(
-  request: &Request,
+  request: Request,
   scope: FsScope,
   window_origin: String,
 ) -> Result<Response, Box<dyn std::error::Error>> {

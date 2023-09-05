@@ -24,10 +24,15 @@ use std::{
 
 use self::dpi::PhysicalPosition;
 
-type UriSchemeProtocol =
-  dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
+type UriSchemeProtocol = dyn Fn(
+    HttpRequest,
+    Box<dyn FnOnce(HttpResponse) + Send + Sync>,
+  ) -> Result<(), Box<dyn std::error::Error>>
+  + Send
+  + Sync
+  + 'static;
 
-type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+type WebResourceRequestHandler = dyn Fn(HttpRequest, &mut HttpResponse) + Send + Sync;
 
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
@@ -306,16 +311,23 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
 
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
+    H: Fn(
+        HttpRequest,
+        Box<dyn FnOnce(HttpResponse) + Send + Sync>,
+      ) -> Result<(), Box<dyn std::error::Error>>
+      + Send
+      + Sync
+      + 'static,
   >(
     &mut self,
     uri_scheme: N,
     protocol: H,
   ) {
     let uri_scheme = uri_scheme.into();
-    self
-      .uri_scheme_protocols
-      .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
+    self.uri_scheme_protocols.insert(
+      uri_scheme,
+      Box::new(move |data, responder| (protocol)(data, responder)),
+    );
   }
 
   #[cfg(target_os = "android")]

@@ -16,7 +16,7 @@ rust-version = { workspace = true }
 features = [ "dox" ]
 
 [dependencies]
-wry = { version = "0.31", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { git = "https://github.com/tauri-apps/wry", branch = "refactor/custom-protocol-response", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "1.0.0-alpha.0", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-alpha.7", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }

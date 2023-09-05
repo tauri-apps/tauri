@@ -310,7 +310,11 @@ pub struct CustomProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
   pub protocol: Box<
-    dyn Fn(&AppHandle<R>, &HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>>
+    dyn Fn(
+        &AppHandle<R>,
+        HttpRequest,
+        Box<dyn FnOnce(HttpResponse) + Send + Sync>,
+      ) -> Result<(), Box<dyn std::error::Error>>
       + Send
       + Sync,
   >,
@@ -604,8 +608,8 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
       let app_handle = Mutex::new(app_handle.clone());
-      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p| {
-        (protocol.protocol)(&app_handle.lock().unwrap(), p)
+      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p, responder| {
+        (protocol.protocol)(&app_handle.lock().unwrap(), p, responder)
       });
     }
 
@@ -646,12 +650,16 @@ impl<R: Runtime> WindowManager<R> {
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
-      pending.register_uri_scheme_protocol("asset", move |request| {
-        crate::asset_protocol::asset_protocol_handler(
+      pending.register_uri_scheme_protocol("asset", move |request, responder| {
+        let response = crate::asset_protocol::asset_protocol_handler(
           request,
           asset_scope.clone(),
           window_origin.clone(),
-        )
+        )?;
+
+        responder(response);
+
+        Ok(())
       });
     }
 
@@ -668,8 +676,8 @@ impl<R: Runtime> WindowManager<R> {
       let url_base = format!("{schema_}://localhost");
       let aes_gcm_key = *crypto_keys.aes_gcm().raw();
 
-      pending.register_uri_scheme_protocol(schema, move |request| {
-        match request_to_path(request, &url_base).as_str() {
+      pending.register_uri_scheme_protocol(schema, move |request, responder| {
+        let response = match request_to_path(&request, &url_base).as_str() {
           "index.html" => match assets.get(&"index.html".into()) {
             Some(asset) => {
               let asset = String::from_utf8_lossy(asset.as_ref());
@@ -697,7 +705,11 @@ impl<R: Runtime> WindowManager<R> {
             .status(404)
             .mimetype(mime::TEXT_PLAIN.as_ref())
             .body(Vec::new()),
-        }
+        }?;
+
+        (responder)(response);
+
+        Ok(())
       });
     }
 
@@ -815,7 +827,7 @@ impl<R: Runtime> WindowManager<R> {
     #[cfg(all(dev, mobile))]
     let response_cache = Arc::new(Mutex::new(HashMap::new()));
 
-    Box::new(move |request| {
+    Box::new(move |request, responder| {
       // use the entire URI as we are going to proxy the request
       let path = if PROXY_DEV_SERVER {
         request.uri()
@@ -908,7 +920,10 @@ impl<R: Runtime> WindowManager<R> {
         let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
         *response.body_mut() = body.as_bytes().to_vec().into();
       }
-      Ok(response)
+
+      responder(response);
+
+      Ok(())
     })
   }
 

@@ -94,6 +94,7 @@ use std::{
   fmt,
   ops::Deref,
   path::PathBuf,
+  rc::Rc,
   sync::{
     mpsc::{channel, Sender},
     Arc, Mutex, Weak,
@@ -227,7 +228,7 @@ impl<T: UserEvent> Context<T> {
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
-  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 }
 
 impl<T: UserEvent> std::fmt::Debug for DispatcherMainThreadContext<T> {
@@ -1544,7 +1545,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 #[derive(Clone)]
 enum WindowHandle {
   Webview {
-    inner: Arc<WebView>,
+    inner: Rc<WebView>,
     context_store: WebContextStore,
     // the key of the WebContext if it's not shared
     context_key: Option<PathBuf>,
@@ -1560,7 +1561,7 @@ impl Drop for WindowHandle {
       context_key,
     } = self
     {
-      if Arc::get_mut(inner).is_some() {
+      if Rc::get_mut(inner).is_some() {
         context_store.lock().unwrap().remove(context_key);
       }
     }
@@ -1816,7 +1817,7 @@ impl<T: UserEvent> Wry<T> {
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 
-    let windows = Arc::new(RefCell::new(HashMap::default()));
+    let windows = Rc::new(RefCell::new(HashMap::default()));
     let webview_id_map = WebviewIdStore::default();
 
     let context = Context {
@@ -2056,11 +2057,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
-  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 }
 
 struct UserMessageContext {
-  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   webview_id_map: WebviewIdStore,
 }
 
@@ -2529,7 +2530,7 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
-  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 ) {
   let (tx, rx) = channel();
   let windows_ref = windows.borrow();
@@ -2557,7 +2558,7 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WebviewId, windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
+fn on_window_close(window_id: WebviewId, windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
   if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }
@@ -2803,7 +2804,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   Ok(WindowWrapper {
     label,
     inner: Some(WindowHandle::Webview {
-      inner: Arc::new(webview),
+      inner: Rc::new(webview),
       context_store: web_context_store.clone(),
       context_key: if automation_enabled {
         None

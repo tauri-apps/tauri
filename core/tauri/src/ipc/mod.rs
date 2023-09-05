@@ -21,7 +21,6 @@ use crate::{
 };
 
 pub(crate) mod channel;
-#[cfg(not(ipc_custom_protocol))]
 pub(crate) mod format_callback;
 pub(crate) mod protocol;
 

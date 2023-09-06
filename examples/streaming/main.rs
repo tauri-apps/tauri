@@ -7,12 +7,13 @@
 use std::sync::{Arc, Mutex};
 
 fn main() {
+  use http::{header::*, response::Builder as ResponseBuilder, status::StatusCode};
+  use http_range::HttpRange;
   use std::{
     io::{Read, Seek, SeekFrom, Write},
     path::PathBuf,
     process::{Command, Stdio},
   };
-  use tauri::http::{header::*, status::StatusCode, HttpRange, ResponseBuilder};
 
   let video_file = PathBuf::from("test_video.mp4");
   let video_url =
@@ -43,14 +44,14 @@ fn main() {
     .invoke_handler(tauri::generate_handler![video_uri])
     .register_uri_scheme_protocol("stream", move |_app, request, responder| {
       // get the file path
-      let path = request.uri().strip_prefix("stream://localhost/").unwrap();
+      let path = request.uri().path();
       let path = percent_encoding::percent_decode(path.as_bytes())
         .decode_utf8_lossy()
         .to_string();
 
       if path != "test_video.mp4" {
         // return error 404 if it's not our video
-        responder(ResponseBuilder::new().status(404).body(Vec::new())?);
+        responder(ResponseBuilder::new().status(404).body(Vec::new().into())?);
         return Ok(());
       }
 
@@ -73,7 +74,7 @@ fn main() {
           ResponseBuilder::new()
             .status(StatusCode::RANGE_NOT_SATISFIABLE)
             .header(CONTENT_RANGE, format!("bytes */{len}"))
-            .body(vec![])
+            .body(vec![].into())
         };
 
         // parse range header
@@ -119,7 +120,7 @@ fn main() {
           resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
           resp = resp.header(CONTENT_LENGTH, end + 1 - start);
           resp = resp.status(StatusCode::PARTIAL_CONTENT);
-          resp.body(buf)
+          resp.body(buf.into())
         } else {
           let mut buf = Vec::new();
           let ranges = ranges
@@ -172,13 +173,13 @@ fn main() {
           // all ranges have been written, write the closing boundary
           buf.write_all(boundary_closer.as_bytes())?;
 
-          resp.body(buf)
+          resp.body(buf.into())
         }
       } else {
         resp = resp.header(CONTENT_LENGTH, len);
         let mut buf = Vec::with_capacity(len as usize);
         file.read_to_end(&mut buf)?;
-        resp.body(buf)
+        resp.body(buf.into())
       };
 
       responder(response?);

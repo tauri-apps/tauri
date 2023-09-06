@@ -4,12 +4,11 @@
 
 use crate::path::SafePathBuf;
 use crate::scope::FsScope;
+use http::{
+  header::*, status::StatusCode, HttpRange, MimeType, Request, Response, ResponseBuilder,
+};
 use rand::RngCore;
 use std::io::SeekFrom;
-use tauri_runtime::http::HttpRange;
-use tauri_runtime::http::{
-  header::*, status::StatusCode, MimeType, Request, Response, ResponseBuilder,
-};
 use tauri_utils::debug_eprintln;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};

@@ -34,7 +34,7 @@ pub type InvokeResponder<R> =
   dyn Fn(&Window<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
 /// Similar to [`InvokeResponder`] but taking owned arguments.
 pub type OwnedInvokeResponder<R> =
-  dyn FnOnce(Window<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
+  dyn FnOnce(Window<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + 'static;
 
 /// Possible values of an IPC payload.
 #[derive(Debug, Clone)]

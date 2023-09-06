@@ -1577,9 +1577,7 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-pub struct UriSchemeResponse(
-  pub(crate) Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send + Sync>,
-);
+pub struct UriSchemeResponse(pub(crate) Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>);
 
 impl UriSchemeResponse {
   /// Resolves the request with the given response.

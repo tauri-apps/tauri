@@ -25,7 +25,7 @@ use std::{
 
 use self::dpi::PhysicalPosition;
 
-type UriSchemeProtocol = dyn Fn(HttpRequest<Vec<u8>>, Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send + Sync>)
+type UriSchemeProtocol = dyn Fn(HttpRequest<Vec<u8>>, Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>)
   + Send
   + Sync
   + 'static;
@@ -310,7 +310,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
 
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(HttpRequest<Vec<u8>>, Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send + Sync>)
+    H: Fn(HttpRequest<Vec<u8>>, Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>)
       + Send
       + Sync
       + 'static,

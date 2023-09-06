@@ -284,7 +284,7 @@ fn parse_invoke_request<R: Runtime>(
   #[allow(unused_mut)]
   let (parts, mut body) = request.into_parts();
 
-  let cmd = parts.uri.path();
+  let cmd = parts.uri.path().trim_start_matches('/');
   let cmd = percent_encoding::percent_decode(cmd.as_bytes())
     .decode_utf8_lossy()
     .to_string();

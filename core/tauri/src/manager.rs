@@ -669,12 +669,10 @@ impl<R: Runtime> WindowManager<R> {
     } = &self.inner.pattern
     {
       let assets = assets.clone();
-      let schema_ = schema.clone();
-      let url_base = format!("{schema_}://localhost");
       let aes_gcm_key = *crypto_keys.aes_gcm().raw();
 
       pending.register_uri_scheme_protocol(schema, move |request, responder| {
-        let response = match request_to_path(&request, &url_base).as_str() {
+        let response = match request_to_path(&request).as_str() {
           "index.html" => match assets.get(&"index.html".into()) {
             Some(asset) => {
               let asset = String::from_utf8_lossy(asset.as_ref());
@@ -684,24 +682,24 @@ impl<R: Runtime> WindowManager<R> {
               };
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponse::builder()
-                  .mimetype(mime::TEXT_HTML.as_ref())
-                  .body(asset.into_string().as_bytes().to_vec()),
-                Err(_) => HttpResponseBuilder::new()
+                  .header(CONTENT_TYPE, mime::TEXT_HTML.as_ref())
+                  .body(asset.into_string().as_bytes().to_vec().into()),
+                Err(_) => HttpResponse::builder()
                   .status(500)
-                  .mimetype(mime::TEXT_PLAIN.as_ref())
-                  .body(Vec::new()),
+                  .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
+                  .body(Vec::new().into()),
               }
             }
 
             None => HttpResponse::builder()
               .status(404)
-              .mimetype(mime::TEXT_PLAIN.as_ref())
-              .body(Vec::new()),
+              .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
+              .body(Vec::new().into()),
           },
           _ => HttpResponse::builder()
             .status(404)
-            .mimetype(mime::TEXT_PLAIN.as_ref())
-            .body(Vec::new()),
+            .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
+            .body(Vec::new().into()),
         }?;
 
         (responder)(response);
@@ -1505,19 +1503,12 @@ struct ScaleFactorChanged {
 }
 
 #[cfg(feature = "isolation")]
-fn request_to_path(request: &http::Request, base_url: &str) -> String {
-  let mut path = request
+fn request_to_path(request: &http::Request<Vec<u8>>) -> String {
+  let path = request
     .uri()
-    .split(&['?', '#'][..])
-    // ignore query string
-    .next()
-    .unwrap()
-    .trim_start_matches(base_url)
-    .to_string();
-
-  if path.ends_with('/') {
-    path.pop();
-  }
+    .path()
+    .trim_start_matches('/')
+    .trim_end_matches('/');
 
   let path = percent_encoding::percent_decode(path.as_bytes())
     .decode_utf8_lossy()

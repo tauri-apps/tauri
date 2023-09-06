@@ -197,7 +197,7 @@ impl Interface for Rust {
     }
   }
 
-  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess>>>(
+  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     mut options: MobileOptions,
     runner: R,
@@ -431,7 +431,7 @@ impl Rust {
     options: Options,
     run_args: Vec<String>,
     on_exit: F,
-  ) -> crate::Result<Box<dyn DevProcess>> {
+  ) -> crate::Result<Box<dyn DevProcess + Send>> {
     desktop::run_dev(
       options,
       run_args,
@@ -441,10 +441,10 @@ impl Rust {
       self.product_name.clone(),
       on_exit,
     )
-    .map(|c| Box::new(c) as Box<dyn DevProcess>)
+    .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
   }
 
-  fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess>>>(
+  fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     config: Option<String>,
     run: Arc<F>,

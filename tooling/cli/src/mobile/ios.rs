@@ -259,6 +259,6 @@ fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
 
 fn inject_assets(config: &AppleConfig) -> Result<()> {
   let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
-  create_dir_all(&asset_dir)?;
+  create_dir_all(asset_dir)?;
   Ok(())
 }

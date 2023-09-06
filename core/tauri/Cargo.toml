@@ -67,6 +67,7 @@ serialize-to-javascript = "=0.1.1"
 infer = { version = "0.15", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.3.0", optional = true }
+http-range = { version = "0.1.4", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.8", default-features = false }
@@ -116,6 +117,7 @@ serde_json = "1.0"
 tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio = { version = "1", features = [ "full" ] }
 cargo_toml = "0.15"
+http-range = "0.1.4"
 
 [features]
 default = [
@@ -145,7 +147,7 @@ macos-private-api = [
   "tauri-runtime-wry/macos-private-api"
 ]
 window-data-url = [ "data-url" ]
-protocol-asset = [ ]
+protocol-asset = [ "http-range" ]
 config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]
 icon-ico = [ "infer", "ico" ]

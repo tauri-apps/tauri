@@ -4,6 +4,7 @@
 
 use crate::path::SafePathBuf;
 use crate::scope::FsScope;
+use crate::window::UriSchemeProtocolHandler;
 use http::{header::*, status::StatusCode, Request, Response};
 use http_range::HttpRange;
 use rand::RngCore;
@@ -13,10 +14,25 @@ use tauri_utils::mime_type::MimeType;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-pub fn get(
+pub fn get(scope: FsScope, window_origin: String) -> UriSchemeProtocolHandler {
+  Box::new(
+    move |request, responder| match get_response(request, &scope, &window_origin) {
+      Ok(response) => responder.respond(response),
+      Err(e) => responder.respond(
+        http::Response::builder()
+          .status(http::StatusCode::BAD_REQUEST)
+          .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+          .body(e.to_string().as_bytes().to_vec())
+          .unwrap(),
+      ),
+    },
+  )
+}
+
+fn get_response(
   request: Request<Vec<u8>>,
-  scope: FsScope,
-  window_origin: String,
+  scope: &FsScope,
+  window_origin: &str,
 ) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
   let path = percent_encoding::percent_decode(request.uri().path().as_bytes())
     .decode_utf8_lossy()
@@ -38,7 +54,7 @@ pub fn get(
       .map_err(Into::into);
   }
 
-  let mut resp = Response::builder().header("Access-Control-Allow-Origin", &window_origin);
+  let mut resp = Response::builder().header("Access-Control-Allow-Origin", window_origin);
 
   let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {
     let mut file = File::open(&path).await?;

@@ -629,16 +629,16 @@ impl<R: Runtime> WindowManager<R> {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
       let protocol =
         crate::protocol::tauri::get(self, &window_origin, web_resource_request_handler);
-      pending.register_uri_scheme_protocol("tauri", move |request, response| {
-        protocol(request, UriSchemeResponder(response))
+      pending.register_uri_scheme_protocol("tauri", move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
       });
       registered_scheme_protocols.push("tauri".into());
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
       let protocol = crate::ipc::protocol::get(self.clone(), pending.label.clone());
-      pending.register_uri_scheme_protocol("ipc", move |request, response| {
-        protocol(request, UriSchemeResponder(response))
+      pending.register_uri_scheme_protocol("ipc", move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
       });
       registered_scheme_protocols.push("ipc".into());
     }
@@ -646,16 +646,9 @@ impl<R: Runtime> WindowManager<R> {
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
+      let protocol = crate::protocol::asset::get(asset_scope.clone(), window_origin.clone());
       pending.register_uri_scheme_protocol("asset", move |request, responder| {
-        match crate::protocol::asset::get(request, asset_scope.clone(), window_origin.clone()) {
-          Ok(response) => responder(response),
-          Err(e) => responder(
-            http::Response::builder()
-              .status(http::StatusCode::BAD_REQUEST)
-              .body(e.to_string().as_bytes().to_vec().into())
-              .unwrap(),
-          ),
-        }
+        protocol(request, UriSchemeResponder(responder))
       });
     }
 

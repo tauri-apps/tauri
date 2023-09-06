@@ -31,7 +31,7 @@ use tauri_utils::{
 use crate::{
   app::{
     AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
-    UriSchemeResponse,
+    UriSchemeResponder,
   },
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
@@ -308,7 +308,7 @@ pub struct Asset {
 pub struct CustomProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol: Box<dyn Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponse) + Send + Sync>,
+  pub protocol: Box<dyn Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -600,7 +600,11 @@ impl<R: Runtime> WindowManager<R> {
       let protocol = protocol.clone();
       let app_handle = Mutex::new(app_handle.clone());
       pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p, responder| {
-        (protocol.protocol)(&app_handle.lock().unwrap(), p, UriSchemeResponse(responder))
+        (protocol.protocol)(
+          &app_handle.lock().unwrap(),
+          p,
+          UriSchemeResponder(responder),
+        )
       });
     }
 
@@ -626,7 +630,7 @@ impl<R: Runtime> WindowManager<R> {
       let protocol =
         crate::protocol::tauri::get(self, &window_origin, web_resource_request_handler);
       pending.register_uri_scheme_protocol("tauri", move |request, response| {
-        protocol(request, UriSchemeResponse(response))
+        protocol(request, UriSchemeResponder(response))
       });
       registered_scheme_protocols.push("tauri".into());
     }
@@ -634,7 +638,7 @@ impl<R: Runtime> WindowManager<R> {
     if !registered_scheme_protocols.contains(&"ipc".into()) {
       let protocol = crate::ipc::protocol::get(self.clone(), pending.label.clone());
       pending.register_uri_scheme_protocol("ipc", move |request, response| {
-        protocol(request, UriSchemeResponse(response))
+        protocol(request, UriSchemeResponder(response))
       });
       registered_scheme_protocols.push("ipc".into());
     }

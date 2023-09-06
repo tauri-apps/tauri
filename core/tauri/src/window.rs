@@ -11,7 +11,7 @@ use url::Url;
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
 use crate::{
-  app::{AppHandle, UriSchemeResponse},
+  app::{AppHandle, UriSchemeResponder},
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   ipc::{
@@ -63,7 +63,7 @@ pub(crate) type WebResourceRequestHandler =
   dyn Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 pub(crate) type UriSchemeProtocolHandler =
-  Box<dyn Fn(HttpRequest<Vec<u8>>, UriSchemeResponse) + Send + Sync>;
+  Box<dyn Fn(HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {

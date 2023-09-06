@@ -1349,11 +1349,34 @@ impl<R: Runtime> Builder<R> {
   /// # Arguments
   ///
   /// * `uri_scheme` The URI scheme to register, such as `example`.
-  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes a request and a responder you use to resolve the request.
+  ///
+  /// # Examples
+  /// ```
+  /// tauri::Builder::default()
+  ///   .register_uri_scheme_protocol("app-files", |_app, request, responder| {
+  ///     let path = request.uri().path().trim_start_matches('/');
+  ///     if let Ok(data) = std::fs::read(path) {
+  ///       responder.respond(
+  ///         http::Response::builder()
+  ///           .body(data)
+  ///           .unwrap()
+  ///       );
+  ///     } else {
+  ///       responder.respond(
+  ///         http::Response::builder()
+  ///           .status(http::StatusCode::BAD_REQUEST)
+  ///           .header(http::header::CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+  ///           .body("failed to read file".as_bytes().to_vec())
+  ///           .unwrap()
+  ///       );
+  ///     }
+  ///   });
+  /// ```
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponse) + Send + Sync + 'static,
+    H: Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -1577,10 +1600,10 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-pub(crate) type UriSchemeResponder = Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>;
-pub struct UriSchemeResponse(pub(crate) UriSchemeResponder);
+pub(crate) type UriSchemeResponderFn = Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>;
+pub struct UriSchemeResponder(pub(crate) UriSchemeResponderFn);
 
-impl UriSchemeResponse {
+impl UriSchemeResponder {
   /// Resolves the request with the given response.
   pub fn respond<T: Into<Cow<'static, [u8]>>>(self, response: HttpResponse<T>) {
     let (parts, body) = response.into_parts();

@@ -51,7 +51,7 @@ pub fn get<R: Runtime>(
       request,
       &manager,
       &window_origin,
-      web_resource_request_handler.as_ref(),
+      web_resource_request_handler.as_deref(),
       #[cfg(all(dev, mobile))]
       (&url, &response_cache),
     ) {
@@ -71,7 +71,7 @@ fn get_response<R: Runtime>(
   request: Request<Vec<u8>>,
   manager: &WindowManager<R>,
   window_origin: &str,
-  web_resource_request_handler: Option<&Box<WebResourceRequestHandler>>,
+  web_resource_request_handler: Option<&WebResourceRequestHandler>,
   #[cfg(all(dev, mobile))] (url, response_cache): (
     &str,
     &Arc<Mutex<HashMap<String, CachedResponse>>>,

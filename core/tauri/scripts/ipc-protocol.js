@@ -30,7 +30,7 @@
           cmd === fetchChannelDataCommand ||
           !(osName === 'linux' || osName === 'android')
         ) &&
-        !(osName === 'macos' && location.protocol === 'https:')
+        !((osName === 'macos' || osName === 'ios') && location.protocol === 'https:')
       ) {
         const {
           contentType,

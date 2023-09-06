@@ -254,7 +254,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
                   }
                 }
                 InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                  if (cfg!(target_os = "macos") || cfg!(target_os = "ios")) {
+                  if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
                     responder_eval(
                       &window,
                       format_callback_result(Result::<_, ()>::Ok(v), callback, error),

@@ -241,7 +241,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
 
               match &response {
                 InvokeResponse::Ok(InvokeBody::Json(v)) => {
-                  if !cfg!(target_os = "macos")
+                  if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
                     && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
                   {
                     let _ = Channel::from_ipc(window.clone(), callback).send(v);
@@ -254,12 +254,12 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
                   }
                 }
                 InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                  responder_eval(
-                    &window,
-                    format_callback_result(Result::<_, ()>::Ok(v), callback, error),
-                    error,
-                  );
-                  if cfg!(target_os = "macos") {
+                  if (cfg!(target_os = "macos") || cfg!(target_os = "ios")) {
+                    responder_eval(
+                      &window,
+                      format_callback_result(Result::<_, ()>::Ok(v), callback, error),
+                      error,
+                    );
                   } else {
                     let _ =
                       Channel::from_ipc(window.clone(), callback).send(InvokeBody::Raw(v.clone()));

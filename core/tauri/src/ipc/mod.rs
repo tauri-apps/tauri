@@ -21,6 +21,7 @@ use crate::{
 };
 
 pub(crate) mod channel;
+#[cfg(any(target_os = "macos", not(ipc_custom_protocol)))]
 pub(crate) mod format_callback;
 pub(crate) mod protocol;
 

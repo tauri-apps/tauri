@@ -660,52 +660,9 @@ impl<R: Runtime> WindowManager<R> {
       crypto_keys,
     } = &self.inner.pattern
     {
-      use http::header::CONTENT_TYPE;
-
-      let assets = assets.clone();
-      let aes_gcm_key = *crypto_keys.aes_gcm().raw();
-
+      let protocol = crate::protocol::isolation::get(assets.clone(), *crypto_keys.aes_gcm().raw());
       pending.register_uri_scheme_protocol(schema, move |request, responder| {
-        let response = match request_to_path(&request).as_str() {
-          "index.html" => match assets.get(&"index.html".into()) {
-            Some(asset) => {
-              let asset = String::from_utf8_lossy(asset.as_ref());
-              let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
-                runtime_aes_gcm_key: &aes_gcm_key,
-                process_ipc_message_fn: PROCESS_IPC_MESSAGE_FN,
-              };
-              match template.render(asset.as_ref(), &Default::default()) {
-                Ok(asset) => http::Response::builder()
-                  .header(CONTENT_TYPE, mime::TEXT_HTML.as_ref())
-                  .body(asset.into_string().as_bytes().to_vec().into()),
-                Err(_) => http::Response::builder()
-                  .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-                  .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-                  .body(Vec::new().into()),
-              }
-            }
-
-            None => http::Response::builder()
-              .status(http::StatusCode::NOT_FOUND)
-              .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-              .body(Vec::new().into()),
-          },
-          _ => http::Response::builder()
-            .status(http::StatusCode::NOT_FOUND)
-            .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-            .body(Vec::new().into()),
-        };
-
-        if let Ok(r) = response {
-          responder(r);
-        } else {
-          responder(
-            http::Response::builder()
-              .status(http::StatusCode::BAD_REQUEST)
-              .body("failed to get response".as_bytes().to_vec().into())
-              .unwrap(),
-          );
-        }
+        protocol(request, UriSchemeResponder(responder))
       });
     }
 
@@ -1367,27 +1324,6 @@ fn on_window_event<R: Runtime>(
 struct ScaleFactorChanged {
   scale_factor: f64,
   size: PhysicalSize<u32>,
-}
-
-#[cfg(feature = "isolation")]
-fn request_to_path(request: &http::Request<Vec<u8>>) -> String {
-  let path = request
-    .uri()
-    .path()
-    .trim_start_matches('/')
-    .trim_end_matches('/');
-
-  let path = percent_encoding::percent_decode(path.as_bytes())
-    .decode_utf8_lossy()
-    .to_string();
-
-  if path.is_empty() {
-    // if the url has no path, we should load `index.html`
-    "index.html".to_string()
-  } else {
-    // skip leading `/`
-    path.chars().skip(1).collect()
-  }
 }
 
 #[cfg(test)]

@@ -41,7 +41,7 @@ fn main() {
 
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![video_uri])
-    .register_uri_scheme_protocol("stream", move |_app, request, responder| {
+    .register_asynchronous_uri_scheme_protocol("stream", move |_app, request, responder| {
       match get_stream_response(request, &boundary_id) {
         Ok(http_response) => responder.respond(http_response),
         Err(e) => responder.respond(

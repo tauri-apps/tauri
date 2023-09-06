@@ -32,7 +32,6 @@
         ) &&
         !(osName === 'macos' && location.protocol === 'https:')
       ) {
-        console.log('process')
         const {
           contentType,
           data

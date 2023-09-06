@@ -106,6 +106,8 @@ mod state;
 pub mod tray;
 pub use tauri_utils as utils;
 
+pub use http;
+
 /// A Tauri [`Runtime`] wrapper around wry.
 #[cfg(feature = "wry")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]

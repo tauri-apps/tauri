@@ -20,7 +20,7 @@ use super::{CallbackFn, InvokeBody, InvokeResponse};
 const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
 const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
 
-#[cfg(any(target_os = "macos", not(ipc_custom_protocol)))]
+#[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 pub fn message_handler<R: Runtime>(
   manager: WindowManager<R>,
 ) -> crate::runtime::webview::WebviewIpcHandler<crate::EventLoopMessage, R> {
@@ -125,7 +125,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
   })
 }
 
-#[cfg(any(target_os = "macos", not(ipc_custom_protocol)))]
+#[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, label: &str) {
   if let Some(window) = manager.get_window(label) {
     use serde::{Deserialize, Deserializer};
@@ -241,7 +241,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
 
               match &response {
                 InvokeResponse::Ok(InvokeBody::Json(v)) => {
-                  if !cfg!(target_os = "macos")
+                  if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
                     && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
                   {
                     let _ = Channel::from_ipc(window.clone(), callback).send(v);
@@ -254,12 +254,12 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
                   }
                 }
                 InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                  responder_eval(
-                    &window,
-                    format_callback_result(Result::<_, ()>::Ok(v), callback, error),
-                    error,
-                  );
-                  if cfg!(target_os = "macos") {
+                  if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
+                    responder_eval(
+                      &window,
+                      format_callback_result(Result::<_, ()>::Ok(v), callback, error),
+                      error,
+                    );
                   } else {
                     let _ =
                       Channel::from_ipc(window.clone(), callback).send(InvokeBody::Raw(v.clone()));

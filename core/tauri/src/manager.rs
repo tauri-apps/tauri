@@ -1029,7 +1029,7 @@ impl<R: Runtime> WindowManager<R> {
       app_handle.clone(),
     )?;
 
-    #[cfg(any(target_os = "macos", not(ipc_custom_protocol)))]
+    #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
     {
       pending.ipc_handler = Some(crate::ipc::protocol::message_handler(self.clone()));
     }

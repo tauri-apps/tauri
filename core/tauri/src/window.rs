@@ -62,11 +62,8 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
-pub(crate) type UriSchemeProtocolHandler = Box<
-  dyn Fn(HttpRequest<Vec<u8>>, UriSchemeResponse) -> Result<(), Box<dyn std::error::Error>>
-    + Send
-    + Sync,
->;
+pub(crate) type UriSchemeProtocolHandler =
+  Box<dyn Fn(HttpRequest<Vec<u8>>, UriSchemeResponse) + Send + Sync>;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {

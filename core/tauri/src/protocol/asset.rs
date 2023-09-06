@@ -13,7 +13,7 @@ use tauri_utils::mime_type::MimeType;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-pub fn asset_protocol_handler(
+pub fn get(
   request: Request<Vec<u8>>,
   scope: FsScope,
   window_origin: String,

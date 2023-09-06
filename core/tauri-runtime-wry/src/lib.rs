@@ -2665,10 +2665,9 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   for (scheme, protocol) in uri_scheme_protocols {
-    webview_builder =
-      webview_builder.with_asynchronous_custom_protocol(scheme, move |request, api| {
+    webview_builder = webview_builder
+      .with_asynchronous_custom_protocol(scheme, move |request, api| {
         protocol(request, Box::new(move |response| api.respond(response)))
-          .map_err(|_| wry::Error::InitScriptError)
       });
   }
 

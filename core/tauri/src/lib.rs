@@ -76,8 +76,6 @@ pub use tauri_macros::{command, generate_handler};
 
 pub mod api;
 pub(crate) mod app;
-#[cfg(feature = "protocol-asset")]
-pub(crate) mod asset_protocol;
 pub mod async_runtime;
 pub mod command;
 mod error;
@@ -86,6 +84,7 @@ pub mod ipc;
 mod manager;
 mod pattern;
 pub mod plugin;
+pub(crate) mod protocol;
 mod vibrancy;
 pub mod window;
 use tauri_runtime as runtime;

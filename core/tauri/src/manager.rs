@@ -19,7 +19,7 @@ use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
 
-use http::{header::CONTENT_TYPE, Request as HttpRequest, Response as HttpResponse};
+use http::Request as HttpRequest;
 use tauri_macros::default_runtime;
 use tauri_utils::debug_eprintln;
 use tauri_utils::{
@@ -49,7 +49,6 @@ use crate::{
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  window::{UriSchemeProtocolHandler, WebResourceRequestHandler},
   Context, EventLoopMessage, Icon, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
 };
@@ -81,7 +80,7 @@ pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
 // and we do not get a secure context without the custom protocol that proxies to the dev server
 // additionally, we need the custom protocol to inject the initialization scripts on Android
 // must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
-const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
+pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
 
 #[cfg(feature = "isolation")]
 #[derive(Template)]
@@ -309,15 +308,7 @@ pub struct Asset {
 pub struct CustomProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol: Box<
-    dyn Fn(
-        &AppHandle<R>,
-        HttpRequest<Vec<u8>>,
-        UriSchemeResponse,
-      ) -> Result<(), Box<dyn std::error::Error>>
-      + Send
-      + Sync,
-  >,
+  pub protocol: Box<dyn Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponse) + Send + Sync>,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -632,7 +623,8 @@ impl<R: Runtime> WindowManager<R> {
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
-      let protocol = self.prepare_uri_scheme_protocol(&window_origin, web_resource_request_handler);
+      let protocol =
+        crate::protocol::tauri::get(self, &window_origin, web_resource_request_handler);
       pending.register_uri_scheme_protocol("tauri", move |request, response| {
         protocol(request, UriSchemeResponse(response))
       });
@@ -651,15 +643,15 @@ impl<R: Runtime> WindowManager<R> {
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
       pending.register_uri_scheme_protocol("asset", move |request, responder| {
-        let response = crate::asset_protocol::asset_protocol_handler(
-          request,
-          asset_scope.clone(),
-          window_origin.clone(),
-        )?;
-
-        responder(response);
-
-        Ok(())
+        match crate::protocol::asset::get(request, asset_scope.clone(), window_origin.clone()) {
+          Ok(response) => responder(response),
+          Err(e) => responder(
+            http::Response::builder()
+              .status(http::StatusCode::BAD_REQUEST)
+              .body(e.to_string().as_bytes().to_vec().into())
+              .unwrap(),
+          ),
+        }
       });
     }
 
@@ -671,6 +663,8 @@ impl<R: Runtime> WindowManager<R> {
       crypto_keys,
     } = &self.inner.pattern
     {
+      use http::header::CONTENT_TYPE;
+
       let assets = assets.clone();
       let aes_gcm_key = *crypto_keys.aes_gcm().raw();
 
@@ -684,30 +678,37 @@ impl<R: Runtime> WindowManager<R> {
                 process_ipc_message_fn: PROCESS_IPC_MESSAGE_FN,
               };
               match template.render(asset.as_ref(), &Default::default()) {
-                Ok(asset) => HttpResponse::builder()
+                Ok(asset) => http::Response::builder()
                   .header(CONTENT_TYPE, mime::TEXT_HTML.as_ref())
-                  .body(asset.into_string().as_bytes().to_vec()),
-                Err(_) => HttpResponse::builder()
-                  .status(500)
+                  .body(asset.into_string().as_bytes().to_vec().into()),
+                Err(_) => http::Response::builder()
+                  .status(http::StatusCode::INTERNAL_SERVER_ERROR)
                   .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-                  .body(Vec::new()),
+                  .body(Vec::new().into()),
               }
             }
 
-            None => HttpResponse::builder()
-              .status(404)
+            None => http::Response::builder()
+              .status(http::StatusCode::NOT_FOUND)
               .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-              .body(Vec::new()),
+              .body(Vec::new().into()),
           },
-          _ => HttpResponse::builder()
-            .status(404)
+          _ => http::Response::builder()
+            .status(http::StatusCode::NOT_FOUND)
             .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-            .body(Vec::new()),
-        }?;
+            .body(Vec::new().into()),
+        };
 
-        responder.respond(response);
-
-        Ok(())
+        if let Ok(r) = response {
+          responder(r);
+        } else {
+          responder(
+            http::Response::builder()
+              .status(http::StatusCode::BAD_REQUEST)
+              .body("failed to get response".as_bytes().to_vec().into())
+              .unwrap(),
+          );
+        }
       });
     }
 
@@ -795,140 +796,6 @@ impl<R: Runtime> WindowManager<R> {
         Err(Box::new(e))
       }
     }
-  }
-
-  fn prepare_uri_scheme_protocol(
-    &self,
-    window_origin: &str,
-    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
-  ) -> UriSchemeProtocolHandler {
-    #[cfg(all(dev, mobile))]
-    let url = {
-      let mut url = self.get_url().as_str().to_string();
-      if url.ends_with('/') {
-        url.pop();
-      }
-      url
-    };
-    #[cfg(not(all(dev, mobile)))]
-    let manager = self.clone();
-    let window_origin = window_origin.to_string();
-
-    #[cfg(all(dev, mobile))]
-    #[derive(Clone)]
-    struct CachedResponse {
-      status: http::StatusCode,
-      headers: http::HeaderMap,
-      body: bytes::Bytes,
-    }
-
-    #[cfg(all(dev, mobile))]
-    let response_cache = Arc::new(Mutex::new(HashMap::new()));
-
-    Box::new(move |request, responder| {
-      // use the entire URI as we are going to proxy the request
-      let path = if PROXY_DEV_SERVER {
-        request.uri().to_string()
-      } else {
-        // ignore query string and fragment
-        request
-          .uri()
-          .to_string()
-          .split(&['?', '#'][..])
-          .next()
-          .unwrap()
-          .into()
-      };
-
-      let path = path
-        .strip_prefix("tauri://localhost")
-        .map(|p| p.to_string())
-        // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
-        // where `$P` is not `localhost/*`
-        .unwrap_or_else(|| "".to_string());
-
-      let mut builder =
-        HttpResponse::builder().header("Access-Control-Allow-Origin", &window_origin);
-
-      #[cfg(all(dev, mobile))]
-      let mut response = {
-        let decoded_path = percent_encoding::percent_decode(path.as_bytes())
-          .decode_utf8_lossy()
-          .to_string();
-        let url = format!("{url}{decoded_path}");
-        #[allow(unused_mut)]
-        let mut client_builder = reqwest::ClientBuilder::new();
-        #[cfg(any(feature = "native-tls", feature = "rustls-tls"))]
-        {
-          client_builder = client_builder.danger_accept_invalid_certs(true);
-        }
-        let mut proxy_builder = client_builder
-          .build()
-          .unwrap()
-          .request(request.method().clone(), &url);
-        for (name, value) in request.headers() {
-          proxy_builder = proxy_builder.header(name, value);
-        }
-        match crate::async_runtime::block_on(proxy_builder.send()) {
-          Ok(r) => {
-            let mut response_cache_ = response_cache.lock().unwrap();
-            let mut response = None;
-            if r.status() == http::StatusCode::NOT_MODIFIED {
-              response = response_cache_.get(&url);
-            }
-            let response = if let Some(r) = response {
-              r
-            } else {
-              let status = r.status();
-              let headers = r.headers().clone();
-              let body = crate::async_runtime::block_on(r.bytes())?;
-              let response = CachedResponse {
-                status,
-                headers,
-                body,
-              };
-              response_cache_.insert(url.clone(), response);
-              response_cache_.get(&url).unwrap()
-            };
-            for (name, value) in &response.headers {
-              builder = builder.header(name, value);
-            }
-            builder
-              .status(response.status)
-              .body(response.body.to_vec().into())?
-          }
-          Err(e) => {
-            debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
-            return Err(Box::new(e));
-          }
-        }
-      };
-
-      #[cfg(not(all(dev, mobile)))]
-      let mut response = {
-        let asset = manager.get_asset(path)?;
-        builder = builder.header(CONTENT_TYPE, &asset.mime_type);
-        if let Some(csp) = &asset.csp_header {
-          builder = builder.header("Content-Security-Policy", csp);
-        }
-        builder.body(asset.bytes.into())?
-      };
-      if let Some(handler) = &web_resource_request_handler {
-        handler(request, &mut response);
-      }
-      // if it's an HTML file, we need to set the CSP meta tag on Linux
-      #[cfg(all(not(dev), target_os = "linux"))]
-      if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
-        let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-        let html = String::from_utf8_lossy(response.body());
-        let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
-        *response.body_mut() = body.as_bytes().to_vec();
-      }
-
-      responder.respond(response);
-
-      Ok(())
-    })
   }
 
   fn initialization_script(

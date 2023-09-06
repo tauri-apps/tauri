@@ -1353,14 +1353,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(
-        &AppHandle<R>,
-        HttpRequest<Vec<u8>>,
-        UriSchemeResponse,
-      ) -> Result<(), Box<dyn std::error::Error>>
-      + Send
-      + Sync
-      + 'static,
+    H: Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponse) + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,

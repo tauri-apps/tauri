@@ -122,8 +122,6 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
         respond(r);
       }
     }
-
-    Ok(())
   })
 }
 

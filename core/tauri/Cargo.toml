@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.0.0-alpha.11"
+version = "2.0.0-alpha.12"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -47,10 +47,10 @@ url = { version = "2.4" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1"
-tauri-runtime = { version = "1.0.0-alpha.0", path = "../tauri-runtime" }
+tauri-runtime = { version = "1.0.0-alpha.1", path = "../tauri-runtime" }
 tauri-macros = { version = "2.0.0-alpha.7", path = "../tauri-macros" }
 tauri-utils = { version = "2.0.0-alpha.7", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "1.0.0-alpha.0", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "1.0.0-alpha.1", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 serde_repr = "0.1"
 state = "0.6"

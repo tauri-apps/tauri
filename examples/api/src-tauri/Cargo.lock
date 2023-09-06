@@ -4531,7 +4531,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.31.0"
-source = "git+https://github.com/tauri-apps/wry?branch=refactor/custom-protocol-response#281525bf2ed7f3ed0521f684e6967d3fd7ec5f62"
+source = "git+https://github.com/tauri-apps/wry?rev=4bdf1c366de5708b7626ca63eb39e134869c5bd4#4bdf1c366de5708b7626ca63eb39e134869c5bd4"
 dependencies = [
  "base64",
  "block",

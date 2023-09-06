@@ -172,7 +172,7 @@ fn get_response<R: Runtime>(
     let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
     let html = String::from_utf8_lossy(response.body());
     let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
-    *response.body_mut() = body.as_bytes().to_vec();
+    *response.body_mut() = body.as_bytes().to_vec().into();
   }
 
   Ok(response)

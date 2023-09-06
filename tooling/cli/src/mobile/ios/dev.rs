@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, open_and_wait,
-  setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
+  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
+  open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -139,6 +139,7 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  inject_assets(&config)?;
   run_dev(options, tauri_config, &app, &config, noise_level)
 }
 

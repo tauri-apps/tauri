@@ -42,7 +42,7 @@ fn main() {
 
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![video_uri])
-    .register_uri_scheme_protocol("stream", move |_app, request, responder| {
+    .register_uri_scheme_protocol("stream", move |_app, request, response| {
       // get the file path
       let path = request.uri().path();
       let path = percent_encoding::percent_decode(path.as_bytes())
@@ -51,7 +51,7 @@ fn main() {
 
       if path != "test_video.mp4" {
         // return error 404 if it's not our video
-        responder(ResponseBuilder::new().status(404).body(Vec::new().into())?);
+        response.respond(ResponseBuilder::new().status(404).body(Vec::new())?);
         return Ok(());
       }
 
@@ -69,12 +69,12 @@ fn main() {
 
       // if the webview sent a range header, we need to send a 206 in return
       // Actually only macOS and Windows are supported. Linux will ALWAYS return empty headers.
-      let response = if let Some(range_header) = request.headers().get("range") {
+      let http_response = if let Some(range_header) = request.headers().get("range") {
         let not_satisfiable = || {
           ResponseBuilder::new()
             .status(StatusCode::RANGE_NOT_SATISFIABLE)
             .header(CONTENT_RANGE, format!("bytes */{len}"))
-            .body(vec![].into())
+            .body(vec![])
         };
 
         // parse range header
@@ -85,7 +85,7 @@ fn main() {
             .map(|r| (r.start, r.start + r.length - 1))
             .collect::<Vec<_>>()
         } else {
-          responder(not_satisfiable()?);
+          response.respond(not_satisfiable()?);
           return Ok(());
         };
 
@@ -100,7 +100,7 @@ fn main() {
           // this should be already taken care of by HttpRange::parse
           // but checking here again for extra assurance
           if start >= len || end >= len || end < start {
-            responder(not_satisfiable()?);
+            response.respond(not_satisfiable()?);
             return Ok(());
           }
 
@@ -120,7 +120,7 @@ fn main() {
           resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
           resp = resp.header(CONTENT_LENGTH, end + 1 - start);
           resp = resp.status(StatusCode::PARTIAL_CONTENT);
-          resp.body(buf.into())
+          resp.body(buf)
         } else {
           let mut buf = Vec::new();
           let ranges = ranges
@@ -173,16 +173,16 @@ fn main() {
           // all ranges have been written, write the closing boundary
           buf.write_all(boundary_closer.as_bytes())?;
 
-          resp.body(buf.into())
+          resp.body(buf)
         }
       } else {
         resp = resp.header(CONTENT_LENGTH, len);
         let mut buf = Vec::with_capacity(len as usize);
         file.read_to_end(&mut buf)?;
-        resp.body(buf.into())
+        resp.body(buf)
       };
 
-      responder(response?);
+      response.respond(http_response?);
 
       Ok(())
     })

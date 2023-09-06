@@ -29,7 +29,10 @@ use tauri_utils::{
 };
 
 use crate::{
-  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload},
+  app::{
+    AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
+    UriSchemeResponse,
+  },
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
@@ -310,7 +313,7 @@ pub struct CustomProtocol<R: Runtime> {
     dyn Fn(
         &AppHandle<R>,
         HttpRequest<Vec<u8>>,
-        Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send + Sync>,
+        UriSchemeResponse,
       ) -> Result<(), Box<dyn std::error::Error>>
       + Send
       + Sync,
@@ -606,7 +609,7 @@ impl<R: Runtime> WindowManager<R> {
       let protocol = protocol.clone();
       let app_handle = Mutex::new(app_handle.clone());
       pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p, responder| {
-        (protocol.protocol)(&app_handle.lock().unwrap(), p, responder)
+        (protocol.protocol)(&app_handle.lock().unwrap(), p, UriSchemeResponse(responder))
       });
     }
 
@@ -629,18 +632,18 @@ impl<R: Runtime> WindowManager<R> {
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
-      pending.register_uri_scheme_protocol(
-        "tauri",
-        self.prepare_uri_scheme_protocol(&window_origin, web_resource_request_handler),
-      );
+      let protocol = self.prepare_uri_scheme_protocol(&window_origin, web_resource_request_handler);
+      pending.register_uri_scheme_protocol("tauri", move |request, response| {
+        protocol(request, UriSchemeResponse(response))
+      });
       registered_scheme_protocols.push("tauri".into());
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
-      pending.register_uri_scheme_protocol(
-        "ipc",
-        crate::ipc::protocol::get(self.clone(), pending.label.clone()),
-      );
+      let protocol = crate::ipc::protocol::get(self.clone(), pending.label.clone());
+      pending.register_uri_scheme_protocol("ipc", move |request, response| {
+        protocol(request, UriSchemeResponse(response))
+      });
       registered_scheme_protocols.push("ipc".into());
     }
 
@@ -683,26 +686,26 @@ impl<R: Runtime> WindowManager<R> {
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponse::builder()
                   .header(CONTENT_TYPE, mime::TEXT_HTML.as_ref())
-                  .body(asset.into_string().as_bytes().to_vec().into()),
+                  .body(asset.into_string().as_bytes().to_vec()),
                 Err(_) => HttpResponse::builder()
                   .status(500)
                   .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-                  .body(Vec::new().into()),
+                  .body(Vec::new()),
               }
             }
 
             None => HttpResponse::builder()
               .status(404)
               .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-              .body(Vec::new().into()),
+              .body(Vec::new()),
           },
           _ => HttpResponse::builder()
             .status(404)
             .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-            .body(Vec::new().into()),
+            .body(Vec::new()),
         }?;
 
-        (responder)(response);
+        responder.respond(response);
 
         Ok(())
       });
@@ -892,7 +895,7 @@ impl<R: Runtime> WindowManager<R> {
             }
             builder
               .status(response.status)
-              .body(response.body.to_vec())?
+              .body(response.body.to_vec().into())?
           }
           Err(e) => {
             debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
@@ -919,10 +922,10 @@ impl<R: Runtime> WindowManager<R> {
         let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
         let html = String::from_utf8_lossy(response.body());
         let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
-        *response.body_mut() = body.as_bytes().to_vec().into();
+        *response.body_mut() = body.as_bytes().to_vec();
       }
 
-      responder(response);
+      responder.respond(response);
 
       Ok(())
     })

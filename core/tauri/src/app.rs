@@ -1356,7 +1356,7 @@ impl<R: Runtime> Builder<R> {
     H: Fn(
         &AppHandle<R>,
         HttpRequest<Vec<u8>>,
-        Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send + Sync>,
+        UriSchemeResponse,
       ) -> Result<(), Box<dyn std::error::Error>>
       + Send
       + Sync
@@ -1581,6 +1581,18 @@ impl<R: Runtime> Builder<R> {
   pub fn run<A: Assets>(self, context: Context<A>) -> crate::Result<()> {
     self.build(context)?.run(|_, _| {});
     Ok(())
+  }
+}
+
+pub struct UriSchemeResponse(
+  pub(crate) Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send + Sync>,
+);
+
+impl UriSchemeResponse {
+  /// Resolves the request with the given response.
+  pub fn respond<T: Into<Cow<'static, [u8]>>>(self, response: HttpResponse<T>) {
+    let (parts, body) = response.into_parts();
+    (self.0)(HttpResponse::from_parts(parts, body.into()))
   }
 }
 

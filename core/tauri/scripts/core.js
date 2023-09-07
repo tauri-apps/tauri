@@ -59,11 +59,11 @@
 
   window.__TAURI_INVOKE__ = function invoke(cmd, payload = {}, options) {
     return new Promise(function (resolve, reject) {
-      const callback = window.__TAURI__.transformCallback(function (r) {
+      var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r)
         delete window[`_${error}`]
       }, true)
-      const error = window.__TAURI__.transformCallback(function (e) {
+      var error = window.__TAURI__.transformCallback(function (e) {
         reject(e)
         delete window[`_${callback}`]
       }, true)

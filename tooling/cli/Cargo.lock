@@ -1417,6 +1417,20 @@ dependencies = [
 
 [[package]]
 name = "handlebars"
+version = "3.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4498fc115fa7d34de968184e473529abb40eeb6be8bc5f7faba3d08c316cb3e3"
+dependencies = [
+ "log",
+ "pest",
+ "pest_derive",
+ "quick-error",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "handlebars"
 version = "4.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83c3372087601b532857d332f5957cbae686da52bb7810bf038c3e3c3cc2fa0d"
@@ -2968,6 +2982,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-error"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
+
+[[package]]
 name = "quick-xml"
 version = "0.28.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3905,7 +3925,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.0-alpha.8"
+version = "2.0.0-alpha.7"
 dependencies = [
  "anyhow",
  "ar",
@@ -3913,7 +3933,7 @@ dependencies = [
  "dirs-next",
  "dunce",
  "glob",
- "handlebars",
+ "handlebars 4.3.7",
  "heck",
  "hex",
  "image",
@@ -3945,7 +3965,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-alpha.12"
+version = "2.0.0-alpha.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -3960,7 +3980,7 @@ dependencies = [
  "dialoguer",
  "duct",
  "env_logger",
- "handlebars",
+ "handlebars 4.3.7",
  "heck",
  "html5ever 0.26.0",
  "ignore",
@@ -4030,9 +4050,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-mobile"
-version = "0.5.3"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fd415c57bbe9d25db96e2ceeacf5b1ebe0dd413f1074f2ad2060bdd2d058405"
+checksum = "38d71d0a35c86cb9707ebb800a37c19fb90ee2d346db2d036c54c344e6839b32"
 dependencies = [
  "cocoa",
  "colored 1.9.3",
@@ -4043,7 +4063,7 @@ dependencies = [
  "embed-resource",
  "english-numbers",
  "freedesktop_entry_parser",
- "handlebars",
+ "handlebars 3.5.5",
  "heck",
  "home",
  "ignore",

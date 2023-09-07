@@ -1,16 +1,5 @@
 # Changelog
 
-## \[2.0.0-alpha.12]
-
-### Bug Fixes
-
-- [`b75a1210`](https://www.github.com/tauri-apps/tauri/commit/b75a1210bed589187678861d7314ae6279bf7c87)([#7762](https://www.github.com/tauri-apps/tauri/pull/7762)) Fixes a regression on alpha.11 where iOS logs aren't being displayed when using `ios dev` with a real device.
-- [`8faa5a4a`](https://www.github.com/tauri-apps/tauri/commit/8faa5a4a1238a44ca7b54d2084aaed553ac2a1ba)([#7765](https://www.github.com/tauri-apps/tauri/pull/7765)) Ensure asset directory exists on the iOS project.
-
-### Dependencies
-
-- Upgraded to `tauri-cli@2.0.0-alpha.12`
-
 ## \[2.0.0-alpha.11]
 
 ### New Features

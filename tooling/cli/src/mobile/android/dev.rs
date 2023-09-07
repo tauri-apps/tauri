@@ -235,7 +235,7 @@ fn run_dev(
             crate::dev::wait_dev_process(c.clone(), move |status, reason| {
               crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
             });
-            Ok(Box::new(c) as Box<dyn DevProcess + Send>)
+            Ok(Box::new(c) as Box<dyn DevProcess>)
           }
           Err(e) => {
             crate::dev::kill_before_dev_process();

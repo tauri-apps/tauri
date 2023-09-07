@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{ensure_init, env, get_app, get_config, inject_assets, MobileTarget};
+use super::{ensure_init, env, get_app, get_config, MobileTarget};
 use crate::{helpers::config::get as get_tauri_config, Result};
 
 use tauri_mobile::os;
@@ -17,7 +17,6 @@ pub fn command() -> Result<()> {
   };
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
-  inject_assets(&config)?;
   let env = env()?;
   os::open_file_with("Xcode", config.project_dir(), &env).map_err(Into::into)
 }

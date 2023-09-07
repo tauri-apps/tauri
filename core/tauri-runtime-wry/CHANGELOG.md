@@ -1,23 +1,5 @@
 # Changelog
 
-## \[1.0.0-alpha.1]
-
-### Enhancements
-
-- [`0d63732b`](https://www.github.com/tauri-apps/tauri/commit/0d63732b962e71b98430f8d7b34ea5b59a2e8bb4)([#7754](https://www.github.com/tauri-apps/tauri/pull/7754)) Update wry to 0.32 to include asynchronous custom protocol support.
-
-### What's Changed
-
-- [`6177150b`](https://www.github.com/tauri-apps/tauri/commit/6177150b6f83b52ca359d6e20f7e540f7554e4eb)([#7601](https://www.github.com/tauri-apps/tauri/pull/7601)) Changed `FileDropEvent` to include drop and hover position.
-
-### Dependencies
-
-- Upgraded to `tauri-runtime@1.0.0-alpha.1`
-
-### Breaking Changes
-
-- [`0d63732b`](https://www.github.com/tauri-apps/tauri/commit/0d63732b962e71b98430f8d7b34ea5b59a2e8bb4)([#7754](https://www.github.com/tauri-apps/tauri/pull/7754)) `tauri-runtime` no longer implements its own HTTP types and relies on the `http` crate instead.
-
 ## \[1.0.0-alpha.0]
 
 ### New Features

@@ -19,6 +19,7 @@ use tauri_utils::Theme;
 use url::Url;
 use uuid::Uuid;
 
+pub mod http;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;
@@ -31,10 +32,11 @@ use window::{
   CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
 };
 
-use http::{
+use crate::http::{
   header::{InvalidHeaderName, InvalidHeaderValue},
   method::InvalidMethod,
   status::InvalidStatusCode,
+  InvalidUri,
 };
 
 /// Type of user attention requested on a window.
@@ -99,6 +101,8 @@ pub enum Error {
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
   InvalidHeaderValue(#[from] InvalidHeaderValue),
+  #[error("Invalid uri: {0}")]
+  InvalidUri(#[from] InvalidUri),
   #[error("Invalid status code: {0}")]
   InvalidStatusCode(#[from] InvalidStatusCode),
   #[error("Invalid method: {0}")]

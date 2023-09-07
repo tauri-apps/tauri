@@ -4,57 +4,45 @@
 
 use crate::path::SafePathBuf;
 use crate::scope::FsScope;
-use crate::window::UriSchemeProtocolHandler;
-use http::{header::*, status::StatusCode, Request, Response};
-use http_range::HttpRange;
 use rand::RngCore;
-use std::{borrow::Cow, io::SeekFrom};
+use std::io::SeekFrom;
+use tauri_runtime::http::HttpRange;
+use tauri_runtime::http::{
+  header::*, status::StatusCode, MimeType, Request, Response, ResponseBuilder,
+};
 use tauri_utils::debug_eprintln;
-use tauri_utils::mime_type::MimeType;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use url::Position;
+use url::Url;
 
-pub fn get(scope: FsScope, window_origin: String) -> UriSchemeProtocolHandler {
-  Box::new(
-    move |request, responder| match get_response(request, &scope, &window_origin) {
-      Ok(response) => responder.respond(response),
-      Err(e) => responder.respond(
-        http::Response::builder()
-          .status(http::StatusCode::BAD_REQUEST)
-          .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-          .body(e.to_string().as_bytes().to_vec())
-          .unwrap(),
-      ),
-    },
-  )
-}
-
-fn get_response(
-  request: Request<Vec<u8>>,
-  scope: &FsScope,
-  window_origin: &str,
-) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
-  let path = percent_encoding::percent_decode(request.uri().path().as_bytes())
+pub fn asset_protocol_handler(
+  request: &Request,
+  scope: FsScope,
+  window_origin: String,
+) -> Result<Response, Box<dyn std::error::Error>> {
+  let parsed_path = Url::parse(request.uri())?;
+  let filtered_path = &parsed_path[..Position::AfterPath];
+  let path = filtered_path
+    .strip_prefix("asset://localhost/")
+    // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
+    // where `$P` is not `localhost/*`
+    .unwrap_or("");
+  let path = percent_encoding::percent_decode(path.as_bytes())
     .decode_utf8_lossy()
     .to_string();
 
   if let Err(e) = SafePathBuf::new(path.clone().into()) {
     debug_eprintln!("asset protocol path \"{}\" is not valid: {}", path, e);
-    return Response::builder()
-      .status(403)
-      .body(Vec::new().into())
-      .map_err(Into::into);
+    return ResponseBuilder::new().status(403).body(Vec::new());
   }
 
   if !scope.is_allowed(&path) {
     debug_eprintln!("asset protocol not configured to allow the path: {}", path);
-    return Response::builder()
-      .status(403)
-      .body(Vec::new().into())
-      .map_err(Into::into);
+    return ResponseBuilder::new().status(403).body(Vec::new());
   }
 
-  let mut resp = Response::builder().header("Access-Control-Allow-Origin", window_origin);
+  let mut resp = ResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
 
   let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {
     let mut file = File::open(&path).await?;
@@ -96,11 +84,10 @@ fn get_response(
     resp = resp.header(ACCEPT_RANGES, "bytes");
 
     let not_satisfiable = || {
-      Response::builder()
+      ResponseBuilder::new()
         .status(StatusCode::RANGE_NOT_SATISFIABLE)
         .header(CONTENT_RANGE, format!("bytes */{len}"))
-        .body(vec![].into())
-        .map_err(Into::into)
+        .body(vec![])
     };
 
     // parse range header
@@ -145,7 +132,7 @@ fn get_response(
       resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
       resp = resp.header(CONTENT_LENGTH, end + 1 - start);
       resp = resp.status(StatusCode::PARTIAL_CONTENT);
-      resp.body(buf.into())
+      resp.body(buf)
     } else {
       let ranges = ranges
         .iter()
@@ -205,7 +192,7 @@ fn get_response(
 
         Ok::<Vec<u8>, anyhow::Error>(buf)
       })?;
-      resp.body(buf.into())
+      resp.body(buf)
     }
   } else {
     // avoid reading the file if we already read it
@@ -220,10 +207,10 @@ fn get_response(
       })?
     };
     resp = resp.header(CONTENT_LENGTH, len);
-    resp.body(buf.into())
+    resp.body(buf)
   };
 
-  response.map_err(Into::into)
+  response
 }
 
 fn random_boundary() -> String {

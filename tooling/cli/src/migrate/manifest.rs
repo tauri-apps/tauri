@@ -225,7 +225,6 @@ mod tests {
       .as_array()
       .expect("features must be an array")
       .clone();
-
     if toml.contains("reqwest-native-tls-vendored") {
       assert!(
         features
@@ -234,22 +233,10 @@ mod tests {
         "reqwest-native-tls-vendored was not replaced with native-tls-vendored"
       );
     }
-
-    if toml.contains("system-tray") {
-      assert!(
-        features
-          .iter()
-          .any(|f| f.as_str().expect("feature must be a string") == "tray-icon"),
-        "system-tray was not replaced with tray-icon"
-      );
-    }
-
     for feature in features.iter() {
       let feature = feature.as_str().expect("feature must be a string");
       assert!(
-        keep_features.contains(&feature)
-          || feature == "native-tls-vendored"
-          || feature == "tray-icon",
+        keep_features.contains(&feature) || feature == "native-tls-vendored",
         "feature {feature} should have been removed"
       );
     }

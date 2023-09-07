@@ -3399,7 +3399,7 @@ checksum = "9d0e916b1148c8e263850e1ebcbd046f333e0683c724876bb0da63ea4373dc8a"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-alpha.11"
+version = "2.0.0-alpha.10"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3412,7 +3412,6 @@ dependencies = [
  "gtk",
  "heck",
  "http",
- "http-range",
  "ico",
  "infer 0.15.0",
  "jni",
@@ -3450,7 +3449,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-alpha.8"
+version = "2.0.0-alpha.6"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3470,7 +3469,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-alpha.7"
+version = "2.0.0-alpha.6"
 dependencies = [
  "base64",
  "brotli",
@@ -3494,7 +3493,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-alpha.7"
+version = "2.0.0-alpha.6"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -3550,10 +3549,11 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "1.0.0-alpha.0"
+version = "0.13.0-alpha.6"
 dependencies = [
  "gtk",
  "http",
+ "http-range",
  "jni",
  "rand 0.8.5",
  "raw-window-handle",
@@ -3568,11 +3568,10 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "1.0.0-alpha.0"
+version = "0.13.0-alpha.6"
 dependencies = [
  "cocoa 0.24.1",
  "gtk",
- "http",
  "jni",
  "percent-encoding",
  "rand 0.8.5",
@@ -3588,7 +3587,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-alpha.7"
+version = "2.0.0-alpha.6"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -4530,9 +4529,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.32.0"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41fc00d1511c9ff5b600a6c6bde254eb39b9fcc5c0369b71a8efd5ff807bf937"
+checksum = "4c6289018fa3cbc051c13f4ae1a102d80c3f35a527456c75567eb2cad6989020"
 dependencies = [
  "base64",
  "block",

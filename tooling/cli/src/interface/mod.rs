@@ -95,7 +95,7 @@ pub trait Interface: Sized {
     options: Options,
     on_exit: F,
   ) -> crate::Result<()>;
-  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
+  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess>>>(
     &mut self,
     options: MobileOptions,
     runner: R,

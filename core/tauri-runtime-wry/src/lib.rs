@@ -5,7 +5,7 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-use std::{rc::Rc, sync::atomic::AtomicBool};
+use std::rc::Rc;
 use tauri_runtime::{
   http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
@@ -1677,7 +1677,7 @@ enum WindowHandle {
     // the key of the WebContext if it's not shared
     context_key: Option<PathBuf>,
     #[cfg(windows)]
-    webview_focused: Arc<AtomicBool>,
+    webview_focused: Arc<std::sync::atomic::AtomicBool>,
   },
   Window(Arc<Window>),
 }
@@ -3274,7 +3274,7 @@ fn create_webview<T: UserEvent>(
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   #[cfg(windows)]
-  let webview_focused = Arc::new(AtomicBool::new(false));
+  let webview_focused = Arc::new(std::sync::atomic::AtomicBool::new(false));
   #[cfg(windows)]
   {
     let controller = webview.controller();

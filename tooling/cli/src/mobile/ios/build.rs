@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, log_finished,
-  open_and_wait, MobileTarget,
+  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_assets,
+  log_finished, open_and_wait, MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -91,6 +91,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  inject_assets(&config)?;
 
   let mut env = env()?;
   configure_cargo(&app, None)?;

@@ -20,7 +20,7 @@ use tauri_mobile::{
     env::Env,
     target::Target,
   },
-  config::app::App,
+  config::app::{App, DEFAULT_ASSET_DIR},
   opts::{FilterLevel, NoiseLevel},
   os,
   util::prompt,
@@ -292,7 +292,10 @@ fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {
 }
 
 fn inject_assets(config: &AndroidConfig, tauri_config: &TauriConfig) -> Result<()> {
-  let asset_dir = config.project_dir().join("app/src/main/assets");
+  let asset_dir = config
+    .project_dir()
+    .join("app/src/main")
+    .join(DEFAULT_ASSET_DIR);
   create_dir_all(&asset_dir)?;
 
   write(

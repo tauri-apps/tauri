@@ -11,7 +11,6 @@ use crate::{
   manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
-    http::{Request as HttpRequest, Response as HttpResponse},
     webview::WebviewAttributes,
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
@@ -33,6 +32,7 @@ use crate::menu::{Menu, MenuEvent};
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 #[cfg(desktop)]
 use crate::window::WindowMenu;
+use http::{Request as HttpRequest, Response as HttpResponse};
 use raw_window_handle::HasRawDisplayHandle;
 use serde::Deserialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
@@ -49,6 +49,7 @@ use tauri_runtime::{
 use tauri_utils::PackageInfo;
 
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fmt,
   sync::{mpsc::Sender, Arc, Weak},
@@ -1097,7 +1098,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
-    F: Fn(Window<R>, String, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
+    F: Fn(&Window<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
     self.invoke_initialization_script = initialization_script;
     self.invoke_responder.replace(Arc::new(responder));
@@ -1348,14 +1349,78 @@ impl<R: Runtime> Builder<R> {
   /// # Arguments
   ///
   /// * `uri_scheme` The URI scheme to register, such as `example`.
-  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes a request and returns a response.
+  ///
+  /// # Examples
+  /// ```
+  /// tauri::Builder::default()
+  ///   .register_uri_scheme_protocol("app-files", |_app, request| {
+  ///     let path = request.uri().path().trim_start_matches('/');
+  ///     if let Ok(data) = std::fs::read(path) {
+  ///       http::Response::builder()
+  ///         .body(data)
+  ///         .unwrap()
+  ///     } else {
+  ///       http::Response::builder()
+  ///         .status(http::StatusCode::BAD_REQUEST)
+  ///         .header(http::header::CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+  ///         .body("failed to read file".as_bytes().to_vec())
+  ///         .unwrap()
+  ///     }
+  ///   });
+  /// ```
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&AppHandle<R>, &HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>>
-      + Send
-      + Sync
-      + 'static,
+    T: Into<Cow<'static, [u8]>>,
+    H: Fn(&AppHandle<R>, HttpRequest<Vec<u8>>) -> HttpResponse<T> + Send + Sync + 'static,
+  >(
+    mut self,
+    uri_scheme: N,
+    protocol: H,
+  ) -> Self {
+    self.uri_scheme_protocols.insert(
+      uri_scheme.into(),
+      Arc::new(CustomProtocol {
+        protocol: Box::new(move |app, request, responder| {
+          responder.respond(protocol(app, request))
+        }),
+      }),
+    );
+    self
+  }
+
+  /// Similar to [`Self::register_uri_scheme_protocol`] but with an asynchronous responder that allows you
+  /// to process the request in a separate thread and respond asynchronously.
+  ///
+  /// # Examples
+  /// ```
+  /// tauri::Builder::default()
+  ///   .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, responder| {
+  ///     let path = request.uri().path().trim_start_matches('/').to_string();
+  ///     std::thread::spawn(move || {
+  ///       if let Ok(data) = std::fs::read(path) {
+  ///         responder.respond(
+  ///           http::Response::builder()
+  ///             .body(data)
+  ///             .unwrap()
+  ///         );
+  ///       } else {
+  ///         responder.respond(
+  ///           http::Response::builder()
+  ///             .status(http::StatusCode::BAD_REQUEST)
+  ///             .header(http::header::CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+  ///             .body("failed to read file".as_bytes().to_vec())
+  ///             .unwrap()
+  ///         );
+  ///     }
+  ///   });
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn register_asynchronous_uri_scheme_protocol<
+    N: Into<String>,
+    H: Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -1576,6 +1641,17 @@ impl<R: Runtime> Builder<R> {
   pub fn run<A: Assets>(self, context: Context<A>) -> crate::Result<()> {
     self.build(context)?.run(|_, _| {});
     Ok(())
+  }
+}
+
+pub(crate) type UriSchemeResponderFn = Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>;
+pub struct UriSchemeResponder(pub(crate) UriSchemeResponderFn);
+
+impl UriSchemeResponder {
+  /// Resolves the request with the given response.
+  pub fn respond<T: Into<Cow<'static, [u8]>>>(self, response: HttpResponse<T>) {
+    let (parts, body) = response.into_parts();
+    (self.0)(HttpResponse::from_parts(parts, body.into()))
   }
 }
 

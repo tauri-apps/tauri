@@ -281,7 +281,7 @@
 
 ## \[1.0.0-beta.7]
 
-- Fix missing asset protocol path.Now the protocol is `https://asset.localhost/path/to/file` on Windows. Linux and macOS
+- Fix missing asset protocol path.Now the protocol is `http://asset.localhost/path/to/file` on Windows. Linux and macOS
   is still `asset://path/to/file`.
   - [994b5325](https://www.github.com/tauri-apps/tauri/commit/994b5325dd385f564b37fe1530c5d798dc925fff) fix: missing asset protocol path ([#2484](https://www.github.com/tauri-apps/tauri/pull/2484)) on 2021-08-23
 

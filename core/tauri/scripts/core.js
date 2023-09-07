@@ -18,7 +18,7 @@
   window.__TAURI__.convertFileSrc = function convertFileSrc(filePath, protocol = 'asset') {
     const path = encodeURIComponent(filePath)
     return osName === 'windows' || osName === 'android'
-      ? `https://${protocol}.localhost/${path}`
+      ? `http://${protocol}.localhost/${path}`
       : `${protocol}://localhost/${path}`
   }
 

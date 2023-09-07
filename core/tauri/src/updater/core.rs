@@ -845,7 +845,9 @@ fn copy_files_and_run<R: Read + Seek>(
       msiexec_args.extend(config.tauri.updater.windows.installer_args.clone());
 
       // run the installer and relaunch the application
-      let powershell_install_res = Command::new(powershell_path)
+      let mut powershell_cmd = Command::new(powershell_path);
+
+      powershell_cmd
         .args(["-NoProfile", "-WindowStyle", "Hidden"])
         .args([
           "Start-Process",
@@ -858,10 +860,15 @@ fn copy_files_and_run<R: Read + Seek>(
         .arg(msi_path)
         .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
         .arg("Start-Process")
-        .arg(current_executable)
-        .arg("-ArgumentList")
-        .arg(current_exe_args.join(", "))
-        .spawn();
+        .arg(current_executable);
+
+      if !current_exe_args.is_empty() {
+        powershell_cmd
+          .arg("-ArgumentList")
+          .arg(current_exe_args.join(", "));
+      }
+
+      let powershell_install_res = powershell_cmd.spawn();
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available
         // we use this here in case powershell fails in an older machine somehow

@@ -2102,7 +2102,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .insert(
         id,
         TrayContext {
-          tray: Rc::new(Mutex::new(Some(tray))),
+          tray: Rc::new(RefCell::new(Some(tray))),
           listeners: Rc::new(RefCell::new(listeners)),
           items: Rc::new(RefCell::new(items)),
         },
@@ -2653,7 +2653,7 @@ fn handle_user_message<T: UserEvent>(
             trays.insert(
               tray_id,
               TrayContext {
-                tray: Rc::new(Mutex::new(Some(tray))),
+                tray: Rc::new(RefCell::new(Some(tray))),
                 listeners: Rc::new(RefCell::new(listeners)),
                 items: Rc::new(RefCell::new(items)),
               },
@@ -2682,14 +2682,14 @@ fn handle_user_message<T: UserEvent>(
             }
           }
           TrayMessage::UpdateMenu(menu) => {
-            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+            if let Some(tray) = &mut *tray_context.tray.borrow_mut() {
               let mut items = HashMap::new();
               tray.set_menu(&to_wry_context_menu(&mut items, menu));
               *tray_context.items.borrow_mut() = items;
             }
           }
           TrayMessage::UpdateIcon(icon) => {
-            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+            if let Some(tray) = &mut *tray_context.tray.borrow_mut() {
               if let Ok(icon) = TrayIcon::try_from(icon) {
                 tray.set_icon(icon.0);
               }
@@ -2697,18 +2697,18 @@ fn handle_user_message<T: UserEvent>(
           }
           #[cfg(target_os = "macos")]
           TrayMessage::UpdateIconAsTemplate(is_template) => {
-            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+            if let Some(tray) = &mut *tray_context.tray.borrow_mut() {
               tray.set_icon_as_template(is_template);
             }
           }
           #[cfg(target_os = "macos")]
           TrayMessage::UpdateTitle(title) => {
-            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+            if let Some(tray) = &mut *tray_context.tray.borrow_mut() {
               tray.set_title(&title);
             }
           }
           TrayMessage::UpdateTooltip(tooltip) => {
-            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+            if let Some(tray) = &mut *tray_context.tray.borrow_mut() {
               tray.set_tooltip(&tooltip);
             }
           }
@@ -2716,7 +2716,7 @@ fn handle_user_message<T: UserEvent>(
             // already handled
           }
           TrayMessage::Destroy(tx) => {
-            *tray_context.tray.lock().unwrap() = None;
+            *tray_context.tray.borrow_mut() = None;
             tray_context.listeners.borrow_mut().clear();
             tray_context.items.borrow_mut().clear();
             tx.send(Ok(())).unwrap();

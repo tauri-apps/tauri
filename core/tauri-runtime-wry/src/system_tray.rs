@@ -48,7 +48,7 @@ pub type SystemTrayItems = Rc<RefCell<HashMap<u16, WryCustomMenuItem>>>;
 
 #[derive(Clone, Default)]
 pub struct TrayContext {
-  pub tray: Rc<Mutex<Option<WrySystemTray>>>,
+  pub tray: Rc<RefCell<Option<WrySystemTray>>>,
   pub listeners: SystemTrayEventListeners,
   pub items: SystemTrayItems,
 }

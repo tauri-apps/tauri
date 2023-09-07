@@ -329,6 +329,7 @@ pub enum NotarizeAuth {
   AppleId {
     apple_id: String,
     password: String,
+    team_id: Option<String>,
   },
   ApiKey {
     key: String,
@@ -344,11 +345,21 @@ pub trait NotarytoolCmdExt {
 impl NotarytoolCmdExt for Command {
   fn notarytool_args(&mut self, auth: &NotarizeAuth) -> &mut Self {
     match auth {
-      NotarizeAuth::AppleId { apple_id, password } => self
-        .arg("--apple-id")
-        .arg(apple_id)
-        .arg("--password")
-        .arg(password),
+      NotarizeAuth::AppleId {
+        apple_id,
+        password,
+        team_id,
+      } => {
+        self
+          .arg("--username")
+          .arg(apple_id)
+          .arg("--password")
+          .arg(password);
+        if let Some(team_id) = team_id {
+          self.arg("--team-id").arg(team_id);
+        }
+        self
+      }
       NotarizeAuth::ApiKey {
         key,
         key_path,
@@ -365,8 +376,12 @@ impl NotarytoolCmdExt for Command {
 }
 
 pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
-  match (var_os("APPLE_ID"), var_os("APPLE_PASSWORD")) {
-    (Some(apple_id), Some(apple_password)) => {
+  match (
+    var_os("APPLE_ID"),
+    var_os("APPLE_PASSWORD"),
+    var_os("APPLE_TEAM_ID"),
+  ) {
+    (Some(apple_id), Some(apple_password), team_id) => {
       let apple_id = apple_id
         .to_str()
         .expect("failed to convert APPLE_ID to string")
@@ -375,7 +390,17 @@ pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
         .to_str()
         .expect("failed to convert APPLE_PASSWORD to string")
         .to_string();
-      Ok(NotarizeAuth::AppleId { apple_id, password })
+      let team_id = team_id.map(|team_id| {
+        team_id
+          .to_str()
+          .expect("failed to convert APPLE_TEAM_ID to string")
+          .to_string()
+      });
+      Ok(NotarizeAuth::AppleId {
+        apple_id,
+        password,
+        team_id,
+      })
     }
     _ => {
       match (var_os("APPLE_API_KEY"), var_os("APPLE_API_ISSUER"), var("APPLE_API_KEY_PATH")) {

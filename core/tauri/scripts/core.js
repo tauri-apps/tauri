@@ -17,9 +17,13 @@
 
   window.__TAURI__.convertFileSrc = function convertFileSrc(filePath, protocol = 'asset') {
     const path = encodeURIComponent(filePath)
-    return osName === 'windows' || osName === 'android'
-      ? `https://${protocol}.localhost/${path}`
-      : `${protocol}://localhost/${path}`
+    return osName === 'windows'
+      ? `http://${protocol}.localhost/${path}`
+      : (
+        osName === 'android'
+          ? `https://${protocol}.localhost/${path}`
+          : `${protocol}://localhost/${path}`
+      )
   }
 
   window.__TAURI__.transformCallback = function transformCallback(

@@ -51,7 +51,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc:; media-src stream: http://stream.localhost asset: http://asset.localhost",
+      "csp": "default-src 'self' ipc:; media-src stream: http://stream.localhost https://stream.localhost asset: http://asset.localhost https://asset.localhost",
       "assetProtocol": {
         "scope": [
           "**/test_video.mp4"

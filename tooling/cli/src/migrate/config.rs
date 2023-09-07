@@ -85,21 +85,24 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
       match &mut csp {
         tauri_utils_v1::config::Csp::Policy(csp) => {
           if csp.contains("connect-src") {
-            *csp = csp.replace("connect-src", "connect-src ipc: http://ipc.localhost");
+            *csp = csp.replace(
+              "connect-src",
+              "connect-src ipc: http://ipc.localhost https://ipc.localhost",
+            );
           } else {
-            *csp = format!("{csp}; connect-src ipc: http://ipc.localhost");
+            *csp = format!("{csp}; connect-src ipc: http://ipc.localhost https://ipc.localhost");
           }
         }
         tauri_utils_v1::config::Csp::DirectiveMap(csp) => {
           if let Some(connect_src) = csp.get_mut("connect-src") {
-            if !connect_src.contains("ipc: http://ipc.localhost") {
-              connect_src.push("ipc: http://ipc.localhost");
+            if !connect_src.contains("ipc: http://ipc.localhost https://ipc.localhost") {
+              connect_src.push("ipc: http://ipc.localhost https://ipc.localhost");
             }
           } else {
             csp.insert(
               "connect-src".into(),
               tauri_utils_v1::config::CspDirectiveSources::List(vec![
-                "ipc: http://ipc.localhost".to_string()
+                "ipc: http://ipc.localhost https://ipc.localhost".to_string(),
               ]),
             );
           }
@@ -331,7 +334,7 @@ mod test {
     assert_eq!(
       migrated["tauri"]["security"]["csp"],
       format!(
-        "{}; connect-src ipc: http://ipc.localhost",
+        "{}; connect-src ipc: http://ipc.localhost https://ipc.localhost",
         original["tauri"]["security"]["csp"].as_str().unwrap()
       )
     );
@@ -358,7 +361,7 @@ mod test {
     assert!(migrated["tauri"]["security"]["csp"]["connect-src"]
       .as_array()
       .expect("connect-src isn't an array")
-      .contains(&"ipc: http://ipc.localhost".into()));
+      .contains(&"ipc: http://ipc.localhost https://ipc.localhost".into()));
   }
 
   #[test]
@@ -385,7 +388,7 @@ mod test {
         .as_str()
         .expect("connect-src isn't a string"),
       format!(
-        "{} ipc: http://ipc.localhost",
+        "{} ipc: http://ipc.localhost https://ipc.localhost",
         original["tauri"]["security"]["csp"]["connect-src"]
           .as_str()
           .unwrap()

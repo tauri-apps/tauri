@@ -506,10 +506,13 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   pub(crate) fn protocol_url(&self) -> Cow<'_, Url> {
-    #[cfg(any(windows, target_os = "android"))]
-    return Cow::Owned(Url::parse("http://tauri.localhost").unwrap());
-    #[cfg(not(any(windows, target_os = "android")))]
-    Cow::Owned(Url::parse("tauri://localhost").unwrap())
+    if cfg!(windows) {
+      Cow::Owned(Url::parse("http://tauri.localhost").unwrap())
+    } else if cfg!(target_os = "android") {
+      Cow::Owned(Url::parse("https://tauri.localhost").unwrap())
+    } else {
+      Cow::Owned(Url::parse("tauri://localhost").unwrap())
+    }
   }
 
   fn csp(&self) -> Option<Csp> {
@@ -877,6 +880,8 @@ mod test {
         manager.get_url().to_string(),
         if cfg!(windows) {
           "http://tauri.localhost/"
+        } else if cfg!(target_os = "android") {
+          "https://tauri.localhost/"
         } else {
           "tauri://localhost"
         }

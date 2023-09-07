@@ -616,6 +616,11 @@ impl<R: Runtime> WindowManager<R> {
       "null".into()
     } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
       format!("http://{}.localhost", window_url.scheme())
+    } else if cfg!(target_os = "android")
+      && window_url.scheme() != "http"
+      && window_url.scheme() != "https"
+    {
+      format!("https://{}.localhost", window_url.scheme())
     } else {
       format!(
         "{}://{}{}",

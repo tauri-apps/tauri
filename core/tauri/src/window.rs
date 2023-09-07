@@ -11,15 +11,15 @@ use url::Url;
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
 use crate::{
-  app::AppHandle,
+  app::{AppHandle, UriSchemeResponder},
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   ipc::{
-    CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver, InvokeResponse,
+    CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
+    OwnedInvokeResponder,
   },
   manager::WindowManager,
   runtime::{
-    http::{Request as HttpRequest, Response as HttpResponse},
     monitor::Monitor as RuntimeMonitor,
     webview::{WebviewAttributes, WindowBuilder as _},
     window::{
@@ -43,6 +43,7 @@ use crate::{
   CursorIcon, Icon,
 };
 
+use http::{Request as HttpRequest, Response as HttpResponse};
 use serde::Serialize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -50,20 +51,19 @@ use windows::Win32::Foundation::HWND;
 use tauri_macros::default_runtime;
 
 use std::{
+  borrow::Cow,
   collections::{HashMap, HashSet},
   fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{
-    mpsc::{sync_channel, Receiver},
-    Arc, Mutex,
-  },
+  sync::{Arc, Mutex},
 };
 
-pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+pub(crate) type WebResourceRequestHandler =
+  dyn Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 pub(crate) type UriSchemeProtocolHandler =
-  Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>;
+  Box<dyn Fn(HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -266,15 +266,15 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```rust,no_run
   /// use tauri::{
   ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
-  ///   http::header::HeaderValue,
   ///   window::WindowBuilder,
   /// };
+  /// use http::header::HeaderValue;
   /// use std::collections::HashMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
   ///       .on_web_resource_request(|request, response| {
-  ///         if request.uri().starts_with("tauri://") {
+  ///         if request.uri().scheme_str() == Some("tauri") {
   ///           // if we have a CSP header, Tauri is loading an HTML file
   ///           //  for this example, let's dynamically change the CSP
   ///           if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
@@ -291,7 +291,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_web_resource_request<F: Fn(&HttpRequest, &mut HttpResponse) + Send + Sync + 'static>(
+  pub fn on_web_resource_request<
+    F: Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync + 'static,
+  >(
     mut self,
     f: F,
   ) -> Self {
@@ -306,9 +308,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```rust,no_run
   /// use tauri::{
   ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
-  ///   http::header::HeaderValue,
   ///   window::WindowBuilder,
   /// };
+  /// use http::header::HeaderValue;
   /// use std::collections::HashMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {
@@ -892,7 +894,7 @@ pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
-  manager: WindowManager<R>,
+  pub(crate) manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
   // The menu set for this window
@@ -2067,7 +2069,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Handles this window receiving an [`InvokeRequest`].
-  pub fn on_message(self, request: InvokeRequest) -> Receiver<InvokeResponse> {
+  pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
     let manager = self.manager.clone();
     let current_url = self.url();
     let is_local = self.is_local_url(&current_url);
@@ -2090,74 +2092,20 @@ impl<R: Runtime> Window<R> {
       }
     };
 
-    let (tx, rx) = sync_channel(1);
-
     let custom_responder = self.manager.invoke_responder();
 
     let resolver = InvokeResolver::new(
       self.clone(),
-      Arc::new(
+      Arc::new(Mutex::new(Some(Box::new(
         #[allow(unused_variables)]
         move |window: Window<R>, cmd, response, callback, error| {
-          #[cfg(not(ipc_custom_protocol))]
-          {
-            use crate::ipc::{
-              format_callback::{
-                format as format_callback, format_result as format_callback_result,
-              },
-              Channel,
-            };
-            use serde_json::Value as JsonValue;
-
-            // the channel data command is the only command that uses a custom protocol on Linux
-            if custom_responder.is_none() && cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
-            {
-              fn responder_eval<R: Runtime>(
-                window: &Window<R>,
-                js: crate::api::Result<String>,
-                error: CallbackFn,
-              ) {
-                let eval_js = match js {
-                  Ok(js) => js,
-                  Err(e) => format_callback(error, &e.to_string())
-                    .expect("unable to serialize response error string to json"),
-                };
-
-                let _ = window.eval(&eval_js);
-              }
-
-              match &response {
-                InvokeResponse::Ok(InvokeBody::Json(v)) => {
-                  if matches!(v, JsonValue::Object(_) | JsonValue::Array(_)) {
-                    let _ = Channel::from_ipc(window.clone(), callback).send(v);
-                  } else {
-                    responder_eval(
-                      &window,
-                      format_callback_result(Result::<_, ()>::Ok(v), callback, error),
-                      error,
-                    )
-                  }
-                }
-                InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                  let _ =
-                    Channel::from_ipc(window.clone(), callback).send(InvokeBody::Raw(v.clone()));
-                }
-                InvokeResponse::Err(e) => responder_eval(
-                  &window,
-                  format_callback_result(Result::<(), _>::Err(&e.0), callback, error),
-                  error,
-                ),
-              }
-            }
-          }
-
           if let Some(responder) = &custom_responder {
-            (responder)(window, cmd, &response, callback, error);
+            (responder)(&window, &cmd, &response, callback, error);
           }
 
-          let _ = tx.send(response);
+          responder(window, cmd, response, callback, error);
         },
-      ),
+      )))),
       request.cmd.clone(),
       request.callback,
       request.error,
@@ -2207,7 +2155,7 @@ impl<R: Runtime> Window<R> {
               .unwrap_or(true))
           {
             invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-            return rx;
+            return;
           }
 
           let command = invoke.message.command.clone();
@@ -2251,7 +2199,7 @@ impl<R: Runtime> Window<R> {
                 },
               ) {
                 resolver.reject(e.to_string());
-                return rx;
+                return;
               }
             }
           }
@@ -2268,8 +2216,6 @@ impl<R: Runtime> Window<R> {
         }
       }
     }
-
-    rx
   }
 
   /// Evaluates JavaScript on this window.

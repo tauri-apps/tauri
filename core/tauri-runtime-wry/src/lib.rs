@@ -5,7 +5,7 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-use std::rc::Rc;
+use std::{rc::Rc, sync::atomic::AtomicBool};
 use tauri_runtime::{
   http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
@@ -1676,6 +1676,8 @@ enum WindowHandle {
     context_store: WebContextStore,
     // the key of the WebContext if it's not shared
     context_key: Option<PathBuf>,
+    #[cfg(windows)]
+    webview_focused: Arc<AtomicBool>,
   },
   Window(Arc<Window>),
 }
@@ -1686,6 +1688,8 @@ impl Drop for WindowHandle {
       inner,
       context_store,
       context_key,
+      #[cfg(windows)]
+        webview_focused: _,
     } = self
     {
       if Rc::get_mut(inner).is_some() {
@@ -2473,7 +2477,22 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
             WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
-            WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
+            WindowMessage::IsFocused(tx) => {
+              #[cfg(windows)]
+              {
+                let mut focused = window.is_focused();
+                if let WindowHandle::Webview {
+                  webview_focused, ..
+                } = &window
+                {
+                  focused = focused || webview_focused.load(std::sync::atomic::Ordering::Relaxed)
+                };
+                tx.send(focused).unwrap();
+              }
+
+              #[cfg(not(windows))]
+              tx.send(window.is_focused()).unwrap();
+            }
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
             WindowMessage::IsMaximizable(tx) => tx.send(window.is_maximizable()).unwrap(),
@@ -3255,13 +3274,17 @@ fn create_webview<T: UserEvent>(
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   #[cfg(windows)]
+  let webview_focused = Arc::new(AtomicBool::new(false));
+  #[cfg(windows)]
   {
     let controller = webview.controller();
+    let webview_focused_c = webview_focused.clone();
     let proxy_ = proxy.clone();
     let mut token = EventRegistrationToken::default();
     unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
+          webview_focused_c.store(true, std::sync::atomic::Ordering::Release);
           let _ = proxy_.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
@@ -3272,9 +3295,11 @@ fn create_webview<T: UserEvent>(
       )
     }
     .unwrap();
+    let webview_focused_c = webview_focused.clone();
     unsafe {
       controller.add_LostFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
+          webview_focused_c.store(false, std::sync::atomic::Ordering::Release);
           let _ = proxy.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
@@ -3297,6 +3322,8 @@ fn create_webview<T: UserEvent>(
       } else {
         web_context_key
       },
+      #[cfg(windows)]
+      webview_focused,
     }),
     menu_items,
     window_event_listeners,

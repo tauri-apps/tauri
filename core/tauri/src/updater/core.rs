@@ -610,6 +610,7 @@ impl<R: Runtime> Update<R> {
         &self.extract_path,
         self.with_elevated_task,
         &self.app.config(),
+        &self.app.env(),
       )?;
       #[cfg(not(target_os = "windows"))]
       copy_files_and_run(archive_buffer, &self.extract_path)?;
@@ -709,6 +710,7 @@ fn copy_files_and_run<R: Read + Seek>(
   _extract_path: &Path,
   with_elevated_task: bool,
   config: &crate::Config,
+  env: &crate::Env,
 ) -> Result {
   // FIXME: We need to create a memory buffer with the MSI and then run it.
   //        (instead of extracting the MSI to a temp path)
@@ -716,8 +718,6 @@ fn copy_files_and_run<R: Read + Seek>(
   // The tricky part is the MSI need to be exposed and spawned so the memory allocation
   // shouldn't drop but we should be able to pass the reference so we can drop it once the installation
   // is done, otherwise we have a huge memory leak.
-
-  use std::ffi::OsString;
 
   let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
 
@@ -736,7 +736,7 @@ fn copy_files_and_run<R: Read + Seek>(
     |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
   );
 
-  let current_exe_args = std::env::args_os().skip(1).collect::<Vec<OsString>>();
+  let current_exe_args = env.args.clone();
 
   for path in paths {
     let found_path = path?.path();
@@ -763,7 +763,7 @@ fn copy_files_and_run<R: Read + Seek>(
               .install_mode
               .nsis_args()
               .iter()
-              .map(Into::into)
+              .map(ToString::to_string)
               .collect(),
             current_exe_args,
             config
@@ -772,11 +772,11 @@ fn copy_files_and_run<R: Read + Seek>(
               .windows
               .installer_args
               .iter()
-              .map(Into::into)
+              .map(ToString::to_string)
               .collect::<Vec<_>>(),
           ]
           .concat()
-          .join(&OsStr::new(", ")),
+          .join(", "),
         )
         .spawn()
         .expect("Running NSIS installer from powershell has failed to start");
@@ -860,7 +860,7 @@ fn copy_files_and_run<R: Read + Seek>(
         .arg("Start-Process")
         .arg(current_executable)
         .arg("-ArgumentList")
-        .arg(current_exe_args.join(&OsStr::new(", ")))
+        .arg(current_exe_args.join(", "))
         .spawn();
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available

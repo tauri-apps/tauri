@@ -736,9 +736,7 @@ fn copy_files_and_run<R: Read + Seek>(
     |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
   );
 
-  let current_exe_args = std::env::args_os()
-    .skip(1)
-    .collect::<Vec<std::ffi::OsString>>();
+  let current_exe_args = std::env::args_os().skip(1).collect::<Vec<OsString>>();
 
   for path in paths {
     let found_path = path?.path();
@@ -751,39 +749,35 @@ fn copy_files_and_run<R: Read + Seek>(
       installer_path.push(&found_path);
       installer_path.push("\"");
 
-      let mut installer_args = OsString::new();
-      for arg in [
-        config
-          .tauri
-          .updater
-          .windows
-          .install_mode
-          .nsis_args()
-          .iter()
-          .map(Into::into)
-          .collect(),
-        current_exe_args,
-        config
-          .tauri
-          .updater
-          .windows
-          .installer_args
-          .iter()
-          .map(Into::into)
-          .collect::<Vec<_>>(),
-      ]
-      .concat()
-      {
-        installer_args.push(arg);
-        installer_args.push(", ");
-      }
-
       // Run the EXE
       Command::new(powershell_path)
         .args(["-NoProfile", "-WindowStyle", "Hidden", "Start-Process"])
         .arg(installer_path)
         .arg("-ArgumentList")
-        .arg(installer_args)
+        .arg(
+          [
+            config
+              .tauri
+              .updater
+              .windows
+              .install_mode
+              .nsis_args()
+              .iter()
+              .map(Into::into)
+              .collect(),
+            current_exe_args,
+            config
+              .tauri
+              .updater
+              .windows
+              .installer_args
+              .iter()
+              .map(Into::into)
+              .collect::<Vec<_>>(),
+          ]
+          .concat()
+          .join(&OsStr::new(", ")),
+        )
         .spawn()
         .expect("Running NSIS installer from powershell has failed to start");
 
@@ -850,12 +844,6 @@ fn copy_files_and_run<R: Read + Seek>(
         .collect::<Vec<String>>();
       msiexec_args.extend(config.tauri.updater.windows.installer_args.clone());
 
-      let mut current_args = OsString::new();
-      for arg in current_exe_args {
-        current_args.push(arg);
-        current_args.push(", ");
-      }
-
       // run the installer and relaunch the application
       let powershell_install_res = Command::new(powershell_path)
         .args(["-NoProfile", "-WindowStyle", "Hidden"])
@@ -872,7 +860,7 @@ fn copy_files_and_run<R: Read + Seek>(
         .arg("Start-Process")
         .arg(current_executable)
         .arg("-ArgumentList")
-        .arg(current_args)
+        .arg(current_exe_args.join(&OsStr::new(", ")))
         .spawn();
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available

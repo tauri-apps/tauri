@@ -834,10 +834,10 @@ fn copy_files_and_run<R: Read + Seek>(
       current_executable.push(dunce::simplified(&current_exe()?));
       current_executable.push("\"");
 
-      let mut mis_path = std::ffi::OsString::new();
-      mis_path.push("\"\"\"");
-      mis_path.push(&found_path);
-      mis_path.push("\"\"\"");
+      let mut msi_path = std::ffi::OsString::new();
+      msi_path.push("\"\"\"");
+      msi_path.push(&found_path);
+      msi_path.push("\"\"\"");
 
       let mut msiexec_args = config
         .tauri
@@ -867,7 +867,7 @@ fn copy_files_and_run<R: Read + Seek>(
           "-ArgumentList",
         ])
         .arg("/i,")
-        .arg(mis_path)
+        .arg(msi_path)
         .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
         .arg("Start-Process")
         .arg(current_executable)

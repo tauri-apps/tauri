@@ -68,9 +68,9 @@ impl ConfigFormat {
         } else if cfg!(windows) {
           "tauri.windows.conf.json5"
         } else if cfg!(target_os = "android") {
-          "tauri.android.conf.json"
+          "tauri.android.conf.json5"
         } else if cfg!(target_os = "ios") {
-          "tauri.ios.conf.json"
+          "tauri.ios.conf.json5"
         } else {
           "tauri.linux.conf.json5"
         }
@@ -81,9 +81,9 @@ impl ConfigFormat {
         } else if cfg!(windows) {
           "Tauri.windows.toml"
         } else if cfg!(target_os = "android") {
-          "tauri.android.toml"
+          "Tauri.android.toml"
         } else if cfg!(target_os = "ios") {
-          "tauri.ios.toml"
+          "Tauri.ios.toml"
         } else {
           "Tauri.linux.toml"
         }

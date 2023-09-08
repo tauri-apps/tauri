@@ -46,7 +46,16 @@ pub fn apply_effects(window: impl HasRawWindowHandle, effects: WindowEffectsConf
     return;
   };
 
-  window_vibrancy::apply_vibrancy(window, effect.into(), state.map(Into::into), radius);
+  window_vibrancy::apply_vibrancy(
+    window,
+    effect.into(),
+    state.map(|s| match s {
+      EffectState::FollowsWindowActiveState => NSVisualEffectState::FollowsWindowActiveState,
+      EffectState::Active => NSVisualEffectState::Active,
+      EffectState::Inactive => NSVisualEffectState::Inactive,
+    }),
+    radius,
+  );
 }
 
 impl From<crate::window::Effect> for NSVisualEffectMaterial {
@@ -72,16 +81,6 @@ impl From<crate::window::Effect> for NSVisualEffectMaterial {
       Effect::UnderWindowBackground => NSVisualEffectMaterial::UnderWindowBackground,
       Effect::UnderPageBackground => NSVisualEffectMaterial::UnderPageBackground,
       _ => unreachable!(),
-    }
-  }
-}
-
-impl From<crate::window::EffectState> for NSVisualEffectState {
-  fn from(value: crate::window::EffectState) -> Self {
-    match value {
-      EffectState::FollowsWindowActiveState => NSVisualEffectState::FollowsWindowActiveState,
-      EffectState::Active => NSVisualEffectState::Active,
-      EffectState::Inactive => NSVisualEffectState::Inactive,
     }
   }
 }

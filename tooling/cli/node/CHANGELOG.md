@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-alpha.13]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.13`
+
+### Breaking Changes
+
+- [`4cb51a2d`](https://www.github.com/tauri-apps/tauri/commit/4cb51a2d56cfcae0749062c79ede5236bd8c02c2)([#7779](https://www.github.com/tauri-apps/tauri/pull/7779)) The custom protocol on Windows now uses the `http` scheme instead of `https`.
+- [`974e38b4`](https://www.github.com/tauri-apps/tauri/commit/974e38b4ddc198530aa977ec77d513b76013b9f3)([#7744](https://www.github.com/tauri-apps/tauri/pull/7744)) Renamed the `plugin add` command to `add`.
+
 ## \[2.0.0-alpha.12]
 
 ### Bug Fixes

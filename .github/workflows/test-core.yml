@@ -102,6 +102,7 @@ jobs:
         # The --precise flag can only be used once per invocation.
         run: |
           cargo update -p time --precise 0.3.23
+          cargo update -p toml@0.7.7 --precise 0.7.6
 
       - name: test
         uses: actions-rs/cargo@v1

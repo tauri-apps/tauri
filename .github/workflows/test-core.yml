@@ -104,6 +104,7 @@ jobs:
           cargo update -p time --precise 0.3.23
           cargo update -p toml@0.7.7 --precise 0.7.6
           cargo update -p toml_edit@0.19.15 --precise 0.19.14
+          cargo update -p cfg-expr@0.15.5 --precise 0.15.4
 
       - name: test
         uses: actions-rs/cargo@v1

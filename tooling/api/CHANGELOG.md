@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.7]
+
+### Breaking Changes
+
+- [`4cb51a2d`](https://www.github.com/tauri-apps/tauri/commit/4cb51a2d56cfcae0749062c79ede5236bd8c02c2)([#7779](https://www.github.com/tauri-apps/tauri/pull/7779)) The custom protocol on Windows now uses the `http` scheme instead of `https`.
+
 ## \[2.0.0-alpha.6]
 
 ### New Features

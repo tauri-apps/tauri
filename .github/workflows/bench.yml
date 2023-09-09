@@ -32,7 +32,7 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: install ${{ matrix.rust }}
         uses: actions-rs/toolchain@v1
         with:
@@ -70,7 +70,7 @@ jobs:
 
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.BENCH_PAT }}
           path: gh-pages

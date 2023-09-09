@@ -83,6 +83,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_binaries_to_bundle(&bundle_directory, settings)?;
 
+  copy_app_contents_to_bundle(&bundle_directory, settings)?;
+
   if let Some(identity) = &settings.macos().signing_identity {
     // sign application
     sign(app_bundle_path.clone(), identity, settings, true)?;
@@ -107,6 +109,39 @@ fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crat
     let bin_path = settings.binary_path(bin);
     common::copy_file(&bin_path, &dest_dir.join(bin.name()))
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+  }
+  Ok(())
+}
+
+// Copies extra content files to the bundle.
+fn copy_app_contents_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+  let app_contents = settings
+    .macos()
+    .app_contents
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if app_contents.is_empty() {
+    return Ok(());
+  }
+
+  let dest_dir = bundle_directory;
+  for app_content in app_contents.iter() {
+    // content_path can be file or a directory
+    let content_path = PathBuf::from(app_content);
+    let dest = dest_dir.join(tauri_utils::resources::resource_relpath(&content_path));
+    if content_path.is_file() {
+      common::copy_file(&content_path, &dest)
+        .with_context(|| format!("Failed to copy file from {:?}", content_path))?;
+    } else if content_path.is_dir() {
+      common::copy_dir(&content_path, &dest)
+        .with_context(|| format!("Failed to copy directory from {:?}", content_path))?;
+    } else {
+      return Err(crate::Error::GenericError(format!(
+        "Could not locate file or directory: {}",
+        content_path.display()
+      )));
+    }
   }
   Ok(())
 }

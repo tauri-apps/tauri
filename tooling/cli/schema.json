@@ -1286,6 +1286,16 @@
             "type": "string"
           }
         },
+        "appContents": {
+          "description": "A list of content paths that need to be bundled with the application directly under the Content directory.\n\n These can be files or directories.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "minimumSystemVersion": {
           "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\nSetting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\nAn empty string is considered an invalid value so the default value is used.",
           "default": "10.13",

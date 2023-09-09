@@ -305,6 +305,10 @@ pub struct MacConfig {
   ///
   /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
   pub frameworks: Option<Vec<String>>,
+  /// A list of content paths that need to be bundled with the application directly under the Content directory.
+  ///
+  /// These can be files or directories.
+  pub app_contents: Option<Vec<String>>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
   ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
@@ -337,6 +341,7 @@ impl Default for MacConfig {
   fn default() -> Self {
     Self {
       frameworks: None,
+      app_contents: None,
       minimum_system_version: minimum_system_version(),
       exception_domain: None,
       license: None,

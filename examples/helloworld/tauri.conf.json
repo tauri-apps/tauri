@@ -37,6 +37,7 @@
       },
       "macOS": {
         "frameworks": [],
+        "appContents": [],
         "exceptionDomain": ""
       }
     },

@@ -115,7 +115,7 @@ jobs:
           if [ "${UTILS}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-utils\""; fi
           if [ "${BUNDLER}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/bundler\""; fi
           if [ "${CLI}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/cli\""; fi
-          echo "matrix=matrix::[$crates]" >> "$GITHUB_ENV"
+          echo "matrix=[$crates]" >> "$GITHUB_ENV"
     outputs:
       matrix: ${{ steps.create-matrix.outputs.matrix }}
 

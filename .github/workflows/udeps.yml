@@ -162,4 +162,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: udeps
-          args: --manifest-path $matrix.path/Cargo.toml --all-targets --all-features
+          args: --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets --all-features

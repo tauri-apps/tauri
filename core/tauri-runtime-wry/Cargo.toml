@@ -16,7 +16,7 @@ rust-version = { workspace = true }
 features = [ "dox" ]
 
 [dependencies]
-wry = { path = "../../../wry", default-features = false, features = [ "tao", "file-drop", "protocol" ] }
+wry = { version = "0.32", default-features = false, features = [ "tao", "file-drop", "protocol" ] }
 tauri-runtime = { version = "1.0.0-alpha.1", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-alpha.7", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }

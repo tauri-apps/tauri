@@ -20,7 +20,7 @@ use tauri_utils::display_path;
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
-use tauri_utils::config::{NSISInstallerMode, WebviewInstallMode};
+use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{
   collections::{BTreeMap, HashMap},
@@ -37,8 +37,8 @@ const NSIS_URL: &str =
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.0/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "463555D6A0D48782754C98CD95A3C9C68F171698";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.1/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "53A7CFAEB6A4A9653D6D5FBFF02A3C3B8720130A";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -241,6 +241,15 @@ fn build_nsis_app_installer(
         to_json(dunce::canonicalize(sidebar_image)?),
       );
     }
+
+    data.insert(
+      "compression",
+      to_json(match &nsis.compression.unwrap_or(NsisCompression::Lzma) {
+        NsisCompression::Zlib => "zlib",
+        NsisCompression::Bzip2 => "bzip2",
+        NsisCompression::Lzma => "lzma",
+      }),
+    );
 
     data.insert(
       "display_language_selector",

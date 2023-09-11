@@ -83,7 +83,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_binaries_to_bundle(&bundle_directory, settings)?;
 
-  copy_app_contents_to_bundle(&bundle_directory, settings)?;
+  copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
   if let Some(identity) = &settings.macos().signing_identity {
     // sign application
@@ -113,34 +113,27 @@ fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crat
   Ok(())
 }
 
-// Copies extra content files to the bundle.
-fn copy_app_contents_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
-  let app_contents = settings
-    .macos()
-    .app_contents
-    .as_ref()
-    .cloned()
-    .unwrap_or_default();
-  if app_contents.is_empty() {
-    return Ok(());
-  }
-
-  let dest_dir = bundle_directory;
-  for app_content in app_contents.iter() {
-    // content_path can be file or a directory
-    let content_path = PathBuf::from(app_content);
-    let dest = dest_dir.join(tauri_utils::resources::resource_relpath(&content_path));
-    if content_path.is_file() {
-      common::copy_file(&content_path, &dest)
-        .with_context(|| format!("Failed to copy file from {:?}", content_path))?;
-    } else if content_path.is_dir() {
-      common::copy_dir(&content_path, &dest)
-        .with_context(|| format!("Failed to copy directory from {:?}", content_path))?;
+/// Copies user-defined files to the app under Contents.
+fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+  for (contents_path, path) in settings.macos().files.iter() {
+    let contents_path = if contents_path.is_absolute() {
+      contents_path.strip_prefix("/").unwrap()
     } else {
-      return Err(crate::Error::GenericError(format!(
-        "Could not locate file or directory: {}",
-        content_path.display()
-      )));
+      contents_path
+    };
+    if path.is_file() {
+      common::copy_file(path, bundle_directory.join(contents_path))
+        .with_context(|| format!("Failed to copy file {:?} to {:?}", path, contents_path))?;
+    } else {
+      let out_dir = bundle_directory.join(contents_path);
+      for entry in walkdir::WalkDir::new(path) {
+        let entry_path = entry?.into_path();
+        if entry_path.is_file() {
+          let without_prefix = entry_path.strip_prefix(path).unwrap();
+          common::copy_file(&entry_path, out_dir.join(without_prefix))
+            .with_context(|| format!("Failed to copy file {:?} to {:?}", entry_path, out_dir.join(without_prefix)))?;
+        }
+      }
     }
   }
   Ok(())

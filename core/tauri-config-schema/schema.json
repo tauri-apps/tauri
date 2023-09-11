@@ -1286,13 +1286,11 @@
             "type": "string"
           }
         },
-        "appContents": {
-          "description": "A list of content paths that need to be bundled with the application directly under the Content directory.\n\n These can be files or directories.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
+        "files": {
+          "description": "The files to include in the application relative to the contents directory.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
             "type": "string"
           }
         },

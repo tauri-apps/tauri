@@ -384,8 +384,44 @@ pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
           let issuer = api_issuer.to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
           Ok(NotarizeAuth::ApiKey { key, key_path: key_path.into(), issuer })
         },
+        (Some(api_key), Some(api_issuer), Err(_)) => {
+          let key = api_key.to_str().expect("failed to convert APPLE_API_KEY to string").to_string();
+          let issuer = api_issuer.to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
+
+          let api_key_file_name = format!("AuthKey_{key}.p8");
+          let mut key_path = None;
+
+          let mut search_paths = vec!["./private_keys".into()];
+          if let Some(home_dir) = dirs_next::home_dir() {
+            search_paths.push(home_dir.join("private_keys"));
+            search_paths.push(home_dir.join(".private_keys"));
+            search_paths.push(home_dir.join(".appstoreconnect").join("private_keys"));
+          }
+
+          for folder in search_paths {
+            if let Some(path) = find_api_key(folder, &api_key_file_name) {
+              key_path = Some(path);
+              break;
+            }
+          }
+
+          if let Some(key_path) = key_path {
+          Ok(NotarizeAuth::ApiKey { key, key_path, issuer })
+          } else {
+            Err(anyhow::anyhow!("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {api_key_file_name} file").into())
+          }
+        }
         _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
       }
     }
+  }
+}
+
+fn find_api_key(folder: PathBuf, file_name: &str) -> Option<PathBuf> {
+  let path = folder.join(file_name);
+  if path.exists() {
+    Some(path)
+  } else {
+    None
   }
 }

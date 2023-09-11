@@ -3,4 +3,4 @@
 'tauri-runtime-wry': 'patch:bug'
 ---
 
-On Windows, properly respect `focused: false` when creating the window.
+Properly respect the `focused` option when creating the webview.

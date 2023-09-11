@@ -17,6 +17,9 @@ declare global {
     ipc: {
       postMessage: (args: string) => void
     }
+    __TAURI__: {
+      convertFileSrc: (src: string, protocol: string) => string
+    }
   }
 }
 
@@ -106,7 +109,6 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  *
  * @param  filePath The file path.
  * @param  protocol The protocol to use. Defaults to `asset`. You only need to set this when using a custom protocol.
- * @param  http Whether to use `http://<scheme>.localhost/` as the base on Windows instead of `https://<scheme>.localhost`. Must match the value of `dangerousUseHttpScheme` in tauri.conf.json if the origin differs from `http(s)://tauri.localhost`.
  * @example
  * ```typescript
  * import { appDataDir, join } from '@tauri-apps/api/path';
@@ -127,25 +129,8 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  *
  * @since 1.0.0
  */
-function convertFileSrc(
-  filePath: string,
-  protocol = 'asset',
-  http?: boolean
-): string {
-  const path = encodeURIComponent(filePath)
-
-  let scheme =
-    window.location.origin === 'http://tauri.localhost' ? 'http' : 'https'
-  if (http === true) {
-    scheme = 'http'
-  }
-  if (http === false) {
-    scheme = 'https'
-  }
-
-  return navigator.userAgent.includes('Windows')
-    ? `${scheme}://${protocol}.localhost/${path}`
-    : `${protocol}://localhost/${path}`
+function convertFileSrc(filePath: string, protocol = 'asset'): string {
+  return window.__TAURI__.convertFileSrc(filePath, protocol)
 }
 
 export type { InvokeArgs }

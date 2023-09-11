@@ -23,9 +23,7 @@ use tauri_runtime::window::MenuEvent;
 #[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
-use webview2_com::FocusChangedEventHandler;
-#[cfg(windows)]
-use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
+use windows::Win32::Foundation::HWND;
 #[cfg(target_os = "macos")]
 use wry::application::platform::macos::EventLoopWindowTargetExtMacOS;
 #[cfg(target_os = "macos")]
@@ -517,19 +515,9 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
         scale_factor: *scale_factor,
         new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
       },
-      #[cfg(any(target_os = "linux", target_os = "macos"))]
       WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
       WryWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
       _ => return Self(None),
-    };
-    Self(Some(event))
-  }
-}
-
-impl From<&WebviewEvent> for WindowEventWrapper {
-  fn from(event: &WebviewEvent) -> Self {
-    let event = match event {
-      WebviewEvent::Focused(focused) => WindowEvent::Focused(*focused),
     };
     Self(Some(event))
   }
@@ -1136,15 +1124,7 @@ pub enum WindowMessage {
 #[derive(Debug, Clone)]
 pub enum WebviewMessage {
   EvaluateScript(String),
-  #[allow(dead_code)]
-  WebviewEvent(WebviewEvent),
   Print,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub enum WebviewEvent {
-  Focused(bool),
 }
 
 #[cfg(all(desktop, feature = "system-tray"))]
@@ -2606,7 +2586,6 @@ fn handle_user_message<T: UserEvent>(
           let _ = webview.print();
         }
       }
-      WebviewMessage::WebviewEvent(_event) => { /* already handled */ }
     },
     Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
@@ -2900,24 +2879,6 @@ fn handle_event_loop<T: UserEvent>(
         global_listener(id.0, &event);
       }
     }
-    Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {
-      if let Some(event) = WindowEventWrapper::from(&event).0 {
-        let windows = windows.borrow();
-        let window = windows.get(&id);
-        if let Some(window) = window {
-          callback(RunEvent::WindowEvent {
-            label: window.label.clone(),
-            event: event.clone(),
-          });
-
-          let listeners = window.window_event_listeners.lock().unwrap();
-          let handlers = listeners.values();
-          for handler in handlers {
-            handler(&event);
-          }
-        }
-      }
-    }
     Event::WindowEvent {
       event, window_id, ..
     } => {
@@ -3120,8 +3081,6 @@ fn create_webview<T: UserEvent>(
     ..
   } = pending;
   let webview_id_map = context.webview_id_map.clone();
-  #[cfg(windows)]
-  let proxy = context.proxy.clone();
 
   let window_event_listeners = WindowEventListeners::default();
 
@@ -3255,39 +3214,6 @@ fn create_webview<T: UserEvent>(
     .with_web_context(web_context)
     .build()
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
-
-  #[cfg(windows)]
-  {
-    let controller = webview.controller();
-    let proxy_ = proxy.clone();
-    let mut token = EventRegistrationToken::default();
-    unsafe {
-      controller.add_GotFocus(
-        &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy_.send_event(Message::Webview(
-            window_id,
-            WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
-          ));
-          Ok(())
-        })),
-        &mut token,
-      )
-    }
-    .unwrap();
-    unsafe {
-      controller.add_LostFocus(
-        &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy.send_event(Message::Webview(
-            window_id,
-            WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
-          ));
-          Ok(())
-        })),
-        &mut token,
-      )
-    }
-    .unwrap();
-  }
 
   Ok(WindowWrapper {
     label,

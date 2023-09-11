@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "2.0.0-alpha.7",
+  "version": "2.0.0-alpha.8",
   "description": "Tauri API definitions",
   "type": "module",
   "funding": {

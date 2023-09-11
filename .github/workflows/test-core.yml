@@ -77,7 +77,7 @@ jobs:
             }
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install stable
         uses: actions-rs/toolchain@v1

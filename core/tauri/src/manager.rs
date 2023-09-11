@@ -506,10 +506,8 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   pub(crate) fn protocol_url(&self) -> Cow<'_, Url> {
-    if cfg!(windows) {
+    if cfg!(windows) || cfg!(target_os = "android") {
       Cow::Owned(Url::parse("http://tauri.localhost").unwrap())
-    } else if cfg!(target_os = "android") {
-      Cow::Owned(Url::parse("https://tauri.localhost").unwrap())
     } else {
       Cow::Owned(Url::parse("tauri://localhost").unwrap())
     }
@@ -614,13 +612,11 @@ impl<R: Runtime> WindowManager<R> {
     let window_url = Url::parse(&pending.url).unwrap();
     let window_origin = if window_url.scheme() == "data" {
       "null".into()
-    } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-      format!("http://{}.localhost", window_url.scheme())
-    } else if cfg!(target_os = "android")
+    } else if (cfg!(windows) || cfg!(target_os = "android"))
       && window_url.scheme() != "http"
       && window_url.scheme() != "https"
     {
-      format!("https://{}.localhost", window_url.scheme())
+      format!("http://{}.localhost", window_url.scheme())
     } else {
       format!(
         "{}://{}{}",
@@ -883,10 +879,8 @@ mod test {
     {
       assert_eq!(
         manager.get_url().to_string(),
-        if cfg!(windows) {
+        if cfg!(windows) || cfg!(target_os = "android") {
           "http://tauri.localhost/"
-        } else if cfg!(target_os = "android") {
-          "https://tauri.localhost/"
         } else {
           "tauri://localhost"
         }

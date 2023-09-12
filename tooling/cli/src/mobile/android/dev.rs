@@ -168,7 +168,11 @@ fn run_dev(
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple.clone());
-  let mut interface = crate::dev::setup(&mut dev_options, true)?;
+  let mut interface = crate::dev::setup(
+    tauri_utils::platform::Target::Android,
+    &mut dev_options,
+    true,
+  )?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,

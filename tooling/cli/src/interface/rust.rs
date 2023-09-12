@@ -32,7 +32,7 @@ use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{nsis_settings, reload as reload_config, wix_settings, Config},
 };
-use tauri_utils::display_path;
+use tauri_utils::{display_path, platform::Target};
 
 mod cargo_config;
 mod desktop;
@@ -90,7 +90,7 @@ pub struct MobileOptions {
 }
 
 #[derive(Debug)]
-pub struct Target {
+pub struct RustupTarget {
   name: String,
   installed: bool,
 }
@@ -99,7 +99,7 @@ pub struct Rust {
   app_settings: RustAppSettings,
   config_features: Vec<String>,
   product_name: Option<String>,
-  available_targets: Option<Vec<Target>>,
+  available_targets: Option<Vec<RustupTarget>>,
 }
 
 impl Interface for Rust {
@@ -510,7 +510,7 @@ impl Rust {
           let event_path = event.path;
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
-            if is_configuration_file(&event_path) {
+            if is_configuration_file(self.app_settings.target, &event_path) {
               match reload_config(config.as_deref()) {
                 Ok(config) => {
                   info!("Tauri configuration changed. Rewriting manifest...");
@@ -685,6 +685,7 @@ pub struct RustAppSettings {
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
   target_triple: String,
+  target: Target,
 }
 
 impl AppSettings for RustAppSettings {
@@ -954,6 +955,7 @@ impl RustAppSettings {
             .to_string()
         })
     });
+    let target = Target::from_triple(&target_triple);
 
     Ok(Self {
       manifest,
@@ -962,6 +964,7 @@ impl RustAppSettings {
       package_settings,
       cargo_config,
       target_triple,
+      target,
     })
   }
 

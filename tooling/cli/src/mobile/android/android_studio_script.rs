@@ -36,7 +36,7 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let tauri_config = get_tauri_config(None)?;
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, None)?;
 
   let (config, metadata, cli_options) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

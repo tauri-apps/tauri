@@ -34,7 +34,10 @@ fn get_response(
   scope: &FsScope,
   window_origin: &str,
 ) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
-  let path = percent_encoding::percent_decode(request.uri().path().as_bytes())
+  let path = request.uri().path();
+  // skip leading `/`
+  let path = &path[1..];
+  let path = percent_encoding::percent_decode(path.as_bytes())
     .decode_utf8_lossy()
     .to_string();
 

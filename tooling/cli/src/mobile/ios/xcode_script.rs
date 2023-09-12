@@ -68,7 +68,7 @@ pub fn command(options: Options) -> Result<()> {
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  let tauri_config = get_tauri_config(None)?;
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, None)?;
 
   let (config, metadata, cli_options) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

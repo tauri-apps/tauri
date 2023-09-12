@@ -78,9 +78,8 @@ fn get_stream_response(
   request: http::Request<Vec<u8>>,
   boundary_id: &Arc<Mutex<i32>>,
 ) -> Result<http::Response<Vec<u8>>, Box<dyn std::error::Error>> {
-  // get the file path
-  let path = request.uri().path();
-  let path = percent_encoding::percent_decode(path.as_bytes())
+  // skip leading `/`
+  let path = percent_encoding::percent_decode(request.uri().path()[1..].as_bytes())
     .decode_utf8_lossy()
     .to_string();
 

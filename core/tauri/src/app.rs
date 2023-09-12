@@ -1356,7 +1356,7 @@ impl<R: Runtime> Builder<R> {
   /// tauri::Builder::default()
   ///   .register_uri_scheme_protocol("app-files", |_app, request| {
   ///     // skip leading `/`
-  ///     if let Ok(data) = std::fs::read(request.uri().path()[1..]) {
+  ///     if let Ok(data) = std::fs::read(&request.uri().path()[1..]) {
   ///       http::Response::builder()
   ///         .body(data)
   ///         .unwrap()

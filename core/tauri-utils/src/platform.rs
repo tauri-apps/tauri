@@ -11,7 +11,7 @@ use crate::{Env, PackageInfo};
 mod starting_binary;
 
 /// Platform target.
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum Target {
   /// MacOS.
   Darwin,
@@ -50,6 +50,16 @@ impl Target {
     } else {
       Self::Linux
     }
+  }
+
+  /// Whether the target is mobile or not.
+  pub fn is_mobile(&self) -> bool {
+    matches!(self, Target::Android | Target::Ios)
+  }
+
+  /// Whether the target is desktop or not.
+  pub fn is_desktop(&self) -> bool {
+    !self.is_mobile()
   }
 }
 

@@ -30,7 +30,6 @@ tauri-utils = { version = "2.0.0-alpha.7", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 http = "0.2.4"
 raw-window-handle = "0.5"
-rand = "0.8"
 url = { version = "2" }
 
 [target."cfg(windows)".dependencies.windows]

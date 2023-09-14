@@ -214,6 +214,9 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
       }
 
       if let crate::Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+        let _span =
+          tracing::trace_span!("ipc.request.decrypt_isolation_payload", id = invoke_id.0).entered();
+
         invoke_message.replace(
           serde_json::from_str::<IsolationMessage<'_>>(&message)
             .map_err(Into::into)
@@ -230,9 +233,10 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
       }
     }
 
-    match invoke_message
-      .unwrap_or_else(|| serde_json::from_str::<Message>(&message).map_err(Into::into))
-    {
+    match invoke_message.unwrap_or_else(|| {
+      let _span = tracing::trace_span!("ipc.request.deserialize", id = invoke_id.0).entered();
+      serde_json::from_str::<Message>(&message).map_err(Into::into)
+    }) {
       Ok(message) => {
         let request = InvokeRequest {
           id: invoke_id,
@@ -347,6 +351,7 @@ fn parse_invoke_request<R: Runtime>(
   // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
   #[cfg(all(feature = "isolation", ipc_custom_protocol))]
   if let crate::Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+    let _span = tracing::trace_span!("ipc.request.decrypt_isolation_payload", id = id.0).entered();
     body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
       .and_then(|raw| crypto_keys.decrypt(raw))
       .map_err(|e| e.to_string())?;
@@ -380,6 +385,8 @@ fn parse_invoke_request<R: Runtime>(
     .map(|mime| mime.parse())
     .unwrap_or(Ok(mime::APPLICATION_OCTET_STREAM))
     .map_err(|_| "unknown content type")?;
+
+  let span = tracing::trace_span!("ipc.request.deserialize", id = id.0).entered();
   let body = if content_type == mime::APPLICATION_OCTET_STREAM {
     body.into()
   } else if content_type == mime::APPLICATION_JSON {
@@ -394,6 +401,7 @@ fn parse_invoke_request<R: Runtime>(
   } else {
     return Err(format!("content type {content_type} is not implemented"));
   };
+  drop(span);
 
   let payload = InvokeRequest {
     id,

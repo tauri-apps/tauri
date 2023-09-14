@@ -198,6 +198,17 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     resolver,
   } = invoke;
 
+  let kind = match attributes.as_ref().map(|a| &a.execution_context) {
+    Some(ExecutionContext::Async) if function.sig.asyncness.is_none() => "sync_threadpool",
+    Some(ExecutionContext::Async) => "async",
+    Some(ExecutionContext::Blocking) => "sync",
+    _ => "sync",
+  };
+
+  let loc = function.span().start();
+  let line = loc.line;
+  let col = loc.column;
+
   let root = attributes
     .map(|a| a.root)
     .unwrap_or_else(|| quote!(::tauri));
@@ -218,6 +229,16 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
           let #root::ipc::Invoke { id: #id, message: #message, resolver: #resolver } = $invoke;
+
+          let _span = tracing::debug_span!(
+            "ipc.request.handler",
+            id = #id.0,
+            cmd = #message.command(),
+            kind = #kind,
+            loc.line = #line,
+            loc.col = #col,
+            is_internal = false,
+          ).entered();
 
           #body
       }};
@@ -248,6 +269,7 @@ fn body_async(
   parse_args(id, function, message, attributes).map(|args| {
     quote! {
       #resolver.respond_async_serialized(async move {
+        let _span = tracing::debug_span!("ipc.request.run", id = #id.0);
         let result = $path(#(#args?),*);
         let kind = (&result).async_kind();
         kind.future(result).await
@@ -281,6 +303,7 @@ fn body_blocking(
   });
 
   Ok(quote! {
+    let _span = tracing::debug_span!("ipc.request.run", id = #id.0);
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);

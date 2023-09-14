@@ -2116,6 +2116,14 @@ impl<R: Runtime> Window<R> {
     match request.cmd.as_str() {
       "__initialized" => match request.body.deserialize() {
         Ok(payload) => {
+          let _span = tracing::debug_span!(
+            "ipc.request.handler",
+            id = request.id.0,
+            cmd = request.cmd,
+            kind = "sync",
+            is_internal = true,
+          )
+          .entered();
           manager.run_on_page_load(self, payload);
           resolver.resolve(());
         }
@@ -2165,6 +2173,8 @@ impl<R: Runtime> Window<R> {
 
           #[cfg(mobile)]
           let message = invoke.message.clone();
+          #[cfg(mobile)]
+          let id = invoke.id;
 
           #[allow(unused_mut)]
           let mut handled = manager.extend_api(plugin, invoke);
@@ -2191,6 +2201,8 @@ impl<R: Runtime> Window<R> {
               load_channels(&payload, &message.window);
 
               let resolver_ = resolver.clone();
+
+              let _span = tracing::debug_span!("ipc.request.mobile_plugin", id = id.0).entered();
               if let Err(e) = crate::plugin::mobile::run_command(
                 plugin,
                 &app_handle,

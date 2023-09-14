@@ -153,7 +153,7 @@ impl Response {
 
 /// The identifier of the invoke call.
 #[derive(Debug, Copy, Clone)]
-pub struct InvokeId(pub(crate) usize);
+pub struct InvokeId(pub usize);
 
 impl InvokeId {
   pub(crate) fn new() -> Self {

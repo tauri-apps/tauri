@@ -188,6 +188,8 @@ pub mod private {
   use futures_util::{FutureExt, TryFutureExt};
   use std::future::Future;
 
+  pub use tracing;
+
   // ===== impl IpcResponse =====
 
   pub struct ResponseTag;

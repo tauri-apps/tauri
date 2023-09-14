@@ -28,6 +28,7 @@ use image::{
   open, ColorType, DynamicImage, ImageBuffer, ImageEncoder, Rgba,
 };
 use serde::Deserialize;
+use tauri_utils::platform::Target;
 
 #[derive(Debug, Deserialize)]
 struct IcnsEntry {
@@ -363,7 +364,7 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
 
   // Android
   let (config, _metadata) = {
-    let tauri_config = get_tauri_config(None)?;
+    let tauri_config = get_tauri_config(Target::current(), None)?;
 
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();

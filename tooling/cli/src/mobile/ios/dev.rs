@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, open_and_wait,
-  setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
+  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
+  open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -190,7 +190,12 @@ fn run_dev(
 ) -> Result<()> {
   setup_dev_config(&mut dev_options.config, options.force_ip_prompt)?;
 
-  crate::dev::setup(&interface, &mut dev_options, true)?;
+  crate::dev::setup(
+    tauri_utils::platform::Target::Ios,
+    &interface,
+    &mut dev_options,
+    true,
+  )?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
@@ -241,7 +246,7 @@ fn run_dev(
             crate::dev::wait_dev_process(c.clone(), move |status, reason| {
               crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
             });
-            Ok(Box::new(c) as Box<dyn DevProcess>)
+            Ok(Box::new(c) as Box<dyn DevProcess + Send>)
           }
           Err(e) => {
             crate::dev::kill_before_dev_process();

@@ -33,7 +33,7 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install Rust stable
         uses: actions-rs/toolchain@v1

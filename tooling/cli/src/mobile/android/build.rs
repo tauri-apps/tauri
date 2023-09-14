@@ -93,7 +93,10 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
       .into(),
   );
 
-  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let tauri_config = get_tauri_config(
+    tauri_utils::platform::Target::Android,
+    options.config.as_deref(),
+  )?;
   let (interface, app, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
@@ -172,7 +175,12 @@ fn run_build(
     options.aab = true;
   }
 
-  crate::build::setup(&interface, &mut build_options, true)?;
+  crate::build::setup(
+    tauri_utils::platform::Target::Android,
+    &interface,
+    &mut build_options,
+    true,
+  )?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,

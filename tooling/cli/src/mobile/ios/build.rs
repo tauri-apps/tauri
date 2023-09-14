@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, log_finished,
-  open_and_wait, MobileTarget,
+  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_assets,
+  log_finished, open_and_wait, MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -78,8 +78,6 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let tauri_config = get_tauri_config(options.config.as_deref())?;
-
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -89,6 +87,10 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
       .into(),
   );
 
+  let tauri_config = get_tauri_config(
+    tauri_utils::platform::Target::Ios,
+    options.config.as_deref(),
+  )?;
   let (interface, app, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
@@ -104,6 +106,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  inject_assets(&config)?;
 
   let mut env = env()?;
   configure_cargo(&app, None)?;
@@ -141,7 +144,12 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(&interface, &mut build_options, true)?;
+  crate::build::setup(
+    tauri_utils::platform::Target::Ios,
+    &interface,
+    &mut build_options,
+    true,
+  )?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

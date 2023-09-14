@@ -220,23 +220,30 @@ pub fn mock_app() -> App<MockRuntime> {
 ///   }
 /// }
 /// ```
-pub fn assert_ipc_response<T: Serialize + Debug>(
+pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
   window: &Window<MockRuntime>,
   request: InvokeRequest,
   expected: Result<T, T>,
 ) {
-  let rx = window.clone().on_message(request);
-  let response = rx.recv().unwrap();
+  let (tx, rx) = std::sync::mpsc::sync_channel(1);
+  window.clone().on_message(
+    request,
+    Box::new(move |_window, _cmd, response, _callback, _error| {
+      assert_eq!(
+        match response {
+          InvokeResponse::Ok(b) => Ok(b.into_json()),
+          InvokeResponse::Err(e) => Err(e.0),
+        },
+        expected
+          .map(|e| serde_json::to_value(e).unwrap())
+          .map_err(|e| serde_json::to_value(e).unwrap())
+      );
 
-  assert_eq!(
-    match response {
-      InvokeResponse::Ok(b) => Ok(b.into_json()),
-      InvokeResponse::Err(e) => Err(e.0),
-    },
-    expected
-      .map(|e| serde_json::to_value(e).unwrap())
-      .map_err(|e| serde_json::to_value(e).unwrap())
+      tx.send(()).unwrap();
+    }),
   );
+
+  rx.recv().unwrap();
 }
 
 #[cfg(test)]

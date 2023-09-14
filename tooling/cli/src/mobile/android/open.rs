@@ -12,7 +12,7 @@ use crate::{
 use tauri_mobile::os;
 
 pub fn command() -> Result<()> {
-  let tauri_config = get_tauri_config(None)?;
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, None)?;
 
   let (config, _metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

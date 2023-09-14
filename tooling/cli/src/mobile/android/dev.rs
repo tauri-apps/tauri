@@ -110,7 +110,10 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let tauri_config = get_tauri_config(
+    tauri_utils::platform::Target::Android,
+    options.config.as_deref(),
+  )?;
 
   let env = env()?;
   let device = if options.open {
@@ -180,9 +183,13 @@ fn run_dev(
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  setup_dev_config(&mut options.config, options.force_ip_prompt)?;
+  setup_dev_config(
+    MobileTarget::Android,
+    &mut options.config,
+    options.force_ip_prompt,
+  )?;
 
-  crate::dev::setup(&interface, &mut dev_options, true)?;
+  crate::dev::setup(tauri_utils::platform::Target::Android, &interface, &mut dev_options, true)?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -257,7 +264,7 @@ fn run_dev(
             crate::dev::wait_dev_process(c.clone(), move |status, reason| {
               crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
             });
-            Ok(Box::new(c) as Box<dyn DevProcess>)
+            Ok(Box::new(c) as Box<dyn DevProcess + Send>)
           }
           Err(e) => {
             crate::dev::kill_before_dev_process();

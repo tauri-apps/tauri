@@ -5,16 +5,17 @@
 //! A layer between raw [`Runtime`] webview windows and Tauri.
 
 use crate::{
-  http::{Request as HttpRequest, Response as HttpResponse},
   webview::{WebviewAttributes, WebviewIpcHandler},
   Dispatch, Runtime, UserEvent, WindowBuilder,
 };
 
+use http::{Request as HttpRequest, Response as HttpResponse};
 use serde::{Deserialize, Deserializer};
 use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
 
 use std::{
+  borrow::Cow,
   collections::HashMap,
   hash::{Hash, Hasher},
   marker::PhantomData,
@@ -24,10 +25,13 @@ use std::{
 
 use self::dpi::PhysicalPosition;
 
-type UriSchemeProtocol =
-  dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
+type UriSchemeProtocol = dyn Fn(HttpRequest<Vec<u8>>, Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>)
+  + Send
+  + Sync
+  + 'static;
 
-type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+type WebResourceRequestHandler =
+  dyn Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync;
 
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
@@ -306,16 +310,20 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
 
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
+    H: Fn(HttpRequest<Vec<u8>>, Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>)
+      + Send
+      + Sync
+      + 'static,
   >(
     &mut self,
     uri_scheme: N,
     protocol: H,
   ) {
     let uri_scheme = uri_scheme.into();
-    self
-      .uri_scheme_protocols
-      .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
+    self.uri_scheme_protocols.insert(
+      uri_scheme,
+      Box::new(move |data, responder| (protocol)(data, responder)),
+    );
   }
 
   #[cfg(target_os = "android")]

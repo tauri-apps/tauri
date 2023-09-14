@@ -123,6 +123,14 @@ impl Target {
       Self::Ios => "xcode-script",
     }
   }
+
+  fn platform_target(&self) -> tauri_utils::platform::Target {
+    match self {
+      Self::Android => tauri_utils::platform::Target::Android,
+      #[cfg(target_os = "macos")]
+      Self::Ios => tauri_utils::platform::Target::Ios,
+    }
+  }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -145,10 +153,11 @@ impl Default for CliOptions {
 }
 
 fn setup_dev_config(
+  target: Target,
   config_extension: &mut Option<String>,
   force_ip_prompt: bool,
 ) -> crate::Result<()> {
-  let config = get_config(config_extension.as_deref())?;
+  let config = get_config(target.platform_target(), config_extension.as_deref())?;
 
   let mut dev_path = config
     .lock()

@@ -15,7 +15,7 @@ use tauri_mobile::{
     target::Target,
     teams::find_development_teams,
   },
-  config::app::App,
+  config::app::{App, DEFAULT_ASSET_DIR},
   env::Env,
   opts::NoiseLevel,
   os,
@@ -30,7 +30,7 @@ use super::{
 };
 use crate::{helpers::config::Config as TauriConfig, Result};
 
-use std::{env::set_var, process::exit, thread::sleep, time::Duration};
+use std::{env::set_var, fs::create_dir_all, process::exit, thread::sleep, time::Duration};
 
 mod build;
 mod dev;
@@ -255,4 +255,10 @@ fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
   loop {
     sleep(Duration::from_secs(24 * 60 * 60));
   }
+}
+
+fn inject_assets(config: &AppleConfig) -> Result<()> {
+  let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
+  create_dir_all(asset_dir)?;
+  Ok(())
 }

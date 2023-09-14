@@ -95,6 +95,7 @@ enum ArgumentCase {
 
 /// The bindings we attach to `tauri::Invoke`.
 struct Invoke {
+  id: Ident,
   message: Ident,
   resolver: Ident,
 }
@@ -112,6 +113,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   };
 
   let invoke = Invoke {
+    id: format_ident!("__tauri_invoke_id__"),
     message: format_ident!("__tauri_message__"),
     resolver: format_ident!("__tauri_resolver__"),
   };
@@ -190,7 +192,11 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     })
     .unwrap_or_else(|e| (syn::Error::into_compile_error(e), None));
 
-  let Invoke { message, resolver } = invoke;
+  let Invoke {
+    id,
+    message,
+    resolver,
+  } = invoke;
 
   let root = attributes
     .map(|a| a.root)
@@ -211,7 +217,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           use #root::command::private::*;
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
-          let #root::ipc::Invoke { message: #message, resolver: #resolver } = $invoke;
+          let #root::ipc::Invoke { id: #id, message: #message, resolver: #resolver } = $invoke;
 
           #body
       }};
@@ -234,8 +240,12 @@ fn body_async(
   invoke: &Invoke,
   attributes: &WrapperAttributes,
 ) -> syn::Result<TokenStream2> {
-  let Invoke { message, resolver } = invoke;
-  parse_args(function, message, attributes).map(|args| {
+  let Invoke {
+    id,
+    message,
+    resolver,
+  } = invoke;
+  parse_args(id, function, message, attributes).map(|args| {
     quote! {
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
@@ -257,8 +267,12 @@ fn body_blocking(
   invoke: &Invoke,
   attributes: &WrapperAttributes,
 ) -> syn::Result<TokenStream2> {
-  let Invoke { message, resolver } = invoke;
-  let args = parse_args(function, message, attributes)?;
+  let Invoke {
+    id,
+    message,
+    resolver,
+  } = invoke;
+  let args = parse_args(id, function, message, attributes)?;
 
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
@@ -276,6 +290,7 @@ fn body_blocking(
 
 /// Parse all arguments for the command wrapper to use from the signature of the command function.
 fn parse_args(
+  invoke_id: &Ident,
   function: &ItemFn,
   message: &Ident,
   attributes: &WrapperAttributes,
@@ -284,12 +299,13 @@ fn parse_args(
     .sig
     .inputs
     .iter()
-    .map(|arg| parse_arg(&function.sig.ident, arg, message, attributes))
+    .map(|arg| parse_arg(invoke_id, &function.sig.ident, arg, message, attributes))
     .collect()
 }
 
 /// Transform a [`FnArg`] into a command argument.
 fn parse_arg(
+  invoke_id: &Ident,
   command: &Ident,
   arg: &FnArg,
   message: &Ident,
@@ -341,6 +357,7 @@ fn parse_arg(
 
   Ok(quote!(#root::command::CommandArg::from_command(
     #root::command::CommandItem {
+      invoke_id: &#invoke_id,
       name: stringify!(#command),
       key: #key,
       message: &#message,

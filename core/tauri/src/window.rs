@@ -15,7 +15,7 @@ use crate::{
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   ipc::{
-    CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
+    CallbackFn, Invoke, InvokeBody, InvokeError, InvokeId, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
   },
   manager::WindowManager,
@@ -864,6 +864,8 @@ struct JsEventListenerKey {
 /// The IPC invoke request.
 #[derive(Debug)]
 pub struct InvokeRequest {
+  /// The invoke id.
+  pub id: InvokeId,
   /// The invoke command.
   pub cmd: String,
   /// The success callback.
@@ -2132,6 +2134,7 @@ impl<R: Runtime> Window<R> {
         );
 
         let mut invoke = Invoke {
+          id: request.id,
           message,
           resolver: resolver.clone(),
         };

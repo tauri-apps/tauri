@@ -15,7 +15,7 @@ use crate::{
   Runtime,
 };
 
-use super::{CallbackFn, InvokeBody, InvokeResponse};
+use super::{CallbackFn, InvokeBody, InvokeId, InvokeResponse};
 
 const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
 const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
@@ -29,6 +29,11 @@ pub fn message_handler<R: Runtime>(
 
 pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemeProtocolHandler {
   Box::new(move |request, responder| {
+    let invoke_id = InvokeId::new();
+
+    let _span =
+      tracing::trace_span!("ipc.request", id = invoke_id.0, kind = "custom-protocol").entered();
+
     let manager = manager.clone();
     let label = label.clone();
 
@@ -42,11 +47,24 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
     match *request.method() {
       Method::POST => {
         if let Some(window) = manager.get_window(&label) {
-          match parse_invoke_request(&manager, request) {
+          match parse_invoke_request(invoke_id, &manager, request) {
             Ok(request) => {
+              let _span =
+                tracing::trace_span!("ipc.request.handle", id = request.id.0, cmd = request.cmd)
+                  .entered();
+
+              let id = request.id;
+
               window.on_message(
                 request,
                 Box::new(move |_window, _cmd, response, _callback, _error| {
+                  let _span = tracing::trace_span!(
+                    "ipc.request.respond",
+                    id = id.0,
+                    response = format!("{:?}", response)
+                  )
+                  .entered();
+
                   let (mut response, mime_type) = match response {
                     InvokeResponse::Ok(InvokeBody::Json(v)) => (
                       HttpResponse::new(serde_json::to_vec(&v).unwrap().into()),
@@ -67,6 +85,13 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
                     CONTENT_TYPE,
                     HeaderValue::from_str(mime_type.essence_str()).unwrap(),
                   );
+
+                  let _span = tracing::trace_span!(
+                    "ipc.request.response",
+                    id = id.0,
+                    response = format!("{:?}", response)
+                  )
+                  .entered();
 
                   respond(response);
                 }),
@@ -127,6 +152,11 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
 
 #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, label: &str) {
+  let invoke_id = InvokeId::new();
+
+  let _span =
+    tracing::trace_span!("ipc.request", id = invoke_id.0, kind = "post-message").entered();
+
   if let Some(window) = manager.get_window(label) {
     use serde::{Deserialize, Deserializer};
 
@@ -204,14 +234,23 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
       .unwrap_or_else(|| serde_json::from_str::<Message>(&message).map_err(Into::into))
     {
       Ok(message) => {
+        let request = InvokeRequest {
+          id: invoke_id,
+          cmd: message.cmd,
+          callback: message.callback,
+          error: message.error,
+          body: message.payload.into(),
+          headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
+        };
+
+        let _span =
+          tracing::trace_span!("ipc.request.handle", id = request.id.0, cmd = request.cmd)
+            .entered();
+
+        let id = request.id;
+
         window.on_message(
-          InvokeRequest {
-            cmd: message.cmd,
-            callback: message.callback,
-            error: message.error,
-            body: message.payload.into(),
-            headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
-          },
+          request,
           Box::new(move |window, cmd, response, callback, error| {
             use crate::ipc::{
               format_callback::{
@@ -220,6 +259,13 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
               Channel,
             };
             use serde_json::Value as JsonValue;
+
+            let _span = tracing::trace_span!(
+              "ipc.request.respond",
+              id = id.0,
+              response = format!("{:?}", response)
+            )
+            .entered();
 
             // the channel data command is the only command that uses a custom protocol on Linux
             if window.manager.invoke_responder().is_none()
@@ -275,6 +321,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
         );
       }
       Err(e) => {
+        tracing::trace!("ipc.request.error {}", e);
         let _ = window.eval(&format!(
           r#"console.error({})"#,
           serde_json::Value::String(e.to_string())
@@ -285,6 +332,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
 }
 
 fn parse_invoke_request<R: Runtime>(
+  id: InvokeId,
   #[allow(unused_variables)] manager: &WindowManager<R>,
   request: HttpRequest<Vec<u8>>,
 ) -> std::result::Result<InvokeRequest, String> {
@@ -348,6 +396,7 @@ fn parse_invoke_request<R: Runtime>(
   };
 
   let payload = InvokeRequest {
+    id,
     cmd,
     callback,
     error,

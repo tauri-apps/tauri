@@ -151,9 +151,22 @@ impl Response {
   }
 }
 
+/// The identifier of the invoke call.
+#[derive(Debug, Copy, Clone)]
+pub struct InvokeId(pub(crate) usize);
+
+impl InvokeId {
+  pub(crate) fn new() -> Self {
+    Self(rand::random())
+  }
+}
+
 /// The message and resolver given to a custom command.
 #[default_runtime(crate::Wry, wry)]
 pub struct Invoke<R: Runtime> {
+  /// The invoke id.
+  pub id: InvokeId,
+
   /// The message passed.
   pub message: InvokeMessage<R>,
 

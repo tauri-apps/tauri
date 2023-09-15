@@ -318,12 +318,12 @@ fn update_app() {
           .first()
           .unwrap()
           .1
-          .join("Contents/Frameworks/test.framework/test"),
+          .join("Contents/Frameworks/test.framework/Modules"),
       )
-      .expect("test.framework/test metadata");
+      .expect("test.framework/Modules metadata");
       assert!(
         meta.file_type().is_symlink(),
-        "test.framework/test should be a symlink"
+        "test.framework/Modules should be a symlink"
       );
     }
 

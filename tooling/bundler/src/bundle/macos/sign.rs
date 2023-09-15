@@ -213,7 +213,7 @@ fn try_sign(
 
   Command::new("codesign")
     .args(args)
-    .arg(path_to_sign.to_string_lossy().to_string())
+    .arg(path_to_sign)
     .output_ok()
     .context("failed to sign app")?;
 

@@ -14,7 +14,7 @@ use std::{
 
 use crate::{bundle::common::CommandExt, Settings};
 use anyhow::Context;
-use log::{error, info};
+use log::info;
 use serde::Deserialize;
 
 const KEYCHAIN_ID: &str = "tauri-build.keychain";
@@ -144,17 +144,13 @@ pub fn delete_keychain() {
     .output_ok();
 }
 
-pub fn sign(
-  path_to_sign: PathBuf,
-  identity: &str,
-  settings: &Settings,
-  is_an_executable: bool,
-) -> crate::Result<()> {
-  info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
+pub struct SignTarget {
+  pub path: PathBuf,
+  pub is_an_executable: bool,
+}
 
-  // Remove extra attributes, which could cause codesign to fail
-  // https://developer.apple.com/library/archive/qa/qa1940/_index.html
-  remove_extra_attr(&path_to_sign)?;
+pub fn sign(targets: Vec<SignTarget>, identity: &str, settings: &Settings) -> crate::Result<()> {
+  info!(action = "Signing"; "with identity \"{}\"", identity);
 
   let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
     var_os("APPLE_CERTIFICATE"),
@@ -168,73 +164,24 @@ pub fn sign(
     false
   };
 
-  // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
-  // https://developer.apple.com/forums/thread/701514
-  if is_an_executable {
-    // Sign any sidecar binaries
-    for src in settings.external_binaries() {
-      let src = src?;
-      let binary_path = path_to_sign.join(
-        src
-          .file_name()
-          .expect("failed to extract external binary filename")
-          .to_string_lossy()
-          .replace(&format!("-{}", settings.target()), ""),
-      );
-      try_sign(
-        binary_path,
-        identity,
-        settings,
-        is_an_executable,
-        setup_keychain,
-      )?;
-    }
-
-    if let Some(frameworks) = settings.macos().frameworks.as_ref() {
-      for framework in frameworks.iter() {
-        // If the framework ends with .framework, then its not a system framework. We don't want to sign system frameworks!
-        if framework.ends_with(".framework") {
-          let path = PathBuf::from(framework);
-          match path.file_name() {
-            Some(name) => {
-              let framework_path = path_to_sign.join("Contents/Frameworks").join(name);
-              info!("Signing framework: {:?}", framework_path);
-              try_sign(
-                framework_path,
-                identity,
-                settings,
-                is_an_executable,
-                setup_keychain,
-              )?;
-            }
-            None => {
-              error!(
-                "Failed to sign framework: {} because it has no filename",
-                framework
-              );
-            }
-          }
-        }
-      }
-    }
-  }
-
   info!("Signing app bundle...");
-  // Sign the app bundle
-  let res = try_sign(
-    path_to_sign,
-    identity,
-    settings,
-    is_an_executable,
-    setup_keychain,
-  );
+
+  for target in targets {
+    try_sign(
+      target.path,
+      identity,
+      settings,
+      target.is_an_executable,
+      setup_keychain,
+    )?;
+  }
 
   if setup_keychain {
     // delete the keychain again after signing
     delete_keychain();
   }
 
-  res
+  Ok(())
 }
 
 fn try_sign(
@@ -244,6 +191,8 @@ fn try_sign(
   is_an_executable: bool,
   tauri_keychain: bool,
 ) -> crate::Result<()> {
+  info!(action = "Signing"; "{}", path_to_sign.display());
+
   let mut args = vec!["--force", "-s", identity];
 
   if tauri_keychain {
@@ -264,19 +213,10 @@ fn try_sign(
 
   Command::new("codesign")
     .args(args)
-    .arg(path_to_sign.to_string_lossy().to_string())
+    .arg(path_to_sign)
     .output_ok()
     .context("failed to sign app")?;
 
-  Ok(())
-}
-
-fn remove_extra_attr(app_bundle_path: &PathBuf) -> crate::Result<()> {
-  Command::new("xattr")
-    .arg("-cr")
-    .arg(app_bundle_path)
-    .output_ok()
-    .context("failed to remove extra attributes from app bundle")?;
   Ok(())
 }
 
@@ -322,7 +262,14 @@ pub fn notarize(
 
   // sign the zip file
   if let Some(identity) = &settings.macos().signing_identity {
-    sign(zip_path.clone(), identity, settings, false)?;
+    sign(
+      vec![SignTarget {
+        path: zip_path.clone(),
+        is_an_executable: false,
+      }],
+      identity,
+      settings,
+    )?;
   };
 
   let notarize_args = vec![

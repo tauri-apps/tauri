@@ -761,7 +761,11 @@ impl Settings {
   }
 
   /// Copies external binaries to a path.
-  pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
+  ///
+  /// Returns the list of destination paths.
+  pub fn copy_binaries(&self, path: &Path) -> crate::Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+
     for src in self.external_binaries() {
       let src = src?;
       let dest = path.join(
@@ -771,9 +775,10 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      common::copy_file(&src, dest)?;
+      common::copy_file(&src, &dest)?;
+      paths.push(dest);
     }
-    Ok(())
+    Ok(paths)
   }
 
   /// Copies resources to a path.

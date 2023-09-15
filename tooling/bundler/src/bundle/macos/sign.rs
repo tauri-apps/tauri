@@ -144,13 +144,13 @@ pub fn delete_keychain() {
     .output_ok();
 }
 
-pub fn sign(
-  path_to_sign: PathBuf,
-  identity: &str,
-  settings: &Settings,
-  is_an_executable: bool,
-) -> crate::Result<()> {
-  info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
+pub struct SignTarget {
+  pub path: PathBuf,
+  pub is_an_executable: bool,
+}
+
+pub fn sign(targets: Vec<SignTarget>, identity: &str, settings: &Settings) -> crate::Result<()> {
+  info!(action = "Signing"; "with identity \"{}\"", identity);
 
   let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
     var_os("APPLE_CERTIFICATE"),
@@ -164,20 +164,24 @@ pub fn sign(
     false
   };
 
-  let res = try_sign(
-    path_to_sign,
-    identity,
-    settings,
-    is_an_executable,
-    setup_keychain,
-  );
+  info!("Signing app bundle...");
+
+  for target in targets {
+    try_sign(
+      target.path,
+      identity,
+      settings,
+      target.is_an_executable,
+      setup_keychain,
+    )?;
+  }
 
   if setup_keychain {
     // delete the keychain again after signing
     delete_keychain();
   }
 
-  res
+  Ok(())
 }
 
 fn try_sign(
@@ -187,6 +191,8 @@ fn try_sign(
   is_an_executable: bool,
   tauri_keychain: bool,
 ) -> crate::Result<()> {
+  info!(action = "Signing"; "{}", path_to_sign.display());
+
   let mut args = vec!["--force", "-s", identity];
 
   if tauri_keychain {
@@ -205,13 +211,9 @@ fn try_sign(
     args.push("runtime");
   }
 
-  if path_to_sign.is_dir() {
-    args.push("--deep");
-  }
-
   Command::new("codesign")
     .args(args)
-    .arg(path_to_sign.to_string_lossy().to_string())
+    .arg(path_to_sign)
     .output_ok()
     .context("failed to sign app")?;
 
@@ -260,7 +262,14 @@ pub fn notarize(
 
   // sign the zip file
   if let Some(identity) = &settings.macos().signing_identity {
-    sign(zip_path.clone(), identity, settings, false)?;
+    sign(
+      vec![SignTarget {
+        path: zip_path.clone(),
+        is_an_executable: false,
+      }],
+      identity,
+      settings,
+    )?;
   };
 
   let notarize_args = vec![

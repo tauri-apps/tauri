@@ -82,7 +82,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       .into_iter()
       .filter(|p| {
         let ext = p.extension();
-        ext == Some(OsStr::new(".framework")) || ext == Some(OsStr::new(".dylib"))
+        ext == Some(OsStr::new("framework")) || ext == Some(OsStr::new("dylib"))
       })
       .map(|path| SignTarget {
         path,

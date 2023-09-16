@@ -268,11 +268,17 @@ fn body_async(
   } = invoke;
   parse_args(id, function, message, attributes).map(|args| {
     quote! {
+      use tracing::Instrument;
+
+      let span = tracing::debug_span!("ipc.request.run", id = #id.0);
       #resolver.respond_async_serialized(async move {
-        let _span = tracing::debug_span!("ipc.request.run", id = #id.0);
-        let result = $path(#(#args?),*);
-        let kind = (&result).async_kind();
-        kind.future(result).await
+        async move {
+          let result = $path(#(#args?),*);
+          let kind = (&result).async_kind();
+          kind.future(result).await
+        }
+        .instrument(span)
+        .await
       });
       return true;
     }
@@ -303,7 +309,7 @@ fn body_blocking(
   });
 
   Ok(quote! {
-    let _span = tracing::debug_span!("ipc.request.run", id = #id.0);
+    let _span = tracing::debug_span!("ipc.request.run", id = #id.0).entered();
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);

@@ -49,9 +49,8 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
         if let Some(window) = manager.get_window(&label) {
           match parse_invoke_request(invoke_id, &manager, request) {
             Ok(request) => {
-              let _span =
-                tracing::trace_span!("ipc.request.handle", id = request.id.0, cmd = request.cmd)
-                  .entered();
+              let request_span =
+                tracing::trace_span!("ipc.request.handle", id = request.id.0, cmd = request.cmd);
 
               let id = request.id;
 
@@ -59,6 +58,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
                 request,
                 Box::new(move |_window, _cmd, response, _callback, _error| {
                   let _span = tracing::trace_span!(
+                    parent: &request_span,
                     "ipc.request.respond",
                     id = id.0,
                     response = format!("{:?}", response)

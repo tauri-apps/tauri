@@ -238,7 +238,10 @@ impl ActiveTraceSpanStore {
 
 #[derive(Debug)]
 pub enum ActiveTracingSpan {
-  WindowDraw { id: WindowId, span: tracing::Span },
+  WindowDraw {
+    id: WindowId,
+    span: tracing::span::EnteredSpan,
+  },
 }
 
 #[derive(Clone)]
@@ -2601,7 +2604,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   } = pending;
 
   let _webview_create_span = tracing::trace_span!("wry.webview.create").entered();
-  let window_draw_span = tracing::trace_span!("wry.window.draw");
+  let window_draw_span = tracing::trace_span!("wry.window.draw").entered();
   let window_create_span =
     tracing::trace_span!(parent: &window_draw_span, "wry.window.create").entered();
 

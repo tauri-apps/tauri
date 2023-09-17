@@ -221,11 +221,32 @@ impl<T: UserEvent> Context<T> {
   }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
+
+impl ActiveTraceSpanStore {
+  pub fn remove_window_draw(&self, window_id: WindowId) {
+    let mut store = self.0.borrow_mut();
+    if let Some(index) = store.iter().position(|t| match t {
+      ActiveTracingSpan::WindowDraw { id, span: _ } if id == &window_id => true,
+      _ => false,
+    }) {
+      store.remove(index);
+    }
+  }
+}
+
+#[derive(Debug)]
+pub enum ActiveTracingSpan {
+  WindowDraw { id: WindowId, span: tracing::Span },
+}
+
 #[derive(Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
   pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub active_tracing_spans: ActiveTraceSpanStore,
 }
 
 impl<T: UserEvent> std::fmt::Debug for DispatcherMainThreadContext<T> {
@@ -234,6 +255,7 @@ impl<T: UserEvent> std::fmt::Debug for DispatcherMainThreadContext<T> {
       .field("window_target", &self.window_target)
       .field("web_context", &self.web_context)
       .field("windows", &self.windows)
+      .field("active_tracing_spans", &self.active_tracing_spans)
       .finish()
   }
 }
@@ -1792,6 +1814,7 @@ impl<T: UserEvent> Wry<T> {
         window_target: event_loop.deref().clone(),
         web_context,
         windows,
+        active_tracing_spans: Default::default(),
       },
       plugins: Default::default(),
     };
@@ -1930,6 +1953,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = &self.context.main_thread.web_context;
     let plugins = self.context.plugins.clone();
+    let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
 
     let mut iteration = RunIteration::default();
 
@@ -1953,6 +1977,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               callback: &mut callback,
               webview_id_map: webview_id_map.clone(),
               windows: windows.clone(),
+              active_tracing_spans: active_tracing_spans.clone(),
             },
             web_context,
           );
@@ -1969,6 +1994,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             callback: &mut callback,
             windows: windows.clone(),
             webview_id_map: webview_id_map.clone(),
+            active_tracing_spans: active_tracing_spans.clone(),
           },
           web_context,
         );
@@ -1982,6 +2008,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = self.context.main_thread.web_context;
     let plugins = self.context.plugins.clone();
+    let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
 
     let proxy = self.event_loop.create_proxy();
 
@@ -1996,6 +2023,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             callback: &mut callback,
             webview_id_map: webview_id_map.clone(),
             windows: windows.clone(),
+            active_tracing_spans: active_tracing_spans.clone(),
           },
           &web_context,
         );
@@ -2011,6 +2039,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           callback: &mut callback,
           webview_id_map: webview_id_map.clone(),
           windows: windows.clone(),
+          active_tracing_spans: active_tracing_spans.clone(),
         },
         &web_context,
       );
@@ -2022,6 +2051,7 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
   pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub active_tracing_spans: ActiveTraceSpanStore,
 }
 
 struct UserMessageContext {
@@ -2356,6 +2386,7 @@ fn handle_event_loop<T: UserEvent>(
     callback,
     webview_id_map,
     windows,
+    active_tracing_spans,
   } = context;
   if *control_flow != ControlFlow::Exit {
     *control_flow = ControlFlow::Wait;
@@ -2376,6 +2407,10 @@ fn handle_event_loop<T: UserEvent>(
 
     Event::LoopDestroyed => {
       callback(RunEvent::Exit);
+    }
+
+    Event::RedrawRequested(id) => {
+      active_tracing_spans.remove_window_draw(id);
     }
 
     Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {
@@ -2565,6 +2600,11 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     ..
   } = pending;
 
+  let _webview_create_span = tracing::trace_span!("wry.webview.create").entered();
+  let window_draw_span = tracing::trace_span!("wry.window.draw");
+  let window_create_span =
+    tracing::trace_span!(parent: &window_draw_span, "wry.window.create").entered();
+
   let window_event_listeners = WindowEventListeners::default();
 
   #[cfg(windows)]
@@ -2591,6 +2631,17 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let is_window_transparent = window_builder.inner.window.transparent;
   let window = window_builder.inner.build(event_loop).unwrap();
+
+  drop(window_create_span);
+  context
+    .main_thread
+    .active_tracing_spans
+    .0
+    .borrow_mut()
+    .push(ActiveTracingSpan::WindowDraw {
+      id: window.id(),
+      span: window_draw_span,
+    });
 
   context.webview_id_map.insert(window.id(), window_id);
 

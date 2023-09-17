@@ -23,6 +23,7 @@ uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
 http = "0.2"
+tracing = "0.1"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.25"

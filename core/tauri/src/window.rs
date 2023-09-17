@@ -371,6 +371,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   }
 
   /// Creates a new webview window.
+  #[tracing::instrument(name = "window.create")]
   pub fn build(mut self) -> crate::Result<Window<R>> {
     let mut pending = PendingWindow::new(
       self.window_builder.clone(),

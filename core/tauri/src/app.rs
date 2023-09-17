@@ -356,26 +356,14 @@ impl<R: Runtime> AppHandle<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn plugin<P: Plugin<R> + 'static>(&self, mut plugin: P) -> crate::Result<()> {
-    plugin
-      .initialize(
-        self,
-        self
-          .config()
-          .plugins
-          .0
-          .get(plugin.name())
-          .cloned()
-          .unwrap_or_default(),
-      )
-      .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))?;
-    self
-      .manager()
-      .inner
-      .plugins
-      .lock()
-      .unwrap()
-      .register(plugin);
+  #[tracing::instrument(name = "app.plugin.register", skip(plugin), fields(name = plugin.name()))]
+  pub fn plugin<P: Plugin<R> + 'static>(&self, plugin: P) -> crate::Result<()> {
+    let mut plugin = Box::new(plugin) as Box<dyn Plugin<R>>;
+
+    let mut store = self.manager().inner.plugins.lock().unwrap();
+    store.initialize(&mut plugin, self, &self.config().plugins)?;
+    store.register(plugin);
+
     Ok(())
   }
 
@@ -808,6 +796,7 @@ shared_app_impl!(App<R>);
 shared_app_impl!(AppHandle<R>);
 
 impl<R: Runtime> App<R> {
+  #[tracing::instrument(name = "app.core_plugins.register")]
   fn register_core_plugins(&self) -> crate::Result<()> {
     self.handle.plugin(crate::path::init())?;
     self.handle.plugin(crate::event::init())?;
@@ -890,6 +879,7 @@ impl<R: Runtime> App<R> {
   ///   _ => {}
   /// });
   /// ```
+  #[tracing::instrument(name = "app.run", skip(callback))]
   pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle().clone();
     let manager = self.manager.clone();
@@ -940,6 +930,7 @@ impl<R: Runtime> App<R> {
   /// }
   /// ```
   #[cfg(desktop)]
+  #[tracing::instrument(name = "app.run_iteration")]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
@@ -1179,7 +1170,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   #[must_use]
   pub fn plugin<P: Plugin<R> + 'static>(mut self, plugin: P) -> Self {
-    self.plugins.register(plugin);
+    self.plugins.register(Box::new(plugin));
     self
   }
 
@@ -1460,6 +1451,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Builds the application.
   #[allow(clippy::type_complexity)]
+  #[tracing::instrument(name = "app.build", skip(self))]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {
@@ -1686,6 +1678,7 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
   }
 }
 
+#[tracing::instrument(name = "app.setup")]
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   let pending_windows = app.pending_windows.take();
   if let Some(pending_windows) = pending_windows {
@@ -1739,6 +1732,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   Ok(())
 }
 
+#[tracing::instrument(name = "app.event_loop", skip(app_handle, callback, manager))]
 fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
   app_handle: &AppHandle<R>,
   event: RuntimeRunEvent<EventLoopMessage>,

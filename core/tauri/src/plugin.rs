@@ -565,11 +565,11 @@ impl<R: Runtime> PluginStore<R> {
   /// Adds a plugin to the store.
   ///
   /// Returns `true` if a plugin with the same name is already in the store.
-  pub fn register<P: Plugin<R> + 'static>(&mut self, plugin: P) -> bool {
+  pub fn register(&mut self, plugin: Box<dyn Plugin<R>>) -> bool {
     let len = self.store.len();
     self.store.retain(|p| p.name() != plugin.name());
     let result = len != self.store.len();
-    self.store.push(Box::new(plugin));
+    self.store.push(plugin);
     result
   }
 
@@ -580,20 +580,26 @@ impl<R: Runtime> PluginStore<R> {
     len != self.store.len()
   }
 
-  /// Initializes all plugins in the store.
+  /// Initializes the given plugin.
   pub(crate) fn initialize(
+    &self,
+    plugin: &mut Box<dyn Plugin<R>>,
+    app: &AppHandle<R>,
+    config: &PluginConfig,
+  ) -> crate::Result<()> {
+    initialize(plugin, app, config)
+  }
+
+  /// Initializes all plugins in the store.
+  pub(crate) fn initialize_all(
     &mut self,
     app: &AppHandle<R>,
     config: &PluginConfig,
   ) -> crate::Result<()> {
-    self.store.iter_mut().try_for_each(|plugin| {
-      plugin
-        .initialize(
-          app,
-          config.0.get(plugin.name()).cloned().unwrap_or_default(),
-        )
-        .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
-    })
+    self
+      .store
+      .iter_mut()
+      .try_for_each(|plugin| initialize(plugin, app, config))
   }
 
   /// Generates an initialization script from all plugins in the store.
@@ -609,14 +615,16 @@ impl<R: Runtime> PluginStore<R> {
 
   /// Runs the created hook for all plugins in the store.
   pub(crate) fn created(&mut self, window: Window<R>) {
-    self
-      .store
-      .iter_mut()
-      .for_each(|plugin| plugin.created(window.clone()))
+    self.store.iter_mut().for_each(|plugin| {
+      let _span = tracing::trace_span!("plugin.hooks.created", name = plugin.name()).entered();
+      plugin.created(window.clone())
+    })
   }
 
   pub(crate) fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
     for plugin in self.store.iter_mut() {
+      let _span =
+        tracing::trace_span!("plugin.hooks.on_navigation", name = plugin.name()).entered();
       if !plugin.on_navigation(window, url) {
         return false;
       }
@@ -626,18 +634,18 @@ impl<R: Runtime> PluginStore<R> {
 
   /// Runs the on_page_load hook for all plugins in the store.
   pub(crate) fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
-    self
-      .store
-      .iter_mut()
-      .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
+    self.store.iter_mut().for_each(|plugin| {
+      let _span = tracing::trace_span!("plugin.hooks.on_page_load", name = plugin.name()).entered();
+      plugin.on_page_load(window.clone(), payload.clone())
+    })
   }
 
   /// Runs the on_event hook for all plugins in the store.
   pub(crate) fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
-    self
-      .store
-      .iter_mut()
-      .for_each(|plugin| plugin.on_event(app, event))
+    self.store.iter_mut().for_each(|plugin| {
+      let _span = tracing::trace_span!("plugin.hooks.on_event", name = plugin.name()).entered();
+      plugin.on_event(app, event)
+    })
   }
 
   /// Runs the plugin `extend_api` hook if it exists. Returns whether the invoke message was handled or not.
@@ -646,10 +654,25 @@ impl<R: Runtime> PluginStore<R> {
   pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
     for p in self.store.iter_mut() {
       if p.name() == plugin {
+        let _span = tracing::trace_span!("plugin.hooks.ipc", name = p.name()).entered();
         return p.extend_api(invoke);
       }
     }
     invoke.resolver.reject(format!("plugin {plugin} not found"));
     true
   }
+}
+
+#[tracing::instrument(name = "plugin.hooks.initialize", skip(plugin), fields(name = plugin.name()))]
+fn initialize<R: Runtime>(
+  plugin: &mut Box<dyn Plugin<R>>,
+  app: &AppHandle<R>,
+  config: &PluginConfig,
+) -> crate::Result<()> {
+  plugin
+    .initialize(
+      app,
+      config.0.get(plugin.name()).cloned().unwrap_or_default(),
+    )
+    .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
 }

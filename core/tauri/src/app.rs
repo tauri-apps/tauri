@@ -879,7 +879,6 @@ impl<R: Runtime> App<R> {
   ///   _ => {}
   /// });
   /// ```
-  #[tracing::instrument(name = "app.run", skip(callback))]
   pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle().clone();
     let manager = self.manager.clone();

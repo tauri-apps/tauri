@@ -11,7 +11,7 @@ use syn::{
   LitStr, PathArguments, PathSegment, Token,
 };
 use tauri_codegen::{context_codegen, get_config, ContextData};
-use tauri_utils::config::parse::does_supported_file_name_exist;
+use tauri_utils::{config::parse::does_supported_file_name_exist, platform::Target};
 
 pub(crate) struct ContextItems {
   config_file: PathBuf,
@@ -20,6 +20,12 @@ pub(crate) struct ContextItems {
 
 impl Parse for ContextItems {
   fn parse(input: &ParseBuffer<'_>) -> syn::parse::Result<Self> {
+    let target = std::env::var("TARGET")
+      .or_else(|_| std::env::var("TAURI_TARGET_TRIPLE"))
+      .as_deref()
+      .map(Target::from_triple)
+      .unwrap_or_else(|_| Target::current());
+
     let config_file = if input.is_empty() {
       std::env::var("CARGO_MANIFEST_DIR").map(|m| PathBuf::from(m).join("tauri.conf.json"))
     } else {
@@ -36,7 +42,7 @@ impl Parse for ContextItems {
       VarError::NotUnicode(_) => "CARGO_MANIFEST_DIR env var contained invalid utf8".into(),
     })
     .and_then(|path| {
-      if does_supported_file_name_exist(&path) {
+      if does_supported_file_name_exist(target, &path) {
         Ok(path)
       } else {
         Err(format!(

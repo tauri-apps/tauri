@@ -1355,8 +1355,8 @@ impl<R: Runtime> Builder<R> {
   /// ```
   /// tauri::Builder::default()
   ///   .register_uri_scheme_protocol("app-files", |_app, request| {
-  ///     let path = request.uri().path().trim_start_matches('/');
-  ///     if let Ok(data) = std::fs::read(path) {
+  ///     // skip leading `/`
+  ///     if let Ok(data) = std::fs::read(&request.uri().path()[1..]) {
   ///       http::Response::builder()
   ///         .body(data)
   ///         .unwrap()
@@ -1397,7 +1397,8 @@ impl<R: Runtime> Builder<R> {
   /// ```
   /// tauri::Builder::default()
   ///   .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, responder| {
-  ///     let path = request.uri().path().trim_start_matches('/').to_string();
+  ///     // skip leading `/`
+  ///     let path = request.uri().path()[1..].to_string();
   ///     std::thread::spawn(move || {
   ///       if let Ok(data) = std::fs::read(path) {
   ///         responder.respond(

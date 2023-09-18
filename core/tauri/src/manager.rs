@@ -49,6 +49,7 @@ use crate::{
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
+  window::WindowEmitArgs,
   Context, EventLoopMessage, Icon, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
 };
@@ -1166,12 +1167,13 @@ impl<R: Runtime> WindowManager<R> {
     S: Serialize + Clone,
     F: Fn(&Window<R>) -> bool,
   {
+    let emit_args = WindowEmitArgs::from(event, source_window_label, payload)?;
     assert_event_name_is_valid(event);
     self
-      .windows_lock()
+      .windows()
       .values()
       .filter(|&w| filter(w))
-      .try_for_each(|window| window.emit_internal(event, source_window_label, payload.clone()))
+      .try_for_each(|window| window.emit_internal(&emit_args))
   }
 
   pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {

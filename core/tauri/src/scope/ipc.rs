@@ -168,7 +168,7 @@ impl Scope {
 mod tests {
   use super::RemoteDomainAccessScope;
   use crate::{
-    ipc::CallbackFn,
+    ipc::{CallbackFn, InvokeId},
     test::{assert_ipc_response, mock_app, MockRuntime},
     window::InvokeRequest,
     App, Manager, Window, WindowBuilder,
@@ -200,6 +200,7 @@ mod tests {
     );
 
     InvokeRequest {
+      id: InvokeId::new(),
       cmd: "plugin:path|is_absolute".into(),
       callback,
       error,
@@ -213,6 +214,7 @@ mod tests {
     let error = CallbackFn(1);
 
     InvokeRequest {
+      id: InvokeId::new(),
       cmd: format!("plugin:{PLUGIN_NAME}|doSomething"),
       callback,
       error,

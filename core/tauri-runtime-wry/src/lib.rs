@@ -227,10 +227,10 @@ pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
 impl ActiveTraceSpanStore {
   pub fn remove_window_draw(&self, window_id: WindowId) {
     let mut store = self.0.borrow_mut();
-    if let Some(index) = store.iter().position(|t| match t {
-      ActiveTracingSpan::WindowDraw { id, span: _ } if id == &window_id => true,
-      _ => false,
-    }) {
+    if let Some(index) = store
+      .iter()
+      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id, span: _ } if id == &window_id))
+    {
       store.remove(index);
     }
   }

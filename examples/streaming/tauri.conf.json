@@ -1,8 +1,12 @@
 {
   "$schema": "../../core/tauri-config-schema/schema.json",
   "build": {
-    "distDir": ["index.html"],
-    "devPath": ["index.html"],
+    "distDir": [
+      "index.html"
+    ],
+    "devPath": [
+      "index.html"
+    ],
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
     "withGlobalTauri": true
@@ -47,9 +51,11 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc:; media-src stream: https://stream.localhost asset: https://asset.localhost",
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; media-src stream: http://stream.localhost asset: http://asset.localhost",
       "assetProtocol": {
-        "scope": ["**/test_video.mp4"]
+        "scope": [
+          "**/test_video.mp4"
+        ]
       }
     }
   }

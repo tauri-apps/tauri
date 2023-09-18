@@ -18,6 +18,7 @@ use clap::{ArgAction, Parser};
 use log::{error, info, warn};
 use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
+use tauri_utils::platform::Target;
 
 use std::{
   env::set_current_dir,
@@ -84,7 +85,12 @@ pub fn command(options: Options) -> Result<()> {
 }
 
 fn command_internal(mut options: Options) -> Result<()> {
-  let mut interface = setup(&mut options, false)?;
+  let target = options
+    .target
+    .as_deref()
+    .map(Target::from_triple)
+    .unwrap_or_else(Target::current);
+  let mut interface = setup(target, &mut options, false)?;
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
   interface.dev(options.into(), move |status, reason| {
@@ -135,11 +141,11 @@ pub fn local_ip_address(force: bool) -> &'static IpAddr {
   })
 }
 
-pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
+pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppInterface> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let config = get_config(options.config.as_deref())?;
+  let config = get_config(target, options.config.as_deref())?;
 
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;

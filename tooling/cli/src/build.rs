@@ -23,6 +23,7 @@ use std::{
   process::Command,
 };
 use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
+use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri build")]
@@ -65,9 +66,15 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   options.ci = options.ci || std::env::var("CI").is_ok();
   let ci = options.ci;
 
-  let mut interface = setup(&mut options, false)?;
+  let target = options
+    .target
+    .as_deref()
+    .map(Target::from_triple)
+    .unwrap_or_else(Target::current);
 
-  let config = get_config(options.config.as_deref())?;
+  let mut interface = setup(target, &mut options, false)?;
+
+  let config = get_config(target, options.config.as_deref())?;
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
@@ -208,11 +215,11 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   Ok(())
 }
 
-pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
+pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppInterface> {
   let (merge_config, merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let config = get_config(options.config.as_deref())?;
+  let config = get_config(target, options.config.as_deref())?;
 
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;

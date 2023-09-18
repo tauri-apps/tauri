@@ -13,7 +13,6 @@
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
-  http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   monitor::Monitor,
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
@@ -61,7 +60,6 @@ use wry::{
       UserAttentionType as WryUserAttentionType,
     },
   },
-  http::{Request as WryRequest, Response as WryResponse},
   webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
 };
 
@@ -85,7 +83,6 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
-  borrow::Cow,
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
@@ -256,39 +253,6 @@ impl<T: UserEvent> fmt::Debug for Context<T> {
       .field("proxy", &self.proxy)
       .field("main_thread", &self.main_thread)
       .finish()
-  }
-}
-
-struct HttpRequestWrapper(HttpRequest);
-
-impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
-  fn from(req: &WryRequest<Vec<u8>>) -> Self {
-    let parts = RequestParts {
-      uri: req.uri().to_string(),
-      method: req.method().clone(),
-      headers: req.headers().clone(),
-    };
-    Self(HttpRequest::new_internal(parts, req.body().clone()))
-  }
-}
-
-// response
-struct HttpResponseWrapper(WryResponse<Cow<'static, [u8]>>);
-impl From<HttpResponse> for HttpResponseWrapper {
-  fn from(response: HttpResponse) -> Self {
-    let (parts, body) = response.into_parts();
-    let mut res_builder = WryResponse::builder()
-      .status(parts.status)
-      .version(parts.version);
-    if let Some(mime) = parts.mimetype {
-      res_builder = res_builder.header(CONTENT_TYPE, mime);
-    }
-    for (name, val) in parts.headers.iter() {
-      res_builder = res_builder.header(name, val);
-    }
-
-    let res = res_builder.body(body).unwrap();
-    Self(res)
   }
 }
 
@@ -2701,11 +2665,13 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   for (scheme, protocol) in uri_scheme_protocols {
-    webview_builder = webview_builder.with_custom_protocol(scheme, move |wry_request| {
-      protocol(&HttpRequestWrapper::from(wry_request).0)
-        .map(|tauri_response| HttpResponseWrapper::from(tauri_response).0)
-        .map_err(|_| wry::Error::InitScriptError)
-    });
+    webview_builder =
+      webview_builder.with_asynchronous_custom_protocol(scheme, move |request, responder| {
+        protocol(
+          request,
+          Box::new(move |response| responder.respond(response)),
+        )
+      });
   }
 
   for script in webview_attributes.initialization_scripts {

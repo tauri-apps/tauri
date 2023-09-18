@@ -971,6 +971,7 @@ impl<R: Runtime> PartialEq for Window<R> {
 }
 
 impl<R: Runtime> Manager<R> for Window<R> {
+  #[tracing::instrument("window.emit.to", skip(self, payload))]
   fn emit_to<S: Serialize + Clone>(
     &self,
     label: &str,
@@ -982,12 +983,14 @@ impl<R: Runtime> Manager<R> for Window<R> {
       .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
   }
 
+  #[tracing::instrument("window.emit.all", skip(self, payload))]
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager()
       .emit_filter(event, Some(self.label()), payload, |_| true)
   }
 }
+
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &WindowManager<R> {
     &self.manager
@@ -2454,6 +2457,15 @@ impl<R: Runtime> Window<R> {
     self.emit(event, payload)
   }
 
+  #[tracing::instrument(
+    "window.emit",
+    skip(emit_args),
+    fields(
+      event = emit_args.event,
+      source_window = emit_args.source_window_label,
+      payload = emit_args.payload
+    )
+  )]
   pub(crate) fn emit_internal(&self, emit_args: &WindowEmitArgs) -> crate::Result<()> {
     self.eval(&format!(
       "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",

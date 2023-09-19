@@ -88,11 +88,11 @@ encoding_rs = "0.8.31"
 sys-locale = { version = "0.2.3", optional = true }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-rfd = { version = "0.10", optional = true, features = [ "gtk3", "common-controls-v6" ] }
+rfd = { version = "0.12", optional = true, features = [ "gtk3", "common-controls-v6" ] }
 notify-rust = { version = "4.5", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.15", features = [ "v3_20" ] }
+gtk = { version = "0.18.1", features = [ "v3_20" ] }
 glib = "0.15"
 webkit2gtk = { version = "0.18.2", features = [ "v2_22" ] }
 

@@ -183,6 +183,10 @@ pub enum MessageDialogButtons {
   OkWithLabel(String),
   /// Ok and Cancel buttons with customized text.
   OkCancelWithLabels(String, String),
+  /// Yes, No, and Cancel Buttons
+  YesNoCancel,
+  /// Yes, No, and Cancel buttons with customized text.
+  YesNoCancelWithLabels(String, String, String),
 }
 
 impl From<MessageDialogButtons> for rfd::MessageButtons {
@@ -194,6 +198,10 @@ impl From<MessageDialogButtons> for rfd::MessageButtons {
       MessageDialogButtons::OkWithLabel(ok_text) => Self::OkCustom(ok_text),
       MessageDialogButtons::OkCancelWithLabels(ok_text, cancel_text) => {
         Self::OkCancelCustom(ok_text, cancel_text)
+      }
+      MessageDialogButtons::YesNoCancel => Self::YesNoCancel,
+      MessageDialogButtons::YesNoCancelWithLabels(yes_text, no_text, cancel_text) => {
+        Self::YesNoCancelCustom(yes_text, no_text, cancel_text)
       }
     }
   }

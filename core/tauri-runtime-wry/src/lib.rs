@@ -1021,7 +1021,7 @@ pub enum WindowMessage {
 
 #[derive(Debug, Clone)]
 pub enum WebviewMessage {
-  EvaluateScript(String),
+  EvaluateScript(String, Sender<()>),
   #[allow(dead_code)]
   WebviewEvent(WebviewEvent),
   Print,
@@ -1521,12 +1521,14 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
-    send_user_message(
-      &self.context,
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
       Message::Webview(
         self.window_id,
-        WebviewMessage::EvaluateScript(script.into()),
-      ),
+        WebviewMessage::EvaluateScript(script.into(), tx),
+      )
     )
   }
 }
@@ -2322,7 +2324,7 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::Webview(id, webview_message) => match webview_message {
-      WebviewMessage::EvaluateScript(script) => {
+      WebviewMessage::EvaluateScript(script, tx) => {
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
           windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
@@ -2330,6 +2332,7 @@ fn handle_user_message<T: UserEvent>(
             debug_eprintln!("{}", e);
           }
         }
+        tx.send(()).unwrap();
       }
       WebviewMessage::Print => {
         if let Some(WindowHandle::Webview { inner: webview, .. }) =

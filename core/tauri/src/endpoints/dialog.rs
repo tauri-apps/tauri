@@ -162,6 +162,15 @@ pub enum Cmd {
     #[serde(rename = "buttonLabels")]
     button_labels: Option<(String, String)>,
   },
+  #[cmd(dialod_ask_or_cancel, "dialog > askOrCancel")]
+  AskOrCancelDialog {
+    title: Option<String>,
+    message: String,
+    #[serde(rename = "type")]
+    level: Option<MessageDialogType>,
+    #[serde(rename = "buttonLabels")]
+    button_labels: Option<(String, String, String)>,
+  },
 }
 
 impl Cmd {
@@ -292,6 +301,19 @@ impl Cmd {
           crate::api::dialog::MessageDialogButtons::OkCancelWithLabels(ok, cancel)
         })
         .unwrap_or(crate::api::dialog::MessageDialogButtons::OkCancel)
+    }
+  );
+
+  message_dialog!(
+    ask_or_cancel_dialog,
+    dialod_ask_or_cancel,
+    Option<(String, String, String)>,
+    |labels: Option<(String, String, String)>| {
+      labels
+        .map(|(yes, no, cancel)| {
+          crate::api::dialog::MessageDialogButtons::YesNoCancelWithLabels(yes, no, cancel)
+        })
+        .unwrap_or(crate::api::dialog::MessageDialogButtons::YesNoCancel)
     }
   );
 }

@@ -112,6 +112,19 @@ interface ConfirmDialogOptions {
   cancelLabel?: string
 }
 
+interface AskOrCancelDialogOptions {
+  /** The title of the dialog. Defaults to the app name. */
+  title?: string
+  /** The type of the dialog. Defaults to `info`. */
+  type?: 'info' | 'warning' | 'error'
+  /** The label of the yes button. */
+  yesLabel?: string
+  /** The label of the no button. */
+  noLabel?: string
+  /** The label of the cancel button. */
+  cancelLabel?: string
+}
+
 /**
  * Open a file/directory selection dialog.
  *
@@ -318,6 +331,27 @@ async function confirm(
       type: opts?.type,
       buttonLabels: [
         opts?.okLabel?.toString() ?? 'Ok',
+        opts?.cancelLabel?.toString() ?? 'Cancel'
+      ]
+    }
+  })
+}
+
+async function askOrCancel(
+  message: string,
+  options?: string | AskOrCancelDialogOptions
+): Promise<boolean | null> {
+  const opts = typeof options === 'string' ? { title: options } : options
+  return invokeTauriCommand({
+    __tauriModule: 'Dialog',
+    message: {
+      cmd: 'confirmOrCancelDialog',
+      message: message.toString(),
+      title: opts?.title?.toString(),
+      type: opts?.type,
+      buttonLabels: [
+        opts?.yesLabel?.toString() ?? 'Yes',
+        opts?.noLabel?.toString() ?? 'No',
         opts?.cancelLabel?.toString() ?? 'Cancel'
       ]
     }

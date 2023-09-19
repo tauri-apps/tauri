@@ -1,5 +1,90 @@
 # Changelog
 
+## \[2.0.0-alpha.8]
+
+### Bug Fixes
+
+- [`560b34dd`](https://www.github.com/tauri-apps/tauri/commit/560b34dd2a194ad62db09b3e9e41a2cfff4e5710)([#7610](https://www.github.com/tauri-apps/tauri/pull/7610)) Skip validation of the `tray-icon` feature flag.
+
+## \[2.0.0-alpha.7]
+
+### New Features
+
+- [`522de0e7`](https://www.github.com/tauri-apps/tauri/commit/522de0e78891d0bdf6387a5118985fc41a11baeb)([#7447](https://www.github.com/tauri-apps/tauri/pull/7447)) Added the `config::plugin_config` function to read the plugin configuration set from the CLI.
+- [`1e1d839e`](https://www.github.com/tauri-apps/tauri/commit/1e1d839e7e3d9496f71b6bc1336ced01f2965541)([#7450](https://www.github.com/tauri-apps/tauri/pull/7450)) Added the `mobile::update_android_manifest` function.
+- [`aba04fa8`](https://www.github.com/tauri-apps/tauri/commit/aba04fa823d70ff8df9bd22f8e6a25184689c3cb)([#7448](https://www.github.com/tauri-apps/tauri/pull/7448)) Added the `mobile::update_entitlements` function for iOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.7`
+- Upgraded to `tauri-codegen@2.0.0-alpha.7`
+
+## \[2.0.0-alpha.6]
+
+### Bug Fixes
+
+- [`3256a372`](https://www.github.com/tauri-apps/tauri/commit/3256a37263f60eafdf5a8321458b868bff26c1b8)([#7016](https://www.github.com/tauri-apps/tauri/pull/7016)) Fixes injection of the proguard rules on the Android project.
+
+## \[2.0.0-alpha.5]
+
+- [`3188f376`](https://www.github.com/tauri-apps/tauri/commit/3188f3764978c6d1452ee31d5a91469691e95094)([#6883](https://www.github.com/tauri-apps/tauri/pull/6883)) Bump the MSRV to 1.65.
+- [`2969d1cb`](https://www.github.com/tauri-apps/tauri/commit/2969d1cbba39301f9cc611d9f7d7051d80eef846)([#6773](https://www.github.com/tauri-apps/tauri/pull/6773)) Use absolute path to each Android plugin project instead of copying the files to enhance developer experience.
+- [`cdad6e08`](https://www.github.com/tauri-apps/tauri/commit/cdad6e083728ea61bd6fc734ef93f6306056ea2e)([#6774](https://www.github.com/tauri-apps/tauri/pull/6774)) Changed how the `tauri-android` dependency is injected. This requires the `gen/android` project to be recreated.
+- [`5a768d5c`](https://www.github.com/tauri-apps/tauri/commit/5a768d5ce69d6c9011c41f38a43481087c8d4921)([#6886](https://www.github.com/tauri-apps/tauri/pull/6886)) Remove `WindowsAttributes::sdk_dir`.
+
+## \[2.0.0-alpha.4]
+
+- Added `android` configuration object under `tauri > bundle`.
+  - Bumped due to a bump in tauri-utils.
+  - [db4c9dc6](https://www.github.com/tauri-apps/tauri/commit/db4c9dc655e07ee2184fe04571f500f7910890cd) feat(core): add option to configure Android's minimum SDK version ([#6651](https://www.github.com/tauri-apps/tauri/pull/6651)) on 2023-04-07
+
+## \[2.0.0-alpha.3]
+
+- Read the `IPHONEOS_DEPLOYMENT_TARGET` environment variable to set the Swift iOS target version, defaults to 13.
+  - [4c3b9ecf](https://www.github.com/tauri-apps/tauri/commit/4c3b9ecfdcd1a4489b1e466727f11045ef34d67a) fix(build): iOS deployment target env var is IPHONEOS_DEPLOYMENT_TARGET ([#6602](https://www.github.com/tauri-apps/tauri/pull/6602)) on 2023-03-31
+
+## \[2.0.0-alpha.2]
+
+- Add `mobile::PluginBuilder` for running build tasks related to Tauri plugins.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+
+## \[2.0.0-alpha.1]
+
+- Refactor mobile environment variables.
+  - [dee9460f](https://www.github.com/tauri-apps/tauri/commit/dee9460f9c9bc92e9c638e7691e616849ac2085b) feat: keep CLI alive when iOS app exits, show logs, closes [#5855](https://www.github.com/tauri-apps/tauri/pull/5855) ([#5902](https://www.github.com/tauri-apps/tauri/pull/5902)) on 2022-12-27
+- Bump the MSRV to 1.64.
+  - [7eb9aa75](https://www.github.com/tauri-apps/tauri/commit/7eb9aa75cfd6a3176d3f566fdda02d88aa529b0f) Update gtk to 0.16 ([#6155](https://www.github.com/tauri-apps/tauri/pull/6155)) on 2023-01-30
+- Removed mobile logging initialization, which will be handled by `tauri-plugin-log`.
+  - [](https://www.github.com/tauri-apps/tauri/commit/undefined)  on undefined
+
+## \[2.0.0-alpha.0]
+
+- Set environment variables used by `tauri::mobile_entry_point`.
+  - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
+- First mobile alpha release!
+  - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.4.0]
+
+### Enhancements
+
+- [`52474e47`](https://www.github.com/tauri-apps/tauri/commit/52474e479d695865299d8c8d868fb98b99731020)([#7141](https://www.github.com/tauri-apps/tauri/pull/7141)) Enhance Cargo features check.
+- [`af937290`](https://www.github.com/tauri-apps/tauri/commit/af93729031565a69d1fde6cf16bea3b9b6e43a65)([#6676](https://www.github.com/tauri-apps/tauri/pull/6676)) On Windows, set `LegalCopyright` and `FileDescription` file properties on the executable from `tauri.bundle.copyright` and `tauri.bundle.shortDescription`,
+- [`d2710e9d`](https://www.github.com/tauri-apps/tauri/commit/d2710e9d2e8fd93975ef6494512370faa8cb3b7e)([#6944](https://www.github.com/tauri-apps/tauri/pull/6944)) Unpin `time`, `ignore`, and `winnow` crate versions. Developers now have to pin crates if needed themselves. A list of crates that need pinning to adhere to Tauri's MSRV will be visible in Tauri's GitHub workflow: https://github.com/tauri-apps/tauri/blob/dev/.github/workflows/test-core.yml#L85.
+
+## \[1.3.0]
+
+- Bump minimum supported Rust version to 1.60.
+  - [5fdc616d](https://www.github.com/tauri-apps/tauri/commit/5fdc616df9bea633810dcb814ac615911d77222c) feat: Use the zbus-backed of notify-rust ([#6332](https://www.github.com/tauri-apps/tauri/pull/6332)) on 2023-03-31
+- Add initial support for building `nsis` bundles on non-Windows platforms.
+  - [60e6f6c3](https://www.github.com/tauri-apps/tauri/commit/60e6f6c3f1605f3064b5bb177992530ff788ccf0) feat(bundler): Add support for creating NSIS bundles on unix hosts ([#5788](https://www.github.com/tauri-apps/tauri/pull/5788)) on 2023-01-19
+- Add `WindowsAttributes::app_manifest` to specify the application manifest on Windows.
+  - [bca09f7f](https://www.github.com/tauri-apps/tauri/commit/bca09f7f5ff1c9c5a4b51da043bdd5da668a179b) feat(tauri-build): add option to specify Windows manifest, closes [#5584](https://www.github.com/tauri-apps/tauri/pull/5584) ([#5730](https://www.github.com/tauri-apps/tauri/pull/5730)) on 2022-12-14
+- Added support for Cargo's workspace inheritance for package information. The cli now also detects inherited `tauri` and `tauri-build` dependencies and disables manifest rewrites accordingly.
+  - [cd8c074a](https://www.github.com/tauri-apps/tauri/commit/cd8c074ae6592303d3f6844a4fb6d262eae913b2) feat(cli): add support for Cargo's workspace inheritance for the package version, closes [#5070](https://www.github.com/tauri-apps/tauri/pull/5070) ([#5775](https://www.github.com/tauri-apps/tauri/pull/5775)) on 2022-12-14
+  - [d20a7288](https://www.github.com/tauri-apps/tauri/commit/d20a728892eee1858ab525ab6216cd721f473ab5) feat: Further improve workspace inheritance, closes [#6122](https://www.github.com/tauri-apps/tauri/pull/6122), [#5070](https://www.github.com/tauri-apps/tauri/pull/5070) ([#6144](https://www.github.com/tauri-apps/tauri/pull/6144)) on 2023-01-26
+- Pin `winnow` crate to 0.4.1 to keep the 1.60 MSRV.
+
 ## \[1.2.1]
 
 - Fix `allowlist > app > show/hide` always disabled when `allowlist > app > all: false`.

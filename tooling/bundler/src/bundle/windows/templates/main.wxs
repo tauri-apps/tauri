@@ -11,11 +11,11 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Product
             Id="*"
-            Name="{{{product_name}}}"
-            UpgradeCode="{{{upgrade_code}}}"
+            Name="{{product_name}}"
+            UpgradeCode="{{upgrade_code}}"
             Language="!(loc.TauriLanguage)"
-            Manufacturer="{{{manufacturer}}}"
-            Version="{{{version}}}">
+            Manufacturer="{{manufacturer}}"
+            Version="{{version}}">
 
         <Package Id="*"
                  Keywords="Installer"
@@ -42,23 +42,23 @@
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
 
         {{#if banner_path}}
-        <WixVariable Id="WixUIBannerBmp" Value="{{{banner_path}}}" />
+        <WixVariable Id="WixUIBannerBmp" Value="{{banner_path}}" />
         {{/if}}
         {{#if dialog_image_path}}
-        <WixVariable Id="WixUIDialogBmp" Value="{{{dialog_image_path}}}" />
+        <WixVariable Id="WixUIDialogBmp" Value="{{dialog_image_path}}" />
         {{/if}}
         {{#if license}}
-        <WixVariable Id="WixUILicenseRtf" Value="{{{license}}}" />
+        <WixVariable Id="WixUILicenseRtf" Value="{{license}}" />
         {{/if}}
 
-        <Icon Id="ProductIcon" SourceFile="{{{icon_path}}}"/>
+        <Icon Id="ProductIcon" SourceFile="{{icon_path}}"/>
         <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
         <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
         <SetProperty Id="ARPNOMODIFY" Value="1" After="InstallValidate" Sequence="execute"/>
 
         <!-- initialize with previous InstallDir -->
         <Property Id="INSTALLDIR">
-            <RegistrySearch Id="PrevInstallDirReg" Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="InstallDir" Type="raw"/>
+            <RegistrySearch Id="PrevInstallDirReg" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="InstallDir" Type="raw"/>
         </Property>
 
         <!-- launch app checkbox -->
@@ -93,27 +93,36 @@
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="DesktopFolder" Name="Desktop">
                 <Component Id="ApplicationShortcutDesktop" Guid="*">
-                    <Shortcut Id="ApplicationDesktopShortcut" Name="{{{product_name}}}" Description="Runs {{{product_name}}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
+                    <Shortcut Id="ApplicationDesktopShortcut" Name="{{product_name}}" Description="Runs {{product_name}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
                     <RemoveFolder Id="DesktopFolder" On="uninstall" />
-                    <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="Desktop Shortcut" Type="integer" Value="1" KeyPath="yes" />
+                    <RegistryValue Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="Desktop Shortcut" Type="integer" Value="1" KeyPath="yes" />
                 </Component>
             </Directory>
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
-                <Directory Id="INSTALLDIR" Name="{{{product_name}}}"/>
+                <Directory Id="INSTALLDIR" Name="{{product_name}}"/>
             </Directory>
             <Directory Id="ProgramMenuFolder">
-                <Directory Id="ApplicationProgramsFolder" Name="{{{product_name}}}"/>
+                <Directory Id="ApplicationProgramsFolder" Name="{{product_name}}"/>
             </Directory>
         </Directory>
 
         <DirectoryRef Id="INSTALLDIR">
             <Component Id="RegistryEntries" Guid="*">
-                <RegistryKey Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}">
+                <RegistryKey Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}">
                     <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
                 </RegistryKey>
             </Component>
-            <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)">
-                <File Id="Path" Source="{{{app_exe_source}}}" KeyPath="yes" Checksum="yes"/>
+            <Component Id="Path" Guid="{{path_component_guid}}" Win64="$(var.Win64)">
+                <File Id="Path" Source="{{app_exe_source}}" KeyPath="yes" Checksum="yes"/>
+                {{#each file_associations as |association| ~}}
+                {{#each association.ext as |ext| ~}}
+                <ProgId Id="{{../../product_name}}.{{ext}}" Advertise="yes" Description="{{association.description}}">
+                    <Extension Id="{{ext}}" Advertise="yes">
+                        <Verb Id="open" Command="Open with {{../../product_name}}" Argument="&quot;%1&quot;" />
+                    </Extension>
+                </ProgId>
+                {{/each~}}
+                {{/each~}}
             </Component>
             {{#each binaries as |bin| ~}}
             <Component Id="{{ bin.id }}" Guid="{{bin.guid}}" Win64="$(var.Win64)">
@@ -131,12 +140,12 @@
                 <File Id="UpdateTaskUninstaller" Source="uninstall-task.ps1" KeyPath="yes" Checksum="yes"/>
             </Component>
             {{/if}}
-            {{{resources}}}
+            {{resources}}
             <Component Id="CMP_UninstallShortcut" Guid="*">
 
                 <Shortcut Id="UninstallShortcut"
-						  Name="Uninstall {{{product_name}}}"
-						  Description="Uninstalls {{{product_name}}}"
+						  Name="Uninstall {{product_name}}"
+						  Description="Uninstalls {{product_name}}"
 						  Target="[System64Folder]msiexec.exe"
 						  Arguments="/x [ProductCode]" />
 
@@ -144,7 +153,7 @@
 							  On="uninstall" />
 
 				<RegistryValue Root="HKCU"
-							   Key="Software\\{{{manufacturer}}}\\{{{product_name}}}"
+							   Key="Software\\{{manufacturer}}\\{{product_name}}"
 							   Name="Uninstaller Shortcut"
 							   Type="integer"
 							   Value="1"
@@ -155,15 +164,15 @@
         <DirectoryRef Id="ApplicationProgramsFolder">
             <Component Id="ApplicationShortcut" Guid="*">
                 <Shortcut Id="ApplicationStartMenuShortcut"
-                    Name="{{{product_name}}}"
-                    Description="Runs {{{product_name}}}"
+                    Name="{{product_name}}"
+                    Description="Runs {{product_name}}"
                     Target="[!Path]"
                     Icon="ProductIcon"
                     WorkingDirectory="INSTALLDIR">
-                    <ShortcutProperty Key="System.AppUserModel.ID" Value="{{{bundle_id}}}"/>
+                    <ShortcutProperty Key="System.AppUserModel.ID" Value="{{bundle_id}}"/>
                 </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="Start Menu Shortcut" Type="integer" Value="1" KeyPath="yes"/>
+                <RegistryValue Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="Start Menu Shortcut" Type="integer" Value="1" KeyPath="yes"/>
            </Component>
         </DirectoryRef>
 
@@ -247,7 +256,7 @@
         </Property>
 
         {{#if download_bootstrapper}}
-        <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden try [\{] [\[]Net.ServicePointManager[\]]::SecurityProtocol = [\[]Net.SecurityProtocolType[\]]::Tls12 [\}] catch [\{][\}]; Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; Start-Process -FilePath "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" -ArgumentList ({{{webview_installer_args}}} &apos;/install&apos;) -Wait' Return='check'/>
+        <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden try [\{] [\[]Net.ServicePointManager[\]]::SecurityProtocol = [\[]Net.SecurityProtocolType[\]]::Tls12 [\}] catch [\{][\}]; Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; Start-Process -FilePath "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" -ArgumentList ({{webview_installer_args}} &apos;/install&apos;) -Wait' Return='check'/>
         <InstallExecuteSequence>
             <Custom Action='DownloadAndInvokeBootstrapper' Before='InstallFinalize'>
                 <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
@@ -257,8 +266,8 @@
 
         <!-- Embedded webview bootstrapper mode -->
         {{#if webview2_bootstrapper_path}}
-        <Binary Id="MicrosoftEdgeWebview2Setup.exe" SourceFile="{{{webview2_bootstrapper_path}}}"/>
-        <CustomAction Id='InvokeBootstrapper' BinaryKey='MicrosoftEdgeWebview2Setup.exe' Execute="deferred" ExeCommand='{{{webview_installer_args}}} /install' Return='check' />
+        <Binary Id="MicrosoftEdgeWebview2Setup.exe" SourceFile="{{webview2_bootstrapper_path}}"/>
+        <CustomAction Id='InvokeBootstrapper' BinaryKey='MicrosoftEdgeWebview2Setup.exe' Execute="deferred" ExeCommand='{{webview_installer_args}} /install' Return='check' />
         <InstallExecuteSequence>
             <Custom Action='InvokeBootstrapper' Before='InstallFinalize'>
                 <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
@@ -268,8 +277,8 @@
 
         <!-- Embedded offline installer -->
         {{#if webview2_installer_path}}
-        <Binary Id="MicrosoftEdgeWebView2RuntimeInstaller.exe" SourceFile="{{{webview2_installer_path}}}"/>
-        <CustomAction Id='InvokeStandalone' BinaryKey='MicrosoftEdgeWebView2RuntimeInstaller.exe' Execute="deferred" ExeCommand='{{{webview_installer_args}}} /install' Return='check' />
+        <Binary Id="MicrosoftEdgeWebView2RuntimeInstaller.exe" SourceFile="{{webview2_installer_path}}"/>
+        <CustomAction Id='InvokeStandalone' BinaryKey='MicrosoftEdgeWebView2RuntimeInstaller.exe' Execute="deferred" ExeCommand='{{webview_installer_args}} /install' Return='check' />
         <InstallExecuteSequence>
             <Custom Action='InvokeStandalone' Before='InstallFinalize'>
                 <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>

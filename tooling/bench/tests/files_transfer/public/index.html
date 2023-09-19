@@ -10,18 +10,7 @@
 
     <script>
       window.addEventListener('DOMContentLoaded', (event) => {
-        window.__TAURI__
-          .invoke('tauri', {
-            __tauriModule: 'Fs',
-            message: {
-              cmd: 'readFile',
-              path: '.tauri_3mb.json',
-              options: {
-                // home folder
-                dir: 11
-              }
-            }
-          })
+        window.__TAURI__.invoke('read_file')
           .then((_data) => {
             // success
             window.__TAURI__.invoke('app_should_close', { exitCode: 0 })

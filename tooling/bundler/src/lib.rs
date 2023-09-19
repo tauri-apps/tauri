@@ -1,10 +1,10 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![warn(missing_docs, rust_2018_idioms)]
-
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
 //! The Tauri bundler is a tool that generates installers or app bundles for executables.
 //! It supports auto updating through [tauri](https://docs.rs/tauri).
 //!
@@ -15,6 +15,12 @@
 //!   - Appimage and Debian packages
 //! - Windows
 //!   - MSI using WiX
+
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
+#![warn(missing_docs, rust_2018_idioms)]
 
 /// The bundle API.
 pub mod bundle;

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -54,5 +54,5 @@ fn override_msvcrt_lib() {
     f.write_all(bytes).unwrap();
   }
   // Add the output directory to the native library path.
-  println!("cargo:rustc-link-search=native={}", out_dir);
+  println!("cargo:rustc-link-search=native={out_dir}");
 }

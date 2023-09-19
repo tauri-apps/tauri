@@ -18,7 +18,8 @@
         window.__TAURI__
           .invoke(commandName, args)
           .then((response) => {
-            result.innerText = `Ok(${response})`
+            const val = response instanceof ArrayBuffer ? new TextDecoder().decode(response) : response
+            result.innerText = `Ok(${val})`
           })
           .catch((error) => {
             result.innerText = `Err(${error})`
@@ -28,6 +29,7 @@
       const container = document.querySelector('#container')
       const commands = [
         { name: 'borrow_cmd' },
+        { name: 'raw_request' },
         { name: 'window_label' },
         { name: 'simple_command' },
         { name: 'stateful_command' },

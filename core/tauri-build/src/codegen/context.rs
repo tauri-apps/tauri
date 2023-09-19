@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -120,7 +120,7 @@ impl CodegenContext {
         config_parent.join(icon).display()
       );
     }
-    if let Some(tray_icon) = config.tauri.system_tray.as_ref().map(|t| &t.icon_path) {
+    if let Some(tray_icon) = config.tauri.tray_icon.as_ref().map(|t| &t.icon_path) {
       println!(
         "cargo:rerun-if-changed={}",
         config_parent.join(tray_icon).display()

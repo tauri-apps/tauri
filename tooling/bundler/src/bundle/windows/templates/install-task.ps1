@@ -1,4 +1,4 @@
-# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 # Adapted from https://superuser.com/a/532109
@@ -25,4 +25,4 @@ if ($ChangeDir -ne "") {
     # Change directories to the install path
     Set-Location -Path $ChangeDir
 }
-SCHTASKS.EXE /CREATE /XML update.xml /TN "Update {{{product_name}}} - Skip UAC" /F
+SCHTASKS.EXE /CREATE /XML update.xml /TN "Update {{product_name}} - Skip UAC" /F

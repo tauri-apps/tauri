@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -33,11 +33,14 @@
    * @return {boolean} - if the event was a valid isolation message
    */
   function isIsolationMessage(event) {
-    return (
-      typeof event.data === 'object' &&
-      'nonce' in event.data &&
-      'payload' in event.data
-    )
+    if (typeof event.data === 'object' && typeof event.data.payload === 'object') {
+      const keys = Object.keys(event.data.payload || {})
+      return (
+        keys.length > 0 &&
+        keys.every((key) => key === 'nonce' || key === 'payload')
+      )
+    }
+    return false
   }
 
   /**
@@ -47,7 +50,12 @@
    * @return {boolean} - if the data is able to transform into an isolation payload
    */
   function isIsolationPayload(data) {
-    return typeof data === 'object' && 'callback' in data && 'error' in data
+    return (
+      typeof data === 'object' &&
+      'callback' in data &&
+      'error' in data &&
+      !isIsolationMessage(data)
+    )
   }
 
   /**

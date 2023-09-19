@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -31,7 +31,7 @@ pub fn command(mut options: Options) -> Result<()> {
   options.ci = options.ci || std::env::var("CI").is_ok();
 
   if options.ci && options.password.is_none() {
-    println!("Generating new private key without password.");
+    log::warn!("Generating new private key without password. For security reasons, we recommend setting a password instead.");
     options.password.replace("".into());
   }
   let keypair = generate_key(options.password).expect("Failed to generate key");

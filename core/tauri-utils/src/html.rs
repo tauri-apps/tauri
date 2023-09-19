@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -302,7 +302,7 @@ mod tests {
       assert_eq!(
         document.to_string(),
         format!(
-          r#"<html><head><meta content="{}" http-equiv="Content-Security-Policy"></head><body></body></html>"#,
+          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{}"></head><body></body></html>"#,
           super::CSP_TOKEN
         )
       );

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,8 +13,8 @@ fn main() {
 
   println!(
     "{}",
-    tauri::api::process::current_binary(&Default::default())
-      .expect("tauri::api::process::current_binary could not resolve")
+    tauri::process::current_binary(&Default::default())
+      .expect("tauri::process::current_binary could not resolve")
       .display()
   );
 
@@ -22,7 +22,7 @@ fn main() {
     Some("restart") => {
       let mut env = Env::default();
       env.args.clear();
-      tauri::api::process::restart(&env)
+      tauri::process::restart(&env)
     }
     Some(invalid) => panic!("only argument `restart` is allowed, {invalid} is invalid"),
     None => {}

@@ -10,12 +10,11 @@ Use the following format:
 
 ```md
 ---
-"package-a": patch
-"package-b": patch
+'package-a': 'patch:enhance'
+'package-b': 'patch:enhance'
 ---
 
 Change summary goes here
-
 ```
 
 Summaries do not have a specific character limit, but are text only. These summaries are used within the (future implementation of) changelogs. They will give context to the change and also point back to the original PR if more details and context are needed.
@@ -29,3 +28,17 @@ Given a version number MAJOR.MINOR.PATCH, increment the:
 - PATCH version when you make backwards compatible bug fixes.
 
 Additional labels for pre-release and build metadata are available as extensions to the MAJOR.MINOR.PATCH format, but will be discussed prior to usage (as extra steps will be necessary in consideration of merging and publishing).
+
+Additionally you could specify a tag for the change file to group it with other changes by prefixing the bump with `:<tag>`, for example:
+
+```md
+---
+'package-a': 'patch:enhance'
+---
+
+Change summary goes here
+```
+
+which will group this change file with other changes that specify the `bug` tag.
+
+For list of available tags, see the `changeTags` key in [./config.json](./config.json)

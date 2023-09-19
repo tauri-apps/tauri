@@ -1,0 +1,70 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: lint cli
+
+on:
+  push:
+    branches:
+      - dev
+      - 1.x
+  pull_request:
+    paths:
+      - '.github/workflows/lint-cli.yml'
+      - 'tooling/cli/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path ./tooling/cli/Cargo.toml --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
+
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tooling/cli
+
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --manifest-path ./tooling/cli/Cargo.toml --all-targets --all-features -- -D warnings
+          name: cli

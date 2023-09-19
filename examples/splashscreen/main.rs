@@ -1,11 +1,8 @@
-// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 // Application code for a splashscreen system that waits on a Rust initialization script
 mod rust {
@@ -64,11 +61,7 @@ mod ui {
   pub fn main() {
     let context = super::context();
     tauri::Builder::default()
-      .menu(if cfg!(target_os = "macos") {
-        tauri::Menu::os_default(&context.package_info().name)
-      } else {
-        tauri::Menu::default()
-      })
+      .menu(tauri::menu::Menu::default)
       .setup(|app| {
         // set the splashscreen and main windows to be globally available with the tauri state API
         app.manage(SplashscreenWindow(Arc::new(Mutex::new(

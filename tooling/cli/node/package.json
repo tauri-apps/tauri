@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "1.2.3",
+  "version": "2.0.0-alpha.14",
   "description": "Command line interface for building Tauri apps",
   "funding": {
     "type": "opencollective",
@@ -32,21 +32,23 @@
         "aarch64-unknown-linux-musl",
         "armv7-unknown-linux-gnueabihf",
         "x86_64-unknown-linux-musl",
-        "i686-pc-windows-msvc"
+        "i686-pc-windows-msvc",
+        "aarch64-pc-windows-msvc"
       ]
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.14.4",
+    "@napi-rs/cli": "2.16.1",
     "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
-    "fs-extra": "11.1.0",
-    "jest": "29.4.0",
+    "fs-extra": "11.1.1",
+    "jest": "29.5.0",
     "jest-transform-toml": "1.0.0",
-    "prettier": "2.8.3"
+    "prettier": "2.8.8"
   },
   "resolutions": {
-    "json5": "2.2.3"
+    "json5": "2.2.3",
+    "semver": ">=7.5.2"
   },
   "engines": {
     "node": ">= 10"
@@ -56,7 +58,7 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build:release": "cross-env TARGET=node napi build --platform --release",
+    "build:release": "cross-env TARGET=node napi build --platform --profile release-size-optimized",
     "build": "cross-env TARGET=node napi build --platform",
     "prepublishOnly": "napi prepublish -t npm --gh-release-id $RELEASE_ID",
     "prepack": "cp ../schema.json .",
@@ -65,5 +67,6 @@
     "tauri": "node ./tauri.js",
     "format": "prettier --write ./package.json ./tauri.js",
     "format:check": "prettier --check ./package.json ./tauri.js"
-  }
+  },
+  "dependencies": {}
 }

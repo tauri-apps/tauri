@@ -1,0 +1,31 @@
+{{{{raw}}}}
+name: Audit
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - "**/Cargo.lock"
+      - "**/Cargo.toml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "**/Cargo.lock"
+      - "**/Cargo.toml"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      issues: write
+      checks: write
+{{{{/raw}}}}

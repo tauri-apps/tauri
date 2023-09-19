@@ -2141,7 +2141,7 @@ impl<R: Runtime> Window<R> {
       "__initialized" => match request.body.deserialize() {
         Ok(payload) => {
           let _span = tracing::debug_span!(
-            "ipc.request.handler",
+            "ipc::request::handler",
             id = request.id.0,
             cmd = request.cmd,
             kind = "sync",
@@ -2226,7 +2226,7 @@ impl<R: Runtime> Window<R> {
 
               let resolver_ = resolver.clone();
 
-              let _span = tracing::debug_span!("ipc.request.mobile_plugin", id = id.0).entered();
+              let _span = tracing::debug_span!("ipc::request::mobile_plugin", id = id.0).entered();
               if let Err(e) = crate::plugin::mobile::run_command(
                 plugin,
                 &app_handle,

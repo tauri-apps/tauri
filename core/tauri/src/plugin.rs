@@ -616,7 +616,7 @@ impl<R: Runtime> PluginStore<R> {
   /// Runs the created hook for all plugins in the store.
   pub(crate) fn created(&mut self, window: Window<R>) {
     self.store.iter_mut().for_each(|plugin| {
-      let _span = tracing::trace_span!("plugin.hooks.created", name = plugin.name()).entered();
+      let _span = tracing::trace_span!("plugin::hooks::created", name = plugin.name()).entered();
       plugin.created(window.clone())
     })
   }
@@ -624,7 +624,7 @@ impl<R: Runtime> PluginStore<R> {
   pub(crate) fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
     for plugin in self.store.iter_mut() {
       let _span =
-        tracing::trace_span!("plugin.hooks.on_navigation", name = plugin.name()).entered();
+        tracing::trace_span!("plugin::hooks::on_navigation", name = plugin.name()).entered();
       if !plugin.on_navigation(window, url) {
         return false;
       }
@@ -635,7 +635,8 @@ impl<R: Runtime> PluginStore<R> {
   /// Runs the on_page_load hook for all plugins in the store.
   pub(crate) fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
     self.store.iter_mut().for_each(|plugin| {
-      let _span = tracing::trace_span!("plugin.hooks.on_page_load", name = plugin.name()).entered();
+      let _span =
+        tracing::trace_span!("plugin::hooks::on_page_load", name = plugin.name()).entered();
       plugin.on_page_load(window.clone(), payload.clone())
     })
   }
@@ -643,7 +644,7 @@ impl<R: Runtime> PluginStore<R> {
   /// Runs the on_event hook for all plugins in the store.
   pub(crate) fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
     self.store.iter_mut().for_each(|plugin| {
-      let _span = tracing::trace_span!("plugin.hooks.on_event", name = plugin.name()).entered();
+      let _span = tracing::trace_span!("plugin::hooks::on_event", name = plugin.name()).entered();
       plugin.on_event(app, event)
     })
   }
@@ -654,7 +655,7 @@ impl<R: Runtime> PluginStore<R> {
   pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
     for p in self.store.iter_mut() {
       if p.name() == plugin {
-        let _span = tracing::trace_span!("plugin.hooks.ipc", name = p.name()).entered();
+        let _span = tracing::trace_span!("plugin::hooks::ipc", name = p.name()).entered();
         return p.extend_api(invoke);
       }
     }

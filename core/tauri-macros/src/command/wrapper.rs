@@ -231,7 +231,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           let #root::ipc::Invoke { id: #id, message: #message, resolver: #resolver } = $invoke;
 
           let _span = tracing::debug_span!(
-            "ipc.request.handler",
+            "ipc::request::handler",
             id = #id.0,
             cmd = #message.command(),
             kind = #kind,
@@ -270,7 +270,7 @@ fn body_async(
     quote! {
       use tracing::Instrument;
 
-      let span = tracing::debug_span!("ipc.request.run", id = #id.0);
+      let span = tracing::debug_span!("ipc::request::run", id = #id.0);
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
         let kind = (&result).async_kind();
@@ -306,7 +306,7 @@ fn body_blocking(
   });
 
   Ok(quote! {
-    let _span = tracing::debug_span!("ipc.request.run", id = #id.0).entered();
+    let _span = tracing::debug_span!("ipc::request::run", id = #id.0).entered();
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);

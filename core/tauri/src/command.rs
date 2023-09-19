@@ -59,7 +59,7 @@ impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
     let name = command.name;
     let arg = command.key;
     let _span = tracing::trace_span!(
-      "ipc.request.deserialize_arg",
+      "ipc::request::deserialize_arg",
       id = command.invoke_id.0,
       arg = arg
     )

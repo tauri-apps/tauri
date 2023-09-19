@@ -32,7 +32,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
     let invoke_id = InvokeId::new();
 
     let _span =
-      tracing::trace_span!("ipc.request", id = invoke_id.0, kind = "custom-protocol").entered();
+      tracing::trace_span!("ipc::request", id = invoke_id.0, kind = "custom-protocol").entered();
 
     let manager = manager.clone();
     let label = label.clone();
@@ -50,7 +50,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
           match parse_invoke_request(invoke_id, &manager, request) {
             Ok(request) => {
               let request_span =
-                tracing::trace_span!("ipc.request.handle", id = request.id.0, cmd = request.cmd);
+                tracing::trace_span!("ipc::request::handle", id = request.id.0, cmd = request.cmd);
 
               let id = request.id;
 
@@ -59,7 +59,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
                 Box::new(move |_window, _cmd, response, _callback, _error| {
                   let _span = tracing::trace_span!(
                     parent: &request_span,
-                    "ipc.request.respond",
+                    "ipc::request::respond",
                     id = id.0,
                     response = format!("{:?}", response)
                   )
@@ -87,7 +87,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
                   );
 
                   let _span = tracing::trace_span!(
-                    "ipc.request.response",
+                    "ipc::request::response",
                     id = id.0,
                     response = format!("{:?}", response)
                   )
@@ -155,7 +155,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
   let invoke_id = InvokeId::new();
 
   let _span =
-    tracing::trace_span!("ipc.request", id = invoke_id.0, kind = "post-message").entered();
+    tracing::trace_span!("ipc::request", id = invoke_id.0, kind = "post-message").entered();
 
   if let Some(window) = manager.get_window(label) {
     use serde::{Deserialize, Deserializer};
@@ -215,7 +215,8 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
 
       if let crate::Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
         let _span =
-          tracing::trace_span!("ipc.request.decrypt_isolation_payload", id = invoke_id.0).entered();
+          tracing::trace_span!("ipc::request::decrypt_isolation_payload", id = invoke_id.0)
+            .entered();
 
         invoke_message.replace(
           serde_json::from_str::<IsolationMessage<'_>>(&message)
@@ -234,7 +235,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
     }
 
     match invoke_message.unwrap_or_else(|| {
-      let _span = tracing::trace_span!("ipc.request.deserialize", id = invoke_id.0).entered();
+      let _span = tracing::trace_span!("ipc::request::deserialize", id = invoke_id.0).entered();
       serde_json::from_str::<Message>(&message).map_err(Into::into)
     }) {
       Ok(message) => {
@@ -248,7 +249,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
         };
 
         let _span =
-          tracing::trace_span!("ipc.request.handle", id = request.id.0, cmd = request.cmd)
+          tracing::trace_span!("ipc::request::handle", id = request.id.0, cmd = request.cmd)
             .entered();
 
         let id = request.id;
@@ -265,7 +266,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
             use serde_json::Value as JsonValue;
 
             let _span = tracing::trace_span!(
-              "ipc.request.respond",
+              "ipc::request::respond",
               id = id.0,
               response = format!("{:?}", response)
             )
@@ -351,7 +352,8 @@ fn parse_invoke_request<R: Runtime>(
   // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
   #[cfg(all(feature = "isolation", ipc_custom_protocol))]
   if let crate::Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-    let _span = tracing::trace_span!("ipc.request.decrypt_isolation_payload", id = id.0).entered();
+    let _span =
+      tracing::trace_span!("ipc::request::decrypt_isolation_payload", id = id.0).entered();
     body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
       .and_then(|raw| crypto_keys.decrypt(raw))
       .map_err(|e| e.to_string())?;
@@ -386,7 +388,7 @@ fn parse_invoke_request<R: Runtime>(
     .unwrap_or(Ok(mime::APPLICATION_OCTET_STREAM))
     .map_err(|_| "unknown content type")?;
 
-  let span = tracing::trace_span!("ipc.request.deserialize", id = id.0).entered();
+  let span = tracing::trace_span!("ipc::request::deserialize", id = id.0).entered();
   let body = if content_type == mime::APPLICATION_OCTET_STREAM {
     body.into()
   } else if content_type == mime::APPLICATION_JSON {

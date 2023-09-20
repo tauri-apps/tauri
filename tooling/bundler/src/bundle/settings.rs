@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, NSISInstallerMode},
+  config::{BundleType, NSISInstallerMode, NsisCompression},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -313,6 +313,8 @@ pub struct NsisSettings {
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
+  /// Set compression algorithm used to compress files in the installer.
+  pub compression: Option<NsisCompression>,
 }
 
 /// The Windows bundle settings.
@@ -759,7 +761,11 @@ impl Settings {
   }
 
   /// Copies external binaries to a path.
-  pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
+  ///
+  /// Returns the list of destination paths.
+  pub fn copy_binaries(&self, path: &Path) -> crate::Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+
     for src in self.external_binaries() {
       let src = src?;
       let dest = path.join(
@@ -769,9 +775,10 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      common::copy_file(&src, dest)?;
+      common::copy_file(&src, &dest)?;
+      paths.push(dest);
     }
-    Ok(())
+    Ok(paths)
   }
 
   /// Copies resources to a path.

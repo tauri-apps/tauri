@@ -971,7 +971,7 @@ impl<R: Runtime> PartialEq for Window<R> {
 }
 
 impl<R: Runtime> Manager<R> for Window<R> {
-  #[tracing::instrument("window.emit.to", skip(self, payload))]
+  #[tracing::instrument("window::emit_to", skip(self, payload))]
   fn emit_to<S: Serialize + Clone>(
     &self,
     label: &str,

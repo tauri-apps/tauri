@@ -983,7 +983,7 @@ impl<R: Runtime> Manager<R> for Window<R> {
       .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
   }
 
-  #[tracing::instrument("window.emit.all", skip(self, payload))]
+  #[tracing::instrument("window::emit_all", skip(self, payload))]
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager()

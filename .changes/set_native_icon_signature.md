@@ -1,5 +1,5 @@
 ---
-"tauri": 'patch:enhance'
+"tauri": 'patch:bug'
 ---
 
-remove mut self from set_native_icon signature
+Changed `IconMenuItem::set_native_icon` signature to take `&self` instead of `&mut self` to fix compilation error on macos.

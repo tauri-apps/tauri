@@ -535,8 +535,8 @@ macro_rules! shared_app_impl {
           .push(Box::new(handler));
       }
 
-      /// Gets the first tray icon registerd, usually the one configured in
-      /// tauri config file.
+      /// Gets the first tray icon registerd,
+      /// usually the one configured in tauri configuration file,
       #[cfg(all(desktop, feature = "tray-icon"))]
       #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn tray(&self) -> Option<TrayIcon<R>> {
@@ -1616,7 +1616,7 @@ impl<R: Runtime> Builder<R> {
     {
       let config = app.config();
       if let Some(tray_config) = &config.tauri.tray_icon {
-        let mut tray = TrayIconBuilder::new()
+        let mut tray = TrayIconBuilder::with_id(tray_icon.id.unwrap_or_else(|| "main".into()))
           .icon_as_template(tray_config.icon_as_template)
           .menu_on_left_click(tray_config.menu_on_left_click);
         if let Some(icon) = &app.manager.inner.tray_icon {

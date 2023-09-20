@@ -1558,6 +1558,8 @@ pub struct UpdaterWindowsConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TrayIconConfig {
+  /// Set an id for this tray icon so you can reference it later, defaults to `main`.
+  pub id: Option<String>,
   /// Path to the default icon to use for the tray icon.
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,

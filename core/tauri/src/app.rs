@@ -1617,7 +1617,7 @@ impl<R: Runtime> Builder<R> {
       let config = app.config();
       if let Some(tray_config) = &config.tauri.tray_icon {
         let mut tray =
-          TrayIconBuilder::with_id(tray_icon.id.clone().unwrap_or_else(|| "main".into()))
+          TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
             .icon_as_template(tray_config.icon_as_template)
             .menu_on_left_click(tray_config.menu_on_left_click);
         if let Some(icon) = &app.manager.inner.tray_icon {

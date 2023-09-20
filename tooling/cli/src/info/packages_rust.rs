@@ -236,13 +236,13 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<Secti
       .map(|o| {
         if o.status.success() {
           let out = String::from_utf8_lossy(o.stdout.as_slice());
-          let (package, version) = out.split_once(" ").unwrap_or_default();
+          let (package, version) = out.split_once(' ').unwrap_or_default();
           let latest_ver = crate_latest_version(package).unwrap_or_default();
           format!(
             "{} {}: {}{}",
             package,
             "[RUST]".dimmed(),
-            version.split_once("\n").unwrap_or_default().0,
+            version.split_once('\n').unwrap_or_default().0,
             if !(version.is_empty() || latest_ver.is_empty()) {
               let version = semver::Version::parse(version).unwrap();
               let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();

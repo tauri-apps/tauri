@@ -228,7 +228,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
             {
               fn responder_eval<R: Runtime>(
                 window: &crate::Window<R>,
-                js: crate::api::Result<String>,
+                js: crate::Result<String>,
                 error: CallbackFn,
               ) {
                 let eval_js = match js {

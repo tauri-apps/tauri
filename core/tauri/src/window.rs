@@ -43,7 +43,6 @@ use crate::{
   CursorIcon, Icon,
 };
 
-use http::{Request as HttpRequest, Response as HttpResponse};
 use serde::Serialize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -60,10 +59,10 @@ use std::{
 };
 
 pub(crate) type WebResourceRequestHandler =
-  dyn Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync;
+  dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 pub(crate) type UriSchemeProtocolHandler =
-  Box<dyn Fn(HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
+  Box<dyn Fn(http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -292,7 +291,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///   });
   /// ```
   pub fn on_web_resource_request<
-    F: Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync + 'static,
+    F: Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync + 'static,
   >(
     mut self,
     f: F,

@@ -6,6 +6,7 @@
 
 use crate::{
   app::PageLoadPayload,
+  error::*,
   ipc::{Invoke, InvokeHandler},
   utils::config::PluginConfig,
   AppHandle, RunEvent, Runtime, Window,
@@ -15,14 +16,11 @@ use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 use url::Url;
 
-use std::{fmt, result::Result as StdResult, sync::Arc};
+use std::{fmt, sync::Arc};
 
 /// Mobile APIs.
 #[cfg(mobile)]
 pub mod mobile;
-
-/// The result type of Tauri plugin module.
-pub type Result<T> = StdResult<T, Box<dyn std::error::Error>>;
 
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {

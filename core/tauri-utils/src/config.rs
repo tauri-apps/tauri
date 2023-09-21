@@ -1713,7 +1713,8 @@ pub struct BuildConfig {
   #[serde(alias = "before-bundle-command")]
   pub before_bundle_command: Option<HookCommand>,
   /// Similar to `before_bundle_command`, a shell command to run before the bundling phase
-  /// of each bundle format.
+  /// of each package type. Check `TAURI_BUNDLER_PACKAGE_TYPE` env var to know
+  /// which package type is being bundled.
   ///
   /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-bundle-command")]

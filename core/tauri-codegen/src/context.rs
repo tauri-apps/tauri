@@ -351,7 +351,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
 
     info_plist
-      .to_file_xml(&out_dir.join("Info.plist"))
+      .to_file_xml(out_dir.join("Info.plist"))
       .expect("failed to write Info.plist");
     quote!({
       tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));

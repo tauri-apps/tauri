@@ -8,7 +8,7 @@ use crate::{
     channel::ChannelDataIpcQueue, CallbackFn, Invoke, InvokeError, InvokeHandler, InvokeResponder,
     InvokeResponse,
   },
-  manager::{Asset, CustomProtocol, WindowManager},
+  manager::{Asset, UriSchemeProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
     webview::WebviewAttributes,
@@ -32,7 +32,6 @@ use crate::menu::{Menu, MenuEvent};
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 #[cfg(desktop)]
 use crate::window::WindowMenu;
-use http::{Request as HttpRequest, Response as HttpResponse};
 use raw_window_handle::HasRawDisplayHandle;
 use serde::Deserialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
@@ -991,7 +990,7 @@ pub struct Builder<R: Runtime> {
   plugins: PluginStore<R>,
 
   /// The webview protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
 
   /// App state.
   state: StateManager,
@@ -1373,7 +1372,7 @@ impl<R: Runtime> Builder<R> {
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
     T: Into<Cow<'static, [u8]>>,
-    H: Fn(&AppHandle<R>, HttpRequest<Vec<u8>>) -> HttpResponse<T> + Send + Sync + 'static,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>) -> http::Response<T> + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -1381,7 +1380,7 @@ impl<R: Runtime> Builder<R> {
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
-      Arc::new(CustomProtocol {
+      Arc::new(UriSchemeProtocol {
         protocol: Box::new(move |app, request, responder| {
           responder.respond(protocol(app, request))
         }),
@@ -1421,7 +1420,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn register_asynchronous_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -1429,7 +1428,7 @@ impl<R: Runtime> Builder<R> {
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
-      Arc::new(CustomProtocol {
+      Arc::new(UriSchemeProtocol {
         protocol: Box::new(protocol),
       }),
     );
@@ -1645,14 +1644,14 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-pub(crate) type UriSchemeResponderFn = Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>;
+pub(crate) type UriSchemeResponderFn = Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>;
 pub struct UriSchemeResponder(pub(crate) UriSchemeResponderFn);
 
 impl UriSchemeResponder {
   /// Resolves the request with the given response.
-  pub fn respond<T: Into<Cow<'static, [u8]>>>(self, response: HttpResponse<T>) {
+  pub fn respond<T: Into<Cow<'static, [u8]>>>(self, response: http::Response<T>) {
     let (parts, body) = response.into_parts();
-    (self.0)(HttpResponse::from_parts(parts, body.into()))
+    (self.0)(http::Response::from_parts(parts, body.into()))
   }
 }
 

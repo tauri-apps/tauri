@@ -43,6 +43,15 @@ pub struct Bundle {
 /// Bundles the project.
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
+  bundle_project_with_hook(settings, |_| Ok(()))
+}
+
+/// Bundles the project and runs the hook before bundling each target.
+/// Returns the list of paths where the bundles can be found.
+pub fn bundle_project_with_hook<F: Fn(&PackageType) -> crate::Result<()>>(
+  settings: Settings,
+  before_each_package_hook: F,
+) -> crate::Result<Vec<Bundle>> {
   let package_types = settings.package_types()?;
   if package_types.is_empty() {
     return Ok(Vec::new());
@@ -66,6 +75,8 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     if bundles.iter().any(|b| b.package_type == *package_type) {
       continue;
     }
+
+    before_each_package_hook(package_type)?;
 
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]

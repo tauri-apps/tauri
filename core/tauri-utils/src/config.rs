@@ -1712,6 +1712,12 @@ pub struct BuildConfig {
   /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-bundle-command")]
   pub before_bundle_command: Option<HookCommand>,
+  /// Similar to `before_bundle_command`, a shell command to run before the bundling phase
+  /// of each bundle format.
+  ///
+  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  #[serde(alias = "before-bundle-command")]
+  pub before_each_bundle_command: Option<HookCommand>,
   /// Features passed to `cargo` commands.
   pub features: Option<Vec<String>>,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
@@ -1728,6 +1734,7 @@ impl Default for BuildConfig {
       before_dev_command: None,
       before_build_command: None,
       before_bundle_command: None,
+      before_each_bundle_command: None,
       features: None,
       with_global_tauri: false,
     }
@@ -1939,6 +1946,7 @@ fn default_build() -> BuildConfig {
     before_dev_command: None,
     before_build_command: None,
     before_bundle_command: None,
+    before_each_bundle_command: None,
     features: None,
     with_global_tauri: false,
   }
@@ -2436,6 +2444,7 @@ mod build {
       let before_dev_command = quote!(None);
       let before_build_command = quote!(None);
       let before_bundle_command = quote!(None);
+      let before_each_bundle_command = quote!(None);
       let features = quote!(None);
 
       literal_struct!(
@@ -2448,6 +2457,7 @@ mod build {
         before_dev_command,
         before_build_command,
         before_bundle_command,
+        before_each_bundle_command,
         features
       );
     }
@@ -2736,6 +2746,7 @@ mod test {
       before_dev_command: None,
       before_build_command: None,
       before_bundle_command: None,
+      before_each_bundle_command: None,
       features: None,
       with_global_tauri: false,
     };

@@ -22,7 +22,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
+use tauri_bundler::bundle::{bundle_project_with_hook, Bundle, PackageType};
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
@@ -125,6 +125,8 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       }
     }
 
+    let debug = options.debug;
+
     // if we have a package to bundle, let's run the `before_bundle_command`.
     if package_types.as_ref().map_or(true, |p| !p.is_empty()) {
       if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
@@ -133,6 +135,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
           before_bundle,
           &interface,
           options.debug,
+          None,
         )?;
       }
     }
@@ -155,9 +158,26 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       }
     }
 
-    let bundles = bundle_project(settings)
-      .map_err(|e| anyhow::anyhow!("{:#}", e))
-      .with_context(|| "failed to bundle project")?;
+    let bundles = bundle_project_with_hook(settings, |package_type| {
+      if let Some(before_bundle) = config_.build.before_each_bundle_command.clone() {
+        let vars = vec![(
+          "TAURI_BUNDLER_PACKAGE_TYPE",
+          package_type.short_name().to_string(),
+        )];
+        run_hook(
+          "beforeBundleCommand",
+          before_bundle,
+          &interface,
+          debug,
+          Some(vars),
+        )
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+      }
+
+      Ok(())
+    })
+    .map_err(|e| anyhow::anyhow!("{:#}", e))
+    .with_context(|| "failed to bundle project")?;
 
     let updater_bundles: Vec<&Bundle> = bundles
       .iter()
@@ -264,6 +284,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
       before_build,
       &interface,
       options.debug,
+      None,
     )?;
   }
 
@@ -310,7 +331,13 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
   Ok(interface)
 }
 
-fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool) -> Result<()> {
+fn run_hook(
+  name: &str,
+  hook: HookCommand,
+  interface: &AppInterface,
+  debug: bool,
+  env_vars: Option<Vec<(&str, String)>>,
+) -> Result<()> {
   let (script, script_cwd) = match hook {
     HookCommand::Script(s) if s.is_empty() => (None, None),
     HookCommand::Script(s) => (Some(s), None),
@@ -322,6 +349,10 @@ fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool
 
     let mut env = command_env(debug);
     env.extend(interface.env());
+
+    if let Some(vars) = env_vars {
+      env.extend(vars);
+    }
 
     debug!("Setting environment for hook {:?}", env);
 

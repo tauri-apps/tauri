@@ -14,6 +14,7 @@
 #![allow(clippy::deprecated_semver)]
 
 use std::{
+  ffi::OsString,
   fmt::Display,
   path::{Path, PathBuf},
 };
@@ -277,13 +278,13 @@ pub struct Env {
   #[cfg(target_os = "linux")]
   pub appdir: Option<std::ffi::OsString>,
   /// The command line arguments of the current process.
-  pub args: Vec<String>,
+  pub args_os: Vec<OsString>,
 }
 
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
-    let args = std::env::args().skip(1).collect();
+    let args_os = std::env::args_os().skip(1).collect();
     #[cfg(target_os = "linux")]
     {
       let env = Self {
@@ -291,7 +292,7 @@ impl Default for Env {
         appimage: std::env::var_os("APPIMAGE"),
         #[cfg(target_os = "linux")]
         appdir: std::env::var_os("APPDIR"),
-        args,
+        args_os,
       };
       if env.appimage.is_some() || env.appdir.is_some() {
         // validate that we're actually running on an AppImage
@@ -314,7 +315,7 @@ impl Default for Env {
     }
     #[cfg(not(target_os = "linux"))]
     {
-      Self { args }
+      Self { args_os }
     }
   }
 }

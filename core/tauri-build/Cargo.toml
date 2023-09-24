@@ -28,6 +28,8 @@ heck = "0.4"
 json-patch = "1.0"
 tauri-winres = "0.1"
 semver = "1"
+walkdir = "2"
+dirs-next = "2"
 
 [features]
 codegen = [ "tauri-codegen", "quote" ]

@@ -108,9 +108,10 @@ pub(crate) struct PatternJavascript {
 }
 
 #[allow(dead_code)]
-pub(crate) fn format_real_schema(schema: &str) -> String {
+pub(crate) fn format_real_schema(schema: &str, _http: bool) -> String {
   if cfg!(windows) {
-    format!("https://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
+    let http = if _http { "http" } else { "https" };
+    format!("{http}://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
   } else {
     format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}")
   }

@@ -224,6 +224,9 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
 
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 
+  // Whether custom protocols on windows should use http://<scheme>.localhost/ instead of https://<scheme>.localhost/
+  pub http_scheme: bool,
+
   /// How to handle IPC calls on the webview window.
   pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
 
@@ -281,6 +284,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         navigation_handler: Default::default(),
         web_resource_request_handler: Default::default(),
         url: "tauri://localhost".to_string(),
+        http_scheme: false,
       })
     }
   }
@@ -312,6 +316,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         navigation_handler: Default::default(),
         web_resource_request_handler: Default::default(),
         url: "tauri://localhost".to_string(),
+        http_scheme: false,
       })
     }
   }

@@ -1326,6 +1326,11 @@ pub struct SecurityConfig {
   /// vulnerable to dangerous Tauri command related attacks otherwise.
   #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
   pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
+  /// Sets whether the custom protocols should use `http://<scheme>.localhost` instead of the default `https://<scheme>.localhost` on Windows.
+  ///
+  /// **WARNING:** Using a `http` scheme will allow mixed content when trying to fetch `http` endpoints and is therefore less secure but will match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+  #[serde(default, alias = "dangerous-use-http-scheme")]
+  pub dangerous_use_http_scheme: bool,
 }
 
 /// Defines an allowlist type.
@@ -3736,6 +3741,7 @@ mod build {
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
+      let dangerous_use_http_scheme = &self.dangerous_use_http_scheme;
       let dangerous_remote_domain_ipc_access =
         vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
 
@@ -3746,7 +3752,8 @@ mod build {
         dev_csp,
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
-        dangerous_remote_domain_ipc_access
+        dangerous_remote_domain_ipc_access,
+        dangerous_use_http_scheme
       );
     }
   }
@@ -4013,6 +4020,7 @@ mod test {
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
         dangerous_remote_domain_ipc_access: Vec::new(),
+        dangerous_use_http_scheme: false,
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

@@ -1573,16 +1573,17 @@ impl<R: Runtime> Builder<R> {
       (self.invoke_responder, self.invoke_initialization_script),
     );
 
+    let http_scheme = manager.config().tauri.security.dangerous_use_http_scheme;
+
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
       let label = config.label.clone();
       let webview_attributes = WebviewAttributes::from(&config);
 
-      self.pending_windows.push(PendingWindow::with_config(
-        config,
-        webview_attributes,
-        label,
-      )?);
+      let mut pending = PendingWindow::with_config(config, webview_attributes, label)?;
+      pending.http_scheme = http_scheme;
+
+      self.pending_windows.push(pending);
     }
 
     #[cfg(any(windows, target_os = "linux"))]

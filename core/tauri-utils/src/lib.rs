@@ -13,6 +13,8 @@ use std::{
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use log::warn;
+
 pub mod assets;
 pub mod config;
 pub mod html;
@@ -202,7 +204,7 @@ impl Default for Env {
           .unwrap_or(true);
 
         if !is_temp {
-          panic!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
+          warn!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
         }
       }
       env

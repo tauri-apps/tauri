@@ -35,6 +35,7 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_WEBVIEW_AUTOMATION` — Enables webview automation (Linux Only).
 - `TAURI_ANDROID_PROJECT_PATH` — Path of the tauri android project, usually will be `<project>/src-tauri/gen/android`.
 - `TAURI_IOS_PROJECT_PATH` — Path of the tauri iOS project, usually will be `<project>/src-tauri/gen/ios`.
+- `RPM_SIGN_KEY` — The private GPG key used to sign the RPM bundle, exported to its ASCII-armored format.
 
 ### Tauri CLI Hook Commands
 

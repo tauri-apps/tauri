@@ -142,9 +142,11 @@ impl AppCategory {
     }
   }
 
-  /// Map an AppCategory to the closest set of GNOME desktop registered
+  /// Map an AppCategory to the closest set of Freedesktop registered
   /// categories that matches that category.
-  pub fn gnome_desktop_categories(self) -> &'static str {
+  ///
+  /// Cf https://specifications.freedesktop.org/menu-spec/latest/
+  pub fn freedesktop_categories(self) -> &'static str {
     match &self {
       AppCategory::Business => "Office;",
       AppCategory::DeveloperTool => "Development;",

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.0]
+
+### What's Changed
+
+- [`d1e09da0`](https://www.github.com/tauri-apps/tauri/commit/d1e09da084b849b9e384fc27ed250dd17e72c7a3)([#7918](https://www.github.com/tauri-apps/tauri/pull/7918)) Bump to 1.5 due to tauri-utils dependency bump.
+
 ## \[1.4.1]
 
 ### Bug Fixes

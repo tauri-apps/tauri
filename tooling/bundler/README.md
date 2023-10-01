@@ -92,11 +92,7 @@ These settings are used only when bundling `app` and `dmg` packages.
       "longDescription": "",
       "copyright": "Copyright (c) You 2021. All rights reserved.",
       "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
+        "icons/icon.svg"
       ],
       "resources": ["./assets/**/*.png"],
       "deb": {

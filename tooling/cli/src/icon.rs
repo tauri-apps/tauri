@@ -203,7 +203,7 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
 
     for size in [32, 128, 256, 512] {
       let file_name = match size {
-        256 => "128x128@2x.png".to_string(),
+        256 => "icon.svg".to_string(),
         512 => "icon.png".to_string(),
         _ => format!("{size}x{size}.png"),
       };

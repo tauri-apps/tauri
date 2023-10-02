@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.5.1]
+
+### Bug Fixes
+
+- [`d6eb46cf`](https://www.github.com/tauri-apps/tauri/commit/d6eb46cf1116d147121f6b6db9d390b5e2fb238d)([#7934](https://www.github.com/tauri-apps/tauri/pull/7934)) On macOS, fix the `apple-id` option name when using `notarytools submit`.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.1`
+
 ## \[1.5.0]
 
 ### New Features

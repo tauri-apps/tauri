@@ -7,7 +7,6 @@ use crate::scope::FsScope;
 use crate::window::UriSchemeProtocolHandler;
 use http::{header::*, status::StatusCode, Request, Response};
 use http_range::HttpRange;
-use rand::RngCore;
 use std::{borrow::Cow, io::SeekFrom};
 use tauri_utils::debug_eprintln;
 use tauri_utils::mime_type::MimeType;
@@ -229,7 +228,7 @@ fn get_response(
 
 fn random_boundary() -> String {
   let mut x = [0_u8; 30];
-  rand::thread_rng().fill_bytes(&mut x);
+  getrandom::getrandom(&mut x).expect("failed to get random bytes");
   (x[..])
     .iter()
     .map(|&x| format!("{x:x}"))

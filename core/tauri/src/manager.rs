@@ -193,7 +193,9 @@ fn replace_csp_nonce(
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
-    let nonce = rand::random::<usize>();
+    let mut raw = [0u8; 8];
+    getrandom::getrandom(&mut raw).expect("failed to get random bytes");
+    let nonce = usize::from_ne_bytes(raw);
     nonces.push(nonce);
     nonce.to_string()
   });

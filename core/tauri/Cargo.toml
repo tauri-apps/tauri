@@ -52,7 +52,7 @@ tauri-runtime = { version = "1.0.0-alpha.1", path = "../tauri-runtime" }
 tauri-macros = { version = "2.0.0-alpha.7", path = "../tauri-macros" }
 tauri-utils = { version = "2.0.0-alpha.7", features = [ "resources" ], path = "../tauri-utils" }
 tauri-runtime-wry = { version = "1.0.0-alpha.2", path = "../tauri-runtime-wry", optional = true }
-rand = "0.8"
+getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
 http = "0.2"

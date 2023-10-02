@@ -7,14 +7,15 @@ license = ""
 repository = ""
 default-run = "app"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.65"
 
 [build-dependencies]
 tauri-build = { path = "../../../../core/tauri-build", features = [] }
 
 [dependencies]
 api = { path = "../api" }
-tauri = { path = "../../../../core/tauri", features = ["dialog"] }
+tauri = { path = "../../../../core/tauri" }
+tauri-plugin-dialog = "2.0.0-alpha.2"
 
 [features]
-custom-protocol = [ "tauri/custom-protocol" ]
+custom-protocol = ["tauri/custom-protocol"]

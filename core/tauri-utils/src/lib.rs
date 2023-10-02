@@ -2,16 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Tauri utility helpers
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
+//! This crate contains common code that is reused in many places and offers useful utilities like parsing configuration files, detecting platform triples, injecting the CSP, and managing assets.
+
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
 #![warn(missing_docs, rust_2018_idioms)]
+#![allow(clippy::deprecated_semver)]
 
 use std::{
+  ffi::OsString,
   fmt::Display,
   path::{Path, PathBuf},
 };
 
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use log::warn;
 
 pub mod assets;
 pub mod config;
@@ -37,6 +48,8 @@ pub struct PackageInfo {
   pub authors: &'static str,
   /// The crate description.
   pub description: &'static str,
+  /// The crate name.
+  pub crate_name: &'static str,
 }
 
 impl PackageInfo {
@@ -52,6 +65,99 @@ impl PackageInfo {
     self.name.clone()
   }
 }
+
+#[allow(deprecated)]
+mod window_effects {
+  use super::*;
+
+  #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+  #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+  #[serde(rename_all = "camelCase")]
+  /// Platform-specific window effects
+  pub enum WindowEffect {
+    /// A default material appropriate for the view's effectiveAppearance. **macOS 10.14-**
+    #[deprecated(
+      since = "macOS 10.14",
+      note = "You should instead choose an appropriate semantic material."
+    )]
+    AppearanceBased,
+    /// **macOS 10.14-**
+    #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+    Light,
+    /// **macOS 10.14-**
+    #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+    Dark,
+    /// **macOS 10.14-**
+    #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+    MediumLight,
+    /// **macOS 10.14-**
+    #[deprecated(since = "macOS 10.14", note = "Use a semantic material instead.")]
+    UltraDark,
+    /// **macOS 10.10+**
+    Titlebar,
+    /// **macOS 10.10+**
+    Selection,
+    /// **macOS 10.11+**
+    Menu,
+    /// **macOS 10.11+**
+    Popover,
+    /// **macOS 10.11+**
+    Sidebar,
+    /// **macOS 10.14+**
+    HeaderView,
+    /// **macOS 10.14+**
+    Sheet,
+    /// **macOS 10.14+**
+    WindowBackground,
+    /// **macOS 10.14+**
+    HudWindow,
+    /// **macOS 10.14+**
+    FullScreenUI,
+    /// **macOS 10.14+**
+    Tooltip,
+    /// **macOS 10.14+**
+    ContentBackground,
+    /// **macOS 10.14+**
+    UnderWindowBackground,
+    /// **macOS 10.14+**
+    UnderPageBackground,
+    /// Mica effect that matches the system dark perefence **Windows 11 Only**
+    Mica,
+    /// Mica effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
+    MicaDark,
+    /// Mica effect with light mode **Windows 11 Only**
+    MicaLight,
+    /// **Windows 7/10/11(22H1) Only**
+    ///
+    /// ## Notes
+    ///
+    /// This effect has bad performance when resizing/dragging the window on Windows 11 build 22621.
+    Blur,
+    /// **Windows 10/11 Only**
+    ///
+    /// ## Notes
+    ///
+    /// This effect has bad performance when resizing/dragging the window on Windows 10 v1903+ and Windows 11 build 22000.
+    Acrylic,
+  }
+
+  /// Window effect state **macOS only**
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nsvisualeffectview/state>
+  #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+  #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+  #[serde(rename_all = "camelCase")]
+  pub enum WindowEffectState {
+    /// Make window effect state follow the window's active state
+    FollowsWindowActiveState,
+    /// Make window effect state always active
+    Active,
+    /// Make window effect state always inactive
+    Inactive,
+  }
+}
+
+pub use window_effects::{WindowEffect, WindowEffectState};
 
 /// How the window title bar should be displayed on macOS.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -172,13 +278,13 @@ pub struct Env {
   #[cfg(target_os = "linux")]
   pub appdir: Option<std::ffi::OsString>,
   /// The command line arguments of the current process.
-  pub args: Vec<String>,
+  pub args_os: Vec<OsString>,
 }
 
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
-    let args = std::env::args().skip(1).collect();
+    let args_os = std::env::args_os().skip(1).collect();
     #[cfg(target_os = "linux")]
     {
       let env = Self {
@@ -186,7 +292,7 @@ impl Default for Env {
         appimage: std::env::var_os("APPIMAGE"),
         #[cfg(target_os = "linux")]
         appdir: std::env::var_os("APPDIR"),
-        args,
+        args_os,
       };
       if env.appimage.is_some() || env.appdir.is_some() {
         // validate that we're actually running on an AppImage
@@ -202,14 +308,14 @@ impl Default for Env {
           .unwrap_or(true);
 
         if !is_temp {
-          panic!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
+          warn!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
         }
       }
       env
     }
     #[cfg(not(target_os = "linux"))]
     {
-      Self { args }
+      Self { args_os }
     }
   }
 }
@@ -298,11 +404,9 @@ macro_rules! debug_eprintln {
   };
 }
 
-/// Reconstructs a path from its components using the platform separator then converts it to String
+/// Reconstructs a path from its components using the platform separator then converts it to String and removes UNC prefixes on Windows if it exists.
 pub fn display_path<P: AsRef<Path>>(p: P) -> String {
-  p.as_ref()
-    .components()
-    .collect::<PathBuf>()
+  dunce::simplified(&p.as_ref().components().collect::<PathBuf>())
     .display()
     .to_string()
 }

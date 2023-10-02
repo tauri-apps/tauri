@@ -81,6 +81,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // initialize shell script template.
   let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(handlebars::no_escape);
   handlebars
     .register_template_string("appimage", include_str!("templates/appimage"))
     .expect("Failed to register template for handlebars");

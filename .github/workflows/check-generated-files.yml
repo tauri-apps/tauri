@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: Check generated files
+name: check generated files
 
 on:
   pull_request:
@@ -12,17 +12,7 @@ on:
       - 'core/tauri/scripts/bundle.global.js'
       - 'core/tauri-utils/src/config.rs'
       - 'tooling/cli/schema.json'
-      - 'core/config-schema/schema.json'
-  push:
-    branches:
-      - dev
-    paths:
-      - '.github/workflows/check-generated-files.yml'
-      - 'tooling/api/src/**'
-      - 'core/tauri/scripts/bundle.global.js'
-      - 'core/tauri-utils/src/config.rs'
-      - 'tooling/cli/schema.json'
-      - 'core/config-schema/schema.json'
+      - 'core/tauri-config-schema/schema.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -47,9 +37,9 @@ jobs:
             schema:
               - 'core/tauri-utils/src/config.rs'
               - 'tooling/cli/schema.json'
-              - 'core/config-schema/schema.json'
+              - 'core/tauri-config-schema/schema.json'
 
-  check-api:
+  api:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.api == 'true'
@@ -64,7 +54,7 @@ jobs:
           git restore tooling/api/docs/js-api.json
           ./.scripts/ci/has-diff.sh
 
-  check-schema:
+  schema:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.schema == 'true'
@@ -90,7 +80,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ./core/config-schema/Cargo.toml
+          args: --manifest-path ./core/tauri-config-schema/Cargo.toml
 
       - name: check schema
         run: ./.scripts/ci/has-diff.sh

@@ -61,11 +61,7 @@ mod ui {
   pub fn main() {
     let context = super::context();
     tauri::Builder::default()
-      .menu(if cfg!(target_os = "macos") {
-        tauri::Menu::os_default(&context.package_info().name)
-      } else {
-        tauri::Menu::default()
-      })
+      .menu(tauri::menu::Menu::default)
       .setup(|app| {
         // set the splashscreen and main windows to be globally available with the tauri state API
         app.manage(SplashscreenWindow(Arc::new(Mutex::new(

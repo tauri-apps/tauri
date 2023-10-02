@@ -8,22 +8,30 @@ members = [
   "core/tauri-utils",
   "core/tauri-build",
   "core/tauri-codegen",
-  "core/config-schema",
+  "core/tauri-config-schema",
 
   # integration tests
   "core/tests/restart",
-  "core/tests/app-updater"
 ]
+resolver = "2"
 
 exclude = [
   # examples that can be compiled with the tauri CLI
   "examples/api/src-tauri",
-  "examples/updater/src-tauri",
   "examples/resources/src-tauri",
-  "examples/sidecar/src-tauri",
   "examples/web/core",
-  "examples/workspace"
+  "examples/file-associations/src-tauri",
+  "examples/workspace",
 ]
+
+[workspace.package]
+authors = ["Tauri Programme within The Commons Conservancy"]
+homepage = "https://tauri.app/"
+repository = "https://github.com/tauri-apps/tauri"
+categories = ["gui", "web-programming"]
+license = "Apache-2.0 OR MIT"
+edition = "2021"
+rust-version = "1.65"
 
 # default to small, optimized workspace release binaries
 [profile.release]

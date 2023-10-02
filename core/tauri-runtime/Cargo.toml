@@ -1,16 +1,16 @@
 [package]
 name = "tauri-runtime"
-version = "0.12.1"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
-categories = [ "gui", "web-programming" ]
-license = "Apache-2.0 OR MIT"
-homepage = "https://tauri.app"
-repository = "https://github.com/tauri-apps/tauri"
+version = "1.0.0-alpha.1"
 description = "Runtime for Tauri applications"
-edition = "2021"
-rust-version = "1.60"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
+authors = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+categories = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -26,27 +26,25 @@ targets = [
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "1.2.1", path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-alpha.7", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 http = "0.2.4"
-http-range = "0.1.4"
-raw-window-handle = "=0.5.0"
-rand = "0.8"
+raw-window-handle = "0.5"
 url = { version = "2" }
 
-[target."cfg(windows)".dependencies]
-webview2-com = "0.19.1"
-
-  [target."cfg(windows)".dependencies.windows]
-  version = "0.39.0"
-  features = [ "Win32_Foundation" ]
+[target."cfg(windows)".dependencies.windows]
+version = "0.48"
+features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.15", features = [ "v3_20" ] }
+gtk = { version = "0.16", features = [ "v3_24" ] }
+
+[target."cfg(target_os = \"android\")".dependencies]
+jni = "0.21"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+url = "2"
 
 [features]
 devtools = [ ]
-system-tray = [ ]
 macos-private-api = [ ]
-global-shortcut = [ ]
-clipboard = [ ]

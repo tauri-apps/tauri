@@ -1,16 +1,16 @@
 [package]
 name = "tauri-macros"
-version = "1.2.1"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
-categories = [ "gui", "os", "filesystem", "web-programming" ]
-license = "Apache-2.0 OR MIT"
-homepage = "https://tauri.app"
-repository = "https://github.com/tauri-apps/tauri"
+version = "2.0.0-alpha.7"
 description = "Macros for the tauri crate."
-edition = "2021"
-rust-version = "1.60"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
+authors = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+categories = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 
 [lib]
 proc-macro = true
@@ -20,13 +20,12 @@ proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = [ "full" ] }
 heck = "0.4"
-tauri-codegen = { version = "1.2.1", default-features = false, path = "../tauri-codegen" }
-tauri-utils = { version = "1.2.1", path = "../tauri-utils" }
+tauri-codegen = { version = "2.0.0-alpha.7", default-features = false, path = "../tauri-codegen" }
+tauri-utils = { version = "2.0.0-alpha.7", path = "../tauri-utils" }
 
 [features]
 custom-protocol = [ ]
 compression = [ "tauri-codegen/compression" ]
 isolation = [ "tauri-codegen/isolation" ]
-shell-scope = [ "tauri-codegen/shell-scope" ]
 config-json5 = [ "tauri-codegen/config-json5", "tauri-utils/config-json5" ]
 config-toml = [ "tauri-codegen/config-toml", "tauri-utils/config-toml" ]

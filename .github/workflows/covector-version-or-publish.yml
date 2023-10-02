@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: version or publish
+name: covector version or publish
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: install stable
@@ -30,7 +30,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libfuse2
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -66,7 +66,7 @@ jobs:
       - run-integration-tests
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v2
@@ -115,21 +115,32 @@ jobs:
           repository: tauri-apps/tauri-docs
           event-type: update-docs
 
-      - name: Trigger cli.js publishing workflow
+      - name: Get `@tauri-apps/cli` release id
+        id: cliReleaseId
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
-          contains(steps.covector.outputs.packagesPublished, 'cli.rs')
+          contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
+        run: |
+          echo '${{ toJSON(steps.covector.outputs) }}' > output.json
+          id=$(jq '.["-tauri-apps-cli-releaseId"]' < output.json)
+          rm output.json
+          echo "cliReleaseId=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger `@tauri-apps/cli` publishing workflow
+        if: |
+          steps.covector.outputs.successfulPublish == 'true' &&
+          contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
-          event-type: publish-clijs
-          client-payload: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
+          event-type: publish-js-cli
+          client-payload: '{"releaseId": "${{ steps.cliReleaseId.outputs.cliReleaseId }}" }'
 
-      - name: Trigger cli.rs publishing workflow
+      - name: Trigger `tauri-cli` publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
-          contains(steps.covector.outputs.packagesPublished, 'cli.rs')
+          contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}

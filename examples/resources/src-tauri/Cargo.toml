@@ -3,7 +3,7 @@ name = "resources"
 version = "0.1.0"
 description = "A Tauri application that uses Node.js with app resources"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.65"
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = [ "codegen" ] }

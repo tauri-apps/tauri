@@ -1,5 +1,5 @@
 {
-  "$schema": "../../core/config-schema/schema.json",
+  "$schema": "../../core/tauri-config-schema/schema.json",
   "package": {
     "productName": "Isolation",
     "version": "0.1.0"
@@ -50,9 +50,6 @@
         "timestampUrl": ""
       }
     },
-    "updater": {
-      "active": false
-    },
     "windows": [
       {
         "title": "Isolation",
@@ -63,7 +60,7 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; connect-src ipc: http://ipc.localhost"
     }
   }
 }

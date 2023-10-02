@@ -104,7 +104,7 @@ where
   let from = from.as_ref();
   if !from.exists() {
     if let Some(msg) = from.to_str() {
-      let msg = format!("Path \"{}\" does not exist or you don't have access", msg);
+      let msg = format!("Path \"{msg}\" does not exist or you don't have access");
       return Err(crate::Error::PathUtilError(msg));
     }
     return Err(crate::Error::PathUtilError(
@@ -114,7 +114,7 @@ where
 
   if !from.is_file() {
     if let Some(msg) = from.to_str() {
-      let msg = format!("Path \"{}\" is not a file!", msg);
+      let msg = format!("Path \"{msg}\" is not a file!");
       return Err(crate::Error::PathUtilError(msg));
     }
     return Err(crate::Error::PathUtilError(
@@ -127,7 +127,7 @@ where
     }
 
     if let Some(msg) = to.as_ref().to_str() {
-      let msg = format!("Path \"{}\" is exist", msg);
+      let msg = format!("Path \"{msg}\" is exist");
       return Err(crate::Error::PathUtilError(msg));
     }
   }
@@ -145,7 +145,7 @@ where
   let from = from.as_ref();
   if !from.exists() {
     if let Some(msg) = from.to_str() {
-      let msg = format!("Path \"{}\" does not exist or you don't have access!", msg);
+      let msg = format!("Path \"{msg}\" does not exist or you don't have access!");
       return Err(crate::Error::PathUtilError(msg));
     }
     return Err(crate::Error::PathUtilError(
@@ -154,7 +154,7 @@ where
   }
   if !from.is_dir() {
     if let Some(msg) = from.to_str() {
-      let msg = format!("Path \"{}\" is not a directory!", msg);
+      let msg = format!("Path \"{msg}\" is not a directory!");
       return Err(crate::Error::PathUtilError(msg));
     }
     return Err(crate::Error::PathUtilError(

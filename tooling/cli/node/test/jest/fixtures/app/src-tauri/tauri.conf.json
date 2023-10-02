@@ -1,14 +1,11 @@
 {
-  "$schema": "../../../../../../../../core/config-schema/schema.json",
+  "$schema": "../../../../../../../../core/tauri-config-schema/schema.json",
   "build": {
     "devPath": "../dist",
     "distDir": "../dist",
     "withGlobalTauri": true
   },
   "tauri": {
-    "allowlist": {
-      "all": true
-    },
     "bundle": {
       "icon": [
         "icons/32x32.png",

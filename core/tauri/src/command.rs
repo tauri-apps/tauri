@@ -7,11 +7,14 @@
 //! You usually don't need to create these items yourself. These are created from [command](../attr.command.html)
 //! attribute macro along the way and used by [`crate::generate_handler`] macro.
 
-use crate::hooks::InvokeError;
-use crate::InvokeMessage;
-use crate::Runtime;
-use serde::de::Visitor;
-use serde::{Deserialize, Deserializer};
+use crate::{
+  ipc::{InvokeBody, InvokeError, InvokeMessage},
+  Runtime,
+};
+use serde::{
+  de::{Error, Visitor},
+  Deserialize, Deserializer,
+};
 
 /// Represents a custom command.
 pub struct CommandItem<'a, R: Runtime> {
@@ -62,8 +65,6 @@ impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
 macro_rules! pass {
   ($fn:ident, $($arg:ident: $argt:ty),+) => {
     fn $fn<V: Visitor<'de>>(self, $($arg: $argt),*) -> Result<V::Value, Self::Error> {
-      use serde::de::Error;
-
       if self.key.is_empty() {
         return Err(serde_json::Error::custom(format!(
             "command {} has an argument with no name with a non-optional value",
@@ -71,13 +72,23 @@ macro_rules! pass {
           )))
       }
 
-      match self.message.payload.get(self.key) {
-        Some(value) => value.$fn($($arg),*),
-        None => {
+      match &self.message.payload {
+        InvokeBody::Raw(_body) => {
           Err(serde_json::Error::custom(format!(
-            "command {} missing required key {}",
+            "command {} expected a value for key {} but the IPC call used a bytes payload",
             self.name, self.key
           )))
+        }
+        InvokeBody::Json(v) => {
+          match v.get(self.key) {
+            Some(value) => value.$fn($($arg),*),
+            None => {
+              Err(serde_json::Error::custom(format!(
+                "command {} missing required key {}",
+                self.name, self.key
+              )))
+            }
+          }
         }
       }
     }
@@ -111,9 +122,15 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
   pass!(deserialize_byte_buf, visitor: V);
 
   fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-    match self.message.payload.get(self.key) {
-      Some(value) => value.deserialize_option(visitor),
-      None => visitor.visit_none(),
+    match &self.message.payload {
+      InvokeBody::Raw(_body) => Err(serde_json::Error::custom(format!(
+        "command {} expected a value for key {} but the IPC call used a bytes payload",
+        self.name, self.key
+      ))),
+      InvokeBody::Json(v) => match v.get(self.key) {
+        Some(value) => value.deserialize_option(visitor),
+        None => visitor.visit_none(),
+      },
     }
   }
 
@@ -155,46 +172,47 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
 /// Nothing in this module is considered stable.
 #[doc(hidden)]
 pub mod private {
-  use crate::{InvokeError, InvokeResolver, Runtime};
+  use crate::{
+    ipc::{InvokeBody, InvokeError, InvokeResolver, IpcResponse},
+    Runtime,
+  };
   use futures_util::{FutureExt, TryFutureExt};
-  use serde::Serialize;
-  use serde_json::Value;
   use std::future::Future;
 
-  // ===== impl Serialize =====
+  // ===== impl IpcResponse =====
 
-  pub struct SerializeTag;
+  pub struct ResponseTag;
 
-  pub trait SerializeKind {
+  pub trait ResponseKind {
     #[inline(always)]
-    fn blocking_kind(&self) -> SerializeTag {
-      SerializeTag
+    fn blocking_kind(&self) -> ResponseTag {
+      ResponseTag
     }
 
     #[inline(always)]
-    fn async_kind(&self) -> SerializeTag {
-      SerializeTag
+    fn async_kind(&self) -> ResponseTag {
+      ResponseTag
     }
   }
 
-  impl<T: Serialize> SerializeKind for &T {}
+  impl<T: IpcResponse> ResponseKind for &T {}
 
-  impl SerializeTag {
+  impl ResponseTag {
     #[inline(always)]
     pub fn block<R, T>(self, value: T, resolver: InvokeResolver<R>)
     where
       R: Runtime,
-      T: Serialize,
+      T: IpcResponse,
     {
       resolver.respond(Ok(value))
     }
 
     #[inline(always)]
-    pub fn future<T>(self, value: T) -> impl Future<Output = Result<Value, InvokeError>>
+    pub fn future<T>(self, value: T) -> impl Future<Output = Result<InvokeBody, InvokeError>>
     where
-      T: Serialize,
+      T: IpcResponse,
     {
-      std::future::ready(serde_json::to_value(value).map_err(InvokeError::from_serde_json))
+      std::future::ready(value.body().map_err(InvokeError::from_error))
     }
   }
 
@@ -214,14 +232,14 @@ pub mod private {
     }
   }
 
-  impl<T: Serialize, E: Into<InvokeError>> ResultKind for Result<T, E> {}
+  impl<T: IpcResponse, E: Into<InvokeError>> ResultKind for Result<T, E> {}
 
   impl ResultTag {
     #[inline(always)]
     pub fn block<R, T, E>(self, value: Result<T, E>, resolver: InvokeResolver<R>)
     where
       R: Runtime,
-      T: Serialize,
+      T: IpcResponse,
       E: Into<InvokeError>,
     {
       resolver.respond(value.map_err(Into::into))
@@ -231,20 +249,20 @@ pub mod private {
     pub fn future<T, E>(
       self,
       value: Result<T, E>,
-    ) -> impl Future<Output = Result<Value, InvokeError>>
+    ) -> impl Future<Output = Result<InvokeBody, InvokeError>>
     where
-      T: Serialize,
+      T: IpcResponse,
       E: Into<InvokeError>,
     {
       std::future::ready(
         value
           .map_err(Into::into)
-          .and_then(|value| serde_json::to_value(value).map_err(InvokeError::from_serde_json)),
+          .and_then(|value| value.body().map_err(InvokeError::from_error)),
       )
     }
   }
 
-  // ===== Future<Output = impl Serialize> =====
+  // ===== Future<Output = impl IpcResponse> =====
 
   pub struct FutureTag;
 
@@ -254,16 +272,16 @@ pub mod private {
       FutureTag
     }
   }
-  impl<T: Serialize, F: Future<Output = T>> FutureKind for &F {}
+  impl<T: IpcResponse, F: Future<Output = T>> FutureKind for &F {}
 
   impl FutureTag {
     #[inline(always)]
-    pub fn future<T, F>(self, value: F) -> impl Future<Output = Result<Value, InvokeError>>
+    pub fn future<T, F>(self, value: F) -> impl Future<Output = Result<InvokeBody, InvokeError>>
     where
-      T: Serialize,
+      T: IpcResponse,
       F: Future<Output = T> + Send + 'static,
     {
-      value.map(|value| serde_json::to_value(value).map_err(InvokeError::from_serde_json))
+      value.map(|value| value.body().map_err(InvokeError::from_error))
     }
   }
 
@@ -278,19 +296,22 @@ pub mod private {
     }
   }
 
-  impl<T: Serialize, E: Into<InvokeError>, F: Future<Output = Result<T, E>>> ResultFutureKind for F {}
+  impl<T: IpcResponse, E: Into<InvokeError>, F: Future<Output = Result<T, E>>> ResultFutureKind
+    for F
+  {
+  }
 
   impl ResultFutureTag {
     #[inline(always)]
-    pub fn future<T, E, F>(self, value: F) -> impl Future<Output = Result<Value, InvokeError>>
+    pub fn future<T, E, F>(self, value: F) -> impl Future<Output = Result<InvokeBody, InvokeError>>
     where
-      T: Serialize,
+      T: IpcResponse,
       E: Into<InvokeError>,
       F: Future<Output = Result<T, E>> + Send,
     {
-      value.err_into().map(|result| {
-        result.and_then(|value| serde_json::to_value(value).map_err(InvokeError::from_serde_json))
-      })
+      value
+        .err_into()
+        .map(|result| result.and_then(|value| value.body().map_err(InvokeError::from_error)))
     }
   }
 }

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::config::Config;
+use crate::platform::Target;
 use json_patch::merge;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -47,35 +48,29 @@ impl ConfigFormat {
     }
   }
 
-  fn into_platform_file_name(self) -> &'static str {
+  fn into_platform_file_name(self, target: Target) -> &'static str {
     match self {
-      Self::Json => {
-        if cfg!(target_os = "macos") {
-          "tauri.macos.conf.json"
-        } else if cfg!(windows) {
-          "tauri.windows.conf.json"
-        } else {
-          "tauri.linux.conf.json"
-        }
-      }
-      Self::Json5 => {
-        if cfg!(target_os = "macos") {
-          "tauri.macos.conf.json5"
-        } else if cfg!(windows) {
-          "tauri.windows.conf.json5"
-        } else {
-          "tauri.linux.conf.json5"
-        }
-      }
-      Self::Toml => {
-        if cfg!(target_os = "macos") {
-          "Tauri.macos.toml"
-        } else if cfg!(windows) {
-          "Tauri.windows.toml"
-        } else {
-          "Tauri.linux.toml"
-        }
-      }
+      Self::Json => match target {
+        Target::Darwin => "tauri.macos.conf.json",
+        Target::Windows => "tauri.windows.conf.json",
+        Target::Linux => "tauri.linux.conf.json",
+        Target::Android => "tauri.android.conf.json",
+        Target::Ios => "tauri.ios.conf.json",
+      },
+      Self::Json5 => match target {
+        Target::Darwin => "tauri.macos.conf.json5",
+        Target::Windows => "tauri.windows.conf.json5",
+        Target::Linux => "tauri.linux.conf.json5",
+        Target::Android => "tauri.android.conf.json5",
+        Target::Ios => "tauri.ios.conf.json5",
+      },
+      Self::Toml => match target {
+        Target::Darwin => "Tauri.macos.toml",
+        Target::Windows => "Tauri.windows.toml",
+        Target::Linux => "Tauri.linux.toml",
+        Target::Android => "Tauri.android.toml",
+        Target::Ios => "Tauri.ios.toml",
+      },
     }
   }
 }
@@ -142,18 +137,18 @@ pub enum ConfigError {
 }
 
 /// Determines if the given folder has a configuration file.
-pub fn folder_has_configuration_file(folder: &Path) -> bool {
+pub fn folder_has_configuration_file(target: Target, folder: &Path) -> bool {
   folder.join(ConfigFormat::Json.into_file_name()).exists()
       || folder.join(ConfigFormat::Json5.into_file_name()).exists()
       || folder.join(ConfigFormat::Toml.into_file_name()).exists()
        // platform file names
-       || folder.join(ConfigFormat::Json.into_platform_file_name()).exists()
-      || folder.join(ConfigFormat::Json5.into_platform_file_name()).exists()
-      || folder.join(ConfigFormat::Toml.into_platform_file_name()).exists()
+       || folder.join(ConfigFormat::Json.into_platform_file_name(target)).exists()
+      || folder.join(ConfigFormat::Json5.into_platform_file_name(target)).exists()
+      || folder.join(ConfigFormat::Toml.into_platform_file_name(target)).exists()
 }
 
 /// Determines if the given file path represents a Tauri configuration file.
-pub fn is_configuration_file(path: &Path) -> bool {
+pub fn is_configuration_file(target: Target, path: &Path) -> bool {
   path
     .file_name()
     .map(|file_name| {
@@ -161,26 +156,28 @@ pub fn is_configuration_file(path: &Path) -> bool {
         || file_name == OsStr::new(ConfigFormat::Json5.into_file_name())
         || file_name == OsStr::new(ConfigFormat::Toml.into_file_name())
       // platform file names
-      || file_name == OsStr::new(ConfigFormat::Json.into_platform_file_name())
-        || file_name == OsStr::new(ConfigFormat::Json5.into_platform_file_name())
-        || file_name == OsStr::new(ConfigFormat::Toml.into_platform_file_name())
+      || file_name == OsStr::new(ConfigFormat::Json.into_platform_file_name(target))
+        || file_name == OsStr::new(ConfigFormat::Json5.into_platform_file_name(target))
+        || file_name == OsStr::new(ConfigFormat::Toml.into_platform_file_name(target))
     })
     .unwrap_or_default()
 }
 
 /// Reads the configuration from the given root directory.
 ///
-/// It first looks for a `tauri.conf.json[5]` file on the given directory. The file must exist.
+/// It first looks for a `tauri.conf.json[5]` or `Tauri.toml` file on the given directory. The file must exist.
 /// Then it looks for a platform-specific configuration file:
-/// - `tauri.macos.conf.json[5]` on macOS
-/// - `tauri.linux.conf.json[5]` on Linux
-/// - `tauri.windows.conf.json[5]` on Windows
+/// - `tauri.macos.conf.json[5]` or `Tauri.macos.toml` on macOS
+/// - `tauri.linux.conf.json[5]` or `Tauri.linux.toml` on Linux
+/// - `tauri.windows.conf.json[5]` or `Tauri.windows.toml` on Windows
+/// - `tauri.android.conf.json[5]` or `Tauri.android.toml` on Android
+/// - `tauri.ios.conf.json[5]` or `Tauri.ios.toml` on iOS
 /// Merging the configurations using [JSON Merge Patch (RFC 7396)].
 ///
 /// [JSON Merge Patch (RFC 7396)]: https://datatracker.ietf.org/doc/html/rfc7396.
-pub fn read_from(root_dir: PathBuf) -> Result<Value, ConfigError> {
-  let mut config: Value = parse_value(root_dir.join("tauri.conf.json"))?.0;
-  if let Some((platform_config, _)) = read_platform(root_dir)? {
+pub fn read_from(target: Target, root_dir: PathBuf) -> Result<Value, ConfigError> {
+  let mut config: Value = parse_value(target, root_dir.join("tauri.conf.json"))?.0;
+  if let Some((platform_config, _)) = read_platform(target, root_dir)? {
     merge(&mut config, &platform_config);
   }
   Ok(config)
@@ -189,10 +186,13 @@ pub fn read_from(root_dir: PathBuf) -> Result<Value, ConfigError> {
 /// Reads the platform-specific configuration file from the given root directory if it exists.
 ///
 /// Check [`read_from`] for more information.
-pub fn read_platform(root_dir: PathBuf) -> Result<Option<(Value, PathBuf)>, ConfigError> {
-  let platform_config_path = root_dir.join(ConfigFormat::Json.into_platform_file_name());
-  if does_supported_file_name_exist(&platform_config_path) {
-    let (platform_config, path): (Value, PathBuf) = parse_value(platform_config_path)?;
+pub fn read_platform(
+  target: Target,
+  root_dir: PathBuf,
+) -> Result<Option<(Value, PathBuf)>, ConfigError> {
+  let platform_config_path = root_dir.join(ConfigFormat::Json.into_platform_file_name(target));
+  if does_supported_file_name_exist(target, &platform_config_path) {
+    let (platform_config, path): (Value, PathBuf) = parse_value(target, platform_config_path)?;
     Ok(Some((platform_config, path)))
   } else {
     Ok(None)
@@ -203,16 +203,16 @@ pub fn read_platform(root_dir: PathBuf) -> Result<Option<(Value, PathBuf)>, Conf
 ///
 /// The passed path is expected to be the path to the "default" configuration format, in this case
 /// JSON with `.json`.
-pub fn does_supported_file_name_exist(path: impl Into<PathBuf>) -> bool {
+pub fn does_supported_file_name_exist(target: Target, path: impl Into<PathBuf>) -> bool {
   let path = path.into();
   let source_file_name = path.file_name().unwrap().to_str().unwrap();
   let lookup_platform_config = ENABLED_FORMATS
     .iter()
-    .any(|format| source_file_name == format.into_platform_file_name());
+    .any(|format| source_file_name == format.into_platform_file_name(target));
   ENABLED_FORMATS.iter().any(|format| {
     path
       .with_file_name(if lookup_platform_config {
-        format.into_platform_file_name()
+        format.into_platform_file_name(target)
       } else {
         format.into_file_name()
       })
@@ -234,31 +234,37 @@ pub fn does_supported_file_name_exist(path: impl Into<PathBuf>) -> bool {
 ///   a. Parse it with `toml`
 ///   b. Return error if all above steps failed
 /// 4. Return error if all above steps failed
-pub fn parse(path: impl Into<PathBuf>) -> Result<(Config, PathBuf), ConfigError> {
-  do_parse(path.into())
+pub fn parse(target: Target, path: impl Into<PathBuf>) -> Result<(Config, PathBuf), ConfigError> {
+  do_parse(target, path.into())
 }
 
 /// See [`parse`] for specifics, returns a JSON [`Value`] instead of [`Config`].
-pub fn parse_value(path: impl Into<PathBuf>) -> Result<(Value, PathBuf), ConfigError> {
-  do_parse(path.into())
+pub fn parse_value(
+  target: Target,
+  path: impl Into<PathBuf>,
+) -> Result<(Value, PathBuf), ConfigError> {
+  do_parse(target, path.into())
 }
 
-fn do_parse<D: DeserializeOwned>(path: PathBuf) -> Result<(D, PathBuf), ConfigError> {
+fn do_parse<D: DeserializeOwned>(
+  target: Target,
+  path: PathBuf,
+) -> Result<(D, PathBuf), ConfigError> {
   let file_name = path
     .file_name()
     .map(OsStr::to_string_lossy)
     .unwrap_or_default();
   let lookup_platform_config = ENABLED_FORMATS
     .iter()
-    .any(|format| file_name == format.into_platform_file_name());
+    .any(|format| file_name == format.into_platform_file_name(target));
 
   let json5 = path.with_file_name(if lookup_platform_config {
-    ConfigFormat::Json5.into_platform_file_name()
+    ConfigFormat::Json5.into_platform_file_name(target)
   } else {
     ConfigFormat::Json5.into_file_name()
   });
   let toml = path.with_file_name(if lookup_platform_config {
-    ConfigFormat::Toml.into_platform_file_name()
+    ConfigFormat::Toml.into_platform_file_name(target)
   } else {
     ConfigFormat::Toml.into_file_name()
   });

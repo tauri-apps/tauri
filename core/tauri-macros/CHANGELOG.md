@@ -1,5 +1,76 @@
 # Changelog
 
+## \[2.0.0-alpha.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.7`
+- Upgraded to `tauri-codegen@2.0.0-alpha.7`
+
+### Breaking Changes
+
+- [`fbeb5b91`](https://www.github.com/tauri-apps/tauri/commit/fbeb5b9185baeda19e865228179e3e44c165f1d9)([#7170](https://www.github.com/tauri-apps/tauri/pull/7170)) Moved `tauri::api::ipc` to `tauri::ipc` and refactored all types.
+
+## \[2.0.0-alpha.6]
+
+### Dependencies
+
+- Updated to latest `tauri-utils`
+
+## \[2.0.0-alpha.5]
+
+- [`7a4b1fb9`](https://www.github.com/tauri-apps/tauri/commit/7a4b1fb96da475053c61960f362bbecf18cd00d4)([#6839](https://www.github.com/tauri-apps/tauri/pull/6839)) Added support to attibutes for each command path in the `generate_handler` macro.
+- [`96639ca2`](https://www.github.com/tauri-apps/tauri/commit/96639ca239c9e4f75142fc07868ac46822111cff)([#6749](https://www.github.com/tauri-apps/tauri/pull/6749)) Moved the `shell` functionality to its own plugin in the plugins-workspace repository.
+- [`3188f376`](https://www.github.com/tauri-apps/tauri/commit/3188f3764978c6d1452ee31d5a91469691e95094)([#6883](https://www.github.com/tauri-apps/tauri/pull/6883)) Bump the MSRV to 1.65.
+- [`9a79dc08`](https://www.github.com/tauri-apps/tauri/commit/9a79dc085870e0c1a5df13481ff271b8c6cc3b78)([#6947](https://www.github.com/tauri-apps/tauri/pull/6947)) Removed the module command macros.
+
+## \[2.0.0-alpha.4]
+
+- Added `android` configuration object under `tauri > bundle`.
+  - Bumped due to a bump in tauri-utils.
+  - [db4c9dc6](https://www.github.com/tauri-apps/tauri/commit/db4c9dc655e07ee2184fe04571f500f7910890cd) feat(core): add option to configure Android's minimum SDK version ([#6651](https://www.github.com/tauri-apps/tauri/pull/6651)) on 2023-04-07
+
+## \[2.0.0-alpha.3]
+
+- Pull changes from Tauri 1.3 release.
+  - [](https://www.github.com/tauri-apps/tauri/commit/undefined)  on undefined
+
+## \[2.0.0-alpha.2]
+
+- Resolve Android package name from single word bundle identifiers.
+  - [60a8b07d](https://www.github.com/tauri-apps/tauri/commit/60a8b07dc7c56c9c45331cb57d9afb410e7eadf3) fix: handle single word bundle identifier when resolving Android domain ([#6313](https://www.github.com/tauri-apps/tauri/pull/6313)) on 2023-02-19
+- Return `bool` in the invoke handler.
+  - [05dad087](https://www.github.com/tauri-apps/tauri/commit/05dad0876842e2a7334431247d49365cee835d3e) feat: initial work for iOS plugins ([#6205](https://www.github.com/tauri-apps/tauri/pull/6205)) on 2023-02-11
+- Refactored the implementation of the `mobile_entry_point` macro.
+  - [9feab904](https://www.github.com/tauri-apps/tauri/commit/9feab904bf08b5c168d4779c21d0419409a68d30) feat(core): add API to call Android plugin ([#6239](https://www.github.com/tauri-apps/tauri/pull/6239)) on 2023-02-10
+
+## \[2.0.0-alpha.1]
+
+- Refactor mobile environment variables.
+  - [dee9460f](https://www.github.com/tauri-apps/tauri/commit/dee9460f9c9bc92e9c638e7691e616849ac2085b) feat: keep CLI alive when iOS app exits, show logs, closes [#5855](https://www.github.com/tauri-apps/tauri/pull/5855) ([#5902](https://www.github.com/tauri-apps/tauri/pull/5902)) on 2022-12-27
+- Bump the MSRV to 1.64.
+  - [7eb9aa75](https://www.github.com/tauri-apps/tauri/commit/7eb9aa75cfd6a3176d3f566fdda02d88aa529b0f) Update gtk to 0.16 ([#6155](https://www.github.com/tauri-apps/tauri/pull/6155)) on 2023-01-30
+- Removed mobile logging initialization, which will be handled by `tauri-plugin-log`.
+  - [](https://www.github.com/tauri-apps/tauri/commit/undefined)  on undefined
+
+## \[2.0.0-alpha.0]
+
+- Added the `mobile_entry_point` macro.
+  - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
+- First mobile alpha release!
+  - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.4.0]
+
+### Enhancements
+
+- [`d68a25e3`](https://www.github.com/tauri-apps/tauri/commit/d68a25e32e012e57a9e5225b589b9ecbea70a887)([#6124](https://www.github.com/tauri-apps/tauri/pull/6124)) Improve compiler error message when generating an async command that has a reference input and don't return a Result.
+
+## \[1.3.0]
+
+- Bump minimum supported Rust version to 1.60.
+  - [5fdc616d](https://www.github.com/tauri-apps/tauri/commit/5fdc616df9bea633810dcb814ac615911d77222c) feat: Use the zbus-backed of notify-rust ([#6332](https://www.github.com/tauri-apps/tauri/pull/6332)) on 2023-03-31
+
 ## \[1.2.1]
 
 - Fix `allowlist > app > show/hide` always disabled when `allowlist > app > all: false`.

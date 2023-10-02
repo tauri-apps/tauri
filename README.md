@@ -2,7 +2,7 @@
 
 [![status](https://img.shields.io/badge/status-stable-blue.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)
-[![test library](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library)](https://github.com/tauri-apps/tauri/actions?query=workflow%3A%22test+library%22)
+[![test core](https://img.shields.io/github/actions/workflow/status/tauri-apps/tauri/test-core.yml?label=test%20core&logo=github)](https://github.com/tauri-apps/tauri/actions/workflows/test-core.yml)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri?ref=badge_shield)
 [![Chat Server](https://img.shields.io/badge/chat-discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![website](https://img.shields.io/badge/website-tauri.app-purple.svg)](https://tauri.app)
@@ -25,12 +25,12 @@
 
 ### Tooling
 
-| Component                                                                   | Description                              | Version                                                                                                | Lin | Win | Mac |
-| --------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ | --- | --- | --- |
-| [**bundler**](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) | manufacture the final binaries           | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)       | ✅  | ✅  | ✅  |
-| [**api.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/api)      | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api) | ✅  | ✅  | ✅  |
-| [**cli.rs**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli)      | create, develop and build apps           | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)               | ✅  | ✅  | ✅  |
-| [**cli.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node) | Node.js CLI wrapper for cli.rs           | [![](https://img.shields.io/npm/v/@tauri-apps/cli.svg)](https://www.npmjs.com/package/@tauri-apps/cli) | ✅  | ✅  | ✅  |
+| Component                                                                            | Description                              | Version                                                                                                | Lin | Win | Mac |
+| ------------------------------------------------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ | --- | --- | --- |
+| [**bundler**](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler)          | manufacture the final binaries           | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)       | ✅  | ✅  | ✅  |
+| [**tauri-cli**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli)            | create, develop and build apps           | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)               | ✅  | ✅  | ✅  |
+| [**@tauri-apps/cli**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node) | Node.js CLI wrapper for `tauri-cli`      | [![](https://img.shields.io/npm/v/@tauri-apps/cli.svg)](https://www.npmjs.com/package/@tauri-apps/cli) | ✅  | ✅  | ✅  |
+| [**@tauri-apps/api**](https://github.com/tauri-apps/tauri/tree/dev/tooling/api)      | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api) | ✅  | ✅  | ✅  |
 
 ### Utilities and Plugins
 
@@ -70,11 +70,13 @@ For **developing** Tauri apps refer to the [Getting Started guide on tauri.app](
 For **running** Tauri apps we support the below configurations (these are automatically added as dependencies for .deb and are bundled for AppImage so that your users don't need to manually install them):
 
 - Debian (Ubuntu 18.04 and above or equivalent) with the following packages installed:
-  - `libwebkit2gtk-4.0-37`, `libgtk-3-0`, `libayatana-appindicator3-1`<sup>1</sup>
+  - `libwebkit2gtk-4.1-0`, `libgtk-3-0`, `libayatana-appindicator3-1`<sup>1</sup>
 - Arch with the following packages installed:
   - `webkit2gtk`, `gtk3`, `libayatana-appindicator`<sup>1</sup>
 - Fedora (latest 2 versions) with the following packages installed:
   - `webkit2gtk3`, `gtk3`, `libappindicator-gtk3`<sup>1</sup>
+- Void with the following packages installed:
+  - `webkit2gtk`, `gtk+3`, `libappindicator`<sup>1</sup>
 
 <sup>1</sup> `appindicator` is only required if system trays are used
 

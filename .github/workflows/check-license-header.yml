@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: Check generated files
+name: check license headers
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v2
         id: filter
         with:
@@ -25,4 +25,4 @@ jobs:
               - added: '**'
       - name: check header license on new files
         if: ${{ steps.filter.outputs.added == 'true' }}
-        run: node check-license-header.js ${{ steps.filter.outputs.added_files }}
+        run: node ./.scripts/ci/check-license-header.js ${{ steps.filter.outputs.added_files }}

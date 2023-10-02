@@ -2,6 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
+//! - Embed, hash, and compress assets, including icons for the app as well as the tray icon.
+//! - Parse `tauri.conf.json` at compile time and generate the Config struct.
+
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
+
 pub use self::context::{context_codegen, ContextData};
 use std::{
   borrow::Cow,
@@ -57,7 +67,10 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
   // it is impossible for the content of two separate configs to get mixed up. The chances are
   // already unlikely unless the developer goes out of their way to run the cli on a different
   // project than the target crate.
-  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(parent.clone())?)?;
+  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
+    tauri_utils::platform::Target::current(),
+    parent.clone(),
+  )?)?;
   if let Ok(env) = std::env::var("TAURI_CONFIG") {
     let merge_config: serde_json::Value =
       serde_json::from_str(&env).map_err(CodegenConfigError::FormatInline)?;

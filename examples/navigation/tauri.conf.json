@@ -1,5 +1,5 @@
 {
-  "$schema": "../../core/config-schema/schema.json",
+  "$schema": "../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": "public",
     "devPath": "public",
@@ -37,11 +37,6 @@
         "exceptionDomain": ""
       }
     },
-    "allowlist": {
-      "window": {
-        "create": true
-      }
-    },
     "windows": [
       {
         "title": "Welcome to Tauri!",
@@ -52,10 +47,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'"
-    },
-    "updater": {
-      "active": false
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost"
     }
   }
 }

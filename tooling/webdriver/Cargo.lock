@@ -372,6 +372,7 @@ version = "0.1.2"
 dependencies = [
  "anyhow",
  "futures",
+ "futures-util",
  "hyper",
  "pico-args",
  "serde",

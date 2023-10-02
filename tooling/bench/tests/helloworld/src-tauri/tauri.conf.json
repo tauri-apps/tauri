@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../core/config-schema/schema.json",
+  "$schema": "../../../../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": "../public",
     "devPath": "../public",
@@ -33,9 +33,6 @@
         "exceptionDomain": ""
       }
     },
-    "allowlist": {
-      "all": false
-    },
     "windows": [
       {
         "title": "Welcome to Tauri!",
@@ -46,10 +43,7 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
-    },
-    "updater": {
-      "active": false
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'; connect-src ipc: http://ipc.localhost"
     }
   }
 }

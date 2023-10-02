@@ -31,7 +31,7 @@ pub fn items() -> Vec<SectionItem> {
             .unwrap_or_else(|| {
               (
                 format!(
-                  "rustc: {}\nmaybe you don't have rust installed! Visist {}",
+                  "rustc: {}\nMaybe you don't have rust installed! Visit {}",
                   "not installed!".red(),
                   "https://rustup.rs/".cyan()
                 ),
@@ -65,7 +65,7 @@ pub fn items() -> Vec<SectionItem> {
             .unwrap_or_else(|| {
               (
                 format!(
-                  "Cargo: {}\nmaybe you don't have rust installed! Visit {}",
+                  "Cargo: {}\nMaybe you don't have rust installed! Visit {}",
                   "not installed!".red(),
                   "https://rustup.rs/".cyan()
                 ),
@@ -131,7 +131,7 @@ pub fn items() -> Vec<SectionItem> {
             .unwrap_or_else(|| {
               (
                 format!(
-                  "Rust toolchain: couldn't be deteceted!\nmaybe you don't have rustup installed? if so, Visit {}", "https://rustup.rs/".cyan()
+                  "Rust toolchain: couldn't be detected!\nMaybe you don't have rustup installed? if so, Visit {}", "https://rustup.rs/".cyan()
                 ),
                 Status::Warning,
               )

@@ -1,5 +1,6 @@
 {
   "extends": ["config:base"],
+  "baseBranches": ["dev", "1.x"],
   "schedule": "after 3am on Wednesday",
   "ignorePaths": [],
   "labels": ["type: chore"],

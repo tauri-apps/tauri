@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fmt, path::PathBuf};
+use std::fmt;
 
 /// A generic boxed error.
 #[derive(Debug)]
@@ -34,57 +34,27 @@ pub enum Error {
   /// Runtime error.
   #[error("runtime error: {0}")]
   Runtime(#[from] tauri_runtime::Error),
-  /// Failed to create window.
-  #[error("failed to create window")]
-  CreateWindow,
   /// Window label must be unique.
   #[error("a window with label `{0}` already exists")]
   WindowLabelAlreadyExists(String),
-  /// Can't access webview dispatcher because the webview was closed or not found.
-  #[error("webview not found: invalid label or it was closed")]
-  WebviewNotFound,
-  /// Failed to send message to webview.
-  #[error("failed to send message to the webview")]
-  FailedToSendMessage,
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
-  Json(serde_json::Error),
-  /// Unknown API type.
-  #[error("unknown API: {0:?}")]
-  UnknownApi(Option<serde_json::Error>),
-  /// Failed to execute tauri API.
-  #[error("failed to execute API: {0}")]
-  FailedToExecuteApi(#[from] crate::api::Error),
+  Json(#[from] serde_json::Error),
   /// IO error.
   #[error("{0}")]
   Io(#[from] std::io::Error),
-  /// Failed to decode base64.
-  #[cfg(feature = "updater")]
-  #[error("Failed to decode base64 string: {0}")]
-  Base64Decode(#[from] base64::DecodeError),
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
   InvalidIcon(std::io::Error),
-  /// Client with specified ID not found.
-  #[error("http client dropped or not initialized")]
-  HttpClientNotInitialized,
-  /// API not whitelisted on tauri.conf.json
-  #[error("'{0}' not in the allowlist (https://tauri.app/docs/api/config#tauri.allowlist)")]
-  ApiNotAllowlisted(String),
   /// Invalid args when running a command.
   #[error("invalid args `{1}` for command `{0}`: {2}")]
   InvalidArgs(&'static str, &'static str, serde_json::Error),
   /// Encountered an error in the setup hook,
   #[error("error encountered during setup hook: {0}")]
   Setup(SetupError),
-  /// Tauri updater error.
-  #[cfg(updater)]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-  #[error("Updater: {0}")]
-  TauriUpdater(#[from] crate::updater::Error),
   /// Error initializing plugin.
   #[error("failed to initialize plugin `{0}`: {1}")]
   PluginInitialization(String, String),
@@ -95,25 +65,6 @@ pub enum Error {
   /// Task join error.
   #[error(transparent)]
   JoinError(#[from] tokio::task::JoinError),
-  /// Path not allowed by the scope.
-  #[error("path not allowed on the configured scope: {0}")]
-  PathNotAllowed(PathBuf),
-  /// The user did not allow sending notifications.
-  #[error("sending notification was not allowed by the user")]
-  NotificationNotAllowed,
-  /// URL not allowed by the scope.
-  #[error("url not allowed on the configured scope: {0}")]
-  UrlNotAllowed(url::Url),
-  /// Sidecar not allowed by the configuration.
-  #[error("sidecar not configured under `tauri.conf.json > tauri > bundle > externalBin`: {0}")]
-  SidecarNotAllowed(PathBuf),
-  /// Sidecar was not found by the configuration.
-  #[cfg(shell_scope)]
-  #[error("sidecar configuration found, but unable to create a path to it: {0}")]
-  SidecarNotFound(#[from] Box<crate::ShellScopeError>),
-  /// Program not allowed by the scope.
-  #[error("program not allowed on the configured shell scope: {0}")]
-  ProgramNotAllowed(PathBuf),
   /// An error happened inside the isolation pattern.
   #[cfg(feature = "isolation")]
   #[error("isolation pattern error: {0}")]
@@ -131,25 +82,29 @@ pub enum Error {
   /// The Window's raw handle is invalid for the platform.
   #[error("Unexpected `raw_window_handle` for the current platform")]
   InvalidWindowHandle,
-}
-
-pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {
-  anyhow::anyhow!(err.to_string())
-}
-
-impl Error {
-  #[allow(dead_code)]
-  pub(crate) fn into_anyhow(self) -> anyhow::Error {
-    anyhow::anyhow!(self.to_string())
-  }
-}
-
-impl From<serde_json::Error> for Error {
-  fn from(error: serde_json::Error) -> Self {
-    if error.to_string().contains("unknown variant") {
-      Self::UnknownApi(Some(error))
-    } else {
-      Self::Json(error)
-    }
-  }
+  /// JNI error.
+  #[cfg(target_os = "android")]
+  #[error("jni error: {0}")]
+  Jni(#[from] jni::errors::Error),
+  /// Failed to receive message .
+  #[error("failed to receive message")]
+  FailedToReceiveMessage,
+  /// Menu error.
+  #[error("menu error: {0}")]
+  #[cfg(desktop)]
+  Menu(#[from] muda::Error),
+  /// Bad menu icon error.
+  #[error(transparent)]
+  #[cfg(desktop)]
+  BadMenuIcon(#[from] muda::BadIcon),
+  /// Tray icon error.
+  #[error("tray icon error: {0}")]
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  Tray(#[from] tray_icon::Error),
+  /// Bad tray icon error.
+  #[error(transparent)]
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  BadTrayIcon(#[from] tray_icon::BadIcon),
 }

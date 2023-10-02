@@ -6,7 +6,9 @@ use clap::{Parser, Subcommand};
 
 use crate::Result;
 
+mod android;
 mod init;
+mod ios;
 
 #[derive(Parser)]
 #[clap(
@@ -24,11 +26,15 @@ pub struct Cli {
 #[derive(Subcommand)]
 enum Commands {
   Init(init::Options),
+  Android(android::Cli),
+  Ios(ios::Cli),
 }
 
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => init::command(options)?,
+    Commands::Android(cli) => android::command(cli)?,
+    Commands::Ios(cli) => ios::command(cli)?,
   }
 
   Ok(())

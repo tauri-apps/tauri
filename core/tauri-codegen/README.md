@@ -6,7 +6,7 @@
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
 
-![](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library)
+[![test core](https://img.shields.io/github/actions/workflow/status/tauri-apps/tauri/test-core.yml?label=test%20core&logo=github)](https://github.com/tauri-apps/tauri/actions/workflows/test-core.yml)
 [![devto](https://img.shields.io/badge/documentation-site-purple.svg)](https://tauri.app)
 
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
@@ -24,7 +24,7 @@ Tauri apps can have custom menus and have tray-type interfaces. They can be upda
 
 ## This module
 
-- Embed, hash, and compress assets, including icons for the app as well as the system-tray.
+- Embed, hash, and compress assets, including icons for the app as well as the tray icon.
 - Parse `tauri.conf.json` at compile time and generate the Config struct.
 
 To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.

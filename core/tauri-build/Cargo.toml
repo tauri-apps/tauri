@@ -1,16 +1,16 @@
 [package]
 name = "tauri-build"
-version = "1.2.1"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
-categories = [ "gui", "web-programming" ]
-license = "Apache-2.0 OR MIT"
-homepage = "https://tauri.app"
-repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build"
+version = "2.0.0-alpha.8"
 description = "build time code to pair with https://crates.io/crates/tauri"
-edition = "2021"
-rust-version = "1.60"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
+authors = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+categories = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -19,17 +19,20 @@ rustdoc-args = [ "--cfg", "doc_cfg" ]
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "1.2.1", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "1.2.1", path = "../tauri-utils", features = [ "build", "resources" ] }
-cargo_toml = "0.14"
+tauri-codegen = { version = "2.0.0-alpha.7", path = "../tauri-codegen", optional = true }
+tauri-utils = { version = "2.0.0-alpha.7", path = "../tauri-utils", features = [ "build", "resources" ] }
+cargo_toml = "0.15"
 serde = "1"
 serde_json = "1"
 heck = "0.4"
-json-patch = "0.3"
-
-# dependencies for Windows targets
+json-patch = "1.0"
+walkdir = "2"
 tauri-winres = "0.1"
 semver = "1"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+swift-rs = { version = "1.0.6", features = [ "build" ] }
+plist = "1"
 
 [features]
 codegen = [ "tauri-codegen", "quote" ]

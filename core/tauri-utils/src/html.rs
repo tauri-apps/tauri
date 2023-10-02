@@ -302,7 +302,7 @@ mod tests {
       assert_eq!(
         document.to_string(),
         format!(
-          r#"<html><head><meta content="{}" http-equiv="Content-Security-Policy"></head><body></body></html>"#,
+          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{}"></head><body></body></html>"#,
           super::CSP_TOKEN
         )
       );

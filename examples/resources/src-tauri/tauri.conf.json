@@ -1,8 +1,12 @@
 {
-  "$schema": "../../../core/config-schema/schema.json",
+  "$schema": "../../../core/tauri-config-schema/schema.json",
   "build": {
-    "distDir": ["../index.html"],
-    "devPath": ["../index.html"],
+    "distDir": [
+      "../index.html"
+    ],
+    "devPath": [
+      "../index.html"
+    ],
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
     "withGlobalTauri": true
@@ -23,7 +27,9 @@
         "../../.icons/icon.icns",
         "../../.icons/icon.ico"
       ],
-      "resources": ["assets/*"],
+      "resources": [
+        "assets/*"
+      ],
       "externalBin": [],
       "copyright": "",
       "category": "DeveloperTool",
@@ -37,12 +43,6 @@
         "exceptionDomain": ""
       }
     },
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "execute": true
-      }
-    },
     "windows": [
       {
         "title": "Welcome to Tauri!",
@@ -53,10 +53,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'"
-    },
-    "updater": {
-      "active": false
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost"
     }
   }
 }

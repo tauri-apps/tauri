@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - dev
-      - next
+      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-core.yml'
@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-tauri-core:
+  test:
     runs-on: ${{ matrix.platform.os }}
 
     strategy:
@@ -34,17 +34,37 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.61.0'
+              toolchain: '1.65.0',
+              cross: false,
+              command: 'test'
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.60.0'
+              toolchain: '1.65.0',
+              cross: false,
+              command: 'test'
             }
           - {
               target: x86_64-apple-darwin,
               os: macos-latest,
-              toolchain: '1.60.0'
+              toolchain: '1.65.0',
+              cross: false,
+              command: 'test'
+            }
+          - {
+              target: aarch64-apple-ios,
+              os: macos-latest,
+              toolchain: '1.65.0',
+              cross: false,
+              command: 'build'
+            }
+          - {
+              target: aarch64-linux-android,
+              os: ubuntu-latest,
+              toolchain: '1.65.0',
+              cross: true,
+              command: 'build'
             }
         features:
           - {
@@ -52,16 +72,12 @@ jobs:
               key: no-default
             }
           - {
-              args: --features api-all,
-              key: api-all
-            }
-          - {
-              args: --features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,
+              args: --features compression,wry,linux-ipc-protocol,isolation,custom-protocol,tray-icon,test,
               key: all
             }
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install stable
         uses: actions-rs/toolchain@v1
@@ -75,12 +91,24 @@ jobs:
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core -> ../target
           save-if: ${{ matrix.features.key == 'all' }}
 
+      - name: Downgrade crates with MSRV conflict
+        # The --precise flag can only be used once per invocation.
+        run: |
+          cargo update -p time --precise 0.3.23
+          cargo update -p toml@0.7.8 --precise 0.7.6
+          cargo update -p toml_edit@0.19.15 --precise 0.19.14
+          cargo update -p cfg-expr@0.15.5 --precise 0.15.4
+
       - name: test
-        run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.platform.cross }}
+          command: ${{ matrix.platform.command }}
+          args: --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

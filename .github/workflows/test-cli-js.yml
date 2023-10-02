@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: test cli.js
+name: test `@tauri-apps/cli`
 
 on:
   push:
     branches:
       - dev
-      - next
+      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-cli-js.yml'
-      # currently cli.js only tests the template
+      # currently` @tauri-apps/cli` only tests the template
       - 'tooling/cli/templates/app/**'
 
 env:
@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-tauri-js-cli:
+  test:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -33,7 +33,7 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install Rust stable
         uses: actions-rs/toolchain@v1
@@ -51,7 +51,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - uses: Swatinem/rust-cache@v2
         with:

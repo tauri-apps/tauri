@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: publish cli.rs
+name: publish `tauri-cli`
 env:
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 on:
@@ -18,28 +18,35 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             rust_target: x86_64-unknown-linux-gnu
             ext: ''
+            args: ''
           - os: macos-latest
             rust_target: x86_64-apple-darwin
             ext: ''
+            args: ''
           - os: macos-latest
             rust_target: aarch64-apple-darwin
             ext: ''
+            args: ''
           - os: windows-latest
             rust_target: x86_64-pc-windows-msvc
             ext: '.exe'
+            args: ''
+          - os: windows-latest
+            rust_target: aarch64-pc-windows-msvc
+            ext: '.exe'
+            args: '--no-default-features --features native-tls-vendored'
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: 'Setup Rust'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
-          
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.config.rust_target }}
@@ -54,13 +61,13 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml --release
+          args: --manifest-path ./tooling/cli/Cargo.toml --profile release-size-optimized ${{ matrix.config.args }}
 
       - name: Upload CLI
         uses: actions/upload-artifact@v3
         with:
           name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}
-          path: tooling/cli/target/release/cargo-tauri${{ matrix.config.ext }}
+          path: tooling/cli/target/release-size-optimized/cargo-tauri${{ matrix.config.ext }}
           if-no-files-found: error
 
   upload:
@@ -80,12 +87,12 @@ jobs:
         run: ./.scripts/ci/pack-cli.sh
 
       - name: Get CLI version
-        run: echo "CLI_VERSION=$(cat tooling/cli/metadata.json | jq '."cli.js".version' -r)" >> $GITHUB_ENV
+        run: echo "CLI_VERSION=$(cat tooling/cli/metadata-v2.json | jq '."cli.js".version' -r)" >> $GITHUB_ENV
 
       - name: Publish release
         uses: softprops/action-gh-release@50195ba7f6f93d1ac97ba8332a178e008ad176aa
         with:
-          tag_name: cli.rs-v${{ env.CLI_VERSION }}
+          tag_name: tauri-cli-v${{ env.CLI_VERSION }}
           files: |
             outputs/cargo-tauri-*.zip
             outputs/cargo-tauri-*.tgz

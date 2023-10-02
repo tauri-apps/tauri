@@ -39,16 +39,16 @@ This is common code that is reused in many places and offers useful utilities li
 
 
 ### Tauri Tooling
-#### [api](https://github.com/tauri-apps/tauri/tree/dev/tooling/api) [TS -> JS]
+#### [@tauri-apps/api](https://github.com/tauri-apps/tauri/tree/dev/tooling/api) [TS -> JS]
 A TypeScript library that creates `cjs` and `esm` JavaScript endpoints for you to import into your Frontend framework so that the Webview can call and listen to backend activity. We also ship the pure TypeScript, because for some frameworks this is more optimal. It uses the message passing of webviews to their hosts.
 
 #### [bundler](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) [RUST / SHELL]
 The bundler is a library that builds a Tauri App for the platform triple it detects / is told. At the moment it currently supports macOS, Windows and Linux - but in the near future will support mobile platforms as well. May be used outside of Tauri projects.
 
-#### [cli.js](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node) [JS]
-It is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli) using [napi-rs](https://github.com/napi-rs/napi-rs) to produce NPM packages for each platform.
+#### [@tauri-apps/cli](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node) [JS]
+It is a wrapper around [tauri-cli](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli) using [napi-rs](https://github.com/napi-rs/napi-rs) to produce NPM packages for each platform.
 
-#### [cli.rs](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli) [RUST]
+#### [tauri-cli](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli) [RUST]
 This rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
 
 #### [create-tauri-app](https://github.com/tauri-apps/create-tauri-app) [JS]
@@ -66,9 +66,6 @@ WRY is a cross-platform WebView rendering library in Rust that supports all majo
 Tauri uses WRY as the abstract layer responsible to determine which webview is used (and how interactions are made).
 
 # Additional tooling
-
-## [binary-releases](https://github.com/tauri-apps/binary-releases)
-This is the delivery mechanism for tauri prebuilt binaries: currently the cli.rs (used by cli.js) and rustup binaries (used by the deps install command of cli.js). These artifacts are automatically created on release.
 
 ## [tauri-action](https://github.com/tauri-apps/tauri-action)
 This is a github workflow that builds tauri binaries for all platforms. It is not the fastest out there, but it gets the job done and is highly configurable. Even allowing you to create a (very basic) tauri app even if tauri is not setup.
@@ -119,7 +116,7 @@ This will do several things:
 1. start the JS Framework devserver
 2. begin the long process of downloading and compiling the rust libraries
 3. open an application window with devtools enabled
-4. keep a long-lived console alive 
+4. keep a long-lived console alive
 
 If you change your HTML/CSS/TS/JS, your framework devserver should give you its best shot at instant hot module reloading and you will see the changes instantly.
 
@@ -149,7 +146,7 @@ After some time, the process will end and you can see the results in the `./src-
 End users will be provided with binaries in ways that are appropriate for their systems. Whether macOS, Linux, or Windows, direct download or store installations - they will be able to follow procedures for installing and removing that they are used to.
 
 ## What does the Updating flow look like?
-When a new version is ready, the developer publishes the new signed artifacts to a server (that they have configured within `tauri.conf.json`). 
+When a new version is ready, the developer publishes the new signed artifacts to a server (that they have configured within `tauri.conf.json`).
 
 The application can poll this server to see if there is a new release. When there is a new release, the user is prompted to update. The application update is downloaded, verified (checksum & signature), updated, closed, and restarted.
 

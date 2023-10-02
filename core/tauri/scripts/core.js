@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-; (function () {
+;(function () {
   function uid() {
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
@@ -10,7 +10,7 @@
   const osName = __TEMPLATE_os_name__
 
   Object.defineProperties(window.__TAURI__.__INTERNALS__, 'convertFileSrc', {
-    value:  function (filePath, protocol = 'asset') {
+    value: function (filePath, protocol = 'asset') {
       const path = encodeURIComponent(filePath)
       return osName === 'windows' || osName === 'android'
         ? `http://${protocol}.localhost/${path}`
@@ -19,10 +19,7 @@
   })
 
   Object.defineProperties(window.__TAURI__.__INTERNALS__, 'transformCallback', {
-    value: function transformCallback(
-      callback,
-      once
-    ) {
+    value: function transformCallback(callback, once) {
       var identifier = uid()
       var prop = `_${identifier}`
 
@@ -40,7 +37,7 @@
 
       return identifier
     }
-  });
+  })
 
   const ipcQueue = []
   let isWaitingForIpc = false
@@ -58,14 +55,20 @@
   Object.defineProperties(window.__TAURI__.__INTERNALS__, 'invoke', {
     value: function (cmd, payload = {}, options) {
       return new Promise(function (resolve, reject) {
-        const callback = window.__TAURI__.__INTERNALS__.transformCallback(function (r) {
-          resolve(r)
-          delete window[`_${error}`]
-        }, true)
-        const error = window.__TAURI__.__INTERNALS__.transformCallback(function (e) {
-          reject(e)
-          delete window[`_${callback}`]
-        }, true)
+        const callback = window.__TAURI__.__INTERNALS__.transformCallback(
+          function (r) {
+            resolve(r)
+            delete window[`_${error}`]
+          },
+          true
+        )
+        const error = window.__TAURI__.__INTERNALS__.transformCallback(
+          function (e) {
+            reject(e)
+            delete window[`_${callback}`]
+          },
+          true
+        )
 
         const action = () => {
           window.window.__TAURI__.__INTERNALS__.ipc({

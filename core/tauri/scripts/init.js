@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-; (function () {
+;(function () {
   if (!window.__TAURI__) {
     Object.defineProperty(window, '__TAURI__', {
       value: {}
@@ -26,16 +26,19 @@
   __RAW_core_script__
 
   __RAW_event_initialization_script__
-
-  ; (function () {
+  ;(function () {
     __RAW_bundle_script__
   })()
 
   if (window.ipc) {
-    window.__TAURI__.__INTERNALS__.invoke('__initialized', { url: window.location.href })
+    window.__TAURI__.__INTERNALS__.invoke('__initialized', {
+      url: window.location.href
+    })
   } else {
     window.addEventListener('DOMContentLoaded', function () {
-      window.__TAURI__.__INTERNALS__.invoke('__initialized', { url: window.location.href })
+      window.__TAURI__.__INTERNALS__.invoke('__initialized', {
+        url: window.location.href
+      })
     })
   }
 

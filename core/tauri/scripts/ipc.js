@@ -6,8 +6,7 @@
  * @typedef {{callback: string, error: string, data: *}} IsolationPayload - a valid isolation payload
  */
 
-;
-(function () {
+;(function () {
   /**
    * @type {string}
    */
@@ -33,7 +32,10 @@
    * @return {boolean} - if the event was a valid isolation message
    */
   function isIsolationMessage(event) {
-    if (typeof event.data === 'object' && typeof event.data.payload === 'object') {
+    if (
+      typeof event.data === 'object' &&
+      typeof event.data.payload === 'object'
+    ) {
       const keys = Object.keys(event.data.payload || {})
       return (
         keys.length > 0 &&

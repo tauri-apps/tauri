@@ -38,6 +38,7 @@ memchr = "2"
 semver = "1"
 infer = "0.12"
 dunce = "1"
+log = "0.4.20"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"

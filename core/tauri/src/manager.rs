@@ -19,7 +19,6 @@ use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
 
-use http::Request as HttpRequest;
 use tauri_macros::default_runtime;
 use tauri_utils::debug_eprintln;
 use tauri_utils::{
@@ -236,7 +235,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   package_info: PackageInfo,
   /// The webview protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
   /// A set containing a reference to the active menus, including
   /// the app-wide menu and the window-specific menus
   ///
@@ -305,10 +304,11 @@ pub struct Asset {
 }
 
 /// Uses a custom URI scheme handler to resolve file requests
-pub struct CustomProtocol<R: Runtime> {
+pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol: Box<dyn Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
+  pub protocol:
+    Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -332,7 +332,7 @@ impl<R: Runtime> WindowManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Box<OnPageLoad<R>>,
-    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+    uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<

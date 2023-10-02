@@ -21,7 +21,7 @@ fn main() {
   match argv.nth(1).as_deref() {
     Some("restart") => {
       let mut env = Env::default();
-      env.args.clear();
+      env.args_os.clear();
       tauri::process::restart(&env)
     }
     Some(invalid) => panic!("only argument `restart` is allowed, {invalid} is invalid"),

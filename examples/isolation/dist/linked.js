@@ -1,1 +1,1 @@
-console.log("linked", window.__TAURI_PATTERN__);
+console.log("linked", window.__TAURI__.__INTERNALS__.__TAURI_PATTERN__);

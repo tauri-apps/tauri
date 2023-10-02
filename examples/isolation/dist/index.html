@@ -3,11 +3,11 @@
 <head>
   <script>
     // malicious
-    window.__TAURI_PATTERN__ = Object.freeze({pattern: "malicious"});
+    window.__TAURI__.__INTERNALS__.__TAURI_PATTERN__ = Object.freeze({pattern: "malicious"});
   </script>
   <script>
     // malicious defineProperty
-    Object.defineProperty(window, "__TAURI_PATTERN__", {value: Object.freeze({pattern: "malicious"})});
+    Object.defineProperty(window.__TAURI__.__INTERNALS__, "__TAURI_PATTERN__", {value: Object.freeze({pattern: "malicious"})});
   </script>
   <meta charset="UTF-8">
   <title>Hello Tauri!</title>
@@ -36,7 +36,7 @@
       align-items: center;
     }
   </style>
-  <script type="text/javascript">console.log("inline", window.__TAURI_PATTERN__);</script>
+  <script type="text/javascript">console.log("inline", window.__TAURI__.__INTERNALS__.__TAURI_PATTERN__);</script>
 </head>
 <body>
 <div>
@@ -55,15 +55,15 @@
     code.innerText = JSON.stringify(obj, null, 2);
   }
 
-  const cb = window.__TAURI__.transformCallback(v => updateCode('response', v));
-  const error = window.__TAURI__.transformCallback(e => updateCode('response', e));
+  const cb = window.__TAURI__.tauri.transformCallback(v => updateCode('response', v));
+  const error = window.__TAURI__.tauri.transformCallback(e => updateCode('response', e));
   window.ipc.postMessage(JSON.stringify({
     cmd: "ping",
     callback: cb,
     error,
   }));
-  
-  updateCode('__TAURI_PATTERN__', window.__TAURI_PATTERN__);
+
+  updateCode('__TAURI__.__INTERNALS__.__TAURI_PATTERN__', window.__TAURI__.__INTERNALS__.__TAURI_PATTERN__);
 </script>
 
 <!-- set up click handlers on our ping command button -->
@@ -71,7 +71,7 @@
   const ping = document.querySelector("#ping")
   const pong = document.querySelector('#pong')
   ping.addEventListener("click", () => {
-    window.__TAURI_INVOKE__("ping")
+    window.__TAURI__.tauri.invoke("ping")
       .then(() => {
         pong.innerText = `ok: ${Date.now()}`
       })

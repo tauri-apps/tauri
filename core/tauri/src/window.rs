@@ -425,7 +425,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
     self.manager.eval_script_all(format!(
-      "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+      "window.__TAURI__.__INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
       window_labels_array = serde_json::to_string(&self.manager.labels())?,
     ))?;
 

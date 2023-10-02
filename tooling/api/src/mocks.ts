@@ -2,21 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/** @ignore */
-declare global {
-  interface Window {
-    __TAURI_METADATA__: {
-      __windows: WindowDef[]
-      __currentWindow: WindowDef
-    }
-  }
-}
-
-/** @ignore */
-interface WindowDef {
-  label: string
-}
-
 interface IPCMessage {
   cmd: string
   callback: number
@@ -81,7 +66,7 @@ export function mockIPC(
   cb: (cmd: string, payload: Record<string, unknown>) => any | Promise<any>
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  window.__TAURI_IPC__ = async ({
+  window.__TAURI__.__INTERNALS__.ipc = async ({
     cmd,
     callback,
     error,
@@ -143,9 +128,9 @@ export function mockWindows(
   current: string,
   ...additionalWindows: string[]
 ): void {
-  window.__TAURI_METADATA__ = {
-    __windows: [current, ...additionalWindows].map((label) => ({ label })),
-    __currentWindow: { label: current }
+  window.__TAURI__.__INTERNALS__.metadata = {
+    windows: [current, ...additionalWindows].map((label) => ({ label })),
+    currentWindow: { label: current }
   }
 }
 
@@ -165,11 +150,11 @@ export function mockWindows(
  * test("mocked windows", () => {
  *    mockWindows("main", "second", "third");
  *
- *    expect(window).toHaveProperty("__TAURI_METADATA__")
+ *    expect(window.__TAURI__.__INTERNALS__.metadata).toHaveProperty("__TAURI__.__INTERNALS__.metadata")
  * })
  *
  * test("no mocked windows", () => {
- *    expect(window).not.toHaveProperty("__TAURI_METADATA__")
+ *    expect(window.__TAURI__.__INTERNALS__.metadata).not.toHaveProperty("__TAURI__.__INTERNALS__.metadata")
  * })
  * ```
  *
@@ -177,7 +162,7 @@ export function mockWindows(
  */
 export function clearMocks(): void {
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_IPC__
+  delete window.__TAURI__.__INTERNALS__.ipc
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_METADATA__
+  delete window.__TAURI__.__INTERNALS__.metadata
 }

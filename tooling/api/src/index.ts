@@ -14,10 +14,7 @@
  */
 
 import * as event from './event'
-import * as tauri from './tauri'
+import * as primitives from './primitives'
 import * as path from './path'
 
-/** @ignore */
-const invoke = tauri.invoke
-
-export { invoke, event, path, tauri }
+export { event, path, primitives }

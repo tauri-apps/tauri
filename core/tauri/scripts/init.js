@@ -11,7 +11,9 @@
 
   if (!window.__TAURI__.__INTERNALS__) {
     Object.defineProperty(window.__TAURI__, '__INTERNALS__', {
-      value: {}
+      value: {
+        plugins: {}
+      }
     })
   }
 

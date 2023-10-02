@@ -358,7 +358,7 @@ impl NotarytoolCmdExt for Command {
         team_id,
       } => {
         self
-          .arg("--username")
+          .arg("--apple-id")
           .arg(apple_id)
           .arg("--password")
           .arg(password);

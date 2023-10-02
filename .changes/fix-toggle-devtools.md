@@ -2,4 +2,4 @@
 "tauri": patch:bug
 ---
 
-Fixes devtools not toggling on global shortcut.
+Fix devtools not toggling on `ctrl+shift+i` or `cmd+alt+i` shortcuts.

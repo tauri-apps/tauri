@@ -802,6 +802,12 @@ impl<R: Runtime> WindowManager<R> {
       protocol_scheme: &'a str,
     }
 
+    #[derive(Template)]
+    #[default_template("../scripts/toggle-devtools.js")]
+    struct ToggleDevtoolsScript<'a> {
+      os_name: &'a str,
+    }
+
     let bundle_script = if with_global_tauri {
       include_str!("../scripts/bundle.global.js")
     } else {
@@ -815,9 +821,13 @@ impl<R: Runtime> WindowManager<R> {
     };
 
     #[cfg(any(debug_assertions, feature = "devtools"))]
-    let hotkeys = include_str!("../scripts/toggle-devtools.js");
+    let hotkeys = ToggleDevtoolsScript {
+      os_name: std::env::consts::OS,
+    }
+    .render_default(&Default::default())?
+    .into_string();
     #[cfg(not(any(debug_assertions, feature = "devtools")))]
-    let hotkeys = "";
+    let hotkeys = String::default();
 
     InitJavascript {
       pattern_script,
@@ -846,7 +856,7 @@ impl<R: Runtime> WindowManager<R> {
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,
-      hotkeys,
+      hotkeys: &hotkeys,
     }
     .render_default(&Default::default())
     .map(|s| s.into_string())

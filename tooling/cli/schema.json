@@ -440,6 +440,11 @@
           "default": true,
           "type": "boolean"
         },
+        "alwaysOnBottom": {
+          "description": "Whether the window should always be below other windows.",
+          "default": false,
+          "type": "boolean"
+        },
         "alwaysOnTop": {
           "description": "Whether the window should always be on top of other windows.",
           "default": false,

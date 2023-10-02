@@ -959,6 +959,9 @@ pub struct WindowConfig {
   /// Whether the window should have borders and bars.
   #[serde(default = "default_true")]
   pub decorations: bool,
+  /// Whether the window should always be below other windows.
+  #[serde(default, alias = "always-on-bottom")]
+  pub always_on_bottom: bool,
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
@@ -1051,6 +1054,7 @@ impl Default for WindowConfig {
       maximized: false,
       visible: true,
       decorations: true,
+      always_on_bottom: false,
       always_on_top: false,
       visible_on_all_workspaces: false,
       content_protected: false,
@@ -2238,6 +2242,7 @@ mod build {
       let maximized = self.maximized;
       let visible = self.visible;
       let decorations = self.decorations;
+      let always_on_bottom = self.always_on_bottom;
       let always_on_top = self.always_on_top;
       let visible_on_all_workspaces = self.visible_on_all_workspaces;
       let content_protected = self.content_protected;
@@ -2279,6 +2284,7 @@ mod build {
         maximized,
         visible,
         decorations,
+        always_on_bottom,
         always_on_top,
         visible_on_all_workspaces,
         content_protected,

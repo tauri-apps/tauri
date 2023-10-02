@@ -43,7 +43,7 @@ serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures-util = "0.3"
-uuid = { version = "1", features = [ "v4" ] }
+uuid = { version = "1", features = [ "v4" ], optional = true }
 url = { version = "2.4" }
 anyhow = "1.0"
 thiserror = "1.0"
@@ -135,7 +135,7 @@ wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]
 linux-ipc-protocol = [ "tauri-runtime-wry/linux-protocol-body", "webkit2gtk/v2_40" ]
 linux-libxdo = [ "tray-icon/libxdo", "muda/libxdo" ]
-isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
+isolation = [ "tauri-utils/isolation", "tauri-macros/isolation", "uuid" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 native-tls = [ "reqwest/native-tls" ]
 native-tls-vendored = [ "reqwest/native-tls-vendored" ]

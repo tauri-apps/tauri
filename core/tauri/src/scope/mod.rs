@@ -10,6 +10,9 @@ pub use self::ipc::Scope as IpcScope;
 pub use fs::{Event as FsScopeEvent, Pattern as GlobPattern, Scope as FsScope};
 use std::path::Path;
 
+/// Unique id of a scope event.
+pub type ScopeEventId = u32;
+
 /// Managed state for all the core scopes in a tauri application.
 pub struct Scopes {
   pub(crate) ipc: IpcScope,

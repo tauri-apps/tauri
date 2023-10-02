@@ -33,7 +33,7 @@ use crate::{
     AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
     UriSchemeResponder,
   },
-  event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
+  event::{assert_event_name_is_valid, Event, EventId, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
   plugin::PluginStore,
@@ -810,11 +810,11 @@ impl<R: Runtime> WindowManager<R> {
       listen_function: &format!(
         "function listen(eventName, cb) {{ {} }}",
         crate::event::listen_js(
-          self.event_listeners_object_name(),
-          "eventName".into(),
+          self.listeners().object_name(),
+          "eventName",
           0,
           None,
-          "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
+          "window['_' + window.__TAURI__.transformCallback(cb) ]"
         )
       ),
       core_script: &CoreJavascript {
@@ -848,47 +848,13 @@ impl<R: Runtime> WindowManager<R> {
         }}
       }});
     ",
-      function = self.event_emit_function_name(),
-      listeners = self.event_listeners_object_name()
+      function = self.listeners().function_name(),
+      listeners = self.listeners().object_name()
     )
   }
-}
 
-#[cfg(test)]
-mod test {
-  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
-
-  use super::WindowManager;
-
-  #[test]
-  fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Wry> = WindowManager::with_handlers(
-      context,
-      PluginStore::default(),
-      Box::new(|_| false),
-      Box::new(|_, _| ()),
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
-      Default::default(),
-      (None, "".into()),
-    );
-
-    #[cfg(custom_protocol)]
-    {
-      assert_eq!(
-        manager.get_url().to_string(),
-        if cfg!(windows) || cfg!(target_os = "android") {
-          "http://tauri.localhost/"
-        } else {
-          "tauri://localhost"
-        }
-      );
-    }
-
-    #[cfg(dev)]
-    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+  pub(crate) fn listeners(&self) -> &Listeners {
+    &self.inner.listeners
   }
 }
 
@@ -1194,13 +1160,9 @@ impl<R: Runtime> WindowManager<R> {
     &self.inner.package_info
   }
 
-  pub fn unlisten(&self, handler_id: EventHandler) {
-    self.inner.listeners.unlisten(handler_id)
-  }
-
   pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
     assert_event_name_is_valid(event);
-    self.inner.listeners.trigger(event, window, data)
+    self.listeners().trigger(event, window, data)
   }
 
   pub fn listen<F: Fn(Event) + Send + 'static>(
@@ -1208,9 +1170,9 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) -> EventId {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.listen(event, window, handler)
+    self.listeners().listen(event, window, handler)
   }
 
   pub fn once<F: FnOnce(Event) + Send + 'static>(
@@ -1218,17 +1180,13 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.once(event, window, handler)
+    self.listeners().once(event, window, handler)
   }
 
-  pub fn event_listeners_object_name(&self) -> String {
-    self.inner.listeners.listeners_object_name()
-  }
-
-  pub fn event_emit_function_name(&self) -> String {
-    self.inner.listeners.function_name()
+  pub fn unlisten(&self, id: EventId) {
+    self.listeners().unlisten(id)
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {
@@ -1349,5 +1307,43 @@ mod tests {
     )] {
       assert_eq!(replace_with_callback(src, pattern, replacement), result);
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
+
+  use super::WindowManager;
+
+  #[test]
+  fn check_get_url() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let manager: WindowManager<Wry> = WindowManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      Box::new(|_, _| ()),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      Default::default(),
+      (None, "".into()),
+    );
+
+    #[cfg(custom_protocol)]
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) || cfg!(target_os = "android") {
+          "http://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
+
+    #[cfg(dev)]
+    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
   }
 }

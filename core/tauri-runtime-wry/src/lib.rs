@@ -1374,7 +1374,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
     send_user_message(
       &self.context,
-      Message::Window(self.window_id, WindowMessage::SetAlwaysOnBottom(always_on_bottom)),
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetAlwaysOnBottom(always_on_bottom),
+      ),
     )
   }
 
@@ -2243,7 +2246,9 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(target_os = "macos")]
             window.set_has_shadow(_enable);
           }
-          WindowMessage::SetAlwaysOnBottom(always_on_bottom) => window.set_always_on_bottom(always_on_bottom),
+          WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
+            window.set_always_on_bottom(always_on_bottom)
+          }
           WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
           WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => {
             window.set_visible_on_all_workspaces(visible_on_all_workspaces)

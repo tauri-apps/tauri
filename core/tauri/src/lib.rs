@@ -821,7 +821,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Gets the scope for the IPC.
-  fn ipc_scope(&self) -> IpcScope {
+  fn ipc_scope(&self) -> scope::ipc::Scope {
     self.state::<Scopes>().inner().ipc.clone()
   }
 

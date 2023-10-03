@@ -109,7 +109,7 @@ impl From<tray_icon::TrayIconEvent> for TrayIconEvent {
 #[derive(Default)]
 pub struct TrayIconBuilder<R: Runtime> {
   on_menu_event: Option<GlobalMenuEventListener<AppHandle<R>>>,
-  on_tray_event: Option<GlobalTrayIconEventListener<TrayIcon<R>>>,
+  on_tray_icon_event: Option<GlobalTrayIconEventListener<TrayIcon<R>>>,
   inner: tray_icon::TrayIconBuilder,
 }
 
@@ -124,7 +124,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
     Self {
       inner: tray_icon::TrayIconBuilder::new(),
       on_menu_event: None,
-      on_tray_event: None,
+      on_tray_icon_event: None,
     }
   }
 
@@ -223,11 +223,11 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 
   /// Set a handler for this tray icon events.
-  pub fn on_tray_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(
+  pub fn on_tray_icon_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {
-    self.on_tray_event.replace(Box::new(f));
+    self.on_tray_icon_event.replace(Box::new(f));
     self
   }
 
@@ -247,7 +247,11 @@ impl<R: Runtime> TrayIconBuilder<R> {
       app_handle: manager.app_handle().clone(),
     };
 
-    icon.register(&icon.app_handle, self.on_menu_event, self.on_tray_event);
+    icon.register(
+      &icon.app_handle,
+      self.on_menu_event,
+      self.on_tray_icon_event,
+    );
 
     Ok(icon)
   }
@@ -285,7 +289,7 @@ impl<R: Runtime> TrayIcon<R> {
     &self,
     app_handle: &AppHandle<R>,
     on_menu_event: Option<GlobalMenuEventListener<AppHandle<R>>>,
-    on_tray_event: Option<GlobalTrayIconEventListener<TrayIcon<R>>>,
+    on_tray_icon_event: Option<GlobalTrayIconEventListener<TrayIcon<R>>>,
   ) {
     if let Some(handler) = on_menu_event {
       app_handle
@@ -297,7 +301,7 @@ impl<R: Runtime> TrayIcon<R> {
         .push(handler);
     }
 
-    if let Some(handler) = on_tray_event {
+    if let Some(handler) = on_tray_icon_event {
       app_handle
         .manager
         .inner
@@ -337,7 +341,10 @@ impl<R: Runtime> TrayIcon<R> {
   }
 
   /// Register a handler for this tray icon events.
-  pub fn on_tray_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(&self, f: F) {
+  pub fn on_tray_icon_event<F: Fn(&TrayIcon<R>, TrayIconEvent) + Sync + Send + 'static>(
+    &self,
+    f: F,
+  ) {
     self
       .app_handle
       .manager

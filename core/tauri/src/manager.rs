@@ -565,6 +565,23 @@ impl<R: Runtime> WindowManager<R> {
       window_labels.push(l);
     }
     webview_attributes = webview_attributes
+      .initialization_script(
+        r#"
+        if (!window.__TAURI__) {
+          Object.defineProperty(window, '__TAURI__', {
+            value: {}
+          })
+        }
+
+        if (!window.__TAURI__.__INTERNALS__) {
+          Object.defineProperty(window.__TAURI__, '__INTERNALS__', {
+            value: {
+              plugins: {}
+            }
+          })
+        }
+      "#,
+      )
       .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(
         r#"

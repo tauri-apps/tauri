@@ -3,20 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 ;(function () {
-  if (!window.__TAURI__) {
-    Object.defineProperty(window, '__TAURI__', {
-      value: {}
-    })
-  }
-
-  if (!window.__TAURI__.__INTERNALS__) {
-    Object.defineProperty(window.__TAURI__, '__INTERNALS__', {
-      value: {
-        plugins: {}
-      }
-    })
-  }
-
   __RAW_freeze_prototype__
 
   __RAW_pattern_script__

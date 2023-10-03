@@ -9,7 +9,7 @@
 
   const osName = __TEMPLATE_os_name__
 
-  Object.defineProperties(window.__TAURI__.__INTERNALS__, 'convertFileSrc', {
+  Object.defineProperty(window.__TAURI__.__INTERNALS__, 'convertFileSrc', {
     value: function (filePath, protocol = 'asset') {
       const path = encodeURIComponent(filePath)
       return osName === 'windows' || osName === 'android'
@@ -18,7 +18,7 @@
     }
   })
 
-  Object.defineProperties(window.__TAURI__.__INTERNALS__, 'transformCallback', {
+  Object.defineProperty(window.__TAURI__.__INTERNALS__, 'transformCallback', {
     value: function transformCallback(callback, once) {
       var identifier = uid()
       var prop = `_${identifier}`
@@ -52,7 +52,7 @@
     }
   }
 
-  Object.defineProperties(window.__TAURI__.__INTERNALS__, 'invoke', {
+  Object.defineProperty(window.__TAURI__.__INTERNALS__, 'invoke', {
     value: function (cmd, payload = {}, options) {
       return new Promise(function (resolve, reject) {
         const callback = window.__TAURI__.__INTERNALS__.transformCallback(

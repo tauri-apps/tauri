@@ -48,7 +48,7 @@ jsonrpsee-ws-client = { version = "0.16", default-features = false }
 thiserror = "1"
 sublime_fuzzy = "0.7"
 clap_complete = "4"
-clap = { version = "4.0", features = [ "derive" ] }
+clap = { version = "4.0", features = [ "derive", "env" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "2.0.0-alpha.8", default-features = false, path = "../bundler" }
 colored = "2.0"

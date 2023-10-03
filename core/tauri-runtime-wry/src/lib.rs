@@ -2680,7 +2680,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let mut web_context = web_context_store.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
-  let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
+  let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
   let web_context_key = // force a unique WebContext when automation is false;
     // the context must be stored on the HashMap because it must outlive the WebView on macOS
     if automation_enabled {

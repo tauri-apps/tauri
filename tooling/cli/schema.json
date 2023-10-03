@@ -2072,6 +2072,13 @@
         "iconPath"
       ],
       "properties": {
+        "id": {
+          "description": "Set an id for this tray icon so you can reference it later, defaults to `main`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "iconPath": {
           "description": "Path to the default icon to use for the tray icon.",
           "type": "string"

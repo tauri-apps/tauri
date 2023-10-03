@@ -1558,6 +1558,8 @@ pub struct UpdaterWindowsConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TrayIconConfig {
+  /// Set an id for this tray icon so you can reference it later, defaults to `main`.
+  pub id: Option<String>,
   /// Path to the default icon to use for the tray icon.
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
@@ -2570,6 +2572,7 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
       let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
@@ -2578,6 +2581,7 @@ mod build {
       literal_struct!(
         tokens,
         TrayIconConfig,
+        id,
         icon_path,
         icon_as_template,
         menu_on_left_click,

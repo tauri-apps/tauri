@@ -2,24 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-mod fs;
+/// FS scope.
+pub mod fs;
 /// IPC scope.
 pub mod ipc;
 
-pub use self::ipc::Scope as IpcScope;
-pub use fs::{Event as FsScopeEvent, Pattern as GlobPattern, Scope as FsScope};
 use std::path::Path;
 
 /// Managed state for all the core scopes in a tauri application.
 pub struct Scopes {
-  pub(crate) ipc: IpcScope,
+  pub(crate) ipc: ipc::Scope,
   #[cfg(feature = "protocol-asset")]
-  pub(crate) asset_protocol: FsScope,
+  pub(crate) asset_protocol: fs::Scope,
 }
 
+#[allow(unused)]
 impl Scopes {
   /// Allows a directory on the scopes.
-  #[allow(unused)]
   pub fn allow_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> crate::Result<()> {
     #[cfg(feature = "protocol-asset")]
     self.asset_protocol.allow_directory(path, recursive)?;
@@ -27,7 +26,6 @@ impl Scopes {
   }
 
   /// Allows a file on the scopes.
-  #[allow(unused)]
   pub fn allow_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
     #[cfg(feature = "protocol-asset")]
     self.asset_protocol.allow_file(path)?;
@@ -35,7 +33,6 @@ impl Scopes {
   }
 
   /// Forbids a file on the scopes.
-  #[allow(unused)]
   pub fn forbid_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
     #[cfg(feature = "protocol-asset")]
     self.asset_protocol.forbid_file(path)?;

@@ -9,9 +9,10 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-pub use glob::Pattern;
 use tauri_utils::config::FsScope;
 use uuid::Uuid;
+
+pub use glob::Pattern;
 
 /// Scope change event.
 #[derive(Debug, Clone)]

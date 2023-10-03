@@ -1101,6 +1101,13 @@
           ]
         },
         {
+          "description": "The Snap bundle (.snap).",
+          "type": "string",
+          "enum": [
+            "snap"
+          ]
+        },
+        {
           "description": "The Microsoft Installer bundle (.msi).",
           "type": "string",
           "enum": [

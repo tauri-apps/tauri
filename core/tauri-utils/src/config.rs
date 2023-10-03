@@ -80,6 +80,8 @@ pub enum BundleType {
   Deb,
   /// The AppImage bundle (.appimage).
   AppImage,
+  /// The Snap bundle (.snap).
+  Snap,
   /// The Microsoft Installer bundle (.msi).
   Msi,
   /// The NSIS bundle (.exe).
@@ -100,6 +102,7 @@ impl Display for BundleType {
       match self {
         Self::Deb => "deb",
         Self::AppImage => "appimage",
+        Self::Snap => "snap",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
         Self::App => "app",

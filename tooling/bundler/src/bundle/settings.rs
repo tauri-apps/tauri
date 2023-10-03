@@ -32,6 +32,8 @@ pub enum PackageType {
   Deb,
   /// The Linux RPM bundle (.rpm).
   Rpm,
+  // The Linux Snap Bundle (.snap).
+  Snap,
   /// The Linux AppImage bundle (.AppImage).
   AppImage,
   /// The macOS DMG bundle (.dmg).
@@ -45,6 +47,7 @@ impl From<BundleType> for PackageType {
     match bundle {
       BundleType::Deb => Self::Deb,
       BundleType::AppImage => Self::AppImage,
+      BundleType::Snap => Self::Snap,
       BundleType::Msi => Self::WindowsMsi,
       BundleType::Nsis => Self::Nsis,
       BundleType::App => Self::MacOsBundle,
@@ -67,6 +70,7 @@ impl PackageType {
       "app" => Some(PackageType::MacOsBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
+      "snap" => Some(PackageType::Snap),
       "dmg" => Some(PackageType::Dmg),
       "updater" => Some(PackageType::Updater),
       _ => None,
@@ -84,6 +88,7 @@ impl PackageType {
       PackageType::MacOsBundle => "app",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
+      PackageType::Snap => "snap",
       PackageType::Dmg => "dmg",
       PackageType::Updater => "updater",
     }
@@ -112,6 +117,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Dmg,
   #[cfg(target_os = "linux")]
   PackageType::AppImage,
+  PackageType::Snap,
   PackageType::Updater,
 ];
 
@@ -651,7 +657,7 @@ impl Settings {
     let mut platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
-      "linux" => vec![PackageType::Deb, PackageType::AppImage],
+      "linux" => vec![PackageType::Deb, PackageType::AppImage, PackageType::Snap],
       "windows" => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(

@@ -95,6 +95,8 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::Rpm => linux::rpm::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
       PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
+      #[cfg(target_os = "linux")]
+      PackageType::Snap => linux::snap::bundle_project(&settings)?,
 
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
       PackageType::Updater => {

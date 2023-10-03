@@ -2572,6 +2572,7 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
       let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
@@ -2580,6 +2581,7 @@ mod build {
       literal_struct!(
         tokens,
         TrayIconConfig,
+        id,
         icon_path,
         icon_as_template,
         menu_on_left_click,

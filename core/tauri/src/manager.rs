@@ -567,12 +567,6 @@ impl<R: Runtime> WindowManager<R> {
     webview_attributes = webview_attributes
       .initialization_script(
         r#"
-        if (!window.__TAURI__) {
-          Object.defineProperty(window, '__TAURI__', {
-            value: {}
-          })
-        }
-
         if (!window.__TAURI_INTERNALS__) {
           Object.defineProperty(window, '__TAURI_INTERNALS__', {
             value: {

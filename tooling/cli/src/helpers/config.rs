@@ -205,8 +205,13 @@ pub fn get(target: Target, merge_config: Option<&str>) -> crate::Result<ConfigHa
 }
 
 pub fn reload(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
-  if let Some(conf) = &*config_handle().lock().unwrap() {
-    get_internal(merge_config, true, conf.target)
+  let target = config_handle()
+    .lock()
+    .unwrap()
+    .as_ref()
+    .map(|conf| conf.target);
+  if let Some(target) = target {
+    get_internal(merge_config, true, target)
   } else {
     Err(anyhow::anyhow!("config not loaded"))
   }

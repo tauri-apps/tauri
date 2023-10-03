@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::path::SafePathBuf;
-use crate::scope::FsScope;
+use crate::scope;
 use crate::window::UriSchemeProtocolHandler;
 use http::{header::*, status::StatusCode, Request, Response};
 use http_range::HttpRange;
@@ -14,7 +14,7 @@ use tauri_utils::mime_type::MimeType;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-pub fn get(scope: FsScope, window_origin: String) -> UriSchemeProtocolHandler {
+pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
   Box::new(
     move |request, responder| match get_response(request, &scope, &window_origin) {
       Ok(response) => responder.respond(response),
@@ -31,7 +31,7 @@ pub fn get(scope: FsScope, window_origin: String) -> UriSchemeProtocolHandler {
 
 fn get_response(
   request: Request<Vec<u8>>,
-  scope: &FsScope,
+  scope: &scope::fs::Scope,
   window_origin: &str,
 ) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
   // skip leading `/`

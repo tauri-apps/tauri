@@ -535,8 +535,8 @@ macro_rules! shared_app_impl {
           .push(Box::new(handler));
       }
 
-      /// Gets the first tray icon registerd,
-      /// usually the one configured in tauri configuration file,
+      /// Gets the first tray icon registered,
+      /// usually the one configured in the Tauri configuration file.
       #[cfg(all(desktop, feature = "tray-icon"))]
       #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn tray(&self) -> Option<TrayIcon<R>> {

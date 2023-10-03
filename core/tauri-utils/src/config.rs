@@ -1582,7 +1582,7 @@ pub struct TrayIconConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
   /// The development team. This value is required for iOS development because code signing is enforced.
-  /// The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
+  /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
 }

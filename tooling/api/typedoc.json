@@ -3,7 +3,7 @@
     "src/event.ts",
     "src/mocks.ts",
     "src/path.ts",
-    "src/tauri.ts"
+    "src/primitives.ts"
   ],
   "githubPages": false,
   "readme": "none",

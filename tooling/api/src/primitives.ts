@@ -21,7 +21,7 @@ function transformCallback(
   callback?: (response: any) => void,
   once = false
 ): number {
-  return window.__TAURI__.__INTERNALS__.transformCallback(callback, once)
+  return window.__TAURI_INTERNALS__.transformCallback(callback, once)
 }
 
 class Channel<T = unknown> {
@@ -123,7 +123,7 @@ async function invoke<T>(
   args: InvokeArgs = {},
   options?: InvokeOptions
 ): Promise<T> {
-  return window.__TAURI__.__INTERNALS__.invoke(cmd, args, options)
+  return window.__TAURI_INTERNALS__.invoke(cmd, args, options)
 }
 
 /**
@@ -157,7 +157,7 @@ async function invoke<T>(
  * @since 1.0.0
  */
 function convertFileSrc(filePath: string, protocol = 'asset'): string {
-  return window.__TAURI__.__INTERNALS__.convertFileSrc(filePath, protocol)
+  return window.__TAURI_INTERNALS__.convertFileSrc(filePath, protocol)
 }
 
 export type { InvokeArgs, InvokeOptions }

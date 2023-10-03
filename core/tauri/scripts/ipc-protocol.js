@@ -8,7 +8,7 @@
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
   const useCustomProtocol = __TEMPLATE_use_custom_protocol__
 
-  Object.defineProperty(window.__TAURI__.__INTERNALS__, 'postMessage', {
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'postMessage', {
     value: (message) => {
       const { cmd, callback, error, payload, options } = message
 
@@ -28,7 +28,7 @@
         )
       ) {
         const { contentType, data } = processIpcMessage(payload)
-        fetch(window.__TAURI__.__INTERNALS__.convertFileSrc(cmd, 'ipc'), {
+        fetch(window.__TAURI_INTERNALS__.convertFileSrc(cmd, 'ipc'), {
           method: 'POST',
           body: data,
           headers: {

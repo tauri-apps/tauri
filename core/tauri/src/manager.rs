@@ -573,8 +573,8 @@ impl<R: Runtime> WindowManager<R> {
           })
         }
 
-        if (!window.__TAURI__.__INTERNALS__) {
-          Object.defineProperty(window.__TAURI__, '__INTERNALS__', {
+        if (!window.__TAURI_INTERNALS__) {
+          Object.defineProperty(window, '__TAURI_INTERNALS__', {
             value: {
               plugins: {}
             }
@@ -585,7 +585,7 @@ impl<R: Runtime> WindowManager<R> {
       .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(
         r#"
-          Object.defineProperty(window.__TAURI__.__INTERNALS__, 'metadata', {{
+          Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
               windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
               currentWindow: {{ label: {current_window_label} }}
@@ -836,7 +836,7 @@ impl<R: Runtime> WindowManager<R> {
           "eventName".into(),
           0,
           None,
-          "window['_' + window.__TAURI__.__INTERNALS__.transformCallback(cb) ]".into()
+          "window['_' + window.__TAURI_INTERNALS__.transformCallback(cb) ]".into()
         )
       ),
       core_script: &CoreJavascript {
@@ -1297,7 +1297,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"(function () {{ const metadata = window.__TAURI__.__INTERNALS__.metadata; if (metadata != null) {{ metadata.windows = window.__TAURI__.__INTERNALS__.metadata.windows.filter(w => w.label !== "{label}"); }} }})()"#,
+          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.windows = window.__TAURI_INTERNALS__.metadata.windows.filter(w => w.label !== "{label}"); }} }})()"#,
         ))?;
       }
     }

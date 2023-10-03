@@ -66,7 +66,7 @@ export function mockIPC(
   cb: (cmd: string, payload: Record<string, unknown>) => any | Promise<any>
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  window.__TAURI__.__INTERNALS__.ipc = async ({
+  window.__TAURI_INTERNALS__.ipc = async ({
     cmd,
     callback,
     error,
@@ -128,7 +128,7 @@ export function mockWindows(
   current: string,
   ...additionalWindows: string[]
 ): void {
-  window.__TAURI__.__INTERNALS__.metadata = {
+  window.__TAURI_INTERNALS__.metadata = {
     windows: [current, ...additionalWindows].map((label) => ({ label })),
     currentWindow: { label: current }
   }
@@ -150,11 +150,11 @@ export function mockWindows(
  * test("mocked windows", () => {
  *    mockWindows("main", "second", "third");
  *
- *    expect(window.__TAURI__.__INTERNALS__.metadata).toHaveProperty("__TAURI__.__INTERNALS__.metadata")
+ *    expect(window.__TAURI_INTERNALS__).toHaveProperty("metadata")
  * })
  *
  * test("no mocked windows", () => {
- *    expect(window.__TAURI__.__INTERNALS__.metadata).not.toHaveProperty("__TAURI__.__INTERNALS__.metadata")
+ *    expect(window.__TAURI_INTERNALS__).not.toHaveProperty("metadata")
  * })
  * ```
  *
@@ -162,7 +162,7 @@ export function mockWindows(
  */
 export function clearMocks(): void {
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI__.__INTERNALS__.ipc
+  delete window.__TAURI_INTERNALS__.ipc
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI__.__INTERNALS__.metadata
+  delete window.__TAURI_INTERNALS__.metadata
 }

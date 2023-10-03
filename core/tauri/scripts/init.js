@@ -19,12 +19,12 @@
   })()
 
   if (window.ipc) {
-    window.__TAURI__.__INTERNALS__.invoke('__initialized', {
+    window.__TAURI_INTERNALS__.invoke('__initialized', {
       url: window.location.href
     })
   } else {
     window.addEventListener('DOMContentLoaded', function () {
-      window.__TAURI__.__INTERNALS__.invoke('__initialized', {
+      window.__TAURI_INTERNALS__.invoke('__initialized', {
         url: window.location.href
       })
     })

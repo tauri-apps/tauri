@@ -10,7 +10,7 @@
   /**
    * @type {string}
    */
-  const pattern = window.__TAURI__.__INTERNALS__.__TAURI_PATTERN__.pattern
+  const pattern = window.__TAURI_INTERNALS__.__TAURI_PATTERN__.pattern
 
   /**
    * @type {string}
@@ -92,12 +92,12 @@
     )
   }
 
-  Object.defineProperty(window.__TAURI__.__INTERNALS__, 'ipc', {
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'ipc', {
     // todo: JSDoc this function
     value: Object.freeze((message) => {
       switch (pattern) {
         case 'brownfield':
-          window.__TAURI__.__INTERNALS__.postMessage(message)
+          window.__TAURI_INTERNALS__.postMessage(message)
           break
 
         case 'isolation':
@@ -154,7 +154,7 @@
         }
 
         if (isIsolationMessage(event)) {
-          window.__TAURI__.__INTERNALS__.postMessage(event.data)
+          window.__TAURI_INTERNALS__.postMessage(event.data)
         }
       },
       false

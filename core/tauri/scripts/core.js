@@ -9,7 +9,7 @@
 
   const osName = __TEMPLATE_os_name__
 
-  Object.defineProperty(window.__TAURI__.__INTERNALS__, 'convertFileSrc', {
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'convertFileSrc', {
     value: function (filePath, protocol = 'asset') {
       const path = encodeURIComponent(filePath)
       return osName === 'windows' || osName === 'android'
@@ -18,7 +18,7 @@
     }
   })
 
-  Object.defineProperty(window.__TAURI__.__INTERNALS__, 'transformCallback', {
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'transformCallback', {
     value: function transformCallback(callback, once) {
       var identifier = uid()
       var prop = `_${identifier}`
@@ -43,7 +43,7 @@
   let isWaitingForIpc = false
 
   function waitForIpc() {
-    if (window.__TAURI__?.__INTERNALS__?.ipc) {
+    if ('ipc' in window.__TAURI_INTERNALS__) {
       for (const action of ipcQueue) {
         action()
       }
@@ -52,26 +52,26 @@
     }
   }
 
-  Object.defineProperty(window.__TAURI__.__INTERNALS__, 'invoke', {
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'invoke', {
     value: function (cmd, payload = {}, options) {
       return new Promise(function (resolve, reject) {
-        const callback = window.__TAURI__.__INTERNALS__.transformCallback(
-          function (r) {
-            resolve(r)
-            delete window[`_${error}`]
-          },
-          true
-        )
-        const error = window.__TAURI__.__INTERNALS__.transformCallback(
-          function (e) {
-            reject(e)
-            delete window[`_${callback}`]
-          },
-          true
-        )
+        const callback = window.__TAURI_INTERNALS__.transformCallback(function (
+          r
+        ) {
+          resolve(r)
+          delete window[`_${error}`]
+        },
+        true)
+        const error = window.__TAURI_INTERNALS__.transformCallback(function (
+          e
+        ) {
+          reject(e)
+          delete window[`_${callback}`]
+        },
+        true)
 
         const action = () => {
-          window.window.__TAURI__.__INTERNALS__.ipc({
+          window.window.__TAURI_INTERNALS__.ipc({
             cmd,
             callback,
             error,
@@ -79,7 +79,7 @@
             options
           })
         }
-        if (window.__TAURI__?.__INTERNALS__?.ipc) {
+        if ('ipc' in window.__TAURI_INTERNALS__) {
           action()
         } else {
           ipcQueue.push(action)

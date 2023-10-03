@@ -107,7 +107,7 @@ interface InvokeOptions {
  * Sends a message to the backend.
  * @example
  * ```typescript
- * import { invoke } from '@tauri-apps/api/tauri';
+ * import { invoke } from '@tauri-apps/api/primitives';
  * await invoke('login', { user: 'tauri', password: 'poiwe3h4r5ip3yrhtew9ty' });
  * ```
  *
@@ -139,7 +139,7 @@ async function invoke<T>(
  * @example
  * ```typescript
  * import { appDataDir, join } from '@tauri-apps/api/path';
- * import { convertFileSrc } from '@tauri-apps/api/tauri';
+ * import { convertFileSrc } from '@tauri-apps/api/primitives';
  * const appDataDirPath = await appDataDir();
  * const filePath = await join(appDataDirPath, 'assets/video.mp4');
  * const assetUrl = convertFileSrc(filePath);

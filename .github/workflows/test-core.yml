@@ -85,7 +85,7 @@ jobs:
       - name: Downgrade crates with MSRV conflict
         # The --precise flag can only be used once per invocation.
         run: |
-          cargo update -p system-deps --precise 6.1.1
+          cargo update -p system-deps:6.1.2 --precise 6.1.1
           cargo update -p toml:0.7.8 --precise 0.7.3
           cargo update -p toml_edit:0.19.15 --precise 0.19.8
           cargo update -p toml_datetime --precise 0.6.1

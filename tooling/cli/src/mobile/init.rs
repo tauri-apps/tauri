@@ -5,7 +5,6 @@
 use super::{get_app, Target};
 use crate::helpers::{config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
-use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 use cargo_mobile2::{
   android::{
     config::Config as AndroidConfig, env::Env as AndroidEnv, target::Target as AndroidTarget,
@@ -18,6 +17,7 @@ use cargo_mobile2::{
     cli::{Report, TextWrapper},
   },
 };
+use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 
 use std::{
   env::{current_dir, var, var_os},

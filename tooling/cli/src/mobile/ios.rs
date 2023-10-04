@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use clap::{Parser, Subcommand};
-use sublime_fuzzy::best_match;
 use cargo_mobile2::{
   apple::{
     config::{
@@ -21,6 +19,8 @@ use cargo_mobile2::{
   os,
   util::prompt,
 };
+use clap::{Parser, Subcommand};
+use sublime_fuzzy::best_match;
 
 use super::{
   ensure_init, env, get_app,

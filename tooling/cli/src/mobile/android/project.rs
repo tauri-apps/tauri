@@ -4,8 +4,6 @@
 
 use crate::{helpers::template, Result};
 use anyhow::Context;
-use handlebars::Handlebars;
-use include_dir::{include_dir, Dir};
 use cargo_mobile2::{
   android::{
     config::{Config, Metadata},
@@ -20,6 +18,8 @@ use cargo_mobile2::{
     prefix_path,
   },
 };
+use handlebars::Handlebars;
+use include_dir::{include_dir, Dir};
 
 use std::{
   ffi::OsStr,

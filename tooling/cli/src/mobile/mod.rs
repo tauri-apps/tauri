@@ -19,6 +19,12 @@ use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 
+use cargo_mobile2::{
+  config::app::{App, Raw as RawAppConfig},
+  env::Error as EnvError,
+  opts::{NoiseLevel, Profile},
+  ChildHandle,
+};
 use std::{
   collections::HashMap,
   env::{set_var, temp_dir},
@@ -32,12 +38,6 @@ use std::{
     atomic::{AtomicBool, Ordering},
     Arc,
   },
-};
-use cargo_mobile2::{
-  config::app::{App, Raw as RawAppConfig},
-  env::Error as EnvError,
-  opts::{NoiseLevel, Profile},
-  ChildHandle,
 };
 use tokio::runtime::Runtime;
 

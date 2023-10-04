@@ -2,15 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use clap::{Parser, Subcommand};
-use std::{
-  env::set_var,
-  fs::{create_dir, create_dir_all, write},
-  process::exit,
-  thread::sleep,
-  time::Duration,
-};
-use sublime_fuzzy::best_match;
 use cargo_mobile2::{
   android::{
     adb,
@@ -25,6 +16,15 @@ use cargo_mobile2::{
   os,
   util::prompt,
 };
+use clap::{Parser, Subcommand};
+use std::{
+  env::set_var,
+  fs::{create_dir, create_dir_all, write},
+  process::exit,
+  thread::sleep,
+  time::Duration,
+};
+use sublime_fuzzy::best_match;
 
 use super::{
   ensure_init, get_app,

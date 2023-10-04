@@ -29,7 +29,10 @@ use tauri_mobile::{
 use std::env::{set_current_dir, set_var};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Android build")]
+#[clap(
+  about = "Build your app in release mode for Android and generate APKs and AABs",
+  long_about = "Build your app in release mode for Android and generate APKs and AABs. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`."
+)]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]

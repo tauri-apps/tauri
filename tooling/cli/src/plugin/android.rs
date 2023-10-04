@@ -17,7 +17,7 @@ use std::{
 #[clap(
   author,
   version,
-  about = "Manage the Android project for Tauri plugins",
+  about = "Manage the Android project for a Tauri plugin",
   subcommand_required(true),
   arg_required_else_help(true)
 )]

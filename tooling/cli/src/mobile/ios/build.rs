@@ -30,7 +30,10 @@ use tauri_mobile::{
 use std::{env::set_current_dir, fs};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "iOS build")]
+#[clap(
+  about = "Build your app in release mode for iOS and generate IPAs",
+  long_about = "Build your app in release mode for iOS and generate IPAs. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`."
+)]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]

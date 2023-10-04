@@ -27,7 +27,7 @@ use std::{
 pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
 
 #[derive(Debug, Parser)]
-#[clap(about = "Initializes a Tauri plugin project")]
+#[clap(about = "Initialize a new Tauri plugin project")]
 pub struct Options {
   /// Name of your Tauri plugin
   #[clap(short = 'n', long = "name")]

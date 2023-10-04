@@ -44,7 +44,10 @@ const WEBVIEW_CLASS_INIT: &str =
   "this.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW";
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Android dev")]
+#[clap(
+  about = "Run your app in development mode on Android",
+  long_about = "Run your app in development mode on Android with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer."
+)]
 pub struct Options {
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]

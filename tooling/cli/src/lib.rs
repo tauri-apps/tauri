@@ -13,7 +13,6 @@
 
 pub use anyhow::Result;
 
-mod add;
 mod build;
 mod completions;
 mod dev;
@@ -98,20 +97,20 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-  Build(build::Options),
-  Dev(dev::Options),
-  Add(add::Options),
-  Icon(icon::Options),
-  Info(info::Options),
   Init(init::Options),
-  Plugin(plugin::Cli),
-  Signer(signer::Cli),
-  Completions(completions::Options),
+  Dev(dev::Options),
+  Build(build::Options),
   Android(mobile::android::Cli),
   #[cfg(target_os = "macos")]
   Ios(mobile::ios::Cli),
   /// Migrate from v1 to v2
   Migrate,
+  Info(info::Options),
+  Add(plugin::add::Options),
+  Plugin(plugin::Cli),
+  Icon(icon::Options),
+  Signer(signer::Cli),
+  Completions(completions::Options),
 }
 
 fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
@@ -207,7 +206,7 @@ where
   match cli.command {
     Commands::Build(options) => build::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
-    Commands::Add(options) => add::command(options)?,
+    Commands::Add(options) => plugin::add::command(options)?,
     Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,

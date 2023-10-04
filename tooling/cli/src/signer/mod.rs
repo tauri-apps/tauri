@@ -12,7 +12,7 @@ mod sign;
 #[clap(
   author,
   version,
-  about = "Tauri updater signer",
+  about = "Generate signing keys for Tauri updater or sign files",
   subcommand_required(true),
   arg_required_else_help(true)
 )]

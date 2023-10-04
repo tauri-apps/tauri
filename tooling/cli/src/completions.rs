@@ -13,7 +13,7 @@ use std::{fs::write, path::PathBuf};
 const PKG_MANAGERS: &[&str] = &["cargo", "pnpm", "npm", "yarn"];
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Shell completions")]
+#[clap(about = "Generate Tauri CLI shell completions for Bash, Zsh, PowerShell and Fish")]
 pub struct Options {
   /// Shell to generate a completion script for.
   #[clap(short, long, verbatim_doc_comment)]

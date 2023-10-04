@@ -4,7 +4,7 @@
 
 use clap::{Parser, Subcommand};
 use sublime_fuzzy::best_match;
-use tauri_mobile::{
+use cargo_mobile2::{
   apple::{
     config::{
       Config as AppleConfig, Metadata as AppleMetadata, Platform as ApplePlatform,

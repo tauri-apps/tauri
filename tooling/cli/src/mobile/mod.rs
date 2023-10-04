@@ -33,7 +33,7 @@ use std::{
     Arc,
   },
 };
-use tauri_mobile::{
+use cargo_mobile2::{
   config::app::{App, Raw as RawAppConfig},
   env::Error as EnvError,
   opts::{NoiseLevel, Profile},
@@ -42,9 +42,9 @@ use tauri_mobile::{
 use tokio::runtime::Runtime;
 
 #[cfg(not(windows))]
-use tauri_mobile::env::Env;
+use cargo_mobile2::env::Env;
 #[cfg(windows)]
-use tauri_mobile::os::Env;
+use cargo_mobile2::os::Env;
 
 pub mod android;
 mod init;

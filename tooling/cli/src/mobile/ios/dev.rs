@@ -21,7 +21,7 @@ use clap::{ArgAction, Parser};
 
 use anyhow::Context;
 use dialoguer::{theme::ColorfulTheme, Select};
-use tauri_mobile::{
+use cargo_mobile2::{
   apple::{config::Config as AppleConfig, device::Device, teams::find_development_teams},
   config::app::App,
   env::Env,

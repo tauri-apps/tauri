@@ -11,7 +11,7 @@ use std::{
   fs::{create_dir_all, OpenOptions},
   path::{Component, PathBuf},
 };
-use tauri_mobile::{
+use cargo_mobile2::{
   apple::{
     config::{Config, Metadata},
     deps, rust_version_check,

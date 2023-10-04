@@ -11,7 +11,7 @@ use std::{
   time::Duration,
 };
 use sublime_fuzzy::best_match;
-use tauri_mobile::{
+use cargo_mobile2::{
   android::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata, Raw as RawAndroidConfig},
@@ -159,7 +159,7 @@ pub fn get_config(
 
 fn env() -> Result<Env> {
   let env = super::env()?;
-  tauri_mobile::android::env::Env::from_env(env).map_err(Into::into)
+  cargo_mobile2::android::env::Env::from_env(env).map_err(Into::into)
 }
 
 fn delete_codegen_vars() {

@@ -6,7 +6,7 @@ use crate::{helpers::template, Result};
 use anyhow::Context;
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
-use tauri_mobile::{
+use cargo_mobile2::{
   android::{
     config::{Config, Metadata},
     target::Target,

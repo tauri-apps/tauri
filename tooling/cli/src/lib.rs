@@ -13,6 +13,7 @@
 
 pub use anyhow::Result;
 
+mod add;
 mod build;
 mod completions;
 mod dev;
@@ -106,7 +107,7 @@ enum Commands {
   /// Migrate from v1 to v2
   Migrate,
   Info(info::Options),
-  Add(plugin::add::Options),
+  Add(add::Options),
   Plugin(plugin::Cli),
   Icon(icon::Options),
   Signer(signer::Cli),
@@ -206,7 +207,7 @@ where
   match cli.command {
     Commands::Build(options) => build::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
-    Commands::Add(options) => plugin::add::command(options)?,
+    Commands::Add(options) => add::command(options)?,
     Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,

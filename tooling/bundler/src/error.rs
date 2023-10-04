@@ -67,6 +67,9 @@ pub enum Error {
   /// Couldn't find icons.
   #[error("Could not find Icon paths.  Please make sure they exist in the tauri config JSON file")]
   IconPathError,
+  /// Couldn't find background file.
+  #[error("Could not find background file. Make sure it exists in the tauri config JSON file and extension is png/jpg/gif")]
+  BackgroundPathError,
   /// Error on path util operation.
   #[error("Path Error:`{0}`")]
   PathUtilError(String),

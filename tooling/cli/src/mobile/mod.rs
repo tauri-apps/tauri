@@ -199,8 +199,8 @@ fn env_vars() -> HashMap<String, OsString> {
   for (k, v) in std::env::vars_os() {
     let k = k.to_string_lossy();
     if (k.starts_with("TAURI")
-      && k != "TAURI_SIGNINING_PRIVATE_KEY"
-      && k != "TAURI_SIGNINING_PRIVATE_KEY_PASSWORD")
+      && k != "TAURI_SIGNING_PRIVATE_KEY"
+      && k != "TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
       || k.starts_with("WRY")
       || k.starts_with("CARGO_")
       || k == "TMPDIR"

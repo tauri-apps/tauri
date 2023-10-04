@@ -17,8 +17,8 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_CLI_NO_DEV_SERVER_WAIT` — Skip waiting for the frontend dev server to start before building the tauri application.
 - `TAURI_LINUX_AYATANA_APPINDICATOR` — Set this var to `true` or `1` to force usage of `libayatana-appindicator` for system tray on Linux.
 - `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` — Specify the bundler's WiX `FipsCompliant` option.
-- `TAURI_SIGNINING_PRIVATE_KEY` — Private key used to sign your app bundles, can be either a string or a path to the file.
-- `TAURI_SIGNINING_PRIVATE_KEY_PASSWORD` — The signging private key password, see `TAURI_SIGNINING_PRIVATE_KEY`.
+- `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles, can be either a string or a path to the file.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — The signing private key password, see `TAURI_SIGNING_PRIVATE_KEY`.
 - `APPLE_CERTIFICATE` — Base64 encoded of the `.p12` certificate for code signing. To get this value, run `openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt`.
 - `APPLE_CERTIFICATE_PASSWORD` — The password you used to export the certificate.
 - `APPLE_ID` — The Apple ID used to notarize the application. If this environment variable is provided, `APPLE_PASSWORD` must also be set. Alternatively, `APPLE_API_KEY` and `APPLE_API_ISSUER` can be used to authenticate.

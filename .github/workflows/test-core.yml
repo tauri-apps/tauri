@@ -108,6 +108,7 @@ jobs:
           cargo update -p cfg-expr:0.15.5 --precise 0.15.4
           cargo update -p memchr --precise 2.6.2
           cargo update -p async-executor --precise 1.5.1
+          cargo update -p proptest --precise 1.2.0
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

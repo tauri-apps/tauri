@@ -20,7 +20,7 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use tauri_mobile::{
+use cargo_mobile2::{
   android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
   opts::{NoiseLevel, Profile},
   target::TargetTrait,

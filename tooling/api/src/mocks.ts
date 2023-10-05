@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { convertFileSrc } from './tauri'
-
 interface IPCMessage {
   cmd: string
   callback: number
@@ -145,7 +143,7 @@ export function mockWindows(
 }
 
 /**
- * Mock {@linkcode convertFileSrc} function
+ * Mock `convertFileSrc` function
  *
  *
  * @example
@@ -166,7 +164,7 @@ export function mockWindows(
 export function mockConvertFileSrc(
   osName: string,
   windowsProtocolScheme = 'https'
-) {
+): void {
   window.__TAURI__.convertFileSrc = function (filePath, protocol = 'asset') {
     const path = encodeURIComponent(filePath)
     return osName === 'windows'

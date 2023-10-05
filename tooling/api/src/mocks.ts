@@ -165,6 +165,7 @@ export function mockConvertFileSrc(
   osName: string,
   windowsProtocolScheme = 'https'
 ): void {
+  window.__TAURI__ = window.__TAURI__ ?? {};
   window.__TAURI__.convertFileSrc = function (filePath, protocol = 'asset') {
     const path = encodeURIComponent(filePath)
     return osName === 'windows'

@@ -10,7 +10,7 @@ use crate::{
 };
 
 use anyhow::Context;
-use log::{info};
+use log::info;
 
 use std::{
   env,
@@ -126,8 +126,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     &bundle_file_name,
   ];
 
-  let window_position = dmg_settings.window_position.as_ref().map_or(None, |position| {
-    Some((position.x.to_string(), position.y.to_string()))
+  let window_position = dmg_settings.window_position.as_ref().map(|position| {
+    (position.x.to_string(), position.y.to_string())
   });
 
   if let Some(window_position) = &window_position {

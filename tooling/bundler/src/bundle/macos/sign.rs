@@ -351,7 +351,7 @@ pub enum NotarizeAuth {
   AppleId {
     apple_id: OsString,
     password: OsString,
-    team_id: Option<OsString>,
+    team_id: OsString,
   },
   ApiKey {
     key: OsString,
@@ -371,17 +371,13 @@ impl NotarytoolCmdExt for Command {
         apple_id,
         password,
         team_id,
-      } => {
-        self
-          .arg("--apple-id")
-          .arg(apple_id)
-          .arg("--password")
-          .arg(password);
-        if let Some(team_id) = team_id {
-          self.arg("--team-id").arg(team_id);
-        }
-        self
-      }
+      } => self
+        .arg("--apple-id")
+        .arg(apple_id)
+        .arg("--password")
+        .arg(password)
+        .arg("--team-id")
+        .arg(team_id),
       NotarizeAuth::ApiKey {
         key,
         key_path,
@@ -397,17 +393,28 @@ impl NotarytoolCmdExt for Command {
   }
 }
 
-pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
+#[derive(Debug, thiserror::Error)]
+pub enum NotarizeAuthError {
+  #[error(
+    "The team ID is now required for notarization with app-specific password as authentication. Please set the `APPLE_TEAM_ID` environment variable. You can find the team ID in https://developer.apple.com/account#MembershipDetailsCard."
+  )]
+  MissingTeamId,
+  #[error(transparent)]
+  Anyhow(#[from] anyhow::Error),
+}
+
+pub fn notarize_auth() -> Result<NotarizeAuth, NotarizeAuthError> {
   match (
     var_os("APPLE_ID"),
     var_os("APPLE_PASSWORD"),
     var_os("APPLE_TEAM_ID"),
   ) {
-    (Some(apple_id), Some(password), team_id) => Ok(NotarizeAuth::AppleId {
+    (Some(apple_id), Some(password), Some(team_id)) => Ok(NotarizeAuth::AppleId {
       apple_id,
       password,
       team_id,
     }),
+    (Some(_apple_id), Some(_password), None) => Err(NotarizeAuthError::MissingTeamId),
     _ => {
       match (var_os("APPLE_API_KEY"), var_os("APPLE_API_ISSUER"), var("APPLE_API_KEY_PATH")) {
         (Some(key), Some(issuer), Ok(key_path)) => {
@@ -439,7 +446,7 @@ pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
             Err(anyhow::anyhow!("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {api_key_file_name:?} file").into())
           }
         }
-        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
+        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
       }
     }
   }

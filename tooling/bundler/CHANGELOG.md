@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.4.1]
+
+### Bug Fixes
+
+- [`40d34002`](https://www.github.com/tauri-apps/tauri/commit/40d340021c0eab65aa1713807f7564e0698a321e)([#7972](https://www.github.com/tauri-apps/tauri/pull/7972)) The `APPLE_TEAM_ID` environment variable is now required for notarization authentication via Apple ID and app-specific password.
+- [`cdd5516f`](https://www.github.com/tauri-apps/tauri/commit/cdd5516f339ad4345623a1e785c6e2c3a77477f8)([#7956](https://www.github.com/tauri-apps/tauri/pull/7956)) Fixes an app crash on app updates when the product name contained spaces.
+
 ## \[1.4.0]
 
 ### New Features

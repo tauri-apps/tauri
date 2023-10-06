@@ -294,6 +294,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn window_classname<S: Into<String>>(self, classname: S) -> Self {
+    self
+  }
+
   fn shadow(self, enable: bool) -> Self {
     self
   }

@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.6", default-features = false }
+cargo-mobile2 = { git = "https://github.com/tauri-apps/cargo-mobile2", branch = "fix/macos-14-ios-deploy", default-features = false }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.16", features = [ "server" ] }
 jsonrpsee-core = "0.16"

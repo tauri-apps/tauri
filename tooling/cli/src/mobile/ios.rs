@@ -8,8 +8,7 @@ use cargo_mobile2::{
       Config as AppleConfig, Metadata as AppleMetadata, Platform as ApplePlatform,
       Raw as RawAppleConfig,
     },
-    device::Device,
-    ios_deploy, simctl,
+    device::{self, Device},
     target::Target,
     teams::find_development_teams,
   },
@@ -146,8 +145,8 @@ pub fn get_config(
   (config, metadata)
 }
 
-fn ios_deploy_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  let device_list = ios_deploy::device_list(env)
+fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
+  let device_list = device::list_devices(env)
     .map_err(|cause| anyhow::anyhow!("Failed to detect connected iOS devices: {cause}"))?;
   if !device_list.is_empty() {
     let device = if let Some(t) = target {
@@ -192,8 +191,8 @@ fn ios_deploy_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<De
   }
 }
 
-fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device> {
-  let simulator_list = simctl::device_list(env).map_err(|cause| {
+fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simulator> {
+  let simulator_list = device::list_simulators(env).map_err(|cause| {
     anyhow::anyhow!("Failed to detect connected iOS Simulator devices: {cause}")
   })?;
   if !simulator_list.is_empty() {
@@ -233,7 +232,7 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device
 }
 
 fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  if let Ok(device) = ios_deploy_device_prompt(env, target) {
+  if let Ok(device) = connected_device_prompt(env, target) {
     Ok(device)
   } else {
     let simulator = simulator_prompt(env, target)?;

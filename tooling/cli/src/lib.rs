@@ -277,9 +277,8 @@ impl CommandExt for Command {
       let mut lines = stdout_lines_.lock().unwrap();
       loop {
         buf.clear();
-        match tauri_utils::io::read_line(&mut stdout, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        if let Ok(0) = tauri_utils::io::read_line(&mut stdout, &mut buf) {
+          break;
         }
         debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
         lines.extend(buf.clone());
@@ -295,9 +294,8 @@ impl CommandExt for Command {
       let mut lines = stderr_lines_.lock().unwrap();
       loop {
         buf.clear();
-        match tauri_utils::io::read_line(&mut stderr, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        if let Ok(0) = tauri_utils::io::read_line(&mut stderr, &mut buf) {
+          break;
         }
         debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
         lines.extend(buf.clone());

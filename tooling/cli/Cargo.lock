@@ -395,8 +395,9 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.6.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile2?branch=fix/macos-14-ios-deploy#c2db1040ad83cd9153b7eb83fb0eb0016025c4b3"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1b56286cbb6fa6c603c849c79b7e38e062d532b227a24ad6ff9d535965f95c5"
 dependencies = [
  "cocoa",
  "colored 1.9.4",

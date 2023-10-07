@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-alpha.8]
+
+### Enhancements
+
+- [`100d9ede`](https://www.github.com/tauri-apps/tauri/commit/100d9ede35995d9db21d2087dd5606adfafb89a5)([#7802](https://www.github.com/tauri-apps/tauri/pull/7802)) Use `Target` enum from `tauri_utils::platform`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.8`
+
 ## \[2.0.0-alpha.7]
 
 ### Dependencies

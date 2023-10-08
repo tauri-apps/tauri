@@ -8,7 +8,6 @@ use std::{
   collections::HashMap,
   error::Error as StdError,
   fmt,
-  rc::Rc,
   sync::{
     mpsc::{channel, Sender},
     Arc, Mutex,
@@ -139,7 +138,7 @@ impl<T: UserEvent> GlobalShortcutManager for GlobalShortcutManagerHandle<T> {
 
 pub fn handle_global_shortcut_message(
   message: GlobalShortcutMessage,
-  global_shortcut_manager: &Rc<Mutex<WryShortcutManager>>,
+  global_shortcut_manager: &Arc<Mutex<WryShortcutManager>>,
 ) {
   match message {
     GlobalShortcutMessage::IsRegistered(accelerator, tx) => tx

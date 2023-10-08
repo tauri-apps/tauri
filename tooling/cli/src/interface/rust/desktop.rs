@@ -203,8 +203,9 @@ fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
     let mut io_stderr = std::io::stderr();
     loop {
       buf.clear();
-      if let Ok(0) = tauri_utils::io::read_line(&mut stderr, &mut buf) {
-        break;
+      match tauri_utils::io::read_line(&mut stderr, &mut buf) {
+        Ok(s) if s == 0 => break,
+        _ => (),
       }
       let _ = io_stderr.write_all(&buf);
       if !buf.ends_with(&[b'\r']) {

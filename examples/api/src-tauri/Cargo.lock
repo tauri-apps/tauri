@@ -3529,7 +3529,7 @@ checksum = "fd1ba337640d60c3e96bc6f0638a939b9c9a7f2c316a1598c279828b3d1dc8c5"
 
 [[package]]
 name = "tauri"
-version = "1.5.1"
+version = "1.5.0"
 dependencies = [
  "anyhow",
  "base64 0.21.2",

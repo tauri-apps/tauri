@@ -25,7 +25,7 @@
 use super::{
   super::common::{self, CommandExt},
   icon::create_icns_file,
-  sign::{notarize, notarize_auth, sign, NotarizeAuthError, SignTarget},
+  sign::{notarize, notarize_auth, sign, SignTarget},
 };
 use crate::Settings;
 
@@ -127,11 +127,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         notarize(app_bundle_path.clone(), auth, settings)?;
       }
       Err(e) => {
-        if matches!(e, NotarizeAuthError::MissingTeamId) {
-          return Err(anyhow::anyhow!("{e}").into());
-        } else {
-          warn!("skipping app notarization, {}", e.to_string());
-        }
+        warn!("skipping app notarization, {}", e.to_string());
       }
     }
   }

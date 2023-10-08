@@ -23,9 +23,9 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_KEY_PASSWORD` — The private key password, see `TAURI_PRIVATE_KEY`
 - `APPLE_CERTIFICATE` — Base64 encoded of the `.p12` certificate for code signing. To get this value, run `openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt`.
 - `APPLE_CERTIFICATE_PASSWORD` — The password you used to export the certificate.
-- `APPLE_ID` — The Apple ID used to notarize the application. If this environment variable is provided, `APPLE_PASSWORD` must also be set. Alternatively, `APPLE_API_KEY` and `APPLE_API_ISSUER` can be used to authenticate.
+- `APPLE_ID` — The Apple ID used to notarize the application. If this environment variable is provided, `APPLE_PASSWORD` and `APPLE_TEAM_ID` must also be set. Alternatively, `APPLE_API_KEY` and `APPLE_API_ISSUER` can be used to authenticate.
 - `APPLE_PASSWORD` — The Apple password used to authenticate for application notarization. Required if `APPLE_ID` is specified. An app-specific password can be used. Alternatively to entering the password in plaintext, it may also be specified using a '@keychain:' or '@env:' prefix followed by a keychain password item name or environment variable name.
-- `APPLE_TEAM_ID`: Developer team ID. If your Apple ID only belongs to one team then you don’t need to supply a Team ID. However, it’s best practice to include it regardless. That way, joining another team at some point in the future won’t break your notarization workflow. To find your Team ID, go to the [Account](https://developer.apple.com/account) page on the Apple Developer website.
+- `APPLE_TEAM_ID`: Developer team ID. To find your Team ID, go to the [Account](https://developer.apple.com/account) page on the Apple Developer website, and check your membership details.
 - `APPLE_API_KEY` — Alternative to `APPLE_ID` and `APPLE_PASSWORD` for notarization authentication using JWT.
   - See [creating API keys](https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api) for more information.
 - `APPLE_API_ISSUER` — Issuer ID. Required if `APPLE_API_KEY` is specified.

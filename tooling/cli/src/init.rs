@@ -30,7 +30,7 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
 
 #[derive(Debug, Parser)]
-#[clap(about = "Initialize a tauri project in an existing directory")]
+#[clap(about = "Initialize a Tauri project in an existing directory")]
 pub struct Options {
   /// Skip prompting for values
   #[clap(long)]

@@ -188,6 +188,7 @@ impl Cmd {
       .append(append)
       .write(true)
       .create(true)
+      .truncate(true)
       .open(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(Into::into)

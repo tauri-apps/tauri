@@ -186,7 +186,18 @@ impl<R: Runtime> Listeners<R> {
         if let Some(handlers) = lock.get(event) {
           let handlers = handlers
             .iter()
-            .filter(|h| h.1.window.as_ref().map(|w| filter(w)).unwrap_or(true))
+            .filter(|h| {
+              h.1
+                .window
+                .as_ref()
+                .map(|w| {
+                  // clippy sees this as redundant closure but
+                  // fixing it will result in a compiler error
+                  #[allow(clippy::redundant_closure)]
+                  filter(w)
+                })
+                .unwrap_or(true)
+            })
             .collect::<Vec<_>>();
 
           if !handlers.is_empty() {

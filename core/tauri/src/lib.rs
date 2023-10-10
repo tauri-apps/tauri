@@ -552,7 +552,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().package_info()
   }
 
-  /// Listen to a event triggered on any window ([`Window::trigger`] or [`Window::emit_and_trigger`]) or with [`Self::trigger_global`].
+  /// Listen to an event emitted on any window.
   ///
   /// # Examples
   /// ```
@@ -561,7 +561,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// #[tauri::command]
   /// fn synchronize(window: tauri::Window) {
   ///   // emits the synchronized event to all windows
-  ///   window.emit_and_trigger("synchronized", ());
+  ///   window.emit("synchronized", ());
   /// }
   ///
   /// tauri::Builder::default()
@@ -618,10 +618,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().once(event.into(), None, handler)
   }
 
-  /// Emits a event to all windows.
-  ///
-  /// Only the webviews receives this event.
-  /// To trigger Rust listeners, use [`Self::trigger_global`], [`Window::trigger`] or [`Window::emit_and_trigger`].
+  /// Emits an event to all windows.
   ///
   /// # Examples
   /// ```
@@ -658,7 +655,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .emit_filter(event, None, payload, |w| label == w.label())
   }
 
-  /// Emits an event to the windows based on a filter.
+  /// Emits an event to specific windows based on a filter.
   ///
   /// # Examples
   /// ```

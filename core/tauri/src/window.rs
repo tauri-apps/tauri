@@ -946,7 +946,37 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {}
+impl<R: Runtime> Manager<R> for Window<R> {
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self
+      .manager()
+      .emit_filter(event, Some(self.label()), payload, |w| {
+        w.has_js_listener(None, event) || w.has_js_listener(Some(self.label().into()), event)
+      })?;
+    Ok(())
+  }
+
+  fn emit_to<S: Serialize + Clone>(
+    &self,
+    label: &str,
+    event: &str,
+    payload: S,
+  ) -> crate::Result<()> {
+    self
+      .manager()
+      .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
+  }
+
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&Window<R>) -> bool,
+  {
+    self
+      .manager()
+      .emit_filter(event, Some(self.label()), payload, filter)
+  }
+}
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &WindowManager<R> {
     &self.manager
@@ -2387,35 +2417,7 @@ impl<R: Runtime> Window<R> {
 
 /// Event system APIs.
 impl<R: Runtime> Window<R> {
-  /// Emits an event to the JavaScript listeners on the current window or globally.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::Window) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners registed in the webview
-  ///     window.emit("download-progress", i);
-  ///   }
-  /// }
-  /// ```
-  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self
-      .manager()
-      .emit_filter(event, Some(self.label()), payload, |w| {
-        w.has_js_listener(None, event) || w.has_js_listener(Some(self.label().into()), event)
-      })?;
-    Ok(())
-  }
-
   /// Listen to an event on this window.
-  ///
-  /// This listener only receives events that are triggered using the
-  /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
-  /// the `emit` function from the window plugin (`@tauri-apps/plugin-window` package).
   ///
   /// # Examples
   /// ```
@@ -2468,7 +2470,7 @@ impl<R: Runtime> Window<R> {
     self.manager.unlisten(handler_id)
   }
 
-  /// Listen to an event on this window a single time.
+  /// Listen to an event on this window only once.
   ///
   /// See [`Self::listen`] for more information.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler

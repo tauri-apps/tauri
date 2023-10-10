@@ -948,11 +948,7 @@ impl<R: Runtime> PartialEq for Window<R> {
 
 impl<R: Runtime> Manager<R> for Window<R> {
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self
-      .manager()
-      .emit_filter(event, Some(self.label()), payload, |w| {
-        w.has_js_listener(None, event) || w.has_js_listener(Some(self.label().into()), event)
-      })?;
+    self.manager().emit(event, Some(self.label()), payload)?;
     Ok(())
   }
 

@@ -1224,23 +1224,30 @@ impl<R: Runtime> WindowManager<R> {
       .filter(|&w| filter(w))
       .try_for_each(|window| window.emit_js(event, source_window_label, payload.clone()))?;
 
-    self.inner.listeners.emit_filter(
-      event,
-      source_window_label.map(ToString::to_string),
-      Some(payload),
-      filter,
-    )?;
+    self
+      .inner
+      .listeners
+      .emit_filter(event, Some(payload), Some(filter))?;
 
     Ok(())
   }
 
   pub fn emit<S: Serialize + Clone>(
-    self,
+    &self,
     event: &str,
     source_window_label: Option<&str>,
     payload: S,
   ) -> crate::Result<()> {
-    self.emit_filter(event, source_window_label, payload, |_| true)
+    assert_event_name_is_valid(event);
+
+    self
+      .windows_lock()
+      .values()
+      .try_for_each(|window| window.emit_js(event, source_window_label, payload.clone()))?;
+
+    self.inner.listeners.emit(event, Some(payload))?;
+
+    Ok(())
   }
 
   pub fn event_listeners_object_name(&self) -> String {

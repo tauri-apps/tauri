@@ -19,7 +19,7 @@ use uuid::Uuid;
 enum Pending<R: Runtime> {
   Unlisten(EventHandler),
   Listen(EventHandler, String, Handler<R>),
-  Emit(String, Option<String>, Option<String>),
+  Emit(String, Option<String>),
 }
 
 /// Stored in [`Listeners`] to be called upon when the event that stored it is triggered.
@@ -98,8 +98,8 @@ impl<R: Runtime> Listeners<R> {
       match action {
         Pending::Unlisten(id) => self.unlisten(id),
         Pending::Listen(id, event, handler) => self.listen_(id, event, handler),
-        Pending::Emit(ref event, window, payload) => {
-          self.emit(event, window, payload)?;
+        Pending::Emit(ref event, payload) => {
+          self.emit(event, payload)?;
         }
       }
     }
@@ -167,9 +167,8 @@ impl<R: Runtime> Listeners<R> {
   pub(crate) fn emit_filter<S, F>(
     &self,
     event: &str,
-    window: Option<String>,
     payload: Option<S>,
-    filter: F,
+    filter: Option<F>,
   ) -> crate::Result<()>
   where
     S: Serialize + Clone,
@@ -179,40 +178,39 @@ impl<R: Runtime> Listeners<R> {
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::Emit(
         event.to_owned(),
-        window,
         payload.map(|p| serde_json::to_string(&p)).transpose()?,
       )),
       Ok(lock) => {
         if let Some(handlers) = lock.get(event) {
-          let handlers = handlers
-            .iter()
-            .filter(|h| {
-              h.1
-                .window
-                .as_ref()
-                .map(|w| {
-                  // clippy sees this as redundant closure but
-                  // fixing it will result in a compiler error
-                  #[allow(clippy::redundant_closure)]
-                  filter(w)
-                })
-                .unwrap_or(true)
-            })
-            .collect::<Vec<_>>();
+          let handlers = if let Some(filter) = filter {
+            handlers
+              .iter()
+              .filter(|h| {
+                h.1
+                  .window
+                  .as_ref()
+                  .map(|w| {
+                    // clippy sees this as redundant closure but
+                    // fixing it will result in a compiler error
+                    #[allow(clippy::redundant_closure)]
+                    filter(w)
+                  })
+                  .unwrap_or(false)
+              })
+              .collect::<Vec<_>>()
+          } else {
+            handlers.iter().collect::<Vec<_>>()
+          };
 
           if !handlers.is_empty() {
             let data = payload.map(|p| serde_json::to_string(&p)).transpose()?;
 
             for (&id, handler) in handlers {
-              if handler.window.is_none()
-                || window.as_deref() == handler.window.as_ref().map(|w| w.label())
-              {
-                maybe_pending = true;
-                (handler.callback)(self::Event {
-                  id,
-                  data: data.clone(),
-                })
-              }
+              maybe_pending = true;
+              (handler.callback)(self::Event {
+                id,
+                data: data.clone(),
+              })
             }
           }
         }
@@ -227,13 +225,11 @@ impl<R: Runtime> Listeners<R> {
   }
 
   /// Emits the given event with its payload.
-  pub(crate) fn emit(
-    &self,
-    event: &str,
-    window: Option<String>,
-    payload: Option<String>,
-  ) -> crate::Result<()> {
-    self.emit_filter(event, window, payload, |_| true)
+  pub(crate) fn emit<S>(&self, event: &str, payload: Option<S>) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+  {
+    self.emit_filter(event, payload, None::<&dyn Fn(&Window<R>) -> bool>)
   }
 }
 
@@ -297,10 +293,10 @@ mod test {
     #[test]
     fn check_on_event(key in "[a-z]+", d in "[a-z]+") {
       let listeners: Listeners<MockRuntime> = Default::default();
-      // call listen with e and the event_fn dummy func
+      // call listen with key and the event_fn dummy func
       listeners.listen(key.clone(), None, event_fn);
-      // call on event with e and d.
-      listeners.emit(&key, None, Some(d))?;
+      // call on event with key and d.
+      listeners.emit(&key,  Some(d))?;
 
       // lock the mutex
       let l = listeners.inner.handlers.lock().unwrap();

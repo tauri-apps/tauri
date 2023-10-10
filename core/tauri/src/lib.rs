@@ -633,7 +633,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// }
   /// ```
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-    self.manager().emit_filter(event, None, payload, |_| true)
+    self.manager().emit(event, None, payload)
   }
 
   /// Emits an event to the window with the specified label.

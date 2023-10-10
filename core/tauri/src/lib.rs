@@ -620,6 +620,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Emits an event to all windows.
   ///
+  /// If using [`Window`] to emit the event, it will be used as the source.
+  ///
   /// # Examples
   /// ```
   /// use tauri::Manager;
@@ -635,6 +637,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Emits an event to the window with the specified label.
+  ///
+  /// If using [`Window`] to emit the event, it will be used as the source.
   ///
   /// # Examples
   /// ```
@@ -656,6 +660,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Emits an event to specific windows based on a filter.
+  ///
+  /// If using [`Window`] to emit the event, it will be used as the source.
   ///
   /// # Examples
   /// ```

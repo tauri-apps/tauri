@@ -45,7 +45,7 @@ pub fn command(cli: Cli) -> Result<()> {
   Ok(())
 }
 
-pub(self) fn infer_plugin_name<P: AsRef<Path>>(directory: P) -> Result<String> {
+fn infer_plugin_name<P: AsRef<Path>>(directory: P) -> Result<String> {
   let dir = directory.as_ref();
   let carg_toml_path = dir.join("Cargo.toml");
   let name = if carg_toml_path.exists() {

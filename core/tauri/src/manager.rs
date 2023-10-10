@@ -217,7 +217,7 @@ fn replace_csp_nonce(
 pub struct InnerWindowManager<R: Runtime> {
   pub(crate) windows: Mutex<HashMap<String, Window<R>>>,
   pub(crate) plugins: Mutex<PluginStore<R>>,
-  listeners: Listeners,
+  listeners: Listeners<R>,
   pub(crate) state: Arc<StateManager>,
 
   /// The JS message handler.
@@ -1155,25 +1155,6 @@ impl<R: Runtime> WindowManager<R> {
     self.windows_lock().remove(label);
   }
 
-  pub fn emit_filter<S, F>(
-    &self,
-    event: &str,
-    source_window_label: Option<&str>,
-    payload: S,
-    filter: F,
-  ) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&Window<R>) -> bool,
-  {
-    assert_event_name_is_valid(event);
-    self
-      .windows_lock()
-      .values()
-      .filter(|&w| filter(w))
-      .try_for_each(|window| window.emit_internal(event, source_window_label, payload.clone()))
-  }
-
   pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {
     let script = script.into();
     self
@@ -1194,15 +1175,6 @@ impl<R: Runtime> WindowManager<R> {
     &self.inner.package_info
   }
 
-  pub fn unlisten(&self, handler_id: EventHandler) {
-    self.inner.listeners.unlisten(handler_id)
-  }
-
-  pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
-    assert_event_name_is_valid(event);
-    self.inner.listeners.trigger(event, window, data)
-  }
-
   pub fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
@@ -1210,7 +1182,14 @@ impl<R: Runtime> WindowManager<R> {
     handler: F,
   ) -> EventHandler {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.listen(event, window, handler)
+    self
+      .inner
+      .listeners
+      .listen(event, window.and_then(|w| self.get_window(&w)), handler)
+  }
+
+  pub fn unlisten(&self, handler_id: EventHandler) {
+    self.inner.listeners.unlisten(handler_id)
   }
 
   pub fn once<F: FnOnce(Event) + Send + 'static>(
@@ -1220,7 +1199,48 @@ impl<R: Runtime> WindowManager<R> {
     handler: F,
   ) -> EventHandler {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.once(event, window, handler)
+    self
+      .inner
+      .listeners
+      .once(event, window.and_then(|w| self.get_window(&w)), handler)
+  }
+
+  pub fn emit_filter<S, F>(
+    &self,
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+    filter: F,
+  ) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&Window<R>) -> bool,
+  {
+    assert_event_name_is_valid(event);
+
+    self
+      .windows_lock()
+      .values()
+      .filter(|&w| filter(w))
+      .try_for_each(|window| window.emit_js(event, source_window_label, payload.clone()))?;
+
+    self.inner.listeners.emit_filter(
+      event,
+      source_window_label.map(ToString::to_string),
+      Some(payload),
+      filter,
+    )?;
+
+    Ok(())
+  }
+
+  pub fn emit<S: Serialize + Clone>(
+    self,
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+  ) -> crate::Result<()> {
+    self.emit_filter(event, source_window_label, payload, |_| true)
   }
 
   pub fn event_listeners_object_name(&self) -> String {

@@ -67,24 +67,10 @@ pub fn emit<R: Runtime>(
   window_label: Option<WindowLabel>,
   payload: Option<JsonValue>,
 ) -> Result<()> {
-  // dispatch the event to Rust listeners
-  window.trigger(
-    &event.0,
-    payload.as_ref().and_then(|p| {
-      serde_json::to_string(&p)
-        .map_err(|e| {
-          #[cfg(debug_assertions)]
-          eprintln!("{e}");
-          e
-        })
-        .ok()
-    }),
-  );
-
-  // emit event to JS
-  if let Some(target) = window_label {
-    window.emit_to(&target.0, &event.0, payload)
-  } else {
-    window.emit_all(&event.0, payload)
-  }
+  window.emit_filter(&event.0, payload, |l| {
+    window_label
+      .as_ref()
+      .map(|label| label.0 == l.label())
+      .unwrap_or(true)
+  })
 }

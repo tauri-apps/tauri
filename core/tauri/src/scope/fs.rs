@@ -145,7 +145,7 @@ impl Scope {
     id
   }
 
-  fn trigger(&self, event: Event) {
+  fn emit(&self, event: Event) {
     let listeners = self.event_listeners.lock().unwrap();
     let handlers = listeners.values();
     for listener in handlers {
@@ -169,7 +169,7 @@ impl Scope {
         escaped_pattern_with(p, if recursive { "**" } else { "*" })
       })?;
     }
-    self.trigger(Event::PathAllowed(path.to_path_buf()));
+    self.emit(Event::PathAllowed(path.to_path_buf()));
     Ok(())
   }
 
@@ -183,7 +183,7 @@ impl Scope {
       path,
       escaped_pattern,
     )?;
-    self.trigger(Event::PathAllowed(path.to_path_buf()));
+    self.emit(Event::PathAllowed(path.to_path_buf()));
     Ok(())
   }
 
@@ -202,7 +202,7 @@ impl Scope {
         escaped_pattern_with(p, if recursive { "**" } else { "*" })
       })?;
     }
-    self.trigger(Event::PathForbidden(path.to_path_buf()));
+    self.emit(Event::PathForbidden(path.to_path_buf()));
     Ok(())
   }
 
@@ -216,7 +216,7 @@ impl Scope {
       path,
       escaped_pattern,
     )?;
-    self.trigger(Event::PathForbidden(path.to_path_buf()));
+    self.emit(Event::PathForbidden(path.to_path_buf()));
     Ok(())
   }
 

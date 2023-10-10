@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use serde::Serialize;
 use std::{fmt, hash::Hash};
 use uuid::Uuid;
 
@@ -38,7 +39,7 @@ impl fmt::Display for EventHandler {
   }
 }
 
-/// An event that was triggered.
+/// An event that was emitted.
 #[derive(Debug, Clone)]
 pub struct Event {
   id: EventHandler,
@@ -66,22 +67,6 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::emit,
     ])
     .build()
-}
-
-pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: usize) -> String {
-  format!(
-    "
-      (function () {{
-        const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
-        if (listeners) {{
-          const index = window['{listeners_object_name}']['{event_name}'].findIndex(e => e.id === {event_id})
-          if (index > -1) {{
-            window['{listeners_object_name}']['{event_name}'].splice(index, 1)
-          }}
-        }}
-      }})()
-    ",
-  )
 }
 
 pub fn listen_js(
@@ -116,5 +101,36 @@ pub fn listen_js(
     } else {
       "null".to_owned()
     },
+  )
+}
+
+pub fn emit_js<S: Serialize>(
+  event_emit_function_name: &str,
+  event: &str,
+  source_window_label: Option<&str>,
+  payload: S,
+) -> crate::Result<String> {
+  Ok(format!(
+    "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
+    event_emit_function_name,
+    serde_json::to_string(event)?,
+    serde_json::to_string(&source_window_label)?,
+    serde_json::to_value(payload)?,
+  ))
+}
+
+pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: usize) -> String {
+  format!(
+    "
+      (function () {{
+        const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
+        if (listeners) {{
+          const index = window['{listeners_object_name}']['{event_name}'].findIndex(e => e.id === {event_id})
+          if (index > -1) {{
+            window['{listeners_object_name}']['{event_name}'].splice(index, 1)
+          }}
+        }}
+      }})()
+    ",
   )
 }

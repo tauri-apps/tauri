@@ -28,14 +28,13 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-  Add(AddOptions),
+  Init(InitOptions),
 }
 
 #[derive(Debug, Parser)]
-#[clap(about = "Adds the Android project to an existing Tauri plugin")]
-pub struct AddOptions {
+#[clap(about = "Initializes the Android project for an existing Tauri plugin")]
+pub struct InitOptions {
   /// Name of your Tauri plugin. Must match the current plugin's name.
-  #[clap(short = 'n', long = "name")]
   plugin_name: String,
   /// The output directory.
   #[clap(short, long)]
@@ -45,7 +44,7 @@ pub struct AddOptions {
 
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
-    Commands::Add(options) => {
+    Commands::Init(options) => {
       let out_dir = PathBuf::from(options.out_dir);
       if out_dir.join("android").exists() {
         return Err(anyhow::anyhow!("android folder already exists"));

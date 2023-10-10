@@ -30,7 +30,6 @@ pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
 #[clap(about = "Initializes a Tauri plugin project")]
 pub struct Options {
   /// Name of your Tauri plugin
-  #[clap(short = 'n', long = "name")]
   plugin_name: String,
   /// Initializes a Tauri plugin without the TypeScript API
   #[clap(long)]
@@ -48,6 +47,15 @@ pub struct Options {
   /// Author name
   #[clap(short, long)]
   author: Option<String>,
+  /// Whether to initialize an Android project for the plugin.
+  #[clap(long)]
+  android: bool,
+  /// Whether to initialize an iOS project for the plugin.
+  #[clap(long)]
+  ios: bool,
+  /// Whether to initialize Android and iOS projects for the plugin.
+  #[clap(long)]
+  mobile: bool,
 }
 
 impl Options {
@@ -120,15 +128,20 @@ pub fn command(mut options: Options) -> Result<()> {
       );
     }
 
-    let plugin_id = request_input(
-      "What should be the Android Package ID for your plugin?",
-      Some(format!("com.plugin.{}", options.plugin_name)),
-      false,
-      false,
-    )?
-    .unwrap();
+    let plugin_id = if options.android || options.mobile {
+      let plugin_id = request_input(
+        "What should be the Android Package ID for your plugin?",
+        Some(format!("com.plugin.{}", options.plugin_name)),
+        false,
+        false,
+      )?
+      .unwrap();
 
-    data.insert("android_package_id", to_json(&plugin_id));
+      data.insert("android_package_id", to_json(&plugin_id));
+      Some(plugin_id)
+    } else {
+      None
+    };
 
     let mut created_dirs = Vec::new();
     template::render_with_generator(
@@ -157,13 +170,18 @@ pub fn command(mut options: Options) -> Result<()> {
               }
             }
             "android" => {
-              return generate_android_out_file(
-                &path,
-                &template_target_path,
-                &plugin_id.replace('.', "/"),
-                &mut created_dirs,
-              );
+              if options.android || options.mobile {
+                return generate_android_out_file(
+                  &path,
+                  &template_target_path,
+                  &plugin_id.as_ref().unwrap().replace('.', "/"),
+                  &mut created_dirs,
+                );
+              } else {
+                return Ok(None);
+              }
             }
+            "ios" if !(options.ios || options.mobile) => return Ok(None),
             "webview-dist" | "webview-src" | "package.json" => {
               if options.no_api {
                 return Ok(None);

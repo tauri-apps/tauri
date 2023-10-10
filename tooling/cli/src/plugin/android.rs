@@ -35,7 +35,8 @@ enum Commands {
 #[clap(about = "Initializes the Android project for an existing Tauri plugin")]
 pub struct InitOptions {
   /// Name of your Tauri plugin. Must match the current plugin's name.
-  plugin_name: String,
+  /// If not specified, it will be infered from the current directory.
+  plugin_name: Option<String>,
   /// The output directory.
   #[clap(short, long)]
   #[clap(default_value_t = current_dir().expect("failed to read cwd").to_string_lossy().into_owned())]
@@ -45,6 +46,11 @@ pub struct InitOptions {
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => {
+      let plugin_name = match options.plugin_name {
+        None => super::infer_plugin_name(std::env::current_dir()?)?,
+        Some(name) => name,
+      };
+
       let out_dir = PathBuf::from(options.out_dir);
       if out_dir.join("android").exists() {
         return Err(anyhow::anyhow!("android folder already exists"));
@@ -52,7 +58,7 @@ pub fn command(cli: Cli) -> Result<()> {
 
       let plugin_id = super::init::request_input(
         "What should be the Android Package ID for your plugin?",
-        Some(format!("com.plugin.{}", options.plugin_name)),
+        Some(format!("com.plugin.{}", plugin_name)),
         false,
         false,
       )?
@@ -61,7 +67,7 @@ pub fn command(cli: Cli) -> Result<()> {
       let handlebars = Handlebars::new();
 
       let mut data = BTreeMap::new();
-      super::init::plugin_name_data(&mut data, &options.plugin_name);
+      super::init::plugin_name_data(&mut data, &plugin_name);
 
       let mut created_dirs = Vec::new();
       template::render_with_generator(
@@ -113,7 +119,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {{
     .build()
 }}
 "#,
-        name = options.plugin_name,
+        name = plugin_name,
         identifier = plugin_id
       );
 

@@ -36,7 +36,8 @@ enum Commands {
 #[clap(about = "Initializes the iOS project for an existing Tauri plugin")]
 pub struct InitOptions {
   /// Name of your Tauri plugin. Must match the current plugin's name.
-  plugin_name: String,
+  /// If not specified, it will be infered from the current directory.
+  plugin_name: Option<String>,
   /// The output directory.
   #[clap(short, long)]
   #[clap(default_value_t = current_dir().expect("failed to read cwd").to_string_lossy().into_owned())]
@@ -46,6 +47,11 @@ pub struct InitOptions {
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => {
+      let plugin_name = match options.plugin_name {
+        None => super::infer_plugin_name(std::env::current_dir()?)?,
+        Some(name) => name,
+      };
+
       let out_dir = PathBuf::from(options.out_dir);
       if out_dir.join("ios").exists() {
         return Err(anyhow::anyhow!("ios folder already exists"));
@@ -54,7 +60,7 @@ pub fn command(cli: Cli) -> Result<()> {
       let handlebars = Handlebars::new();
 
       let mut data = BTreeMap::new();
-      super::init::plugin_name_data(&mut data, &options.plugin_name);
+      super::init::plugin_name_data(&mut data, &plugin_name);
 
       let mut created_dirs = Vec::new();
       template::render_with_generator(
@@ -110,7 +116,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {{
     .build()
 }}
 "#,
-        name = options.plugin_name,
+        name = plugin_name,
       );
 
       log::info!("iOS project added");

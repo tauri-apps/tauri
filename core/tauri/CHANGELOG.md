@@ -1,5 +1,36 @@
 # Changelog
 
+## \[2.0.0-alpha.15]
+
+### Enhancements
+
+- [`b597aa5f`](https://www.github.com/tauri-apps/tauri/commit/b597aa5f3974f5ca5ca5159d441abc9ed3e80721)([#7871](https://www.github.com/tauri-apps/tauri/pull/7871)) Set `main` as the default `id` for the tray icon registered from the configuration file, so if the `id` is not specified, it can be retrieved using `app.tray_by_id("main")`.
+
+### Bug Fixes
+
+- [`a2021c30`](https://www.github.com/tauri-apps/tauri/commit/a2021c30ba1139fcfe4db2522b96125f3fa4d9d6)([#7866](https://www.github.com/tauri-apps/tauri/pull/7866)) Changed `IconMenuItem::set_native_icon` signature to take `&self` instead of `&mut self` to fix compilation error on macos.
+- [`a68ccaf5`](https://www.github.com/tauri-apps/tauri/commit/a68ccaf59a6731dc030bdb4642a35e3bc64d5769)([#7822](https://www.github.com/tauri-apps/tauri/pull/7822)) Fix `asset` protocol failing to fetch files.
+- [`6fbd6dba`](https://www.github.com/tauri-apps/tauri/commit/6fbd6dba5290dc017ab0ba5a44cf4358b022836f)([#17](https://www.github.com/tauri-apps/tauri/pull/17)) Fix the validation of `std::env::current_exe` warn the user if AppImage is not mounted instead of panicking
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.0.0-alpha.8`
+- Upgraded to `tauri-utils@2.0.0-alpha.8`
+- Upgraded to `tauri-build@2.0.0-alpha.9`
+- Upgraded to `tauri-runtime@1.0.0-alpha.2`
+- Upgraded to `tauri-runtime-wry@1.0.0-alpha.3`
+
+### Breaking Changes
+
+- [`092a561c`](https://www.github.com/tauri-apps/tauri/commit/092a561ca69a631d2a03777e29debeba37b197a7)([#7874](https://www.github.com/tauri-apps/tauri/pull/7874)) Removed `tauri::api` module as most apis have been moved to either a plugin or we recommend using other crates.
+- [`deea9436`](https://www.github.com/tauri-apps/tauri/commit/deea9436261f651188e0bc86104779bf30029c32)([#7876](https://www.github.com/tauri-apps/tauri/pull/7876)) Changed `Env.args` to `Env.args_os` and now uses `OsString` instead of `String`
+- [`b7fd88e1`](https://www.github.com/tauri-apps/tauri/commit/b7fd88e18d24e4450129a5a5007f2e740c69afe5)([#7944](https://www.github.com/tauri-apps/tauri/pull/7944)) `tauri::scope` module is recieving a couple of consistency changes:
+
+  - Added `tauri::scope::fs` module.
+  - Removed `scope::IpcScope` re-export, use `scope::ipc::Scope`.
+  - Removed `FsScope`, `GlobPattern` and `FsScopeEvent`, use `scope::fs::Scope`, `scope::fs::Pattern` and `scope::fs::Event` respectively.
+- [`c0d03af4`](https://www.github.com/tauri-apps/tauri/commit/c0d03af4704c828698e06e9662dab1087c99c42e)([#7943](https://www.github.com/tauri-apps/tauri/pull/7943)) Changed `TrayIconBuilder/TrayIcon::on_tray_event` to `TrayIconBuilder/TrayIcon::on_tray_icon_event` for consistency of naming.
+
 ## \[2.0.0-alpha.14]
 
 ### Bug Fixes

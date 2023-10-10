@@ -15,16 +15,13 @@ use crate::{
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
-  scope::IpcScope,
+  scope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
   Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
   StateManager, Theme, Window,
 };
-
-#[cfg(feature = "protocol-asset")]
-use crate::scope::FsScope;
 
 #[cfg(desktop)]
 use crate::menu::{Menu, MenuEvent};
@@ -534,8 +531,8 @@ macro_rules! shared_app_impl {
           .push(Box::new(handler));
       }
 
-      /// Gets the first tray icon registerd, usually the one configured in
-      /// tauri config file.
+      /// Gets the first tray icon registered,
+      /// usually the one configured in the Tauri configuration file.
       #[cfg(all(desktop, feature = "tray-icon"))]
       #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn tray(&self) -> Option<TrayIcon<R>> {
@@ -1576,9 +1573,12 @@ impl<R: Runtime> Builder<R> {
     app.manage(env);
 
     app.manage(Scopes {
-      ipc: IpcScope::new(&app.config()),
+      ipc: scope::ipc::Scope::new(&app.config()),
       #[cfg(feature = "protocol-asset")]
-      asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
+      asset_protocol: scope::fs::Scope::for_fs_api(
+        &app,
+        &app.config().tauri.security.asset_protocol.scope,
+      )?,
     });
 
     app.manage(ChannelDataIpcQueue::default());
@@ -1615,9 +1615,10 @@ impl<R: Runtime> Builder<R> {
     {
       let config = app.config();
       if let Some(tray_config) = &config.tauri.tray_icon {
-        let mut tray = TrayIconBuilder::new()
-          .icon_as_template(tray_config.icon_as_template)
-          .menu_on_left_click(tray_config.menu_on_left_click);
+        let mut tray =
+          TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
+            .icon_as_template(tray_config.icon_as_template)
+            .menu_on_left_click(tray_config.menu_on_left_click);
         if let Some(icon) = &app.manager.inner.tray_icon {
           tray = tray.icon(icon.clone());
         }

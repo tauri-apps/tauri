@@ -12,10 +12,11 @@ use std::{
   },
 };
 
-pub use glob::Pattern;
 use tauri_utils::config::FsScope;
 
 use crate::ScopeEventId;
+
+pub use glob::Pattern;
 
 /// Scope change event.
 #[derive(Debug, Clone)]

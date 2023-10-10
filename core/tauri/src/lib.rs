@@ -821,13 +821,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Gets the scope for the IPC.
-  fn ipc_scope(&self) -> IpcScope {
+  fn ipc_scope(&self) -> scope::ipc::Scope {
     self.state::<Scopes>().inner().ipc.clone()
   }
 
   /// Gets the scope for the asset protocol.
   #[cfg(feature = "protocol-asset")]
-  fn asset_protocol_scope(&self) -> FsScope {
+  fn asset_protocol_scope(&self) -> scope::fs::Scope {
     self.state::<Scopes>().inner().asset_protocol.clone()
   }
 

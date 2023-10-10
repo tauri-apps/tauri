@@ -6,7 +6,7 @@ use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_option
 use crate::{helpers::config::get as get_tauri_config, Result};
 use clap::{ArgAction, Parser};
 
-use tauri_mobile::{
+use cargo_mobile2::{
   android::target::Target,
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},

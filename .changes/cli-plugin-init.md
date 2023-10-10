@@ -1,6 +1,6 @@
 ---
-'tauri-cli': 'patch'
-'@tauri-apps/cli': 'patch'
+'tauri-cli': 'patch:breaking'
+'@tauri-apps/cli': 'patch:breaking'
 ---
 
 The `tauri plugin` subcommand is receving a couple of consitency and quality of life improvements:

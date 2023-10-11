@@ -63,12 +63,7 @@ pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
     kinds.extend(defaults.clone());
   }
 
-  let mut has_negated: bool = false;
-  for NegatedIdent(negated, _) in &kinds {
-    if *negated && !has_negated {
-      has_negated = true;
-    }
-  }
+  let has_negated = kinds.iter().any(|n| n.0);
 
   if has_negated {
     kinds.extend(defaults);

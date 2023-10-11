@@ -160,9 +160,9 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 
   #[cfg(target_os = "android")]
   fn find_class<'a>(
-    &'a self,
-    env: &'a mut jni::JNIEnv<'a>,
-    activity: &'a jni::objects::JObject<'a>,
+    &self,
+    env: &mut jni::JNIEnv<'a>,
+    activity: &jni::objects::JObject<'_>,
     name: impl Into<String>,
   ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
     todo!()

@@ -112,7 +112,7 @@ impl ResourceTable {
 
   /// Returns a reference counted pointer to the resource of type `T` with the
   /// given `rid`. If `rid` is not present or has a type different than `T`,
-  /// this function returns `None`.
+  /// this function returns [`Error::BadResourceId`].
   pub(crate) fn get<T: Resource>(&self, rid: ResourceId) -> Result<Arc<T>, Error> {
     self
       .index

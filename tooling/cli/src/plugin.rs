@@ -47,9 +47,9 @@ pub fn command(cli: Cli) -> Result<()> {
 
 fn infer_plugin_name<P: AsRef<Path>>(directory: P) -> Result<String> {
   let dir = directory.as_ref();
-  let carg_toml_path = dir.join("Cargo.toml");
-  let name = if carg_toml_path.exists() {
-    let contents = std::fs::read(carg_toml_path)?;
+  let cargo_toml_path = dir.join("Cargo.toml");
+  let name = if cargo_toml_path.exists() {
+    let contents = std::fs::read(cargo_toml_path)?;
     let cargo_toml: toml::Value = toml::from_slice(&contents)?;
     cargo_toml
       .get("package")

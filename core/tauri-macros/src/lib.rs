@@ -91,11 +91,11 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
   runtime::default_runtime(attributes, input).into()
 }
 
-/// Accepets a closure-like syntax to call arbitray code on a menu item
-/// after mathcing against `kind` and retreiveing it from `resources_table` using `rid`.
+/// Accepts a closure-like syntax to call arbitrary code on a menu item
+/// after matching against `kind` and retrieving it from `resources_table` using `rid`.
 ///
-/// You can optionally pass a third paraemeter to select which item kinds
-/// to match agains, by providing a `|` separated list of item kinds
+/// You can optionally pass a third parameter to select which item kinds
+/// to match against, by providing a `|` separated list of item kinds
 /// ```ignore
 /// do_menu_item!(|i| i.set_text(text), Check | Submenu);
 /// ```

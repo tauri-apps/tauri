@@ -73,15 +73,19 @@ pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
 
   let (kinds, types): (Vec<Ident>, Vec<Ident>) = kinds
     .into_iter()
-    .filter_map(|nident| match nident.1 {
-      i if i == "MenuItem" && !nident.0 => Some((i, Ident::new("MenuItem", Span::call_site()))),
-      i if i == "Submenu" && !nident.0 => Some((i, Ident::new("Submenu", Span::call_site()))),
-      i if i == "Predefined" && !nident.0 => {
-        Some((i, Ident::new("PredefinedMenuItem", Span::call_site())))
+    .filter_map(|nident| {
+      if nident.0 {
+        None
+      } else {
+        match nident.1 {
+          i if i == "MenuItem" => Some((i, Ident::new("MenuItem", Span::call_site()))),
+          i if i == "Submenu" => Some((i, Ident::new("Submenu", Span::call_site()))),
+          i if i == "Predefined" => Some((i, Ident::new("PredefinedMenuItem", Span::call_site()))),
+          i if i == "Check" => Some((i, Ident::new("CheckMenuItem", Span::call_site()))),
+          i if i == "Icon" => Some((i, Ident::new("IconMenuItem", Span::call_site()))),
+          _ => None,
+        }
       }
-      i if i == "Check" && !nident.0 => Some((i, Ident::new("CheckMenuItem", Span::call_site()))),
-      i if i == "Icon" && !nident.0 => Some((i, Ident::new("IconMenuItem", Span::call_site()))),
-      _ => None,
     })
     .unzip();
 

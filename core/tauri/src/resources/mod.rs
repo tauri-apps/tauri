@@ -95,7 +95,7 @@ impl ResourceTable {
   /// The resource type is erased at runtime and must be statically known
   /// when retrieving it through `get()`.
   ///
-  /// Returns a unique resource ID, which acts as a key for this resource.
+  /// Returns an unique resource ID, which acts as a key for this resource.
   pub(crate) fn add_arc<T: Resource>(&mut self, resource: Arc<T>) -> ResourceId {
     let resource = resource as Arc<dyn Resource>;
     self.add_arc_dyn(resource)

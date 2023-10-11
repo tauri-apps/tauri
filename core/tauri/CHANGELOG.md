@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`21cdbb41`](https://www.github.com/tauri-apps/tauri/commit/21cdbb41a38f465148bbeb82feb3e7886c320182)([#7982](https://www.github.com/tauri-apps/tauri/pull/7982)) Set the correct `truncate` option on `OpenOptions` so that `write_file` can completely overwrite existing files.
+
 ## \[1.5.1]
 
 ### Bug Fixes

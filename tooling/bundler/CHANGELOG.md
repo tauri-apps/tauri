@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.4.2]
+
+### Bug Fixes
+
+- [`f552c179`](https://www.github.com/tauri-apps/tauri/commit/f552c1796a61a5cfd51fad6d616bea3164b48a21)([#7998](https://www.github.com/tauri-apps/tauri/pull/7998)) Update the WebView2 offline installer GUIDs to resolve the 404 HTTP response status codes.
+
 ## \[1.4.1]
 
 ### Bug Fixes

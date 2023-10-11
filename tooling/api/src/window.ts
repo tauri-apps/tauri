@@ -259,6 +259,7 @@ class Window {
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {
     this.label = label
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.listeners = Object.create(null)
 
     // @ts-expect-error `skip` is not a public API so it is not defined in WindowOptions

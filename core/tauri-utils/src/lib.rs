@@ -410,3 +410,29 @@ pub fn display_path<P: AsRef<Path>>(p: P) -> String {
     .display()
     .to_string()
 }
+
+/// Progress State
+#[derive(Debug, Clone, Copy)]
+pub enum ProgressState {
+  /// Hide progress bar.
+  None,
+  /// Normal state.
+  Normal,
+  /// Indeterminate state. **Treated as Normal in linux and macOS**
+  Indeterminate,
+  /// Paused state. **Treated as Normal in linux**
+  Paused,
+  /// Error state. **Treated as Normal in linux**
+  Error,
+}
+
+/// Progress Bar State
+#[derive(Debug)]
+pub struct ProgressBarState {
+  /// The progress bar state.
+  pub state: Option<ProgressState>,
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
+  pub progress: Option<u64>,
+  /// The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
+  pub unity_uri: Option<String>,
+}

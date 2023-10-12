@@ -30,7 +30,10 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
+  utils::{
+    config::{WindowConfig, WindowEffectsConfig, WindowUrl},
+    ProgressBarState,
+  },
   EventLoopMessage, Manager, Runtime, Theme, WindowEvent,
 };
 #[cfg(desktop)]
@@ -2041,6 +2044,20 @@ impl<R: Runtime> Window<R> {
   /// Starts dragging the window.
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
+  }
+
+  /// Sets the taskbar progress state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_progress_bar(progress_state)
+      .map_err(Into::into)
   }
 }
 

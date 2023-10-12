@@ -48,9 +48,10 @@ impl dyn Resource {
   #[allow(clippy::needless_lifetimes)]
   pub(crate) fn downcast_arc<'a, T: Resource>(self: &'a Arc<Self>) -> Option<&'a Arc<T>> {
     if self.is::<T>() {
+      // A resource is stored as `Arc<T>` in a BTreeMap
+      // and is safe to cast to `Arc<T>` because of the runtime
+      // check done in `self.is::<T>()`
       let ptr = self as *const Arc<_> as *const Arc<T>;
-      // TODO(piscisaureus): safety comment
-      #[allow(clippy::undocumented_unsafe_blocks)]
       Some(unsafe { &*ptr })
     } else {
       None
@@ -121,22 +122,6 @@ impl ResourceTable {
       .map(Clone::clone)
       .ok_or_else(|| Error::BadResourceId(rid))
   }
-
-  // /// Removes a resource of type `T` from the resource table and returns it.
-  // /// If a resource with the given `rid` exists but its type does not match `T`,
-  // /// it is not removed from the resource table. Note that the resource's
-  // /// `close()` method is *not* called.
-  // ///
-  // /// Also note that there might be a case where
-  // /// the returned `Arc<T>` is referenced by other variables. That is, we cannot
-  // /// assume that `Arc::strong_count(&returned_arc)` is always equal to 1 on success.
-  // /// In particular, be really careful when you want to extract the inner value of
-  // /// type `T` from `Arc<T>`.
-  // pub(crate) fn take<T: Resource>(&mut self, rid: ResourceId) -> Result<Arc<T>, Error> {
-  //   let resource = self.get::<T>(rid)?;
-  //   self.index.remove(&rid);
-  //   Ok(resource)
-  // }
 
   /// Removes the resource with the given `rid` from the resource table. If the
   /// only reference to this resource existed in the resource table, this will

@@ -320,10 +320,9 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     protocol: H,
   ) {
     let uri_scheme = uri_scheme.into();
-    self.uri_scheme_protocols.insert(
-      uri_scheme,
-      Box::new(move |data, responder| (protocol)(data, responder)),
-    );
+    self
+      .uri_scheme_protocols
+      .insert(uri_scheme, Box::new(protocol));
   }
 
   #[cfg(target_os = "android")]

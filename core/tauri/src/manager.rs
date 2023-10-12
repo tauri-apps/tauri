@@ -205,7 +205,7 @@ fn replace_csp_nonce(
       .into_iter()
       .map(|n| format!("'nonce-{n}'"))
       .collect::<Vec<String>>();
-    let sources = csp.entry(directive.into()).or_insert_with(Default::default);
+    let sources = csp.entry(directive.into()).or_default();
     let self_source = "'self'".to_string();
     if !sources.contains(&self_source) {
       sources.push(self_source);

@@ -4,7 +4,7 @@
 
 //! The Tauri window types and functions.
 
-pub mod plugin;
+pub(crate) mod plugin;
 
 use http::HeaderMap;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};

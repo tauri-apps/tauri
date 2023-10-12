@@ -100,7 +100,7 @@ impl Channel {
     self.id
   }
 
-  /// Sends the given data through the  channel.
+  /// Sends the given data through the channel.
   pub fn send<T: IpcResponse>(&self, data: T) -> crate::Result<()> {
     let body = data.body()?;
     (self.on_message)(body)

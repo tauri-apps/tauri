@@ -45,7 +45,6 @@ impl dyn Resource {
   }
 
   #[inline(always)]
-  #[allow(clippy::needless_lifetimes)]
   pub(crate) fn downcast_arc<'a, T: Resource>(self: &'a Arc<Self>) -> Option<&'a Arc<T>> {
     if self.is::<T>() {
       // A resource is stored as `Arc<T>` in a BTreeMap

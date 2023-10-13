@@ -23,9 +23,7 @@ pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);
 
-  let agent = ureq::AgentBuilder::new().try_proxy_from_env(true)
-      .build();
-
+  let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
   let response = agent.get(url).call().map_err(Box::new)?;
   let mut bytes = Vec::new();
   response.into_reader().read_to_end(&mut bytes)?;

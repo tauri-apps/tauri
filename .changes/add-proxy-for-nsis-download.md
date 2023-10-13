@@ -1,5 +1,3 @@
----
-"tauri-bundler": 'patch:fix'
----
+"tauri-bundler": 'patch:bug'
 
-Add proxy for NSIS when downloading resources.
+Read `HTTP_PROXY` env var when downloading bundling resources on Windows.

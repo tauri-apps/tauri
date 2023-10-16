@@ -49,7 +49,7 @@ impl Default for Listeners {
         pending: Mutex::default(),
         function_name: "_listeners_function_id_",
         listeners_object_name: "_listeners_object_id_",
-        next_event_id: Arc::new(AtomicU32::new(2)),
+        next_event_id: Default::default(),
       }),
     }
   }

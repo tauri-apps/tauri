@@ -335,6 +335,12 @@ impl Menu {
   }
 
   /// Adds the custom menu item to the menu.
+  ///
+  /// ## Platform-spcific:
+  ///
+  /// - **macOS:** Only [`Submenu`] can be added to the menu
+  ///
+  /// [`Submenu`]: crate::Submenu
   #[must_use]
   pub fn add_item(mut self, item: CustomMenuItem) -> Self {
     self.items.push(MenuEntry::CustomItem(item));

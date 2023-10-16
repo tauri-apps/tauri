@@ -54,7 +54,7 @@ pub struct Cli {
 }
 
 #[derive(Debug, Parser)]
-#[clap(about = "Initializes a Tauri Android project")]
+#[clap(about = "Initialize Android target in the project")]
 pub struct InitOptions {
   /// Skip prompting for values
   #[clap(long)]

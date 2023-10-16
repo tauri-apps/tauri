@@ -9,8 +9,8 @@ use crate::{
     common::CommandExt,
     windows::util::{
       download, download_and_verify, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
-      NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
-      WEBVIEW2_X86_INSTALLER_GUID,
+      NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL,
+      WEBVIEW2_X64_OFFLINE_INSTALLER_GUID, WEBVIEW2_X86_OFFLINE_INSTALLER_GUID,
     },
   },
   Settings,
@@ -367,9 +367,9 @@ fn build_nsis_app_installer(
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
       let guid = if arch == "x64" {
-        WEBVIEW2_X64_INSTALLER_GUID
+        WEBVIEW2_X64_OFFLINE_INSTALLER_GUID
       } else {
-        WEBVIEW2_X86_INSTALLER_GUID
+        WEBVIEW2_X86_OFFLINE_INSTALLER_GUID
       };
       let offline_installer_path = tauri_tools_path
         .join("Webview2OfflineInstaller")

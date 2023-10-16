@@ -774,9 +774,6 @@ impl<R: Runtime> WindowManager<R> {
       ipc_script: &'a str,
       #[raw]
       bundle_script: &'a str,
-      // A function to immediately listen to an event.
-      #[raw]
-      listen_function: &'a str,
       #[raw]
       core_script: &'a str,
       #[raw]
@@ -809,16 +806,6 @@ impl<R: Runtime> WindowManager<R> {
       pattern_script,
       ipc_script,
       bundle_script,
-      listen_function: &format!(
-        "function listen(eventName, cb) {{ {} }}",
-        crate::event::listen_js(
-          self.listeners().listeners_object_name(),
-          "eventName",
-          0,
-          None,
-          "window['_' + window.__TAURI__.transformCallback(cb) ]"
-        )
-      ),
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
       }

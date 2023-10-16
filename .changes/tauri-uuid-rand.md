@@ -13,4 +13,3 @@ and simplifying the types where applicable:
 - Added `tauri::scope::ScopeEventId`
 - Changed `FsScope::listen` to return the new `ScopeEventId` instead of `Uuid`.
 - Added `FsScope::unlisten`
--

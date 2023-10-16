@@ -2232,7 +2232,7 @@ impl<R: Runtime> Window<R> {
     let event_id = self.manager.listeners().next_event_id();
 
     self.eval(&crate::event::listen_js(
-      self.manager().listeners().function_name(),
+      self.manager().listeners().listeners_object_name(),
       &format!("'{}'", event),
       event_id,
       window_label.as_deref(),
@@ -2256,7 +2256,7 @@ impl<R: Runtime> Window<R> {
   /// Unregister a JS event listener.
   pub(crate) fn unlisten_js(&self, event: &str, id: EventId) -> crate::Result<()> {
     self.eval(&crate::event::unlisten_js(
-      self.manager().listeners().function_name(),
+      self.manager().listeners().listeners_object_name(),
       event,
       id,
     ))?;

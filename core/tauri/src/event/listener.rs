@@ -28,7 +28,7 @@ struct Handler {
 }
 
 /// Holds event handlers and pending event handlers, along with the salts associating them.
-pub(crate) struct InnerListeners {
+struct InnerListeners {
   handlers: Mutex<HashMap<String, HashMap<EventId, Handler>>>,
   pending: Mutex<Vec<Pending>>,
   function_name: &'static str,

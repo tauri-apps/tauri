@@ -30,7 +30,9 @@ default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
-  "x86_64-apple-darwin"
+  "x86_64-apple-darwin",
+  "x86_64-linux-android",
+  "x86_64-apple-ios"
 ]
 
 [package.metadata.cargo-udeps.ignore]

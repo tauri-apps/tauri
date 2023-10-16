@@ -47,8 +47,8 @@ impl Default for Listeners {
       inner: Arc::new(InnerListeners {
         handlers: Mutex::default(),
         pending: Mutex::default(),
-        function_name: "_listeners_function_id_",
-        listeners_object_name: "_listeners_object_id_",
+        function_name: "__internal_unstable_listeners_function_id__",
+        listeners_object_name: "__internal_unstable_listeners_object_id__",
         next_event_id: Default::default(),
       }),
     }

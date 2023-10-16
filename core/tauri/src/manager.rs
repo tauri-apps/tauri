@@ -812,7 +812,7 @@ impl<R: Runtime> WindowManager<R> {
       listen_function: &format!(
         "function listen(eventName, cb) {{ {} }}",
         crate::event::listen_js(
-          self.listeners().object_name(),
+          self.listeners().listeners_object_name(),
           "eventName",
           0,
           None,
@@ -851,7 +851,7 @@ impl<R: Runtime> WindowManager<R> {
       }});
     ",
       function = self.listeners().function_name(),
-      listeners = self.listeners().object_name()
+      listeners = self.listeners().listeners_object_name()
     )
   }
 

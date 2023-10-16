@@ -32,7 +32,7 @@ struct InnerListeners {
   handlers: Mutex<HashMap<String, HashMap<EventId, Handler>>>,
   pending: Mutex<Vec<Pending>>,
   function_name: &'static str,
-  object_name: &'static str,
+  listeners_object_name: &'static str,
   next_event_id: Arc<AtomicU32>,
 }
 
@@ -48,7 +48,7 @@ impl Default for Listeners {
         handlers: Mutex::default(),
         pending: Mutex::default(),
         function_name: "_listeners_function_id_",
-        object_name: "_listeners_object_id_",
+        listeners_object_name: "_listeners_object_id_",
         next_event_id: Arc::new(AtomicU32::new(2)),
       }),
     }
@@ -74,8 +74,8 @@ impl Listeners {
   }
 
   /// Listener object name to represent the JavaScript event listener object.
-  pub(crate) fn object_name(&self) -> &str {
-    self.inner.object_name
+  pub(crate) fn listeners_object_name(&self) -> &str {
+    self.inner.listeners_object_name
   }
 
   /// Insert a pending event action to the queue.

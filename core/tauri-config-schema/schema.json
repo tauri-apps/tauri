@@ -797,6 +797,27 @@
           ]
         },
         {
+          "description": "Tabbed effect that matches the system dark perefence **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "tabbed"
+          ]
+        },
+        {
+          "description": "Tabbed effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "tabbedDark"
+          ]
+        },
+        {
+          "description": "Tabbed effect with light mode **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "tabbedLight"
+          ]
+        },
+        {
           "description": "**Windows 7/10/11(22H1) Only**\n\n## Notes\n\nThis effect has bad performance when resizing/dragging the window on Windows 11 build 22621.",
           "type": "string",
           "enum": [
@@ -1762,7 +1783,7 @@
       "type": "object",
       "properties": {
         "developmentTeam": {
-          "description": "The development team. This value is required for iOS development because code signing is enforced. The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
+          "description": "The development team. This value is required for iOS development because code signing is enforced. The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
           "type": [
             "string",
             "null"

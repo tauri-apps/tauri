@@ -13,7 +13,7 @@ keywords = [ "bundle", "cargo", "tauri" ]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]

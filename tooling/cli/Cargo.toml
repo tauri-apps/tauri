@@ -6,7 +6,7 @@ name = "tauri-cli"
 version = "2.0.0-alpha.15"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
@@ -48,7 +48,7 @@ jsonrpsee-ws-client = { version = "0.16", default-features = false }
 thiserror = "1"
 sublime_fuzzy = "0.7"
 clap_complete = "4"
-clap = { version = "4.0", features = [ "derive" ] }
+clap = { version = "4.0", features = [ "derive", "env" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "2.0.0-alpha.9", default-features = false, path = "../bundler" }
 colored = "2.0"

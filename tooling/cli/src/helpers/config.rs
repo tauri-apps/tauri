@@ -95,7 +95,7 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     enable_elevated_update_task: config.enable_elevated_update_task,
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,
-    fips_compliant: var_os("TAURI_FIPS_COMPLIANT").map_or(false, |v| v == "true"),
+    fips_compliant: var_os("TAURI_BUNDLER_WIX_FIPS_COMPLIANT").map_or(false, |v| v == "true"),
   }
 }
 

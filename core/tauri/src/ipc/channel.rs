@@ -4,7 +4,10 @@
 
 use std::{
   collections::HashMap,
-  sync::{Arc, Mutex},
+  sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc, Mutex,
+  },
 };
 
 use serde::{Deserialize, Serialize, Serializer};
@@ -23,6 +26,9 @@ pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
 // TODO: ideally this const references CHANNEL_PLUGIN_NAME
 pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
 pub(crate) const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
+
+static CHANNEL_COUNTER: AtomicU32 = AtomicU32::new(0);
+static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
 #[derive(Default, Clone)]
@@ -49,10 +55,10 @@ impl Channel {
   pub fn new<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
     on_message: F,
   ) -> Self {
-    Self::_new(rand::random(), on_message)
+    Self::new_with_id(CHANNEL_COUNTER.fetch_add(1, Ordering::Relaxed), on_message)
   }
 
-  pub(crate) fn _new<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
+  pub(crate) fn new_with_id<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
     id: u32,
     on_message: F,
   ) -> Self {
@@ -69,8 +75,8 @@ impl Channel {
   }
 
   pub(crate) fn from_ipc<R: Runtime>(window: Window<R>, callback: CallbackFn) -> Self {
-    Channel::_new(callback.0, move |body| {
-      let data_id = rand::random();
+    Channel::new_with_id(callback.0, move |body| {
+      let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
       window
         .state::<ChannelDataIpcQueue>()
         .0
@@ -78,7 +84,7 @@ impl Channel {
         .unwrap()
         .insert(data_id, body);
       window.eval(&format!(
-        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then(window['_' + {}]).catch(console.error)",
+        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then(window['_' + {}]).catch(console.error)",
         callback.0
       ))
     })

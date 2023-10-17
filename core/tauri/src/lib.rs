@@ -73,7 +73,6 @@ pub use swift_rs;
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
 
-pub mod api;
 pub(crate) mod app;
 pub mod async_runtime;
 pub mod command;
@@ -182,7 +181,7 @@ pub use runtime::ActivationPolicy;
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
 
-pub use self::event::{Event, EventHandler};
+pub use self::event::{Event, EventId};
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
@@ -610,7 +609,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   })
   ///   .invoke_handler(tauri::generate_handler![synchronize]);
   /// ```
-  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
@@ -620,7 +619,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Listen to a global event only once.
   ///
   /// See [`Self::listen_global`] for more information.
-  fn once_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  fn once_global<F>(&self, event: impl Into<String>, handler: F)
   where
     F: FnOnce(Event) + Send + 'static,
   {
@@ -675,8 +674,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///     Ok(())
   ///   });
   /// ```
-  fn unlisten(&self, handler_id: EventHandler) {
-    self.manager().unlisten(handler_id)
+  fn unlisten(&self, id: EventId) {
+    self.manager().unlisten(id)
   }
 
   /// Fetch a single window from the manager.
@@ -818,13 +817,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Gets the scope for the IPC.
-  fn ipc_scope(&self) -> IpcScope {
+  fn ipc_scope(&self) -> scope::ipc::Scope {
     self.state::<Scopes>().inner().ipc.clone()
   }
 
   /// Gets the scope for the asset protocol.
   #[cfg(feature = "protocol-asset")]
-  fn asset_protocol_scope(&self) -> FsScope {
+  fn asset_protocol_scope(&self) -> scope::fs::Scope {
     self.state::<Scopes>().inner().asset_protocol.clone()
   }
 

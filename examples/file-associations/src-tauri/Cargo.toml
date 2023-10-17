@@ -3,7 +3,7 @@ name = "tauri-file-associations-demo"
 version = "0.1.0"
 description = "A Tauri application that associate file types"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.70"
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = ["codegen"] }

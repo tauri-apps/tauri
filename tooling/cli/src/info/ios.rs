@@ -9,7 +9,7 @@ use colored::Colorize;
 pub fn items() -> Vec<SectionItem> {
   vec![SectionItem::new(
     || {
-      let teams = tauri_mobile::apple::teams::find_development_teams().unwrap_or_default();
+      let teams = cargo_mobile2::apple::teams::find_development_teams().unwrap_or_default();
       Some((
         if teams.is_empty() {
           "Developer Teams: None".red().to_string()

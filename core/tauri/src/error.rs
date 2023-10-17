@@ -43,9 +43,6 @@ pub enum Error {
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
-  /// Failed to execute tauri API.
-  #[error("failed to execute API: {0}")]
-  FailedToExecuteApi(#[from] crate::api::Error),
   /// IO error.
   #[error("{0}")]
   Io(#[from] std::io::Error),
@@ -130,6 +127,9 @@ pub enum Error {
   #[cfg(target_os = "android")]
   #[error(transparent)]
   PluginInvoke(#[from] crate::plugin::mobile::PluginInvokeError),
+  /// window not found.
+  #[error("window not found")]
+  WindowNotFound,
 }
 
 /// `Result<T, ::tauri::Error>`

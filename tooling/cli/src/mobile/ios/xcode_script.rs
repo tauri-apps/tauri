@@ -9,8 +9,8 @@ use crate::{
   Result,
 };
 
+use cargo_mobile2::{apple::target::Target, opts::Profile};
 use clap::Parser;
-use tauri_mobile::{apple::target::Target, opts::Profile};
 
 use std::{
   collections::HashMap,

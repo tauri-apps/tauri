@@ -68,5 +68,7 @@
     "format": "prettier --write ./package.json ./tauri.js",
     "format:check": "prettier --check ./package.json ./tauri.js"
   },
-  "dependencies": {}
+  "dependencies": {
+    "semver": ">=7.5.2"
+  }
 }

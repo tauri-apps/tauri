@@ -8,8 +8,9 @@
   __RAW_pattern_script__
 
   __RAW_ipc_script__
-
-  __RAW_bundle_script__
+  ;(function () {
+    __RAW_bundle_script__
+  })()
 
   __RAW_listen_function__
 

@@ -54,8 +54,9 @@ export default defineConfig([
     input: 'src/index.ts',
     output: {
       format: 'iife',
-      name: '__TAURI__',
-      file: '../../core/tauri/scripts/bundle.js'
+      name: '__TAURI_IIFE__',
+      file: '../../core/tauri/scripts/bundle.js',
+      footer: 'window.__TAURI__ = __TAURI_IIFE__'
     },
     plugins: [typescript(), terser()]
   }

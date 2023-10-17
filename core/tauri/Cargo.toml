@@ -88,10 +88,10 @@ cocoa = "0.25"
 objc = "0.2"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.25"
+webview2-com = "0.27"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.48"
+  version = "0.51"
   features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"android\", target_os = \"ios\"))".dependencies]

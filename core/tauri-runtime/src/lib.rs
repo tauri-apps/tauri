@@ -17,7 +17,6 @@ use serde::Deserialize;
 use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use url::Url;
-use uuid::Uuid;
 
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
@@ -36,6 +35,8 @@ use http::{
   method::InvalidMethod,
   status::InvalidStatusCode,
 };
+
+pub type WindowEventId = u32;
 
 /// Type of user attention requested on a window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -327,7 +328,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
   /// Registers a window event handler.
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId;
 
   /// Runs a closure with the platform webview object as argument.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;

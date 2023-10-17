@@ -2052,7 +2052,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
+  /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
+  /// - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
   pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
     self

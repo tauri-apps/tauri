@@ -1485,11 +1485,20 @@ class Window {
   }
 
   /**
-   * Starts dragging the window.
+   * Sets the taskbar progress state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
+   * - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
+   *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().startDragging();
+   * import { getCurrent, ProgressBarStatus } from '@tauri-apps/api/window';
+   * await getCurrent().setProgressBar({
+   *   status: ProgressBarStatus.Normal,
+   *   progress: 50,
+   * });
    * ```
    *
    * @return A promise indicating the success or failure of the operation.

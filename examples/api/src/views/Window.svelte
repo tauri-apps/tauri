@@ -281,7 +281,7 @@
       new PhysicalPosition(cursorX, cursorY)
     )
   $: windowMap[selectedWindow]?.setIgnoreCursorEvents(cursorIgnoreEvents)
-  $: windowMap[selectedWindow]?.setProgressBar({ status: ProgressBarStatus[selectedProgressBarStatus], progress })
+  $: windowMap[selectedWindow]?.setProgressBar({ status: selectedProgressBarStatus, progress })
 </script>
 
 <div class="flex flex-col children:grow gap-2">

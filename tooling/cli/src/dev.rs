@@ -40,7 +40,11 @@ pub const TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE: &[u8] =
   include_bytes!("../tauri-dev-watcher.gitignore");
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Tauri dev", trailing_var_arg(true))]
+#[clap(
+  about = "Run your app in development mode",
+  long_about = "Run your app in development mode with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer.",
+  trailing_var_arg(true)
+)]
 pub struct Options {
   /// Binary to use to run the application
   #[clap(short, long)]

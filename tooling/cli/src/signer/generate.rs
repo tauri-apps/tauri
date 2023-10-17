@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use tauri_utils::display_path;
 
 #[derive(Debug, Parser)]
-#[clap(about = "Generate keypair to sign files")]
+#[clap(about = "Generate a new signing key to sign files")]
 pub struct Options {
   /// Set private key password when signing
   #[clap(short, long)]

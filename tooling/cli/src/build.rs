@@ -26,7 +26,10 @@ use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Tauri build")]
+#[clap(
+  about = "Build your app in release mode and generate bundles and installers",
+  long_about = "Build your app in release mode and generate bundles and installers. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`. This will also run `build.beforeBundleCommand` before generating the bundles and installers of your app."
+)]
 pub struct Options {
   /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]

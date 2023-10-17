@@ -20,18 +20,21 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use dialoguer::{theme::ColorfulTheme, Select};
-use tauri_mobile::{
+use cargo_mobile2::{
   apple::{config::Config as AppleConfig, device::Device, teams::find_development_teams},
   config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use std::env::{set_current_dir, set_var, var_os};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "iOS dev")]
+#[clap(
+  about = "Run your app in development mode on iOS",
+  long_about = "Run your app in development mode on iOS with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer."
+)]
 pub struct Options {
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]

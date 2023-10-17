@@ -127,6 +127,12 @@ mod window_effects {
     MicaDark,
     /// Mica effect with light mode **Windows 11 Only**
     MicaLight,
+    /// Tabbed effect that matches the system dark perefence **Windows 11 Only**
+    Tabbed,
+    /// Tabbed effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
+    TabbedDark,
+    /// Tabbed effect with light mode **Windows 11 Only**
+    TabbedLight,
     /// **Windows 7/10/11(22H1) Only**
     ///
     /// ## Notes

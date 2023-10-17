@@ -797,6 +797,27 @@
           ]
         },
         {
+          "description": "Tabbed effect that matches the system dark perefence **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "tabbed"
+          ]
+        },
+        {
+          "description": "Tabbed effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "tabbedDark"
+          ]
+        },
+        {
+          "description": "Tabbed effect with light mode **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "tabbedLight"
+          ]
+        },
+        {
           "description": "**Windows 7/10/11(22H1) Only**\n\n## Notes\n\nThis effect has bad performance when resizing/dragging the window on Windows 11 build 22621.",
           "type": "string",
           "enum": [

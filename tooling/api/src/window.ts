@@ -1944,7 +1944,19 @@ enum Effect {
    *
    * This effect has bad performance when resizing/dragging the window on Windows 10 v1903+ and Windows 11 build 22000.
    */
-  Acrylic = 'acrylic'
+  Acrylic = 'acrylic',
+  /**
+   * Tabbed effect that matches the system dark perefence **Windows 11 Only**
+   */
+  Tabbed = 'tabbed',
+  /**
+   * Tabbed effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
+   */
+  TabbedDark = 'tabbedDark',
+  /**
+   * Tabbed effect with light mode **Windows 11 Only**
+   */
+  TabbedLight = 'tabbedLight'
 }
 
 /**
@@ -1988,7 +2000,7 @@ interface Effects {
    */
   radius?: number
   /**
-   *  Window effect color. Affects {@link Effects.Blur} and {@link Effects.Acrylic} only
+   *  Window effect color. Affects {@link Effect.Blur} and {@link Effect.Acrylic} only
    * on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
    */
   color?: Color

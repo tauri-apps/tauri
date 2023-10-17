@@ -842,6 +842,12 @@ pub struct BundleConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
+impl From<Color> for (u8, u8, u8, u8) {
+  fn from(value: Color) -> Self {
+    (value.0, value.1, value.2, value.3)
+  }
+}
+
 /// The window effects configuration object
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
@@ -2197,6 +2203,9 @@ mod build {
         WindowEffect::MicaLight => quote! { #prefix::MicaLight},
         WindowEffect::Blur => quote! { #prefix::Blur},
         WindowEffect::Acrylic => quote! { #prefix::Acrylic},
+        WindowEffect::Tabbed => quote! { #prefix::Tabbed },
+        WindowEffect::TabbedDark => quote! { #prefix::TabbedDark },
+        WindowEffect::TabbedLight => quote! { #prefix::TabbedLight },
       })
     }
   }

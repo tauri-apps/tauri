@@ -16,10 +16,7 @@ use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 use url::Url;
 
-use std::{fmt, result::Result as StdResult, sync::Arc};
-
-/// The result type of Tauri plugin module.
-pub type Result<T> = StdResult<T, Box<dyn std::error::Error>>;
+use std::{fmt, sync::Arc};
 
 /// Mobile APIs.
 #[cfg(mobile)]
@@ -32,7 +29,11 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Initializes the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
+  fn initialize(
+    &mut self,
+    app: &AppHandle<R>,
+    config: JsonValue,
+  ) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
   }
 
@@ -73,7 +74,8 @@ pub trait Plugin<R: Runtime>: Send {
   }
 }
 
-type SetupHook<R, C> = dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send;
+type SetupHook<R, C> =
+  dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<(), Box<dyn std::error::Error>> + Send;
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
 type OnNavigation<R> = dyn Fn(&Window<R>, &Url) -> bool + Send;
@@ -320,7 +322,9 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send + 'static,
+    F: FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<(), Box<dyn std::error::Error>>
+      + Send
+      + 'static,
   {
     self.setup.replace(Box::new(setup));
     self
@@ -500,7 +504,11 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     self.name
   }
 
-  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
+  fn initialize(
+    &mut self,
+    app: &AppHandle<R>,
+    config: JsonValue,
+  ) -> Result<(), Box<dyn std::error::Error>> {
     self.app.replace(app.clone());
     if let Some(s) = self.setup.take() {
       (s)(

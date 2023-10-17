@@ -3,7 +3,6 @@
     "target": "es2021",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "checkJs": true,
     "skipLibCheck": true,
     "strict": true,
     "noUnusedLocals": true,

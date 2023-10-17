@@ -14,12 +14,9 @@
  */
 
 import * as event from './event'
-import * as tauri from './tauri'
+import * as primitives from './primitives'
 import * as window from './window'
 import * as path from './path'
 import * as dpi from './dpi'
 
-/** @ignore */
-const invoke = tauri.invoke
-
-export { invoke, event, path, tauri, window, dpi }
+export { dpi, event, path, primitives, window }

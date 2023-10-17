@@ -567,20 +567,36 @@ impl<R: Runtime> WindowManager<R> {
       window_labels.push(l);
     }
     webview_attributes = webview_attributes
+      .initialization_script(
+        r#"
+        if (!window.__TAURI_INTERNALS__) {
+          Object.defineProperty(window, '__TAURI_INTERNALS__', {
+            value: {
+              plugins: {}
+            }
+          })
+        }
+      "#,
+      )
       .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(
         r#"
-          Object.defineProperty(window, '__TAURI_METADATA__', {{
+          Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
-              __windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
-              __currentWindow: {{ label: {current_window_label} }}
+              windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
+              currentWindow: {{ label: {current_window_label} }}
             }}
           }})
         "#,
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?);
+      .initialization_script(&self.initialization_script(
+        &ipc_init.into_string(),
+        &pattern_init.into_string(),
+        &plugin_init,
+        is_init_global,
+      )?);
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -1222,7 +1238,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"(function () {{ const metadata = window.__TAURI_METADATA__; if (metadata != null) {{ metadata.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{label}"); }} }})()"#,
+          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.windows = window.__TAURI_INTERNALS__.metadata.windows.filter(w => w.label !== "{label}"); }} }})()"#,
         ))?;
       }
     }

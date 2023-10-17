@@ -24,7 +24,7 @@ import {
 } from './dpi'
 import type { Event, EventName, EventCallback, UnlistenFn } from './event'
 import { TauriEvent, emit, listen, once } from './event'
-import { invoke } from './tauri'
+import { invoke } from './primitives'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -62,21 +62,6 @@ type FileDropEvent =
   | { type: 'hover'; paths: string[] }
   | { type: 'drop'; paths: string[] }
   | { type: 'cancel' }
-
-/** @ignore */
-interface WindowDef {
-  label: string
-}
-
-/** @ignore */
-declare global {
-  interface Window {
-    __TAURI_METADATA__: {
-      __windows: WindowDef[]
-      __currentWindow: WindowDef
-    }
-  }
-}
 
 /**
  * Attention type to request on a window.
@@ -169,7 +154,7 @@ export type CursorIcon =
  * @since 2.0.0
  */
 function getCurrent(): Window {
-  return new Window(window.__TAURI_METADATA__.__currentWindow.label, {
+  return new Window(window.__TAURI_INTERNALS__.metadata.currentWindow.label, {
     // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
   })
@@ -181,7 +166,7 @@ function getCurrent(): Window {
  * @since 2.0.0
  */
 function getAll(): Window[] {
-  return window.__TAURI_METADATA__.__windows.map(
+  return window.__TAURI_INTERNALS__.metadata.windows.map(
     (w) =>
       new Window(w.label, {
         // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
@@ -2225,6 +2210,7 @@ export {
 }
 
 export type {
+  Effects,
   Theme,
   TitleBarStyle,
   ScaleFactorChanged,

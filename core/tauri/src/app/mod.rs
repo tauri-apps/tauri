@@ -810,6 +810,7 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::path::init())?;
     self.handle.plugin(crate::event::init())?;
     self.handle.plugin(crate::window::plugin::init())?;
+    self.handle.plugin(crate::app::plugin::init())?;
     Ok(())
   }
 
@@ -1011,7 +1012,7 @@ pub struct Builder<R: Runtime> {
 }
 
 #[derive(Template)]
-#[default_template("../scripts/ipc-protocol.js")]
+#[default_template("../../scripts/ipc-protocol.js")]
 struct InvokeInitializationScript<'a> {
   /// The function that processes the IPC message.
   #[raw]

@@ -65,7 +65,7 @@ async function getTauriVersion(): Promise<string> {
  * @since 1.2.0
  */
 async function show(): Promise<void> {
-  return invoke('plugin:app|show')
+  return invoke('plugin:app|app_show')
 }
 
 /**
@@ -80,7 +80,7 @@ async function show(): Promise<void> {
  * @since 1.2.0
  */
 async function hide(): Promise<void> {
-  return invoke('plugin:app|hide')
+  return invoke('plugin:app|app_hide')
 }
 
 export { getName, getVersion, getTauriVersion, show, hide }

@@ -25,7 +25,7 @@ pub fn tauri_version() -> &'static str {
 
 #[command(root = "crate")]
 #[allow(unused_variables)]
-pub fn show<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
+pub fn app_show<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
   app.show()?;
   Ok(())
@@ -33,7 +33,7 @@ pub fn show<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
 
 #[command(root = "crate")]
 #[allow(unused_variables)]
-pub fn hide<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
+pub fn app_hide<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
   app.hide()?;
   Ok(())
@@ -45,8 +45,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       version,
       name,
       tauri_version,
-      show,
-      hide
+      app_show,
+      app_hide
     ])
     .build()
 }

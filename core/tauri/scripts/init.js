@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-; (function () {
+;(function () {
   __RAW_freeze_prototype__
 
   __RAW_pattern_script__
 
   __RAW_ipc_script__
-    ; (function () {
-      __RAW_bundle_script__
-    })()
+
+  __RAW_bundle_script__
 
   __RAW_listen_function__
 

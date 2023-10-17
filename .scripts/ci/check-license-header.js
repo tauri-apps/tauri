@@ -22,11 +22,14 @@ const ignore = [
   'gen',
   'dist',
   'bundle.js',
-  'bundle.global.js'
+  'bundle.js'
 ]
 
 async function checkFile(file) {
-  if (extensions.some((e) => file.endsWith(e)) && !ignore.some((i) => file.includes(`/${i}/`))) {
+  if (
+    extensions.some((e) => file.endsWith(e)) &&
+    !ignore.some((i) => file.includes(`/${i}/`))
+  ) {
     const fileStream = fs.createReadStream(file)
     const rl = readline.createInterface({
       input: fileStream,

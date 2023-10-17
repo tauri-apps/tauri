@@ -9,7 +9,7 @@ on:
     paths:
       - '.github/workflows/check-generated-files.yml'
       - 'tooling/api/src/**'
-      - 'core/tauri/scripts/bundle.global.js'
+      - 'core/tauri/scripts/bundle.js'
       - 'core/tauri-utils/src/config.rs'
       - 'tooling/cli/schema.json'
       - 'core/tauri-config-schema/schema.json'
@@ -33,7 +33,7 @@ jobs:
             api:
               - 'tooling/api/src/**'
               - 'tooling/api/docs/js-api.json'
-              - 'core/tauri/scripts/bundle.global.js'
+              - 'core/tauri/scripts/bundle.js'
             schema:
               - 'core/tauri-utils/src/config.rs'
               - 'tooling/cli/schema.json'

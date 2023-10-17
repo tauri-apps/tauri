@@ -19,7 +19,6 @@ use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
 
-use http::Request as HttpRequest;
 use tauri_macros::default_runtime;
 use tauri_utils::debug_eprintln;
 use tauri_utils::{
@@ -33,7 +32,7 @@ use crate::{
     AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
     UriSchemeResponder,
   },
-  event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
+  event::{assert_event_name_is_valid, Event, EventId, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
   plugin::PluginStore,
@@ -194,7 +193,14 @@ fn replace_csp_nonce(
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
-    let nonce = rand::random::<usize>();
+    #[cfg(target_pointer_width = "64")]
+    let mut raw = [0u8; 8];
+    #[cfg(target_pointer_width = "32")]
+    let mut raw = [0u8; 4];
+    #[cfg(target_pointer_width = "16")]
+    let mut raw = [0u8; 2];
+    getrandom::getrandom(&mut raw).expect("failed to get random bytes");
+    let nonce = usize::from_ne_bytes(raw);
     nonces.push(nonce);
     nonce.to_string()
   });
@@ -204,7 +210,7 @@ fn replace_csp_nonce(
       .into_iter()
       .map(|n| format!("'nonce-{n}'"))
       .collect::<Vec<String>>();
-    let sources = csp.entry(directive.into()).or_insert_with(Default::default);
+    let sources = csp.entry(directive.into()).or_default();
     let self_source = "'self'".to_string();
     if !sources.contains(&self_source) {
       sources.push(self_source);
@@ -236,7 +242,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   package_info: PackageInfo,
   /// The webview protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
   /// A set containing a reference to the active menus, including
   /// the app-wide menu and the window-specific menus
   ///
@@ -305,10 +311,11 @@ pub struct Asset {
 }
 
 /// Uses a custom URI scheme handler to resolve file requests
-pub struct CustomProtocol<R: Runtime> {
+pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol: Box<dyn Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
+  pub protocol:
+    Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -332,7 +339,7 @@ impl<R: Runtime> WindowManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Box<OnPageLoad<R>>,
-    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+    uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<
@@ -506,10 +513,8 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   pub(crate) fn protocol_url(&self) -> Cow<'_, Url> {
-    if cfg!(windows) {
+    if cfg!(windows) || cfg!(target_os = "android") {
       Cow::Owned(Url::parse("http://tauri.localhost").unwrap())
-    } else if cfg!(target_os = "android") {
-      Cow::Owned(Url::parse("https://tauri.localhost").unwrap())
     } else {
       Cow::Owned(Url::parse("tauri://localhost").unwrap())
     }
@@ -567,20 +572,36 @@ impl<R: Runtime> WindowManager<R> {
       window_labels.push(l);
     }
     webview_attributes = webview_attributes
+      .initialization_script(
+        r#"
+        if (!window.__TAURI_INTERNALS__) {
+          Object.defineProperty(window, '__TAURI_INTERNALS__', {
+            value: {
+              plugins: {}
+            }
+          })
+        }
+      "#,
+      )
       .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(
         r#"
-          Object.defineProperty(window, '__TAURI_METADATA__', {{
+          Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
-              __windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
-              __currentWindow: {{ label: {current_window_label} }}
+              windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
+              currentWindow: {{ label: {current_window_label} }}
             }}
           }})
         "#,
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?);
+      .initialization_script(&self.initialization_script(
+        &ipc_init.into_string(),
+        &pattern_init.into_string(),
+        &plugin_init,
+        is_init_global,
+      )?);
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -614,13 +635,11 @@ impl<R: Runtime> WindowManager<R> {
     let window_url = Url::parse(&pending.url).unwrap();
     let window_origin = if window_url.scheme() == "data" {
       "null".into()
-    } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-      format!("http://{}.localhost", window_url.scheme())
-    } else if cfg!(target_os = "android")
+    } else if (cfg!(windows) || cfg!(target_os = "android"))
       && window_url.scheme() != "http"
       && window_url.scheme() != "https"
     {
-      format!("https://{}.localhost", window_url.scheme())
+      format!("http://{}.localhost", window_url.scheme())
     } else {
       format!(
         "{}://{}{}",
@@ -776,9 +795,6 @@ impl<R: Runtime> WindowManager<R> {
       ipc_script: &'a str,
       #[raw]
       bundle_script: &'a str,
-      // A function to immediately listen to an event.
-      #[raw]
-      listen_function: &'a str,
       #[raw]
       core_script: &'a str,
       #[raw]
@@ -811,16 +827,6 @@ impl<R: Runtime> WindowManager<R> {
       pattern_script,
       ipc_script,
       bundle_script,
-      listen_function: &format!(
-        "function listen(eventName, cb) {{ {} }}",
-        crate::event::listen_js(
-          self.event_listeners_object_name(),
-          "eventName".into(),
-          0,
-          None,
-          "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
-        )
-      ),
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
       }
@@ -852,49 +858,13 @@ impl<R: Runtime> WindowManager<R> {
         }}
       }});
     ",
-      function = self.event_emit_function_name(),
-      listeners = self.event_listeners_object_name()
+      function = self.listeners().function_name(),
+      listeners = self.listeners().listeners_object_name()
     )
   }
-}
 
-#[cfg(test)]
-mod test {
-  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
-
-  use super::WindowManager;
-
-  #[test]
-  fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Wry> = WindowManager::with_handlers(
-      context,
-      PluginStore::default(),
-      Box::new(|_| false),
-      Box::new(|_, _| ()),
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
-      Default::default(),
-      (None, "".into()),
-    );
-
-    #[cfg(custom_protocol)]
-    {
-      assert_eq!(
-        manager.get_url().to_string(),
-        if cfg!(windows) {
-          "http://tauri.localhost/"
-        } else if cfg!(target_os = "android") {
-          "https://tauri.localhost/"
-        } else {
-          "tauri://localhost"
-        }
-      );
-    }
-
-    #[cfg(dev)]
-    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+  pub(crate) fn listeners(&self) -> &Listeners {
+    &self.inner.listeners
   }
 }
 
@@ -1200,13 +1170,9 @@ impl<R: Runtime> WindowManager<R> {
     &self.inner.package_info
   }
 
-  pub fn unlisten(&self, handler_id: EventHandler) {
-    self.inner.listeners.unlisten(handler_id)
-  }
-
   pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
     assert_event_name_is_valid(event);
-    self.inner.listeners.trigger(event, window, data)
+    self.listeners().trigger(event, window, data)
   }
 
   pub fn listen<F: Fn(Event) + Send + 'static>(
@@ -1214,9 +1180,9 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) -> EventId {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.listen(event, window, handler)
+    self.listeners().listen(event, window, handler)
   }
 
   pub fn once<F: FnOnce(Event) + Send + 'static>(
@@ -1224,17 +1190,13 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.once(event, window, handler)
+    self.listeners().once(event, window, handler)
   }
 
-  pub fn event_listeners_object_name(&self) -> String {
-    self.inner.listeners.listeners_object_name()
-  }
-
-  pub fn event_emit_function_name(&self) -> String {
-    self.inner.listeners.function_name()
+  pub fn unlisten(&self, id: EventId) {
+    self.listeners().unlisten(id)
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {
@@ -1281,7 +1243,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"(function () {{ const metadata = window.__TAURI_METADATA__; if (metadata != null) {{ metadata.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{label}"); }} }})()"#,
+          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.windows = window.__TAURI_INTERNALS__.metadata.windows.filter(w => w.label !== "{label}"); }} }})()"#,
         ))?;
       }
     }
@@ -1355,5 +1317,43 @@ mod tests {
     )] {
       assert_eq!(replace_with_callback(src, pattern, replacement), result);
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
+
+  use super::WindowManager;
+
+  #[test]
+  fn check_get_url() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let manager: WindowManager<Wry> = WindowManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      Box::new(|_, _| ()),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      Default::default(),
+      (None, "".into()),
+    );
+
+    #[cfg(custom_protocol)]
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) || cfg!(target_os = "android") {
+          "http://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
+
+    #[cfg(dev)]
+    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
   }
 }

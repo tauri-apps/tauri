@@ -9,7 +9,6 @@ use crate::{
   Dispatch, Runtime, UserEvent, WindowBuilder,
 };
 
-use http::{Request as HttpRequest, Response as HttpResponse};
 use serde::{Deserialize, Deserializer};
 use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
@@ -25,13 +24,13 @@ use std::{
 
 use self::dpi::PhysicalPosition;
 
-type UriSchemeProtocol = dyn Fn(HttpRequest<Vec<u8>>, Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>)
+type UriSchemeProtocol = dyn Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
   + Send
   + Sync
   + 'static;
 
 type WebResourceRequestHandler =
-  dyn Fn(HttpRequest<Vec<u8>>, &mut HttpResponse<Cow<'static, [u8]>>) + Send + Sync;
+  dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
@@ -310,7 +309,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
 
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(HttpRequest<Vec<u8>>, Box<dyn FnOnce(HttpResponse<Cow<'static, [u8]>>) + Send>)
+    H: Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
       + Send
       + Sync
       + 'static,
@@ -320,10 +319,9 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     protocol: H,
   ) {
     let uri_scheme = uri_scheme.into();
-    self.uri_scheme_protocols.insert(
-      uri_scheme,
-      Box::new(move |data, responder| (protocol)(data, responder)),
-    );
+    self
+      .uri_scheme_protocols
+      .insert(uri_scheme, Box::new(protocol));
   }
 
   #[cfg(target_os = "android")]

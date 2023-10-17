@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.8]
+
+### Breaking Changes
+
+- [`d5074af5`](https://www.github.com/tauri-apps/tauri/commit/d5074af562b2b5cb6c5711442097c4058af32db6)([#7801](https://www.github.com/tauri-apps/tauri/pull/7801)) The custom protocol on Android now uses the `http` scheme instead of `https`.
+
 ## \[2.0.0-alpha.7]
 
 ### Breaking Changes

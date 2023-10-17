@@ -31,7 +31,7 @@
       "category": "DeveloperTool"
     },
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost https://ipc.localhost"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost"
     }
   }
 }

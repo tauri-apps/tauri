@@ -6,7 +6,7 @@ use std::borrow::Cow;
 
 use http::{
   header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
-  HeaderValue, Method, Request as HttpRequest, Response as HttpResponse, StatusCode,
+  HeaderValue, Method, StatusCode,
 };
 
 use crate::{
@@ -49,15 +49,16 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
                 Box::new(move |_window, _cmd, response, _callback, _error| {
                   let (mut response, mime_type) = match response {
                     InvokeResponse::Ok(InvokeBody::Json(v)) => (
-                      HttpResponse::new(serde_json::to_vec(&v).unwrap().into()),
+                      http::Response::new(serde_json::to_vec(&v).unwrap().into()),
                       mime::APPLICATION_JSON,
                     ),
-                    InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                      (HttpResponse::new(v.into()), mime::APPLICATION_OCTET_STREAM)
-                    }
+                    InvokeResponse::Ok(InvokeBody::Raw(v)) => (
+                      http::Response::new(v.into()),
+                      mime::APPLICATION_OCTET_STREAM,
+                    ),
                     InvokeResponse::Err(e) => {
                       let mut response =
-                        HttpResponse::new(serde_json::to_vec(&e.0).unwrap().into());
+                        http::Response::new(serde_json::to_vec(&e.0).unwrap().into());
                       *response.status_mut() = StatusCode::BAD_REQUEST;
                       (response, mime::TEXT_PLAIN)
                     }
@@ -74,7 +75,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
             }
             Err(e) => {
               respond(
-                HttpResponse::builder()
+                http::Response::builder()
                   .status(StatusCode::BAD_REQUEST)
                   .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
                   .body(e.as_bytes().to_vec().into())
@@ -84,7 +85,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
           }
         } else {
           respond(
-            HttpResponse::builder()
+            http::Response::builder()
               .status(StatusCode::BAD_REQUEST)
               .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
               .body(
@@ -99,7 +100,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
       }
 
       Method::OPTIONS => {
-        let mut r = HttpResponse::new(Vec::new().into());
+        let mut r = http::Response::new(Vec::new().into());
         r.headers_mut().insert(
           ACCESS_CONTROL_ALLOW_HEADERS,
           HeaderValue::from_static("Content-Type, Tauri-Callback, Tauri-Error, Tauri-Channel-Id"),
@@ -108,7 +109,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
       }
 
       _ => {
-        let mut r = HttpResponse::new(
+        let mut r = http::Response::new(
           "only POST and OPTIONS are allowed"
             .as_bytes()
             .to_vec()
@@ -227,7 +228,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
             {
               fn responder_eval<R: Runtime>(
                 window: &crate::Window<R>,
-                js: crate::api::Result<String>,
+                js: crate::Result<String>,
                 error: CallbackFn,
               ) {
                 let eval_js = match js {
@@ -244,7 +245,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
                   if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
                     && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
                   {
-                    let _ = Channel::from_ipc(window.clone(), callback).send(v);
+                    let _ = Channel::from_ipc(window, callback).send(v);
                   } else {
                     responder_eval(
                       &window,
@@ -261,8 +262,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
                       error,
                     );
                   } else {
-                    let _ =
-                      Channel::from_ipc(window.clone(), callback).send(InvokeBody::Raw(v.clone()));
+                    let _ = Channel::from_ipc(window, callback).send(InvokeBody::Raw(v.clone()));
                   }
                 }
                 InvokeResponse::Err(e) => responder_eval(
@@ -287,13 +287,13 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
 
 fn parse_invoke_request<R: Runtime>(
   #[allow(unused_variables)] manager: &WindowManager<R>,
-  request: HttpRequest<Vec<u8>>,
+  request: http::Request<Vec<u8>>,
 ) -> std::result::Result<InvokeRequest, String> {
   #[allow(unused_mut)]
   let (parts, mut body) = request.into_parts();
 
-  let cmd = parts.uri.path().trim_start_matches('/');
-  let cmd = percent_encoding::percent_decode(cmd.as_bytes())
+  // skip leading `/`
+  let cmd = percent_encoding::percent_decode(parts.uri.path()[1..].as_bytes())
     .decode_utf8_lossy()
     .to_string();
 

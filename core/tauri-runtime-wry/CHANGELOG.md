@@ -1,5 +1,18 @@
 # Changelog
 
+## \[1.0.0-alpha.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.8`
+- Upgraded to `tauri-runtime@1.0.0-alpha.2`
+
+## \[1.0.0-alpha.2]
+
+### Bug Fixes
+
+- [`d5074af5`](https://www.github.com/tauri-apps/tauri/commit/d5074af562b2b5cb6c5711442097c4058af32db6)([#7801](https://www.github.com/tauri-apps/tauri/pull/7801)) Fixes custom protocol not working on Windows.
+
 ## \[1.0.0-alpha.1]
 
 ### Enhancements

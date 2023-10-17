@@ -43,9 +43,6 @@ pub enum Error {
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
-  /// Failed to execute tauri API.
-  #[error("failed to execute API: {0}")]
-  FailedToExecuteApi(#[from] crate::api::Error),
   /// IO error.
   #[error("{0}")]
   Io(#[from] std::io::Error),
@@ -110,4 +107,7 @@ pub enum Error {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   BadTrayIcon(#[from] tray_icon::BadIcon),
+  /// window not found.
+  #[error("window not found")]
+  WindowNotFound,
 }

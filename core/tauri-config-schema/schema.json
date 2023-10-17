@@ -113,7 +113,7 @@
   "additionalProperties": false,
   "definitions": {
     "PackageConfig": {
-      "description": "The package configuration.\n\nSee more: https://tauri.app/v1/api/config#packageconfig",
+      "description": "The package configuration.\n\nSee more: <https://tauri.app/v1/api/config#packageconfig>",
       "type": "object",
       "properties": {
         "productName": {
@@ -136,7 +136,7 @@
       "additionalProperties": false
     },
     "TauriConfig": {
-      "description": "The Tauri configuration object.\n\nSee more: https://tauri.app/v1/api/config#tauriconfig",
+      "description": "The Tauri configuration object.\n\nSee more: <https://tauri.app/v1/api/config#tauriconfig>",
       "type": "object",
       "properties": {
         "pattern": {
@@ -291,7 +291,7 @@
       ]
     },
     "WindowConfig": {
-      "description": "The window configuration object.\n\nSee more: https://tauri.app/v1/api/config#windowconfig",
+      "description": "The window configuration object.\n\nSee more: <https://tauri.app/v1/api/config#windowconfig>",
       "type": "object",
       "properties": {
         "label": {
@@ -510,7 +510,7 @@
           "type": "boolean"
         },
         "windowEffects": {
-          "description": "Window effects.\n\nRequires the window to be transparent.\n\n## Platform-specific:\n\n- **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891 - **Linux**: Unsupported",
+          "description": "Window effects.\n\nRequires the window to be transparent.\n\n## Platform-specific:\n\n- **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891> - **Linux**: Unsupported",
           "anyOf": [
             {
               "$ref": "#/definitions/WindowEffectsConfig"
@@ -888,7 +888,7 @@
       "minItems": 4
     },
     "BundleConfig": {
-      "description": "Configuration for tauri-bundler.\n\nSee more: https://tauri.app/v1/api/config#bundleconfig",
+      "description": "Configuration for tauri-bundler.\n\nSee more: <https://tauri.app/v1/api/config#bundleconfig>",
       "type": "object",
       "required": [
         "identifier"
@@ -1250,7 +1250,7 @@
       ]
     },
     "AppImageConfig": {
-      "description": "Configuration for AppImage bundles.\n\nSee more: https://tauri.app/v1/api/config#appimageconfig",
+      "description": "Configuration for AppImage bundles.\n\nSee more: <https://tauri.app/v1/api/config#appimageconfig>",
       "type": "object",
       "properties": {
         "bundleMediaFramework": {
@@ -1262,7 +1262,7 @@
       "additionalProperties": false
     },
     "DebConfig": {
-      "description": "Configuration for Debian (.deb) bundles.\n\nSee more: https://tauri.app/v1/api/config#debconfig",
+      "description": "Configuration for Debian (.deb) bundles.\n\nSee more: <https://tauri.app/v1/api/config#debconfig>",
       "type": "object",
       "properties": {
         "depends": {
@@ -1294,7 +1294,7 @@
       "additionalProperties": false
     },
     "MacConfig": {
-      "description": "Configuration for the macOS bundles.\n\nSee more: https://tauri.app/v1/api/config#macconfig",
+      "description": "Configuration for the macOS bundles.\n\nSee more: <https://tauri.app/v1/api/config#macconfig>",
       "type": "object",
       "properties": {
         "frameworks": {
@@ -1354,7 +1354,7 @@
       "additionalProperties": false
     },
     "WindowsConfig": {
-      "description": "Windows bundler configuration.\n\nSee more: https://tauri.app/v1/api/config#windowsconfig",
+      "description": "Windows bundler configuration.\n\nSee more: <https://tauri.app/v1/api/config#windowsconfig>",
       "type": "object",
       "properties": {
         "digestAlgorithm": {
@@ -1538,7 +1538,7 @@
       ]
     },
     "WixConfig": {
-      "description": "Configuration for the MSI bundle using WiX.\n\nSee more: https://tauri.app/v1/api/config#wixconfig",
+      "description": "Configuration for the MSI bundle using WiX.\n\nSee more: <https://tauri.app/v1/api/config#wixconfig>",
       "type": "object",
       "properties": {
         "language": {
@@ -1663,7 +1663,7 @@
       ]
     },
     "WixLanguageConfig": {
-      "description": "Configuration for a target language for the WiX build.\n\nSee more: https://tauri.app/v1/api/config#wixlanguageconfig",
+      "description": "Configuration for a target language for the WiX build.\n\nSee more: <https://tauri.app/v1/api/config#wixlanguageconfig>",
       "type": "object",
       "properties": {
         "localePath": {
@@ -1783,7 +1783,7 @@
       "type": "object",
       "properties": {
         "developmentTeam": {
-          "description": "The development team. This value is required for iOS development because code signing is enforced. The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
+          "description": "The development team. This value is required for iOS development because code signing is enforced. The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
           "type": [
             "string",
             "null"
@@ -1807,7 +1807,7 @@
       "additionalProperties": false
     },
     "UpdaterConfig": {
-      "description": "The Updater configuration object.\n\nSee more: https://tauri.app/v1/api/config#updaterconfig",
+      "description": "The Updater configuration object.\n\nSee more: <https://tauri.app/v1/api/config#updaterconfig>",
       "type": "object",
       "properties": {
         "active": {
@@ -1835,7 +1835,7 @@
       "additionalProperties": false
     },
     "UpdaterWindowsConfig": {
-      "description": "The updater configuration for Windows.\n\nSee more: https://tauri.app/v1/api/config#updaterwindowsconfig",
+      "description": "The updater configuration for Windows.\n\nSee more: <https://tauri.app/v1/api/config#updaterwindowsconfig>",
       "type": "object",
       "properties": {
         "installMode": {
@@ -1877,7 +1877,7 @@
       ]
     },
     "SecurityConfig": {
-      "description": "Security configuration.\n\nSee more: https://tauri.app/v1/api/config#securityconfig",
+      "description": "Security configuration.\n\nSee more: <https://tauri.app/v1/api/config#securityconfig>",
       "type": "object",
       "properties": {
         "csp": {
@@ -2025,7 +2025,7 @@
       "additionalProperties": false
     },
     "AssetProtocolConfig": {
-      "description": "Config for the asset custom protocol.\n\nSee more: https://tauri.app/v1/api/config#assetprotocolconfig",
+      "description": "Config for the asset custom protocol.\n\nSee more: <https://tauri.app/v1/api/config#assetprotocolconfig>",
       "type": "object",
       "properties": {
         "scope": {
@@ -2087,12 +2087,19 @@
       ]
     },
     "TrayIconConfig": {
-      "description": "Configuration for application tray icon.\n\nSee more: https://tauri.app/v1/api/config#trayiconconfig",
+      "description": "Configuration for application tray icon.\n\nSee more: <https://tauri.app/v1/api/config#trayiconconfig>",
       "type": "object",
       "required": [
         "iconPath"
       ],
       "properties": {
+        "id": {
+          "description": "Set an id for this tray icon so you can reference it later, defaults to `main`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "iconPath": {
           "description": "Path to the default icon to use for the tray icon.",
           "type": "string"
@@ -2125,7 +2132,7 @@
       "additionalProperties": false
     },
     "BuildConfig": {
-      "description": "The Build configuration object.\n\nSee more: https://tauri.app/v1/api/config#buildconfig",
+      "description": "The Build configuration object.\n\nSee more: <https://tauri.app/v1/api/config#buildconfig>",
       "type": "object",
       "properties": {
         "runner": {
@@ -2288,7 +2295,7 @@
       ]
     },
     "PluginConfig": {
-      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\nSee more: https://tauri.app/v1/api/config#pluginconfig",
+      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\nSee more: <https://tauri.app/v1/api/config#pluginconfig>",
       "type": "object",
       "additionalProperties": true
     }

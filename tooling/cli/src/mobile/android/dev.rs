@@ -20,7 +20,7 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use tauri_mobile::{
+use cargo_mobile2::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     device::Device,
@@ -44,7 +44,10 @@ const WEBVIEW_CLASS_INIT: &str =
   "this.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW";
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Android dev")]
+#[clap(
+  about = "Run your app in development mode on Android",
+  long_about = "Run your app in development mode on Android with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer."
+)]
 pub struct Options {
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
@@ -55,27 +58,29 @@ pub struct Options {
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
   pub config: Option<String>,
+  /// Run the code in release mode
+  #[clap(long = "release")]
+  pub release_mode: bool,
+  /// Skip waiting for the frontend dev server to start before building the tauri application.
+  #[clap(long, env = "TAURI_CLI_NO_DEV_SERVER_WAIT")]
+  pub no_dev_server_wait: bool,
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
-  /// Disable the dev server for static files.
-  #[clap(long)]
-  pub no_dev_server: bool,
   /// Open Android Studio instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
-  /// Specify port for the dev server for static files. Defaults to 1430
-  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
-  #[clap(long)]
-  pub port: Option<u16>,
   /// Force prompting for an IP to use to connect to the dev server on mobile.
   #[clap(long)]
   pub force_ip_prompt: bool,
-  /// Run the code in release mode
-  #[clap(long = "release")]
-  pub release_mode: bool,
+  /// Disable the built-in dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
+  /// Specify port for the built-in dev server for static files. Defaults to 1430.
+  #[clap(long, env = "TAURI_CLI_PORT")]
+  pub port: Option<u16>,
 }
 
 impl From<Options> for DevOptions {
@@ -88,6 +93,7 @@ impl From<Options> for DevOptions {
       config: options.config,
       args: Vec::new(),
       no_watch: options.no_watch,
+      no_dev_server_wait: options.no_dev_server_wait,
       no_dev_server: options.no_dev_server,
       port: options.port,
       force_ip_prompt: options.force_ip_prompt,
@@ -110,7 +116,10 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let tauri_config = get_tauri_config(
+    tauri_utils::platform::Target::Android,
+    options.config.as_deref(),
+  )?;
 
   let (app, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
@@ -141,7 +150,11 @@ fn run_dev(
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  setup_dev_config(&mut options.config, options.force_ip_prompt)?;
+  setup_dev_config(
+    MobileTarget::Android,
+    &mut options.config,
+    options.force_ip_prompt,
+  )?;
   let mut env = env()?;
   let device = if options.open {
     None
@@ -161,7 +174,11 @@ fn run_dev(
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple.clone());
-  let mut interface = crate::dev::setup(&mut dev_options, true)?;
+  let mut interface = crate::dev::setup(
+    tauri_utils::platform::Target::Android,
+    &mut dev_options,
+    true,
+  )?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,

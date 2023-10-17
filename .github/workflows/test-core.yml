@@ -77,7 +77,7 @@ jobs:
             }
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install stable
         uses: actions-rs/toolchain@v1
@@ -102,9 +102,10 @@ jobs:
         # The --precise flag can only be used once per invocation.
         run: |
           cargo update -p time --precise 0.3.23
-          cargo update -p toml@0.7.7 --precise 0.7.6
+          cargo update -p toml@0.7.8 --precise 0.7.6
           cargo update -p toml_edit@0.19.15 --precise 0.19.14
           cargo update -p cfg-expr@0.15.5 --precise 0.15.4
+          cargo update -p system-deps --precise 6.1.1
 
       - name: test
         uses: actions-rs/cargo@v1

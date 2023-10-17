@@ -21,6 +21,7 @@ use tauri_runtime::{
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
   RunEvent, RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
+  WindowEventId,
 };
 
 #[cfg(windows)]
@@ -41,7 +42,6 @@ use wry::webview::WebViewBuilderExtWindows;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
-use uuid::Uuid;
 use wry::{
   application::{
     dpi::{
@@ -93,13 +93,14 @@ use std::{
   path::PathBuf,
   rc::Rc,
   sync::{
+    atomic::{AtomicU32, Ordering},
     mpsc::{channel, Sender},
     Arc, Mutex, Weak,
   },
   thread::{current as current_thread, ThreadId},
 };
 
-pub type WebviewId = u64;
+pub type WebviewId = u32;
 type IpcHandler = dyn Fn(&Window, String) + 'static;
 type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 
@@ -109,7 +110,7 @@ pub use webview::Webview;
 pub type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
 // window
 pub type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
-pub type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
+pub type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventHandler>>>;
 
 #[derive(Debug, Clone, Default)]
 pub struct WebviewIdStore(Arc<Mutex<HashMap<WindowId, WebviewId>>>);
@@ -171,6 +172,9 @@ pub struct Context<T: UserEvent> {
   pub proxy: WryEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
   plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
+  next_window_id: Arc<AtomicU32>,
+  next_window_event_id: Arc<AtomicU32>,
+  next_webcontext_id: Arc<AtomicU32>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -184,6 +188,18 @@ impl<T: UserEvent> Context<T> {
       None
     })
   }
+
+  fn next_window_id(&self) -> WebviewId {
+    self.next_window_id.fetch_add(1, Ordering::Relaxed)
+  }
+
+  fn next_window_event_id(&self) -> WebviewId {
+    self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
+  }
+
+  fn next_webcontext_id(&self) -> WebviewId {
+    self.next_webcontext_id.fetch_add(1, Ordering::Relaxed)
+  }
 }
 
 impl<T: UserEvent> Context<T> {
@@ -194,7 +210,7 @@ impl<T: UserEvent> Context<T> {
   ) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
     let context = self.clone();
-    let window_id = rand::random();
+    let window_id = self.next_window_id();
 
     send_user_message(
       self,
@@ -909,7 +925,7 @@ pub enum ApplicationMessage {
 
 pub enum WindowMessage {
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
-  AddEventListener(Uuid, Box<dyn Fn(&WindowEvent) + Send>),
+  AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
   // Devtools
   #[cfg(any(debug_assertions, feature = "devtools"))]
   OpenDevTools,
@@ -1056,8 +1072,8 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
-    let id = Uuid::new_v4();
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
+    let id = self.context.next_window_event_id();
     let _ = self.context.proxy.send_event(Message::Window(
       self.window_id,
       WindowMessage::AddEventListener(id, Box::new(f)),
@@ -1640,11 +1656,9 @@ impl<T: UserEvent> WryHandle<T> {
     &self,
     f: F,
   ) -> Result<Weak<Window>> {
+    let id = self.context.next_window_id();
     let (tx, rx) = channel();
-    send_user_message(
-      &self.context,
-      Message::CreateWindow(rand::random(), Box::new(f), tx),
-    )?;
+    send_user_message(&self.context, Message::CreateWindow(id, Box::new(f), tx))?;
     rx.recv().unwrap()
   }
 
@@ -1794,6 +1808,9 @@ impl<T: UserEvent> Wry<T> {
         windows,
       },
       plugins: Default::default(),
+      next_window_id: Default::default(),
+      next_window_event_id: Default::default(),
+      next_webcontext_id: Default::default(),
     };
 
     Ok(Self {
@@ -1850,7 +1867,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
-    let window_id = rand::random();
+    let window_id = self.context.next_window_id();
 
     let webview = create_webview(
       window_id,
@@ -2661,7 +2678,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   if let Some(handler) = ipc_handler {
     webview_builder =
-      webview_builder.with_ipc_handler(create_ipc_handler(context, label.clone(), handler));
+      webview_builder.with_ipc_handler(create_ipc_handler(context.clone(), label.clone(), handler));
   }
 
   for (scheme, protocol) in uri_scheme_protocols {
@@ -2680,14 +2697,15 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let mut web_context = web_context_store.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
-  let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
+  let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
   let web_context_key = // force a unique WebContext when automation is false;
     // the context must be stored on the HashMap because it must outlive the WebView on macOS
     if automation_enabled {
       webview_attributes.data_directory.clone()
     } else {
-      // random unique key
-      Some(Uuid::new_v4().as_hyphenated().to_string().into())
+      // unique key
+      let key = context.next_webcontext_id().to_string().into();
+      Some(key)
     };
   let entry = web_context.entry(web_context_key.clone());
   let web_context = match entry {

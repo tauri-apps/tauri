@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.0.0-alpha.15]
+
+### New Features
+
+- [`b2f17723`](https://www.github.com/tauri-apps/tauri/commit/b2f17723a415f04c2620132a6305eb138d7cb47f)([#7971](https://www.github.com/tauri-apps/tauri/pull/7971)) Use `devicectl` to connect to iOS 17+ devices on macOS 14+.
+
+### Bug Fixes
+
+- [`100d9ede`](https://www.github.com/tauri-apps/tauri/commit/100d9ede35995d9db21d2087dd5606adfafb89a5)([#7802](https://www.github.com/tauri-apps/tauri/pull/7802)) Properly read platform-specific configuration files for mobile targets.
+- [`228e5a4c`](https://www.github.com/tauri-apps/tauri/commit/228e5a4c76ad5f97409c912d07699b49ba4bb162)([#7902](https://www.github.com/tauri-apps/tauri/pull/7902)) Fixes `icon` command not writing files to the correct Android project folders.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.15`
+
+## \[2.0.0-alpha.14]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.14`
+
+### Breaking Changes
+
+- [`d5074af5`](https://www.github.com/tauri-apps/tauri/commit/d5074af562b2b5cb6c5711442097c4058af32db6)([#7801](https://www.github.com/tauri-apps/tauri/pull/7801)) The custom protocol on Android now uses the `http` scheme instead of `https`.
+
 ## \[2.0.0-alpha.13]
 
 ### Dependencies

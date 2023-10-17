@@ -252,7 +252,7 @@ impl BundleTarget {
 
 /// Configuration for AppImage bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#appimageconfig
+/// See more: <https://tauri.app/v1/api/config#appimageconfig>
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -265,7 +265,7 @@ pub struct AppImageConfig {
 
 /// Configuration for Debian (.deb) bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#debconfig
+/// See more: <https://tauri.app/v1/api/config#debconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -295,7 +295,7 @@ where
 
 /// Configuration for the macOS bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#macconfig
+/// See more: <https://tauri.app/v1/api/config#macconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -353,7 +353,7 @@ fn minimum_system_version() -> Option<String> {
 
 /// Configuration for a target language for the WiX build.
 ///
-/// See more: https://tauri.app/v1/api/config#wixlanguageconfig
+/// See more: <https://tauri.app/v1/api/config#wixlanguageconfig>
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -384,7 +384,7 @@ impl Default for WixLanguage {
 
 /// Configuration for the MSI bundle using WiX.
 ///
-/// See more: https://tauri.app/v1/api/config#wixconfig
+/// See more: <https://tauri.app/v1/api/config#wixconfig>
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -565,7 +565,7 @@ impl Default for WebviewInstallMode {
 
 /// Windows bundler configuration.
 ///
-/// See more: https://tauri.app/v1/api/config#windowsconfig
+/// See more: <https://tauri.app/v1/api/config#windowsconfig>
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -698,7 +698,7 @@ pub struct FileAssociation {
 
 /// The Updater configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#updaterconfig
+/// See more: <https://tauri.app/v1/api/config#updaterconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -757,7 +757,7 @@ impl Default for UpdaterConfig {
 
 /// Configuration for tauri-bundler.
 ///
-/// See more: https://tauri.app/v1/api/config#bundleconfig
+/// See more: <https://tauri.app/v1/api/config#bundleconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -868,7 +868,7 @@ pub struct WindowEffectsConfig {
 
 /// The window configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#windowconfig
+/// See more: <https://tauri.app/v1/api/config#windowconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1017,7 +1017,7 @@ pub struct WindowConfig {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891>
   /// - **Linux**: Unsupported
   #[serde(default, alias = "window-effects")]
   pub window_effects: Option<WindowEffectsConfig>,
@@ -1312,7 +1312,7 @@ impl FsScope {
 
 /// Config for the asset custom protocol.
 ///
-/// See more: https://tauri.app/v1/api/config#assetprotocolconfig
+/// See more: <https://tauri.app/v1/api/config#assetprotocolconfig>
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1327,7 +1327,7 @@ pub struct AssetProtocolConfig {
 
 /// Security configuration.
 ///
-/// See more: https://tauri.app/v1/api/config#securityconfig
+/// See more: <https://tauri.app/v1/api/config#securityconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1404,7 +1404,7 @@ impl Default for PatternKind {
 
 /// The Tauri configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#tauriconfig
+/// See more: <https://tauri.app/v1/api/config#tauriconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1545,7 +1545,7 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
 
 /// The updater configuration for Windows.
 ///
-/// See more: https://tauri.app/v1/api/config#updaterwindowsconfig
+/// See more: <https://tauri.app/v1/api/config#updaterwindowsconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1558,12 +1558,14 @@ pub struct UpdaterWindowsConfig {
 
 /// Configuration for application tray icon.
 ///
-/// See more: https://tauri.app/v1/api/config#trayiconconfig
+/// See more: <https://tauri.app/v1/api/config#trayiconconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TrayIconConfig {
+  /// Set an id for this tray icon so you can reference it later, defaults to `main`.
+  pub id: Option<String>,
   /// Path to the default icon to use for the tray icon.
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
@@ -1586,7 +1588,7 @@ pub struct TrayIconConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
   /// The development team. This value is required for iOS development because code signing is enforced.
-  /// The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
+  /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
 }
@@ -1673,7 +1675,7 @@ pub enum HookCommand {
 
 /// The Build configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#buildconfig
+/// See more: <https://tauri.app/v1/api/config#buildconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1808,7 +1810,7 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 
 /// The package configuration.
 ///
-/// See more: https://tauri.app/v1/api/config#packageconfig
+/// See more: <https://tauri.app/v1/api/config#packageconfig>
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1932,7 +1934,7 @@ pub struct Config {
 
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#pluginconfig
+/// See more: <https://tauri.app/v1/api/config#pluginconfig>
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
@@ -2579,6 +2581,7 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
       let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
@@ -2587,6 +2590,7 @@ mod build {
       literal_struct!(
         tokens,
         TrayIconConfig,
+        id,
         icon_path,
         icon_as_template,
         menu_on_left_click,

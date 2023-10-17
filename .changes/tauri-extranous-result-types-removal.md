@@ -3,4 +3,4 @@
 ---
 
 - Removed `tauri::path::Error` and added its variants to `tauri::Error`
-- Removed `tauri::plath::Result` and `tauri::plugin::Result` aliases, you should use `tauri::Result`
+- Removed `tauri::path::Result` and `tauri::plugin::Result` aliases, you should use `tauri::Result`

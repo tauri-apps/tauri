@@ -95,6 +95,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
+          prefix-key: v2
           workspaces: core -> ../target
           save-if: ${{ matrix.features.key == 'all' }}
 

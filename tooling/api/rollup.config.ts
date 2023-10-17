@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { defineConfig, RollupOptions, Plugin } from 'rollup'
+import { defineConfig, Plugin } from 'rollup'
 import typescript from '@rollup/plugin-typescript'
 import terser from '@rollup/plugin-terser'
-import { dts } from 'rollup-plugin-dts'
 import fg from 'fast-glob'
 import { basename, join } from 'path'
 import {
-  readFileSync,
-  readdirSync,
   writeFileSync,
   copyFileSync,
   opendirSync,
   rmSync,
-  Dir
+  Dir,
+  readFileSync
 } from 'fs'
 import { fileURLToPath } from 'url'
 
@@ -23,24 +21,35 @@ import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 cleanDir(join(__dirname, './dist'))
 
-const mainConfig: RollupOptions = {
-  input: Object.fromEntries(
-    fg.sync('./src/*.ts').map((p) => [basename(p, '.ts'), p])
-  ),
-  output: {
-    format: 'esm',
-    dir: './dist',
-    preserveModules: true
-  },
-  plugins: [typescript(), makeFlatPackageInDist()]
-}
-
 export default defineConfig([
-  mainConfig,
   {
-    ...mainConfig,
-    plugins: [typescript(), dts()]
+    input: Object.fromEntries(
+      fg.sync('./src/*.ts').map((p) => [basename(p, '.ts'), p])
+    ),
+    output: [
+      {
+        format: 'esm',
+        dir: './dist',
+        entryFileNames: '[name].js',
+        preserveModules: true
+      },
+      {
+        format: 'cjs',
+        dir: './dist',
+        entryFileNames: '[name].cjs',
+        preserveModules: true
+      }
+    ],
+    plugins: [
+      typescript({
+        declaration: true,
+        declarationDir: './dist',
+        rootDir: 'src'
+      }),
+      makeFlatPackageInDist()
+    ]
   },
+
   {
     input: 'src/index.ts',
     output: {
@@ -58,9 +67,7 @@ function makeFlatPackageInDist(): Plugin {
     writeBundle() {
       // append our api modules to `exports` in `package.json` then write it to `./dist`
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-      const modules = readdirSync('src')
-        .filter((e) => e !== 'helpers')
-        .map((mod) => mod.replace('.ts', ''))
+      const modules = fg.sync('./src/*.ts').map((p) => basename(p))
 
       const outputPkg = {
         ...pkg,
@@ -91,12 +98,7 @@ function makeFlatPackageInDist(): Plugin {
       )
 
       // copy necessary files like `CHANGELOG.md` , `README.md` and Licenses to `./dist`
-      const dir = readdirSync('.')
-      const files = [
-        ...dir.filter((f) => f.startsWith('LICENSE')),
-        ...dir.filter((f) => f.endsWith('.md'))
-      ]
-      files.forEach((f) => copyFileSync(f, `dist/${f}`))
+      fg.sync('(LICENSE*|*.md)').forEach((f) => copyFileSync(f, `dist/${f}`))
     }
   }
 }

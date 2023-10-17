@@ -35,7 +35,6 @@
     "@types/node": "^20.8.6",
     "prettier": "2.8.8",
     "rollup": "^4.1.4",
-    "rollup-plugin-dts": "^6.1.0",
     "typescript": "5.2.2"
   },
   "exports": {
@@ -45,5 +44,8 @@
     "node": ">= 14.6.0",
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
+  },
+  "dependencies": {
+    "tslib": "^2.6.2"
   }
 }

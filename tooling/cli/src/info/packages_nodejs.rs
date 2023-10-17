@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::SectionItem;
-use super::{cross_command, VersionMetadata};
+use super::{cross_command, env_nodejs::manager_version, VersionMetadata};
 use colored::Colorize;
 use serde::Deserialize;
 use std::fmt::Display;
@@ -241,11 +241,7 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
   }
 }
 
-pub fn items(
-  app_dir: Option<&PathBuf>,
-  metadata: &VersionMetadata,
-  yarn_version: Option<String>,
-) -> Vec<SectionItem> {
+pub fn items(app_dir: Option<&PathBuf>, metadata: &VersionMetadata) -> Vec<SectionItem> {
   let mut package_manager = PackageManager::Npm;
   if let Some(app_dir) = &app_dir {
     let app_dir_entries = std::fs::read_dir(app_dir)
@@ -256,7 +252,7 @@ pub fn items(
   }
 
   if package_manager == PackageManager::Yarn
-    && yarn_version
+    && manager_version("yarn")
       .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
       .unwrap_or(false)
   {

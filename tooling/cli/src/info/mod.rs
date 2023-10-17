@@ -207,11 +207,6 @@ impl SectionItem {
     self
   }
 
-  fn description_opt<S: AsRef<str>>(mut self, description: Option<S>) -> Self {
-    self.description = description.map(|s| s.as_ref().to_string());
-    self
-  }
-
   fn run_action(&mut self) {
     let mut res = ActionResult::None;
     if let Some(action) = &mut self.action {
@@ -326,7 +321,7 @@ pub fn command(options: Options) -> Result<()> {
   };
   environment.items.extend(env_system::items());
   environment.items.extend(env_rust::items());
-  let (items, yarn_version) = env_nodejs::items(&metadata);
+  let items = env_nodejs::items(&metadata);
   environment.items.extend(items);
 
   let mut packages = Section {
@@ -339,7 +334,7 @@ pub fn command(options: Options) -> Result<()> {
     .extend(packages_rust::items(app_dir, tauri_dir.clone()));
   packages
     .items
-    .extend(packages_nodejs::items(app_dir, &metadata, yarn_version));
+    .extend(packages_nodejs::items(app_dir, &metadata));
 
   let mut app = Section {
     label: "App",

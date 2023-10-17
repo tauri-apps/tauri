@@ -5,7 +5,7 @@
 use super::{cross_command, ActionResult, SectionItem, VersionMetadata};
 use colored::Colorize;
 
-fn manager_version(package_manager: &str) -> Option<String> {
+pub fn manager_version(package_manager: &str) -> Option<String> {
   cross_command(package_manager)
     .arg("-v")
     .output()
@@ -21,55 +21,55 @@ fn manager_version(package_manager: &str) -> Option<String> {
     .unwrap_or_default()
 }
 
-pub fn items(metadata: &VersionMetadata) -> (Vec<SectionItem>, Option<String>) {
-  let yarn = manager_version("yarn");
+pub fn items(metadata: &VersionMetadata) -> Vec<SectionItem> {
   let node_target_ver = metadata.js_cli.node.replace(">= ", "");
 
-  (
-    vec![
-      SectionItem::new().action(move || {
-        cross_command("node")
-          .arg("-v")
-          .output()
-          .map(|o| {
-            if o.status.success() {
-              let v = String::from_utf8_lossy(o.stdout.as_slice()).to_string();
-              let v = v
-                .split('\n')
-                .next()
-                .unwrap()
-                .strip_prefix('v')
-                .unwrap_or_default()
-                .trim();
-              ActionResult::Description(format!("node: {}{}", v, {
-                let version = semver::Version::parse(v).unwrap();
-                let target_version = semver::Version::parse(node_target_ver.as_str()).unwrap();
-                if version < target_version {
-                  format!(
-                    " ({}, latest: {})",
-                    "outdated".red(),
-                    target_version.to_string().green()
-                  )
-                } else {
-                  "".into()
-                }
-              }))
-            } else {
-              ActionResult::None
-            }
-          })
-          .ok()
-          .unwrap_or_default()
-      }),
-      SectionItem::new().action(|| {
-        manager_version("pnpm")
-          .map(|v| format!("pnpm: {}", v))
-          .into()
-      }),
-      SectionItem::new().description_opt(yarn.as_ref().map(|v| (format!("yarn: {v}")))),
-      SectionItem::new().action(|| manager_version("npm").map(|v| format!("npm: {}", v)).into()),
-      SectionItem::new().action(|| manager_version("bun").map(|v| format!("bun: {}", v)).into()),
-    ],
-    yarn,
-  )
+  vec![
+    SectionItem::new().action(move || {
+      cross_command("node")
+        .arg("-v")
+        .output()
+        .map(|o| {
+          if o.status.success() {
+            let v = String::from_utf8_lossy(o.stdout.as_slice()).to_string();
+            let v = v
+              .split('\n')
+              .next()
+              .unwrap()
+              .strip_prefix('v')
+              .unwrap_or_default()
+              .trim();
+            ActionResult::Description(format!("node: {}{}", v, {
+              let version = semver::Version::parse(v).unwrap();
+              let target_version = semver::Version::parse(node_target_ver.as_str()).unwrap();
+              if version < target_version {
+                format!(
+                  " ({}, latest: {})",
+                  "outdated".red(),
+                  target_version.to_string().green()
+                )
+              } else {
+                "".into()
+              }
+            }))
+          } else {
+            ActionResult::None
+          }
+        })
+        .ok()
+        .unwrap_or_default()
+    }),
+    SectionItem::new().action(|| {
+      manager_version("pnpm")
+        .map(|v| format!("pnpm: {}", v))
+        .into()
+    }),
+    SectionItem::new().action(|| {
+      manager_version("yarn")
+        .map(|v| format!("yarn: {}", v))
+        .into()
+    }),
+    SectionItem::new().action(|| manager_version("npm").map(|v| format!("npm: {}", v)).into()),
+    SectionItem::new().action(|| manager_version("bun").map(|v| format!("bun: {}", v)).into()),
+  ]
 }

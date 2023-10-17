@@ -32,7 +32,6 @@ jobs:
           filters: |
             api:
               - 'tooling/api/src/**'
-              - 'tooling/api/docs/js-api.json'
               - 'core/tauri/scripts/bundle.js'
             schema:
               - 'core/tauri-utils/src/config.rs'
@@ -50,9 +49,7 @@ jobs:
         working-directory: tooling/api
         run: yarn && yarn build
       - name: check api
-        run: |
-          git restore tooling/api/docs/js-api.json
-          ./.scripts/ci/has-diff.sh
+        run: ./.scripts/ci/has-diff.sh
 
   schema:
     runs-on: ubuntu-latest

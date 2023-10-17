@@ -2137,9 +2137,9 @@ dependencies = [
 
 [[package]]
 name = "muda"
-version = "0.8.2"
+version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47e33f46fb20f85553edb85e30a6a5231567f4103276ccdb5a2050613d253b1d"
+checksum = "41fe753ec4d3e8137a1d3ecb1aee1192b8f7661fe1247641968f5bf5f2e6ebbe"
 dependencies = [
  "cocoa 0.25.0",
  "crossbeam-channel",
@@ -3445,6 +3445,7 @@ dependencies = [
  "uuid",
  "webkit2gtk",
  "webview2-com",
+ "window-vibrancy",
  "windows",
 ]
 
@@ -4293,6 +4294,18 @@ dependencies = [
  "objc",
  "raw-window-handle",
  "windows-sys 0.42.0",
+]
+
+[[package]]
+name = "window-vibrancy"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5931735e675b972fada30c7a402915d4d827aa5ef6c929c133d640c4b785e963"
+dependencies = [
+ "cocoa 0.25.0",
+ "objc",
+ "raw-window-handle",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

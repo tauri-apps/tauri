@@ -60,9 +60,9 @@
     "rowResize",
   ];
 
-  const windowsEffects = ["mica", "blur", "acrylic"];
-  const isWindows = navigator.appVersion.includes("windows");
-  const isMacOS = navigator.appVersion.includes("macos");
+  const windowsEffects = ["mica", "blur", "acrylic", "tabbed", "tabbedDark", "tabbedLight"];
+  const isWindows = navigator.appVersion.includes("Windows");
+  const isMacOS = navigator.appVersion.includes("Macintosh");
   let effectOptions = isWindows
     ? windowsEffects
     : Object.keys(Effect)

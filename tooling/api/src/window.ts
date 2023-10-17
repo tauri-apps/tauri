@@ -1948,15 +1948,15 @@ enum Effect {
   /**
    * Tabbed effect that matches the system dark perefence **Windows 11 Only**
    */
-  Tabbed = 'Tabbed',
+  Tabbed = 'tabbed',
   /**
    * Tabbed effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
    */
-  TabbedDark = 'TabbedDark',
+  TabbedDark = 'tabbedDark',
   /**
    * Tabbed effect with light mode **Windows 11 Only**
    */
-  TabbedLight = 'TabbedLight'
+  TabbedLight = 'tabbedLight'
 }
 
 /**

@@ -6,6 +6,7 @@
 
 use crate::{
   app::PageLoadPayload,
+  error::Error,
   ipc::{Invoke, InvokeHandler},
   utils::config::PluginConfig,
   AppHandle, RunEvent, Runtime, Window,
@@ -17,12 +18,12 @@ use url::Url;
 
 use std::{fmt, result::Result as StdResult, sync::Arc};
 
+/// The result type of Tauri plugin module.
+pub type Result<T> = StdResult<T, Box<dyn std::error::Error>>;
+
 /// Mobile APIs.
 #[cfg(mobile)]
 pub mod mobile;
-
-/// The result type of Tauri plugin module.
-pub type Result<T> = StdResult<T, Box<dyn std::error::Error>>;
 
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {
@@ -592,7 +593,7 @@ impl<R: Runtime> PluginStore<R> {
           app,
           config.0.get(plugin.name()).cloned().unwrap_or_default(),
         )
-        .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
+        .map_err(|e| Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
     })
   }
 

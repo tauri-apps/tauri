@@ -14,8 +14,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 
 mod commands;
-mod error;
-pub use error::*;
+pub use crate::error::*;
 
 #[cfg(target_os = "android")]
 mod android;

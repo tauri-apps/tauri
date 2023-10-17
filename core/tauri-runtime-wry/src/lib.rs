@@ -41,7 +41,9 @@ use wry::webview::WebViewBuilderExtWindows;
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, debug_eprintln, ProgressBarState, ProgressState, Theme};
+use tauri_utils::{
+  config::WindowConfig, debug_eprintln, ProgressBarState, ProgressBarStatus, Theme,
+};
 use wry::{
   application::{
     dpi::{
@@ -523,14 +525,14 @@ impl From<CursorIcon> for CursorIconWrapper {
 
 pub struct ProgressStateWrapper(pub WryProgressState);
 
-impl From<ProgressState> for ProgressStateWrapper {
-  fn from(state: ProgressState) -> Self {
-    let state = match state {
-      ProgressState::None => WryProgressState::None,
-      ProgressState::Normal => WryProgressState::Normal,
-      ProgressState::Indeterminate => WryProgressState::Indeterminate,
-      ProgressState::Paused => WryProgressState::Paused,
-      ProgressState::Error => WryProgressState::Error,
+impl From<ProgressBarStatus> for ProgressStateWrapper {
+  fn from(status: ProgressBarStatus) -> Self {
+    let state = match status {
+      ProgressBarStatus::None => WryProgressState::None,
+      ProgressBarStatus::Normal => WryProgressState::Normal,
+      ProgressBarStatus::Indeterminate => WryProgressState::Indeterminate,
+      ProgressBarStatus::Paused => WryProgressState::Paused,
+      ProgressBarStatus::Error => WryProgressState::Error,
     };
     Self(state)
   }
@@ -543,7 +545,7 @@ impl From<ProgressBarState> for ProgressBarStateWrapper {
     Self(WryProgressBarState {
       progress: progress_state.progress,
       state: progress_state
-        .state
+        .status
         .map(|state| ProgressStateWrapper::from(state).0),
       unity_uri: progress_state.unity_uri,
     })

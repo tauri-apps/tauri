@@ -93,22 +93,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
-      - name: Setup NDK
-        if: contains(matrix.platform.target, 'android')
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r25b
-          local-cache: true
-
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core -> ../target
           save-if: ${{ matrix.features.key == 'all' }}
 
       - name: test
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: ${{ matrix.platform.cross }}
-          command: ${{ matrix.platform.command }}
-          args: --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
+        if: ${{ matrix.platform.cross }}
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+          cross ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
+
+      - name: test
+        if: ${{ !matrix.platform.cross }}
+        run: cargo ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

@@ -805,8 +805,8 @@ shared_app_impl!(AppHandle<R>);
 
 impl<R: Runtime> App<R> {
   fn register_core_plugins(&self) -> crate::Result<()> {
-    self.handle.plugin(crate::path::init())?;
-    self.handle.plugin(crate::event::init())?;
+    self.handle.plugin(crate::path::plugin::init())?;
+    self.handle.plugin(crate::event::plugin::init())?;
     self.handle.plugin(crate::window::plugin::init())?;
     Ok(())
   }

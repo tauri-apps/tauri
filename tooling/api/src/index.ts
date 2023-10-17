@@ -19,4 +19,4 @@ import * as window from './window'
 import * as path from './path'
 import * as dpi from './dpi'
 
-export { event, path, primitives, window }
+export { dpi, event, path, primitives, window }

@@ -1,5 +1,6 @@
 {
   "entryPoints": [
+    "src/dpi.ts",
     "src/event.ts",
     "src/mocks.ts",
     "src/path.ts",

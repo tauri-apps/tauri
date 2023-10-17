@@ -27,3 +27,8 @@ declare global {
     }
   }
 }
+
+/** @ignore */
+interface WindowDef {
+  label: string
+}

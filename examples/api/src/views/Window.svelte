@@ -9,7 +9,7 @@
     EffectState,
     Window
   } from "@tauri-apps/api/window";
-  import { invoke } from "@tauri-apps/api/tauri";
+  import { invoke } from "@tauri-apps/api/primitives";
 
   const appWindow = getCurrent();
 

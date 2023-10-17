@@ -13,8 +13,8 @@ use sha2::Digest;
 use zip::ZipArchive;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
-pub const WEBVIEW2_X86_INSTALLER_GUID: &str = "a17bde80-b5ab-47b5-8bbb-1cbe93fc6ec9";
-pub const WEBVIEW2_X64_INSTALLER_GUID: &str = "aa5fd9b3-dc11-4cbc-8343-a50f57b311e1";
+pub const WEBVIEW2_X86_OFFLINE_INSTALLER_GUID: &str = "2c122012-898d-4a69-9ab6-aa50bbe81031";
+pub const WEBVIEW2_X64_OFFLINE_INSTALLER_GUID: &str = "0af26c79-02f0-4f06-a12d-116bc05ca860";
 pub const NSIS_OUTPUT_FOLDER_NAME: &str = "nsis";
 pub const NSIS_UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
 pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
@@ -22,7 +22,9 @@ pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);
-  let response = ureq::get(url).call().map_err(Box::new)?;
+
+  let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
+  let response = agent.get(url).call().map_err(Box::new)?;
   let mut bytes = Vec::new();
   response.into_reader().read_to_end(&mut bytes)?;
   Ok(bytes)

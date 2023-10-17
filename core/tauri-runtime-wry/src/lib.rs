@@ -249,7 +249,7 @@ pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
   #[cfg(all(desktop, feature = "global-shortcut"))]
-  pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  pub global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "clipboard")]
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
   pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
@@ -1937,7 +1937,7 @@ impl<T: UserEvent> Wry<T> {
     let web_context = WebContextStore::default();
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
-    let global_shortcut_manager = Arc::new(Mutex::new(WryShortcutManager::new(&event_loop)));
+    let global_shortcut_manager = Rc::new(Mutex::new(WryShortcutManager::new(&event_loop)));
 
     #[cfg(feature = "clipboard")]
     let clipboard_manager = Arc::new(Mutex::new(Clipboard::new()));
@@ -2307,7 +2307,7 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub webview_id_map: WebviewIdStore,
   pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
-  pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  pub global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   pub global_shortcut_manager_handle: &'a GlobalShortcutManagerHandle<T>,
   #[cfg(feature = "clipboard")]
@@ -2320,7 +2320,7 @@ struct UserMessageContext {
   windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   webview_id_map: WebviewIdStore,
   #[cfg(all(desktop, feature = "global-shortcut"))]
-  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "clipboard")]
   clipboard_manager: Arc<Mutex<Clipboard>>,
   #[cfg(all(desktop, feature = "system-tray"))]

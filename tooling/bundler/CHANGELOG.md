@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.4.3]
+
+### Bug Fixes
+
+- [`d0ae6750`](https://www.github.com/tauri-apps/tauri/commit/d0ae67503cdb2aeaadcea27af67285eea1cf3756)([#8012](https://www.github.com/tauri-apps/tauri/pull/8012)) Read `HTTP_PROXY` env var when downloading bundling resources on Windows.
+- [`113bcd7b`](https://www.github.com/tauri-apps/tauri/commit/113bcd7b684a72eb0f421c663c6aa874197252bb)([#7980](https://www.github.com/tauri-apps/tauri/pull/7980)) In Debian packages, set `root` the owner of control files and package files.
+
 ## \[1.4.2]
 
 ### Bug Fixes

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.1]
+
+### New Features
+
+- [`2b0212af`](https://www.github.com/tauri-apps/tauri/commit/2b0212af49c386e52bb2357381813d6d435ec4af)([#7961](https://www.github.com/tauri-apps/tauri/pull/7961)) Add `mockConvertFileSrc` in `mocks` module, to mock `convertFileSrc` function.
+
 ## \[1.5.0]
 
 ### New Features

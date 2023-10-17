@@ -8,7 +8,7 @@ set -euxo pipefail
 export ARCH={{arch}}
 APPIMAGE_BUNDLE_XDG_OPEN=${APPIMAGE_BUNDLE_XDG_OPEN-0}
 APPIMAGE_BUNDLE_GSTREAMER=${APPIMAGE_BUNDLE_GSTREAMER-0}
-TRAY_LIBRARY_PATH=${TRAY_LIBRARY_PATH-0}
+TAURI_TRAY_LIBRARY_PATH=${TAURI_TRAY_LIBRARY_PATH-0}
 
 if [ "$ARCH" == "i686" ]; then
     linuxdeploy_arch="i386"
@@ -28,15 +28,15 @@ if [[ "$APPIMAGE_BUNDLE_XDG_OPEN" != "0" ]] && [[ -f "/usr/bin/xdg-open" ]]; the
   cp /usr/bin/xdg-open usr/bin
 fi
 
-if [[ "$TRAY_LIBRARY_PATH" != "0" ]]; then
-  echo "Copying appindicator library ${TRAY_LIBRARY_PATH}"
-  cp ${TRAY_LIBRARY_PATH} usr/lib
+if [[ "$TAURI_TRAY_LIBRARY_PATH" != "0" ]]; then
+  echo "Copying appindicator library ${TAURI_TRAY_LIBRARY_PATH}"
+  cp ${TAURI_TRAY_LIBRARY_PATH} usr/lib
   # It looks like we're practicing good hygiene by adding the ABI version.
   # But for compatibility we'll symlink this file to what we did before.
   # Specifically this prevents breaking libappindicator-sys v0.7.1 and v0.7.2.
-  if [[ "$TRAY_LIBRARY_PATH" == *.so.1 ]]; then
-    readonly soname=$(basename "$TRAY_LIBRARY_PATH")
-    readonly old_name=$(basename "$TRAY_LIBRARY_PATH" .1)
+  if [[ "$TAURI_TRAY_LIBRARY_PATH" == *.so.1 ]]; then
+    readonly soname=$(basename "$TAURI_TRAY_LIBRARY_PATH")
+    readonly old_name=$(basename "$TAURI_TRAY_LIBRARY_PATH" .1)
     echo "Adding compatibility symlink ${old_name} -> ${soname}"
     ln -s ${soname} usr/lib/${old_name}
   fi

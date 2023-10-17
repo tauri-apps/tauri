@@ -13,14 +13,13 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
-  RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
+  RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, ProgressBarState, Theme};
 use url::Url;
-use uuid::Uuid;
 
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -30,14 +29,14 @@ use std::{
   collections::HashMap,
   fmt,
   sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
     mpsc::{channel, sync_channel, Receiver, SyncSender},
     Arc, Mutex,
   },
 };
 
 type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
-type WindowId = usize;
+type WindowId = u32;
 
 enum Message {
   Task(Box<dyn FnOnce() + Send>),
@@ -52,6 +51,8 @@ pub struct RuntimeContext {
   windows: Arc<RefCell<HashMap<WindowId, Window>>>,
   shortcuts: Arc<Mutex<ShortcutMap>>,
   run_tx: SyncSender<Message>,
+  next_window_id: Arc<AtomicU32>,
+  next_window_event_id: Arc<AtomicU32>,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -79,6 +80,14 @@ impl RuntimeContext {
       Ok(())
     }
   }
+
+  fn next_window_id(&self) -> WindowId {
+    self.next_window_id.fetch_add(1, Ordering::Relaxed)
+  }
+
+  fn next_window_event_id(&self) -> WindowEventId {
+    self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
+  }
 }
 
 impl fmt::Debug for RuntimeContext {
@@ -105,7 +114,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     pending: PendingWindow<T, Self::Runtime>,
     _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    let id = rand::random();
+    let id = self.context.next_window_id();
     self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {
       label: pending.label,
@@ -346,8 +355,8 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     self.context.send_message(Message::Task(Box::new(f)))
   }
 
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
-    Uuid::new_v4()
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
+    self.context.next_window_event_id()
   }
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
@@ -516,7 +525,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     pending: PendingWindow<T, Self::Runtime>,
     _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    let id = rand::random();
+    let id = self.context.next_window_id();
     self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {
       label: pending.label,
@@ -698,6 +707,8 @@ impl MockRuntime {
       windows: Default::default(),
       shortcuts: Default::default(),
       run_tx: tx,
+      next_window_id: Default::default(),
+      next_window_event_id: Default::default(),
     };
     Self {
       is_running,
@@ -736,7 +747,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     pending: PendingWindow<T, Self>,
     _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
-    let id = rand::random();
+    let id = self.context.next_window_id();
     self.context.windows.borrow_mut().insert(id, Window);
     Ok(DetachedWindow {
       label: pending.label,

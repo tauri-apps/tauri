@@ -11,7 +11,7 @@
  * @module
  */
 
-import { invoke } from './tauri'
+import { invoke } from './primitives'
 
 /**
  * @since 2.0.0
@@ -547,7 +547,7 @@ async function tempDir(path: string): Promise<string> {
  * @since 2.0.0
  */
 function sep(): string {
-  return window.__TAURI__.path.__sep
+  return window.__TAURI_INTERNALS__.plugins.path.sep
 }
 
 /**
@@ -558,7 +558,7 @@ function sep(): string {
  * @since 2.0.0
  */
 function delimiter(): string {
-  return window.__TAURI__.path.__delimiter
+  return window.__TAURI_INTERNALS__.plugins.path.delimiter
 }
 /**
  * Resolves a sequence of `paths` or `path` segments into an absolute path.

@@ -26,7 +26,10 @@ use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Tauri build")]
+#[clap(
+  about = "Build your app in release mode and generate bundles and installers",
+  long_about = "Build your app in release mode and generate bundles and installers. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`. This will also run `build.beforeBundleCommand` before generating the bundles and installers of your app."
+)]
 pub struct Options {
   /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]
@@ -166,12 +169,12 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     // If updater is active and we bundled it
     if config_.tauri.bundle.updater.active && !updater_bundles.is_empty() {
       // if no password provided we use an empty string
-      let password = var_os("TAURI_KEY_PASSWORD")
+      let password = var_os("TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
         .map(|v| v.to_str().unwrap().to_string())
         .or_else(|| if ci { Some("".into()) } else { None });
       // get the private key
       let secret_key = if let Some(mut private_key) =
-        var_os("TAURI_PRIVATE_KEY").map(|v| v.to_str().unwrap().to_string())
+        var_os("TAURI_SIGNING_PRIVATE_KEY").map(|v| v.to_str().unwrap().to_string())
       {
         // check if env var points to a file..
         let pk_dir = Path::new(&private_key);
@@ -183,7 +186,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
         }
         updater_secret_key(private_key, password)
       } else {
-        Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable."))
+        Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable."))
       }?;
 
       let pubkey =
@@ -201,7 +204,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
           let (signature_path, signature) = sign_file(&secret_key, path)?;
           if signature.keynum() != public_key.keynum() {
             return Err(anyhow::anyhow!(
-              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key defined in `tauri.conf.json > tauri > updater > pubkey`."
+              "The updater secret key from `TAURI_SIGNING_PRIVATE_KEY` does not match the public key defined in `tauri.conf.json > tauri > updater > pubkey`."
             ));
           }
           signed_paths.append(&mut vec![signature_path]);

@@ -9,27 +9,6 @@
  * @module
  */
 
-/** @ignore */
-declare global {
-  interface Window {
-    __TAURI__: {
-      path: {
-        __sep: string
-        __delimiter: string
-      }
-
-      convertFileSrc: (src: string, protocol: string) => string
-    }
-
-    __TAURI_IPC__: (message: any) => void
-  }
-}
-
-/** @ignore */
-function uid(): number {
-  return window.crypto.getRandomValues(new Uint32Array(1))[0]
-}
-
 /**
  * Transforms a callback function to a string identifier that can be passed to the backend.
  * The backend uses the identifier to `eval()` the callback.
@@ -42,22 +21,7 @@ function transformCallback(
   callback?: (response: any) => void,
   once = false
 ): number {
-  const identifier = uid()
-  const prop = `_${identifier}`
-
-  Object.defineProperty(window, prop, {
-    value: (result: any) => {
-      if (once) {
-        Reflect.deleteProperty(window, prop)
-      }
-
-      return callback?.(result)
-    },
-    writable: false,
-    configurable: true
-  })
-
-  return identifier
+  return window.__TAURI_INTERNALS__.transformCallback(callback, once)
 }
 
 class Channel<T = unknown> {
@@ -143,7 +107,7 @@ interface InvokeOptions {
  * Sends a message to the backend.
  * @example
  * ```typescript
- * import { invoke } from '@tauri-apps/api/tauri';
+ * import { invoke } from '@tauri-apps/api/primitives';
  * await invoke('login', { user: 'tauri', password: 'poiwe3h4r5ip3yrhtew9ty' });
  * ```
  *
@@ -159,24 +123,7 @@ async function invoke<T>(
   args: InvokeArgs = {},
   options?: InvokeOptions
 ): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const callback = transformCallback((e: T) => {
-      resolve(e)
-      Reflect.deleteProperty(window, `_${error}`)
-    }, true)
-    const error = transformCallback((e) => {
-      reject(e)
-      Reflect.deleteProperty(window, `_${callback}`)
-    }, true)
-
-    window.__TAURI_IPC__({
-      cmd,
-      callback,
-      error,
-      payload: args,
-      options
-    })
-  })
+  return window.__TAURI_INTERNALS__.invoke(cmd, args, options)
 }
 
 /**
@@ -192,7 +139,7 @@ async function invoke<T>(
  * @example
  * ```typescript
  * import { appDataDir, join } from '@tauri-apps/api/path';
- * import { convertFileSrc } from '@tauri-apps/api/tauri';
+ * import { convertFileSrc } from '@tauri-apps/api/primitives';
  * const appDataDirPath = await appDataDir();
  * const filePath = await join(appDataDirPath, 'assets/video.mp4');
  * const assetUrl = convertFileSrc(filePath);
@@ -210,7 +157,7 @@ async function invoke<T>(
  * @since 1.0.0
  */
 function convertFileSrc(filePath: string, protocol = 'asset'): string {
-  return window.__TAURI__.convertFileSrc(filePath, protocol)
+  return window.__TAURI_INTERNALS__.convertFileSrc(filePath, protocol)
 }
 
 export type { InvokeArgs, InvokeOptions }

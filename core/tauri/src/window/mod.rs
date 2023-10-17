@@ -15,7 +15,7 @@ use crate::TitleBarStyle;
 use crate::{
   app::{AppHandle, UriSchemeResponder},
   command::{CommandArg, CommandItem},
-  event::{Event, EventHandler},
+  event::{Event, EventId},
   ipc::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
@@ -897,7 +897,7 @@ pub struct Window<R: Runtime> {
   /// The manager to associate this webview window with.
   pub(crate) manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
-  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
+  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<EventId>>>>,
   // The menu set for this window
   #[cfg(desktop)]
   pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
@@ -2230,15 +2230,15 @@ impl<R: Runtime> Window<R> {
     window_label: Option<String>,
     event: String,
     handler: CallbackFn,
-  ) -> crate::Result<usize> {
-    let event_id = rand::random();
+  ) -> crate::Result<EventId> {
+    let event_id = self.manager.listeners().next_event_id();
 
     self.eval(&crate::event::listen_js(
-      self.manager().event_listeners_object_name(),
-      format!("'{}'", event),
+      self.manager().listeners().listeners_object_name(),
+      &format!("'{}'", event),
       event_id,
-      window_label.clone(),
-      format!("window['_{}']", handler.0),
+      window_label.as_deref(),
+      &format!("window['_{}']", handler.0),
     ))?;
 
     self
@@ -2256,9 +2256,9 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Unregister a JS event listener.
-  pub(crate) fn unlisten_js(&self, event: String, id: usize) -> crate::Result<()> {
+  pub(crate) fn unlisten_js(&self, event: &str, id: EventId) -> crate::Result<()> {
     self.eval(&crate::event::unlisten_js(
-      self.manager().event_listeners_object_name(),
+      self.manager().listeners().listeners_object_name(),
       event,
       id,
     ))?;
@@ -2427,7 +2427,7 @@ impl<R: Runtime> Window<R> {
   ) -> crate::Result<()> {
     self.eval(&format!(
       "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
-      self.manager.event_emit_function_name(),
+      self.manager.listeners().function_name(),
       serde_json::to_string(event)?,
       serde_json::to_string(&source_window_label)?,
       serde_json::to_value(payload)?,
@@ -2479,7 +2479,7 @@ impl<R: Runtime> Window<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
@@ -2512,14 +2512,14 @@ impl<R: Runtime> Window<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn unlisten(&self, handler_id: EventHandler) {
-    self.manager.unlisten(handler_id)
+  pub fn unlisten(&self, id: EventId) {
+    self.manager.unlisten(id)
   }
 
   /// Listen to an event on this window a single time.
   ///
   /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  pub fn once<F>(&self, event: impl Into<String>, handler: F)
   where
     F: FnOnce(Event) + Send + 'static,
   {

@@ -34,35 +34,35 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.73.0',
+              toolchain: '1.70.0',
               cross: false,
               command: 'test'
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.73.0',
+              toolchain: '1.70.0',
               cross: false,
               command: 'test'
             }
           - {
               target: x86_64-apple-darwin,
               os: macos-latest,
-              toolchain: '1.73.0',
+              toolchain: '1.70.0',
               cross: false,
               command: 'test'
             }
           - {
               target: aarch64-apple-ios,
               os: macos-latest,
-              toolchain: '1.73.0',
+              toolchain: '1.70.0',
               cross: false,
               command: 'build'
             }
           - {
               target: aarch64-linux-android,
               os: ubuntu-latest,
-              toolchain: '1.73.0',
+              toolchain: '1.70.0',
               cross: true,
               command: 'build'
             }

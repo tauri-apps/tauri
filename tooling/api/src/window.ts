@@ -29,7 +29,7 @@ import { invoke } from './primitives'
 /**
  * Allows you to retrieve information about a given monitor.
  *
- * @since 2.0.0
+ * @since 1.0.0
  */
 export interface Monitor {
   /** Human-readable name of the monitor */
@@ -48,7 +48,7 @@ type TitleBarStyle = 'visible' | 'transparent' | 'overlay'
 /**
  * The payload for the `scaleChange` event.
  *
- * @since 2.0.0
+ * @since 1.0.2
  */
 interface ScaleFactorChanged {
   /** The new window scale factor. */
@@ -66,7 +66,7 @@ type FileDropEvent =
 /**
  * Attention type to request on a window.
  *
- * @since 2.0.0
+ * @since 1.0.0
  */
 enum UserAttentionType {
   /**
@@ -151,7 +151,7 @@ export type CursorIcon =
 /**
  * Get an instance of `Window` for the current window.
  *
- * @since 2.0.0
+ * @since 1.0.0
  */
 function getCurrent(): Window {
   return new Window(window.__TAURI_INTERNALS__.metadata.currentWindow.label, {
@@ -163,7 +163,7 @@ function getCurrent(): Window {
 /**
  * Gets a list of instances of `Window` for all available windows.
  *
- * @since 2.0.0
+ * @since 1.0.0
  */
 function getAll(): Window[] {
   return window.__TAURI_INTERNALS__.metadata.windows.map(
@@ -239,8 +239,6 @@ class Window {
    *
    * @param label The unique webview window label. Must be alphanumeric: `a-zA-Z-/:_`.
    * @returns The {@link Window} instance to communicate with the webview.
-   *
-   * @since 2.0.0
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {
     this.label = label
@@ -270,8 +268,6 @@ class Window {
    *
    * @param label The webview window label.
    * @returns The Window instance to communicate with the webview or null if the webview doesn't exist.
-   *
-   * @since 2.0.0
    */
   static getByLabel(label: string): Window | null {
     if (getAll().some((w) => w.label === label)) {
@@ -283,8 +279,6 @@ class Window {
 
   /**
    * Get an instance of `Window` for the current window.
-   *
-   * @since 2.0.0
    */
   static getCurrent(): Window {
     return getCurrent()
@@ -292,8 +286,6 @@ class Window {
 
   /**
    * Gets a list of instances of `Window` for all available windows.
-   *
-   * @since 2.0.0
    */
   static getAll(): Window[] {
     return getAll()
@@ -308,8 +300,6 @@ class Window {
    * ```
    *
    * @returns The Window instance to communicate with the webview or `undefined` if there is not any focused window.
-   *
-   * @since 1.4
    */
   static async getFocusedWindow(): Promise<Window | null> {
     for (const w of getAll()) {
@@ -338,8 +328,6 @@ class Window {
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   async listen<T>(
     event: EventName,
@@ -373,8 +361,6 @@ class Window {
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
@@ -434,9 +420,7 @@ class Window {
    * ```
    *
    * @returns The window's monitor scale factor.
-   *
-   * @since 2.0.0
-   * */
+   */
   async scaleFactor(): Promise<number> {
     return invoke('plugin:window|scale_factor', {
       label: this.label
@@ -452,9 +436,7 @@ class Window {
    * ```
    *
    * @returns The window's inner position.
-   *
-   * @since 2.0.0
-   *  */
+   */
   async innerPosition(): Promise<PhysicalPosition> {
     return invoke<{ x: number; y: number }>('plugin:window|inner_position', {
       label: this.label
@@ -470,9 +452,7 @@ class Window {
    * ```
    *
    * @returns The window's outer position.
-   *
-   * @since 2.0.0
-   *  */
+   */
   async outerPosition(): Promise<PhysicalPosition> {
     return invoke<{ x: number; y: number }>('plugin:window|outer_position', {
       label: this.label
@@ -489,8 +469,6 @@ class Window {
    * ```
    *
    * @returns The window's inner size.
-   *
-   * @since 2.0.0
    */
   async innerSize(): Promise<PhysicalSize> {
     return invoke<{ width: number; height: number }>(
@@ -511,8 +489,6 @@ class Window {
    * ```
    *
    * @returns The window's outer size.
-   *
-   * @since 2.0.0
    */
   async outerSize(): Promise<PhysicalSize> {
     return invoke<{ width: number; height: number }>(
@@ -532,9 +508,7 @@ class Window {
    * ```
    *
    * @returns Whether the window is in fullscreen mode or not.
-   *
-   * @since 2.0.0
-   *  */
+   */
   async isFullscreen(): Promise<boolean> {
     return invoke('plugin:window|is_fullscreen', {
       label: this.label
@@ -548,9 +522,7 @@ class Window {
    * import { getCurrent } from '@tauri-apps/api/window';
    * const minimized = await getCurrent().isMinimized();
    * ```
-   *
-   * @since 2.0.0
-   * */
+   */
   async isMinimized(): Promise<boolean> {
     return invoke('plugin:window|is_minimized', {
       label: this.label
@@ -566,9 +538,7 @@ class Window {
    * ```
    *
    * @returns Whether the window is maximized or not.
-   *
-   * @since 2.0.0
-   * */
+   */
   async isMaximized(): Promise<boolean> {
     return invoke('plugin:window|is_maximized', {
       label: this.label
@@ -584,9 +554,7 @@ class Window {
    * ```
    *
    * @returns Whether the window is focused or not.
-   *
-   * @since 2.0.0
-   * */
+   */
   async isFocused(): Promise<boolean> {
     return invoke('plugin:window|is_focused', {
       label: this.label
@@ -602,9 +570,7 @@ class Window {
    * ```
    *
    * @returns Whether the window is decorated or not.
-   *
-   * @since 2.0.0
-   *  */
+   */
   async isDecorated(): Promise<boolean> {
     return invoke('plugin:window|is_decorated', {
       label: this.label
@@ -620,9 +586,7 @@ class Window {
    * ```
    *
    * @returns Whether the window is resizable or not.
-   *
-   * @since 2.0.0
-   *  */
+   */
   async isResizable(): Promise<boolean> {
     return invoke('plugin:window|is_resizable', {
       label: this.label
@@ -643,7 +607,7 @@ class Window {
    * ```
    *
    * @returns Whether the window's native maximize button is enabled or not.
-   *  */
+   */
   async isMaximizable(): Promise<boolean> {
     return invoke('plugin:window|is_maximizable', {
       label: this.label
@@ -664,7 +628,7 @@ class Window {
    * ```
    *
    * @returns Whether the window's native minimize button is enabled or not.
-   *  */
+   */
   async isMinimizable(): Promise<boolean> {
     return invoke('plugin:window|is_minimizable', {
       label: this.label
@@ -685,7 +649,7 @@ class Window {
    * ```
    *
    * @returns Whether the window's native close button is enabled or not.
-   *  */
+   */
   async isClosable(): Promise<boolean> {
     return invoke('plugin:window|is_closable', {
       label: this.label
@@ -701,9 +665,7 @@ class Window {
    * ```
    *
    * @returns Whether the window is visible or not.
-   *
-   * @since 2.0.0
-   *  */
+   */
   async isVisible(): Promise<boolean> {
     return invoke('plugin:window|is_visible', {
       label: this.label
@@ -717,9 +679,7 @@ class Window {
    * import { getCurrent } from '@tauri-apps/api/window';
    * const title = await getCurrent().title();
    * ```
-   *
-   * @since 2.0.0
-   * */
+   */
   async title(): Promise<string> {
     return invoke('plugin:window|title', {
       label: this.label
@@ -740,9 +700,7 @@ class Window {
    * ```
    *
    * @returns The window theme.
-   *
-   * @since 2.0.0
-   * */
+   */
   async theme(): Promise<Theme | null> {
     return invoke('plugin:window|theme', {
       label: this.label
@@ -759,10 +717,7 @@ class Window {
    * await getCurrent().center();
    * ```
    *
-   * @param resizable
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async center(): Promise<void> {
     return invoke('plugin:window|center', {
@@ -788,10 +743,7 @@ class Window {
    * await getCurrent().requestUserAttention();
    * ```
    *
-   * @param requestType
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async requestUserAttention(
     requestType: UserAttentionType | null
@@ -819,10 +771,7 @@ class Window {
    * await getCurrent().setResizable(false);
    * ```
    *
-   * @param resizable
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setResizable(resizable: boolean): Promise<void> {
     return invoke('plugin:window|set_resizable', {
@@ -846,7 +795,6 @@ class Window {
    * await getCurrent().setMaximizable(false);
    * ```
    *
-   * @param maximizable
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMaximizable(maximizable: boolean): Promise<void> {
@@ -869,7 +817,6 @@ class Window {
    * await getCurrent().setMinimizable(false);
    * ```
    *
-   * @param minimizable
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMinimizable(minimizable: boolean): Promise<void> {
@@ -893,7 +840,6 @@ class Window {
    * await getCurrent().setClosable(false);
    * ```
    *
-   * @param closable
    * @returns A promise indicating the success or failure of the operation.
    */
   async setClosable(closable: boolean): Promise<void> {
@@ -913,8 +859,6 @@ class Window {
    *
    * @param title The new title
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setTitle(title: string): Promise<void> {
     return invoke('plugin:window|set_title', {
@@ -932,8 +876,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async maximize(): Promise<void> {
     return invoke('plugin:window|maximize', {
@@ -950,8 +892,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async unmaximize(): Promise<void> {
     return invoke('plugin:window|unmaximize', {
@@ -968,8 +908,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async toggleMaximize(): Promise<void> {
     return invoke('plugin:window|toggle_maximize', {
@@ -986,8 +924,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async minimize(): Promise<void> {
     return invoke('plugin:window|minimize', {
@@ -1004,8 +940,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async unminimize(): Promise<void> {
     return invoke('plugin:window|unminimize', {
@@ -1022,8 +956,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async show(): Promise<void> {
     return invoke('plugin:window|show', {
@@ -1040,8 +972,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async hide(): Promise<void> {
     return invoke('plugin:window|hide', {
@@ -1058,8 +988,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async close(): Promise<void> {
     return invoke('plugin:window|close', {
@@ -1077,8 +1005,6 @@ class Window {
    *
    * @param decorations Whether the window should have borders and bars.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setDecorations(decorations: boolean): Promise<void> {
     return invoke('plugin:window|set_decorations', {
@@ -1105,8 +1031,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setShadow(enable: boolean): Promise<void> {
     return invoke('plugin:window|set_shadow', {
@@ -1117,8 +1041,6 @@ class Window {
 
   /**
    * Set window effects.
-   *
-   * @since 2.0
    */
   async setEffects(effects: Effects): Promise<void> {
     return invoke('plugin:window|set_effects', {
@@ -1129,8 +1051,6 @@ class Window {
 
   /**
    * Clear any applied effects if possible.
-   *
-   * @since 2.0
    */
   async clearEffects(): Promise<void> {
     return invoke('plugin:window|set_effects', {
@@ -1149,8 +1069,6 @@ class Window {
    *
    * @param alwaysOnTop Whether the window should always be on top of other windows or not.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {
     return invoke('plugin:window|set_always_on_top', {
@@ -1168,8 +1086,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setContentProtected(protected_: boolean): Promise<void> {
     return invoke('plugin:window|set_content_protected', {
@@ -1188,8 +1104,6 @@ class Window {
    *
    * @param size The logical or physical inner size.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
     if (!size || (size.type !== 'Logical' && size.type !== 'Physical')) {
@@ -1220,8 +1134,6 @@ class Window {
    *
    * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setMinSize(
     size: LogicalSize | PhysicalSize | null | undefined
@@ -1256,8 +1168,6 @@ class Window {
    *
    * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setMaxSize(
     size: LogicalSize | PhysicalSize | null | undefined
@@ -1292,8 +1202,6 @@ class Window {
    *
    * @param position The new position, in logical or physical pixels.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setPosition(
     position: LogicalPosition | PhysicalPosition
@@ -1329,8 +1237,6 @@ class Window {
    *
    * @param fullscreen Whether the window should go to fullscreen or not.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setFullscreen(fullscreen: boolean): Promise<void> {
     return invoke('plugin:window|set_fullscreen', {
@@ -1348,8 +1254,6 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setFocus(): Promise<void> {
     return invoke('plugin:window|set_focus', {
@@ -1374,8 +1278,6 @@ class Window {
    *
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setIcon(icon: string | Uint8Array): Promise<void> {
     return invoke('plugin:window|set_icon', {
@@ -1398,8 +1300,6 @@ class Window {
    *
    * @param skip true to hide window icon, false to show it.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setSkipTaskbar(skip: boolean): Promise<void> {
     return invoke('plugin:window|set_skip_taskbar', {
@@ -1426,8 +1326,6 @@ class Window {
    *
    * @param grab `true` to grab the cursor icon, `false` to release it.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setCursorGrab(grab: boolean): Promise<void> {
     return invoke('plugin:window|set_cursor_grab', {
@@ -1452,8 +1350,6 @@ class Window {
    *
    * @param visible If `false`, this will hide the cursor. If `true`, this will show the cursor.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setCursorVisible(visible: boolean): Promise<void> {
     return invoke('plugin:window|set_cursor_visible', {
@@ -1472,8 +1368,6 @@ class Window {
    *
    * @param icon The new cursor icon.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setCursorIcon(icon: CursorIcon): Promise<void> {
     return invoke('plugin:window|set_cursor_icon', {
@@ -1492,8 +1386,6 @@ class Window {
    *
    * @param position The new cursor position.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setCursorPosition(
     position: LogicalPosition | PhysicalPosition
@@ -1530,8 +1422,6 @@ class Window {
    *
    * @param ignore `true` to ignore the cursor events; `false` to process them as usual.
    * @returns A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async setIgnoreCursorEvents(ignore: boolean): Promise<void> {
     return invoke('plugin:window|set_ignore_cursor_events', {
@@ -1549,8 +1439,6 @@ class Window {
    * ```
    *
    * @return A promise indicating the success or failure of the operation.
-   *
-   * @since 2.0.0
    */
   async startDragging(): Promise<void> {
     return invoke('plugin:window|start_dragging', {
@@ -1576,8 +1464,6 @@ class Window {
    *
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
     return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, (e) => {
@@ -1602,8 +1488,6 @@ class Window {
    *
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
     return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, (e) => {
@@ -1633,8 +1517,6 @@ class Window {
    *
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   /* eslint-disable @typescript-eslint/promise-function-async */
   async onCloseRequested(
@@ -1667,8 +1549,6 @@ class Window {
    *
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   async onFocusChanged(handler: EventCallback<boolean>): Promise<UnlistenFn> {
     const unlistenFocus = await this.listen<PhysicalPosition>(
@@ -1709,8 +1589,6 @@ class Window {
    *
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   async onScaleChanged(
     handler: EventCallback<ScaleFactorChanged>
@@ -1737,8 +1615,6 @@ class Window {
    *
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
     return this.listen<string>(TauriEvent.MENU, handler)
@@ -1768,8 +1644,6 @@ class Window {
    *
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   async onFileDropEvent(
     handler: EventCallback<FileDropEvent>
@@ -1818,8 +1692,6 @@ class Window {
    *
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
    */
   async onThemeChanged(handler: EventCallback<Theme>): Promise<UnlistenFn> {
     return this.listen<Theme>(TauriEvent.WINDOW_THEME_CHANGED, handler)
@@ -1829,14 +1701,14 @@ class Window {
 /**
  * an array RGBA colors. Each value has minimum of 0 and maximum of 255.
  *
- * @since 2.0
+ * @since 2.0.0
  */
 type Color = [number, number, number, number]
 
 /**
  * Platform-specific window effects
  *
- * @since 2.0
+ * @since 2.0.0
  */
 enum Effect {
   /**
@@ -1964,7 +1836,7 @@ enum Effect {
  *
  * @see https://developer.apple.com/documentation/appkit/nsvisualeffectview/state
  *
- * @since 2.0
+ * @since 2.0.0
  */
 enum EffectState {
   /**
@@ -1983,7 +1855,7 @@ enum EffectState {
 
 /** The window effects configuration object
  *
- * @since 2.0
+ * @since 2.0.0
  */
 interface Effects {
   /**
@@ -2009,7 +1881,7 @@ interface Effects {
 /**
  * Configuration for the window to create.
  *
- * @since 2.0.0
+ * @since 1.0.0
  */
 interface WindowOptions {
   /**
@@ -2163,7 +2035,7 @@ function mapPhysicalSize(m: PhysicalSize): PhysicalSize {
  * const monitor = currentMonitor();
  * ```
  *
- * @since 2.0.0
+ * @since 1.0.0
  */
 async function currentMonitor(): Promise<Monitor | null> {
   return invoke<Monitor | null>('plugin:window|current_monitor').then(
@@ -2180,7 +2052,7 @@ async function currentMonitor(): Promise<Monitor | null> {
  * const monitor = primaryMonitor();
  * ```
  *
- * @since 2.0.0
+ * @since 1.0.0
  */
 async function primaryMonitor(): Promise<Monitor | null> {
   return invoke<Monitor | null>('plugin:window|primary_monitor').then(
@@ -2196,7 +2068,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
  * const monitors = availableMonitors();
  * ```
  *
- * @since 2.0.0
+ * @since 1.0.0
  */
 async function availableMonitors(): Promise<Monitor[]> {
   return invoke<Monitor[]>('plugin:window|available_monitors').then(

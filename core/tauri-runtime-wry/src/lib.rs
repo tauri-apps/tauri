@@ -41,7 +41,9 @@ use wry::webview::WebViewBuilderExtWindows;
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
+use tauri_utils::{
+  config::WindowConfig, debug_eprintln, ProgressBarState, ProgressBarStatus, Theme,
+};
 use wry::{
   application::{
     dpi::{
@@ -56,8 +58,9 @@ use wry::{
     },
     monitor::MonitorHandle,
     window::{
-      CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon, Theme as WryTheme,
-      UserAttentionType as WryUserAttentionType,
+      CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon,
+      ProgressBarState as WryProgressBarState, ProgressState as WryProgressState,
+      Theme as WryTheme, UserAttentionType as WryUserAttentionType,
     },
   },
   webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
@@ -517,6 +520,35 @@ impl From<CursorIcon> for CursorIconWrapper {
       _ => WryCursorIcon::Default,
     };
     Self(i)
+  }
+}
+
+pub struct ProgressStateWrapper(pub WryProgressState);
+
+impl From<ProgressBarStatus> for ProgressStateWrapper {
+  fn from(status: ProgressBarStatus) -> Self {
+    let state = match status {
+      ProgressBarStatus::None => WryProgressState::None,
+      ProgressBarStatus::Normal => WryProgressState::Normal,
+      ProgressBarStatus::Indeterminate => WryProgressState::Indeterminate,
+      ProgressBarStatus::Paused => WryProgressState::Paused,
+      ProgressBarStatus::Error => WryProgressState::Error,
+    };
+    Self(state)
+  }
+}
+
+pub struct ProgressBarStateWrapper(pub WryProgressBarState);
+
+impl From<ProgressBarState> for ProgressBarStateWrapper {
+  fn from(progress_state: ProgressBarState) -> Self {
+    Self(WryProgressBarState {
+      progress: progress_state.progress,
+      state: progress_state
+        .status
+        .map(|state| ProgressStateWrapper::from(state).0),
+      unity_uri: progress_state.unity_uri,
+    })
   }
 }
 
@@ -1006,6 +1038,7 @@ pub enum WindowMessage {
   SetCursorIcon(CursorIcon),
   SetCursorPosition(Position),
   SetIgnoreCursorEvents(bool),
+  SetProgressBar(ProgressBarState),
   DragWindow,
   RequestRedraw,
 }
@@ -1517,6 +1550,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
       Message::Webview(
         self.window_id,
         WebviewMessage::EvaluateScript(script.into()),
+      ),
+    )
+  }
+
+  fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetProgressBar(progress_state),
       ),
     )
   }
@@ -2301,6 +2344,9 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::RequestRedraw => {
             window.request_redraw();
+          }
+          WindowMessage::SetProgressBar(progress_state) => {
+            window.set_progress_bar(ProgressBarStateWrapper::from(progress_state).0);
           }
         }
       }

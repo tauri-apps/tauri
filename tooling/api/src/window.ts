@@ -148,6 +148,44 @@ export type CursorIcon =
   | 'colResize'
   | 'rowResize'
 
+export enum ProgressBarStatus {
+  /**
+   * Hide progress bar.
+   */
+  None = 'none',
+  /**
+   * Normal state.
+   */
+  Normal = 'normal',
+  /**
+   * Indeterminate state. **Treated as Normal on Linux and macOS**
+   */
+  Indeterminate = 'indeterminate',
+  /**
+   * Paused state. **Treated as Normal on Linux**
+   */
+  Paused = 'paused',
+  /**
+   * Error state. **Treated as Normal on linux**
+   */
+  Error = 'error'
+}
+
+export interface ProgressBarState {
+  /**
+   * The progress bar status.
+   */
+  status?: ProgressBarStatus
+  /**
+   * The progress bar progress. This can be a value ranging from `0` to `100`
+   */
+  progress?: number
+  /**
+   * The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
+   */
+  unityUri?: string
+}
+
 /**
  * Get an instance of `Window` for the current window.
  *
@@ -1443,6 +1481,32 @@ class Window {
   async startDragging(): Promise<void> {
     return invoke('plugin:window|start_dragging', {
       label: this.label
+    })
+  }
+
+  /**
+   * Sets the taskbar progress state.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
+   * - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
+   *
+   * @example
+   * ```typescript
+   * import { getCurrent, ProgressBarStatus } from '@tauri-apps/api/window';
+   * await getCurrent().setProgressBar({
+   *   status: ProgressBarStatus.Normal,
+   *   progress: 50,
+   * });
+   * ```
+   *
+   * @return A promise indicating the success or failure of the operation.
+   */
+  async setProgressBar(state: ProgressBarState): Promise<void> {
+    return invoke('plugin:window|set_progress_bar', {
+      label: this.label,
+      value: state
     })
   }
 

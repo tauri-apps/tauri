@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.4]
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.4.3`
+
 ## \[1.5.3]
 
 ### Dependencies

@@ -6,7 +6,7 @@
 
 use crate::{
   app::PageLoadPayload,
-  error::*,
+  error::Error,
   ipc::{Invoke, InvokeHandler},
   utils::config::PluginConfig,
   AppHandle, RunEvent, Runtime, Window,
@@ -16,7 +16,10 @@ use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 use url::Url;
 
-use std::{fmt, sync::Arc};
+use std::{fmt, result::Result as StdResult, sync::Arc};
+
+/// The result type of Tauri plugin module.
+pub type Result<T> = StdResult<T, Box<dyn std::error::Error>>;
 
 /// Mobile APIs.
 #[cfg(mobile)]
@@ -590,7 +593,7 @@ impl<R: Runtime> PluginStore<R> {
           app,
           config.0.get(plugin.name()).cloned().unwrap_or_default(),
         )
-        .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
+        .map_err(|e| Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
     })
   }
 

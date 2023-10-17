@@ -33,6 +33,8 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.5",
     "@types/node": "^20.8.6",
+    "eslint": "^8.51.0",
+    "fast-glob": "^3.3.1",
     "prettier": "2.8.8",
     "rollup": "^4.1.4",
     "typescript": "5.2.2"

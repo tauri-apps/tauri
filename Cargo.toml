@@ -31,7 +31,7 @@ repository = "https://github.com/tauri-apps/tauri"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.73"
 
 # default to small, optimized workspace release binaries
 [profile.release]

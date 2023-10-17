@@ -7,7 +7,7 @@ license = ""
 repository = ""
 default-run = "app"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.73"
 
 [build-dependencies]
 tauri-build = { workspace = true }

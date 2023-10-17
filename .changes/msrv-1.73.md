@@ -10,4 +10,4 @@
 "tauri-runtime-wry": 'minor:feat'
 ---
 
-Bump the MSRV to 1.74.
+Bump the MSRV to 1.73.

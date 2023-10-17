@@ -11,6 +11,9 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
 };
 
+#[cfg(mobile)]
+use std::sync::atomic::{AtomicI32, Ordering};
+
 use once_cell::sync::OnceCell;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -24,6 +27,8 @@ type PluginResponse = Result<serde_json::Value, serde_json::Value>;
 
 type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>;
 
+#[cfg(mobile)]
+static PENDING_PLUGIN_CALLS_ID: AtomicI32 = AtomicI32::new(0);
 static PENDING_PLUGIN_CALLS: OnceCell<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
   OnceCell::new();
 static CHANNELS: OnceCell<Mutex<HashMap<u32, Channel>>> = OnceCell::new();
@@ -315,7 +320,7 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
     os::raw::{c_char, c_int, c_ulonglong},
   };
 
-  let id: i32 = rand::random();
+  let id: i32 = PENDING_PLUGIN_CALLS_ID.fetch_add(1, Ordering::Relaxed);
   PENDING_PLUGIN_CALLS
     .get_or_init(Default::default)
     .lock()
@@ -434,7 +439,7 @@ pub(crate) fn run_command<
     _ => unreachable!(),
   };
 
-  let id: i32 = rand::random();
+  let id: i32 = PENDING_PLUGIN_CALLS_ID.fetch_add(1, Ordering::Relaxed);
   let plugin_name = name.to_string();
   let command = command.as_ref().to_string();
   let handle_ = handle.clone();

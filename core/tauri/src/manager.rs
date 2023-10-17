@@ -32,7 +32,7 @@ use crate::{
     AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
     UriSchemeResponder,
   },
-  event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
+  event::{assert_event_name_is_valid, Event, EventId, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
   plugin::PluginStore,
@@ -193,7 +193,9 @@ fn replace_csp_nonce(
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
-    let nonce = rand::random::<usize>();
+    let mut raw = [0u8; 8];
+    getrandom::getrandom(&mut raw).expect("failed to get random bytes");
+    let nonce = usize::from_ne_bytes(raw);
     nonces.push(nonce);
     nonce.to_string()
   });
@@ -203,7 +205,7 @@ fn replace_csp_nonce(
       .into_iter()
       .map(|n| format!("'nonce-{n}'"))
       .collect::<Vec<String>>();
-    let sources = csp.entry(directive.into()).or_insert_with(Default::default);
+    let sources = csp.entry(directive.into()).or_default();
     let self_source = "'self'".to_string();
     if !sources.contains(&self_source) {
       sources.push(self_source);
@@ -788,9 +790,6 @@ impl<R: Runtime> WindowManager<R> {
       ipc_script: &'a str,
       #[raw]
       bundle_script: &'a str,
-      // A function to immediately listen to an event.
-      #[raw]
-      listen_function: &'a str,
       #[raw]
       core_script: &'a str,
       #[raw]
@@ -823,16 +822,6 @@ impl<R: Runtime> WindowManager<R> {
       pattern_script,
       ipc_script,
       bundle_script,
-      listen_function: &format!(
-        "function listen(eventName, cb) {{ {} }}",
-        crate::event::listen_js(
-          self.event_listeners_object_name(),
-          "eventName".into(),
-          0,
-          None,
-          "window['_' + window.__TAURI_INTERNALS__.transformCallback(cb) ]".into()
-        )
-      ),
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
       }
@@ -864,47 +853,13 @@ impl<R: Runtime> WindowManager<R> {
         }}
       }});
     ",
-      function = self.event_emit_function_name(),
-      listeners = self.event_listeners_object_name()
+      function = self.listeners().function_name(),
+      listeners = self.listeners().listeners_object_name()
     )
   }
-}
 
-#[cfg(test)]
-mod test {
-  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
-
-  use super::WindowManager;
-
-  #[test]
-  fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Wry> = WindowManager::with_handlers(
-      context,
-      PluginStore::default(),
-      Box::new(|_| false),
-      Box::new(|_, _| ()),
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
-      Default::default(),
-      (None, "".into()),
-    );
-
-    #[cfg(custom_protocol)]
-    {
-      assert_eq!(
-        manager.get_url().to_string(),
-        if cfg!(windows) || cfg!(target_os = "android") {
-          "http://tauri.localhost/"
-        } else {
-          "tauri://localhost"
-        }
-      );
-    }
-
-    #[cfg(dev)]
-    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+  pub(crate) fn listeners(&self) -> &Listeners {
+    &self.inner.listeners
   }
 }
 
@@ -1210,13 +1165,9 @@ impl<R: Runtime> WindowManager<R> {
     &self.inner.package_info
   }
 
-  pub fn unlisten(&self, handler_id: EventHandler) {
-    self.inner.listeners.unlisten(handler_id)
-  }
-
   pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
     assert_event_name_is_valid(event);
-    self.inner.listeners.trigger(event, window, data)
+    self.listeners().trigger(event, window, data)
   }
 
   pub fn listen<F: Fn(Event) + Send + 'static>(
@@ -1224,9 +1175,9 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) -> EventId {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.listen(event, window, handler)
+    self.listeners().listen(event, window, handler)
   }
 
   pub fn once<F: FnOnce(Event) + Send + 'static>(
@@ -1234,17 +1185,13 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.once(event, window, handler)
+    self.listeners().once(event, window, handler)
   }
 
-  pub fn event_listeners_object_name(&self) -> String {
-    self.inner.listeners.listeners_object_name()
-  }
-
-  pub fn event_emit_function_name(&self) -> String {
-    self.inner.listeners.function_name()
+  pub fn unlisten(&self, id: EventId) {
+    self.listeners().unlisten(id)
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {
@@ -1365,5 +1312,43 @@ mod tests {
     )] {
       assert_eq!(replace_with_callback(src, pattern, replacement), result);
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
+
+  use super::WindowManager;
+
+  #[test]
+  fn check_get_url() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let manager: WindowManager<Wry> = WindowManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      Box::new(|_, _| ()),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      Default::default(),
+      (None, "".into()),
+    );
+
+    #[cfg(custom_protocol)]
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) || cfg!(target_os = "android") {
+          "http://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
+
+    #[cfg(dev)]
+    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
   }
 }

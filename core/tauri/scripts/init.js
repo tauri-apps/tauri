@@ -9,8 +9,6 @@
 
   __RAW_ipc_script__
 
-  __RAW_listen_function__
-
   __RAW_core_script__
 
   __RAW_event_initialization_script__

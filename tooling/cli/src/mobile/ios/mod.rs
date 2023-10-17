@@ -37,7 +37,7 @@ mod open;
 pub(crate) mod project;
 mod xcode_script;
 
-pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "TAURI_APPLE_DEVELOPMENT_TEAM";
+pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "APPLE_DEVELOPMENT_TEAM";
 const TARGET_IOS_VERSION: &str = "13.0";
 
 #[derive(Parser)]

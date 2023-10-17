@@ -48,24 +48,26 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
+  /// Skip waiting for the frontend dev server to start before building the tauri application.
+  #[clap(long, env = "TAURI_CLI_NO_DEV_SERVER_WAIT")]
+  pub no_dev_server_wait: bool,
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
-  /// Disable the dev server for static files.
-  #[clap(long)]
-  pub no_dev_server: bool,
   /// Open Xcode instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
-  /// Specify port for the dev server for static files. Defaults to 1430
-  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
-  #[clap(long)]
-  pub port: Option<u16>,
   /// Force prompting for an IP to use to connect to the dev server on mobile.
   #[clap(long)]
   pub force_ip_prompt: bool,
+  /// Disable the built-in dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
+  /// Specify port for the built-in dev server for static files. Defaults to 1430.
+  #[clap(long, env = "TAURI_CLI_PORT")]
+  pub port: Option<u16>,
 }
 
 impl From<Options> for DevOptions {
@@ -80,6 +82,7 @@ impl From<Options> for DevOptions {
       args: Vec::new(),
       no_watch: options.no_watch,
       no_dev_server: options.no_dev_server,
+      no_dev_server_wait: options.no_dev_server_wait,
       port: options.port,
       force_ip_prompt: options.force_ip_prompt,
     }

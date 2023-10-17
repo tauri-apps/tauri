@@ -7,12 +7,17 @@
   import Communication from './views/Communication.svelte'
   import Window from './views/Window.svelte'
   import WebRTC from './views/WebRTC.svelte'
+  import App from './views/App.svelte'
+
 
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
       invoke('toggle_menu')
     }
   })
+
+  const userAgent = navigator.userAgent.toLowerCase()
+  const isMobile = userAgent.includes('android') || userAgent.includes('iphone')
 
   const views = [
     {
@@ -24,6 +29,11 @@
       label: 'Communication',
       component: Communication,
       icon: 'i-codicon-radio-tower'
+    },
+    !isMobile && {
+      label: 'App',
+      component: App,
+      icon: 'i-codicon-hubot'
     },
     {
       label: 'Window',

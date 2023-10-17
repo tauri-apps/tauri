@@ -13,7 +13,9 @@
 
     document.addEventListener('keydown', (event) => {
       if (isHotkey(event)) {
-        window.__TAURI_INVOKE__('plugin:window|internal_toggle_devtools')
+        window.__TAURI_INTERNALS__.invoke(
+          'plugin:window|internal_toggle_devtools'
+        )
       }
     })
   }

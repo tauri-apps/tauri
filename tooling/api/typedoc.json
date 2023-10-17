@@ -5,7 +5,8 @@
     "src/mocks.ts",
     "src/path.ts",
     "src/primitives.ts",
-    "src/window.ts"
+    "src/window.ts",
+    "src/app.ts"
   ],
   "githubPages": false,
   "readme": "none",

@@ -56,6 +56,8 @@ use crate::runtime::RuntimeHandle;
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
 
+pub(crate) mod plugin;
+
 #[cfg(desktop)]
 pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync>;
 #[cfg(all(desktop, feature = "tray-icon"))]
@@ -808,6 +810,7 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::path::init())?;
     self.handle.plugin(crate::event::init())?;
     self.handle.plugin(crate::window::plugin::init())?;
+    self.handle.plugin(crate::app::plugin::init())?;
     Ok(())
   }
 

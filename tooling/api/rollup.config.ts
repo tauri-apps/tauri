@@ -21,11 +21,11 @@ import { fileURLToPath } from 'url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 cleanDir(join(__dirname, './dist'))
 
+const modules = fg.sync(['!./src/*.d.ts', './src/*.ts'])
+
 export default defineConfig([
   {
-    input: Object.fromEntries(
-      fg.sync('./src/*.ts').map((p) => [basename(p, '.ts'), p])
-    ),
+    input: Object.fromEntries(modules.map((p) => [basename(p, '.ts'), p])),
     output: [
       {
         format: 'esm',
@@ -68,14 +68,14 @@ function makeFlatPackageInDist(): Plugin {
     writeBundle() {
       // append our api modules to `exports` in `package.json` then write it to `./dist`
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-      const modules = fg.sync('./src/*.ts').map((p) => basename(p))
+      const mods = modules.map((p) => basename(p))
 
       const outputPkg = {
         ...pkg,
         devDependencies: {},
         exports: Object.assign(
           {},
-          ...modules.map((mod) => {
+          ...mods.map((mod) => {
             let temp: Record<string, { import: string; require: string }> = {}
             let key = `./${mod}`
             if (mod === 'index') {

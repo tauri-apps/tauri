@@ -1012,7 +1012,7 @@ pub struct Builder<R: Runtime> {
 }
 
 #[derive(Template)]
-#[default_template("../../scripts/ipc-protocol.js")]
+#[default_template("../scripts/ipc-protocol.js")]
 struct InvokeInitializationScript<'a> {
   /// The function that processes the IPC message.
   #[raw]

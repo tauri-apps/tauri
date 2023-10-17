@@ -4,6 +4,8 @@
 
 //! The Tauri window types and functions.
 
+pub(crate) mod plugin;
+
 use http::HeaderMap;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
@@ -2461,7 +2463,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// This listener only receives events that are triggered using the
   /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
-  /// the `emit` function from the window plugin (`@tauri-apps/plugin-window` package).
+  /// the `emit` function from the window plugin (`@tauri-apps/api/window` package).
   ///
   /// # Examples
   /// ```

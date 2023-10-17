@@ -107,4 +107,7 @@ pub enum Error {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   BadTrayIcon(#[from] tray_icon::BadIcon),
+  /// window not found.
+  #[error("window not found")]
+  WindowNotFound,
 }

@@ -5,6 +5,7 @@
 
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'
+  import Window from './views/Window.svelte'
   import WebRTC from './views/WebRTC.svelte'
 
   document.addEventListener('keydown', (event) => {
@@ -23,6 +24,11 @@
       label: 'Communication',
       component: Communication,
       icon: 'i-codicon-radio-tower'
+    },
+    {
+      label: 'Window',
+      component: Window,
+      icon: 'i-codicon-window'
     },
     {
       label: 'WebRTC',

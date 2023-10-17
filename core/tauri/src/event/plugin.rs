@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{command, ipc::CallbackFn, EventId, Manager, Result, Runtime, Window};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value as JsonValue;
 use tauri_runtime::window::is_label_valid;
+
+use crate::plugin::{Builder, TauriPlugin};
+use crate::{command, ipc::CallbackFn, EventId, Manager, Result, Runtime, Window};
 
 use super::is_event_name_valid;
 
@@ -93,4 +95,11 @@ pub fn emit<R: Runtime>(
   } else {
     window.emit_all(&event.0, payload)
   }
+}
+
+/// Initializes the event plugin.
+pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("event")
+    .invoke_handler(crate::generate_handler![listen, unlisten, emit,])
+    .build()
 }

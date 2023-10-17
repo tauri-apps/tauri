@@ -749,7 +749,7 @@ fn copy_files_and_run<R: Read + Seek>(
       Command::new(powershell_path)
         .args(["-NoProfile", "-WindowStyle", "Hidden"])
         .args(["Start-Process"])
-        .arg(found_path)
+        .arg(installer_arg)
         .arg("-ArgumentList")
         .arg(
           [

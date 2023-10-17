@@ -167,6 +167,7 @@
         "security": {
           "dangerousDisableAssetCspModification": false,
           "dangerousRemoteDomainIpcAccess": [],
+          "dangerousUseHttpScheme": false,
           "freezePrototype": false
         },
         "updater": {
@@ -423,6 +424,7 @@
           "default": {
             "dangerousDisableAssetCspModification": false,
             "dangerousRemoteDomainIpcAccess": [],
+            "dangerousUseHttpScheme": false,
             "freezePrototype": false
           },
           "allOf": [
@@ -2740,6 +2742,11 @@
           "items": {
             "$ref": "#/definitions/RemoteDomainAccessScope"
           }
+        },
+        "dangerousUseHttpScheme": {
+          "description": "Sets whether the custom protocols should use `http://<scheme>.localhost` instead of the default `https://<scheme>.localhost` on Windows.\n\n**WARNING:** Using a `http` scheme will allow mixed content when trying to fetch `http` endpoints and is therefore less secure but will match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

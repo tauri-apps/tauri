@@ -68,7 +68,7 @@ function makeFlatPackageInDist(): Plugin {
     writeBundle() {
       // append our api modules to `exports` in `package.json` then write it to `./dist`
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-      const mods = modules.map((p) => basename(p))
+      const mods = modules.map((p) => basename(p).split('.')[0])
 
       const outputPkg = {
         ...pkg,

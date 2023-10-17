@@ -65,8 +65,7 @@ pub use cocoa;
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;
-/// The Tauri error enum.
-pub use error::Error;
+pub use error::{Error, Result};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
@@ -161,9 +160,6 @@ pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;
 
-/// `Result<T, ::tauri::Error>`
-pub type Result<T> = std::result::Result<T, Error>;
-
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
@@ -185,7 +181,7 @@ pub use runtime::ActivationPolicy;
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
 
-pub use self::event::{Event, EventHandler};
+pub use self::event::{Event, EventId};
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
@@ -573,7 +569,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   })
   ///   .invoke_handler(tauri::generate_handler![synchronize]);
   /// ```
-  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
@@ -604,14 +600,14 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///     Ok(())
   ///   });
   /// ```
-  fn unlisten(&self, handler_id: EventHandler) {
-    self.manager().unlisten(handler_id)
+  fn unlisten(&self, id: EventId) {
+    self.manager().unlisten(id)
   }
 
   /// Listen to a global event only once.
   ///
   /// See [`Self::listen_global`] for more information.
-  fn once_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  fn once_global<F>(&self, event: impl Into<String>, handler: F)
   where
     F: FnOnce(Event) + Send + 'static,
   {

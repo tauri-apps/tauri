@@ -2,18 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use serde::Serialize;
-use std::{fmt, hash::Hash};
-use uuid::Uuid;
-
-mod commands;
 mod listener;
+pub(crate) mod plugin;
 pub(crate) use listener::Listeners;
-
-use crate::{
-  plugin::{Builder, TauriPlugin},
-  Runtime,
-};
+use serde::Serialize;
 
 /// Checks if an event name is valid.
 pub fn is_event_name_valid(event: &str) -> bool {
@@ -29,26 +21,19 @@ pub fn assert_event_name_is_valid(event: &str) {
   );
 }
 
-/// Represents an event handler.
-#[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EventHandler(Uuid);
-
-impl fmt::Display for EventHandler {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    self.0.fmt(f)
-  }
-}
+/// Unique id of an event.
+pub type EventId = u32;
 
 /// An event that was emitted.
 #[derive(Debug, Clone)]
 pub struct Event {
-  id: EventHandler,
+  id: EventId,
   data: Option<String>,
 }
 
 impl Event {
-  /// The [`EventHandler`] that was triggered.
-  pub fn id(&self) -> EventHandler {
+  /// The [`EventId`] of the handler that was triggered.
+  pub fn id(&self) -> EventId {
     self.id
   }
 
@@ -58,23 +43,12 @@ impl Event {
   }
 }
 
-/// Initializes the event plugin.
-pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
-  Builder::new("event")
-    .invoke_handler(crate::generate_handler![
-      commands::listen,
-      commands::unlisten,
-      commands::emit,
-    ])
-    .build()
-}
-
 pub fn listen_js(
-  listeners_object_name: String,
-  event: String,
-  event_id: usize,
-  window_label: Option<String>,
-  handler: String,
+  listeners_object_name: &str,
+  event: &str,
+  event_id: EventId,
+  window_label: Option<&str>,
+  handler: &str,
 ) -> String {
   format!(
     "
@@ -96,7 +70,7 @@ pub fn listen_js(
   ",
     listeners = listeners_object_name,
     window_label = if let Some(l) = window_label {
-      crate::runtime::window::assert_label_is_valid(&l);
+      crate::runtime::window::assert_label_is_valid(l);
       format!("'{l}'")
     } else {
       "null".to_owned()
@@ -119,7 +93,7 @@ pub fn emit_js<S: Serialize>(
   ))
 }
 
-pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: usize) -> String {
+pub fn unlisten_js(listeners_object_name: &str, event_name: &str, event_id: EventId) -> String {
   format!(
     "
       (function () {{

@@ -8,15 +8,9 @@
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
   const useCustomProtocol = __TEMPLATE_use_custom_protocol__
 
-  Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'postMessage', {
     value: (message) => {
-      const {
-        cmd,
-        callback,
-        error,
-        payload,
-        options
-      } = message
+      const { cmd, callback, error, payload, options } = message
 
       // use custom protocol for IPC if:
       // - the flag is set to true or
@@ -25,18 +19,16 @@
       // AND
       // - when not on macOS with an https URL
       if (
-        (
-          useCustomProtocol ||
+        (useCustomProtocol ||
           cmd === fetchChannelDataCommand ||
-          !(osName === 'linux' || osName === 'android')
-        ) &&
-        !((osName === 'macos' || osName === 'ios') && location.protocol === 'https:')
+          !(osName === 'linux' || osName === 'android')) &&
+        !(
+          (osName === 'macos' || osName === 'ios') &&
+          location.protocol === 'https:'
+        )
       ) {
-        const {
-          contentType,
-          data
-        } = processIpcMessage(payload)
-        fetch(window.__TAURI__.convertFileSrc(cmd, 'ipc'), {
+        const { contentType, data } = processIpcMessage(payload)
+        fetch(window.__TAURI_INTERNALS__.convertFileSrc(cmd, 'ipc'), {
           method: 'POST',
           body: data,
           headers: {
@@ -45,29 +37,33 @@
             'Tauri-Error': error,
             ...options?.headers
           }
-        }).then((response) => {
-          const cb = response.ok ? callback : error
-          // we need to split here because on Android the content-type gets duplicated
-          switch ((response.headers.get('content-type') || '').split(',')[0]) {
-            case 'application/json':
-              return response.json().then((r) => [cb, r])
-            case 'text/plain':
-              return response.text().then((r) => [cb, r])
-            default:
-              return response.arrayBuffer().then((r) => [cb, r])
-          }
-        }).then(([cb, data]) => {
-          if (window[`_${cb}`]) {
-            window[`_${cb}`](data)
-          } else {
-            console.warn(`[TAURI] Couldn't find callback id {cb} in window. This might happen when the app is reloaded while Rust is running an asynchronous operation.`)
-          }
         })
+          .then((response) => {
+            const cb = response.ok ? callback : error
+            // we need to split here because on Android the content-type gets duplicated
+            switch (
+              (response.headers.get('content-type') || '').split(',')[0]
+            ) {
+              case 'application/json':
+                return response.json().then((r) => [cb, r])
+              case 'text/plain':
+                return response.text().then((r) => [cb, r])
+              default:
+                return response.arrayBuffer().then((r) => [cb, r])
+            }
+          })
+          .then(([cb, data]) => {
+            if (window[`_${cb}`]) {
+              window[`_${cb}`](data)
+            } else {
+              console.warn(
+                `[TAURI] Couldn't find callback id {cb} in window. This might happen when the app is reloaded while Rust is running an asynchronous operation.`
+              )
+            }
+          })
       } else {
         // otherwise use the postMessage interface
-        const {
-          data
-        } = processIpcMessage({
+        const { data } = processIpcMessage({
           cmd,
           callback,
           error,

@@ -4,21 +4,23 @@
 
 use crate::{Runtime, Window};
 
-use super::{Event, EventHandler};
+use super::{Event, EventId};
 
 use serde::Serialize;
 use std::{
   boxed::Box,
   cell::Cell,
   collections::HashMap,
-  sync::{Arc, Mutex},
+  sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc, Mutex,
+  },
 };
-use uuid::Uuid;
 
 /// What to do with the pending handler when resolving it?
 enum Pending<R: Runtime> {
-  Unlisten(EventHandler),
-  Listen(EventHandler, String, Handler<R>),
+  Unlisten(EventId),
+  Listen(EventId, String, Handler<R>),
   Emit(String, Option<String>),
 }
 
@@ -30,10 +32,11 @@ struct Handler<R: Runtime> {
 
 /// Holds event handlers and pending event handlers, along with the salts associating them.
 struct InnerListeners<R: Runtime> {
-  handlers: Mutex<HashMap<String, HashMap<EventHandler, Handler<R>>>>,
+  handlers: Mutex<HashMap<String, HashMap<EventId, Handler<R>>>>,
   pending: Mutex<Vec<Pending<R>>>,
-  function_name: Uuid,
-  listeners_object_name: Uuid,
+  function_name: &'static str,
+  listeners_object_name: &'static str,
+  next_event_id: Arc<AtomicU32>,
 }
 
 /// A self-contained event manager.
@@ -47,8 +50,9 @@ impl<R: Runtime> Default for Listeners<R> {
       inner: Arc::new(InnerListeners {
         handlers: Mutex::default(),
         pending: Mutex::default(),
-        function_name: Uuid::new_v4(),
-        listeners_object_name: Uuid::new_v4(),
+        function_name: "__internal_unstable_listeners_function_id__",
+        listeners_object_name: "__internal_unstable_listeners_object_id__",
+        next_event_id: Default::default(),
       }),
     }
   }
@@ -63,14 +67,18 @@ impl<R: Runtime> Clone for Listeners<R> {
 }
 
 impl<R: Runtime> Listeners<R> {
-  /// Randomly generated function name to represent the JavaScript event function.
-  pub(crate) fn function_name(&self) -> String {
-    self.inner.function_name.to_string()
+  pub(crate) fn next_event_id(&self) -> EventId {
+    self.inner.next_event_id.fetch_add(1, Ordering::Relaxed)
   }
 
-  /// Randomly generated listener object name to represent the JavaScript event listener object.
-  pub(crate) fn listeners_object_name(&self) -> String {
-    self.inner.listeners_object_name.to_string()
+  /// Function name to represent the JavaScript event function.
+  pub(crate) fn function_name(&self) -> &str {
+    self.inner.function_name
+  }
+
+  /// Listener object name to represent the JavaScript event listener object.
+  pub(crate) fn listeners_object_name(&self) -> &str {
+    self.inner.listeners_object_name
   }
 
   /// Insert a pending event action to the queue.
@@ -97,7 +105,7 @@ impl<R: Runtime> Listeners<R> {
     for action in pending {
       match action {
         Pending::Unlisten(id) => self.unlisten(id),
-        Pending::Listen(id, event, handler) => self.listen_(id, event, handler),
+        Pending::Listen(id, event, handler) => self.listen_with_id(id, event, handler),
         Pending::Emit(ref event, payload) => {
           self.emit(event, payload)?;
         }
@@ -107,7 +115,7 @@ impl<R: Runtime> Listeners<R> {
     Ok(())
   }
 
-  fn listen_(&self, id: EventHandler, event: String, handler: Handler<R>) {
+  fn listen_with_id(&self, id: EventId, event: String, handler: Handler<R>) {
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::Listen(id, event, handler)),
       Ok(mut lock) => {
@@ -122,14 +130,14 @@ impl<R: Runtime> Listeners<R> {
     event: String,
     window: Option<Window<R>>,
     handler: F,
-  ) -> EventHandler {
-    let id = EventHandler(Uuid::new_v4());
+  ) -> EventId {
+    let id = self.next_event_id();
     let handler = Handler {
       window,
       callback: Box::new(handler),
     };
 
-    self.listen_(id, event, handler);
+    self.listen_with_id(id, event, handler);
 
     id
   }
@@ -140,7 +148,7 @@ impl<R: Runtime> Listeners<R> {
     event: String,
     window: Option<Window<R>>,
     handler: F,
-  ) -> EventHandler {
+  ) {
     let self_ = self.clone();
     let handler = Cell::new(Some(handler));
 
@@ -150,15 +158,15 @@ impl<R: Runtime> Listeners<R> {
         .take()
         .expect("attempted to call handler more than once");
       handler(event)
-    })
+    });
   }
 
   /// Removes an event listener.
-  pub(crate) fn unlisten(&self, handler_id: EventHandler) {
+  pub(crate) fn unlisten(&self, id: EventId) {
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::Unlisten(handler_id)),
+      Err(_) => self.insert_pending(Pending::Unlisten(id)),
       Ok(mut lock) => lock.values_mut().for_each(|handler| {
-        handler.remove(&handler_id);
+        handler.remove(&id);
       }),
     }
   }

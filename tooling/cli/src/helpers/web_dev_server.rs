@@ -73,13 +73,8 @@ pub fn start_dev_server<P: AsRef<Path>>(
 
         let mut auto_port = false;
         let mut port = port.unwrap_or_else(|| {
-          std::env::var("TAURI_DEV_SERVER_PORT")
-            .unwrap_or_else(|_| {
-              auto_port = true;
-              "1430".to_string()
-            })
-            .parse()
-            .unwrap()
+          auto_port = true;
+          1430
         });
 
         let (server, server_url) = loop {

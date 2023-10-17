@@ -198,7 +198,9 @@ fn env_vars() -> HashMap<String, OsString> {
   vars.insert("RUST_LOG_STYLE".into(), "always".into());
   for (k, v) in std::env::vars_os() {
     let k = k.to_string_lossy();
-    if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
+    if (k.starts_with("TAURI")
+      && k != "TAURI_SIGNING_PRIVATE_KEY"
+      && k != "TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
       || k.starts_with("WRY")
       || k.starts_with("CARGO_")
       || k == "TMPDIR"

@@ -4,6 +4,8 @@
 
 //! The Tauri window types and functions.
 
+pub(crate) mod plugin;
+
 use http::HeaderMap;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
@@ -13,7 +15,7 @@ use crate::TitleBarStyle;
 use crate::{
   app::{AppHandle, UriSchemeResponder},
   command::{CommandArg, CommandItem},
-  event::{Event, EventHandler},
+  event::{Event, EventId},
   ipc::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
@@ -30,7 +32,10 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
+  utils::{
+    config::{WindowConfig, WindowEffectsConfig, WindowUrl},
+    ProgressBarState,
+  },
   EventLoopMessage, Manager, Runtime, Theme, WindowEvent,
 };
 #[cfg(desktop)]
@@ -425,7 +430,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
     self.manager.eval_script_all(format!(
-      "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
       window_labels_array = serde_json::to_string(&self.manager.labels())?,
     ))?;
 
@@ -895,7 +900,7 @@ pub struct Window<R: Runtime> {
   /// The manager to associate this webview window with.
   pub(crate) manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
-  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<usize>>>>,
+  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<EventId>>>>,
   // The menu set for this window
   #[cfg(desktop)]
   pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
@@ -2051,6 +2056,21 @@ impl<R: Runtime> Window<R> {
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
   }
+
+  /// Sets the taskbar progress state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
+  /// - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_progress_bar(progress_state)
+      .map_err(Into::into)
+  }
 }
 
 /// Webview APIs.
@@ -2237,15 +2257,15 @@ impl<R: Runtime> Window<R> {
     window_label: Option<String>,
     event: String,
     handler: CallbackFn,
-  ) -> crate::Result<usize> {
-    let event_id = rand::random();
+  ) -> crate::Result<EventId> {
+    let event_id = self.manager.listeners().next_event_id();
 
     self.eval(&crate::event::listen_js(
-      self.manager().event_listeners_object_name(),
-      format!("'{}'", event),
+      self.manager().listeners().listeners_object_name(),
+      &format!("'{}'", event),
       event_id,
-      window_label.clone(),
-      format!("window['_{}']", handler.0),
+      window_label.as_deref(),
+      &format!("window['_{}']", handler.0),
     ))?;
 
     self
@@ -2263,9 +2283,9 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Unregister a JS event listener.
-  pub(crate) fn unlisten_js(&self, event: String, id: usize) -> crate::Result<()> {
+  pub(crate) fn unlisten_js(&self, event: &str, id: EventId) -> crate::Result<()> {
     self.eval(&crate::event::unlisten_js(
-      self.manager().event_listeners_object_name(),
+      self.manager().listeners().listeners_object_name(),
       event,
       id,
     ))?;
@@ -2297,7 +2317,7 @@ impl<R: Runtime> Window<R> {
     payload: S,
   ) -> crate::Result<()> {
     self.eval(&crate::event::emit_js(
-      &self.manager().event_emit_function_name(),
+      &self.manager().listeners().function_name(),
       event,
       source_window_label,
       payload,
@@ -2429,12 +2449,13 @@ impl<R: Runtime> Window<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
-    let label = self.window.label.clone();
-    self.manager.listen(event.into(), Some(label), handler)
+    self
+      .manager
+      .listen(event.into(), Some(self.clone()), handler)
   }
 
   /// Unlisten to an event on this window.
@@ -2462,14 +2483,14 @@ impl<R: Runtime> Window<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn unlisten(&self, handler_id: EventHandler) {
-    self.manager.unlisten(handler_id)
+  pub fn unlisten(&self, id: EventId) {
+    self.manager.unlisten(id)
   }
 
   /// Listen to an event on this window only once.
   ///
   /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  pub fn once<F>(&self, event: impl Into<String>, handler: F)
   where
     F: FnOnce(Event) + Send + 'static,
   {

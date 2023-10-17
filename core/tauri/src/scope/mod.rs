@@ -9,6 +9,9 @@ pub mod ipc;
 
 use std::path::Path;
 
+/// Unique id of a scope event.
+pub type ScopeEventId = u32;
+
 /// Managed state for all the core scopes in a tauri application.
 pub struct Scopes {
   pub(crate) ipc: ipc::Scope,

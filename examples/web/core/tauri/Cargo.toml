@@ -7,7 +7,7 @@ license = ""
 repository = ""
 default-run = "app"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 
 [build-dependencies]
 tauri-build = { path = "../../../../core/tauri-build", features = [] }

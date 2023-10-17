@@ -1,5 +1,5 @@
 ---
-'@tauri-apps/api': 'minor:feat'
+'@tauri-apps/api': 'patch:feat'
 ---
 
 Add `mockConvertFileSrc` in `mocks` module, to mock `convertFileSrc` function.

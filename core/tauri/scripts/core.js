@@ -18,7 +18,7 @@
   window.__TAURI__.convertFileSrc = function convertFileSrc(filePath, protocol = 'asset') {
     const path = encodeURIComponent(filePath)
     return osName === 'windows' || osName === 'android'
-      ? `https://${protocol}.localhost/${path}`
+      ? `http://${protocol}.localhost/${path}`
       : `${protocol}://localhost/${path}`
   }
 
@@ -59,11 +59,11 @@
 
   window.__TAURI_INVOKE__ = function invoke(cmd, payload = {}, options) {
     return new Promise(function (resolve, reject) {
-      var callback = window.__TAURI__.transformCallback(function (r) {
+      const callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r)
         delete window[`_${error}`]
       }, true)
-      var error = window.__TAURI__.transformCallback(function (e) {
+      const error = window.__TAURI__.transformCallback(function (e) {
         reject(e)
         delete window[`_${callback}`]
       }, true)

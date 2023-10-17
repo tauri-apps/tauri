@@ -294,6 +294,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   cfg_alias("mobile", mobile);
 
   let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
+    tauri_utils::platform::Target::from_triple(&std::env::var("TARGET").unwrap()),
     std::env::current_dir().unwrap(),
   )?)?;
   if let Ok(env) = std::env::var("TAURI_CONFIG") {

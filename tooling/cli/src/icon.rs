@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  helpers::{app_paths::tauri_dir, config::get as get_tauri_config},
-  Result,
-};
+use crate::{helpers::app_paths::tauri_dir, Result};
 
 use std::{
   collections::HashMap,
@@ -42,7 +39,7 @@ struct PngEntry {
 }
 
 #[derive(Debug, Parser)]
-#[clap(about = "Generates various icons for all major platforms")]
+#[clap(about = "Generate various icons for all major platforms")]
 pub struct Options {
   // TODO: Confirm 1240px
   /// Path to the source icon (png, 1240x1240px with transparency).
@@ -360,22 +357,10 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
 
   let mut entries = desktop_entries(out_dir);
 
-  // Android
-  let (config, _metadata) = {
-    let tauri_config = get_tauri_config(None)?;
-
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    crate::mobile::android::get_config(
-      &crate::mobile::get_app(tauri_config_),
-      tauri_config_,
-      &Default::default(),
-    )
-  };
-  let android_out = out_dir.parent().unwrap().join(format!(
-    "gen/android/{}/app/src/main/res/",
-    config.app().name_snake()
-  ));
+  let android_out = out_dir
+    .parent()
+    .unwrap()
+    .join("gen/android/app/src/main/res/");
   let out = if android_out.exists() {
     android_out
   } else {

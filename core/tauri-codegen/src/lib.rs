@@ -67,7 +67,10 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
   // it is impossible for the content of two separate configs to get mixed up. The chances are
   // already unlikely unless the developer goes out of their way to run the cli on a different
   // project than the target crate.
-  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(parent.clone())?)?;
+  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
+    tauri_utils::platform::Target::current(),
+    parent.clone(),
+  )?)?;
   if let Ok(env) = std::env::var("TAURI_CONFIG") {
     let merge_config: serde_json::Value =
       serde_json::from_str(&env).map_err(CodegenConfigError::FormatInline)?;

@@ -9,8 +9,8 @@ use crate::{
   Result,
 };
 
+use cargo_mobile2::{apple::target::Target, opts::Profile};
 use clap::Parser;
-use tauri_mobile::{apple::target::Target, opts::Profile};
 
 use std::{
   collections::HashMap,
@@ -68,7 +68,7 @@ pub fn command(options: Options) -> Result<()> {
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  let tauri_config = get_tauri_config(None)?;
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, None)?;
 
   let (config, metadata, cli_options) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

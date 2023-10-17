@@ -13,7 +13,6 @@
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
-  http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   monitor::Monitor,
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
@@ -61,7 +60,6 @@ use wry::{
       UserAttentionType as WryUserAttentionType,
     },
   },
-  http::{Request as WryRequest, Response as WryResponse},
   webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
 };
 
@@ -85,7 +83,6 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
-  borrow::Cow,
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
@@ -94,6 +91,7 @@ use std::{
   fmt,
   ops::Deref,
   path::PathBuf,
+  rc::Rc,
   sync::{
     mpsc::{channel, Sender},
     Arc, Mutex, Weak,
@@ -227,7 +225,7 @@ impl<T: UserEvent> Context<T> {
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
-  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 }
 
 impl<T: UserEvent> std::fmt::Debug for DispatcherMainThreadContext<T> {
@@ -255,39 +253,6 @@ impl<T: UserEvent> fmt::Debug for Context<T> {
       .field("proxy", &self.proxy)
       .field("main_thread", &self.main_thread)
       .finish()
-  }
-}
-
-struct HttpRequestWrapper(HttpRequest);
-
-impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
-  fn from(req: &WryRequest<Vec<u8>>) -> Self {
-    let parts = RequestParts {
-      uri: req.uri().to_string(),
-      method: req.method().clone(),
-      headers: req.headers().clone(),
-    };
-    Self(HttpRequest::new_internal(parts, req.body().clone()))
-  }
-}
-
-// response
-struct HttpResponseWrapper(WryResponse<Cow<'static, [u8]>>);
-impl From<HttpResponse> for HttpResponseWrapper {
-  fn from(response: HttpResponse) -> Self {
-    let (parts, body) = response.into_parts();
-    let mut res_builder = WryResponse::builder()
-      .status(parts.status)
-      .version(parts.version);
-    if let Some(mime) = parts.mimetype {
-      res_builder = res_builder.header(CONTENT_TYPE, mime);
-    }
-    for (name, val) in parts.headers.iter() {
-      res_builder = res_builder.header(name, val);
-    }
-
-    let res = res_builder.body(body).unwrap();
-    Self(res)
   }
 }
 
@@ -1544,7 +1509,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 #[derive(Clone)]
 enum WindowHandle {
   Webview {
-    inner: Arc<WebView>,
+    inner: Rc<WebView>,
     context_store: WebContextStore,
     // the key of the WebContext if it's not shared
     context_key: Option<PathBuf>,
@@ -1560,7 +1525,7 @@ impl Drop for WindowHandle {
       context_key,
     } = self
     {
-      if Arc::get_mut(inner).is_some() {
+      if Rc::get_mut(inner).is_some() {
         context_store.lock().unwrap().remove(context_key);
       }
     }
@@ -1816,7 +1781,7 @@ impl<T: UserEvent> Wry<T> {
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 
-    let windows = Arc::new(RefCell::new(HashMap::default()));
+    let windows = Rc::new(RefCell::new(HashMap::default()));
     let webview_id_map = WebviewIdStore::default();
 
     let context = Context {
@@ -2056,11 +2021,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
-  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 }
 
 struct UserMessageContext {
-  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   webview_id_map: WebviewIdStore,
 }
 
@@ -2529,7 +2494,7 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
-  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 ) {
   let (tx, rx) = channel();
   let windows_ref = windows.borrow();
@@ -2557,7 +2522,7 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WebviewId, windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
+fn on_window_close(window_id: WebviewId, windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
   if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }
@@ -2700,11 +2665,13 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   for (scheme, protocol) in uri_scheme_protocols {
-    webview_builder = webview_builder.with_custom_protocol(scheme, move |wry_request| {
-      protocol(&HttpRequestWrapper::from(wry_request).0)
-        .map(|tauri_response| HttpResponseWrapper::from(tauri_response).0)
-        .map_err(|_| wry::Error::InitScriptError)
-    });
+    webview_builder =
+      webview_builder.with_asynchronous_custom_protocol(scheme, move |request, responder| {
+        protocol(
+          request,
+          Box::new(move |response| responder.respond(response)),
+        )
+      });
   }
 
   for script in webview_attributes.initialization_scripts {
@@ -2803,7 +2770,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   Ok(WindowWrapper {
     label,
     inner: Some(WindowHandle::Webview {
-      inner: Arc::new(webview),
+      inner: Rc::new(webview),
       context_store: web_context_store.clone(),
       context_key: if automation_enabled {
         None

@@ -74,10 +74,7 @@ pub use swift_rs;
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
 
-pub mod api;
 pub(crate) mod app;
-#[cfg(feature = "protocol-asset")]
-pub(crate) mod asset_protocol;
 pub mod async_runtime;
 pub mod command;
 mod error;
@@ -86,6 +83,7 @@ pub mod ipc;
 mod manager;
 mod pattern;
 pub mod plugin;
+pub(crate) mod protocol;
 mod vibrancy;
 pub mod window;
 use tauri_runtime as runtime;
@@ -106,6 +104,8 @@ mod state;
 #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
 pub mod tray;
 pub use tauri_utils as utils;
+
+pub use http;
 
 /// A Tauri [`Runtime`] wrapper around wry.
 #[cfg(feature = "wry")]
@@ -174,9 +174,6 @@ use std::{
   sync::Arc,
 };
 
-// Export types likely to be used by the application.
-pub use runtime::http;
-
 #[cfg(feature = "wry")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub use tauri_runtime_wry::webview_version;
@@ -242,7 +239,7 @@ pub fn log_stdout() {
       if let Ok(len) = reader.read_line(&mut buffer) {
         if len == 0 {
           break;
-        } else if let Ok(msg) = CString::new(buffer.clone())
+        } else if let Ok(msg) = CString::new(buffer.as_bytes())
           .map_err(|_| ())
           .and_then(|c| c.into_string().map_err(|_| ()))
         {
@@ -824,13 +821,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Gets the scope for the IPC.
-  fn ipc_scope(&self) -> IpcScope {
+  fn ipc_scope(&self) -> scope::ipc::Scope {
     self.state::<Scopes>().inner().ipc.clone()
   }
 
   /// Gets the scope for the asset protocol.
   #[cfg(feature = "protocol-asset")]
-  fn asset_protocol_scope(&self) -> FsScope {
+  fn asset_protocol_scope(&self) -> scope::fs::Scope {
     self.state::<Scopes>().inner().asset_protocol.clone()
   }
 
@@ -919,7 +916,8 @@ macro_rules! run_main_thread {
     let (tx, rx) = channel();
     let self_ = $self.clone();
     let task = move || {
-      let _ = tx.send($ex(self_));
+      let f = $ex;
+      let _ = tx.send(f(self_));
     };
     $self.app_handle.run_on_main_thread(Box::new(task))?;
     rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)

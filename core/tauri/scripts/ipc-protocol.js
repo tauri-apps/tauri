@@ -10,11 +10,32 @@
 
   Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {
     value: (message) => {
-      const { cmd, callback, error, payload, options } = message
+      const {
+        cmd,
+        callback,
+        error,
+        payload,
+        options
+      } = message
 
-      // use custom protocol for IPC if the flag is set to true, the command is the fetch data command or when not on Linux/Android
-      if (useCustomProtocol || cmd === fetchChannelDataCommand || (osName !== 'linux' && osName !== 'android')) {
-        const { contentType, data } = processIpcMessage(payload)
+      // use custom protocol for IPC if:
+      // - the flag is set to true or
+      // - the command is the fetch data command or
+      // - when not on Linux/Android
+      // AND
+      // - when not on macOS with an https URL
+      if (
+        (
+          useCustomProtocol ||
+          cmd === fetchChannelDataCommand ||
+          !(osName === 'linux' || osName === 'android')
+        ) &&
+        !((osName === 'macos' || osName === 'ios') && location.protocol === 'https:')
+      ) {
+        const {
+          contentType,
+          data
+        } = processIpcMessage(payload)
         fetch(window.__TAURI__.convertFileSrc(cmd, 'ipc'), {
           method: 'POST',
           body: data,
@@ -44,7 +65,15 @@
         })
       } else {
         // otherwise use the postMessage interface
-        const { data } = processIpcMessage({ cmd, callback, error, options, ...payload })
+        const {
+          data
+        } = processIpcMessage({
+          cmd,
+          callback,
+          error,
+          options,
+          payload
+        })
         window.ipc.postMessage(data)
       }
     }

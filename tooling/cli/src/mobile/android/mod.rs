@@ -2,6 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use cargo_mobile2::{
+  android::{
+    adb,
+    config::{Config as AndroidConfig, Metadata as AndroidMetadata, Raw as RawAndroidConfig},
+    device::Device,
+    emulator,
+    env::Env,
+    target::Target,
+  },
+  config::app::{App, DEFAULT_ASSET_DIR},
+  opts::{FilterLevel, NoiseLevel},
+  os,
+  util::prompt,
+};
 use clap::{Parser, Subcommand};
 use std::{
   env::set_var,
@@ -11,20 +25,6 @@ use std::{
   time::Duration,
 };
 use sublime_fuzzy::best_match;
-use tauri_mobile::{
-  android::{
-    adb,
-    config::{Config as AndroidConfig, Metadata as AndroidMetadata, Raw as RawAndroidConfig},
-    device::Device,
-    emulator,
-    env::Env,
-    target::Target,
-  },
-  config::app::App,
-  opts::{FilterLevel, NoiseLevel},
-  os,
-  util::prompt,
-};
 
 use super::{
   ensure_init, get_app,
@@ -54,7 +54,7 @@ pub struct Cli {
 }
 
 #[derive(Debug, Parser)]
-#[clap(about = "Initializes a Tauri Android project")]
+#[clap(about = "Initialize Android target in the project")]
 pub struct InitOptions {
   /// Skip prompting for values
   #[clap(long)]
@@ -159,7 +159,7 @@ pub fn get_config(
 
 fn env() -> Result<Env> {
   let env = super::env()?;
-  tauri_mobile::android::env::Env::from_env(env).map_err(Into::into)
+  cargo_mobile2::android::env::Env::from_env(env).map_err(Into::into)
 }
 
 fn delete_codegen_vars() {
@@ -292,7 +292,10 @@ fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {
 }
 
 fn inject_assets(config: &AndroidConfig, tauri_config: &TauriConfig) -> Result<()> {
-  let asset_dir = config.project_dir().join("app/src/main/assets");
+  let asset_dir = config
+    .project_dir()
+    .join("app/src/main")
+    .join(DEFAULT_ASSET_DIR);
   create_dir_all(&asset_dir)?;
 
   write(

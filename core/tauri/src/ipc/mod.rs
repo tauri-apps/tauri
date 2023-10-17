@@ -6,7 +6,7 @@
 //!
 //! This module includes utilities to send messages to the JS layer of the webview.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use futures_util::Future;
 use http::HeaderMap;
@@ -21,7 +21,7 @@ use crate::{
 };
 
 pub(crate) mod channel;
-#[cfg(not(ipc_custom_protocol))]
+#[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 pub(crate) mod format_callback;
 pub(crate) mod protocol;
 
@@ -32,9 +32,10 @@ pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
 pub type InvokeResponder<R> =
-  dyn Fn(Window<R>, String, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
-type OwnedInvokeResponder<R> =
-  dyn Fn(Window<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
+  dyn Fn(&Window<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
+/// Similar to [`InvokeResponder`] but taking owned arguments.
+pub type OwnedInvokeResponder<R> =
+  dyn FnOnce(Window<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + 'static;
 
 /// Possible values of an IPC payload.
 #[derive(Debug, Clone)]
@@ -226,7 +227,7 @@ impl From<InvokeError> for InvokeResponse {
 #[default_runtime(crate::Wry, wry)]
 pub struct InvokeResolver<R: Runtime> {
   window: Window<R>,
-  responder: Arc<OwnedInvokeResponder<R>>,
+  responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
   cmd: String,
   pub(crate) callback: CallbackFn,
   pub(crate) error: CallbackFn,
@@ -247,7 +248,7 @@ impl<R: Runtime> Clone for InvokeResolver<R> {
 impl<R: Runtime> InvokeResolver<R> {
   pub(crate) fn new(
     window: Window<R>,
-    responder: Arc<OwnedInvokeResponder<R>>,
+    responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
     cmd: String,
     callback: CallbackFn,
     error: CallbackFn,
@@ -349,7 +350,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
   pub async fn return_task<T, F>(
     window: Window<R>,
-    responder: Arc<OwnedInvokeResponder<R>>,
+    responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
     task: F,
     cmd: String,
     success_callback: CallbackFn,
@@ -371,7 +372,7 @@ impl<R: Runtime> InvokeResolver<R> {
 
   pub(crate) fn return_closure<T: IpcResponse, F: FnOnce() -> Result<T, InvokeError>>(
     window: Window<R>,
-    responder: Arc<OwnedInvokeResponder<R>>,
+    responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
     f: F,
     cmd: String,
     success_callback: CallbackFn,
@@ -389,13 +390,19 @@ impl<R: Runtime> InvokeResolver<R> {
 
   pub(crate) fn return_result(
     window: Window<R>,
-    responder: Arc<OwnedInvokeResponder<R>>,
+    responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
     response: InvokeResponse,
     cmd: String,
     success_callback: CallbackFn,
     error_callback: CallbackFn,
   ) {
-    (responder)(window, cmd, response, success_callback, error_callback);
+    (responder.lock().unwrap().take().expect("resolver consumed"))(
+      window,
+      cmd,
+      response,
+      success_callback,
+      error_callback,
+    );
   }
 }
 

@@ -12,8 +12,9 @@ use std::{
 use ignore::WalkBuilder;
 use once_cell::sync::Lazy;
 
-use tauri_utils::config::parse::{
-  folder_has_configuration_file, is_configuration_file, ConfigFormat,
+use tauri_utils::{
+  config::parse::{folder_has_configuration_file, is_configuration_file, ConfigFormat},
+  platform::Target,
 };
 
 const TAURI_GITIGNORE: &[u8] = include_bytes!("../../tauri.gitignore");
@@ -73,7 +74,7 @@ fn get_tauri_dir() -> PathBuf {
     return cwd.join("src-tauri/");
   }
 
-  lookup(&cwd, |path| folder_has_configuration_file(path) || is_configuration_file(path))
+  lookup(&cwd, |path| folder_has_configuration_file(Target::Linux, path) || is_configuration_file(Target::Linux, path))
   .map(|p| if p.is_dir() { p } else {  p.parent().unwrap().to_path_buf() })
   .unwrap_or_else(||
     panic!("Couldn't recognize the current folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",

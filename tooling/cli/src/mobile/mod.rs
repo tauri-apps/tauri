@@ -19,6 +19,12 @@ use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 
+use cargo_mobile2::{
+  config::app::{App, Raw as RawAppConfig},
+  env::Error as EnvError,
+  opts::{NoiseLevel, Profile},
+  ChildHandle,
+};
 use std::{
   collections::HashMap,
   env::{set_var, temp_dir},
@@ -33,18 +39,12 @@ use std::{
     Arc,
   },
 };
-use tauri_mobile::{
-  config::app::{App, Raw as RawAppConfig},
-  env::Error as EnvError,
-  opts::{NoiseLevel, Profile},
-  ChildHandle,
-};
 use tokio::runtime::Runtime;
 
 #[cfg(not(windows))]
-use tauri_mobile::env::Env;
+use cargo_mobile2::env::Env;
 #[cfg(windows)]
-use tauri_mobile::os::Env;
+use cargo_mobile2::os::Env;
 
 pub mod android;
 mod init;
@@ -123,6 +123,14 @@ impl Target {
       Self::Ios => "xcode-script",
     }
   }
+
+  fn platform_target(&self) -> tauri_utils::platform::Target {
+    match self {
+      Self::Android => tauri_utils::platform::Target::Android,
+      #[cfg(target_os = "macos")]
+      Self::Ios => tauri_utils::platform::Target::Ios,
+    }
+  }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -145,10 +153,11 @@ impl Default for CliOptions {
 }
 
 fn setup_dev_config(
+  target: Target,
   config_extension: &mut Option<String>,
   force_ip_prompt: bool,
 ) -> crate::Result<()> {
-  let config = get_config(config_extension.as_deref())?;
+  let config = get_config(target.platform_target(), config_extension.as_deref())?;
 
   let mut dev_path = config
     .lock()

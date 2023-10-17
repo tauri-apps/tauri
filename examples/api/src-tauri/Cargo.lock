@@ -3399,7 +3399,7 @@ checksum = "9d0e916b1148c8e263850e1ebcbd046f333e0683c724876bb0da63ea4373dc8a"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-alpha.10"
+version = "2.0.0-alpha.14"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3412,6 +3412,7 @@ dependencies = [
  "gtk",
  "heck",
  "http",
+ "http-range",
  "ico",
  "infer 0.15.0",
  "jni",
@@ -3449,7 +3450,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-alpha.6"
+version = "2.0.0-alpha.8"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3469,7 +3470,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-alpha.6"
+version = "2.0.0-alpha.7"
 dependencies = [
  "base64",
  "brotli",
@@ -3493,7 +3494,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-alpha.6"
+version = "2.0.0-alpha.7"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -3549,13 +3550,11 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.13.0-alpha.6"
+version = "1.0.0-alpha.1"
 dependencies = [
  "gtk",
  "http",
- "http-range",
  "jni",
- "rand 0.8.5",
  "raw-window-handle",
  "serde",
  "serde_json",
@@ -3568,10 +3567,11 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.13.0-alpha.6"
+version = "1.0.0-alpha.2"
 dependencies = [
  "cocoa 0.24.1",
  "gtk",
+ "http",
  "jni",
  "percent-encoding",
  "rand 0.8.5",
@@ -3587,7 +3587,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-alpha.6"
+version = "2.0.0-alpha.7"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -3600,6 +3600,7 @@ dependencies = [
  "infer 0.12.0",
  "json-patch",
  "kuchikiki",
+ "log",
  "memchr",
  "phf 0.10.1",
  "proc-macro2",
@@ -4529,9 +4530,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.31.0"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c6289018fa3cbc051c13f4ae1a102d80c3f35a527456c75567eb2cad6989020"
+checksum = "bf906b43b8042615c85a978dceb4d4b72214d27b850b54abc3edeb7c5a67abab"
 dependencies = [
  "base64",
  "block",

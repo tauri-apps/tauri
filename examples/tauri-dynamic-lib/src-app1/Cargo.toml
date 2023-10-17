@@ -3,7 +3,7 @@ name = "app1"
 version = "0.1.0"
 description = "A simple app that makes a dll call"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.74"
 
 [workspace]
 

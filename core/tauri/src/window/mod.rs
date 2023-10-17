@@ -2317,7 +2317,7 @@ impl<R: Runtime> Window<R> {
     payload: S,
   ) -> crate::Result<()> {
     self.eval(&crate::event::emit_js(
-      &self.manager().listeners().function_name(),
+      self.manager().listeners().function_name(),
       event,
       source_window_label,
       payload,

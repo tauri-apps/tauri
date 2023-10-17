@@ -17,7 +17,7 @@ use crate::{
 use std::{collections::HashMap, process::Command};
 
 #[derive(Debug, Parser)]
-#[clap(about = "Installs a plugin on the project")]
+#[clap(about = "Add a tauri plugin to the project")]
 pub struct Options {
   /// The plugin to add.
   plugin: String,

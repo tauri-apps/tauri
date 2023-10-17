@@ -7,7 +7,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-#[clap(about = "Initializes a Tauri plugin project")]
+#[clap(about = "Initializes a new Tauri plugin project")]
 pub struct Options {
   /// Name of your Tauri plugin
   plugin_name: String,

@@ -17,7 +17,7 @@ mod new;
 #[clap(
   author,
   version,
-  about = "Manage Tauri plugins",
+  about = "Manage or create Tauri plugins",
   subcommand_required(true),
   arg_required_else_help(true)
 )]

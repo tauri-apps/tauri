@@ -792,7 +792,7 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     let bundle_script = if with_global_tauri {
-      include_str!("../scripts/bundle.js")
+      include_str!("../scripts/bundle.global.js")
     } else {
       ""
     };

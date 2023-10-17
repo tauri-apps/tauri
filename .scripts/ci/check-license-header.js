@@ -21,7 +21,7 @@ const ignore = [
   'node_modules',
   'gen',
   'dist',
-  'bundle.js'
+  'bundle.global.js'
 ]
 
 async function checkFile(file) {

@@ -5,7 +5,7 @@
 node_modules
 target
 dist
-/core/tauri/scripts/bundle.js
+/core/tauri/scripts/bundle.global.js
 /tooling/cli/templates
 /tooling/cli/node
 /tooling/cli/schema.json

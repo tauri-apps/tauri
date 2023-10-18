@@ -40,7 +40,7 @@ path = "src/main.rs"
 
 [dependencies]
 cargo-mobile2 = { version = "0.7", default-features = false }
-textwrap = { version = "0.16.0", features = [ "term_size" ] }
+textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.20", features = [ "server" ] }
 jsonrpsee-core = "0.20"
 jsonrpsee-client-transport = { version = "0.20", features = [ "ws" ] }

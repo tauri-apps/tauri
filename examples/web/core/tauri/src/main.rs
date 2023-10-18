@@ -3,10 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
 fn greet(window: tauri::Window, name: String) {
-  tauri::api::dialog::message(Some(&window), "Tauri Example", api::greet(&name));
+  MessageDialogBuilder::new(window.dialog(), "Tauri Example")
+    .parent(&window)
+    .show();
 }
 
 fn main() {

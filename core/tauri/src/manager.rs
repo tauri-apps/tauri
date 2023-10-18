@@ -28,16 +28,15 @@ use tauri_utils::{
 };
 
 use crate::{
-  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload},
-  event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
+  app::{
+    AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
+    UriSchemeResponder,
+  },
+  event::{assert_event_name_is_valid, Event, EventId, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
   plugin::PluginStore,
   runtime::{
-    http::{
-      MimeType, Request as HttpRequest, Response as HttpResponse,
-      ResponseBuilder as HttpResponseBuilder,
-    },
     webview::WindowBuilder,
     window::{
       dpi::{PhysicalPosition, PhysicalSize},
@@ -49,7 +48,6 @@ use crate::{
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  window::{UriSchemeProtocolHandler, WebResourceRequestHandler},
   Context, EventLoopMessage, Icon, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
 };
@@ -81,7 +79,7 @@ pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
 // and we do not get a secure context without the custom protocol that proxies to the dev server
 // additionally, we need the custom protocol to inject the initialization scripts on Android
 // must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
-const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
+pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
 
 #[cfg(feature = "isolation")]
 #[derive(Template)]
@@ -195,7 +193,14 @@ fn replace_csp_nonce(
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
-    let nonce = rand::random::<usize>();
+    #[cfg(target_pointer_width = "64")]
+    let mut raw = [0u8; 8];
+    #[cfg(target_pointer_width = "32")]
+    let mut raw = [0u8; 4];
+    #[cfg(target_pointer_width = "16")]
+    let mut raw = [0u8; 2];
+    getrandom::getrandom(&mut raw).expect("failed to get random bytes");
+    let nonce = usize::from_ne_bytes(raw);
     nonces.push(nonce);
     nonce.to_string()
   });
@@ -205,7 +210,7 @@ fn replace_csp_nonce(
       .into_iter()
       .map(|n| format!("'nonce-{n}'"))
       .collect::<Vec<String>>();
-    let sources = csp.entry(directive.into()).or_insert_with(Default::default);
+    let sources = csp.entry(directive.into()).or_default();
     let self_source = "'self'".to_string();
     if !sources.contains(&self_source) {
       sources.push(self_source);
@@ -237,7 +242,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   package_info: PackageInfo,
   /// The webview protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
   /// A set containing a reference to the active menus, including
   /// the app-wide menu and the window-specific menus
   ///
@@ -306,14 +311,11 @@ pub struct Asset {
 }
 
 /// Uses a custom URI scheme handler to resolve file requests
-pub struct CustomProtocol<R: Runtime> {
+pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol: Box<
-    dyn Fn(&AppHandle<R>, &HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>>
-      + Send
-      + Sync,
-  >,
+  pub protocol:
+    Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -337,7 +339,7 @@ impl<R: Runtime> WindowManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Box<OnPageLoad<R>>,
-    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+    uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<
@@ -511,10 +513,11 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   pub(crate) fn protocol_url(&self) -> Cow<'_, Url> {
-    #[cfg(any(windows, target_os = "android"))]
-    return Cow::Owned(Url::parse("https://tauri.localhost").unwrap());
-    #[cfg(not(any(windows, target_os = "android")))]
-    Cow::Owned(Url::parse("tauri://localhost").unwrap())
+    if cfg!(windows) || cfg!(target_os = "android") {
+      Cow::Owned(Url::parse("http://tauri.localhost").unwrap())
+    } else {
+      Cow::Owned(Url::parse("tauri://localhost").unwrap())
+    }
   }
 
   fn csp(&self) -> Option<Csp> {
@@ -569,20 +572,36 @@ impl<R: Runtime> WindowManager<R> {
       window_labels.push(l);
     }
     webview_attributes = webview_attributes
+      .initialization_script(
+        r#"
+        if (!window.__TAURI_INTERNALS__) {
+          Object.defineProperty(window, '__TAURI_INTERNALS__', {
+            value: {
+              plugins: {}
+            }
+          })
+        }
+      "#,
+      )
       .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(
         r#"
-          Object.defineProperty(window, '__TAURI_METADATA__', {{
+          Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
-              __windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
-              __currentWindow: {{ label: {current_window_label} }}
+              windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
+              currentWindow: {{ label: {current_window_label} }}
             }}
           }})
         "#,
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?);
+      .initialization_script(&self.initialization_script(
+        &ipc_init.into_string(),
+        &pattern_init.into_string(),
+        &plugin_init,
+        is_init_global,
+      )?);
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -604,16 +623,23 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
       let app_handle = Mutex::new(app_handle.clone());
-      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p| {
-        (protocol.protocol)(&app_handle.lock().unwrap(), p)
+      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p, responder| {
+        (protocol.protocol)(
+          &app_handle.lock().unwrap(),
+          p,
+          UriSchemeResponder(responder),
+        )
       });
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
     let window_origin = if window_url.scheme() == "data" {
       "null".into()
-    } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-      format!("https://{}.localhost", window_url.scheme())
+    } else if (cfg!(windows) || cfg!(target_os = "android"))
+      && window_url.scheme() != "http"
+      && window_url.scheme() != "https"
+    {
+      format!("http://{}.localhost", window_url.scheme())
     } else {
       format!(
         "{}://{}{}",
@@ -628,30 +654,28 @@ impl<R: Runtime> WindowManager<R> {
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
-      pending.register_uri_scheme_protocol(
-        "tauri",
-        self.prepare_uri_scheme_protocol(&window_origin, web_resource_request_handler),
-      );
+      let protocol =
+        crate::protocol::tauri::get(self, &window_origin, web_resource_request_handler);
+      pending.register_uri_scheme_protocol("tauri", move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
+      });
       registered_scheme_protocols.push("tauri".into());
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
-      pending.register_uri_scheme_protocol(
-        "ipc",
-        crate::ipc::protocol::get(self.clone(), pending.label.clone()),
-      );
+      let protocol = crate::ipc::protocol::get(self.clone(), pending.label.clone());
+      pending.register_uri_scheme_protocol("ipc", move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
+      });
       registered_scheme_protocols.push("ipc".into());
     }
 
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
-      pending.register_uri_scheme_protocol("asset", move |request| {
-        crate::asset_protocol::asset_protocol_handler(
-          request,
-          asset_scope.clone(),
-          window_origin.clone(),
-        )
+      let protocol = crate::protocol::asset::get(asset_scope.clone(), window_origin.clone());
+      pending.register_uri_scheme_protocol("asset", move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
       });
     }
 
@@ -663,41 +687,9 @@ impl<R: Runtime> WindowManager<R> {
       crypto_keys,
     } = &self.inner.pattern
     {
-      let assets = assets.clone();
-      let schema_ = schema.clone();
-      let url_base = format!("{schema_}://localhost");
-      let aes_gcm_key = *crypto_keys.aes_gcm().raw();
-
-      pending.register_uri_scheme_protocol(schema, move |request| {
-        match request_to_path(request, &url_base).as_str() {
-          "index.html" => match assets.get(&"index.html".into()) {
-            Some(asset) => {
-              let asset = String::from_utf8_lossy(asset.as_ref());
-              let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
-                runtime_aes_gcm_key: &aes_gcm_key,
-                process_ipc_message_fn: PROCESS_IPC_MESSAGE_FN,
-              };
-              match template.render(asset.as_ref(), &Default::default()) {
-                Ok(asset) => HttpResponseBuilder::new()
-                  .mimetype(mime::TEXT_HTML.as_ref())
-                  .body(asset.into_string().as_bytes().to_vec()),
-                Err(_) => HttpResponseBuilder::new()
-                  .status(500)
-                  .mimetype(mime::TEXT_PLAIN.as_ref())
-                  .body(Vec::new()),
-              }
-            }
-
-            None => HttpResponseBuilder::new()
-              .status(404)
-              .mimetype(mime::TEXT_PLAIN.as_ref())
-              .body(Vec::new()),
-          },
-          _ => HttpResponseBuilder::new()
-            .status(404)
-            .mimetype(mime::TEXT_PLAIN.as_ref())
-            .body(Vec::new()),
-        }
+      let protocol = crate::protocol::isolation::get(assets.clone(), *crypto_keys.aes_gcm().raw());
+      pending.register_uri_scheme_protocol(schema, move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
       });
     }
 
@@ -773,7 +765,7 @@ impl<R: Runtime> WindowManager<R> {
         } else {
           asset
         };
-        let mime_type = MimeType::parse(&final_data, &path);
+        let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
         Ok(Asset {
           bytes: final_data.to_vec(),
           mime_type,
@@ -785,131 +777,6 @@ impl<R: Runtime> WindowManager<R> {
         Err(Box::new(e))
       }
     }
-  }
-
-  fn prepare_uri_scheme_protocol(
-    &self,
-    window_origin: &str,
-    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
-  ) -> UriSchemeProtocolHandler {
-    #[cfg(all(dev, mobile))]
-    let url = {
-      let mut url = self.get_url().as_str().to_string();
-      if url.ends_with('/') {
-        url.pop();
-      }
-      url
-    };
-    #[cfg(not(all(dev, mobile)))]
-    let manager = self.clone();
-    let window_origin = window_origin.to_string();
-
-    #[cfg(all(dev, mobile))]
-    #[derive(Clone)]
-    struct CachedResponse {
-      status: http::StatusCode,
-      headers: http::HeaderMap,
-      body: bytes::Bytes,
-    }
-
-    #[cfg(all(dev, mobile))]
-    let response_cache = Arc::new(Mutex::new(HashMap::new()));
-
-    Box::new(move |request| {
-      // use the entire URI as we are going to proxy the request
-      let path = if PROXY_DEV_SERVER {
-        request.uri()
-      } else {
-        // ignore query string and fragment
-        request.uri().split(&['?', '#'][..]).next().unwrap()
-      };
-
-      let path = path
-        .strip_prefix("tauri://localhost")
-        .map(|p| p.to_string())
-        // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
-        // where `$P` is not `localhost/*`
-        .unwrap_or_else(|| "".to_string());
-
-      let mut builder =
-        HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
-
-      #[cfg(all(dev, mobile))]
-      let mut response = {
-        let decoded_path = percent_encoding::percent_decode(path.as_bytes())
-          .decode_utf8_lossy()
-          .to_string();
-        let url = format!("{url}{decoded_path}");
-        #[allow(unused_mut)]
-        let mut client_builder = reqwest::ClientBuilder::new();
-        #[cfg(any(feature = "native-tls", feature = "rustls-tls"))]
-        {
-          client_builder = client_builder.danger_accept_invalid_certs(true);
-        }
-        let mut proxy_builder = client_builder
-          .build()
-          .unwrap()
-          .request(request.method().clone(), &url);
-        for (name, value) in request.headers() {
-          proxy_builder = proxy_builder.header(name, value);
-        }
-        match crate::async_runtime::block_on(proxy_builder.send()) {
-          Ok(r) => {
-            let mut response_cache_ = response_cache.lock().unwrap();
-            let mut response = None;
-            if r.status() == http::StatusCode::NOT_MODIFIED {
-              response = response_cache_.get(&url);
-            }
-            let response = if let Some(r) = response {
-              r
-            } else {
-              let status = r.status();
-              let headers = r.headers().clone();
-              let body = crate::async_runtime::block_on(r.bytes())?;
-              let response = CachedResponse {
-                status,
-                headers,
-                body,
-              };
-              response_cache_.insert(url.clone(), response);
-              response_cache_.get(&url).unwrap()
-            };
-            for (name, value) in &response.headers {
-              builder = builder.header(name, value);
-            }
-            builder
-              .status(response.status)
-              .body(response.body.to_vec())?
-          }
-          Err(e) => {
-            debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
-            return Err(Box::new(e));
-          }
-        }
-      };
-
-      #[cfg(not(all(dev, mobile)))]
-      let mut response = {
-        let asset = manager.get_asset(path)?;
-        builder = builder.mimetype(&asset.mime_type);
-        if let Some(csp) = &asset.csp_header {
-          builder = builder.header("Content-Security-Policy", csp);
-        }
-        builder.body(asset.bytes)?
-      };
-      if let Some(handler) = &web_resource_request_handler {
-        handler(request, &mut response);
-      }
-      // if it's an HTML file, we need to set the CSP meta tag on Linux
-      #[cfg(all(not(dev), target_os = "linux"))]
-      if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
-        let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-        let html = String::from_utf8_lossy(response.body());
-        let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
-        *response.body_mut() = body.as_bytes().to_vec().into();
-      }
-      Ok(response)
-    })
   }
 
   fn initialization_script(
@@ -928,9 +795,6 @@ impl<R: Runtime> WindowManager<R> {
       ipc_script: &'a str,
       #[raw]
       bundle_script: &'a str,
-      // A function to immediately listen to an event.
-      #[raw]
-      listen_function: &'a str,
       #[raw]
       core_script: &'a str,
       #[raw]
@@ -963,16 +827,6 @@ impl<R: Runtime> WindowManager<R> {
       pattern_script,
       ipc_script,
       bundle_script,
-      listen_function: &format!(
-        "function listen(eventName, cb) {{ {} }}",
-        crate::event::listen_js(
-          self.event_listeners_object_name(),
-          "eventName".into(),
-          0,
-          None,
-          "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
-        )
-      ),
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
       }
@@ -1004,47 +858,13 @@ impl<R: Runtime> WindowManager<R> {
         }}
       }});
     ",
-      function = self.event_emit_function_name(),
-      listeners = self.event_listeners_object_name()
+      function = self.listeners().function_name(),
+      listeners = self.listeners().listeners_object_name()
     )
   }
-}
 
-#[cfg(test)]
-mod test {
-  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
-
-  use super::WindowManager;
-
-  #[test]
-  fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Wry> = WindowManager::with_handlers(
-      context,
-      PluginStore::default(),
-      Box::new(|_| false),
-      Box::new(|_, _| ()),
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
-      Default::default(),
-      (None, "".into()),
-    );
-
-    #[cfg(custom_protocol)]
-    {
-      assert_eq!(
-        manager.get_url().to_string(),
-        if cfg!(windows) {
-          "https://tauri.localhost/"
-        } else {
-          "tauri://localhost"
-        }
-      );
-    }
-
-    #[cfg(dev)]
-    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+  pub(crate) fn listeners(&self) -> &Listeners {
+    &self.inner.listeners
   }
 }
 
@@ -1188,7 +1008,8 @@ impl<R: Runtime> WindowManager<R> {
       #[allow(clippy::redundant_clone)]
       app_handle.clone(),
     )?;
-    #[cfg(not(ipc_custom_protocol))]
+
+    #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
     {
       pending.ipc_handler = Some(crate::ipc::protocol::message_handler(self.clone()));
     }
@@ -1349,13 +1170,9 @@ impl<R: Runtime> WindowManager<R> {
     &self.inner.package_info
   }
 
-  pub fn unlisten(&self, handler_id: EventHandler) {
-    self.inner.listeners.unlisten(handler_id)
-  }
-
   pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
     assert_event_name_is_valid(event);
-    self.inner.listeners.trigger(event, window, data)
+    self.listeners().trigger(event, window, data)
   }
 
   pub fn listen<F: Fn(Event) + Send + 'static>(
@@ -1363,9 +1180,9 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) -> EventId {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.listen(event, window, handler)
+    self.listeners().listen(event, window, handler)
   }
 
   pub fn once<F: FnOnce(Event) + Send + 'static>(
@@ -1373,17 +1190,13 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.once(event, window, handler)
+    self.listeners().once(event, window, handler)
   }
 
-  pub fn event_listeners_object_name(&self) -> String {
-    self.inner.listeners.listeners_object_name()
-  }
-
-  pub fn event_emit_function_name(&self) -> String {
-    self.inner.listeners.function_name()
+  pub fn unlisten(&self, id: EventId) {
+    self.listeners().unlisten(id)
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {
@@ -1430,7 +1243,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"(function () {{ const metadata = window.__TAURI_METADATA__; if (metadata != null) {{ metadata.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{label}"); }} }})()"#,
+          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.windows = window.__TAURI_INTERNALS__.metadata.windows.filter(w => w.label !== "{label}"); }} }})()"#,
         ))?;
       }
     }
@@ -1485,34 +1298,6 @@ struct ScaleFactorChanged {
   size: PhysicalSize<u32>,
 }
 
-#[cfg(feature = "isolation")]
-fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> String {
-  let mut path = request
-    .uri()
-    .split(&['?', '#'][..])
-    // ignore query string
-    .next()
-    .unwrap()
-    .trim_start_matches(base_url)
-    .to_string();
-
-  if path.ends_with('/') {
-    path.pop();
-  }
-
-  let path = percent_encoding::percent_decode(path.as_bytes())
-    .decode_utf8_lossy()
-    .to_string();
-
-  if path.is_empty() {
-    // if the url has no path, we should load `index.html`
-    "index.html".to_string()
-  } else {
-    // skip leading `/`
-    path.chars().skip(1).collect()
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::replace_with_callback;
@@ -1532,5 +1317,43 @@ mod tests {
     )] {
       assert_eq!(replace_with_callback(src, pattern, replacement), result);
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
+
+  use super::WindowManager;
+
+  #[test]
+  fn check_get_url() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let manager: WindowManager<Wry> = WindowManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      Box::new(|_, _| ()),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      Default::default(),
+      (None, "".into()),
+    );
+
+    #[cfg(custom_protocol)]
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) || cfg!(target_os = "android") {
+          "http://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
+
+    #[cfg(dev)]
+    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
   }
 }

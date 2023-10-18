@@ -6,7 +6,7 @@ use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_option
 use crate::{helpers::config::get as get_tauri_config, Result};
 use clap::{ArgAction, Parser};
 
-use tauri_mobile::{
+use cargo_mobile2::{
   android::target::Target,
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},
@@ -36,7 +36,7 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let tauri_config = get_tauri_config(None)?;
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, None)?;
 
   let (config, metadata, cli_options) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

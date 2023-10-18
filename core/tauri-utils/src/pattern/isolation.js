@@ -8,8 +8,7 @@
  * isolation frame -> main frame = isolation message
  */
 
-;
-(async function () {
+;(async function () {
   /**
    * Sends the message to the isolation frame.
    * @param {any} message

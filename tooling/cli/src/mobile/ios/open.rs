@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{ensure_init, env, get_app, get_config, MobileTarget};
+use super::{ensure_init, env, get_app, get_config, inject_assets, MobileTarget};
 use crate::{helpers::config::get as get_tauri_config, Result};
 
-use tauri_mobile::os;
+use cargo_mobile2::os;
 
 pub fn command() -> Result<()> {
-  let tauri_config = get_tauri_config(None)?;
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, None)?;
 
   let (config, _metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
@@ -17,6 +17,7 @@ pub fn command() -> Result<()> {
   };
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  inject_assets(&config)?;
   let env = env()?;
   os::open_file_with("Xcode", config.project_dir(), &env).map_err(Into::into)
 }

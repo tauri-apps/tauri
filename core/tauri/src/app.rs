@@ -8,24 +8,20 @@ use crate::{
     channel::ChannelDataIpcQueue, CallbackFn, Invoke, InvokeError, InvokeHandler, InvokeResponder,
     InvokeResponse,
   },
-  manager::{Asset, CustomProtocol, WindowManager},
+  manager::{Asset, UriSchemeProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
-    http::{Request as HttpRequest, Response as HttpResponse},
     webview::WebviewAttributes,
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
-  scope::IpcScope,
+  scope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
   Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
   StateManager, Theme, Window,
 };
-
-#[cfg(feature = "protocol-asset")]
-use crate::scope::FsScope;
 
 #[cfg(desktop)]
 use crate::menu::{Menu, MenuEvent};
@@ -49,6 +45,7 @@ use tauri_runtime::{
 use tauri_utils::PackageInfo;
 
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fmt,
   sync::{mpsc::Sender, Arc, Weak},
@@ -58,6 +55,8 @@ use crate::runtime::RuntimeHandle;
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
+
+pub(crate) mod plugin;
 
 #[cfg(desktop)]
 pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync>;
@@ -534,8 +533,8 @@ macro_rules! shared_app_impl {
           .push(Box::new(handler));
       }
 
-      /// Gets the first tray icon registerd, usually the one configured in
-      /// tauri config file.
+      /// Gets the first tray icon registered,
+      /// usually the one configured in the Tauri configuration file.
       #[cfg(all(desktop, feature = "tray-icon"))]
       #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn tray(&self) -> Option<TrayIcon<R>> {
@@ -808,8 +807,10 @@ shared_app_impl!(AppHandle<R>);
 
 impl<R: Runtime> App<R> {
   fn register_core_plugins(&self) -> crate::Result<()> {
-    self.handle.plugin(crate::path::init())?;
-    self.handle.plugin(crate::event::init())?;
+    self.handle.plugin(crate::path::plugin::init())?;
+    self.handle.plugin(crate::event::plugin::init())?;
+    self.handle.plugin(crate::window::plugin::init())?;
+    self.handle.plugin(crate::app::plugin::init())?;
     Ok(())
   }
 
@@ -974,7 +975,7 @@ pub struct Builder<R: Runtime> {
   /// The JS message responder.
   invoke_responder: Option<Arc<InvokeResponder<R>>>,
 
-  /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
+  /// The script that initializes the `window.__TAURI_INTERNALS__.postMessage` function.
   invoke_initialization_script: String,
 
   /// The setup hook.
@@ -990,7 +991,7 @@ pub struct Builder<R: Runtime> {
   plugins: PluginStore<R>,
 
   /// The webview protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
 
   /// App state.
   state: StateManager,
@@ -1092,12 +1093,12 @@ impl<R: Runtime> Builder<R> {
   ///
   /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
   ///
-  /// The `initialization_script` is a script that initializes `window.__TAURI_POST_MESSAGE__`.
+  /// The `initialization_script` is a script that initializes `window.__TAURI_INTERNALS__.postMessage`.
   /// That function must take the `(message: object, options: object)` arguments and send it to the backend.
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
-    F: Fn(Window<R>, String, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
+    F: Fn(&Window<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
     self.invoke_initialization_script = initialization_script;
     self.invoke_responder.replace(Arc::new(responder));
@@ -1348,14 +1349,31 @@ impl<R: Runtime> Builder<R> {
   /// # Arguments
   ///
   /// * `uri_scheme` The URI scheme to register, such as `example`.
-  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes a request and returns a response.
+  ///
+  /// # Examples
+  /// ```
+  /// tauri::Builder::default()
+  ///   .register_uri_scheme_protocol("app-files", |_app, request| {
+  ///     // skip leading `/`
+  ///     if let Ok(data) = std::fs::read(&request.uri().path()[1..]) {
+  ///       http::Response::builder()
+  ///         .body(data)
+  ///         .unwrap()
+  ///     } else {
+  ///       http::Response::builder()
+  ///         .status(http::StatusCode::BAD_REQUEST)
+  ///         .header(http::header::CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+  ///         .body("failed to read file".as_bytes().to_vec())
+  ///         .unwrap()
+  ///     }
+  ///   });
+  /// ```
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&AppHandle<R>, &HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>>
-      + Send
-      + Sync
-      + 'static,
+    T: Into<Cow<'static, [u8]>>,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>) -> http::Response<T> + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -1363,7 +1381,55 @@ impl<R: Runtime> Builder<R> {
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
-      Arc::new(CustomProtocol {
+      Arc::new(UriSchemeProtocol {
+        protocol: Box::new(move |app, request, responder| {
+          responder.respond(protocol(app, request))
+        }),
+      }),
+    );
+    self
+  }
+
+  /// Similar to [`Self::register_uri_scheme_protocol`] but with an asynchronous responder that allows you
+  /// to process the request in a separate thread and respond asynchronously.
+  ///
+  /// # Examples
+  /// ```
+  /// tauri::Builder::default()
+  ///   .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, responder| {
+  ///     // skip leading `/`
+  ///     let path = request.uri().path()[1..].to_string();
+  ///     std::thread::spawn(move || {
+  ///       if let Ok(data) = std::fs::read(path) {
+  ///         responder.respond(
+  ///           http::Response::builder()
+  ///             .body(data)
+  ///             .unwrap()
+  ///         );
+  ///       } else {
+  ///         responder.respond(
+  ///           http::Response::builder()
+  ///             .status(http::StatusCode::BAD_REQUEST)
+  ///             .header(http::header::CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+  ///             .body("failed to read file".as_bytes().to_vec())
+  ///             .unwrap()
+  ///         );
+  ///     }
+  ///   });
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn register_asynchronous_uri_scheme_protocol<
+    N: Into<String>,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
+  >(
+    mut self,
+    uri_scheme: N,
+    protocol: H,
+  ) -> Self {
+    self.uri_scheme_protocols.insert(
+      uri_scheme.into(),
+      Arc::new(UriSchemeProtocol {
         protocol: Box::new(protocol),
       }),
     );
@@ -1461,16 +1527,16 @@ impl<R: Runtime> Builder<R> {
     {
       // setup menu event handler
       let proxy = runtime.create_proxy();
-      crate::menu::MenuEvent::set_event_handler(Some(move |e| {
-        let _ = proxy.send_event(EventLoopMessage::MenuEvent(e));
+      muda::MenuEvent::set_event_handler(Some(move |e: muda::MenuEvent| {
+        let _ = proxy.send_event(EventLoopMessage::MenuEvent(e.into()));
       }));
 
       // setup tray event handler
       #[cfg(feature = "tray-icon")]
       {
         let proxy = runtime.create_proxy();
-        crate::tray::TrayIconEvent::set_event_handler(Some(move |e| {
-          let _ = proxy.send_event(EventLoopMessage::TrayIconEvent(e));
+        tray_icon::TrayIconEvent::set_event_handler(Some(move |e: tray_icon::TrayIconEvent| {
+          let _ = proxy.send_event(EventLoopMessage::TrayIconEvent(e.into()));
         }));
       }
     }
@@ -1511,9 +1577,12 @@ impl<R: Runtime> Builder<R> {
     app.manage(env);
 
     app.manage(Scopes {
-      ipc: IpcScope::new(&app.config()),
+      ipc: scope::ipc::Scope::new(&app.config()),
       #[cfg(feature = "protocol-asset")]
-      asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
+      asset_protocol: scope::fs::Scope::for_fs_api(
+        &app,
+        &app.config().tauri.security.asset_protocol.scope,
+      )?,
     });
 
     app.manage(ChannelDataIpcQueue::default());
@@ -1550,9 +1619,10 @@ impl<R: Runtime> Builder<R> {
     {
       let config = app.config();
       if let Some(tray_config) = &config.tauri.tray_icon {
-        let mut tray = TrayIconBuilder::new()
-          .icon_as_template(tray_config.icon_as_template)
-          .menu_on_left_click(tray_config.menu_on_left_click);
+        let mut tray =
+          TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
+            .icon_as_template(tray_config.icon_as_template)
+            .menu_on_left_click(tray_config.menu_on_left_click);
         if let Some(icon) = &app.manager.inner.tray_icon {
           tray = tray.icon(icon.clone());
         }
@@ -1576,6 +1646,17 @@ impl<R: Runtime> Builder<R> {
   pub fn run<A: Assets>(self, context: Context<A>) -> crate::Result<()> {
     self.build(context)?.run(|_, _| {});
     Ok(())
+  }
+}
+
+pub(crate) type UriSchemeResponderFn = Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>;
+pub struct UriSchemeResponder(pub(crate) UriSchemeResponderFn);
+
+impl UriSchemeResponder {
+  /// Resolves the request with the given response.
+  pub fn respond<T: Into<Cow<'static, [u8]>>>(self, response: http::Response<T>) {
+    let (parts, body) = response.into_parts();
+    (self.0)(http::Response::from_parts(parts, body.into()))
   }
 }
 

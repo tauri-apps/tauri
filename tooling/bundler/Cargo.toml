@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "2.0.0-alpha.7"
+version = "2.0.0-alpha.9"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -13,11 +13,11 @@ keywords = [ "bundle", "cargo", "tauri" ]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-alpha.7", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "2.0.0-alpha.8", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.7"
 libflate = "2.0"
 anyhow = "1.0"
@@ -29,7 +29,7 @@ tar = "0.4.40"
 walkdir = "2"
 handlebars = "4.3"
 tempfile = "3.7.1"
-log = { version = "0.4.19", features = [ "kv_unstable" ] }
+log = { version = "0.4.20", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 os_pipe = "1"
 ureq = { version = "2.7", default-features = false }

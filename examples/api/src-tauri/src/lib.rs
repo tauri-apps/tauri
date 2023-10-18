@@ -63,8 +63,8 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       #[cfg(desktop)]
       app.manage(PopupMenu(
         tauri::menu::MenuBuilder::new(app)
-          .check("Tauri is awesome!")
-          .text("Do something")
+          .check("check", "Tauri is awesome!")
+          .text("text", "Do something")
           .copy()
           .build()?,
       ));

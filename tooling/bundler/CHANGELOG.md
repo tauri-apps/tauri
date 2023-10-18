@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.0.0-alpha.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.8`
+
+## \[2.0.0-alpha.8]
+
+### Enhancements
+
+- [`04949d16`](https://www.github.com/tauri-apps/tauri/commit/04949d16586acddab97a3c083a61c81b18d6933e)([#7624](https://www.github.com/tauri-apps/tauri/pull/7624)) Added Bulgarian language support to the NSIS bundler.
+
 ## \[2.0.0-alpha.7]
 
 ### Bug Fixes

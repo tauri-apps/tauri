@@ -231,7 +231,7 @@ mod tests {
     assert_ipc_response(
       &window,
       path_is_absolute_request(),
-      Err(&crate::window::ipc_scope_not_found_error_message(
+      Err(crate::window::ipc_scope_not_found_error_message(
         "main",
         "https://tauri.app/",
       )),
@@ -248,7 +248,7 @@ mod tests {
     assert_ipc_response(
       &window,
       path_is_absolute_request(),
-      Err(&crate::window::ipc_scope_window_error_message("main")),
+      Err(crate::window::ipc_scope_window_error_message("main")),
     );
   }
 
@@ -262,7 +262,7 @@ mod tests {
     assert_ipc_response(
       &window,
       path_is_absolute_request(),
-      Err(&crate::window::ipc_scope_domain_error_message(
+      Err(crate::window::ipc_scope_domain_error_message(
         "https://tauri.app/",
       )),
     );
@@ -286,7 +286,7 @@ mod tests {
     assert_ipc_response(
       &window,
       path_is_absolute_request(),
-      Err(&crate::window::ipc_scope_domain_error_message(
+      Err(crate::window::ipc_scope_domain_error_message(
         "https://blog.tauri.app/",
       )),
     );
@@ -299,7 +299,7 @@ mod tests {
     assert_ipc_response(
       &window,
       path_is_absolute_request(),
-      Err(&crate::window::ipc_scope_not_found_error_message(
+      Err(crate::window::ipc_scope_not_found_error_message(
         "test",
         "https://dev.tauri.app/",
       )),
@@ -340,7 +340,7 @@ mod tests {
     assert_ipc_response(
       &window,
       plugin_test_request(),
-      Err(&format!("plugin {PLUGIN_NAME} not found")),
+      Err(format!("plugin {PLUGIN_NAME} not found")),
     );
   }
 

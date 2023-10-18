@@ -10,6 +10,59 @@ use crate::{Env, PackageInfo};
 
 mod starting_binary;
 
+/// Platform target.
+#[derive(PartialEq, Eq, Copy, Clone)]
+pub enum Target {
+  /// MacOS.
+  Darwin,
+  /// Windows.
+  Windows,
+  /// Linux.
+  Linux,
+  /// Android.
+  Android,
+  /// iOS.
+  Ios,
+}
+
+impl Target {
+  /// Parses the target from the given target triple.
+  pub fn from_triple(target: &str) -> Self {
+    if target.contains("darwin") {
+      Self::Darwin
+    } else if target.contains("windows") {
+      Self::Windows
+    } else if target.contains("android") {
+      Self::Android
+    } else if target.contains("ios") {
+      Self::Ios
+    } else {
+      Self::Linux
+    }
+  }
+
+  /// Gets the current build target.
+  pub fn current() -> Self {
+    if cfg!(target_os = "macos") {
+      Self::Darwin
+    } else if cfg!(target_os = "windows") {
+      Self::Windows
+    } else {
+      Self::Linux
+    }
+  }
+
+  /// Whether the target is mobile or not.
+  pub fn is_mobile(&self) -> bool {
+    matches!(self, Target::Android | Target::Ios)
+  }
+
+  /// Whether the target is desktop or not.
+  pub fn is_desktop(&self) -> bool {
+    !self.is_mobile()
+  }
+}
+
 /// Retrieves the currently running binary's path, taking into account security considerations.
 ///
 /// The path is cached as soon as possible (before even `main` runs) and that value is returned

@@ -8,11 +8,12 @@ use std::{
   fs::read_to_string,
   path::{Path, PathBuf},
 };
+use tauri_utils::platform::Target;
 
 pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
   let mut items = Vec::new();
   if tauri_dir.is_some() {
-    if let Ok(config) = crate::helpers::config::get(None) {
+    if let Ok(config) = crate::helpers::config::get(Target::current(), None) {
       let config_guard = config.lock().unwrap();
       let config = config_guard.as_ref().unwrap();
 

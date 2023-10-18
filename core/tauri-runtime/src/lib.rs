@@ -15,11 +15,9 @@
 use raw_window_handle::RawDisplayHandle;
 use serde::Deserialize;
 use std::{fmt::Debug, sync::mpsc::Sender};
-use tauri_utils::Theme;
+use tauri_utils::{ProgressBarState, Theme};
 use url::Url;
-use uuid::Uuid;
 
-pub mod http;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;
@@ -32,12 +30,13 @@ use window::{
   CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
 };
 
-use crate::http::{
+use http::{
   header::{InvalidHeaderName, InvalidHeaderValue},
   method::InvalidMethod,
   status::InvalidStatusCode,
-  InvalidUri,
 };
+
+pub type WindowEventId = u32;
 
 /// Type of user attention requested on a window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -101,8 +100,6 @@ pub enum Error {
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
   InvalidHeaderValue(#[from] InvalidHeaderValue),
-  #[error("Invalid uri: {0}")]
-  InvalidUri(#[from] InvalidUri),
   #[error("Invalid status code: {0}")]
   InvalidStatusCode(#[from] InvalidStatusCode),
   #[error("Invalid method: {0}")]
@@ -331,7 +328,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
   /// Registers a window event handler.
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId;
 
   /// Runs a closure with the platform webview object as argument.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
@@ -534,6 +531,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the shadow flag.
   fn set_shadow(&self, enable: bool) -> Result<()>;
 
+  /// Updates the window alwaysOnBottom flag.
+  fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()>;
+
   /// Updates the window alwaysOnTop flag.
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()>;
 
@@ -592,4 +592,12 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Executes javascript on the window this [`Dispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
+
+  /// Sets the taskbar progress state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
+  /// - **iOS / Android:** Unsupported.
+  fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()>;
 }

@@ -2,21 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/** @ignore */
-declare global {
-  interface Window {
-    __TAURI_METADATA__: {
-      __windows: WindowDef[]
-      __currentWindow: WindowDef
-    }
-  }
-}
-
-/** @ignore */
-interface WindowDef {
-  label: string
-}
-
 interface IPCMessage {
   cmd: string
   callback: number
@@ -34,7 +19,7 @@ interface IPCMessage {
  * Testing setup using vitest:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
- * import { invoke } from "@tauri-apps/api/tauri"
+ * import { invoke } from "@tauri-apps/api/primitives"
  *
  * afterEach(() => {
  *    clearMocks()
@@ -57,7 +42,7 @@ interface IPCMessage {
  * The callback function can also return a Promise:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
- * import { invoke } from "@tauri-apps/api/tauri"
+ * import { invoke } from "@tauri-apps/api/primitives"
  *
  * afterEach(() => {
  *    clearMocks()
@@ -78,10 +63,10 @@ interface IPCMessage {
  * @since 1.0.0
  */
 export function mockIPC(
-  cb: (cmd: string, payload: Record<string, unknown>) => any | Promise<any>
+  cb: (cmd: string, payload: Record<string, unknown>) => unknown
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  window.__TAURI_IPC__ = async ({
+  window.__TAURI_INTERNALS__.ipc = async ({
     cmd,
     callback,
     error,
@@ -143,9 +128,9 @@ export function mockWindows(
   current: string,
   ...additionalWindows: string[]
 ): void {
-  window.__TAURI_METADATA__ = {
-    __windows: [current, ...additionalWindows].map((label) => ({ label })),
-    __currentWindow: { label: current }
+  window.__TAURI_INTERNALS__.metadata = {
+    windows: [current, ...additionalWindows].map((label) => ({ label })),
+    currentWindow: { label: current }
   }
 }
 
@@ -165,11 +150,11 @@ export function mockWindows(
  * test("mocked windows", () => {
  *    mockWindows("main", "second", "third");
  *
- *    expect(window).toHaveProperty("__TAURI_METADATA__")
+ *    expect(window.__TAURI_INTERNALS__).toHaveProperty("metadata")
  * })
  *
  * test("no mocked windows", () => {
- *    expect(window).not.toHaveProperty("__TAURI_METADATA__")
+ *    expect(window.__TAURI_INTERNALS__).not.toHaveProperty("metadata")
  * })
  * ```
  *
@@ -177,7 +162,7 @@ export function mockWindows(
  */
 export function clearMocks(): void {
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_IPC__
+  delete window.__TAURI_INTERNALS__.ipc
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_METADATA__
+  delete window.__TAURI_INTERNALS__.metadata
 }

@@ -246,7 +246,7 @@ impl<R: Runtime> GlobalWindowEvent<R> {
     &self.event
   }
 
-  /// The window that the menu belongs to.
+  /// The window that the event belongs to.
   pub fn window(&self) -> &Window<R> {
     &self.window
   }

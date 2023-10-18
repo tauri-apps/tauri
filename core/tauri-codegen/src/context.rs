@@ -40,13 +40,13 @@ fn map_core_assets(
     if path.extension() == Some(OsStr::new("html")) {
       #[allow(clippy::collapsible_if)]
       if csp {
-        let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
+        let document = parse_html(String::from_utf8_lossy(input).into_owned());
 
         if target == Target::Linux {
-          ::tauri_utils::html::inject_csp_token(&mut document);
+          ::tauri_utils::html::inject_csp_token(&document);
         }
 
-        inject_nonce_token(&mut document, &dangerous_disable_asset_csp_modification);
+        inject_nonce_token(&document, &dangerous_disable_asset_csp_modification);
 
         if dangerous_disable_asset_csp_modification.can_modify("script-src") {
           if let Ok(inline_script_elements) = document.select("script:not(empty)") {
@@ -97,14 +97,13 @@ fn map_isolation(
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
   move |_key, path, input, _csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
-      let mut isolation_html =
-        tauri_utils::html::parse(String::from_utf8_lossy(input).into_owned());
+      let isolation_html = tauri_utils::html::parse(String::from_utf8_lossy(input).into_owned());
 
       // this is appended, so no need to reverse order it
-      tauri_utils::html::inject_codegen_isolation_script(&mut isolation_html);
+      tauri_utils::html::inject_codegen_isolation_script(&isolation_html);
 
       // temporary workaround for windows not loading assets
-      tauri_utils::html::inline_isolation(&mut isolation_html, &dir);
+      tauri_utils::html::inline_isolation(&isolation_html, &dir);
 
       *input = isolation_html.to_string().as_bytes().to_vec()
     }

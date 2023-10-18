@@ -49,7 +49,7 @@ jobs:
             }
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: 'Setup Rust'
         uses: dtolnay/rust-toolchain@stable

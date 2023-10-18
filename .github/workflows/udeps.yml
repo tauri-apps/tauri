@@ -32,7 +32,7 @@ jobs:
       bundler: ${{ steps.filter.outputs.bundler }}
       cli: ${{ steps.filter.outputs.cli }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v2
         id: filter
         with:
@@ -72,7 +72,7 @@ jobs:
       needs.changes.outputs.cli == 'true'
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -115,7 +115,7 @@ jobs:
           if [ "${UTILS}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-utils\""; fi
           if [ "${BUNDLER}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/bundler\""; fi
           if [ "${CLI}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/cli\""; fi
-          echo ::set-output name=matrix::[$crates]
+          echo "matrix=[$crates]" >> "$GITHUB_OUTPUT"
     outputs:
       matrix: ${{ steps.create-matrix.outputs.matrix }}
 
@@ -126,7 +126,7 @@ jobs:
       matrix:
         path: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: actions-rs/toolchain@v1
         with:

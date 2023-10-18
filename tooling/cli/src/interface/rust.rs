@@ -32,7 +32,7 @@ use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{nsis_settings, reload as reload_config, wix_settings, Config},
 };
-use tauri_utils::display_path;
+use tauri_utils::{display_path, platform::Target};
 
 mod cargo_config;
 mod desktop;
@@ -90,7 +90,7 @@ pub struct MobileOptions {
 }
 
 #[derive(Debug)]
-pub struct Target {
+pub struct RustupTarget {
   name: String,
   installed: bool,
 }
@@ -99,7 +99,7 @@ pub struct Rust {
   app_settings: RustAppSettings,
   config_features: Vec<String>,
   product_name: Option<String>,
-  available_targets: Option<Vec<Target>>,
+  available_targets: Option<Vec<RustupTarget>>,
 }
 
 impl Interface for Rust {
@@ -197,7 +197,7 @@ impl Interface for Rust {
     }
   }
 
-  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess>>>(
+  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     mut options: MobileOptions,
     runner: R,
@@ -306,11 +306,14 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 
       ignore_builder.add(path);
 
-      if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+      if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
         ignore_builder.add(dir.join(ignore_file));
       }
 
-      for line in crate::dev::TAURI_DEV_WATCHER_GITIGNORE.lines().flatten() {
+      for line in crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE
+        .lines()
+        .flatten()
+      {
         let _ = ignore_builder.add_line(None, &line);
       }
 
@@ -328,14 +331,14 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
     if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      let _ = file.write_all(crate::dev::TAURI_DEV_WATCHER_GITIGNORE);
+      let _ = file.write_all(crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE);
     }
   }
 
   let mut builder = ignore::WalkBuilder::new(dir);
   builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
-  if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+  if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
     builder.add_ignore(ignore_file);
   }
   builder.require_git(false).ignore(false).max_depth(Some(1));
@@ -431,7 +434,7 @@ impl Rust {
     options: Options,
     run_args: Vec<String>,
     on_exit: F,
-  ) -> crate::Result<Box<dyn DevProcess>> {
+  ) -> crate::Result<Box<dyn DevProcess + Send>> {
     desktop::run_dev(
       options,
       run_args,
@@ -441,10 +444,10 @@ impl Rust {
       self.product_name.clone(),
       on_exit,
     )
-    .map(|c| Box::new(c) as Box<dyn DevProcess>)
+    .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
   }
 
-  fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess>>>(
+  fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     config: Option<String>,
     run: Arc<F>,
@@ -510,7 +513,7 @@ impl Rust {
           let event_path = event.path;
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
-            if is_configuration_file(&event_path) {
+            if is_configuration_file(self.app_settings.target, &event_path) {
               match reload_config(config.as_deref()) {
                 Ok(config) => {
                   info!("Tauri configuration changed. Rewriting manifest...");
@@ -685,6 +688,7 @@ pub struct RustAppSettings {
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
   target_triple: String,
+  target: Target,
 }
 
 impl AppSettings for RustAppSettings {
@@ -954,6 +958,7 @@ impl RustAppSettings {
             .to_string()
         })
     });
+    let target = Target::from_triple(&target_triple);
 
     Ok(Self {
       manifest,
@@ -962,6 +967,7 @@ impl RustAppSettings {
       package_settings,
       cargo_config,
       target_triple,
+      target,
     })
   }
 
@@ -1066,9 +1072,9 @@ fn tauri_config_to_bundle_settings(
     if enabled_features.contains(&"tray-icon".into())
       || enabled_features.contains(&"tauri/tray-icon".into())
     {
-      let (tray_kind, path) = std::env::var("TAURI_TRAY")
-        .map(|kind| {
-          if kind == "ayatana" {
+      let (tray_kind, path) = std::env::var("TAURI_LINUX_AYATANA_APPINDICATOR")
+        .map(|ayatana| {
+          if ayatana == "true" || ayatana == "1" {
             (
               pkgconfig_utils::TrayKind::Ayatana,
               format!(
@@ -1098,7 +1104,7 @@ fn tauri_config_to_bundle_settings(
         }
       }
 
-      std::env::set_var("TRAY_LIBRARY_PATH", path);
+      std::env::set_var("TAURI_TRAY_LIBRARY_PATH", path);
     }
 
     // provides `libwebkit2gtk-4.1.so.37` and all `4.0` versions have the -37 package name

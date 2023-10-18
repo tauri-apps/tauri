@@ -110,7 +110,7 @@ pub(crate) struct PatternJavascript {
 #[allow(dead_code)]
 pub(crate) fn format_real_schema(schema: &str) -> String {
   if cfg!(windows) || cfg!(target_os = "android") {
-    format!("https://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
+    format!("http://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
   } else {
     format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}")
   }

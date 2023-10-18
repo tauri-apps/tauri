@@ -3,7 +3,7 @@ name = "bench_files_transfer"
 version = "0.1.0"
 description = "A very simple Tauri Application"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 
 [build-dependencies]
 tauri-build = { path = "../../../../../core/tauri-build", features = [ "codegen" ] }

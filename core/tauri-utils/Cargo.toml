@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.0.0-alpha.7"
+version = "2.0.0-alpha.8"
 description = "Utilities for Tauri"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -38,6 +38,7 @@ memchr = "2"
 semver = "1"
 infer = "0.15"
 dunce = "1"
+log = "0.4.20"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"

@@ -34,35 +34,35 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.65.0',
+              toolchain: '1.70.0',
               cross: false,
               command: 'test'
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.65.0',
+              toolchain: '1.70.0',
               cross: false,
               command: 'test'
             }
           - {
               target: x86_64-apple-darwin,
               os: macos-latest,
-              toolchain: '1.65.0',
+              toolchain: '1.70.0',
               cross: false,
               command: 'test'
             }
           - {
               target: aarch64-apple-ios,
               os: macos-latest,
-              toolchain: '1.65.0',
+              toolchain: '1.70.0',
               cross: false,
               command: 'build'
             }
           - {
               target: aarch64-linux-android,
               os: ubuntu-latest,
-              toolchain: '1.65.0',
+              toolchain: '1.70.0',
               cross: true,
               command: 'build'
             }
@@ -77,7 +77,7 @@ jobs:
             }
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install stable
         uses: actions-rs/toolchain@v1
@@ -95,17 +95,16 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
+          prefix-key: v2
           workspaces: core -> ../target
           save-if: ${{ matrix.features.key == 'all' }}
 
-      - name: Downgrade crates with MSRV conflict
-        # The --precise flag can only be used once per invocation.
+      - name: test (using cross)
+        if: ${{ matrix.platform.cross }}
         run: |
-          cargo update -p time --precise 0.3.23
+          cargo install cross --git https://github.com/cross-rs/cross
+          cross ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
 
-      - name: test
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: ${{ matrix.platform.cross }}
-          command: ${{ matrix.platform.command }}
-          args: --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
+      - name: test (using cargo)
+        if: ${{ !matrix.platform.cross }}
+        run: cargo ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

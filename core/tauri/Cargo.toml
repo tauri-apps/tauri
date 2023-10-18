@@ -80,7 +80,7 @@ tray-icon = { version = "0.8", default-features = false, optional = true }
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.16", features = [ "v3_24" ] }
 glib = "0.16"
-webkit2gtk = { version = "1.1", features = [ "v2_38" ] }
+webkit2gtk = { version = "2.0", features = [ "v2_38" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"

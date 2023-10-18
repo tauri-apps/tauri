@@ -21,7 +21,13 @@ declare global {
       convertFileSrc: (src: string, protocol: string) => string
     }
 
-    __TAURI_IPC__: (message: any) => void
+    __TAURI_IPC__: (message: {
+      cmd: string
+      callback: number
+      error: number
+      payload: unknown
+      options?: InvokeOptions
+    }) => void
   }
 }
 
@@ -38,15 +44,15 @@ function uid(): number {
  *
  * @since 1.0.0
  */
-function transformCallback(
-  callback?: (response: any) => void,
+function transformCallback<T = unknown>(
+  callback?: (response: T) => void,
   once = false
 ): number {
   const identifier = uid()
   const prop = `_${identifier}`
 
   Object.defineProperty(window, prop, {
-    value: (result: any) => {
+    value: (result: T) => {
       if (once) {
         Reflect.deleteProperty(window, prop)
       }

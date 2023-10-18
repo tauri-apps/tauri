@@ -832,35 +832,16 @@ impl<R: Runtime> WindowManager<R> {
       }
       .render_default(&Default::default())?
       .into_string(),
-      event_initialization_script: &self.event_initialization_script(),
+      event_initialization_script: &crate::event::event_initialization_script(
+        self.listeners().function_name(),
+        self.listeners().listeners_object_name(),
+      ),
       plugin_initialization_script,
       freeze_prototype,
     }
     .render_default(&Default::default())
     .map(|s| s.into_string())
     .map_err(Into::into)
-  }
-
-  fn event_initialization_script(&self) -> String {
-    format!(
-      "
-      Object.defineProperty(window, '{function}', {{
-        value: function (eventData) {{
-          const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
-
-          for (let i = listeners.length - 1; i >= 0; i--) {{
-            const listener = listeners[i]
-            if (listener.windowLabel === null || eventData.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
-              eventData.id = listener.id
-              listener.handler(eventData)
-            }}
-          }}
-        }}
-      }});
-    ",
-      function = self.listeners().function_name(),
-      listeners = self.listeners().listeners_object_name()
-    )
   }
 
   pub(crate) fn listeners(&self) -> &Listeners<R> {
@@ -1193,7 +1174,11 @@ impl<R: Runtime> WindowManager<R> {
     self
       .windows_lock()
       .values()
-      .filter(|&w| filter(w))
+      .filter(|w| {
+        w.has_js_listener(None, event)
+          || w.has_js_listener(source_window_label.map(Into::into), event)
+      })
+      .filter(|w| filter(&w))
       .try_for_each(|window| window.emit_js(event, source_window_label, payload.clone()))?;
 
     self
@@ -1214,6 +1199,10 @@ impl<R: Runtime> WindowManager<R> {
     self
       .windows_lock()
       .values()
+      .filter(|w| {
+        w.has_js_listener(None, event)
+          || w.has_js_listener(source_window_label.map(Into::into), event)
+      })
       .try_for_each(|window| window.emit_js(event, source_window_label, payload.clone()))?;
 
     self.listeners().emit(event, Some(payload))?;

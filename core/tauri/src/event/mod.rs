@@ -108,3 +108,26 @@ pub fn unlisten_js(listeners_object_name: &str, event_name: &str, event_id: Even
     ",
   )
 }
+
+pub fn event_initialization_script(function: &str, listeners: &str) -> String {
+  format!(
+    "
+    Object.defineProperty(window, '{function}', {{
+      value: function (eventData) {{
+        const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
+
+        for (let i = listeners.length - 1; i >= 0; i--) {{
+          const listener = listeners[i]
+          if (
+              (listener.windowLabel && listener.windowLabel === eventData.windowLabel) ||
+              (!listener.windowLabel && (listener.windowLabel === null || eventData.windowLabel === null))
+            ) {{
+            eventData.id = listener.id
+            listener.handler(eventData)
+          }}
+        }}
+      }}
+    }});
+  "
+  )
+}

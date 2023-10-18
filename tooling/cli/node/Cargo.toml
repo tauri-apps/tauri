@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 napi = { version = "2.13", default-features = false, features = ["napi4"] }
 napi-derive = "2.13"
 tauri-cli = { path = "..", default-features = false }
-log = "0.4.19"
+log = "0.4.20"
 
 [build-dependencies]
 napi-build = "2.0"

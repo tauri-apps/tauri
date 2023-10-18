@@ -40,7 +40,7 @@ path = "src/main.rs"
 
 [dependencies]
 clap_complete = "4"
-clap = { version = "4.0", features = [ "derive" ] }
+clap = { version = "4.3", features = [ "derive" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "1.4.3", path = "../bundler", default-features = false }
 colored = "2.0"
@@ -50,38 +50,38 @@ serde_json = "1.0"
 notify = "6.0"
 notify-debouncer-mini = "0.3"
 shared_child = "1.0"
-toml_edit = "0.14"
+toml_edit = "0.19"
 json-patch = "1.0"
 tauri-utils = { version = "1.5.0", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
-toml = "0.5"
-jsonschema = "0.16"
+toml = "0.7"
+jsonschema = "0.17"
 handlebars = "4.3"
 include_dir = "0.7"
-minisign = "=0.7.3"
-base64 = "0.21.0"
-ureq = { version = "2.5", default-features = false, features = [ "gzip" ] }
+minisign = "=0.7.5"
+base64 = "0.21.2"
+ureq = { version = "2.7", default-features = false, features = [ "gzip" ] }
 os_info = "3"
 semver = "1.0"
-regex = "1.6.0"
+regex = "1.9.3"
 unicode-width = "0.1"
-zeroize = "1.5"
+zeroize = "1.6"
 heck = { version = "0.4", features = [ "unicode" ] }
 dialoguer = "0.10"
-url = { version = "2.3", features = [ "serde" ] }
+url = { version = "2.4", features = [ "serde" ] }
 os_pipe = "1"
 ignore = "0.4"
-ctrlc = "3.2"
-log = { version = "0.4.17", features = [ "kv_unstable", "kv_unstable_std" ] }
-env_logger = "0.9.1"
+ctrlc = "3.4"
+log = { version = "0.4.20", features = [ "kv_unstable", "kv_unstable_std" ] }
+env_logger = "0.10.0"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.24", default-features = false, features = [ "ico" ] }
-axum = { version = "0.5.16", features = [ "ws" ] }
+axum = { version = "0.6.20", features = [ "ws" ] }
 html5ever = "0.26"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
 serde-value = "0.7.0"
-itertools = "0.10"
+itertools = "0.11"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }

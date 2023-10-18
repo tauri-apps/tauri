@@ -4,7 +4,7 @@
 
 use axum::{
   extract::{ws::WebSocket, WebSocketUpgrade},
-  http::{header::CONTENT_TYPE, Request, StatusCode},
+  http::{header::CONTENT_TYPE, StatusCode},
   response::IntoResponse,
   routing::get,
   Router, Server,
@@ -67,17 +67,9 @@ pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> crate::Re
         });
 
         let state = Arc::new(State { serve_dir, tx });
+        let state_ = state.clone();
         let router = Router::new()
-          .fallback(
-            Router::new().nest(
-              "/",
-              get({
-                let state = state.clone();
-                move |req| handler(req, state)
-              })
-              .handle_error(|_error| async move { StatusCode::INTERNAL_SERVER_ERROR }),
-            ),
-          )
+          .fallback(move |uri| handler(uri, state_))
           .route(
             "/_tauri-cli/ws",
             get(move |ws: WebSocketUpgrade| async move {
@@ -130,8 +122,8 @@ pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> crate::Re
   server_url_rx.recv().unwrap()
 }
 
-async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {
-  let uri = req.uri().to_string();
+async fn handler(uri: axum::http::Uri, state: Arc<State>) -> impl IntoResponse {
+  let uri = uri.to_string();
   let uri = if uri == "/" {
     &uri
   } else {

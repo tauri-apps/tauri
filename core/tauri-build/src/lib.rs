@@ -4,6 +4,7 @@
 
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+use anyhow::Context;
 pub use anyhow::Result;
 use cargo_toml::Manifest;
 use heck::AsShoutySnakeCase;
@@ -76,6 +77,113 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
     let resource = resource?;
     println!("cargo:rerun-if-changed={}", resource.path().display());
     copy_file(resource.path(), path.join(resource.target()))?;
+  }
+  Ok(())
+}
+
+#[cfg(unix)]
+fn symlink_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
+  std::os::unix::fs::symlink(src, dst)
+}
+
+/// Makes a symbolic link to a directory.
+#[cfg(windows)]
+fn symlink_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
+  std::os::windows::fs::symlink_dir(src, dst)
+}
+
+/// Makes a symbolic link to a file.
+#[cfg(unix)]
+fn symlink_file(src: &Path, dst: &Path) -> std::io::Result<()> {
+  std::os::unix::fs::symlink(src, dst)
+}
+
+/// Makes a symbolic link to a file.
+#[cfg(windows)]
+fn symlink_file(src: &Path, dst: &Path) -> std::io::Result<()> {
+  std::os::windows::fs::symlink_file(src, dst)
+}
+
+fn copy_dir(from: &Path, to: &Path) -> Result<()> {
+  for entry in walkdir::WalkDir::new(from) {
+    let entry = entry?;
+    debug_assert!(entry.path().starts_with(from));
+    let rel_path = entry.path().strip_prefix(from)?;
+    let dest_path = to.join(rel_path);
+    if entry.file_type().is_symlink() {
+      let target = std::fs::read_link(entry.path())?;
+      if entry.path().is_dir() {
+        symlink_dir(&target, &dest_path)?;
+      } else {
+        symlink_file(&target, &dest_path)?;
+      }
+    } else if entry.file_type().is_dir() {
+      std::fs::create_dir(dest_path)?;
+    } else {
+      std::fs::copy(entry.path(), dest_path)?;
+    }
+  }
+  Ok(())
+}
+
+// Copies the framework under `{src_dir}/{framework}.framework` to `{dest_dir}/{framework}.framework`.
+fn copy_framework_from(src_dir: &Path, framework: &str, dest_dir: &Path) -> Result<bool> {
+  let src_name = format!("{}.framework", framework);
+  let src_path = src_dir.join(&src_name);
+  if src_path.exists() {
+    copy_dir(&src_path, &dest_dir.join(&src_name))?;
+    Ok(true)
+  } else {
+    Ok(false)
+  }
+}
+
+// Copies the macOS application bundle frameworks to the target folder
+fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
+  std::fs::create_dir_all(dest_dir).with_context(|| {
+    format!(
+      "Failed to create frameworks output directory at {:?}",
+      dest_dir
+    )
+  })?;
+  for framework in frameworks.iter() {
+    if framework.ends_with(".framework") {
+      let src_path = PathBuf::from(framework);
+      let src_name = src_path
+        .file_name()
+        .expect("Couldn't get framework filename");
+      let dest_path = dest_dir.join(src_name);
+      copy_dir(&src_path, &dest_path)?;
+      continue;
+    } else if framework.ends_with(".dylib") {
+      let src_path = PathBuf::from(framework);
+      if !src_path.exists() {
+        return Err(anyhow::anyhow!("Library not found: {}", framework));
+      }
+      let src_name = src_path.file_name().expect("Couldn't get library filename");
+      let dest_path = dest_dir.join(src_name);
+      copy_file(&src_path, &dest_path)?;
+      continue;
+    } else if framework.contains('/') {
+      return Err(anyhow::anyhow!(
+        "Framework path should have .framework extension: {}",
+        framework
+      ));
+    }
+    if let Some(home_dir) = dirs_next::home_dir() {
+      if copy_framework_from(&home_dir.join("Library/Frameworks/"), framework, dest_dir)? {
+        continue;
+      }
+    }
+    if copy_framework_from(&PathBuf::from("/Library/Frameworks/"), framework, dest_dir)?
+      || copy_framework_from(
+        &PathBuf::from("/Network/Library/Frameworks/"),
+        framework,
+        dest_dir,
+      )?
+    {
+      continue;
+    }
   }
   Ok(())
 }
@@ -370,13 +478,26 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   if target_triple.contains("darwin") {
+    if let Some(frameworks) = &config.tauri.bundle.macos.frameworks {
+      if !frameworks.is_empty() {
+        let frameworks_dir = target_dir.parent().unwrap().join("Frameworks");
+        let _ = std::fs::remove_dir_all(&frameworks_dir);
+        // copy frameworks to the root `target` folder (instead of `target/debug` for instance)
+        // because the rpath is set to `@executable_path/../Frameworks`.
+        copy_frameworks(&frameworks_dir, frameworks)?;
+
+        // If we have frameworks, we need to set the @rpath
+        // https://github.com/tauri-apps/tauri/issues/7710
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Frameworks");
+      }
+    }
+
     if let Some(version) = &config.tauri.bundle.macos.minimum_system_version {
       println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
     }
   }
 
   if target_triple.contains("windows") {
-    use anyhow::Context;
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};
 
@@ -406,15 +527,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         res.set_manifest(include_str!("window-app-manifest.xml"));
       }
 
-      if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
-        if let Some(sdk_dir_str) = sdk_dir.to_str() {
-          res.set_toolkit_path(sdk_dir_str);
-        } else {
-          return Err(anyhow!(
-            "sdk_dir path is not valid; only UTF-8 characters are allowed"
-          ));
-        }
-      }
       if let Some(version_str) = &config.package.version {
         if let Ok(v) = Version::parse(version_str) {
           let version = v.major << 48 | v.minor << 32 | v.patch << 16;

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "1.4.0"
+version = "1.5.0"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
@@ -37,6 +37,7 @@ memchr = "2"
 semver = "1"
 infer = "0.12"
 dunce = "1"
+log = "0.4.20"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"

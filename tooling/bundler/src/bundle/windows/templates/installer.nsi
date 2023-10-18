@@ -1,5 +1,10 @@
 Unicode true
-SetCompressor /SOLID lzma
+; Set the compression algorithm. Default is LZMA.
+!if "{{compression}}" == ""
+  SetCompressor /SOLID lzma
+!else
+  SetCompressor /SOLID "{{compression}}"
+!endif
 
 !include MUI2.nsh
 !include FileFunc.nsh

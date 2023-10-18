@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 (function () {
+  const osName = __TEMPLATE_os_name__
+
   function toggleDevtoolsHotkey() {
-    const isHotkey = navigator.appVersion.includes("Mac")
-      ? (event) => event.metaKey && event.altKey && event.key === "I"
-      : (event) => event.ctrlKey && event.shiftKey && event.key === "I";
+    const isHotkey = osName === 'macos' ?
+      (event) => event.metaKey && event.altKey && event.code === "KeyI" :
+      (event) => event.ctrlKey && event.shiftKey && event.code === "KeyI";
 
     document.addEventListener("keydown", (event) => {
       if (isHotkey(event)) {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{SectionItem, Status};
+use super::{ActionResult, SectionItem};
 use crate::interface::rust::get_workspace_dir;
 use colored::Colorize;
 use serde::Deserialize;
@@ -195,6 +195,7 @@ fn crate_version(
 
 pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<SectionItem> {
   let mut items = Vec::new();
+
   if tauri_dir.is_some() || app_dir.is_some() {
     if let Some(tauri_dir) = tauri_dir {
       let manifest: Option<CargoManifest> =
@@ -211,30 +212,58 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<PathBuf>) -> Vec<Secti
       for dep in ["tauri", "tauri-build", "wry", "tao"] {
         let (version_string, version_suffix) =
           crate_version(&tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
-        let dep = dep.to_string();
-        let item = SectionItem::new(
-          move || {
-            Some((
-              format!(
-                "{} {}: {}{}",
-                dep,
-                "[RUST]".dimmed(),
-                version_string,
-                version_suffix
-                  .clone()
-                  .map(|s| format!(",{s}"))
-                  .unwrap_or_else(|| "".into())
-              ),
-              Status::Neutral,
-            ))
-          },
-          || None,
-          false,
-        );
+        let item = SectionItem::new().description(format!(
+          "{} {}: {}{}",
+          dep,
+          "[RUST]".dimmed(),
+          version_string,
+          version_suffix
+            .clone()
+            .map(|s| format!(",{s}"))
+            .unwrap_or_else(|| "".into())
+        ));
         items.push(item);
       }
     }
   }
+
+  let tauri_cli_rust_item = SectionItem::new().action(|| {
+    std::process::Command::new("cargo")
+      .arg("tauri")
+      .arg("-V")
+      .output()
+      .ok()
+      .map(|o| {
+        if o.status.success() {
+          let out = String::from_utf8_lossy(o.stdout.as_slice());
+          let (package, version) = out.split_once(' ').unwrap_or_default();
+          let latest_ver = crate_latest_version(package).unwrap_or_default();
+          format!(
+            "{} {}: {}{}",
+            package,
+            "[RUST]".dimmed(),
+            version.split_once('\n').unwrap_or_default().0,
+            if !(version.is_empty() || latest_ver.is_empty()) {
+              let version = semver::Version::parse(version).unwrap();
+              let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
+
+              if version < target_version {
+                format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
+              } else {
+                "".into()
+              }
+            } else {
+              "".into()
+            }
+          )
+          .into()
+        } else {
+          ActionResult::None
+        }
+      })
+      .unwrap_or_default()
+  });
+  items.push(tauri_cli_rust_item);
 
   items
 }

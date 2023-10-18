@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{cross_command, VersionMetadata};
-use super::{SectionItem, Status};
+use super::SectionItem;
+use super::{cross_command, env_nodejs::manager_version, VersionMetadata};
 use colored::Colorize;
 use serde::Deserialize;
 use std::fmt::Display;
@@ -20,6 +20,7 @@ enum PackageManager {
   Pnpm,
   Yarn,
   YarnBerry,
+  Bun,
 }
 
 impl Display for PackageManager {
@@ -32,6 +33,7 @@ impl Display for PackageManager {
         PackageManager::Pnpm => "pnpm",
         PackageManager::Yarn => "yarn",
         PackageManager::YarnBerry => "yarn berry",
+        PackageManager::Bun => "bun",
       }
     )
   }
@@ -94,6 +96,18 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
         Ok(None)
       }
     }
+    // Bun doesn't support `info` command
+    PackageManager::Bun => {
+      let mut cmd = cross_command("npm");
+
+      let output = cmd.arg("show").arg(name).arg("version").output()?;
+      if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        Ok(Some(stdout.replace('\n', "")))
+      } else {
+        Ok(None)
+      }
+    }
   }
 }
 
@@ -139,6 +153,16 @@ fn npm_package_version<P: AsRef<Path>>(
         .output()?,
       None,
     ),
+    // Bun doesn't support `list` command
+    PackageManager::Bun => (
+      cross_command("npm")
+        .arg("list")
+        .arg(name)
+        .args(["version", "--depth", "0"])
+        .current_dir(app_dir)
+        .output()?,
+      None,
+    ),
   };
   if output.status.success() {
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -158,6 +182,7 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
   let mut use_npm = false;
   let mut use_pnpm = false;
   let mut use_yarn = false;
+  let mut use_bun = false;
 
   for name in app_dir_entries {
     if name.as_ref() == "package-lock.json" {
@@ -166,10 +191,12 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
       use_pnpm = true;
     } else if name.as_ref() == "yarn.lock" {
       use_yarn = true;
+    } else if name.as_ref() == "bun.lockb" {
+      use_bun = true;
     }
   }
 
-  if !use_npm && !use_pnpm && !use_yarn {
+  if !use_npm && !use_pnpm && !use_yarn && !use_bun {
     println!(
       "{}: no lock files found, defaulting to npm",
       "WARNING".yellow()
@@ -188,6 +215,9 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
   if use_yarn {
     found.push(PackageManager::Yarn);
   }
+  if use_bun {
+    found.push(PackageManager::Bun);
+  }
 
   if found.len() > 1 {
     let pkg_manger = found[0];
@@ -204,16 +234,14 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
     PackageManager::Npm
   } else if use_pnpm {
     PackageManager::Pnpm
+  } else if use_bun {
+    PackageManager::Bun
   } else {
     PackageManager::Yarn
   }
 }
 
-pub fn items(
-  app_dir: Option<&PathBuf>,
-  metadata: &VersionMetadata,
-  yarn_version: Option<String>,
-) -> Vec<SectionItem> {
+pub fn items(app_dir: Option<&PathBuf>, metadata: &VersionMetadata) -> Vec<SectionItem> {
   let mut package_manager = PackageManager::Npm;
   if let Some(app_dir) = &app_dir {
     let app_dir_entries = std::fs::read_dir(app_dir)
@@ -224,7 +252,7 @@ pub fn items(
   }
 
   if package_manager == PackageManager::Yarn
-    && yarn_version
+    && manager_version("yarn")
       .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
       .unwrap_or(false)
   {
@@ -238,46 +266,40 @@ pub fn items(
       ("@tauri-apps/cli", Some(metadata.js_cli.version.clone())),
     ] {
       let app_dir = app_dir.clone();
-      let item = SectionItem::new(
-        move || {
-          let version = version.clone().unwrap_or_else(|| {
-            npm_package_version(&package_manager, package, &app_dir)
-              .unwrap_or_default()
-              .unwrap_or_default()
-          });
-          let latest_ver = npm_latest_version(&package_manager, package)
+      let item = SectionItem::new().action(move || {
+        let version = version.clone().unwrap_or_else(|| {
+          npm_package_version(&package_manager, package, &app_dir)
             .unwrap_or_default()
-            .unwrap_or_default();
+            .unwrap_or_default()
+        });
+        let latest_ver = npm_latest_version(&package_manager, package)
+          .unwrap_or_default()
+          .unwrap_or_default();
 
-          Some((
-            if version.is_empty() {
-              format!("{} {}: not installed!", package, "[NPM]".dimmed())
+        if version.is_empty() {
+          format!("{} {}: not installed!", package, "".green())
+        } else {
+          format!(
+            "{} {}: {}{}",
+            package,
+            "[NPM]".dimmed(),
+            version,
+            if !(version.is_empty() || latest_ver.is_empty()) {
+              let version = semver::Version::parse(version.as_str()).unwrap();
+              let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
+
+              if version < target_version {
+                format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
+              } else {
+                "".into()
+              }
             } else {
-              format!(
-                "{} {}: {}{}",
-                package,
-                "[NPM]".dimmed(),
-                version,
-                if !(version.is_empty() || latest_ver.is_empty()) {
-                  let version = semver::Version::parse(version.as_str()).unwrap();
-                  let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
-
-                  if version < target_version {
-                    format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
-                  } else {
-                    "".into()
-                  }
-                } else {
-                  "".into()
-                }
-              )
-            },
-            Status::Neutral,
-          ))
-        },
-        || None,
-        false,
-      );
+              "".into()
+            }
+          )
+        }
+        .into()
+      });
 
       items.push(item);
     }

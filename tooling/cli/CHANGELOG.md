@@ -1,5 +1,48 @@
 # Changelog
 
+## \[1.5.4]
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.4.3`
+
+## \[1.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.4.2`
+
+## \[1.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.4.1`
+
+## \[1.5.1]
+
+### Bug Fixes
+
+- [`d6eb46cf`](https://www.github.com/tauri-apps/tauri/commit/d6eb46cf1116d147121f6b6db9d390b5e2fb238d)([#7934](https://www.github.com/tauri-apps/tauri/pull/7934)) On macOS, fix the `apple-id` option name when using `notarytools submit`.
+
+## \[1.5.0]
+
+### New Features
+
+- [`e1526626`](https://www.github.com/tauri-apps/tauri/commit/e152662687ece7a62d383923a50751cc0dd34331)([#7723](https://www.github.com/tauri-apps/tauri/pull/7723)) Support Bun package manager in CLI
+
+### Enhancements
+
+- [`13279917`](https://www.github.com/tauri-apps/tauri/commit/13279917d4cae071d0ce3a686184d48af079f58a)([#7713](https://www.github.com/tauri-apps/tauri/pull/7713)) Add version of Rust Tauri CLI installed with Cargo to `tauri info` command.
+
+### Bug Fixes
+
+- [`dad4f54e`](https://www.github.com/tauri-apps/tauri/commit/dad4f54eec9773d2ea6233a7d9fd218741173823)([#7277](https://www.github.com/tauri-apps/tauri/pull/7277)) Removed the automatic version check of the CLI that ran after `tauri` commands which caused various issues.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.4.0`
+- Upgraded to `tauri-utils@1.5.0`
+
 ## \[1.4.0]
 
 ### New Features

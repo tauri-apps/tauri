@@ -438,6 +438,21 @@ pub struct WixConfig {
   pub dialog_image_path: Option<PathBuf>,
 }
 
+/// Compression algorithms used in the NSIS installer.
+///
+/// See <https://nsis.sourceforge.io/Reference/SetCompressor>
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum NsisCompression {
+  /// ZLIB uses the deflate algorithm, it is a quick and simple method. With the default compression level it uses about 300 KB of memory.
+  Zlib,
+  /// BZIP2 usually gives better compression ratios than ZLIB, but it is a bit slower and uses more memory. With the default compression level it uses about 4 MB of memory.
+  Bzip2,
+  /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
+  Lzma,
+}
+
 /// Configuration for the Installer bundle using NSIS.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -480,6 +495,10 @@ pub struct NsisConfig {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   #[serde(default, alias = "display-language-selector")]
   pub display_language_selector: bool,
+  /// Set the compression algorithm used to compress files in the installer.
+  ///
+  /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
+  pub compression: Option<NsisCompression>,
 }
 
 /// Install Modes for the NSIS installer.
@@ -1307,6 +1326,11 @@ pub struct SecurityConfig {
   /// vulnerable to dangerous Tauri command related attacks otherwise.
   #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
   pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
+  /// Sets whether the custom protocols should use `http://<scheme>.localhost` instead of the default `https://<scheme>.localhost` on Windows.
+  ///
+  /// **WARNING:** Using a `http` scheme will allow mixed content when trying to fetch `http` endpoints and is therefore less secure but will match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+  #[serde(default, alias = "dangerous-use-http-scheme")]
+  pub dangerous_use_http_scheme: bool,
 }
 
 /// Defines an allowlist type.
@@ -3717,6 +3741,7 @@ mod build {
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
+      let dangerous_use_http_scheme = &self.dangerous_use_http_scheme;
       let dangerous_remote_domain_ipc_access =
         vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
 
@@ -3727,7 +3752,8 @@ mod build {
         dev_csp,
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
-        dangerous_remote_domain_ipc_access
+        dangerous_remote_domain_ipc_access,
+        dangerous_use_http_scheme
       );
     }
   }
@@ -3994,6 +4020,7 @@ mod test {
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
         dangerous_remote_domain_ipc_access: Vec::new(),
+        dangerous_use_http_scheme: false,
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

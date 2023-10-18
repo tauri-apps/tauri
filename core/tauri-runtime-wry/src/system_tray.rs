@@ -32,8 +32,10 @@ use crate::{send_user_message, Context, Error, Message, Result, TrayId, TrayMess
 use tauri_runtime::{menu::MenuHash, SystemTray, UserEvent};
 
 use std::{
+  cell::RefCell,
   collections::HashMap,
   fmt,
+  rc::Rc,
   sync::{Arc, Mutex},
 };
 
@@ -41,12 +43,12 @@ pub type GlobalSystemTrayEventHandler = Box<dyn Fn(TrayId, &SystemTrayEvent) + S
 pub type GlobalSystemTrayEventListeners = Arc<Mutex<Vec<Arc<GlobalSystemTrayEventHandler>>>>;
 
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
-pub type SystemTrayEventListeners = Arc<Mutex<Vec<Arc<SystemTrayEventHandler>>>>;
-pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
+pub type SystemTrayEventListeners = Rc<RefCell<Vec<Rc<SystemTrayEventHandler>>>>;
+pub type SystemTrayItems = Rc<RefCell<HashMap<u16, WryCustomMenuItem>>>;
 
 #[derive(Clone, Default)]
 pub struct TrayContext {
-  pub tray: Arc<Mutex<Option<WrySystemTray>>>,
+  pub tray: Rc<RefCell<Option<WrySystemTray>>>,
   pub listeners: SystemTrayEventListeners,
   pub items: SystemTrayItems,
 }

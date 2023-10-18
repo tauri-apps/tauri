@@ -140,6 +140,7 @@ mod desktop_commands {
   setter!(set_shadow, bool);
   setter!(set_effects, Option<WindowEffectsConfig>);
   setter!(set_always_on_top, bool);
+  setter!(set_always_on_bottom, bool);
   setter!(set_content_protected, bool);
   setter!(set_size, Size);
   setter!(set_min_size, Option<Size>);
@@ -290,6 +291,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_shadow,
             desktop_commands::set_effects,
             desktop_commands::set_always_on_top,
+            desktop_commands::set_always_on_bottom,
             desktop_commands::set_content_protected,
             desktop_commands::set_size,
             desktop_commands::set_min_size,

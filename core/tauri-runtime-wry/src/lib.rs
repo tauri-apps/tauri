@@ -627,6 +627,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         .fullscreen(config.fullscreen)
         .decorations(config.decorations)
         .maximized(config.maximized)
+        .always_on_bottom(config.always_on_bottom)
         .always_on_top(config.always_on_top)
         .visible_on_all_workspaces(config.visible_on_all_workspaces)
         .content_protected(config.content_protected)
@@ -742,6 +743,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn decorations(mut self, decorations: bool) -> Self {
     self.inner = self.inner.with_decorations(decorations);
+    self
+  }
+
+  fn always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.inner = self.inner.with_always_on_bottom(always_on_bottom);
     self
   }
 
@@ -1022,6 +1028,7 @@ pub enum WindowMessage {
   Close,
   SetDecorations(bool),
   SetShadow(bool),
+  SetAlwaysOnBottom(bool),
   SetAlwaysOnTop(bool),
   SetVisibleOnAllWorkspaces(bool),
   SetContentProtected(bool),
@@ -1410,6 +1417,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetShadow(enable)),
+    )
+  }
+
+  fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetAlwaysOnBottom(always_on_bottom),
+      ),
     )
   }
 
@@ -2288,6 +2305,9 @@ fn handle_user_message<T: UserEvent>(
             window.set_undecorated_shadow(_enable);
             #[cfg(target_os = "macos")]
             window.set_has_shadow(_enable);
+          }
+          WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
+            window.set_always_on_bottom(always_on_bottom)
           }
           WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
           WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => {

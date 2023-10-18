@@ -283,6 +283,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn always_on_bottom(self, always_on_bottom: bool) -> Self {
+    self
+  }
+
   fn always_on_top(self, always_on_top: bool) -> Self {
     self
   }
@@ -597,6 +601,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_shadow(&self, shadow: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
     Ok(())
   }
 

@@ -13,7 +13,6 @@
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
-  http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   monitor::Monitor,
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
@@ -22,6 +21,7 @@ use tauri_runtime::{
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
   RunEvent, RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
+  WindowEventId,
 };
 
 #[cfg(windows)]
@@ -41,8 +41,9 @@ use wry::webview::WebViewBuilderExtWindows;
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
-use uuid::Uuid;
+use tauri_utils::{
+  config::WindowConfig, debug_eprintln, ProgressBarState, ProgressBarStatus, Theme,
+};
 use wry::{
   application::{
     dpi::{
@@ -57,11 +58,11 @@ use wry::{
     },
     monitor::MonitorHandle,
     window::{
-      CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon, Theme as WryTheme,
-      UserAttentionType as WryUserAttentionType,
+      CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon,
+      ProgressBarState as WryProgressBarState, ProgressState as WryProgressState,
+      Theme as WryTheme, UserAttentionType as WryUserAttentionType,
     },
   },
-  http::{Request as WryRequest, Response as WryResponse},
   webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
 };
 
@@ -85,7 +86,6 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
-  borrow::Cow,
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
@@ -94,14 +94,16 @@ use std::{
   fmt,
   ops::Deref,
   path::PathBuf,
+  rc::Rc,
   sync::{
+    atomic::{AtomicU32, Ordering},
     mpsc::{channel, Sender},
     Arc, Mutex, Weak,
   },
   thread::{current as current_thread, ThreadId},
 };
 
-pub type WebviewId = u64;
+pub type WebviewId = u32;
 type IpcHandler = dyn Fn(&Window, String) + 'static;
 type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 
@@ -111,7 +113,7 @@ pub use webview::Webview;
 pub type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
 // window
 pub type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
-pub type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
+pub type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventHandler>>>;
 
 #[derive(Debug, Clone, Default)]
 pub struct WebviewIdStore(Arc<Mutex<HashMap<WindowId, WebviewId>>>);
@@ -173,6 +175,9 @@ pub struct Context<T: UserEvent> {
   pub proxy: WryEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
   plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
+  next_window_id: Arc<AtomicU32>,
+  next_window_event_id: Arc<AtomicU32>,
+  next_webcontext_id: Arc<AtomicU32>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -186,6 +191,18 @@ impl<T: UserEvent> Context<T> {
       None
     })
   }
+
+  fn next_window_id(&self) -> WebviewId {
+    self.next_window_id.fetch_add(1, Ordering::Relaxed)
+  }
+
+  fn next_window_event_id(&self) -> WebviewId {
+    self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
+  }
+
+  fn next_webcontext_id(&self) -> WebviewId {
+    self.next_webcontext_id.fetch_add(1, Ordering::Relaxed)
+  }
 }
 
 impl<T: UserEvent> Context<T> {
@@ -196,7 +213,7 @@ impl<T: UserEvent> Context<T> {
   ) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
     let context = self.clone();
-    let window_id = rand::random();
+    let window_id = self.next_window_id();
 
     send_user_message(
       self,
@@ -227,7 +244,7 @@ impl<T: UserEvent> Context<T> {
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
-  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 }
 
 impl<T: UserEvent> std::fmt::Debug for DispatcherMainThreadContext<T> {
@@ -255,39 +272,6 @@ impl<T: UserEvent> fmt::Debug for Context<T> {
       .field("proxy", &self.proxy)
       .field("main_thread", &self.main_thread)
       .finish()
-  }
-}
-
-struct HttpRequestWrapper(HttpRequest);
-
-impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
-  fn from(req: &WryRequest<Vec<u8>>) -> Self {
-    let parts = RequestParts {
-      uri: req.uri().to_string(),
-      method: req.method().clone(),
-      headers: req.headers().clone(),
-    };
-    Self(HttpRequest::new_internal(parts, req.body().clone()))
-  }
-}
-
-// response
-struct HttpResponseWrapper(WryResponse<Cow<'static, [u8]>>);
-impl From<HttpResponse> for HttpResponseWrapper {
-  fn from(response: HttpResponse) -> Self {
-    let (parts, body) = response.into_parts();
-    let mut res_builder = WryResponse::builder()
-      .status(parts.status)
-      .version(parts.version);
-    if let Some(mime) = parts.mimetype {
-      res_builder = res_builder.header(CONTENT_TYPE, mime);
-    }
-    for (name, val) in parts.headers.iter() {
-      res_builder = res_builder.header(name, val);
-    }
-
-    let res = res_builder.body(body).unwrap();
-    Self(res)
   }
 }
 
@@ -539,6 +523,35 @@ impl From<CursorIcon> for CursorIconWrapper {
   }
 }
 
+pub struct ProgressStateWrapper(pub WryProgressState);
+
+impl From<ProgressBarStatus> for ProgressStateWrapper {
+  fn from(status: ProgressBarStatus) -> Self {
+    let state = match status {
+      ProgressBarStatus::None => WryProgressState::None,
+      ProgressBarStatus::Normal => WryProgressState::Normal,
+      ProgressBarStatus::Indeterminate => WryProgressState::Indeterminate,
+      ProgressBarStatus::Paused => WryProgressState::Paused,
+      ProgressBarStatus::Error => WryProgressState::Error,
+    };
+    Self(state)
+  }
+}
+
+pub struct ProgressBarStateWrapper(pub WryProgressBarState);
+
+impl From<ProgressBarState> for ProgressBarStateWrapper {
+  fn from(progress_state: ProgressBarState) -> Self {
+    Self(WryProgressBarState {
+      progress: progress_state.progress,
+      state: progress_state
+        .status
+        .map(|state| ProgressStateWrapper::from(state).0),
+      unity_uri: progress_state.unity_uri,
+    })
+  }
+}
+
 #[derive(Clone, Default)]
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
@@ -614,6 +627,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         .fullscreen(config.fullscreen)
         .decorations(config.decorations)
         .maximized(config.maximized)
+        .always_on_bottom(config.always_on_bottom)
         .always_on_top(config.always_on_top)
         .visible_on_all_workspaces(config.visible_on_all_workspaces)
         .content_protected(config.content_protected)
@@ -729,6 +743,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn decorations(mut self, decorations: bool) -> Self {
     self.inner = self.inner.with_decorations(decorations);
+    self
+  }
+
+  fn always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.inner = self.inner.with_always_on_bottom(always_on_bottom);
     self
   }
 
@@ -944,7 +963,7 @@ pub enum ApplicationMessage {
 
 pub enum WindowMessage {
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
-  AddEventListener(Uuid, Box<dyn Fn(&WindowEvent) + Send>),
+  AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
   // Devtools
   #[cfg(any(debug_assertions, feature = "devtools"))]
   OpenDevTools,
@@ -1009,6 +1028,7 @@ pub enum WindowMessage {
   Close,
   SetDecorations(bool),
   SetShadow(bool),
+  SetAlwaysOnBottom(bool),
   SetAlwaysOnTop(bool),
   SetVisibleOnAllWorkspaces(bool),
   SetContentProtected(bool),
@@ -1025,6 +1045,7 @@ pub enum WindowMessage {
   SetCursorIcon(CursorIcon),
   SetCursorPosition(Position),
   SetIgnoreCursorEvents(bool),
+  SetProgressBar(ProgressBarState),
   DragWindow,
   RequestRedraw,
 }
@@ -1091,8 +1112,8 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
-    let id = Uuid::new_v4();
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
+    let id = self.context.next_window_event_id();
     let _ = self.context.proxy.send_event(Message::Window(
       self.window_id,
       WindowMessage::AddEventListener(id, Box::new(f)),
@@ -1399,6 +1420,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetAlwaysOnBottom(always_on_bottom),
+      ),
+    )
+  }
+
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1539,12 +1570,22 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
       ),
     )
   }
+
+  fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetProgressBar(progress_state),
+      ),
+    )
+  }
 }
 
 #[derive(Clone)]
 enum WindowHandle {
   Webview {
-    inner: Arc<WebView>,
+    inner: Rc<WebView>,
     context_store: WebContextStore,
     // the key of the WebContext if it's not shared
     context_key: Option<PathBuf>,
@@ -1560,7 +1601,7 @@ impl Drop for WindowHandle {
       context_key,
     } = self
     {
-      if Arc::get_mut(inner).is_some() {
+      if Rc::get_mut(inner).is_some() {
         context_store.lock().unwrap().remove(context_key);
       }
     }
@@ -1675,11 +1716,9 @@ impl<T: UserEvent> WryHandle<T> {
     &self,
     f: F,
   ) -> Result<Weak<Window>> {
+    let id = self.context.next_window_id();
     let (tx, rx) = channel();
-    send_user_message(
-      &self.context,
-      Message::CreateWindow(rand::random(), Box::new(f), tx),
-    )?;
+    send_user_message(&self.context, Message::CreateWindow(id, Box::new(f), tx))?;
     rx.recv().unwrap()
   }
 
@@ -1816,7 +1855,7 @@ impl<T: UserEvent> Wry<T> {
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 
-    let windows = Arc::new(RefCell::new(HashMap::default()));
+    let windows = Rc::new(RefCell::new(HashMap::default()));
     let webview_id_map = WebviewIdStore::default();
 
     let context = Context {
@@ -1829,6 +1868,9 @@ impl<T: UserEvent> Wry<T> {
         windows,
       },
       plugins: Default::default(),
+      next_window_id: Default::default(),
+      next_window_event_id: Default::default(),
+      next_webcontext_id: Default::default(),
     };
 
     Ok(Self {
@@ -1885,7 +1927,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
-    let window_id = rand::random();
+    let window_id = self.context.next_window_id();
 
     let webview = create_webview(
       window_id,
@@ -2056,11 +2098,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
-  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 }
 
 struct UserMessageContext {
-  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   webview_id_map: WebviewIdStore,
 }
 
@@ -2264,6 +2306,9 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(target_os = "macos")]
             window.set_has_shadow(_enable);
           }
+          WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
+            window.set_always_on_bottom(always_on_bottom)
+          }
           WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
           WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => {
             window.set_visible_on_all_workspaces(visible_on_all_workspaces)
@@ -2319,6 +2364,9 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::RequestRedraw => {
             window.request_redraw();
+          }
+          WindowMessage::SetProgressBar(progress_state) => {
+            window.set_progress_bar(ProgressBarStateWrapper::from(progress_state).0);
           }
         }
       }
@@ -2529,7 +2577,7 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
-  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 ) {
   let (tx, rx) = channel();
   let windows_ref = windows.borrow();
@@ -2557,7 +2605,7 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WebviewId, windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
+fn on_window_close(window_id: WebviewId, windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
   if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }
@@ -2696,15 +2744,17 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   if let Some(handler) = ipc_handler {
     webview_builder =
-      webview_builder.with_ipc_handler(create_ipc_handler(context, label.clone(), handler));
+      webview_builder.with_ipc_handler(create_ipc_handler(context.clone(), label.clone(), handler));
   }
 
   for (scheme, protocol) in uri_scheme_protocols {
-    webview_builder = webview_builder.with_custom_protocol(scheme, move |wry_request| {
-      protocol(&HttpRequestWrapper::from(wry_request).0)
-        .map(|tauri_response| HttpResponseWrapper::from(tauri_response).0)
-        .map_err(|_| wry::Error::InitScriptError)
-    });
+    webview_builder =
+      webview_builder.with_asynchronous_custom_protocol(scheme, move |request, responder| {
+        protocol(
+          request,
+          Box::new(move |response| responder.respond(response)),
+        )
+      });
   }
 
   for script in webview_attributes.initialization_scripts {
@@ -2713,14 +2763,15 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let mut web_context = web_context_store.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
-  let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
+  let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
   let web_context_key = // force a unique WebContext when automation is false;
     // the context must be stored on the HashMap because it must outlive the WebView on macOS
     if automation_enabled {
       webview_attributes.data_directory.clone()
     } else {
-      // random unique key
-      Some(Uuid::new_v4().as_hyphenated().to_string().into())
+      // unique key
+      let key = context.next_webcontext_id().to_string().into();
+      Some(key)
     };
   let entry = web_context.entry(web_context_key.clone());
   let web_context = match entry {
@@ -2803,7 +2854,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   Ok(WindowWrapper {
     label,
     inner: Some(WindowHandle::Webview {
-      inner: Arc::new(webview),
+      inner: Rc::new(webview),
       context_store: web_context_store.clone(),
       context_key: if automation_enabled {
         None

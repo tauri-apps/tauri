@@ -13,6 +13,7 @@
 
 pub use anyhow::Result;
 
+mod add;
 mod build;
 mod completions;
 mod dev;
@@ -97,19 +98,20 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-  Build(build::Options),
-  Dev(dev::Options),
-  Icon(icon::Options),
-  Info(info::Options),
   Init(init::Options),
-  Plugin(plugin::Cli),
-  Signer(signer::Cli),
-  Completions(completions::Options),
+  Dev(dev::Options),
+  Build(build::Options),
   Android(mobile::android::Cli),
   #[cfg(target_os = "macos")]
   Ios(mobile::ios::Cli),
   /// Migrate from v1 to v2
   Migrate,
+  Info(info::Options),
+  Add(add::Options),
+  Plugin(plugin::Cli),
+  Icon(icon::Options),
+  Signer(signer::Cli),
+  Completions(completions::Options),
 }
 
 fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
@@ -205,6 +207,7 @@ where
   match cli.command {
     Commands::Build(options) => build::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
+    Commands::Add(options) => add::command(options)?,
     Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,
@@ -274,9 +277,8 @@ impl CommandExt for Command {
       let mut lines = stdout_lines_.lock().unwrap();
       loop {
         buf.clear();
-        match tauri_utils::io::read_line(&mut stdout, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        if let Ok(0) = tauri_utils::io::read_line(&mut stdout, &mut buf) {
+          break;
         }
         debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
         lines.extend(buf.clone());
@@ -292,9 +294,8 @@ impl CommandExt for Command {
       let mut lines = stderr_lines_.lock().unwrap();
       loop {
         buf.clear();
-        match tauri_utils::io::read_line(&mut stderr, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        if let Ok(0) = tauri_utils::io::read_line(&mut stderr, &mut buf) {
+          break;
         }
         debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
         lines.extend(buf.clone());

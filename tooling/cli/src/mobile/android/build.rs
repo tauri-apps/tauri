@@ -20,7 +20,7 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use tauri_mobile::{
+use cargo_mobile2::{
   android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
   opts::{NoiseLevel, Profile},
   target::TargetTrait,
@@ -29,7 +29,10 @@ use tauri_mobile::{
 use std::env::{set_current_dir, set_var};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Android build")]
+#[clap(
+  about = "Build your app in release mode for Android and generate APKs and AABs",
+  long_about = "Build your app in release mode for Android and generate APKs and AABs. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`."
+)]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]
@@ -84,7 +87,10 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let tauri_config = get_tauri_config(
+    tauri_utils::platform::Target::Android,
+    options.config.as_deref(),
+  )?;
   let (app, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
@@ -163,7 +169,11 @@ fn run_build(
       .triple
       .into(),
   );
-  let interface = crate::build::setup(&mut build_options, true)?;
+  let interface = crate::build::setup(
+    tauri_utils::platform::Target::Android,
+    &mut build_options,
+    true,
+  )?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,

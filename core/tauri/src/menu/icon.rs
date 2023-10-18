@@ -115,7 +115,7 @@ impl<R: Runtime> IconMenuItem<R> {
     let item = muda::IconMenuItem::with_native_icon(
       text,
       enabled,
-      native_icon,
+      native_icon.map(Into::into),
       acccelerator.and_then(|s| s.as_ref().parse().ok()),
     );
     Self {
@@ -144,7 +144,7 @@ impl<R: Runtime> IconMenuItem<R> {
       id,
       text,
       enabled,
-      native_icon,
+      native_icon.map(Into::into),
       acccelerator.and_then(|s| s.as_ref().parse().ok()),
     );
     Self {
@@ -205,9 +205,11 @@ impl<R: Runtime> IconMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux**: Unsupported.
-  pub fn set_native_icon(&mut self, _icon: Option<NativeIcon>) -> crate::Result<()> {
+  pub fn set_native_icon(&self, _icon: Option<NativeIcon>) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    return run_main_thread!(self, |mut self_: Self| self_.inner.set_native_icon(_icon));
+    return run_main_thread!(self, |self_: Self| self_
+      .inner
+      .set_native_icon(_icon.map(Into::into)));
     #[allow(unreachable_code)]
     Ok(())
   }

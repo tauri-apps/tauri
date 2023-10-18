@@ -53,10 +53,10 @@
     "eslint-plugin-security": "1.7.1",
     "prettier": "3.0.3",
     "tsup": "7.2.0",
-    "typedoc": "0.24.8",
-    "typedoc-plugin-markdown": "3.15.4",
-    "typedoc-plugin-mdn-links": "3.0.3",
-    "typescript": "5.1.6"
+    "typedoc": "0.25.2",
+    "typedoc-plugin-markdown": "3.16.0",
+    "typedoc-plugin-mdn-links": "3.1.0",
+    "typescript": "5.2.2"
   },
   "resolutions": {
     "semver": ">=7.5.2"

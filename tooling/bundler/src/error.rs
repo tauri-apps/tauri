@@ -111,17 +111,7 @@ pub enum Error {
   /// Rpm error.
   #[cfg(target_os = "linux")]
   #[error("{0}")]
-  RpmError(String),
-}
-
-// We do not use #[from] from thiserror, because rpm::Error does not
-// currently implement Send and Sync, and as such we do not want to have
-// RpmError(rpm::Error).
-#[cfg(target_os = "linux")]
-impl From<rpm::Error> for Error {
-  fn from(e: rpm::Error) -> Self {
-    Self::RpmError(e.to_string())
-  }
+  RpmError(#[from] rpm::Error),
 }
 
 /// Convenient type alias of Result type.

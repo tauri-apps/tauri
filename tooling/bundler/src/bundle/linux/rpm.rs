@@ -36,10 +36,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .or_else(|| settings.license())
     .unwrap_or_default();
 
-  // This description is currently used as both summary and description.
-  // Waiting for a new release of crate "rpm", with https://github.com/rpm-rs/rpm/pull/178
-  // to have both summary and description.
-  let desc = settings.short_description();
+  let summary = settings.short_description().trim();
 
   let package_base_name = format!("{name}-{version}-{release}.{arch}");
   let package_name = format!("{package_base_name}.rpm");
@@ -55,9 +52,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
-  let mut builder = rpm::PackageBuilder::new(name, version, license, arch, desc)
+  let mut builder = rpm::PackageBuilder::new(name, version, license, arch, summary)
     .epoch(epoch)
     .release(release);
+
+  if let Some(description) = settings.long_description() {
+    builder = builder.description(description.trim())
+  }
 
   // Add requirements
   for dep in settings.rpm().depends.as_ref().cloned().unwrap_or_default() {
@@ -134,9 +135,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   let pkg = if let Ok(raw_secret_key) = env::var("RPM_SIGN_KEY") {
-    // Does not support password-protected PGP keys
-    // Cf https://github.com/rpm-rs/rpm/issues/179
-    let signer = pgp::Signer::load_from_asc(&raw_secret_key)?;
+    let mut signer = pgp::Signer::load_from_asc(&raw_secret_key)?;
+    if let Ok(passphrase) = env::var("RPM_SIGN_KEY_PASSPHRASE") {
+      signer = signer.with_key_passphrase(passphrase);
+    }
     builder.build_and_sign(signer)?
   } else {
     builder.build()?

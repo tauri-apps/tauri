@@ -172,12 +172,12 @@ impl CommandExt for Command {
         if let Ok(0) = tauri_utils::io::read_line(&mut stdout, &mut buf) {
           break;
         }
-        if buf.ends_with(&[b'\n']) {
-          buf.pop();
+        let mut line = String::from_utf8_lossy(&buf);
+        if line.ends_with('\n') {
+          line.to_mut().pop();
         }
-        debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
+        debug!(action = "stdout"; "{line}");
         lines.extend(buf.clone());
-        lines.push(b'\n');
       }
     });
 
@@ -192,12 +192,12 @@ impl CommandExt for Command {
         if let Ok(0) = tauri_utils::io::read_line(&mut stderr, &mut buf) {
           break;
         }
-        if buf.ends_with(&[b'\n']) {
-          buf.pop();
+        let mut line = String::from_utf8_lossy(&buf);
+        if line.ends_with('\n') {
+          line.to_mut().pop();
         }
-        debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
+        debug!(action = "stderr"; "{line}");
         lines.extend(buf.clone());
-        lines.push(b'\n');
       }
     });
 

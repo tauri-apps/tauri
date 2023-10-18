@@ -200,7 +200,9 @@ impl Section<'_> {
 }
 
 #[derive(Debug, Parser)]
-#[clap(about = "Shows information about Tauri dependencies and project configuration")]
+#[clap(
+  about = "Show a concise list of information about the environment, Rust, Node.js and their versions as well as a few relevant project configurations"
+)]
 pub struct Options {
   /// Interactive mode to apply automatic fixes.
   #[clap(long)]

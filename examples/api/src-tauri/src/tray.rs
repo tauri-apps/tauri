@@ -101,7 +101,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
 
       _ => {}
     })
-    .on_tray_event(|tray, event| {
+    .on_tray_icon_event(|tray, event| {
       if event.click_type == ClickType::Left {
         let app = tray.app_handle();
         if let Some(window) = app.get_window("main") {

@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::path::SafePathBuf;
-use crate::scope::FsScope;
-use crate::window::UriSchemeProtocolHandler;
+use crate::{path::SafePathBuf, scope, window::UriSchemeProtocolHandler};
 use http::{header::*, status::StatusCode, Request, Response};
 use http_range::HttpRange;
-use rand::RngCore;
 use std::{borrow::Cow, io::SeekFrom};
 use tauri_utils::debug_eprintln;
 use tauri_utils::mime_type::MimeType;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-pub fn get(scope: FsScope, window_origin: String) -> UriSchemeProtocolHandler {
+pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
   Box::new(
     move |request, responder| match get_response(request, &scope, &window_origin) {
       Ok(response) => responder.respond(response),
@@ -31,7 +28,7 @@ pub fn get(scope: FsScope, window_origin: String) -> UriSchemeProtocolHandler {
 
 fn get_response(
   request: Request<Vec<u8>>,
-  scope: &FsScope,
+  scope: &scope::fs::Scope,
   window_origin: &str,
 ) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
   // skip leading `/`
@@ -229,7 +226,7 @@ fn get_response(
 
 fn random_boundary() -> String {
   let mut x = [0_u8; 30];
-  rand::thread_rng().fill_bytes(&mut x);
+  getrandom::getrandom(&mut x).expect("failed to get random bytes");
   (x[..])
     .iter()
     .map(|&x| format!("{x:x}"))

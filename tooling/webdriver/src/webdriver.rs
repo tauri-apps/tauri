@@ -45,7 +45,7 @@ pub fn native(args: &Args) -> Command {
   };
 
   let mut cmd = Command::new(native_binary);
-  cmd.env("TAURI_AUTOMATION", "true");
+  cmd.env("TAURI_WEBVIEW_AUTOMATION", "true");
   cmd.arg(format!("--port={}", args.native_port));
   cmd.arg(format!("--host={}", args.native_host));
   cmd

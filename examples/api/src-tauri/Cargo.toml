@@ -3,7 +3,7 @@ name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 license = "Apache-2.0 OR MIT"
 
 [lib]

@@ -15,16 +15,13 @@ use crate::{
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
-  scope::IpcScope,
+  scope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
   Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
   StateManager, Theme, Window,
 };
-
-#[cfg(feature = "protocol-asset")]
-use crate::scope::FsScope;
 
 #[cfg(desktop)]
 use crate::menu::{Menu, MenuEvent};
@@ -58,6 +55,8 @@ use crate::runtime::RuntimeHandle;
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
+
+pub(crate) mod plugin;
 
 #[cfg(desktop)]
 pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync>;
@@ -534,8 +533,8 @@ macro_rules! shared_app_impl {
           .push(Box::new(handler));
       }
 
-      /// Gets the first tray icon registerd, usually the one configured in
-      /// tauri config file.
+      /// Gets the first tray icon registered,
+      /// usually the one configured in the Tauri configuration file.
       #[cfg(all(desktop, feature = "tray-icon"))]
       #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn tray(&self) -> Option<TrayIcon<R>> {
@@ -808,8 +807,10 @@ shared_app_impl!(AppHandle<R>);
 
 impl<R: Runtime> App<R> {
   fn register_core_plugins(&self) -> crate::Result<()> {
-    self.handle.plugin(crate::path::init())?;
-    self.handle.plugin(crate::event::init())?;
+    self.handle.plugin(crate::path::plugin::init())?;
+    self.handle.plugin(crate::event::plugin::init())?;
+    self.handle.plugin(crate::window::plugin::init())?;
+    self.handle.plugin(crate::app::plugin::init())?;
     Ok(())
   }
 
@@ -974,7 +975,7 @@ pub struct Builder<R: Runtime> {
   /// The JS message responder.
   invoke_responder: Option<Arc<InvokeResponder<R>>>,
 
-  /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
+  /// The script that initializes the `window.__TAURI_INTERNALS__.postMessage` function.
   invoke_initialization_script: String,
 
   /// The setup hook.
@@ -1092,7 +1093,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
   ///
-  /// The `initialization_script` is a script that initializes `window.__TAURI_POST_MESSAGE__`.
+  /// The `initialization_script` is a script that initializes `window.__TAURI_INTERNALS__.postMessage`.
   /// That function must take the `(message: object, options: object)` arguments and send it to the backend.
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
@@ -1576,9 +1577,12 @@ impl<R: Runtime> Builder<R> {
     app.manage(env);
 
     app.manage(Scopes {
-      ipc: IpcScope::new(&app.config()),
+      ipc: scope::ipc::Scope::new(&app.config()),
       #[cfg(feature = "protocol-asset")]
-      asset_protocol: FsScope::for_fs_api(&app, &app.config().tauri.security.asset_protocol.scope)?,
+      asset_protocol: scope::fs::Scope::for_fs_api(
+        &app,
+        &app.config().tauri.security.asset_protocol.scope,
+      )?,
     });
 
     app.manage(ChannelDataIpcQueue::default());
@@ -1615,9 +1619,10 @@ impl<R: Runtime> Builder<R> {
     {
       let config = app.config();
       if let Some(tray_config) = &config.tauri.tray_icon {
-        let mut tray = TrayIconBuilder::new()
-          .icon_as_template(tray_config.icon_as_template)
-          .menu_on_left_click(tray_config.menu_on_left_click);
+        let mut tray =
+          TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
+            .icon_as_template(tray_config.icon_as_template)
+            .menu_on_left_click(tray_config.menu_on_left_click);
         if let Some(icon) = &app.manager.inner.tray_icon {
           tray = tray.icon(icon.clone());
         }

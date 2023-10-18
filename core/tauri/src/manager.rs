@@ -1178,7 +1178,7 @@ impl<R: Runtime> WindowManager<R> {
         w.has_js_listener(None, event)
           || w.has_js_listener(source_window_label.map(Into::into), event)
       })
-      .filter(|w| filter(&w))
+      .filter(|w| filter(w))
       .try_for_each(|window| window.emit_js(event, source_window_label, payload.clone()))?;
 
     self

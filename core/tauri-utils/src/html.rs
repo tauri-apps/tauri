@@ -239,7 +239,7 @@ impl Default for IsolationSide {
 ///
 /// Note: This function is not considered part of the stable API.
 #[cfg(feature = "isolation")]
-pub fn inject_codegen_isolation_script(document: &mut NodeRef) {
+pub fn inject_codegen_isolation_script(document: &NodeRef) {
   with_head(document, |head| {
     let script = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
     script.append(NodeRef::new_text(
@@ -297,8 +297,8 @@ mod tests {
       "<html></html>".to_string(),
     ];
     for html in htmls {
-      let mut document = kuchiki::parse_html().one(html);
-      super::inject_csp_token(&mut document);
+      let document = kuchiki::parse_html().one(html);
+      super::inject_csp_token(&document);
       assert_eq!(
         document.to_string(),
         format!(

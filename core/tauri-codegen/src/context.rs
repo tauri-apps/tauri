@@ -97,14 +97,13 @@ fn map_isolation(
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
   move |_key, path, input, _csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
-      let mut isolation_html =
-        tauri_utils::html::parse(String::from_utf8_lossy(input).into_owned());
+      let isolation_html = tauri_utils::html::parse(String::from_utf8_lossy(input).into_owned());
 
       // this is appended, so no need to reverse order it
-      tauri_utils::html::inject_codegen_isolation_script(&mut isolation_html);
+      tauri_utils::html::inject_codegen_isolation_script(&isolation_html);
 
       // temporary workaround for windows not loading assets
-      tauri_utils::html::inline_isolation(&mut isolation_html, &dir);
+      tauri_utils::html::inline_isolation(&isolation_html, &dir);
 
       *input = isolation_html.to_string().as_bytes().to_vec()
     }

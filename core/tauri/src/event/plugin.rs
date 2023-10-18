@@ -37,6 +37,12 @@ impl<'de> Deserialize<'de> for EventName {
 
 pub struct WindowLabel(String);
 
+impl AsRef<str> for WindowLabel {
+  fn as_ref(&self) -> &str {
+    &self.0
+  }
+}
+
 impl<'de> Deserialize<'de> for WindowLabel {
   fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
   where
@@ -75,12 +81,11 @@ pub fn emit<R: Runtime>(
   window_label: Option<WindowLabel>,
   payload: Option<JsonValue>,
 ) -> Result<()> {
-  window.emit_filter(&event.0, payload, |l| {
-    window_label
-      .as_ref()
-      .map(|label| label.0 == l.label())
-      .unwrap_or(true)
-  })
+  if let Some(label) = window_label {
+    window.emit_filter(&event.0, payload, |w| label.as_ref() == w.label())
+  } else {
+    window.emit(&event.0, payload)
+  }
 }
 
 /// Initializes the event plugin.

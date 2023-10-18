@@ -2,20 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{Event, EventHandler};
+use super::{Event, EventId};
 
 use std::{
   boxed::Box,
   cell::Cell,
   collections::HashMap,
-  sync::{Arc, Mutex},
+  sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc, Mutex,
+  },
 };
-use uuid::Uuid;
 
 /// What to do with the pending handler when resolving it?
 enum Pending {
-  Unlisten(EventHandler),
-  Listen(EventHandler, String, Handler),
+  Unlisten(EventId),
+  Listen(EventId, String, Handler),
   Trigger(String, Option<String>, Option<String>),
 }
 
@@ -27,10 +29,11 @@ struct Handler {
 
 /// Holds event handlers and pending event handlers, along with the salts associating them.
 struct InnerListeners {
-  handlers: Mutex<HashMap<String, HashMap<EventHandler, Handler>>>,
+  handlers: Mutex<HashMap<String, HashMap<EventId, Handler>>>,
   pending: Mutex<Vec<Pending>>,
-  function_name: Uuid,
-  listeners_object_name: Uuid,
+  function_name: &'static str,
+  listeners_object_name: &'static str,
+  next_event_id: Arc<AtomicU32>,
 }
 
 /// A self-contained event manager.
@@ -44,8 +47,9 @@ impl Default for Listeners {
       inner: Arc::new(InnerListeners {
         handlers: Mutex::default(),
         pending: Mutex::default(),
-        function_name: Uuid::new_v4(),
-        listeners_object_name: Uuid::new_v4(),
+        function_name: "__internal_unstable_listeners_function_id__",
+        listeners_object_name: "__internal_unstable_listeners_object_id__",
+        next_event_id: Default::default(),
       }),
     }
   }
@@ -60,14 +64,18 @@ impl Clone for Listeners {
 }
 
 impl Listeners {
-  /// Randomly generated function name to represent the JavaScript event function.
-  pub(crate) fn function_name(&self) -> String {
-    self.inner.function_name.to_string()
+  pub(crate) fn next_event_id(&self) -> EventId {
+    self.inner.next_event_id.fetch_add(1, Ordering::Relaxed)
   }
 
-  /// Randomly generated listener object name to represent the JavaScript event listener object.
-  pub(crate) fn listeners_object_name(&self) -> String {
-    self.inner.listeners_object_name.to_string()
+  /// Function name to represent the JavaScript event function.
+  pub(crate) fn function_name(&self) -> &str {
+    self.inner.function_name
+  }
+
+  /// Listener object name to represent the JavaScript event listener object.
+  pub(crate) fn listeners_object_name(&self) -> &str {
+    self.inner.listeners_object_name
   }
 
   /// Insert a pending event action to the queue.
@@ -100,7 +108,7 @@ impl Listeners {
     }
   }
 
-  fn listen_(&self, id: EventHandler, event: String, handler: Handler) {
+  fn listen_(&self, id: EventId, event: String, handler: Handler) {
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::Listen(id, event, handler)),
       Ok(mut lock) => {
@@ -115,8 +123,8 @@ impl Listeners {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
-    let id = EventHandler(Uuid::new_v4());
+  ) -> EventId {
+    let id = self.next_event_id();
     let handler = Handler {
       window,
       callback: Box::new(handler),
@@ -133,7 +141,7 @@ impl Listeners {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) {
     let self_ = self.clone();
     let handler = Cell::new(Some(handler));
 
@@ -143,15 +151,15 @@ impl Listeners {
         .take()
         .expect("attempted to call handler more than once");
       handler(event)
-    })
+    });
   }
 
   /// Removes an event listener.
-  pub(crate) fn unlisten(&self, handler_id: EventHandler) {
+  pub(crate) fn unlisten(&self, id: EventId) {
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::Unlisten(handler_id)),
+      Err(_) => self.insert_pending(Pending::Unlisten(id)),
       Ok(mut lock) => lock.values_mut().for_each(|handler| {
-        handler.remove(&handler_id);
+        handler.remove(&id);
       }),
     }
   }

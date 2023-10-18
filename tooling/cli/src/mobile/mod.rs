@@ -19,6 +19,12 @@ use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 
+use cargo_mobile2::{
+  config::app::{App, Raw as RawAppConfig},
+  env::Error as EnvError,
+  opts::{NoiseLevel, Profile},
+  ChildHandle,
+};
 use std::{
   collections::HashMap,
   env::{set_var, temp_dir},
@@ -33,18 +39,12 @@ use std::{
     Arc,
   },
 };
-use tauri_mobile::{
-  config::app::{App, Raw as RawAppConfig},
-  env::Error as EnvError,
-  opts::{NoiseLevel, Profile},
-  ChildHandle,
-};
 use tokio::runtime::Runtime;
 
 #[cfg(not(windows))]
-use tauri_mobile::env::Env;
+use cargo_mobile2::env::Env;
 #[cfg(windows)]
-use tauri_mobile::os::Env;
+use cargo_mobile2::os::Env;
 
 pub mod android;
 mod init;
@@ -198,7 +198,9 @@ fn env_vars() -> HashMap<String, OsString> {
   vars.insert("RUST_LOG_STYLE".into(), "always".into());
   for (k, v) in std::env::vars_os() {
     let k = k.to_string_lossy();
-    if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
+    if (k.starts_with("TAURI")
+      && k != "TAURI_SIGNING_PRIVATE_KEY"
+      && k != "TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
       || k.starts_with("WRY")
       || k.starts_with("CARGO_")
       || k == "TMPDIR"

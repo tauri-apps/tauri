@@ -4,8 +4,14 @@
 
 use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
 
+use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+
 use super::{BaseDirectory, Error, PathResolver, Result};
-use crate::{command, AppHandle, Runtime, State};
+use crate::{
+  command,
+  plugin::{Builder, TauriPlugin},
+  AppHandle, Manager, Runtime, State,
+};
 
 /// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util.
 /// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
@@ -190,4 +196,52 @@ pub fn basename(path: String, ext: Option<String>) -> Result<String> {
 #[command(root = "crate")]
 pub fn is_absolute(path: String) -> bool {
   Path::new(&path).is_absolute()
+}
+
+#[derive(Template)]
+#[default_template("./init.js")]
+struct InitJavascript {
+  sep: &'static str,
+  delimiter: &'static str,
+}
+
+/// Initializes the plugin.
+pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
+  #[cfg(windows)]
+  let (sep, delimiter) = ("\\", ";");
+  #[cfg(not(windows))]
+  let (sep, delimiter) = ("/", ":");
+
+  let init_js = InitJavascript { sep, delimiter }
+    .render_default(&Default::default())
+    // this will never fail with the above sep and delimiter values
+    .unwrap();
+
+  Builder::new("path")
+    .invoke_handler(crate::generate_handler![
+      resolve_directory,
+      resolve,
+      normalize,
+      join,
+      dirname,
+      extname,
+      basename,
+      is_absolute
+    ])
+    .js_init_script(init_js.to_string())
+    .setup(|app, _api| {
+      #[cfg(target_os = "android")]
+      {
+        let handle = _api.register_android_plugin("app.tauri", "PathPlugin")?;
+        app.manage(PathResolver(handle));
+      }
+
+      #[cfg(not(target_os = "android"))]
+      {
+        app.manage(PathResolver(app.clone()));
+      }
+
+      Ok(())
+    })
+    .build()
 }

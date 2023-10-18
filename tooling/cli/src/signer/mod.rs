@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::Result;
 use clap::{Parser, Subcommand};
 
-use crate::Result;
-
-mod android;
-mod init;
-mod ios;
+mod generate;
+mod sign;
 
 #[derive(Parser)]
 #[clap(
   author,
   version,
-  about = "Manage Tauri plugins",
+  about = "Generate signing keys for Tauri updater or sign files",
   subcommand_required(true),
   arg_required_else_help(true)
 )]
@@ -25,17 +23,14 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-  Init(init::Options),
-  Android(android::Cli),
-  Ios(ios::Cli),
+  Sign(sign::Options),
+  Generate(generate::Options),
 }
 
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
-    Commands::Init(options) => init::command(options)?,
-    Commands::Android(cli) => android::command(cli)?,
-    Commands::Ios(cli) => ios::command(cli)?,
+    Commands::Sign(options) => sign::command(options)?,
+    Commands::Generate(options) => generate::command(options)?,
   }
-
   Ok(())
 }

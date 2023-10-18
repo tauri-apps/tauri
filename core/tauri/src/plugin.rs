@@ -6,6 +6,7 @@
 
 use crate::{
   app::PageLoadPayload,
+  error::Error,
   ipc::{Invoke, InvokeHandler},
   utils::config::PluginConfig,
   AppHandle, RunEvent, Runtime, Window,
@@ -15,14 +16,11 @@ use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 use url::Url;
 
-use std::{fmt, result::Result as StdResult, sync::Arc};
+use std::{fmt, sync::Arc};
 
 /// Mobile APIs.
 #[cfg(mobile)]
 pub mod mobile;
-
-/// The result type of Tauri plugin module.
-pub type Result<T> = StdResult<T, Box<dyn std::error::Error>>;
 
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {
@@ -31,7 +29,11 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Initializes the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
+  fn initialize(
+    &mut self,
+    app: &AppHandle<R>,
+    config: JsonValue,
+  ) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
   }
 
@@ -72,7 +74,8 @@ pub trait Plugin<R: Runtime>: Send {
   }
 }
 
-type SetupHook<R, C> = dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send;
+type SetupHook<R, C> =
+  dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<(), Box<dyn std::error::Error>> + Send;
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
 type OnNavigation<R> = dyn Fn(&Window<R>, &Url) -> bool + Send;
@@ -319,7 +322,9 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send + 'static,
+    F: FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<(), Box<dyn std::error::Error>>
+      + Send
+      + 'static,
   {
     self.setup.replace(Box::new(setup));
     self
@@ -499,7 +504,11 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     self.name
   }
 
-  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
+  fn initialize(
+    &mut self,
+    app: &AppHandle<R>,
+    config: JsonValue,
+  ) -> Result<(), Box<dyn std::error::Error>> {
     self.app.replace(app.clone());
     if let Some(s) = self.setup.take() {
       (s)(
@@ -592,7 +601,7 @@ impl<R: Runtime> PluginStore<R> {
           app,
           config.0.get(plugin.name()).cloned().unwrap_or_default(),
         )
-        .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
+        .map_err(|e| Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
     })
   }
 

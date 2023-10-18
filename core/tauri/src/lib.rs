@@ -65,8 +65,7 @@ pub use cocoa;
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;
-/// The Tauri error enum.
-pub use error::Error;
+pub use error::{Error, Result};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
@@ -160,9 +159,6 @@ pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;
-
-/// `Result<T, ::tauri::Error>`
-pub type Result<T> = std::result::Result<T, Error>;
 
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;

@@ -18,7 +18,7 @@ use tauri_runtime::{
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{config::WindowConfig, ProgressBarState, Theme};
 use url::Url;
 
 #[cfg(windows)]
@@ -674,6 +674,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
       .lock()
       .unwrap()
       .replace(script.into());
+    Ok(())
+  }
+
+  fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
     Ok(())
   }
 }

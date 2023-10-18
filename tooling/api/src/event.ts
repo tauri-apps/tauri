@@ -9,7 +9,7 @@
  * @module
  */
 
-import { invoke, transformCallback } from './tauri'
+import { invoke, transformCallback } from './primitives'
 
 interface Event<T> {
   /** Event name */

@@ -4,6 +4,8 @@
 
 //! The Tauri window types and functions.
 
+pub(crate) mod plugin;
+
 use http::HeaderMap;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
@@ -30,7 +32,10 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
+  utils::{
+    config::{WindowConfig, WindowEffectsConfig, WindowUrl},
+    ProgressBarState,
+  },
   EventLoopMessage, Manager, Runtime, Theme, WindowEvent,
 };
 #[cfg(desktop)]
@@ -425,7 +430,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
     self.manager.eval_script_all(format!(
-      "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
       window_labels_array = serde_json::to_string(&self.manager.labels())?,
     ))?;
 
@@ -2042,6 +2047,21 @@ impl<R: Runtime> Window<R> {
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
   }
+
+  /// Sets the taskbar progress state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
+  /// - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_progress_bar(progress_state)
+      .map_err(Into::into)
+  }
 }
 
 /// Webview APIs.
@@ -2461,7 +2481,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// This listener only receives events that are triggered using the
   /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
-  /// the `emit` function from the window plugin (`@tauri-apps/plugin-window` package).
+  /// the `emit` function from the window plugin (`@tauri-apps/api/window` package).
   ///
   /// # Examples
   /// ```

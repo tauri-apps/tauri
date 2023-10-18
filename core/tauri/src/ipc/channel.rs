@@ -84,7 +84,7 @@ impl Channel {
         .unwrap()
         .insert(data_id, body);
       window.eval(&format!(
-        "__TAURI_INVOKE__('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then(window['_' + {}]).catch(console.error)",
+        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then(window['_' + {}]).catch(console.error)",
         callback.0
       ))
     })

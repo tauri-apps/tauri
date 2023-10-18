@@ -2,14 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-mod commands;
 mod listener;
+pub(crate) mod plugin;
 pub(crate) use listener::Listeners;
-
-use crate::{
-  plugin::{Builder, TauriPlugin},
-  Runtime,
-};
 
 /// Checks if an event name is valid.
 pub fn is_event_name_valid(event: &str) -> bool {
@@ -45,17 +40,6 @@ impl Event {
   pub fn payload(&self) -> Option<&str> {
     self.data.as_deref()
   }
-}
-
-/// Initializes the event plugin.
-pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
-  Builder::new("event")
-    .invoke_handler(crate::generate_handler![
-      commands::listen,
-      commands::unlisten,
-      commands::emit,
-    ])
-    .build()
 }
 
 pub fn unlisten_js(listeners_object_name: &str, event_name: &str, event_id: EventId) -> String {

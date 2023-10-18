@@ -17,8 +17,8 @@
  *
  * @since 1.0.0
  */
-function transformCallback(
-  callback?: (response: any) => void,
+function transformCallback<T = unknown>(
+  callback?: (response: T) => void,
   once = false
 ): number {
   return window.__TAURI_INTERNALS__.transformCallback(callback, once)

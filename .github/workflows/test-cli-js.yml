@@ -43,7 +43,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v2
         with:
-          node-version: 14
+          node-version: 18
           cache: yarn
           cache-dependency-path: tooling/cli/node/yarn.lock
 

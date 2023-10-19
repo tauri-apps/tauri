@@ -88,6 +88,7 @@ jobs:
           cargo update -p system-deps:6.1.2 --precise 6.1.1
           cargo update -p toml:0.7.8 --precise 0.7.3
           cargo update -p toml_edit:0.19.15 --precise 0.19.8
+          cargo update -p embed-resource --precise 2.3.0
           cargo update -p toml_datetime --precise 0.6.1
           cargo update -p serde_spanned --precise 0.6.1
           cargo update -p winnow --precise 0.4.1
@@ -100,7 +101,7 @@ jobs:
           cargo update -p is-terminal --precise 0.4.7
           cargo update -p colored --precise 2.0.2
           cargo update -p tempfile --precise 3.6.0
-          cargo update -p serde_with:3.3.0 --precise 3.0.0
+          cargo update -p serde_with:3.4.0 --precise 3.0.0
           cargo update -p tokio --precise 1.29.0
           cargo update -p flate2 --precise 1.0.26
           cargo update -p h2 --precise 0.3.20
@@ -109,6 +110,9 @@ jobs:
           cargo update -p memchr --precise 2.6.2
           cargo update -p async-executor --precise 1.5.1
           cargo update -p proptest --precise 1.2.0
+          cargo update -p regex --precise 1.9.6
+          cargo update -p bstr --precise 1.6.2
+          cargo update -p backtrace --precise 0.3.68
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

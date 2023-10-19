@@ -14,6 +14,10 @@ use std::{
 use serde::Serialize;
 
 const UPDATER_PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5YTBGV3JiTy9lRDZVd3NkL0RoQ1htZmExNDd3RmJaNmRMT1ZGVjczWTBKZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQWdMekUzVkE4K0tWQ1hjeGt1Vkx2QnRUR3pzQjVuV0ZpM2czWXNkRm9hVUxrVnB6TUN3K1NheHJMREhQbUVWVFZRK3NIL1VsMDBHNW5ET1EzQno0UStSb21nRW4vZlpTaXIwZFh5ZmRlL1lSN0dKcHdyOUVPclVvdzFhVkxDVnZrbHM2T1o4Tk1NWEU9Cg==";
+// const UPDATER_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE5QzMxNjYwNTM5OEUwNTgKUldSWTRKaFRZQmJER1h4d1ZMYVA3dnluSjdpN2RmMldJR09hUFFlZDY0SlFqckkvRUJhZDJVZXAK";
+
+const UPDATER_PRIVATE_KEY_NEXT: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5Vm1kaFhCeEh0N2svRy85djJQbmNGTnk3TUQ1emJRWTF3Y01INW9OZjJwSUFBQkFBQUFBQUFBQUFBQUlBQUFBQS9YRStJU1RjK1JmUS9QK0F3WmdaMFE0RmUrcVY1RXhkL0VaYVZEeTVDNHREWnE2Y21yTVZCcW0rM1lKOUVLd1p1MWVPVFN5WmZBZEUxYnVtT3BnWW93TDZZRnYra1FUblFXazBVempRUFZOTnFRSjdod05LMjhvK3M0VGhoR0V4YWkzWUpOQXBIcEU9Cg==";
+const UPDATER_PUBLIC_KEY_NEXT: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE3RjlEQzI0MjEzRTcxRkQKUldUOWNUNGhKTno1RjZtKzNZSjlFS3dadTFlT1RTeVpmQWRFMWJ1bU9wZ1lvd0w2WUZ2K2tRVG4K";
 
 #[derive(Serialize)]
 struct PackageConfig {
@@ -21,8 +25,19 @@ struct PackageConfig {
 }
 
 #[derive(Serialize)]
+struct UpdaterConfig {
+  pubkey: &'static str,
+}
+
+#[derive(Serialize)]
+struct TauriConfig {
+  updater: UpdaterConfig,
+}
+
+#[derive(Serialize)]
 struct Config {
   package: PackageConfig,
+  tauri: TauriConfig,
 }
 
 #[derive(Serialize)]
@@ -57,6 +72,7 @@ fn get_cli_bin_path(cli_dir: &Path, debug: bool) -> Option<PathBuf> {
 fn build_app(
   cli_bin_path: &Path,
   cwd: &Path,
+  envs: Vec<(&str, &str)>,
   config: &Config,
   bundle_updater: bool,
   target: BundleTarget,
@@ -78,7 +94,7 @@ fn build_app(
     command.args(["--bundles", "msi", "nsis"]);
 
     command
-      .env("TAURI_PRIVATE_KEY", UPDATER_PRIVATE_KEY)
+      .envs(envs)
       .env("TAURI_KEY_PASSWORD", "")
       .args(["--bundles", "updater"]);
   } else {
@@ -197,12 +213,18 @@ fn update_app() {
 
   let mut config = Config {
     package: PackageConfig { version: "1.0.0" },
+    tauri: TauriConfig {
+      updater: UpdaterConfig {
+        pubkey: UPDATER_PUBLIC_KEY_NEXT,
+      },
+    },
   };
 
   // bundle app update
   build_app(
     &cli_bin_path,
     &manifest_dir,
+    vec![("TAURI_PRIVATE_KEY", UPDATER_PRIVATE_KEY_NEXT)],
     &config,
     true,
     Default::default(),
@@ -285,7 +307,14 @@ fn update_app() {
     config.package.version = "0.1.0";
 
     // bundle initial app version
-    build_app(&cli_bin_path, &manifest_dir, &config, false, bundle_target);
+    build_app(
+      &cli_bin_path,
+      &manifest_dir,
+      vec![("TAURI_PRIVATE_KEY", UPDATER_PRIVATE_KEY)],
+      &config,
+      false,
+      bundle_target,
+    );
 
     let mut binary_cmd = if cfg!(windows) {
       Command::new(root_dir.join("target/debug/app-updater.exe"))

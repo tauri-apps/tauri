@@ -306,7 +306,22 @@ pub fn notarize(
       staple_app(app_bundle_path)?;
       Ok(())
     } else {
-      Err(anyhow::anyhow!("{log_message}").into())
+      if let Ok(output) = Command::new("xcrun")
+        .args(["notarytool", "log"])
+        .arg(&submit_output.id)
+        .notarytool_args(&auth)
+        .output_ok()
+      {
+        Err(
+          anyhow::anyhow!(
+            "{log_message}\nLog:\n{}",
+            String::from_utf8_lossy(&output.stdout)
+          )
+          .into(),
+        )
+      } else {
+        Err(anyhow::anyhow!("{log_message}").into())
+      }
     }
   } else {
     Err(anyhow::anyhow!("failed to parse notarytool output as JSON: `{output_str}`").into())

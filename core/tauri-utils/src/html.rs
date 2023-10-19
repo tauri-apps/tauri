@@ -119,7 +119,7 @@ pub fn parse(html: String) -> NodeRef {
   kuchiki::parse_html().one(html)
 }
 
-fn with_head<F: FnOnce(&NodeRef)>(document: &mut NodeRef, f: F) {
+fn with_head<F: FnOnce(&NodeRef)>(document: &NodeRef, f: F) {
   if let Ok(ref node) = document.select_first("head") {
     f(node.as_node())
   } else {
@@ -132,7 +132,7 @@ fn with_head<F: FnOnce(&NodeRef)>(document: &mut NodeRef, f: F) {
   }
 }
 
-fn inject_nonce(document: &mut NodeRef, selector: &str, token: &str) {
+fn inject_nonce(document: &NodeRef, selector: &str, token: &str) {
   if let Ok(scripts) = document.select(selector) {
     for target in scripts {
       let node = target.as_node();
@@ -150,7 +150,7 @@ fn inject_nonce(document: &mut NodeRef, selector: &str, token: &str) {
 
 /// Inject nonce tokens to all scripts and styles.
 pub fn inject_nonce_token(
-  document: &mut NodeRef,
+  document: &NodeRef,
   dangerous_disable_asset_csp_modification: &DisabledCspModificationKind,
 ) {
   if dangerous_disable_asset_csp_modification.can_modify("script-src") {
@@ -162,14 +162,14 @@ pub fn inject_nonce_token(
 }
 
 /// Injects a content security policy to the HTML.
-pub fn inject_csp(document: &mut NodeRef, csp: &str) {
+pub fn inject_csp(document: &NodeRef, csp: &str) {
   with_head(document, |head| {
     head.append(create_csp_meta_tag(csp));
   });
 }
 
 /// Injects a content security policy token to the HTML.
-pub fn inject_csp_token(document: &mut NodeRef) {
+pub fn inject_csp_token(document: &NodeRef) {
   inject_csp(document, CSP_TOKEN)
 }
 
@@ -239,7 +239,7 @@ impl Default for IsolationSide {
 ///
 /// Note: This function is not considered part of the stable API.
 #[cfg(feature = "isolation")]
-pub fn inject_codegen_isolation_script(document: &mut NodeRef) {
+pub fn inject_codegen_isolation_script(document: &NodeRef) {
   with_head(document, |head| {
     let script = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
     script.append(NodeRef::new_text(
@@ -257,7 +257,7 @@ pub fn inject_codegen_isolation_script(document: &mut NodeRef) {
 ///
 /// Note: this does not prevent path traversal due to the isolation application expectation that it
 /// is secure.
-pub fn inline_isolation(document: &mut NodeRef, dir: &Path) {
+pub fn inline_isolation(document: &NodeRef, dir: &Path) {
   for script in document
     .select("script[src]")
     .expect("unable to parse document for scripts")
@@ -297,12 +297,12 @@ mod tests {
       "<html></html>".to_string(),
     ];
     for html in htmls {
-      let mut document = kuchiki::parse_html().one(html);
-      super::inject_csp_token(&mut document);
+      let document = kuchiki::parse_html().one(html);
+      super::inject_csp_token(&document);
       assert_eq!(
         document.to_string(),
         format!(
-          r#"<html><head><meta content="{}" http-equiv="Content-Security-Policy"></head><body></body></html>"#,
+          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{}"></head><body></body></html>"#,
           super::CSP_TOKEN
         )
       );

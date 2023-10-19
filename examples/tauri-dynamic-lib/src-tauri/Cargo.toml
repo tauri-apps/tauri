@@ -3,7 +3,7 @@ name = "tauri_app"
 version = "0.1.0"
 description = "A very simple Dll Library that runs tauri and launches a webview window"
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.70"
 
 [workspace]
 

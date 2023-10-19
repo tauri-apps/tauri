@@ -10,7 +10,7 @@ const cli = require('~/main.js')
 
 const currentDirName = __dirname
 
-describe('[CLI] cli.js template', () => {
+describe('[CLI] @tauri-apps/cli template', () => {
   it('init a project and builds it', async () => {
     const cwd = process.cwd()
     const fixturePath = resolve(currentDirName, '../fixtures/empty')

@@ -3,11 +3,12 @@ name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.70"
 license = "Apache-2.0 OR MIT"
 
 [lib]
 name = "api_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = ["codegen", "isolation"] }
@@ -16,39 +17,38 @@ tauri-build = { path = "../../../core/tauri-build", features = ["codegen", "isol
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 tiny_http = "0.11"
+log = "0.4"
+tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
+tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
+
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
+
+[patch.crates-io]
+tauri = { path = "../../../core/tauri" }
+tauri-build = { path = "../../../core/tauri-build" }
+
+[patch.'https://github.com/tauri-apps/tauri']
+tauri = { path = "../../../core/tauri" }
+tauri-build = { path = "../../../core/tauri-build" }
 
 [dependencies.tauri]
 path = "../../../core/tauri"
 features = [
-  "api-all",
-  "cli",
-  "global-shortcut",
-  "http-multipart",
+  "protocol-asset",
   "icon-ico",
   "icon-png",
   "isolation",
   "macos-private-api",
-  "windows7-compat",
-  "reqwest-client",
-  "system-tray",
-  "updater"
+  "tray-icon"
 ]
+
+[dev-dependencies.tauri]
+path = "../../../core/tauri"
+features = ["test"]
 
 [target."cfg(target_os = \"windows\")".dependencies]
 window-shadows= "0.2"
-
-[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
-log = "0.4"
-tauri-runtime-wry = { path = "../../../core/tauri-runtime-wry/" }
-
-[target.'cfg(target_os = "android")'.dependencies]
-android_logger = "0.9.0"
-jni = "0.19.0"
-paste = "1.0"
-
-[target.'cfg(target_os = "ios")'.dependencies]
-mobile-entry-point = "0.1.0"
-env_logger = "0.9.0"
 
 [features]
 custom-protocol = [ "tauri/custom-protocol" ]

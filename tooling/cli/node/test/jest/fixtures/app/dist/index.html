@@ -123,7 +123,7 @@
       }
 
       testFs(null).then(function () {
-        testFs(window.__TAURI__.fs.Dir.Config)
+        testFs(window.__TAURI__.path.BaseDirectory.Config)
       })
 
       setTimeout(function () {

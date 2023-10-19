@@ -4,9 +4,10 @@
 
 use crate::{
   command::{CommandArg, CommandItem},
-  InvokeError, Runtime,
+  ipc::InvokeError,
+  Runtime,
 };
-use state::Container;
+use state::TypeMap;
 
 /// A guard for a state value.
 ///
@@ -58,11 +59,11 @@ impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for S
 
 /// The Tauri state manager.
 #[derive(Debug)]
-pub struct StateManager(pub(crate) Container![Send + Sync]);
+pub struct StateManager(pub(crate) TypeMap![Send + Sync]);
 
 impl StateManager {
   pub(crate) fn new() -> Self {
-    Self(<Container![Send + Sync]>::new())
+    Self(<TypeMap![Send + Sync]>::new())
   }
 
   pub(crate) fn set<T: Send + Sync + 'static>(&self, state: T) -> bool {

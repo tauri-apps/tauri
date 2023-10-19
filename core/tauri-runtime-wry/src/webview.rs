@@ -26,12 +26,29 @@ mod imp {
   }
 }
 
+#[cfg(target_os = "ios")]
+mod imp {
+  use cocoa::base::id;
+
+  pub struct Webview {
+    pub webview: id,
+    pub manager: id,
+    pub view_controller: id,
+  }
+}
+
 #[cfg(windows)]
 mod imp {
   use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller;
   pub struct Webview {
     pub controller: ICoreWebView2Controller,
   }
+}
+
+#[cfg(target_os = "android")]
+mod imp {
+  use wry::webview::JniHandle;
+  pub type Webview = JniHandle;
 }
 
 pub use imp::*;

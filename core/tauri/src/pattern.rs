@@ -11,8 +11,11 @@ use serialize_to_javascript::{default_template, Template};
 
 use tauri_utils::assets::{Assets, EmbeddedAssets};
 
+/// The domain of the isolation iframe source.
+pub const ISOLATION_IFRAME_SRC_DOMAIN: &str = "localhost";
+
 /// An application pattern.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Pattern<A: Assets = EmbeddedAssets> {
   /// The brownfield pattern.
   Brownfield(PhantomData<A>),
@@ -33,6 +36,26 @@ pub enum Pattern<A: Assets = EmbeddedAssets> {
     /// Cryptographically secure keys
     crypto_keys: Box<tauri_utils::pattern::isolation::Keys>,
   },
+}
+
+impl<A: Assets> Clone for Pattern<A> {
+  fn clone(&self) -> Self {
+    match self {
+      Self::Brownfield(a) => Self::Brownfield(*a),
+      #[cfg(feature = "isolation")]
+      Self::Isolation {
+        assets,
+        schema,
+        key,
+        crypto_keys,
+      } => Self::Isolation {
+        assets: assets.clone(),
+        schema: schema.clone(),
+        key: key.clone(),
+        crypto_keys: crypto_keys.clone(),
+      },
+    }
+  }
 }
 
 /// The shape of the JavaScript Pattern config
@@ -86,9 +109,9 @@ pub(crate) struct PatternJavascript {
 
 #[allow(dead_code)]
 pub(crate) fn format_real_schema(schema: &str) -> String {
-  if cfg!(windows) {
-    format!("https://{schema}.localhost")
+  if cfg!(windows) || cfg!(target_os = "android") {
+    format!("http://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
   } else {
-    format!("{schema}://localhost")
+    format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}")
   }
 }

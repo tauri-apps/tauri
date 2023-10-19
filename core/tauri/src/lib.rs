@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
 //! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
@@ -11,31 +13,21 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
-//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
+//! - **linux-ipc-protocol**: Use custom protocol for faster IPC on Linux. Requires webkit2gtk v2.40 or above.
+//! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
-//! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
 //! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
-//! - **shell-open-api**: Enables the [`api::shell`] module.
-//! - **http-api**: Enables the [`api::http`] module.
-//! - **http-multipart**: Adds support to `multipart/form-data` requests.
-//! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
-//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
-//! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
-//! - **process-command-api**: Enables the [`api::process::Command`] APIs.
-//! - **global-shortcut**: Enables the global shortcut APIs.
-//! - **clipboard**: Enables the clipboard APIs.
-//! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`api::process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
-//! - **dialog**: Enables the [`api::dialog`] module.
-//! - **notification**: Enables the [`api::notification`] module.
-//! - **fs-extract-api**: Enabled the `tauri::api::file::Extract` API.
-//! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
-//! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
+//! - **native-tls**: Provides TLS support to connect over HTTPS.
+//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
+//! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
+//! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
+//! - **tray-icon**: Enables application tray icon APIs. Enabled by default if the `trayIcon` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
-//! - **windows7-compat**: Enables compatibility with Windows 7 for the notification API.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
@@ -48,194 +40,152 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that enables commands for Tauri's API package.
 //! These features are automatically enabled by the Tauri CLI based on the `allowlist` configuration under `tauri.conf.json`.
 //!
-//! - **api-all**: Enables all API endpoints.
-//!
-//! ### Clipboard allowlist
-//!
-//! - **clipboard-all**: Enables all [Clipboard APIs](https://tauri.app/en/docs/api/js/modules/clipboard/).
-//! - **clipboard-read-text**: Enables the [`readText` API](https://tauri.app/en/docs/api/js/modules/clipboard/#readtext).
-//! - **clipboard-write-text**: Enables the [`writeText` API](https://tauri.app/en/docs/api/js/modules/clipboard/#writetext).
-//!
-//! ### Dialog allowlist
-//!
-//! - **dialog-all**: Enables all [Dialog APIs](https://tauri.app/en/docs/api/js/modules/dialog).
-//! - **dialog-ask**: Enables the [`ask` API](https://tauri.app/en/docs/api/js/modules/dialog#ask).
-//! - **dialog-confirm**: Enables the [`confirm` API](https://tauri.app/en/docs/api/js/modules/dialog#confirm).
-//! - **dialog-message**: Enables the [`message` API](https://tauri.app/en/docs/api/js/modules/dialog#message).
-//! - **dialog-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/dialog#open).
-//! - **dialog-save**: Enables the [`save` API](https://tauri.app/en/docs/api/js/modules/dialog#save).
-//!
-//! ### Filesystem allowlist
-//!
-//! - **fs-all**: Enables all [Filesystem APIs](https://tauri.app/en/docs/api/js/modules/fs).
-//! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.app/en/docs/api/js/modules/fs#copyfile).
-//! - **fs-create-dir**: Enables the [`createDir` API](https://tauri.app/en/docs/api/js/modules/fs#createdir).
-//! - **fs-exists**: Enables the [`exists` API](https://tauri.app/en/docs/api/js/modules/fs#exists).
-//! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
-//! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#readbinaryfile).
-//! - **fs-remove-dir**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#removedir).
-//! - **fs-remove-file**: Enables the [`removeFile` API](https://tauri.app/en/docs/api/js/modules/fs#removefile).
-//! - **fs-rename-file**: Enables the [`renameFile` API](https://tauri.app/en/docs/api/js/modules/fs#renamefile).
-//! - **fs-write-file**: Enables the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile) and the [`writeBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#writebinaryfile).
-//!
-//! ### Global shortcut allowlist
-//!
-//! - **global-shortcut-all**: Enables all [GlobalShortcut APIs](https://tauri.app/en/docs/api/js/modules/globalShortcut).
-//!
-//! ### HTTP allowlist
-//!
-//! - **http-all**: Enables all [HTTP APIs](https://tauri.app/en/docs/api/js/modules/http).
-//! - **http-request**: Enables the [`request` APIs](https://tauri.app/en/docs/api/js/classes/http.client/).
-//!
-//! ### Notification allowlist
-//!
-//! - **notification-all**: Enables all [Notification APIs](https://tauri.app/en/docs/api/js/modules/notification).
-//!
-//! ### OS allowlist
-//!
-//! - **os-all**: Enables all [OS APIs](https://tauri.app/en/docs/api/js/modules/os).
-//!
-//! ### Path allowlist
-//!
-//! - **path-all**: Enables all [Path APIs](https://tauri.app/en/docs/api/js/modules/path).
-//!
-//! ### Process allowlist
-//!
-//! - **process-all**: Enables all [Process APIs](https://tauri.app/en/docs/api/js/modules/process).
-//! - **process-exit**: Enables the [`exit` API](https://tauri.app/en/docs/api/js/modules/process#exit).
-//! - **process-relaunch**: Enables the [`relaunch` API](https://tauri.app/en/docs/api/js/modules/process#relaunch).
-//!
 //! ### Protocol allowlist
 //!
-//! - **protocol-all**: Enables all Protocol APIs.
 //! - **protocol-asset**: Enables the `asset` custom protocol.
-//!
-//! ### Shell allowlist
-//!
-//! - **shell-all**: Enables all [Clipboard APIs](https://tauri.app/en/docs/api/js/modules/shell).
-//! - **shell-execute**: Enables [executing arbitrary programs](https://tauri.app/en/docs/api/js/classes/shell.Command#constructor).
-//! - **shell-sidecar**: Enables [executing a `sidecar` program](https://tauri.app/en/docs/api/js/classes/shell.Command#sidecar).
-//! - **shell-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/shell#open).
-//!
-//! ### Window allowlist
-//!
-//! - **window-all**: Enables all [Window APIs](https://tauri.app/en/docs/api/js/modules/window).
-//! - **window-create**: Enables the API used to [create new windows](https://tauri.app/en/docs/api/js/classes/window.webviewwindow/).
-//! - **window-center**: Enables the [`center` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#center).
-//! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#requestuserattention).
-//! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setresizable).
-//! - **window-set-title**: Enables the [`setTitle` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#settitle).
-//! - **window-maximize**: Enables the [`maximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#maximize).
-//! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unmaximize).
-//! - **window-minimize**: Enables the [`minimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#minimize).
-//! - **window-unminimize**: Enables the [`unminimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unminimize).
-//! - **window-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#show).
-//! - **window-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#hide).
-//! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
-//! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
-//! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
-//! - **window-set-content-protected**: Enables the [`setContentProtected` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcontentprotected).
-//! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
-//! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
-//! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
-//! - **window-set-position**: Enables the [`setPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setposition).
-//! - **window-set-fullscreen**: Enables the [`setFullscreen` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfullscreen).
-//! - **window-set-focus**: Enables the [`setFocus` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfocus).
-//! - **window-set-icon**: Enables the [`setIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#seticon).
-//! - **window-set-skip-taskbar**: Enables the [`setSkipTaskbar` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setskiptaskbar).
-//! - **window-set-cursor-grab**: Enables the [`setCursorGrab` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorgrab).
-//! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorvisible).
-//! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
-//! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
-//! - **window-set-ignore-cursor-events**: Enables the [`setIgnoreCursorEvents` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setignorecursorevents).
-//! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
-//! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
-//!
-//! ### App allowlist
-//!
-//! - **app-all**: Enables all [App APIs](https://tauri.app/en/docs/api/js/modules/app).
-//! - **app-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/modules/app#show).
-//! - **app-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/modules/app#hide).
 
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+/// Setups the binding that initializes an iOS plugin.
+#[cfg(target_os = "ios")]
+#[macro_export]
+macro_rules! ios_plugin_binding {
+  ($fn_name: ident) => {
+    tauri::swift_rs::swift!(fn $fn_name() -> *const ::std::ffi::c_void);
+  }
+}
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub use cocoa;
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;
-/// The Tauri error enum.
-pub use error::Error;
-#[cfg(shell_scope)]
+pub use error::{Error, Result};
+#[cfg(target_os = "ios")]
 #[doc(hidden)]
-pub use regex;
+pub use swift_rs;
+#[cfg(mobile)]
+pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
 
-pub mod api;
 pub(crate) mod app;
 pub mod async_runtime;
 pub mod command;
-/// The Tauri API endpoints.
-mod endpoints;
 mod error;
 mod event;
-mod hooks;
+pub mod ipc;
 mod manager;
 mod pattern;
 pub mod plugin;
+pub(crate) mod protocol;
+mod vibrancy;
 pub mod window;
 use tauri_runtime as runtime;
+#[cfg(target_os = "ios")]
+mod ios;
+#[cfg(target_os = "android")]
+mod jni_helpers;
+#[cfg(desktop)]
+pub mod menu;
+/// Path APIs.
+pub mod path;
+pub mod process;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
-#[cfg(updater)]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-pub mod updater;
 
+#[cfg(all(desktop, feature = "tray-icon"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+pub mod tray;
 pub use tauri_utils as utils;
+
+pub use http;
 
 /// A Tauri [`Runtime`] wrapper around wry.
 #[cfg(feature = "wry")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 
-/// `Result<T, ::tauri::Error>`
-pub type Result<T> = std::result::Result<T, Error>;
+#[cfg(all(feature = "wry", target_os = "android"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", target_os = "android"))))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! android_binding {
+  ($domain:ident, $package:ident, $main: ident, $wry: path) => {
+    ::tauri::wry::android_binding!($domain, $package, $main, $wry);
+    ::tauri::wry::application::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      handlePluginResponse,
+      [i32, JString, JString],
+    );
+    ::tauri::wry::application::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      sendChannelData,
+      [i64, JString],
+    );
+
+    // this function is a glue between PluginManager.kt > handlePluginResponse and Rust
+    #[allow(non_snake_case)]
+    pub fn handlePluginResponse(
+      mut env: JNIEnv,
+      _: JClass,
+      id: i32,
+      success: JString,
+      error: JString,
+    ) {
+      ::tauri::handle_android_plugin_response(&mut env, id, success, error);
+    }
+
+    // this function is a glue between PluginManager.kt > sendChannelData and Rust
+    #[allow(non_snake_case)]
+    pub fn sendChannelData(mut env: JNIEnv, _: JClass, id: i64, data: JString) {
+      ::tauri::send_channel_data(&mut env, id, data);
+    }
+  };
+}
+
+#[cfg(all(feature = "wry", target_os = "android"))]
+#[doc(hidden)]
+pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
+#[cfg(all(feature = "wry", target_os = "android"))]
+#[doc(hidden)]
+pub use tauri_runtime_wry::wry;
 
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use serde::Serialize;
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{
+  collections::HashMap,
+  fmt::{self, Debug},
+  sync::Arc,
+};
 
-// Export types likely to be used by the application.
-pub use runtime::http;
+#[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+pub use tauri_runtime_wry::webview_version;
 
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-pub use runtime::{menu::NativeImage, ActivationPolicy};
+pub use runtime::ActivationPolicy;
 
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
-#[cfg(all(desktop, feature = "system-tray"))]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-pub use {
-  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle},
-  self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
-};
-pub use {
-  self::app::WindowMenuEvent,
-  self::event::{Event, EventHandler},
-  self::runtime::menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu},
-  self::window::menu::MenuEvent,
-};
+
+pub use self::event::{Event, EventId};
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, PathResolver,
-    RunEvent, WindowEvent,
-  },
-  self::hooks::{
-    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokePayload, InvokeResolver,
-    InvokeResponder, InvokeResponse, OnPageLoad, PageLoadPayload, SetupHook,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
+    WindowEvent,
   },
   self::manager::Asset,
   self::runtime::{
@@ -256,69 +206,56 @@ pub use {
   scope::*,
 };
 
-#[cfg(feature = "clipboard")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
-pub use self::runtime::ClipboardManager;
+/// The Tauri version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[cfg(all(desktop, feature = "global-shortcut"))]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
-pub use self::runtime::GlobalShortcutManager;
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub fn log_stdout() {
+  use std::{
+    ffi::CString,
+    fs::File,
+    io::{BufRead, BufReader},
+    os::unix::prelude::*,
+    thread,
+  };
 
-/// Updater events.
-#[cfg(updater)]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-#[derive(Debug, Clone)]
-pub enum UpdaterEvent {
-  /// An update is available.
-  UpdateAvailable {
-    /// The update body.
-    body: String,
-    /// The update release date.
-    date: Option<time::OffsetDateTime>,
-    /// The update version.
-    version: String,
-  },
-  /// The update is pending and about to be downloaded.
-  Pending,
-  /// The update download received a progress event.
-  DownloadProgress {
-    /// The amount that was downloaded on this iteration.
-    /// Does not accumulate with previous chunks.
-    chunk_length: usize,
-    /// The total
-    content_length: Option<u64>,
-  },
-  /// The update has been downloaded and is now about to be installed.
-  Downloaded,
-  /// The update has been applied and the app is now up to date.
-  Updated,
-  /// The app is already up to date.
-  AlreadyUpToDate,
-  /// An error occurred while updating.
-  Error(String),
-}
-
-#[cfg(updater)]
-impl UpdaterEvent {
-  pub(crate) fn status_message(self) -> &'static str {
-    match self {
-      Self::Pending => updater::EVENT_STATUS_PENDING,
-      Self::Downloaded => updater::EVENT_STATUS_DOWNLOADED,
-      Self::Updated => updater::EVENT_STATUS_SUCCESS,
-      Self::AlreadyUpToDate => updater::EVENT_STATUS_UPTODATE,
-      Self::Error(_) => updater::EVENT_STATUS_ERROR,
-      _ => unreachable!(),
-    }
+  let mut logpipe: [RawFd; 2] = Default::default();
+  unsafe {
+    libc::pipe(logpipe.as_mut_ptr());
+    libc::dup2(logpipe[1], libc::STDOUT_FILENO);
+    libc::dup2(logpipe[1], libc::STDERR_FILENO);
   }
+  thread::spawn(move || unsafe {
+    let file = File::from_raw_fd(logpipe[0]);
+    let mut reader = BufReader::new(file);
+    let mut buffer = String::new();
+    loop {
+      buffer.clear();
+      if let Ok(len) = reader.read_line(&mut buffer) {
+        if len == 0 {
+          break;
+        } else if let Ok(msg) = CString::new(buffer.as_bytes())
+          .map_err(|_| ())
+          .and_then(|c| c.into_string().map_err(|_| ()))
+        {
+          log::info!("{}", msg);
+        }
+      }
+    }
+  });
 }
 
 /// The user event type.
 #[derive(Debug, Clone)]
 pub enum EventLoopMessage {
-  /// Updater event.
-  #[cfg(updater)]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-  Updater(UpdaterEvent),
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  #[cfg(desktop)]
+  MenuEvent(menu::MenuEvent),
+  /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  TrayIconEvent(tray::TrayIconEvent),
 }
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
@@ -458,12 +395,11 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
-  pub(crate) system_tray_icon: Option<Icon>,
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  pub(crate) tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
-  #[cfg(shell_scope)]
-  pub(crate) shell_scope: scope::ShellScopeConfig,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
@@ -472,11 +408,12 @@ impl<A: Assets> fmt::Debug for Context<A> {
     d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
-      .field("system_tray_icon", &self.system_tray_icon)
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
-    #[cfg(shell_scope)]
-    d.field("shell_scope", &self.shell_scope);
+
+    #[cfg(all(desktop, feature = "tray-icon"))]
+    d.field("tray_icon", &self.tray_icon);
+
     d.finish()
   }
 }
@@ -519,15 +456,19 @@ impl<A: Assets> Context<A> {
   }
 
   /// The icon to use on the system tray UI.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn system_tray_icon(&self) -> Option<&Icon> {
-    self.system_tray_icon.as_ref()
+  pub fn tray_icon(&self) -> Option<&Icon> {
+    self.tray_icon.as_ref()
   }
 
-  /// A mutable reference to the icon to use on the system tray UI.
+  /// A mutable reference to the icon to use on the tray icon.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
-    &mut self.system_tray_icon
+  pub fn tray_icon_mut(&mut self) -> &mut Option<Icon> {
+    &mut self.tray_icon
   }
 
   /// Package information.
@@ -548,13 +489,6 @@ impl<A: Assets> Context<A> {
     &self.pattern
   }
 
-  /// The scoped shell commands, where the `HashMap` key is the name each configuration.
-  #[cfg(shell_scope)]
-  #[inline(always)]
-  pub fn allowed_commands(&self) -> &scope::ShellScopeConfig {
-    &self.shell_scope
-  }
-
   /// Create a new [`Context`] from the minimal required items.
   #[inline(always)]
   #[allow(clippy::too_many_arguments)]
@@ -563,24 +497,36 @@ impl<A: Assets> Context<A> {
     assets: Arc<A>,
     default_window_icon: Option<Icon>,
     app_icon: Option<Vec<u8>>,
-    system_tray_icon: Option<Icon>,
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
-    #[cfg(shell_scope)] shell_scope: scope::ShellScopeConfig,
   ) -> Self {
     Self {
       config,
       assets,
       default_window_icon,
       app_icon,
-      system_tray_icon,
+      #[cfg(all(desktop, feature = "tray-icon"))]
+      tray_icon: None,
       package_info,
       _info_plist: info_plist,
       pattern,
-      #[cfg(shell_scope)]
-      shell_scope,
     }
+  }
+
+  /// Sets the app tray icon.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  #[inline(always)]
+  pub fn set_tray_icon(&mut self, icon: Icon) {
+    self.tray_icon.replace(icon);
+  }
+
+  /// Sets the app shell scope.
+  #[cfg(shell_scope)]
+  #[inline(always)]
+  pub fn set_shell_scope(&mut self, scope: scope::ShellScopeConfig) {
+    self.shell_scope = scope;
   }
 }
 
@@ -588,7 +534,7 @@ impl<A: Assets> Context<A> {
 /// Manages a running application.
 pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// The application handle associated with this manager.
-  fn app_handle(&self) -> AppHandle<R> {
+  fn app_handle(&self) -> &AppHandle<R> {
     self.managed_app_handle()
   }
 
@@ -597,20 +543,73 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().config()
   }
 
+  /// The [`PackageInfo`] the manager was created with.
+  fn package_info(&self) -> &PackageInfo {
+    self.manager().package_info()
+  }
+
   /// Emits a event to all windows.
+  ///
+  /// Only the webviews receives this event.
+  /// To trigger Rust listeners, use [`Self::trigger_global`], [`Window::trigger`] or [`Window::emit_and_trigger`].
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(app: tauri::AppHandle) {
+  ///   // emits the synchronized event to all windows
+  ///   app.emit_all("synchronized", ());
+  /// }
+  /// ```
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, None, payload, |_| true)
   }
 
-  /// Emits an event to a window with the specified label.
+  /// Emits an event to the window with the specified label.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(app: tauri::AppHandle) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to the updater window
+  ///     app.emit_to("updater", "download-progress", i);
+  ///   }
+  /// }
+  /// ```
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
       .emit_filter(event, None, payload, |w| label == w.label())
   }
 
-  /// Listen to a global event.
-  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  /// Listen to a event triggered on any window ([`Window::trigger`] or [`Window::emit_and_trigger`]) or with [`Self::trigger_global`].
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(window: tauri::Window) {
+  ///   // emits the synchronized event to all windows
+  ///   window.emit_and_trigger("synchronized", ());
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     app.listen_global("synchronized", |event| {
+  ///       println!("app is in sync");
+  ///     });
+  ///     Ok(())
+  ///   })
+  ///   .invoke_handler(tauri::generate_handler![synchronize]);
+  /// ```
+  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
@@ -618,26 +617,74 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Listen to a global event only once.
-  fn once_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
+  ///
+  /// See [`Self::listen_global`] for more information.
+  fn once_global<F>(&self, event: impl Into<String>, handler: F)
   where
     F: FnOnce(Event) + Send + 'static,
   {
     self.manager().once(event.into(), None, handler)
   }
 
-  /// Trigger a global event.
+  /// Trigger a global event to Rust listeners.
+  /// To send the events to the webview, see [`Self::emit_all`] and [`Self::emit_to`].
+  /// To trigger listeners registed on an specific window, see [`Window::trigger`].
+  /// To trigger all listeners, see [`Window::emit_and_trigger`].
+  ///
+  /// A global event does not have a source or target window attached.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(app: tauri::AppHandle) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners registed in Rust
+  ///     app.trigger_global("download-progress", Some(i.to_string()));
+  ///   }
+  /// }
+  /// ```
   fn trigger_global(&self, event: &str, data: Option<String>) {
     self.manager().trigger(event, None, data)
   }
 
   /// Remove an event listener.
-  fn unlisten(&self, handler_id: EventHandler) {
-    self.manager().unlisten(handler_id)
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle().clone();
+  ///     let handler = app.listen_global("ready", move |event| {
+  ///       println!("app is ready");
+  ///
+  ///       // we no longer need to listen to the event
+  ///       // we also could have used `app.once_global` instead
+  ///       handle.unlisten(event.id());
+  ///     });
+  ///
+  ///     // stop listening to the event when you do not need it anymore
+  ///     app.unlisten(handler);
+  ///
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  fn unlisten(&self, id: EventId) {
+    self.manager().unlisten(id)
   }
 
   /// Fetch a single window from the manager.
   fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
+  }
+  /// Fetch the focused window. Returns `None` if there is not any focused window.
+  fn get_focused_window(&self) -> Option<Window<R>> {
+    self.manager().get_focused_window()
   }
 
   /// Fetch all managed windows.
@@ -647,18 +694,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Add `state` to the state managed by the application.
   ///
-  /// This method can be called any number of times as long as each call
-  /// refers to a different `T`.
-  /// If a state for `T` is already managed, the function returns false and the value is ignored.
+  /// If the state for the `T` type has previously been set, the state is unchanged and false is returned. Otherwise true is returned.
   ///
   /// Managed state can be retrieved by any command handler via the
   /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
-  ///
-  /// # Panics
-  ///
-  /// Panics if state of type `T` is already being managed.
+  /// Additionally, [`state`](Self#method.state) can be used to retrieve the value manually.
   ///
   /// # Mutability
   ///
@@ -774,21 +816,20 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.state::<Env>().inner().clone()
   }
 
-  /// Gets the scope for the filesystem APIs.
-  fn fs_scope(&self) -> FsScope {
-    self.state::<Scopes>().inner().fs.clone()
+  /// Gets the scope for the IPC.
+  fn ipc_scope(&self) -> scope::ipc::Scope {
+    self.state::<Scopes>().inner().ipc.clone()
   }
 
   /// Gets the scope for the asset protocol.
-  #[cfg(protocol_asset)]
-  fn asset_protocol_scope(&self) -> FsScope {
+  #[cfg(feature = "protocol-asset")]
+  fn asset_protocol_scope(&self) -> scope::fs::Scope {
     self.state::<Scopes>().inner().asset_protocol.clone()
   }
 
-  /// Gets the scope for the shell execute APIs.
-  #[cfg(shell_scope)]
-  fn shell_scope(&self) -> ShellScope {
-    self.state::<Scopes>().inner().shell.clone()
+  /// The path resolver.
+  fn path(&self) -> &crate::path::PathResolver<R> {
+    self.state::<crate::path::PathResolver<R>>().inner()
   }
 }
 
@@ -814,12 +855,12 @@ pub(crate) mod sealed {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<R>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
-    fn managed_app_handle(&self) -> AppHandle<R>;
+    fn managed_app_handle(&self) -> &AppHandle<R>;
   }
 }
 
-/// Utilities for unit testing on Tauri applications.
-#[cfg(test)]
+#[cfg(any(test, feature = "test"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "test")))]
 pub mod test;
 
 #[cfg(test)]
@@ -862,57 +903,25 @@ mod tests {
       }
     }
   }
-
-  #[test]
-  fn all_allowlist_features_are_aliased() {
-    let manifest = get_manifest();
-    let all_modules = manifest
-      .features
-      .iter()
-      .find(|(f, _)| f.as_str() == "api-all")
-      .map(|(_, enabled)| enabled)
-      .expect("api-all feature must exist");
-
-    let checked_features = CHECKED_FEATURES.split(',').collect::<Vec<&str>>();
-    assert!(
-      checked_features.contains(&"api-all"),
-      "`api-all` is not aliased"
-    );
-
-    // features that look like an allowlist feature, but are not
-    let allowed = [
-      "fs-extract-api",
-      "http-api",
-      "http-multipart",
-      "process-command-api",
-      "process-relaunch-dangerous-allow-symlink-macos",
-      "window-data-url",
-    ];
-
-    for module_all_feature in all_modules {
-      let module = module_all_feature.replace("-all", "");
-      assert!(
-        checked_features.contains(&module_all_feature.as_str()),
-        "`{module}` is not aliased"
-      );
-
-      let module_prefix = format!("{module}-");
-      // we assume that module features are the ones that start with `<module>-`
-      // though it's not 100% accurate, we have an allowed list to fix it
-      let module_features = manifest
-        .features
-        .keys()
-        .filter(|f| f.starts_with(&module_prefix));
-      for module_feature in module_features {
-        assert!(
-          allowed.contains(&module_feature.as_str())
-            || checked_features.contains(&module_feature.as_str()),
-          "`{module_feature}` is not aliased"
-        );
-      }
-    }
-  }
 }
+
+#[allow(unused)]
+macro_rules! run_main_thread {
+  ($self:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+    let self_ = $self.clone();
+    let task = move || {
+      let f = $ex;
+      let _ = tx.send(f(self_));
+    };
+    $self.app_handle.run_on_main_thread(Box::new(task))?;
+    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
+  }};
+}
+
+#[allow(unused)]
+pub(crate) use run_main_thread;
 
 #[cfg(test)]
 mod test_utils {

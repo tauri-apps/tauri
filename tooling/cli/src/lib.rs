@@ -2,19 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
+//!
+//! This Rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
+
+#![doc(
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+)]
+
 pub use anyhow::Result;
 
+mod add;
 mod build;
+mod completions;
 mod dev;
 mod helpers;
 mod icon;
 mod info;
 mod init;
 mod interface;
+mod migrate;
+mod mobile;
 mod plugin;
 mod signer;
 
-use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
 use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
@@ -23,8 +36,32 @@ use std::io::{BufReader, Write};
 use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
   ffi::OsString,
+  fmt::Display,
   sync::{Arc, Mutex},
 };
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum RunMode {
+  Desktop,
+  #[cfg(target_os = "macos")]
+  Ios,
+  Android,
+}
+
+impl Display for RunMode {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Desktop => "desktop",
+        #[cfg(target_os = "macos")]
+        Self::Ios => "iOS",
+        Self::Android => "android",
+      }
+    )
+  }
+}
 
 #[derive(Deserialize)]
 pub struct VersionMetadata {
@@ -51,7 +88,7 @@ pub struct PackageJson {
   propagate_version(true),
   no_binary_name(true)
 )]
-struct Cli {
+pub(crate) struct Cli {
   /// Enables verbose logging
   #[clap(short, long, global = true, action = ArgAction::Count)]
   verbose: u8,
@@ -61,13 +98,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-  Build(build::Options),
-  Dev(dev::Options),
-  Icon(icon::Options),
-  Info(info::Options),
   Init(init::Options),
+  Dev(dev::Options),
+  Build(build::Options),
+  Android(mobile::android::Cli),
+  #[cfg(target_os = "macos")]
+  Ios(mobile::ios::Cli),
+  /// Migrate from v1 to v2
+  Migrate,
+  Info(info::Options),
+  Add(add::Options),
   Plugin(plugin::Cli),
+  Icon(icon::Options),
   Signer(signer::Cli),
+  Completions(completions::Options),
 }
 
 fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
@@ -106,11 +150,12 @@ where
   I: IntoIterator<Item = A>,
   A: Into<OsString> + Clone,
 {
-  let matches = match bin_name {
+  let cli = match bin_name {
     Some(bin_name) => Cli::command().bin_name(bin_name),
     None => Cli::command(),
-  }
-  .get_matches_from(args);
+  };
+  let cli_ = cli.clone();
+  let matches = cli.get_matches_from(args);
 
   let res = Cli::from_arg_matches(&matches).map_err(format_error::<Cli>);
   let cli = match res {
@@ -162,11 +207,17 @@ where
   match cli.command {
     Commands::Build(options) => build::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
+    Commands::Add(options) => add::command(options)?,
     Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
+    Commands::Completions(options) => completions::command(options, cli_)?,
+    Commands::Android(c) => mobile::android::command(c, cli.verbose)?,
+    #[cfg(target_os = "macos")]
+    Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,
+    Commands::Migrate => migrate::command()?,
   }
 
   Ok(())
@@ -226,9 +277,8 @@ impl CommandExt for Command {
       let mut lines = stdout_lines_.lock().unwrap();
       loop {
         buf.clear();
-        match tauri_utils::io::read_line(&mut stdout, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        if let Ok(0) = tauri_utils::io::read_line(&mut stdout, &mut buf) {
+          break;
         }
         debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
         lines.extend(buf.clone());
@@ -244,9 +294,8 @@ impl CommandExt for Command {
       let mut lines = stderr_lines_.lock().unwrap();
       loop {
         buf.clear();
-        match tauri_utils::io::read_line(&mut stderr, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        if let Ok(0) = tauri_utils::io::read_line(&mut stderr, &mut buf) {
+          break;
         }
         debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
         lines.extend(buf.clone());

@@ -54,24 +54,24 @@ Some Tauri packages will be automatically built when running one of the examples
 
 ### Packages Overview
 
-- The JS API (`/tooling/api`) contains JS bindings to the builtin Rust functions in the Rust API.
-- cli.rs (`/tooling/cli`) is the primary CLI for creating and developing Tauri apps.
-- cli.js (`/tooling/cli/node`) is a Node.js CLI wrapper for `cli.rs`.
-- Tauri Bundler (`/tooling/bundler`) is used by the Rust CLI to package executables into installers.
 - Tauri Core (`/core/tauri`) is the heart of Tauri. It contains the code that starts the app, configures communication between Rust and the Webview, and ties all the other packages together.
 - The Macros (`/core/tauri-macros`) are used by Tauri Core for various functions.
-
-### Developing The Node.js CLI (cli.js)
-
-`cli.js` is a wrapper to `cli.rs` so most changes should be written on the Rust CLI. The `[Tauri repo root]/tooling/cli/node` folder contains only packaging scripts to properly publish the Rust CLI binaries to NPM.
+- Tauri Bundler (`/tooling/bundler`) is used by the Rust CLI to package executables into installers.
+- The Rust CLI aka `tauri-cli` (`/tooling/cli`) is the primary CLI for creating and developing Tauri apps.
+- The JS CLI aka `@tauri-apps/cli` (`/tooling/cli/node`) is a Node.js CLI wrapper for `tauri-cli`.
+- The JS API aka `@tauri-apps/api` (`/tooling/api`) contains JS bindings to the builtin Rust functions in the Rust API.
 
 ### Developing Tauri Bundler and Rust CLI
 
-The code for the bundler is located in `[Tauri repo root]/tooling/bundler`, and the code for the Rust CLI is located in `[Tauri repo root]/tooling/cli`. If you are using your local copy of cli.js (see above), any changes you make to the bundler and CLI will be automatically built and applied when running the build or dev command. Otherwise, running `cargo install --path .` in the Rust CLI directory will allow you to run `cargo tauri build` and `cargo tauri dev` anywhere, using the updated copy of the bundler and cli. You will have to run this command each time you make a change in either package.
+The code for the bundler is located in `[Tauri repo root]/tooling/bundler`, and the code for the Rust CLI is located in `[Tauri repo root]/tooling/cli`. If you are using your local copy of `@tauri-apps/cli` (see above), any changes you make to the bundler and CLI will be automatically built and applied when running the build or dev command. Otherwise, running `cargo install --path .` in the Rust CLI directory will allow you to run `cargo tauri build` and `cargo tauri dev` anywhere, using the updated copy of the bundler and cli. You will have to run this command each time you make a change in either package.
+
+### Developing The Node.js CLI (`@tauri-apps/cli`)
+
+`@tauri-apps/cli` is a wrapper to `tauri-cli` so most changes should be written on the Rust CLI. The `[Tauri repo root]/tooling/cli/node` folder contains only packaging scripts to properly publish the Rust CLI binaries to NPM.
 
 ### Developing Tauri Core and Related Components (Rust API, Macros, Codegen, and Utils)
 
-The code for Tauri Core is located in `[Tauri repo root]/core/tauri`, and the Rust API, Macros, and Utils are in `[Tauri repo root]/core/tauri-(api/macros/utils)`. The easiest way to test your changes is to use the `[Tauri repo root]/examples/helloworld` app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `yarn tauri build` or `yarn tauri dev` in the helloworld app directory after making changes to test them out. To use your local changes in another project, edit its `src-tauri/Cargo.toml` file so that the `tauri` key looks like `tauri = { path = "PATH", features = [ "api-all", "cli" ] }`, where `PATH` is the relative path to `[Tauri repo root]/core/tauri`. Then, your local copy of the Tauri core packages will be rebuilt and used whenever you build that project.
+The code for Tauri Core is located in `[Tauri repo root]/core/tauri`, and the Rust API, Macros, and Utils are in `[Tauri repo root]/core/tauri-(api/macros/utils)`. The easiest way to test your changes is to use the `[Tauri repo root]/examples/helloworld` app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `yarn tauri build` or `yarn tauri dev` in the helloworld app directory after making changes to test them out. To use your local changes in another project, edit its `src-tauri/Cargo.toml` file so that the `tauri` key looks like `tauri = { path = "PATH" }`, where `PATH` is the relative path to `[Tauri repo root]/core/tauri`. Then, your local copy of the Tauri core packages will be rebuilt and used whenever you build that project.
 
 #### Building the documentation locally
 

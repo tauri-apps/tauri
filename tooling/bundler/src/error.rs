@@ -49,7 +49,7 @@ pub enum Error {
   RegexError(#[from] regex::Error),
   /// Failed to perform HTTP request.
   #[error("`{0}`")]
-  HttpError(#[from] attohttpc::Error),
+  HttpError(#[from] Box<ureq::Error>),
   /// Invalid glob pattern.
   #[cfg(windows)]
   #[error("{0}")]

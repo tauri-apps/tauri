@@ -7,58 +7,58 @@ use std::{
   collections::{HashMap, HashSet},
   fmt,
   fs::create_dir_all,
+  path::PathBuf,
   sync::{Arc, Mutex, MutexGuard},
 };
 
+#[cfg(desktop)]
+use crate::menu::{Menu, MenuId};
+#[cfg(all(desktop, feature = "tray-icon"))]
+use crate::tray::{TrayIcon, TrayIconId};
 use serde::Serialize;
-use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
 
 use tauri_macros::default_runtime;
 use tauri_utils::debug_eprintln;
-#[cfg(feature = "isolation")]
-use tauri_utils::pattern::isolation::RawIsolationPayload;
 use tauri_utils::{
   assets::{AssetKey, CspHash},
   config::{Csp, CspDirectiveSources},
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::hooks::IpcJavascript;
-#[cfg(feature = "isolation")]
-use crate::hooks::IsolationJavascript;
-use crate::pattern::{format_real_schema, PatternJavascript};
 use crate::{
-  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
-  event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
-  hooks::{InvokeHandler, InvokePayload, InvokeResponder, OnPageLoad, PageLoadPayload},
+  app::{
+    AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
+    UriSchemeResponder,
+  },
+  event::{assert_event_name_is_valid, Event, EventId, Listeners},
+  ipc::{Invoke, InvokeHandler, InvokeResponder},
+  pattern::PatternJavascript,
   plugin::PluginStore,
   runtime::{
-    http::{
-      MimeType, Request as HttpRequest, Response as HttpResponse,
-      ResponseBuilder as HttpResponseBuilder,
+    webview::WindowBuilder,
+    window::{
+      dpi::{PhysicalPosition, PhysicalSize},
+      DetachedWindow, FileDropEvent, PendingWindow,
     },
-    webview::{WebviewIpcHandler, WindowBuilder},
-    window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow},
   },
   utils::{
     assets::Assets,
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
+  Context, EventLoopMessage, Icon, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
 };
-use crate::{
-  app::{GlobalMenuEventListener, WindowMenuEvent},
-  window::WebResourceRequestHandler,
-};
+
+#[cfg(desktop)]
+use crate::app::GlobalMenuEventListener;
+#[cfg(all(desktop, feature = "tray-icon"))]
+use crate::app::GlobalTrayIconEventListener;
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use crate::api::path::{resolve_path, BaseDirectory};
-
-use crate::{runtime::menu::Menu, MenuEvent};
+use crate::path::BaseDirectory;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
@@ -71,10 +71,29 @@ const WINDOW_THEME_CHANGED: &str = "tauri://theme-changed";
 const WINDOW_FILE_DROP_EVENT: &str = "tauri://file-drop";
 const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
-const MENU_EVENT: &str = "tauri://menu";
 
-pub(crate) const STRINGIFY_IPC_MESSAGE_FN: &str =
-  include_str!("../scripts/stringify-ipc-message-fn.js");
+pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
+  include_str!("../scripts/process-ipc-message-fn.js");
+
+// we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
+// and we do not get a secure context without the custom protocol that proxies to the dev server
+// additionally, we need the custom protocol to inject the initialization scripts on Android
+// must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
+pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
+
+#[cfg(feature = "isolation")]
+#[derive(Template)]
+#[default_template("../scripts/isolation.js")]
+pub(crate) struct IsolationJavascript<'a> {
+  pub(crate) isolation_src: &'a str,
+  pub(crate) style: &'a str,
+}
+
+#[derive(Template)]
+#[default_template("../scripts/ipc.js")]
+pub(crate) struct IpcJavascript<'a> {
+  pub(crate) isolation_origin: &'a str,
+}
 
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
@@ -142,15 +161,10 @@ fn set_csp<R: Runtime>(
     let default_src = csp
       .entry("default-src".into())
       .or_insert_with(Default::default);
-    default_src.push(format_real_schema(schema));
+    default_src.push(crate::pattern::format_real_schema(schema));
   }
 
   Csp::DirectiveMap(csp).to_string()
-}
-
-#[cfg(target_os = "linux")]
-fn set_html_csp(html: &str, csp: &str) -> String {
-  html.replacen(tauri_utils::html::CSP_TOKEN, csp, 1)
 }
 
 // inspired by https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297
@@ -179,7 +193,14 @@ fn replace_csp_nonce(
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
-    let nonce = rand::random::<usize>();
+    #[cfg(target_pointer_width = "64")]
+    let mut raw = [0u8; 8];
+    #[cfg(target_pointer_width = "32")]
+    let mut raw = [0u8; 4];
+    #[cfg(target_pointer_width = "16")]
+    let mut raw = [0u8; 2];
+    getrandom::getrandom(&mut raw).expect("failed to get random bytes");
+    let nonce = usize::from_ne_bytes(raw);
     nonces.push(nonce);
     nonce.to_string()
   });
@@ -189,7 +210,7 @@ fn replace_csp_nonce(
       .into_iter()
       .map(|n| format!("'nonce-{n}'"))
       .collect::<Vec<String>>();
-    let sources = csp.entry(directive.into()).or_insert_with(Default::default);
+    let sources = csp.entry(directive.into()).or_default();
     let self_source = "'self'".to_string();
     if !sources.contains(&self_source) {
       sources.push(self_source);
@@ -201,9 +222,7 @@ fn replace_csp_nonce(
 
 #[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
-  windows: Mutex<HashMap<String, Window<R>>>,
-  #[cfg(all(desktop, feature = "system-tray"))]
-  pub(crate) trays: Mutex<HashMap<String, crate::SystemTrayHandle<R>>>,
+  pub(crate) windows: Mutex<HashMap<String, Window<R>>>,
   pub(crate) plugins: Mutex<PluginStore<R>>,
   listeners: Listeners,
   pub(crate) state: Arc<StateManager>,
@@ -218,38 +237,66 @@ pub struct InnerWindowManager<R: Runtime> {
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
+  #[cfg(all(desktop, feature = "tray-icon"))]
   pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
   /// The webview protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
+  /// A set containing a reference to the active menus, including
+  /// the app-wide menu and the window-specific menus
+  ///
+  /// This should be mainly used to acceess [`Menu::haccel`]
+  /// to setup the accelerator handling in the event loop
+  #[cfg(desktop)]
+  pub menus: Arc<Mutex<HashMap<MenuId, Menu<R>>>>,
   /// The menu set to all windows.
-  menu: Option<Menu>,
+  #[cfg(desktop)]
+  pub(crate) menu: Arc<Mutex<Option<Menu<R>>>>,
   /// Menu event listeners to all windows.
-  menu_event_listeners: Arc<Vec<GlobalMenuEventListener<R>>>,
+  #[cfg(desktop)]
+  pub(crate) menu_event_listeners: Arc<Mutex<Vec<GlobalMenuEventListener<AppHandle<R>>>>>,
+  /// Menu event listeners to specific windows.
+  #[cfg(desktop)]
+  pub(crate) window_menu_event_listeners:
+    Arc<Mutex<HashMap<String, GlobalMenuEventListener<Window<R>>>>>,
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
+  /// Tray icons
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  pub(crate) tray_icons: Arc<Mutex<Vec<TrayIcon<R>>>>,
+  /// Global Tray icon event listeners.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  pub(crate) global_tray_event_listeners:
+    Arc<Mutex<Vec<GlobalTrayIconEventListener<AppHandle<R>>>>>,
+  /// Tray icon event listeners.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  pub(crate) tray_event_listeners:
+    Arc<Mutex<HashMap<TrayIconId, GlobalTrayIconEventListener<TrayIcon<R>>>>>,
   /// Responder for invoke calls.
-  invoke_responder: Arc<InvokeResponder<R>>,
+  invoke_responder: Option<Arc<InvokeResponder<R>>>,
   /// The script that initializes the invoke system.
   invoke_initialization_script: String,
   /// Application pattern.
-  pattern: Pattern,
+  pub(crate) pattern: Pattern,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("InnerWindowManager")
-      .field("plugins", &self.plugins)
+    let mut d = f.debug_struct("InnerWindowManager");
+
+    d.field("plugins", &self.plugins)
       .field("state", &self.state)
       .field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
-      .field("tray_icon", &self.tray_icon)
       .field("package_info", &self.package_info)
-      .field("menu", &self.menu)
-      .field("pattern", &self.pattern)
-      .finish()
+      .field("pattern", &self.pattern);
+
+    #[cfg(all(desktop, feature = "tray-icon"))]
+    d.field("tray_icon", &self.tray_icon);
+
+    d.finish()
   }
 }
 
@@ -264,14 +311,11 @@ pub struct Asset {
 }
 
 /// Uses a custom URI scheme handler to resolve file requests
-pub struct CustomProtocol<R: Runtime> {
+pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol: Box<
-    dyn Fn(&AppHandle<R>, &HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>>
-      + Send
-      + Sync,
-  >,
+  pub protocol:
+    Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -289,17 +333,20 @@ impl<R: Runtime> Clone for WindowManager<R> {
 }
 
 impl<R: Runtime> WindowManager<R> {
-  #[allow(clippy::too_many_arguments)]
+  #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
     #[allow(unused_mut)] mut context: Context<impl Assets>,
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Box<OnPageLoad<R>>,
-    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+    uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
-    (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
-    (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
+    #[cfg(desktop)] window_menu_event_listeners: HashMap<
+      String,
+      GlobalMenuEventListener<Window<R>>,
+    >,
+    (invoke_responder, invoke_initialization_script): (Option<Arc<InvokeResponder<R>>>, String),
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
@@ -310,8 +357,6 @@ impl<R: Runtime> WindowManager<R> {
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
-        #[cfg(all(desktop, feature = "system-tray"))]
-        trays: Default::default(),
         plugins: Mutex::new(plugins),
         listeners: Listeners::default(),
         state: Arc::new(state),
@@ -321,13 +366,26 @@ impl<R: Runtime> WindowManager<R> {
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
-        tray_icon: context.system_tray_icon,
+        #[cfg(all(desktop, feature = "tray-icon"))]
+        tray_icon: context.tray_icon,
         package_info: context.package_info,
         pattern: context.pattern,
         uri_scheme_protocols,
-        menu,
-        menu_event_listeners: Arc::new(menu_event_listeners),
+        #[cfg(desktop)]
+        menus: Default::default(),
+        #[cfg(desktop)]
+        menu: Default::default(),
+        #[cfg(desktop)]
+        menu_event_listeners: Default::default(),
+        #[cfg(desktop)]
+        window_menu_event_listeners: Arc::new(Mutex::new(window_menu_event_listeners)),
         window_event_listeners: Arc::new(window_event_listeners),
+        #[cfg(all(desktop, feature = "tray-icon"))]
+        tray_icons: Default::default(),
+        #[cfg(all(desktop, feature = "tray-icon"))]
+        global_tray_event_listeners: Default::default(),
+        #[cfg(all(desktop, feature = "tray-icon"))]
+        tray_event_listeners: Default::default(),
         invoke_responder,
         invoke_initialization_script,
       }),
@@ -348,8 +406,85 @@ impl<R: Runtime> WindowManager<R> {
     self.inner.state.clone()
   }
 
+  #[cfg(desktop)]
+  pub(crate) fn prepare_window_menu_creation_handler(
+    &self,
+    window_menu: Option<&crate::window::WindowMenu<R>>,
+  ) -> Option<impl Fn(tauri_runtime::window::RawWindow<'_>)> {
+    {
+      if let Some(menu) = window_menu {
+        self
+          .menus_stash_lock()
+          .insert(menu.menu.id().clone(), menu.menu.clone());
+      }
+    }
+
+    #[cfg(target_os = "macos")]
+    return None;
+
+    #[cfg_attr(target_os = "macos", allow(unused_variables, unreachable_code))]
+    if let Some(menu) = &window_menu {
+      let menu = menu.menu.clone();
+      Some(move |raw: tauri_runtime::window::RawWindow<'_>| {
+        #[cfg(target_os = "windows")]
+        let _ = menu.inner().init_for_hwnd(raw.hwnd as _);
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        let _ = menu
+          .inner()
+          .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
+      })
+    } else {
+      None
+    }
+  }
+
+  /// App-wide menu.
+  #[cfg(desktop)]
+  pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<Menu<R>>> {
+    self.inner.menu.lock().expect("poisoned window manager")
+  }
+
+  /// Menus stash.
+  #[cfg(desktop)]
+  pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<MenuId, Menu<R>>> {
+    self.inner.menus.lock().expect("poisoned window manager")
+  }
+
+  #[cfg(desktop)]
+  pub(crate) fn is_menu_in_use<I: PartialEq<MenuId>>(&self, id: &I) -> bool {
+    self
+      .menu_lock()
+      .as_ref()
+      .map(|m| id.eq(m.id()))
+      .unwrap_or(false)
+  }
+
+  /// Menus stash.
+  #[cfg(desktop)]
+  pub(crate) fn insert_menu_into_stash(&self, menu: &Menu<R>) {
+    self
+      .menus_stash_lock()
+      .insert(menu.id().clone(), menu.clone());
+  }
+
+  #[cfg(desktop)]
+  pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<&MenuId>) {
+    if let Some(id) = id {
+      let is_used_by_a_window = self.windows_lock().values().any(|w| w.is_menu_in_use(id));
+      if !(self.is_menu_in_use(id) || is_used_by_a_window) {
+        self.menus_stash_lock().remove(id);
+      }
+    }
+  }
+
   /// The invoke responder.
-  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
+  pub(crate) fn invoke_responder(&self) -> Option<Arc<InvokeResponder<R>>> {
     self.inner.invoke_responder.clone()
   }
 
@@ -370,18 +505,18 @@ impl<R: Runtime> WindowManager<R> {
   /// Get the base URL to use for webview requests.
   ///
   /// In dev mode, this will be based on the `devPath` configuration value.
-  fn get_url(&self) -> Cow<'_, Url> {
+  pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
-      _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
+      _ => self.protocol_url(),
     }
   }
 
-  /// Get the origin as it will be seen in the webview.
-  fn get_browser_origin(&self) -> String {
-    match self.base_path() {
-      AppUrl::Url(WindowUrl::External(url)) => url.origin().ascii_serialization(),
-      _ => format_real_schema("tauri"),
+  pub(crate) fn protocol_url(&self) -> Cow<'_, Url> {
+    if cfg!(windows) || cfg!(target_os = "android") {
+      Cow::Owned(Url::parse("http://tauri.localhost").unwrap())
+    } else {
+      Cow::Owned(Url::parse("tauri://localhost").unwrap())
     }
   }
 
@@ -406,7 +541,6 @@ impl<R: Runtime> WindowManager<R> {
     label: &str,
     window_labels: &[String],
     app_handle: AppHandle<R>,
-    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
@@ -438,27 +572,41 @@ impl<R: Runtime> WindowManager<R> {
       window_labels.push(l);
     }
     webview_attributes = webview_attributes
+      .initialization_script(
+        r#"
+        if (!window.__TAURI_INTERNALS__) {
+          Object.defineProperty(window, '__TAURI_INTERNALS__', {
+            value: {
+              plugins: {}
+            }
+          })
+        }
+      "#,
+      )
       .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(
         r#"
-          Object.defineProperty(window, '__TAURI_METADATA__', {{
+          Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
-              __windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
-              __currentWindow: {{ label: {current_window_label} }}
+              windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
+              currentWindow: {{ label: {current_window_label} }}
             }}
           }})
         "#,
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
-      ;
+      .initialization_script(&self.initialization_script(
+        &ipc_init.into_string(),
+        &pattern_init.into_string(),
+        &plugin_init,
+        is_init_global,
+      )?);
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
-          origin: self.get_browser_origin(),
           isolation_src: &crate::pattern::format_real_schema(schema),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
@@ -475,235 +623,59 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
       let app_handle = Mutex::new(app_handle.clone());
-      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p| {
-        (protocol.protocol)(&app_handle.lock().unwrap(), p)
+      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p, responder| {
+        (protocol.protocol)(
+          &app_handle.lock().unwrap(),
+          p,
+          UriSchemeResponder(responder),
+        )
       });
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
-    let window_origin =
-      if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-        format!("https://{}.localhost", window_url.scheme())
-      } else {
-        format!(
-          "{}://{}{}",
-          window_url.scheme(),
-          window_url.host().unwrap(),
-          if let Some(port) = window_url.port() {
-            format!(":{port}")
-          } else {
-            "".into()
-          }
-        )
-      };
+    let window_origin = if window_url.scheme() == "data" {
+      "null".into()
+    } else if (cfg!(windows) || cfg!(target_os = "android"))
+      && window_url.scheme() != "http"
+      && window_url.scheme() != "https"
+    {
+      format!("http://{}.localhost", window_url.scheme())
+    } else {
+      format!(
+        "{}://{}{}",
+        window_url.scheme(),
+        window_url.host().unwrap(),
+        window_url
+          .port()
+          .map(|p| format!(":{p}"))
+          .unwrap_or_default()
+      )
+    };
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
-      pending.register_uri_scheme_protocol(
-        "tauri",
-        self.prepare_uri_scheme_protocol(&window_origin, web_resource_request_handler),
-      );
+      let web_resource_request_handler = pending.web_resource_request_handler.take();
+      let protocol =
+        crate::protocol::tauri::get(self, &window_origin, web_resource_request_handler);
+      pending.register_uri_scheme_protocol("tauri", move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
+      });
       registered_scheme_protocols.push("tauri".into());
     }
 
-    #[cfg(protocol_asset)]
+    if !registered_scheme_protocols.contains(&"ipc".into()) {
+      let protocol = crate::ipc::protocol::get(self.clone(), pending.label.clone());
+      pending.register_uri_scheme_protocol("ipc", move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
+      });
+      registered_scheme_protocols.push("ipc".into());
+    }
+
+    #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
-      use crate::api::file::SafePathBuf;
-      use tokio::io::{AsyncReadExt, AsyncSeekExt};
-      use url::Position;
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
-      pending.register_uri_scheme_protocol("asset", move |request| {
-        let parsed_path = Url::parse(request.uri())?;
-        let filtered_path = &parsed_path[..Position::AfterPath];
-        let path = filtered_path
-          .strip_prefix("asset://localhost/")
-          // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
-          // where `$P` is not `localhost/*`
-          .unwrap_or("");
-        let path = percent_encoding::percent_decode(path.as_bytes())
-          .decode_utf8_lossy()
-          .to_string();
-
-        if let Err(e) = SafePathBuf::new(path.clone().into()) {
-          debug_eprintln!("asset protocol path \"{}\" is not valid: {}", path, e);
-          return HttpResponseBuilder::new().status(403).body(Vec::new());
-        }
-
-        if !asset_scope.is_allowed(&path) {
-          debug_eprintln!("asset protocol not configured to allow the path: {}", path);
-          return HttpResponseBuilder::new().status(403).body(Vec::new());
-        }
-
-        let path_ = path.clone();
-
-        let mut response =
-          HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
-
-        // handle 206 (partial range) http request
-        if let Some(range) = request
-          .headers()
-          .get("range")
-          .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
-        {
-          #[derive(Default)]
-          struct RangeMetadata {
-            file: Option<tokio::fs::File>,
-            range: Option<crate::runtime::http::HttpRange>,
-            metadata: Option<std::fs::Metadata>,
-            headers: HashMap<&'static str, String>,
-            status_code: u16,
-            body: Vec<u8>,
-          }
-
-          let mut range_metadata = crate::async_runtime::safe_block_on(async move {
-            let mut data = RangeMetadata::default();
-            // open the file
-            let mut file = match tokio::fs::File::open(path_.clone()).await {
-              Ok(file) => file,
-              Err(e) => {
-                debug_eprintln!("Failed to open asset: {}", e);
-                data.status_code = 404;
-                return data;
-              }
-            };
-            // Get the file size
-            let file_size = match file.metadata().await {
-              Ok(metadata) => {
-                let len = metadata.len();
-                data.metadata.replace(metadata);
-                len
-              }
-              Err(e) => {
-                debug_eprintln!("Failed to read asset metadata: {}", e);
-                data.file.replace(file);
-                data.status_code = 404;
-                return data;
-              }
-            };
-            // parse the range
-            let range = match crate::runtime::http::HttpRange::parse(
-              &if range.ends_with("-*") {
-                range.chars().take(range.len() - 1).collect::<String>()
-              } else {
-                range.clone()
-              },
-              file_size,
-            ) {
-              Ok(r) => r,
-              Err(e) => {
-                debug_eprintln!("Failed to parse range {}: {:?}", range, e);
-                data.file.replace(file);
-                data.status_code = 400;
-                return data;
-              }
-            };
-
-            // FIXME: Support multiple ranges
-            // let support only 1 range for now
-            if let Some(range) = range.first() {
-              data.range.replace(*range);
-              let mut real_length = range.length;
-              // prevent max_length;
-              // specially on webview2
-              if range.length > file_size / 3 {
-                // max size sent (400ko / request)
-                // as it's local file system we can afford to read more often
-                real_length = std::cmp::min(file_size - range.start, 1024 * 400);
-              }
-
-              // last byte we are reading, the length of the range include the last byte
-              // who should be skipped on the header
-              let last_byte = range.start + real_length - 1;
-
-              data.headers.insert("Connection", "Keep-Alive".into());
-              data.headers.insert("Accept-Ranges", "bytes".into());
-              data
-                .headers
-                .insert("Content-Length", real_length.to_string());
-              data.headers.insert(
-                "Content-Range",
-                format!("bytes {}-{last_byte}/{file_size}", range.start),
-              );
-
-              if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
-                debug_eprintln!("Failed to seek file to {}: {}", range.start, e);
-                data.file.replace(file);
-                data.status_code = 422;
-                return data;
-              }
-
-              let mut f = file.take(real_length);
-              let r = f.read_to_end(&mut data.body).await;
-              file = f.into_inner();
-              data.file.replace(file);
-
-              if let Err(e) = r {
-                debug_eprintln!("Failed read file: {}", e);
-                data.status_code = 422;
-                return data;
-              }
-              // partial content
-              data.status_code = 206;
-            } else {
-              data.status_code = 200;
-            }
-
-            data
-          });
-
-          for (k, v) in range_metadata.headers {
-            response = response.header(k, v);
-          }
-
-          let mime_type = if let (Some(mut file), Some(metadata), Some(range)) = (
-            range_metadata.file,
-            range_metadata.metadata,
-            range_metadata.range,
-          ) {
-            // if we're already reading the beginning of the file, we do not need to re-read it
-            if range.start == 0 {
-              MimeType::parse(&range_metadata.body, &path)
-            } else {
-              let (status, bytes) = crate::async_runtime::safe_block_on(async move {
-                let mut status = None;
-                if let Err(e) = file.rewind().await {
-                  debug_eprintln!("Failed to rewind file: {}", e);
-                  status.replace(422);
-                  (status, Vec::with_capacity(0))
-                } else {
-                  // taken from https://docs.rs/infer/0.9.0/src/infer/lib.rs.html#240-251
-                  let limit = std::cmp::min(metadata.len(), 8192) as usize + 1;
-                  let mut bytes = Vec::with_capacity(limit);
-                  if let Err(e) = file.take(8192).read_to_end(&mut bytes).await {
-                    debug_eprintln!("Failed read file: {}", e);
-                    status.replace(422);
-                  }
-                  (status, bytes)
-                }
-              });
-              if let Some(s) = status {
-                range_metadata.status_code = s;
-              }
-              MimeType::parse(&bytes, &path)
-            }
-          } else {
-            MimeType::parse(&range_metadata.body, &path)
-          };
-          response
-            .mimetype(&mime_type)
-            .status(range_metadata.status_code)
-            .body(range_metadata.body)
-        } else {
-          match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
-            Ok(data) => {
-              let mime_type = MimeType::parse(&data, &path);
-              response.mimetype(&mime_type).body(data)
-            }
-            Err(e) => {
-              debug_eprintln!("Failed to read file: {}", e);
-              response.status(404).body(Vec::new())
-            }
-          }
-        }
+      let protocol = crate::protocol::asset::get(asset_scope.clone(), window_origin.clone());
+      pending.register_uri_scheme_protocol("asset", move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
       });
     }
 
@@ -715,85 +687,13 @@ impl<R: Runtime> WindowManager<R> {
       crypto_keys,
     } = &self.inner.pattern
     {
-      let assets = assets.clone();
-      let schema_ = schema.clone();
-      let url_base = format!("{schema_}://localhost");
-      let aes_gcm_key = *crypto_keys.aes_gcm().raw();
-
-      pending.register_uri_scheme_protocol(schema, move |request| {
-        match request_to_path(request, &url_base).as_str() {
-          "index.html" => match assets.get(&"index.html".into()) {
-            Some(asset) => {
-              let asset = String::from_utf8_lossy(asset.as_ref());
-              let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
-                runtime_aes_gcm_key: &aes_gcm_key,
-                stringify_ipc_message_fn: STRINGIFY_IPC_MESSAGE_FN,
-              };
-              match template.render(asset.as_ref(), &Default::default()) {
-                Ok(asset) => HttpResponseBuilder::new()
-                  .mimetype("text/html")
-                  .body(asset.into_string().as_bytes().to_vec()),
-                Err(_) => HttpResponseBuilder::new()
-                  .status(500)
-                  .mimetype("text/plain")
-                  .body(Vec::new()),
-              }
-            }
-
-            None => HttpResponseBuilder::new()
-              .status(404)
-              .mimetype("text/plain")
-              .body(Vec::new()),
-          },
-          _ => HttpResponseBuilder::new()
-            .status(404)
-            .mimetype("text/plain")
-            .body(Vec::new()),
-        }
+      let protocol = crate::protocol::isolation::get(assets.clone(), *crypto_keys.aes_gcm().raw());
+      pending.register_uri_scheme_protocol(schema, move |request, responder| {
+        protocol(request, UriSchemeResponder(responder))
       });
     }
 
     Ok(pending)
-  }
-
-  fn prepare_ipc_handler(
-    &self,
-    app_handle: AppHandle<R>,
-  ) -> WebviewIpcHandler<EventLoopMessage, R> {
-    let manager = self.clone();
-    Box::new(move |window, #[allow(unused_mut)] mut request| {
-      let window = Window::new(manager.clone(), window, app_handle.clone());
-
-      #[cfg(feature = "isolation")]
-      if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
-        match RawIsolationPayload::try_from(request.as_str())
-          .and_then(|raw| crypto_keys.decrypt(raw))
-        {
-          Ok(json) => request = json,
-          Err(e) => {
-            let error: crate::Error = e.into();
-            let _ = window.eval(&format!(
-              r#"console.error({})"#,
-              JsonValue::String(error.to_string())
-            ));
-            return;
-          }
-        }
-      }
-
-      match serde_json::from_str::<InvokePayload>(&request) {
-        Ok(message) => {
-          let _ = window.on_message(message);
-        }
-        Err(e) => {
-          let error: crate::Error = e.into();
-          let _ = window.eval(&format!(
-            r#"console.error({})"#,
-            JsonValue::String(error.to_string())
-          ));
-        }
-      }
-    })
   }
 
   pub fn get_asset(&self, mut path: String) -> Result<Asset, Box<dyn std::error::Error>> {
@@ -817,7 +717,7 @@ impl<R: Runtime> WindowManager<R> {
     let asset_response = assets
       .get(&path.as_str().into())
       .or_else(|| {
-        eprintln!("Asset `{path}` not found; fallback to {path}.html");
+        debug_eprintln!("Asset `{path}` not found; fallback to {path}.html");
         let fallback = format!("{}.html", path.as_str()).into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -865,7 +765,7 @@ impl<R: Runtime> WindowManager<R> {
         } else {
           asset
         };
-        let mime_type = MimeType::parse(&final_data, &path);
+        let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
         Ok(Asset {
           bytes: final_data.to_vec(),
           mime_type,
@@ -879,60 +779,6 @@ impl<R: Runtime> WindowManager<R> {
     }
   }
 
-  #[allow(clippy::type_complexity)]
-  fn prepare_uri_scheme_protocol(
-    &self,
-    window_origin: &str,
-    web_resource_request_handler: Option<
-      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
-    >,
-  ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
-  {
-    let manager = self.clone();
-    let window_origin = window_origin.to_string();
-    Box::new(move |request| {
-      let path = request
-        .uri()
-        .split(&['?', '#'][..])
-        // ignore query string and fragment
-        .next()
-        .unwrap()
-        .strip_prefix("tauri://localhost")
-        .map(|p| p.to_string())
-        // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
-        // where `$P` is not `localhost/*`
-        .unwrap_or_else(|| "".to_string());
-      let asset = manager.get_asset(path)?;
-      let mut builder = HttpResponseBuilder::new()
-        .header("Access-Control-Allow-Origin", &window_origin)
-        .mimetype(&asset.mime_type);
-      if let Some(csp) = &asset.csp_header {
-        builder = builder.header("Content-Security-Policy", csp);
-      }
-      let mut response = builder.body(asset.bytes)?;
-      if let Some(handler) = &web_resource_request_handler {
-        handler(request, &mut response);
-
-        // if it's an HTML file, we need to set the CSP meta tag on Linux
-        #[cfg(target_os = "linux")]
-        if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
-          let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-          let body = set_html_csp(&String::from_utf8_lossy(response.body()), &response_csp);
-          *response.body_mut() = body.as_bytes().to_vec();
-        }
-      } else {
-        #[cfg(target_os = "linux")]
-        {
-          if let Some(csp) = &asset.csp_header {
-            let body = set_html_csp(&String::from_utf8_lossy(response.body()), csp);
-            *response.body_mut() = body.as_bytes().to_vec();
-          }
-        }
-      }
-      Ok(response)
-    })
-  }
-
   fn initialization_script(
     &self,
     ipc_script: &str,
@@ -943,16 +789,12 @@ impl<R: Runtime> WindowManager<R> {
     #[derive(Template)]
     #[default_template("../scripts/init.js")]
     struct InitJavascript<'a> {
-      origin: String,
       #[raw]
       pattern_script: &'a str,
       #[raw]
       ipc_script: &'a str,
       #[raw]
       bundle_script: &'a str,
-      // A function to immediately listen to an event.
-      #[raw]
-      listen_function: &'a str,
       #[raw]
       core_script: &'a str,
       #[raw]
@@ -961,8 +803,12 @@ impl<R: Runtime> WindowManager<R> {
       plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
-      #[raw]
-      hotkeys: &'a str,
+    }
+
+    #[derive(Template)]
+    #[default_template("../scripts/core.js")]
+    struct CoreJavascript<'a> {
+      os_name: &'a str,
     }
 
     let bundle_script = if with_global_tauri {
@@ -977,54 +823,18 @@ impl<R: Runtime> WindowManager<R> {
       ""
     };
 
-    #[cfg(any(debug_assertions, feature = "devtools"))]
-    let hotkeys = &format!(
-      "
-      {};
-      window.hotkeys('{}', () => {{
-        window.__TAURI_INVOKE__('tauri', {{
-          __tauriModule: 'Window',
-          message: {{
-            cmd: 'manage',
-            data: {{
-              cmd: {{
-                type: '__toggleDevtools'
-              }}
-            }}
-          }}
-        }});
-      }});
-    ",
-      include_str!("../scripts/hotkey.js"),
-      if cfg!(target_os = "macos") {
-        "command+option+i"
-      } else {
-        "ctrl+shift+i"
-      }
-    );
-    #[cfg(not(any(debug_assertions, feature = "devtools")))]
-    let hotkeys = "";
-
     InitJavascript {
-      origin: self.get_browser_origin(),
       pattern_script,
       ipc_script,
       bundle_script,
-      listen_function: &format!(
-        "function listen(eventName, cb) {{ {} }}",
-        crate::event::listen_js(
-          self.event_listeners_object_name(),
-          "eventName".into(),
-          0,
-          None,
-          "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
-        )
-      ),
-      core_script: include_str!("../scripts/core.js"),
+      core_script: &CoreJavascript {
+        os_name: std::env::consts::OS,
+      }
+      .render_default(&Default::default())?
+      .into_string(),
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,
-      hotkeys,
     }
     .render_default(&Default::default())
     .map(|s| s.into_string())
@@ -1040,7 +850,7 @@ impl<R: Runtime> WindowManager<R> {
 
           for (let i = listeners.length - 1; i >= 0; i--) {{
             const listener = listeners[i]
-            if (listener.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
+            if (listener.windowLabel === null || eventData.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
               eventData.id = listener.id
               listener.handler(eventData)
             }}
@@ -1048,44 +858,19 @@ impl<R: Runtime> WindowManager<R> {
         }}
       }});
     ",
-      function = self.event_emit_function_name(),
-      listeners = self.event_listeners_object_name()
+      function = self.listeners().function_name(),
+      listeners = self.listeners().listeners_object_name()
     )
   }
-}
 
-#[cfg(test)]
-mod test {
-  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
-
-  use super::WindowManager;
-
-  #[test]
-  fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Wry> = WindowManager::with_handlers(
-      context,
-      PluginStore::default(),
-      Box::new(|_| ()),
-      Box::new(|_, _| ()),
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
-      Default::default(),
-      (std::sync::Arc::new(|_, _, _, _| ()), "".into()),
-    );
-
-    #[cfg(custom_protocol)]
-    assert_eq!(manager.get_url().to_string(), "tauri://localhost");
-
-    #[cfg(dev)]
-    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+  pub(crate) fn listeners(&self) -> &Listeners {
+    &self.inner.listeners
   }
 }
 
 impl<R: Runtime> WindowManager<R> {
-  pub fn run_invoke_handler(&self, invoke: Invoke<R>) {
-    (self.inner.invoke_handler)(invoke);
+  pub fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
+    (self.inner.invoke_handler)(invoke)
   }
 
   pub fn run_on_page_load(&self, window: Window<R>, payload: PageLoadPayload) {
@@ -1098,13 +883,13 @@ impl<R: Runtime> WindowManager<R> {
       .on_page_load(window, payload);
   }
 
-  pub fn extend_api(&self, invoke: Invoke<R>) {
+  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(invoke);
+      .extend_api(plugin, invoke)
   }
 
   pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
@@ -1121,32 +906,38 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
     mut pending: PendingWindow<EventLoopMessage, R>,
     window_labels: &[String],
-    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
     #[allow(unused_mut)] // mut url only for the data-url parsing
-    let (is_local, mut url) = match &pending.webview_attributes.url {
+    let mut url = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
-        let url = self.get_url();
-        (
-          true,
-          // ignore "index.html" just to simplify the url
-          if path.to_str() != Some("index.html") {
-            url
-              .join(&path.to_string_lossy())
-              .map_err(crate::Error::InvalidUrl)
-              // this will never fail
-              .unwrap()
-          } else {
-            url.into_owned()
-          },
-        )
+        let url = if PROXY_DEV_SERVER {
+          Cow::Owned(Url::parse("tauri://localhost").unwrap())
+        } else {
+          self.get_url()
+        };
+        // ignore "index.html" just to simplify the url
+        if path.to_str() != Some("index.html") {
+          url
+            .join(&path.to_string_lossy())
+            .map_err(crate::Error::InvalidUrl)
+            // this will never fail
+            .unwrap()
+        } else {
+          url.into_owned()
+        }
       }
       WindowUrl::External(url) => {
         let config_url = self.get_url();
-        (config_url.make_relative(url).is_some(), url.clone())
+        let is_local = config_url.make_relative(url).is_some();
+        let mut url = url.clone();
+        if is_local && PROXY_DEV_SERVER {
+          url.set_scheme("tauri").unwrap();
+          url.set_host(Some("localhost")).unwrap();
+        }
+        url
       }
       _ => unimplemented!(),
     };
@@ -1168,7 +959,7 @@ impl<R: Runtime> WindowManager<R> {
           if html.contains('<') && html.contains('>') {
             let mut document = tauri_utils::html::parse(html);
             tauri_utils::html::inject_csp(&mut document, &csp.to_string());
-            url.set_path(&format!("text/html,{}", document.to_string()));
+            url.set_path(&format!("{},{}", mime::TEXT_HTML, document.to_string()));
           }
         }
       }
@@ -1184,34 +975,52 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    if pending.window_builder.get_menu().is_none() {
-      if let Some(menu) = &self.inner.menu {
-        pending = pending.set_menu(menu.clone());
-      }
+    #[cfg(target_os = "android")]
+    {
+      pending = pending.on_webview_created(move |ctx| {
+        let plugin_manager = ctx
+          .env
+          .call_method(
+            ctx.activity,
+            "getPluginManager",
+            "()Lapp/tauri/plugin/PluginManager;",
+            &[],
+          )?
+          .l()?;
+
+        // tell the manager the webview is ready
+        ctx.env.call_method(
+          plugin_manager,
+          "onWebViewCreated",
+          "(Landroid/webkit/WebView;)V",
+          &[ctx.webview.into()],
+        )?;
+
+        Ok(())
+      });
     }
 
-    if is_local {
-      let label = pending.label.clone();
-      pending = self.prepare_pending_window(
-        pending,
-        &label,
-        window_labels,
-        app_handle.clone(),
-        web_resource_request_handler,
-      )?;
-      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
+    let label = pending.label.clone();
+    pending = self.prepare_pending_window(
+      pending,
+      &label,
+      window_labels,
+      #[allow(clippy::redundant_clone)]
+      app_handle.clone(),
+    )?;
+
+    #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
+    {
+      pending.ipc_handler = Some(crate::ipc::protocol::message_handler(self.clone()));
     }
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      let local_app_data = resolve_path(
-        &self.inner.config,
-        &self.inner.package_info,
-        self.inner.state.get::<crate::Env>().inner(),
+      let local_app_data = app_handle.path().resolve(
         &self.inner.config.tauri.bundle.identifier,
-        Some(BaseDirectory::LocalData),
+        BaseDirectory::LocalData,
       );
       if let Ok(user_data_dir) = local_app_data {
         pending.webview_attributes.data_directory = Some(user_data_dir);
@@ -1225,15 +1034,54 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
+    #[cfg(feature = "isolation")]
+    let pattern = self.pattern().clone();
+    let navigation_handler = pending.navigation_handler.take();
+    let manager = self.inner.clone();
+    let label = pending.label.clone();
+    pending.navigation_handler = Some(Box::new(move |url| {
+      // always allow navigation events for the isolation iframe and do not emit them for consumers
+      #[cfg(feature = "isolation")]
+      if let Pattern::Isolation { schema, .. } = &pattern {
+        if url.scheme() == schema
+          && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
+        {
+          return true;
+        }
+      }
+      if let Some(handler) = &navigation_handler {
+        if !handler(url) {
+          return false;
+        }
+      }
+      let window = manager.windows.lock().unwrap().get(&label).cloned();
+      if let Some(w) = window {
+        manager
+          .plugins
+          .lock()
+          .expect("poisoned plugin store")
+          .on_navigation(&w, url)
+      } else {
+        true
+      }
+    }));
+
     Ok(pending)
   }
 
-  pub fn attach_window(
+  pub(crate) fn attach_window(
     &self,
     app_handle: AppHandle<R>,
     window: DetachedWindow<EventLoopMessage, R>,
+    #[cfg(desktop)] menu: Option<crate::window::WindowMenu<R>>,
   ) -> Window<R> {
-    let window = Window::new(self.clone(), window, app_handle);
+    let window = Window::new(
+      self.clone(),
+      window,
+      app_handle,
+      #[cfg(desktop)]
+      menu,
+    );
 
     let window_ = window.clone();
     let window_event_listeners = self.inner.window_event_listeners.clone();
@@ -1247,19 +1095,6 @@ impl<R: Runtime> WindowManager<R> {
         });
       }
     });
-    {
-      let window_ = window.clone();
-      let menu_event_listeners = self.inner.menu_event_listeners.clone();
-      window.on_menu_event(move |event| {
-        let _ = on_menu_event(&window_, &event);
-        for handler in menu_event_listeners.iter() {
-          handler(WindowMenuEvent {
-            window: window_.clone(),
-            menu_item_id: event.menu_item_id.clone(),
-          });
-        }
-      });
-    }
 
     // insert the window into our manager
     {
@@ -1279,6 +1114,15 @@ impl<R: Runtime> WindowManager<R> {
         .expect("poisoned plugin store")
         .created(window_);
     });
+
+    #[cfg(target_os = "ios")]
+    {
+      window
+        .with_webview(|w| {
+          unsafe { crate::ios::on_webview_created(w.inner() as _, w.view_controller() as _) };
+        })
+        .expect("failed to run on_webview_created hook");
+    }
 
     window
   }
@@ -1326,13 +1170,9 @@ impl<R: Runtime> WindowManager<R> {
     &self.inner.package_info
   }
 
-  pub fn unlisten(&self, handler_id: EventHandler) {
-    self.inner.listeners.unlisten(handler_id)
-  }
-
   pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
     assert_event_name_is_valid(event);
-    self.inner.listeners.trigger(event, window, data)
+    self.listeners().trigger(event, window, data)
   }
 
   pub fn listen<F: Fn(Event) + Send + 'static>(
@@ -1340,9 +1180,9 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) -> EventId {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.listen(event, window, handler)
+    self.listeners().listen(event, window, handler)
   }
 
   pub fn once<F: FnOnce(Event) + Send + 'static>(
@@ -1350,21 +1190,25 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.once(event, window, handler)
+    self.listeners().once(event, window, handler)
   }
 
-  pub fn event_listeners_object_name(&self) -> String {
-    self.inner.listeners.listeners_object_name()
-  }
-
-  pub fn event_emit_function_name(&self) -> String {
-    self.inner.listeners.function_name()
+  pub fn unlisten(&self, id: EventId) {
+    self.listeners().unlisten(id)
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.windows_lock().get(label).cloned()
+  }
+
+  pub fn get_focused_window(&self) -> Option<Window<R>> {
+    self
+      .windows_lock()
+      .iter()
+      .find(|w| w.1.is_focused().unwrap_or(false))
+      .map(|w| w.1.clone())
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
@@ -1372,31 +1216,10 @@ impl<R: Runtime> WindowManager<R> {
   }
 }
 
-/// Tray APIs
-#[cfg(all(desktop, feature = "system-tray"))]
-impl<R: Runtime> WindowManager<R> {
-  pub fn get_tray(&self, id: &str) -> Option<crate::SystemTrayHandle<R>> {
-    self.inner.trays.lock().unwrap().get(id).cloned()
-  }
-
-  pub fn trays(&self) -> HashMap<String, crate::SystemTrayHandle<R>> {
-    self.inner.trays.lock().unwrap().clone()
-  }
-
-  pub fn attach_tray(&self, id: String, tray: crate::SystemTrayHandle<R>) {
-    self.inner.trays.lock().unwrap().insert(id, tray);
-  }
-
-  pub fn get_tray_by_runtime_id(&self, id: u16) -> Option<(String, crate::SystemTrayHandle<R>)> {
-    let trays = self.inner.trays.lock().unwrap();
-    let iter = trays.iter();
-    for (tray_id, tray) in iter {
-      if tray.id == id {
-        return Some((tray_id.clone(), tray.clone()));
-      }
-    }
-    None
-  }
+#[derive(Serialize, Clone)]
+struct FileDropPayload<'a> {
+  paths: &'a Vec<PathBuf>,
+  position: &'a PhysicalPosition<f64>,
 }
 
 fn on_window_event<R: Runtime>(
@@ -1420,7 +1243,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"(function () {{ const metadata = window.__TAURI_METADATA__; if (metadata != null) {{ metadata.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{label}"); }} }})()"#
+          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.windows = window.__TAURI_INTERNALS__.metadata.windows.filter(w => w.label !== "{label}"); }} }})()"#,
         ))?;
       }
     }
@@ -1444,8 +1267,11 @@ fn on_window_event<R: Runtime>(
       },
     )?,
     WindowEvent::FileDrop(event) => match event {
-      FileDropEvent::Hovered(paths) => window.emit(WINDOW_FILE_DROP_HOVER_EVENT, paths)?,
-      FileDropEvent::Dropped(paths) => {
+      FileDropEvent::Hovered { paths, position } => {
+        let payload = FileDropPayload { paths, position };
+        window.emit(WINDOW_FILE_DROP_HOVER_EVENT, payload)?
+      }
+      FileDropEvent::Dropped { paths, position } => {
         let scopes = window.state::<Scopes>();
         for path in paths {
           if path.is_file() {
@@ -1454,7 +1280,8 @@ fn on_window_event<R: Runtime>(
             let _ = scopes.allow_directory(path, false);
           }
         }
-        window.emit(WINDOW_FILE_DROP_EVENT, paths)?
+        let payload = FileDropPayload { paths, position };
+        window.emit(WINDOW_FILE_DROP_EVENT, payload)?
       }
       FileDropEvent::Cancelled => window.emit(WINDOW_FILE_DROP_CANCELLED_EVENT, ())?,
       _ => unimplemented!(),
@@ -1469,38 +1296,6 @@ fn on_window_event<R: Runtime>(
 struct ScaleFactorChanged {
   scale_factor: f64,
   size: PhysicalSize<u32>,
-}
-
-fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
-  window.emit(MENU_EVENT, event.menu_item_id.clone())
-}
-
-#[cfg(feature = "isolation")]
-fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> String {
-  let mut path = request
-    .uri()
-    .split(&['?', '#'][..])
-    // ignore query string
-    .next()
-    .unwrap()
-    .trim_start_matches(base_url)
-    .to_string();
-
-  if path.ends_with('/') {
-    path.pop();
-  }
-
-  let path = percent_encoding::percent_decode(path.as_bytes())
-    .decode_utf8_lossy()
-    .to_string();
-
-  if path.is_empty() {
-    // if the url has no path, we should load `index.html`
-    "index.html".to_string()
-  } else {
-    // skip leading `/`
-    path.chars().skip(1).collect()
-  }
 }
 
 #[cfg(test)]
@@ -1522,5 +1317,43 @@ mod tests {
     )] {
       assert_eq!(replace_with_callback(src, pattern, replacement), result);
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
+
+  use super::WindowManager;
+
+  #[test]
+  fn check_get_url() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let manager: WindowManager<Wry> = WindowManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      Box::new(|_, _| ()),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      Default::default(),
+      (None, "".into()),
+    );
+
+    #[cfg(custom_protocol)]
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) || cfg!(target_os = "android") {
+          "http://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
+
+    #[cfg(dev)]
+    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
   }
 }

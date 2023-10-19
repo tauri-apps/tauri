@@ -16,7 +16,7 @@ else
 fi
 
 if [ -z "$(git diff --name-only tooling/cli/node)" ]; then
-  echo "skipping cli.js - no changes detected"
+  echo "skipping \`@tauri-apps/cli\` - no changes detected"
 else
   cd tooling/cli/node
   yarn format

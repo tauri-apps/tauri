@@ -13,7 +13,15 @@ use std::{
 use crate::helpers::config::Config;
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
-pub use rust::{Options, Rust as AppInterface};
+pub use rust::{manifest, MobileOptions, Options, Rust as AppInterface};
+
+pub trait DevProcess {
+  fn kill(&self) -> std::io::Result<()>;
+  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
+  fn wait(&self) -> std::io::Result<ExitStatus>;
+  fn manually_killed_process(&self) -> bool;
+  fn is_building_app(&self) -> bool;
+}
 
 pub trait AppSettings {
   fn get_package_settings(&self) -> tauri_bundler::PackageSettings;
@@ -28,6 +36,8 @@ pub trait AppSettings {
     config: &Config,
     target: &str,
   ) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
+  fn app_name(&self) -> Option<String>;
+  fn lib_name(&self) -> Option<String>;
 
   fn get_bundler_settings(
     &self,
@@ -80,9 +90,14 @@ pub trait Interface: Sized {
   fn app_settings(&self) -> &Self::AppSettings;
   fn env(&self) -> HashMap<&str, String>;
   fn build(&mut self, options: Options) -> crate::Result<()>;
-  fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+  fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
     on_exit: F,
+  ) -> crate::Result<()>;
+  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
+    &mut self,
+    options: MobileOptions,
+    runner: R,
   ) -> crate::Result<()>;
 }

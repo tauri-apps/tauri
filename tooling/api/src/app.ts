@@ -2,31 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+import { invoke } from './primitives'
+
 /**
- * Get application metadata.
- *
- * This package is also accessible with `window.__TAURI__.app` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
- *
- * The APIs must be added to [`tauri.allowlist.app`](https://tauri.app/v1/api/config/#allowlistconfig.app) in `tauri.conf.json`:
- * ```json
- * {
- *   "tauri": {
- *     "allowlist": {
- *       "app": {
- *         "all": true, // enable all app APIs
- *         "show": true,
- *         "hide": true
- *       }
- *     }
- *   }
- * }
- * ```
- * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ * Application metadata and related APIs.
  *
  * @module
  */
-
-import { invokeTauriCommand } from './helpers/tauri'
 
 /**
  * Gets the application version.
@@ -39,12 +21,7 @@ import { invokeTauriCommand } from './helpers/tauri'
  * @since 1.0.0
  */
 async function getVersion(): Promise<string> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
-    message: {
-      cmd: 'getAppVersion'
-    }
-  })
+  return invoke('plugin:app|version')
 }
 
 /**
@@ -58,12 +35,7 @@ async function getVersion(): Promise<string> {
  * @since 1.0.0
  */
 async function getName(): Promise<string> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
-    message: {
-      cmd: 'getAppName'
-    }
-  })
+  return invoke('plugin:app|name')
 }
 
 /**
@@ -78,12 +50,7 @@ async function getName(): Promise<string> {
  * @since 1.0.0
  */
 async function getTauriVersion(): Promise<string> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
-    message: {
-      cmd: 'getTauriVersion'
-    }
-  })
+  return invoke('plugin:app|tauri_version')
 }
 
 /**
@@ -98,12 +65,7 @@ async function getTauriVersion(): Promise<string> {
  * @since 1.2.0
  */
 async function show(): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
-    message: {
-      cmd: 'show'
-    }
-  })
+  return invoke('plugin:app|app_show')
 }
 
 /**
@@ -118,12 +80,7 @@ async function show(): Promise<void> {
  * @since 1.2.0
  */
 async function hide(): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'App',
-    message: {
-      cmd: 'hide'
-    }
-  })
+  return invoke('plugin:app|app_hide')
 }
 
 export { getName, getVersion, getTauriVersion, show, hide }

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --clearScreen false --port 5173",
+    "dev": "vite --clearScreen false",
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "node ../../tooling/cli/node/tauri.js"
@@ -15,9 +15,10 @@
   "devDependencies": {
     "@iconify-json/codicon": "^1.1.10",
     "@iconify-json/ph": "^1.1.1",
-    "@sveltejs/vite-plugin-svelte": "^1.0.0-next.49",
-    "svelte": "^3.49.0",
+    "internal-ip": "^7.0.0",
     "unocss": "^0.39.3",
-    "vite": "^2.9.13"
+    "@sveltejs/vite-plugin-svelte": "^2.4.6",
+    "svelte": "^4.2.1",
+    "vite": "^4.4.9"
   }
 }

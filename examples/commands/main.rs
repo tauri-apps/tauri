@@ -9,7 +9,11 @@ mod commands;
 use commands::{cmd, invoke, message, resolver};
 
 use serde::Deserialize;
-use tauri::{command, State, Window};
+use tauri::{
+  command,
+  ipc::{Request, Response},
+  State, Window,
+};
 
 #[derive(Debug)]
 pub struct MyState {
@@ -82,7 +86,7 @@ fn force_async(the_argument: String) -> String {
 #[command(async)]
 fn force_async_with_result(the_argument: &str) -> Result<&str, MyError> {
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -118,7 +122,7 @@ fn force_async_snake(the_argument: String) -> String {
 #[command(rename_all = "snake_case", async)]
 fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -128,7 +132,7 @@ fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
 fn simple_command_with_result(the_argument: String) -> Result<String, MyError> {
   println!("{the_argument}");
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -147,7 +151,7 @@ fn stateful_command_with_result(
 fn simple_command_with_result_snake(the_argument: String) -> Result<String, MyError> {
   println!("{the_argument}");
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -213,6 +217,12 @@ fn borrow_cmd_async(the_argument: &str) -> &str {
   the_argument
 }
 
+#[command]
+fn raw_request(request: Request<'_>) -> Response {
+  println!("{:?}", request);
+  Response::new(include_bytes!("./README.md").to_vec())
+}
+
 fn main() {
   tauri::Builder::default()
     .manage(MyState {
@@ -222,6 +232,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       borrow_cmd,
       borrow_cmd_async,
+      raw_request,
       window_label,
       force_async,
       force_async_with_result,

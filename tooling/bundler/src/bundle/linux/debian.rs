@@ -26,16 +26,18 @@
 use super::super::common;
 use crate::Settings;
 use anyhow::Context;
+use handlebars::Handlebars;
 use heck::AsKebabCase;
 use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use libflate::gzip;
 use log::info;
+use serde::Serialize;
 use walkdir::WalkDir;
 
 use std::{
   collections::BTreeSet,
   ffi::OsStr,
-  fs::{self, File},
+  fs::{self, read_to_string, File},
   io::{self, Write},
   path::{Path, PathBuf},
 };
@@ -65,13 +67,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     settings.version_string(),
     arch
   );
-  let package_name = format!("{}.deb", package_base_name);
+  let package_name = format!("{package_base_name}.deb");
 
   let base_dir = settings.project_out_directory().join("bundle/deb");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
     fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old {}", package_base_name))?;
+      .with_context(|| format!("Failed to remove old {package_base_name}"))?;
   }
   let package_path = base_dir.join(&package_name);
 
@@ -118,7 +120,7 @@ pub fn generate_data(
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
     common::copy_file(&bin_path, bin_dir.join(bin.name()))
-      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+      .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
   }
 
   copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
@@ -137,27 +139,68 @@ pub fn generate_data(
 /// Generate the application desktop file and store it under the `data_dir`.
 fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   let bin_name = settings.main_binary_name();
-  let desktop_file_name = format!("{}.desktop", bin_name);
+  let desktop_file_name = format!("{bin_name}.desktop");
   let desktop_file_path = data_dir
     .join("usr/share/applications")
     .join(desktop_file_name);
-  let file = &mut common::create_file(&desktop_file_path)?;
+
   // For more information about the format of this file, see
   // https://developer.gnome.org/integration-guide/stable/desktop-files.html.en
-  writeln!(file, "[Desktop Entry]")?;
-  if let Some(category) = settings.app_category() {
-    writeln!(file, "Categories={}", category.gnome_desktop_categories())?;
+  let file = &mut common::create_file(&desktop_file_path)?;
+
+  let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(handlebars::no_escape);
+  if let Some(template) = &settings.deb().desktop_template {
+    handlebars
+      .register_template_string("main.desktop", read_to_string(template)?)
+      .with_context(|| "Failed to setup custom handlebar template")?;
   } else {
-    writeln!(file, "Categories=")?;
+    handlebars
+      .register_template_string("main.desktop", include_str!("./templates/main.desktop"))
+      .with_context(|| "Failed to setup custom handlebar template")?;
   }
-  if !settings.short_description().is_empty() {
-    writeln!(file, "Comment={}", settings.short_description())?;
+
+  #[derive(Serialize)]
+  struct DesktopTemplateParams<'a> {
+    categories: &'a str,
+    comment: Option<&'a str>,
+    exec: &'a str,
+    icon: &'a str,
+    name: &'a str,
+    mime_type: Option<String>,
   }
-  writeln!(file, "Exec={}", bin_name)?;
-  writeln!(file, "Icon={}", bin_name)?;
-  writeln!(file, "Name={}", settings.product_name())?;
-  writeln!(file, "Terminal=false")?;
-  writeln!(file, "Type=Application")?;
+
+  let mime_type = if let Some(associations) = settings.file_associations() {
+    let mime_types: Vec<&str> = associations
+      .iter()
+      .filter_map(|association| association.mime_type.as_ref())
+      .map(|s| s.as_str())
+      .collect();
+    Some(mime_types.join(";"))
+  } else {
+    None
+  };
+
+  handlebars.render_to_write(
+    "main.desktop",
+    &DesktopTemplateParams {
+      categories: settings
+        .app_category()
+        .map(|app_category| app_category.gnome_desktop_categories())
+        .unwrap_or(""),
+      comment: if !settings.short_description().is_empty() {
+        Some(settings.short_description())
+      } else {
+        None
+      },
+      exec: bin_name,
+      icon: bin_name,
+      name: settings.product_name(),
+      mime_type,
+    },
+    file,
+  )?;
+
   Ok(())
 }
 
@@ -174,11 +217,11 @@ fn generate_control_file(
   let mut file = common::create_file(&dest_path)?;
   writeln!(file, "Package: {}", AsKebabCase(settings.product_name()))?;
   writeln!(file, "Version: {}", settings.version_string())?;
-  writeln!(file, "Architecture: {}", arch)?;
+  writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
   let authors = settings.authors_comma_separated().unwrap_or_default();
-  writeln!(file, "Maintainer: {}", authors)?;
+  writeln!(file, "Maintainer: {authors}")?;
   if !settings.homepage_url().is_empty() {
     writeln!(file, "Homepage: {}", settings.homepage_url())?;
   }
@@ -194,13 +237,13 @@ fn generate_control_file(
   if long_description.is_empty() {
     long_description = "(none)";
   }
-  writeln!(file, "Description: {}", short_description)?;
+  writeln!(file, "Description: {short_description}")?;
   for line in long_description.lines() {
     let line = line.trim();
     if line.is_empty() {
       writeln!(file, " .")?;
     } else {
-      writeln!(file, " {}", line)?;
+      writeln!(file, " {line}")?;
     }
   }
   writeln!(file, "Priority: optional")?;
@@ -223,14 +266,14 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
     let mut hash = md5::Context::new();
     io::copy(&mut file, &mut hash)?;
     for byte in hash.compute().iter() {
-      write!(md5sums_file, "{:02x}", byte)?;
+      write!(md5sums_file, "{byte:02x}")?;
     }
     let rel_path = path.strip_prefix(data_dir)?;
     let path_str = rel_path.to_str().ok_or_else(|| {
-      let msg = format!("Non-UTF-8 path: {:?}", rel_path);
+      let msg = format!("Non-UTF-8 path: {rel_path:?}");
       io::Error::new(io::ErrorKind::InvalidData, msg)
     })?;
-    writeln!(md5sums_file, "  {}", path_str)?;
+    writeln!(md5sums_file, "  {path_str}")?;
   }
   Ok(())
 }

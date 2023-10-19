@@ -1,23 +1,17 @@
 {
-  "$schema": "../../../core/config-schema/schema.json",
+  "$schema": "../../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:5173",
     "beforeDevCommand": "yarn dev",
-    "beforeBuildCommand": "yarn build"
+    "beforeBuildCommand": "yarn build",
+    "withGlobalTauri": true
   },
   "package": {
     "productName": "Tauri API",
     "version": "1.0.0"
   },
-  "tauri": {
-    "pattern": {
-      "use": "isolation",
-      "options": {
-        "dir": "../isolation-dist/"
-      }
-    },
-    "macOSPrivateApi": true,
+  "plugins": {
     "cli": {
       "description": "Tauri API example",
       "args": [
@@ -32,12 +26,15 @@
           "name": "theme",
           "takesValue": true,
           "description": "App theme",
-          "possibleValues": ["light", "dark", "system"]
+          "possibleValues": [
+            "light",
+            "dark",
+            "system"
+          ]
         },
         {
           "short": "v",
           "name": "verbose",
-          "multipleOccurrences": true,
           "description": "Verbosity level"
         }
       ],
@@ -53,7 +50,16 @@
           ]
         }
       }
+    }
+  },
+  "tauri": {
+    "pattern": {
+      "use": "isolation",
+      "options": {
+        "dir": "../isolation-dist/"
+      }
     },
+    "macOSPrivateApi": true,
     "bundle": {
       "active": true,
       "identifier": "com.tauri.api",
@@ -73,64 +79,39 @@
             }
           }
         }
-      }
-    },
-    "updater": {
-      "active": true,
-      "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE5QzMxNjYwNTM5OEUwNTgKUldSWTRKaFRZQmJER1h4d1ZMYVA3dnluSjdpN2RmMldJR09hUFFlZDY0SlFqckkvRUJhZDJVZXAK",
-      "endpoints": [
-        "https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}"
-      ]
-    },
-    "allowlist": {
-      "all": true,
-      "fs": {
-        "scope": {
-          "allow": ["$APPDATA/db/**", "$DOWNLOAD/**", "$RESOURCE/**"],
-          "deny": ["$APPDATA/db/*.stronghold"]
+      },
+      "updater": {
+        "active": true,
+        "pubkey": "asdasd",
+        "windows": {
+          "installMode": "passive"
         }
-      },
-      "shell": {
-        "open": true,
-        "scope": [
-          {
-            "name": "sh",
-            "cmd": "sh",
-            "args": ["-c", { "validator": "\\S+" }]
-          },
-          {
-            "name": "cmd",
-            "cmd": "cmd",
-            "args": ["/C", { "validator": "\\S+" }]
-          }
-        ]
-      },
-      "protocol": {
-        "asset": true,
-        "assetScope": {
-          "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
-          "deny": ["$APPDATA/db/*.stronghold"]
-        }
-      },
-      "http": {
-        "scope": ["http://localhost:3003"]
       }
     },
     "windows": [],
     "security": {
       "csp": {
         "default-src": "'self' customprotocol: asset:",
-        "font-src": ["https://fonts.gstatic.com"],
-        "img-src": "'self' asset: https://asset.localhost blob: data:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "font-src": [
+          "https://fonts.gstatic.com"
+        ],
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
         "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
       },
-      "freezePrototype": true
-    },
-    "systemTray": {
-      "iconPath": "../../.icons/tray_icon_with_transparency.png",
-      "iconAsTemplate": true,
-      "menuOnLeftClick": false
+      "freezePrototype": true,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": [
+            "$APPDATA/db/**",
+            "$RESOURCE/**"
+          ],
+          "deny": [
+            "$APPDATA/db/*.stronghold"
+          ]
+        }
+      }
     }
   }
 }

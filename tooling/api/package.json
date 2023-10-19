@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "1.2.0",
+  "version": "2.0.0-alpha.8",
   "description": "Tauri API definitions",
   "type": "module",
   "funding": {
@@ -13,12 +13,12 @@
   "scripts": {
     "build": "yarn tsup && node ./scripts/after-build.cjs && yarn generate-docs",
     "npm-pack": "yarn build && cd ./dist && npm pack",
-    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
+    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path ../../.prettierignore",
     "format:check": "prettier --check --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path ../../.prettierignore",
-    "generate-docs": "typedoc"
+    "generate-docs": "typedoc --plugin typedoc-plugin-markdown --plugin typedoc-plugin-mdn-links"
   },
   "repository": {
     "type": "git",
@@ -36,26 +36,29 @@
     "access": "public"
   },
   "engines": {
-    "node": ">= 14.6.0",
+    "node": ">= 18",
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "5.51.0",
-    "@typescript-eslint/parser": "5.51.0",
-    "eslint": "8.33.0",
-    "eslint-config-prettier": "8.6.0",
-    "eslint-config-standard-with-typescript": "32.0.0",
-    "eslint-plugin-import": "2.27.5",
-    "eslint-plugin-n": "15.6.1",
+    "@typescript-eslint/eslint-plugin": "6.8.0",
+    "@typescript-eslint/parser": "6.8.0",
+    "eslint": "8.51.0",
+    "eslint-config-prettier": "9.0.0",
+    "eslint-config-standard-with-typescript": "39.1.1",
+    "eslint-plugin-import": "2.28.1",
+    "eslint-plugin-n": "16.2.0",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.1.1",
     "eslint-plugin-security": "1.7.1",
-    "prettier": "2.8.4",
-    "tsup": "6.6.0",
-    "typedoc": "0.23.24",
-    "typedoc-plugin-markdown": "3.14.0",
-    "typedoc-plugin-mdn-links": "2.0.2",
-    "typescript": "4.9.5"
+    "prettier": "3.0.3",
+    "tsup": "7.2.0",
+    "typedoc": "0.25.2",
+    "typedoc-plugin-markdown": "3.16.0",
+    "typedoc-plugin-mdn-links": "3.1.0",
+    "typescript": "5.2.2"
+  },
+  "resolutions": {
+    "semver": ">=7.5.2"
   }
 }

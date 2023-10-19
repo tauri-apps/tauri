@@ -41,4 +41,4 @@ ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
 
 RUN dpkg --add-architecture arm64
 RUN apt-get update
-RUN apt-get install --assume-yes --no-install-recommends libssl-dev:arm64 libdbus-1-dev:arm64 libsoup2.4-dev:arm64 libssl-dev:arm64 libgtk-3-dev:arm64 webkit2gtk-4.0-dev:arm64 libappindicator3-1:arm64 librsvg2-dev:arm64 patchelf:arm64
+RUN apt-get install --assume-yes --no-install-recommends libssl-dev:arm64 libdbus-1-dev:arm64 libsoup2.4-dev:arm64 libssl-dev:arm64 libgtk-3-dev:arm64 webkit2gtk-4.1-dev:arm64 libappindicator3-1:arm64 librsvg2-dev:arm64 patchelf:arm64

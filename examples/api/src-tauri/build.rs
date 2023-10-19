@@ -8,5 +8,5 @@ fn main() {
     codegen = codegen.dev();
   }
   codegen.build();
-  tauri_build::build()
+  tauri_build::build();
 }

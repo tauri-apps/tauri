@@ -19,7 +19,7 @@ use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
-  collections::{BTreeMap, HashMap},
+  collections::{BTreeMap, HashMap, HashSet},
   fs::{create_dir_all, read_to_string, remove_dir_all, rename, write, File},
   io::Write,
   path::{Path, PathBuf},
@@ -356,14 +356,7 @@ fn run_light(
 ) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
 
-  let mut args: Vec<String> = vec![
-    "-ext".to_string(),
-    "WixUIExtension".to_string(),
-    "-ext".to_string(),
-    "WixUtilExtension".to_string(),
-    "-o".to_string(),
-    display_path(output_path),
-  ];
+  let mut args: Vec<String> = vec!["-o".to_string(), display_path(output_path)];
 
   args.extend(arguments);
 
@@ -614,7 +607,8 @@ pub fn build_wix_app_installer(
 
   let mut fragment_paths = Vec::new();
   let mut handlebars = Handlebars::new();
-  let mut has_custom_template = false;
+  handlebars.register_escape_fn(handlebars::no_escape);
+  let mut custom_template_path = None;
   let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
@@ -625,15 +619,7 @@ pub fn build_wix_app_installer(
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
     enable_elevated_update_task = wix.enable_elevated_update_task;
-
-    if let Some(temp_path) = &wix.template {
-      let template = read_to_string(temp_path)?;
-      handlebars
-        .register_template_string("main.wxs", &template)
-        .map_err(|e| e.to_string())
-        .expect("Failed to setup custom handlebar template");
-      has_custom_template = true;
-    }
+    custom_template_path = wix.template.clone();
 
     if let Some(banner_path) = &wix.banner_path {
       let filename = banner_path
@@ -660,7 +646,16 @@ pub fn build_wix_app_installer(
     }
   }
 
-  if !has_custom_template {
+  if let Some(file_associations) = &settings.file_associations() {
+    data.insert("file_associations", to_json(file_associations));
+  }
+
+  if let Some(path) = custom_template_path {
+    handlebars
+      .register_template_string("main.wxs", read_to_string(path)?)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup custom handlebar template");
+  } else {
     handlebars
       .register_template_string("main.wxs", include_str!("../templates/main.wxs"))
       .map_err(|e| e.to_string())
@@ -692,6 +687,7 @@ pub fn build_wix_app_installer(
 
     // Create the Powershell script to install the task
     let mut skip_uac_task_installer = Handlebars::new();
+    skip_uac_task_installer.register_escape_fn(handlebars::no_escape);
     let xml = include_str!("../templates/install-task.ps1");
     skip_uac_task_installer
       .register_template_string("install-task.ps1", xml)
@@ -703,6 +699,7 @@ pub fn build_wix_app_installer(
 
     // Create the Powershell script to uninstall the task
     let mut skip_uac_task_uninstaller = Handlebars::new();
+    skip_uac_task_uninstaller.register_escape_fn(handlebars::no_escape);
     let xml = include_str!("../templates/uninstall-task.ps1");
     skip_uac_task_uninstaller
       .register_template_string("uninstall-task.ps1", xml)
@@ -732,9 +729,15 @@ pub fn build_wix_app_installer(
     candle_inputs.push((fragment_path, extensions));
   }
 
-  let mut fragment_extensions = Vec::new();
+  let mut fragment_extensions = HashSet::new();
+  //Default extensions
+  fragment_extensions.insert(wix_toolset_path.join("WixUIExtension.dll"));
+  fragment_extensions.insert(wix_toolset_path.join("WixUtilExtension.dll"));
+
   for (path, extensions) in candle_inputs {
-    fragment_extensions.extend(extensions.clone());
+    for ext in &extensions {
+      fragment_extensions.insert(ext.clone());
+    }
     run_candle(settings, wix_toolset_path, &output_path, path, extensions)?;
   }
 
@@ -813,7 +816,7 @@ pub fn build_wix_app_installer(
       wix_toolset_path,
       &output_path,
       arguments,
-      &fragment_extensions,
+      &(fragment_extensions.clone().into_iter().collect()),
       &msi_output_path,
     )?;
     rename(&msi_output_path, &msi_path)?;

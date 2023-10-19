@@ -10,6 +10,59 @@ use crate::{Env, PackageInfo};
 
 mod starting_binary;
 
+/// Platform target.
+#[derive(PartialEq, Eq, Copy, Clone)]
+pub enum Target {
+  /// MacOS.
+  Darwin,
+  /// Windows.
+  Windows,
+  /// Linux.
+  Linux,
+  /// Android.
+  Android,
+  /// iOS.
+  Ios,
+}
+
+impl Target {
+  /// Parses the target from the given target triple.
+  pub fn from_triple(target: &str) -> Self {
+    if target.contains("darwin") {
+      Self::Darwin
+    } else if target.contains("windows") {
+      Self::Windows
+    } else if target.contains("android") {
+      Self::Android
+    } else if target.contains("ios") {
+      Self::Ios
+    } else {
+      Self::Linux
+    }
+  }
+
+  /// Gets the current build target.
+  pub fn current() -> Self {
+    if cfg!(target_os = "macos") {
+      Self::Darwin
+    } else if cfg!(target_os = "windows") {
+      Self::Windows
+    } else {
+      Self::Linux
+    }
+  }
+
+  /// Whether the target is mobile or not.
+  pub fn is_mobile(&self) -> bool {
+    matches!(self, Target::Android | Target::Ios)
+  }
+
+  /// Whether the target is desktop or not.
+  pub fn is_desktop(&self) -> bool {
+    !self.is_mobile()
+  }
+}
+
 /// Retrieves the currently running binary's path, taking into account security considerations.
 ///
 /// The path is cached as soon as possible (before even `main` runs) and that value is returned
@@ -204,7 +257,7 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
 }
 
 #[cfg(windows)]
-pub use windows_platform::{is_windows_7, windows_version};
+pub use windows_platform::{get_function_impl, is_windows_7, windows_version};
 
 #[cfg(windows)]
 mod windows_platform {
@@ -235,9 +288,9 @@ mod windows_platform {
     string.as_ref().encode_wide().chain(once(0)).collect()
   }
 
-  // Helper function to dynamically load function pointer.
-  // `library` and `function` must be zero-terminated.
-  fn get_function_impl(library: &str, function: &str) -> Option<FARPROC> {
+  /// Helper function to dynamically load function pointer.
+  /// `library` and `function` must be null-terminated.
+  pub fn get_function_impl(library: &str, function: &str) -> Option<FARPROC> {
     let library = encode_wide(library);
     assert_eq!(function.chars().last(), Some('\0'));
     let function = PCSTR::from_raw(function.as_ptr());

@@ -12,13 +12,14 @@ use std::{
 use ignore::WalkBuilder;
 use once_cell::sync::Lazy;
 
-use tauri_utils::config::parse::{
-  folder_has_configuration_file, is_configuration_file, ConfigFormat,
+use tauri_utils::{
+  config::parse::{folder_has_configuration_file, is_configuration_file, ConfigFormat},
+  platform::Target,
 };
 
 const TAURI_GITIGNORE: &[u8] = include_bytes!("../../tauri.gitignore");
 
-fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
+pub fn walk_builder(path: &Path) -> WalkBuilder {
   let mut default_gitignore = std::env::temp_dir();
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
@@ -28,17 +29,22 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
     }
   }
 
-  let mut builder = WalkBuilder::new(dir);
+  let mut builder = WalkBuilder::new(path);
   builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
+  builder
+}
+
+fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
+  let mut builder = walk_builder(dir);
   builder
     .require_git(false)
     .ignore(false)
     .max_depth(Some(
-      std::env::var("TAURI_PATH_DEPTH")
+      std::env::var("TAURI_CLI_CONFIG_DEPTH")
         .map(|d| {
           d.parse()
-            .expect("`TAURI_PATH_DEPTH` environment variable must be a positive integer")
+            .expect("`TAURI_CLI_CONFIG_DEPTH` environment variable must be a positive integer")
         })
         .unwrap_or(3),
     ))
@@ -68,7 +74,7 @@ fn get_tauri_dir() -> PathBuf {
     return cwd.join("src-tauri/");
   }
 
-  lookup(&cwd, |path| folder_has_configuration_file(path) || is_configuration_file(path))
+  lookup(&cwd, |path| folder_has_configuration_file(Target::Linux, path) || is_configuration_file(Target::Linux, path))
   .map(|p| if p.is_dir() { p } else {  p.parent().unwrap().to_path_buf() })
   .unwrap_or_else(||
     panic!("Couldn't recognize the current folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",

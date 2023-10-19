@@ -77,7 +77,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
 
       - name: Download cross
         uses: actions/download-artifact@v3
@@ -115,7 +115,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - name: Test
         run: |

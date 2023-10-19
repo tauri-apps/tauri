@@ -54,5 +54,5 @@ fn override_msvcrt_lib() {
     f.write_all(bytes).unwrap();
   }
   // Add the output directory to the native library path.
-  println!("cargo:rustc-link-search=native={}", out_dir);
+  println!("cargo:rustc-link-search=native={out_dir}");
 }

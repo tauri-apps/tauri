@@ -6,12 +6,11 @@
  * @typedef {{callback: string, error: string, data: *}} IsolationPayload - a valid isolation payload
  */
 
-;
-(function () {
+;(function () {
   /**
    * @type {string}
    */
-  const pattern = window.__TAURI_PATTERN__.pattern
+  const pattern = window.__TAURI_INTERNALS__.__TAURI_PATTERN__.pattern
 
   /**
    * @type {string}
@@ -33,11 +32,17 @@
    * @return {boolean} - if the event was a valid isolation message
    */
   function isIsolationMessage(event) {
-    return (
+    if (
       typeof event.data === 'object' &&
-      'nonce' in event.data &&
-      'payload' in event.data
-    )
+      typeof event.data.payload === 'object'
+    ) {
+      const keys = Object.keys(event.data.payload || {})
+      return (
+        keys.length > 0 &&
+        keys.every((key) => key === 'nonce' || key === 'payload')
+      )
+    }
+    return false
   }
 
   /**
@@ -47,7 +52,12 @@
    * @return {boolean} - if the data is able to transform into an isolation payload
    */
   function isIsolationPayload(data) {
-    return typeof data === 'object' && 'callback' in data && 'error' in data
+    return (
+      typeof data === 'object' &&
+      'callback' in data &&
+      'error' in data &&
+      !isIsolationMessage(data)
+    )
   }
 
   /**
@@ -82,12 +92,12 @@
     )
   }
 
-  Object.defineProperty(window, '__TAURI_IPC__', {
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'ipc', {
     // todo: JSDoc this function
     value: Object.freeze((message) => {
       switch (pattern) {
         case 'brownfield':
-          window.__TAURI_POST_MESSAGE__(message)
+          window.__TAURI_INTERNALS__.postMessage(message)
           break
 
         case 'isolation':
@@ -144,7 +154,7 @@
         }
 
         if (isIsolationMessage(event)) {
-          window.__TAURI_POST_MESSAGE__(event.data)
+          window.__TAURI_INTERNALS__.postMessage(event.data)
         }
       },
       false

@@ -20,4 +20,4 @@ if ((Test-Admin) -eq $false) {
     exit
 }
 
-SCHTASKS.EXE /DELETE /TN 'Update {{{product_name}}} - Skip UAC' /F
+SCHTASKS.EXE /DELETE /TN 'Update {{product_name}} - Skip UAC' /F

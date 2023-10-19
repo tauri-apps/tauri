@@ -6,8 +6,7 @@
 use super::{app, icon::create_icns_file};
 use crate::{
   bundle::{common::CommandExt, Bundle},
-  PackageType::MacOsBundle,
-  Settings,
+  PackageType, Settings,
 };
 
 use anyhow::Context;
@@ -20,18 +19,23 @@ use std::{
   process::{Command, Stdio},
 };
 
+pub struct Bundled {
+  pub dmg: Vec<PathBuf>,
+  pub app: Vec<PathBuf>,
+}
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
-pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Bundled> {
   // generate the .app bundle if needed
-  if bundles
+  let app_bundle_paths = if !bundles
     .iter()
-    .filter(|bundle| bundle.package_type == MacOsBundle)
-    .count()
-    == 0
+    .any(|bundle| bundle.package_type == PackageType::MacOsBundle)
   {
-    app::bundle_project(settings)?;
-  }
+    app::bundle_project(settings)?
+  } else {
+    Vec::new()
+  };
 
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
@@ -96,7 +100,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     "--volname",
     product_name,
     "--icon",
-    product_name,
+    &bundle_file_name,
     "180",
     "170",
     "--app-drop-link",
@@ -151,5 +155,9 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   if let Some(identity) = &settings.macos().signing_identity {
     super::sign::sign(dmg_path.clone(), identity, settings, false)?;
   }
-  Ok(vec![dmg_path])
+
+  Ok(Bundled {
+    dmg: vec![dmg_path],
+    app: app_bundle_paths,
+  })
 }

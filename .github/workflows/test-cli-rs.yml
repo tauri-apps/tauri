@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: test cli.rs
+name: test `tauri-cli`
 
 on:
   push:
     branches:
       - dev
-      - next
+      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-cli-rs.yml'
@@ -23,25 +23,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-tauri-cli:
-    runs-on: ${{ matrix.platform }}
+  test:
+    runs-on: ${{ matrix.platform.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform:
+          - {
+              target: x86_64-pc-windows-msvc,
+              os: windows-latest
+            }
+          - {
+              target: aarch64-pc-windows-msvc,
+              os: windows-latest,
+              args: --no-default-features --features native-tls-vendored
+            }
+          - {
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest
+            }
+          - {
+              target: x86_64-apple-darwin,
+              os: macos-latest
+            }
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: install stable
-        uses: actions-rs/toolchain@v1
+      - name: 'Setup Rust'
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
+          targets: ${{ matrix.platform.target }}
 
       - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
@@ -54,4 +70,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
+          args: --manifest-path ./tooling/cli/Cargo.toml ${{ matrix.platform.args }}

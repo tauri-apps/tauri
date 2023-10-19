@@ -2,6 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-window.__TAURI_ISOLATION_HOOK__ = (payload) => {
+window.__TAURI_ISOLATION_HOOK__ = (payload, options) => {
   return payload
 }

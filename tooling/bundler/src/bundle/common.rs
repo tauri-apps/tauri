@@ -72,14 +72,12 @@ pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<
   let to = to.as_ref();
   if !from.exists() {
     return Err(crate::Error::GenericError(format!(
-      "{:?} does not exist",
-      from
+      "{from:?} does not exist"
     )));
   }
   if !from.is_file() {
     return Err(crate::Error::GenericError(format!(
-      "{:?} is not a file",
-      from
+      "{from:?} is not a file"
     )));
   }
   let dest_dir = to.parent().expect("No data in parent");
@@ -96,20 +94,17 @@ pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<
 pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   if !from.exists() {
     return Err(crate::Error::GenericError(format!(
-      "{:?} does not exist",
-      from
+      "{from:?} does not exist"
     )));
   }
   if !from.is_dir() {
     return Err(crate::Error::GenericError(format!(
-      "{:?} is not a Directory",
-      from
+      "{from:?} is not a Directory"
     )));
   }
   if to.exists() {
     return Err(crate::Error::GenericError(format!(
-      "{:?} already exists",
-      from
+      "{from:?} already exists"
     )));
   }
   let parent = to.parent().expect("No data in parent");
@@ -154,7 +149,7 @@ impl CommandExt for Command {
 
   fn output_ok(&mut self) -> crate::Result<Output> {
     let program = self.get_program().to_string_lossy().into_owned();
-    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
     self.stdout(Stdio::piped());
     self.stderr(Stdio::piped());
@@ -169,9 +164,8 @@ impl CommandExt for Command {
       let mut lines = stdout_lines_.lock().unwrap();
       loop {
         buf.clear();
-        match tauri_utils::io::read_line(&mut stdout, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        if let Ok(0) = tauri_utils::io::read_line(&mut stdout, &mut buf) {
+          break;
         }
         debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
         lines.extend(buf.clone());
@@ -187,9 +181,8 @@ impl CommandExt for Command {
       let mut lines = stderr_lines_.lock().unwrap();
       loop {
         buf.clear();
-        match tauri_utils::io::read_line(&mut stderr, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        if let Ok(0) = tauri_utils::io::read_line(&mut stderr, &mut buf) {
+          break;
         }
         debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
         lines.extend(buf.clone());
@@ -208,8 +201,7 @@ impl CommandExt for Command {
       Ok(output)
     } else {
       Err(crate::Error::GenericError(format!(
-        "failed to run {}",
-        program
+        "failed to run {program}"
       )))
     }
   }

@@ -2,45 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-mod fs;
-mod http;
-#[cfg(shell_scope)]
-mod shell;
+/// FS scope.
+pub mod fs;
+/// IPC scope.
+pub mod ipc;
 
-pub use self::http::Scope as HttpScope;
-pub use fs::{Event as FsScopeEvent, Pattern as GlobPattern, Scope as FsScope};
-#[cfg(shell_scope)]
-pub use shell::{
-  ExecuteArgs, Scope as ShellScope, ScopeAllowedArg as ShellScopeAllowedArg,
-  ScopeAllowedCommand as ShellScopeAllowedCommand, ScopeConfig as ShellScopeConfig,
-  ScopeError as ShellScopeError,
-};
 use std::path::Path;
 
-pub(crate) struct Scopes {
-  pub fs: FsScope,
-  #[cfg(protocol_asset)]
-  pub asset_protocol: FsScope,
-  #[cfg(http_request)]
-  pub http: HttpScope,
-  #[cfg(shell_scope)]
-  pub shell: ShellScope,
+/// Unique id of a scope event.
+pub type ScopeEventId = u32;
+
+/// Managed state for all the core scopes in a tauri application.
+pub struct Scopes {
+  pub(crate) ipc: ipc::Scope,
+  #[cfg(feature = "protocol-asset")]
+  pub(crate) asset_protocol: fs::Scope,
 }
 
+#[allow(unused)]
 impl Scopes {
-  #[allow(dead_code)]
-  pub(crate) fn allow_directory(&self, path: &Path, recursive: bool) -> crate::Result<()> {
-    self.fs.allow_directory(path, recursive)?;
-    #[cfg(protocol_asset)]
+  /// Allows a directory on the scopes.
+  pub fn allow_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> crate::Result<()> {
+    #[cfg(feature = "protocol-asset")]
     self.asset_protocol.allow_directory(path, recursive)?;
     Ok(())
   }
 
-  #[allow(dead_code)]
-  pub(crate) fn allow_file(&self, path: &Path) -> crate::Result<()> {
-    self.fs.allow_file(path)?;
-    #[cfg(protocol_asset)]
+  /// Allows a file on the scopes.
+  pub fn allow_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
+    #[cfg(feature = "protocol-asset")]
     self.asset_protocol.allow_file(path)?;
+    Ok(())
+  }
+
+  /// Forbids a file on the scopes.
+  pub fn forbid_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
+    #[cfg(feature = "protocol-asset")]
+    self.asset_protocol.forbid_file(path)?;
     Ok(())
   }
 }

@@ -1,14 +1,18 @@
 <script>
   import {
-    appWindow,
-    WebviewWindow,
+    getCurrent,
     LogicalSize,
     UserAttentionType,
     PhysicalSize,
-    PhysicalPosition
+    PhysicalPosition,
+    Effect,
+    EffectState,
+    ProgressBarStatus,
+    Window
   } from '@tauri-apps/api/window'
-  import { open as openDialog } from '@tauri-apps/api/dialog'
-  import { open } from '@tauri-apps/api/shell'
+  import { invoke } from '@tauri-apps/api/primitives'
+
+  const appWindow = getCurrent()
 
   let selectedWindow = appWindow.label
   const windowMap = {
@@ -57,15 +61,41 @@
     'rowResize'
   ]
 
+  const windowsEffects = [
+    'mica',
+    'blur',
+    'acrylic',
+    'tabbed',
+    'tabbedDark',
+    'tabbedLight'
+  ]
+  const isWindows = navigator.appVersion.includes('Windows')
+  const isMacOS = navigator.appVersion.includes('Macintosh')
+  let effectOptions = isWindows
+    ? windowsEffects
+    : Object.keys(Effect)
+        .map((effect) => Effect[effect])
+        .filter((e) => !windowsEffects.includes(e))
+  const effectStateOptions = Object.keys(EffectState).map(
+    (state) => EffectState[state]
+  )
+
+  const progressBarStatusOptions = Object.keys(ProgressBarStatus).map(s => ProgressBarStatus[s])
+
   export let onMessage
+  const mainEl = document.querySelector('main')
 
   let newWindowLabel
 
   let urlValue = 'https://tauri.app'
   let resizable = true
+  let maximizable = true
+  let minimizable = true
+  let closable = true
   let maximized = false
   let decorations = true
   let alwaysOnTop = false
+  let alwaysOnBottom = false
   let contentProtected = true
   let fullscreen = false
   let width = null
@@ -91,9 +121,16 @@
   let cursorIgnoreEvents = false
   let windowTitle = 'Awesome Tauri Example!'
 
-  function openUrl() {
-    open(urlValue)
-  }
+  let effects = []
+  let selectedEffect
+  let effectState
+  let effectRadius
+  let effectR, effectG, effectB, effectA
+
+  let selectedProgressBarStatus = 'none'
+  let progress = 0
+
+  let windowIconPath
 
   function setTitle_() {
     windowMap[selectedWindow].setTitle(windowTitle)
@@ -109,20 +146,14 @@
     setTimeout(windowMap[selectedWindow].unminimize, 2000)
   }
 
-  function getIcon() {
-    openDialog({
-      multiple: false
-    }).then((path) => {
-      if (typeof path === 'string') {
-        windowMap[selectedWindow].setIcon(path)
-      }
-    })
+  function changeIcon() {
+    windowMap[selectedWindow].setIcon(path)
   }
 
   function createWindow() {
     if (!newWindowLabel) return
 
-    const webview = new WebviewWindow(newWindowLabel)
+    const webview = new Window(newWindowLabel)
     windowMap[newWindowLabel] = webview
     webview.once('tauri://error', function () {
       onMessage('Error creating new webview')
@@ -172,17 +203,53 @@
     await windowMap[selectedWindow].requestUserAttention(null)
   }
 
+  async function addEffect() {
+    if (!effects.includes(selectedEffect)) {
+      effects = [...effects, selectedEffect]
+    }
+
+    const payload = {
+      effects,
+      state: effectState,
+      radius: effectRadius
+    }
+    if (
+      Number.isInteger(effectR) &&
+      Number.isInteger(effectG) &&
+      Number.isInteger(effectB) &&
+      Number.isInteger(effectA)
+    ) {
+      payload.color = [effectR, effectG, effectB, effectA]
+    }
+
+    mainEl.classList.remove('bg-primary')
+    mainEl.classList.remove('dark:bg-darkPrimary')
+    await windowMap[selectedWindow].clearEffects()
+    await windowMap[selectedWindow].setEffects(payload)
+  }
+
+  async function clearEffects() {
+    effects = []
+    await windowMap[selectedWindow].clearEffects()
+    mainEl.classList.add('bg-primary')
+    mainEl.classList.add('dark:bg-darkPrimary')
+  }
+
   $: {
     windowMap[selectedWindow]
     loadWindowPosition()
     loadWindowSize()
   }
   $: windowMap[selectedWindow]?.setResizable(resizable)
+  $: windowMap[selectedWindow]?.setMaximizable(maximizable)
+  $: windowMap[selectedWindow]?.setMinimizable(minimizable)
+  $: windowMap[selectedWindow]?.setClosable(closable)
   $: maximized
     ? windowMap[selectedWindow]?.maximize()
     : windowMap[selectedWindow]?.unmaximize()
   $: windowMap[selectedWindow]?.setDecorations(decorations)
   $: windowMap[selectedWindow]?.setAlwaysOnTop(alwaysOnTop)
+  $: windowMap[selectedWindow]?.setAlwaysOnBottom(alwaysOnBottom)
   $: windowMap[selectedWindow]?.setContentProtected(contentProtected)
   $: windowMap[selectedWindow]?.setFullscreen(fullscreen)
 
@@ -216,6 +283,7 @@
       new PhysicalPosition(cursorX, cursorY)
     )
   $: windowMap[selectedWindow]?.setIgnoreCursorEvents(cursorIgnoreEvents)
+  $: windowMap[selectedWindow]?.setProgressBar({ status: selectedProgressBarStatus, progress })
 </script>
 
 <div class="flex flex-col children:grow gap-2">
@@ -240,6 +308,14 @@
   {/if}
   {#if windowMap[selectedWindow]}
     <br />
+    <div class="flex gap-1 items-center">
+      <label> Icon path </label>
+      <form class="flex gap-1 grow" on:submit|preventDefault={setTitle_}>
+        <input class="input grow" bind:value={windowIconPath} />
+        <button class="btn" type="submit"> Change window icon </button>
+      </form>
+    </div>
+    <br />
     <div class="flex flex-wrap gap-2">
       <button
         class="btn"
@@ -262,7 +338,6 @@
       >
         Hide
       </button>
-      <button class="btn" on:click={getIcon}> Change icon </button>
       <button
         class="btn"
         on:click={requestUserAttention_}
@@ -270,7 +345,7 @@
         >Request attention</button
       >
     </div>
-    <br />
+
     <div class="flex flex-wrap gap-2">
       <label>
         Maximized
@@ -281,12 +356,28 @@
         <input type="checkbox" bind:checked={resizable} />
       </label>
       <label>
+        Maximizable
+        <input type="checkbox" bind:checked={maximizable} />
+      </label>
+      <label>
+        Minimizable
+        <input type="checkbox" bind:checked={minimizable} />
+      </label>
+      <label>
+        Closable
+        <input type="checkbox" bind:checked={closable} />
+      </label>
+      <label>
         Has decorations
         <input type="checkbox" bind:checked={decorations} />
       </label>
       <label>
         Always on top
         <input type="checkbox" bind:checked={alwaysOnTop} />
+      </label>
+      <label>
+        Always on bottom
+        <input type="checkbox" bind:checked={alwaysOnBottom} />
       </label>
       <label>
         Content protected
@@ -450,10 +541,107 @@
         <input class="input grow" id="title" bind:value={windowTitle} />
         <button class="btn" type="submit">Set title</button>
       </form>
-      <form class="flex gap-1" on:submit|preventDefault={openUrl}>
-        <input class="input grow" id="url" bind:value={urlValue} />
-        <button class="btn" id="open-url"> Open URL </button>
-      </form>
     </div>
+
+    <br />
+
+    <div class="flex flex-col gap-1">
+      <div class="flex gap-2">
+        <label>
+          Progress Status
+          <select class="input" bind:value={selectedProgressBarStatus}>
+            {#each progressBarStatusOptions as status}
+              <option value={status}>{status}</option>
+            {/each}
+          </select>
+        </label>
+
+        <label>
+          Progress
+          <input class="input" type="number" min="0" max="100" bind:value={progress} />
+        </label>
+      </div>
+    </div>
+
+    {#if isWindows || isMacOS}
+      <div class="flex flex-col gap-1">
+        <div class="flex">
+          <label>
+            Effect
+            <select class="input" bind:value={selectedEffect}>
+              {#each effectOptions as effect}
+                <option value={effect}>{effect}</option>
+              {/each}
+            </select>
+          </label>
+
+          <label>
+            State
+            <select class="input" bind:value={effectState}>
+              {#each effectStateOptions as state}
+                <option value={state}>{state}</option>
+              {/each}
+            </select>
+          </label>
+
+          <label>
+            Radius
+            <input class="input" type="number" bind:value={effectRadius} />
+          </label>
+        </div>
+
+        <div class="flex">
+          <label>
+            Color
+            <div class="flex">
+              <input
+                style="max-width: 120px;"
+                class="input"
+                type="number"
+                placeholder="R"
+                bind:value={effectR}
+              />
+              <input
+                style="max-width: 120px;"
+                class="input"
+                type="number"
+                placeholder="G"
+                bind:value={effectG}
+              />
+              <input
+                style="max-width: 120px;"
+                class="input"
+                type="number"
+                placeholder="B"
+                bind:value={effectB}
+              />
+              <input
+                style="max-width: 120px;"
+                class="input"
+                type="number"
+                placeholder="A"
+                bind:value={effectA}
+              />
+            </div>
+          </label>
+        </div>
+
+        <div class="flex">
+          <button class="btn" style="width: 80px;" on:click={addEffect}
+            >Add</button
+          >
+        </div>
+
+        <div class="flex">
+          <div>
+            Applied effects: {effects.length ? effects.join(',') : 'None'}
+          </div>
+
+          <button class="btn" style="width: 80px;" on:click={clearEffects}
+            >Clear</button
+          >
+        </div>
+      </div>
+    {/if}
   {/if}
 </div>

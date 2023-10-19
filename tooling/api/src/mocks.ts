@@ -19,17 +19,17 @@ interface IPCMessage {
  * Testing setup using vitest:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
- * import { invoke } from "@tauri-apps/api/tauri"
+ * import { invoke } from "@tauri-apps/api/primitives"
  *
  * afterEach(() => {
  *    clearMocks()
  * })
  *
  * test("mocked command", () => {
- *  mockIPC((cmd, args) => {
+ *  mockIPC((cmd, payload) => {
  *   switch (cmd) {
  *     case "add":
- *       return (args.a as number) + (args.b as number);
+ *       return (payload.a as number) + (payload.b as number);
  *     default:
  *       break;
  *     }
@@ -42,14 +42,14 @@ interface IPCMessage {
  * The callback function can also return a Promise:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
- * import { invoke } from "@tauri-apps/api/tauri"
+ * import { invoke } from "@tauri-apps/api/primitives"
  *
  * afterEach(() => {
  *    clearMocks()
  * })
  *
  * test("mocked command", () => {
- *  mockIPC((cmd, args) => {
+ *  mockIPC((cmd, payload) => {
  *   if(cmd === "get_data") {
  *    return fetch("https://example.com/data.json")
  *      .then((response) => response.json())
@@ -63,19 +63,19 @@ interface IPCMessage {
  * @since 1.0.0
  */
 export function mockIPC(
-  cb: (cmd: string, args: Record<string, unknown>) => any | Promise<any>
+  cb: (cmd: string, payload: Record<string, unknown>) => unknown
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  window.__TAURI_IPC__ = async ({
+  window.__TAURI_INTERNALS__.ipc = async ({
     cmd,
     callback,
     error,
-    ...args
+    payload
   }: IPCMessage) => {
     try {
       // @ts-expect-error The function key is dynamic and therefore not typed
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      window[`_${callback}`](await cb(cmd, args))
+      window[`_${callback}`](await cb(cmd, payload))
     } catch (err) {
       // @ts-expect-error The function key is dynamic and therefore not typed
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -110,21 +110,13 @@ export function mockIPC(
  * mockWindows("main", "second", "third");
  *
  * mockIPC((cmd, args) => {
- *  if (cmd === "tauri") {
- *    if (
- *      args?.__tauriModule === "Window" &&
- *      args?.message?.cmd === "manage" &&
- *      args?.message?.data?.cmd?.type === "close"
- *    ) {
- *      console.log('closing window!');
- *    }
+ *  if (cmd === "plugin:event|emit") {
+ *    console.log('emit event', args?.event, args?.payload);
  *  }
  * });
  *
- * const { getCurrent } = await import("@tauri-apps/api/window");
- *
- * const win = getCurrent();
- * await win.close(); // this will cause the mocked IPC handler to log to the console.
+ * const { emit } = await import("@tauri-apps/api/event");
+ * await emit('loaded'); // this will cause the mocked IPC handler to log to the console.
  * ```
  *
  * @param current Label of window this JavaScript context is running in.
@@ -136,9 +128,9 @@ export function mockWindows(
   current: string,
   ...additionalWindows: string[]
 ): void {
-  window.__TAURI_METADATA__ = {
-    __windows: [current, ...additionalWindows].map((label) => ({ label })),
-    __currentWindow: { label: current }
+  window.__TAURI_INTERNALS__.metadata = {
+    windows: [current, ...additionalWindows].map((label) => ({ label })),
+    currentWindow: { label: current }
   }
 }
 
@@ -158,11 +150,11 @@ export function mockWindows(
  * test("mocked windows", () => {
  *    mockWindows("main", "second", "third");
  *
- *    expect(window).toHaveProperty("__TAURI_METADATA__")
+ *    expect(window.__TAURI_INTERNALS__).toHaveProperty("metadata")
  * })
  *
  * test("no mocked windows", () => {
- *    expect(window).not.toHaveProperty("__TAURI_METADATA__")
+ *    expect(window.__TAURI_INTERNALS__).not.toHaveProperty("metadata")
  * })
  * ```
  *
@@ -170,7 +162,7 @@ export function mockWindows(
  */
 export function clearMocks(): void {
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_IPC__
+  delete window.__TAURI_INTERNALS__.ipc
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_METADATA__
+  delete window.__TAURI_INTERNALS__.metadata
 }

@@ -23,6 +23,7 @@ use image::{
   imageops::FilterType,
   open, ColorType, DynamicImage, ImageBuffer, ImageEncoder, Rgba, RgbaImage,
 };
+use resvg::usvg::TreeParsing;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -204,12 +205,28 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 }
 
 fn svg_to_dynimg(input: &Path) -> Result<DynamicImage> {
-  let svg = nsvg::parse_file(input, nsvg::Units::Pixel, 96.0).context("Cannot read SVG file")?;
-  let scale = 2.0;
-  let bytes = svg
-    .rasterize_to_raw_rgba(scale)
-    .context("failed to rasterize svg")?;
-  let image: RgbaImage = ImageBuffer::from_raw(bytes.0, bytes.1, bytes.2).unwrap();
+  let svg_bytes = std::fs::read(input).context("Cannot read SVG file")?;
+  let svg = resvg::usvg::Tree::from_data(
+    &svg_bytes,
+    &resvg::usvg::Options {
+      resources_dir: std::fs::canonicalize(input)
+        .ok()
+        .and_then(|p| p.parent().map(ToOwned::to_owned)),
+      dpi: 96.0,
+      ..Default::default()
+    },
+  )
+  .context("Cannot parse SVG file")?;
+  let svg = resvg::Tree::from_usvg(&svg);
+
+  let pixmap_size = svg.size.to_int_size();
+  let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height())
+    .context("failed to create Pixmap")?;
+  svg.render(tiny_skia::Transform::default(), &mut pixmap.as_mut());
+  let bytes = pixmap.take();
+
+  let image: RgbaImage = ImageBuffer::from_raw(pixmap_size.width(), pixmap_size.height(), bytes)
+    .context("invalid PNG image generated from SVG")?;
   let res = DynamicImage::ImageRgba8(image);
   Ok(res)
 }

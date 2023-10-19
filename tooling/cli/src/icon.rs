@@ -5,6 +5,7 @@
 use crate::{helpers::app_paths::tauri_dir, Result};
 
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fs::{create_dir_all, File},
   io::{BufWriter, Write},
@@ -59,6 +60,51 @@ pub struct Options {
   ios_color: String,
 }
 
+enum Source {
+  Svg(nsvg::SvgImage),
+  DynamicImage(DynamicImage),
+}
+
+impl Source {
+  fn width(&self) -> u32 {
+    match self {
+      Self::Svg(svg) => svg.width() as u32,
+      Self::DynamicImage(i) => i.width(),
+    }
+  }
+
+  fn height(&self) -> u32 {
+    match self {
+      Self::Svg(svg) => svg.height() as u32,
+      Self::DynamicImage(i) => i.height(),
+    }
+  }
+
+  fn resize_exact(&self, size: u32) -> Result<DynamicImage> {
+    match self {
+      Self::Svg(svg) => svg
+        .rasterize_to_raw_rgba(size as f32 / svg.width())
+        .map(|(width, height, bytes)| {
+          DynamicImage::ImageRgba8(ImageBuffer::from_raw(width, height, bytes).unwrap())
+        })
+        .map_err(Into::into),
+      Self::DynamicImage(i) => Ok(i.resize_exact(size, size, FilterType::Lanczos3)),
+    }
+  }
+
+  fn as_rgba8(&self) -> Option<Cow<'_, RgbaImage>> {
+    match self {
+      Self::Svg(svg) => svg
+        .rasterize_to_raw_rgba(1.)
+        .ok()
+        .map(|(width, height, bytes)| {
+          Cow::Owned(ImageBuffer::from_raw(width, height, bytes).unwrap())
+        }),
+      Self::DynamicImage(i) => i.as_rgba8().map(Cow::Borrowed),
+    }
+  }
+}
+
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
@@ -78,13 +124,15 @@ pub fn command(options: Options) -> Result<()> {
 
   let source = if let Some(extension) = input.extension() {
     if extension == "svg" {
-      svg_to_dynimg(&input).context("Could not convert svg to rasterized image")?
+      Source::Svg(
+        nsvg::parse_file(&input, nsvg::Units::Pixel, 96.0).context("Cannot read SVG file")?,
+      )
     } else {
-      DynamicImage::ImageRgba8(
+      Source::DynamicImage(DynamicImage::ImageRgba8(
         open(&input)
           .context("Can't read and decode source image")?
           .into_rgba8(),
-      )
+      ))
     }
   } else {
     panic!("Error loading image");
@@ -122,7 +170,7 @@ pub fn command(options: Options) -> Result<()> {
   Ok(())
 }
 
-fn appx(source: &DynamicImage, out_dir: &Path) -> Result<()> {
+fn appx(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "Appx"; "Creating StoreLogo.png");
   resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"))?;
 
@@ -137,7 +185,7 @@ fn appx(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 }
 
 // Main target: macOS
-fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
+fn icns(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICNS"; "Creating icon.icns");
   let entries: HashMap<String, IcnsEntry> =
     serde_json::from_slice(include_bytes!("helpers/icns.json")).unwrap();
@@ -148,7 +196,7 @@ fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
     let size = entry.size;
     let mut buf = Vec::new();
 
-    let image = source.resize_exact(size, size, FilterType::Lanczos3);
+    let image = source.resize_exact(size)?;
 
     write_png(image.as_bytes(), &mut buf, size)?;
 
@@ -171,12 +219,12 @@ fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .ico file with layers for the most common sizes.
 // Main target: Windows
-fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
+fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICO"; "Creating icon.ico");
   let mut frames = Vec::new();
 
   for size in [32, 16, 24, 48, 64, 256] {
-    let image = source.resize_exact(size, size, FilterType::Lanczos3);
+    let image = source.resize_exact(size)?;
 
     // Only the 256px layer can be compressed according to the ico specs.
     if size == 256 {
@@ -203,20 +251,9 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   Ok(())
 }
 
-fn svg_to_dynimg(input: &Path) -> Result<DynamicImage> {
-  let svg = nsvg::parse_file(input, nsvg::Units::Pixel, 96.0).context("Cannot read SVG file")?;
-  let scale = 2.0;
-  let bytes = svg
-    .rasterize_to_raw_rgba(scale)
-    .context("failed to rasterize svg")?;
-  let image: RgbaImage = ImageBuffer::from_raw(bytes.0, bytes.1, bytes.2).unwrap();
-  let res = DynamicImage::ImageRgba8(image);
-  Ok(res)
-}
-
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
-fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
+fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
   fn desktop_entries(out_dir: &Path) -> Vec<PngEntry> {
     let mut entries = Vec::new();
 
@@ -410,8 +447,12 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
   let mut img = ImageBuffer::from_fn(source_rgba8.width(), source_rgba8.height(), |_, _| {
     ios_color
   });
-  image::imageops::overlay(&mut img, source_rgba8, 0, 0);
-  let image = DynamicImage::ImageRgba8(img);
+  match source_rgba8 {
+    Cow::Borrowed(i) => image::imageops::overlay(&mut img, i, 0, 0),
+    Cow::Owned(i) => image::imageops::overlay(&mut img, &i, 0, 0),
+  }
+
+  let image = Source::DynamicImage(DynamicImage::ImageRgba8(img));
 
   for entry in ios_entries(&out)? {
     log::info!(action = "iOS"; "Creating {}", entry.name);
@@ -422,8 +463,8 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
 }
 
 // Resize image and save it to disk.
-fn resize_and_save_png(source: &DynamicImage, size: u32, file_path: &Path) -> Result<()> {
-  let image = source.resize_exact(size, size, FilterType::Lanczos3);
+fn resize_and_save_png(source: &Source, size: u32, file_path: &Path) -> Result<()> {
+  let image = source.resize_exact(size)?;
   let mut out_file = BufWriter::new(File::create(file_path)?);
   write_png(image.as_bytes(), &mut out_file, size)?;
   Ok(out_file.flush()?)

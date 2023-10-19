@@ -129,7 +129,7 @@ impl Interface for Rust {
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
-      let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+      let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
         if let Ok(events) = r {
           let _ = tx.send(events);
         }
@@ -424,7 +424,7 @@ impl Rust {
     let common_ancestor = common_path::common_path_all(watch_folders.clone()).unwrap();
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
-    let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+    let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
       if let Ok(events) = r {
         tx.send(events).unwrap()
       }

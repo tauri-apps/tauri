@@ -32,10 +32,7 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::{
-    config::{WindowConfig, WindowEffectsConfig, WindowUrl},
-    ProgressBarState,
-  },
+  utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
   EventLoopMessage, Manager, Runtime, Theme, WindowEvent,
 };
 #[cfg(desktop)]
@@ -2071,7 +2068,10 @@ impl<R: Runtime> Window<R> {
   /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
   /// - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
-  pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
+  pub fn set_progress_bar(
+    &self,
+    progress_state: crate::utils::ProgressBarState,
+  ) -> crate::Result<()> {
     self
       .window
       .dispatcher

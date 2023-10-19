@@ -230,17 +230,16 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
         .l()?;
 
       let plugin_name = env.new_string(plugin_name)?;
-      let config =
-        crate::jni_helpers::to_jsobject::<R>(env, activity, &runtime_handle, plugin_config)?;
+      let config = env.new_string(&serde_json::to_string(plugin_config).unwrap())?;
       env.call_method(
         plugin_manager,
         "load",
-        "(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;Lapp/tauri/plugin/JSObject;)V",
+        "(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;Ljava/lang/String;)V",
         &[
           webview.into(),
           (&plugin_name).into(),
           (&plugin).into(),
-          config.borrow()
+          (&config).into(),
         ],
       )?;
 
@@ -408,7 +407,7 @@ pub(crate) fn run_command<
   ) -> Result<(), JniError> {
     let plugin = env.new_string(plugin)?;
     let command = env.new_string(&command)?;
-    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, &runtime_handle, payload)?;
+    let data = env.new_string(&serde_json::to_string(payload).unwrap())?;
     let plugin_manager = env
       .call_method(
         activity,
@@ -421,12 +420,12 @@ pub(crate) fn run_command<
     env.call_method(
       plugin_manager,
       "runCommand",
-      "(ILjava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;)V",
+      "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
       &[
         id.into(),
         (&plugin).into(),
         (&command).into(),
-        data.borrow(),
+        (&data).into(),
       ],
     )?;
 

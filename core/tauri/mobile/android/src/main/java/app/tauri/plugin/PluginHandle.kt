@@ -19,7 +19,7 @@ import java.lang.reflect.Method
 import java.util.Arrays
 
 
-class PluginHandle(private val manager: PluginManager, val name: String, val instance: Plugin, val config: JSObject) {
+class PluginHandle(private val manager: PluginManager, val name: String, val instance: Plugin, val config: String) {
   private val commands: HashMap<String, CommandData> = HashMap()
   private val permissionCallbackMethods: HashMap<String, Method> = HashMap()
   private val startActivityCallbackMethods: HashMap<String, Method> = HashMap()

@@ -18,6 +18,8 @@ import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.json.JSONException
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -28,8 +30,8 @@ abstract class Plugin(private val activity: Activity) {
 
   open fun load(webView: WebView) {}
 
-  fun getConfig(): JSObject {
-    return handle!!.config
+  fun<T> getConfig(): T {
+    return ObjectMapper().readValue(handle!!.config, object : TypeReference<T>() {})
   }
 
   /**
@@ -90,7 +92,7 @@ abstract class Plugin(private val activity: Activity) {
 
   @Command
   open fun registerListener(invoke: Invoke) {
-    val event = invoke.getString("event")
+    /*val event = invoke.getString("event")
     val channel = invoke.getChannel("handler")
 
     if (event == null || channel == null) {
@@ -102,14 +104,14 @@ abstract class Plugin(private val activity: Activity) {
       } else {
         eventListeners.add(channel)
       }
-    }
+    }*/
 
     invoke.resolve()
   }
 
   @Command
   open fun removeListener(invoke: Invoke) {
-    val event = invoke.getString("event")
+    /*val event = invoke.getString("event")
     val channelId = invoke.getLong("channelId")
 
     if (event == null || channelId == null) {
@@ -122,7 +124,7 @@ abstract class Plugin(private val activity: Activity) {
           eventListeners.remove(c)
         }
       }
-    }
+    }*/
 
     invoke.resolve()
   }
@@ -167,7 +169,8 @@ abstract class Plugin(private val activity: Activity) {
 
       // If call was made with a list of specific permission aliases to request, save them
       // to be requested
-      val providedPerms: JSArray = invoke.getArray("permissions", JSArray())
+      // TODO val providedPerms: JSArray = invoke.getArray("permissions", JSArray())
+      val providedPerms = JSArray()
       var providedPermsList: List<String?>? = null
       try {
         providedPermsList = providedPerms.toList()

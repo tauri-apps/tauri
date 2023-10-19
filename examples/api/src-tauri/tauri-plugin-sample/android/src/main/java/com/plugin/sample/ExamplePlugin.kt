@@ -7,9 +7,12 @@ package com.plugin.sample
 import android.app.Activity
 import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
+import app.tauri.plugin.Channel
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
+
+class PingArgs(val onEvent: Channel?, val value: String?)
 
 @TauriPlugin
 class ExamplePlugin(private val activity: Activity): Plugin(activity) {
@@ -17,14 +20,14 @@ class ExamplePlugin(private val activity: Activity): Plugin(activity) {
 
     @Command
     fun ping(invoke: Invoke) {
-        val onEvent = invoke.getChannel("onEvent")
+        val data = invoke.parseArgs(PingArgs::class.java)
+
         val event = JSObject()
         event.put("kind", "ping")
-        onEvent?.send(event)
+        data.onEvent?.send(event)
 
-        val value = invoke.getString("value") ?: ""
         val ret = JSObject()
-        ret.put("value", implementation.pong(value))
+        ret.put("value", implementation.pong(data.value ?: "default value :("))
         invoke.resolve(ret)
     }
 }

@@ -14,6 +14,11 @@ import androidx.appcompat.app.AppCompatActivity
 import app.tauri.FsUtils
 import app.tauri.JniMethod
 import app.tauri.Logger
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.json.JSONObject
+import java.lang.reflect.InvocationTargetException
 
 class PluginManager(val activity: AppCompatActivity) {
   fun interface RequestPermissionsCallback {
@@ -77,7 +82,7 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun load(webView: WebView?, name: String, plugin: Plugin, config: JSObject) {
+  fun load(webView: WebView?, name: String, plugin: Plugin, config: String) {
     val handle = PluginHandle(this, name, plugin, config)
     plugins[name] = handle
     if (webView != null) {
@@ -86,7 +91,7 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun runCommand(id: Int, pluginId: String, command: String, data: JSObject) {
+  fun runCommand(id: Int, pluginId: String, command: String, data: String) {
     val successId = 0L
     val errorId = 1L
     val invoke = Invoke(id.toLong(), command, successId, errorId, { fn, result ->
@@ -119,19 +124,26 @@ class PluginManager(val activity: AppCompatActivity) {
         plugins[pluginId]?.invoke(invoke)
       }
     } catch (e: Exception) {
-      invoke.reject(if (e.message?.isEmpty() != false) { e.toString() } else { e.message })
+      var exception = e
+      if (exception.message?.isEmpty() != false) {
+        if (e is InvocationTargetException) {
+          exception = e.targetException as Exception
+        }
+      }
+      invoke.reject(if (exception.message?.isEmpty() != false) { exception.toString() } else { exception.message })
     }
   }
 
   companion object {
-    fun loadConfig(context: Context, plugin: String): JSObject {
+    fun loadConfig(context: Context, plugin: String): String {
       val tauriConfigJson = FsUtils.readAsset(context.assets, "tauri.conf.json")
-      val tauriConfig = JSObject(tauriConfigJson)
-      val plugins = tauriConfig.getJSObject("plugins", JSObject())
-      return plugins.getJSObject(plugin, JSObject())
+      val config = ObjectMapper().registerKotlinModule().readValue(tauriConfigJson, Config::class.java)
+      return config.plugins[plugin].toString()
     }
   }
 
   private external fun handlePluginResponse(id: Int, success: String?, error: String?)
   private external fun sendChannelData(id: Long, data: String)
 }
+
+internal class Config(val plugins: Map<String, JsonNode>)

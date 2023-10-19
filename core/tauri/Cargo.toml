@@ -77,7 +77,7 @@ raw-window-handle = "0.5"
 minisign-verify = { version = "0.2", optional = true }
 time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }
 os_info = { version = "3", optional = true }
-regex = { version = "1.6.0", optional = true }
+regex = { version = "1", optional = true }
 glob = "0.3"
 data-url = { version = "0.2", optional = true }
 serialize-to-javascript = "=0.1.1"

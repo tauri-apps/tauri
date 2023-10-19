@@ -1,5 +1,19 @@
 # Changelog
 
+## \[1.5.5]
+
+### Enhancements
+
+- [`9bead42d`](https://www.github.com/tauri-apps/tauri/commit/9bead42dbca0fb6dd7ea0b6bfb2f2308a5c5f992)([#8059](https://www.github.com/tauri-apps/tauri/pull/8059)) Allow rotating the updater private key.
+
+### Bug Fixes
+
+- [`be8e5aa3`](https://www.github.com/tauri-apps/tauri/commit/be8e5aa3071d9bc5d0bd24647e8168f312d11c8d)([#8042](https://www.github.com/tauri-apps/tauri/pull/8042)) Fixes duplicated newlines on command outputs.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.5`
+
 ## \[1.5.4]
 
 ### Dependencies

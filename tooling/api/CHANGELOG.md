@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-alpha.9]
+
+### New Features
+
+- [`c1ec0f15`](https://www.github.com/tauri-apps/tauri/commit/c1ec0f155118527361dd5645d920becbc8afd569)([#7933](https://www.github.com/tauri-apps/tauri/pull/7933)) Added `setAlwaysOnBottom` function on `Window` and the `alwaysOnBottom` option when creating a window.
+- [`fb10b879`](https://www.github.com/tauri-apps/tauri/commit/fb10b87970a43320ef4d14564f45e7579b774eaf)([#8039](https://www.github.com/tauri-apps/tauri/pull/8039)) Add the `app` module back.
+- [`ed32257d`](https://www.github.com/tauri-apps/tauri/commit/ed32257d044f90b5eb15053efd1667125def2d2b)([#7794](https://www.github.com/tauri-apps/tauri/pull/7794)) On Windows, add `Effect.Tabbed`,`Effect.TabbedDark` and `Effect.TabbedLight` effects.
+- [`c9a9246c`](https://www.github.com/tauri-apps/tauri/commit/c9a9246c37bdf190661355c8ee406dac6c427344)([#8007](https://www.github.com/tauri-apps/tauri/pull/8007)) Add the `window` module back.
+- [`c085adda`](https://www.github.com/tauri-apps/tauri/commit/c085addab58ba851398373c6fd13f9cb026d71e8)([#8009](https://www.github.com/tauri-apps/tauri/pull/8009)) Added the `setProgressBar` API on the `Window` class.
+
+### What's Changed
+
+- [`5c0eeb40`](https://www.github.com/tauri-apps/tauri/commit/5c0eeb40c1003583290ff3aebfa02e2b5f5b9c41)([#7638](https://www.github.com/tauri-apps/tauri/pull/7638)) Updated minimum Node.js version to 18.
+
+### Breaking Changes
+
+- [`a63e71f9`](https://www.github.com/tauri-apps/tauri/commit/a63e71f9799e9bbc82521d2f17b5238fbf690e89)([#7942](https://www.github.com/tauri-apps/tauri/pull/7942)) Changed `tauri` module to `primitives` and removed the undocumented `invoke` export from the root module.
+
 ## \[2.0.0-alpha.8]
 
 ### Breaking Changes

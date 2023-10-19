@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-alpha.10]
+
+### New Features
+
+- [`880266a7`](https://www.github.com/tauri-apps/tauri/commit/880266a7f697e1fe58d685de3bb6836ce5251e92)([#8031](https://www.github.com/tauri-apps/tauri/pull/8031)) Bump the MSRV to 1.70.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.9`
+
 ## \[2.0.0-alpha.9]
 
 ### Dependencies

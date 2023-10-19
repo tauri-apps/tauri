@@ -1,5 +1,49 @@
 # Changelog
 
+## \[2.0.0-alpha.16]
+
+### New Features
+
+- [`c085adda`](https://www.github.com/tauri-apps/tauri/commit/c085addab58ba851398373c6fd13f9cb026d71e8)([#8009](https://www.github.com/tauri-apps/tauri/pull/8009)) Added `set_progress_bar` to `Window`.
+- [`c1ec0f15`](https://www.github.com/tauri-apps/tauri/commit/c1ec0f155118527361dd5645d920becbc8afd569)([#7933](https://www.github.com/tauri-apps/tauri/pull/7933)) Added `Window::set_always_on_bottom` and the `always_on_bottom` option when creating a window.
+- [`880266a7`](https://www.github.com/tauri-apps/tauri/commit/880266a7f697e1fe58d685de3bb6836ce5251e92)([#8031](https://www.github.com/tauri-apps/tauri/pull/8031)) Bump the MSRV to 1.70.
+- [`ed32257d`](https://www.github.com/tauri-apps/tauri/commit/ed32257d044f90b5eb15053efd1667125def2d2b)([#7794](https://www.github.com/tauri-apps/tauri/pull/7794)) On Windows, add `Effect::Tabbed`,`Effect::TabbedDark` and `Effect::TabbedLight` effects.
+
+### Enhancements
+
+- [`46dcb941`](https://www.github.com/tauri-apps/tauri/commit/46dcb94110ac16d0d4328fa149bb86975b658f59)([#8006](https://www.github.com/tauri-apps/tauri/pull/8006)) Include mobile on docs.rs targets.
+
+### What's Changed
+
+- [`fb10b879`](https://www.github.com/tauri-apps/tauri/commit/fb10b87970a43320ef4d14564f45e7579b774eaf)([#8039](https://www.github.com/tauri-apps/tauri/pull/8039)) Added the `app` plugin back into core.
+- [`c9a9246c`](https://www.github.com/tauri-apps/tauri/commit/c9a9246c37bdf190661355c8ee406dac6c427344)([#8007](https://www.github.com/tauri-apps/tauri/pull/8007)) Added the `window` plugin back into core.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@1.0.0-alpha.3`
+- Upgraded to `tauri-runtime-wry@1.0.0-alpha.4`
+- Upgraded to `tauri-utils@2.0.0-alpha.9`
+- Upgraded to `tauri-build@2.0.0-alpha.10`
+- Upgraded to `tauri-macros@2.0.0-alpha.9`
+
+### Breaking Changes
+
+- [`a63e71f9`](https://www.github.com/tauri-apps/tauri/commit/a63e71f9799e9bbc82521d2f17b5238fbf690e89)([#7942](https://www.github.com/tauri-apps/tauri/pull/7942)) The initialization script for `Builder::invoke_system` now must initialize the `window.__TAURI_INTERNALS__.postMessage` function instead of `window.__TAURI_POST_MESSAGE__`.
+- [`12b8d18b`](https://www.github.com/tauri-apps/tauri/commit/12b8d18bf7ff833047cb87f356fd007d47d082c9)([#7875](https://www.github.com/tauri-apps/tauri/pull/7875)) -   Removed `tauri::path::Error` and added its variants to `tauri::Error`
+  - Removed `tauri::path::Result` and `tauri::plugin::Result` aliases, you should use `tauri::Result` or your own `Result` type.
+- [`8b166e9b`](https://www.github.com/tauri-apps/tauri/commit/8b166e9bf82e69ddb3200a3a825614980bd8d433)([#7949](https://www.github.com/tauri-apps/tauri/pull/7949)) Changed `TAURI_AUTOMATION` to `TAURI_WEBVIEW_AUTOMATION`
+- [`2558fab8`](https://www.github.com/tauri-apps/tauri/commit/2558fab861006936296e8511e43ccd69a38f61b0)([#7939](https://www.github.com/tauri-apps/tauri/pull/7939)) This release contains a number of breaking changes to improve the consistency of tauri internals and the public facing APIs
+  and simplifying the types where applicable:
+
+  - Removed `EventHandler` type.
+  - Added `EventId` type
+  - Changed `Manager::listen_global` and `Window::listen` to return the new `EventId` type instead of `EventHandler`.
+  - Removed the return type of `Manager::once_global` and `Window::once`
+  - Changed `Manager::unlisten` and `Window::unlisten` to take he new `EventId` type.
+  - Added `tauri::scope::ScopeEventId`
+  - Changed `FsScope::listen` to return the new `ScopeEventId` instead of `Uuid`.
+  - Added `FsScope::unlisten`
+
 ## \[2.0.0-alpha.15]
 
 ### Enhancements

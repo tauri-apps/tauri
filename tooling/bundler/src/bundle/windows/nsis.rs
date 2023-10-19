@@ -566,6 +566,7 @@ fn get_lang_data(
     "bulgarian" => Some(include_str!("./templates/nsis-languages/Bulgarian.nsh")),
     "dutch" => Some(include_str!("./templates/nsis-languages/Dutch.nsh")),
     "english" => Some(include_str!("./templates/nsis-languages/English.nsh")),
+    "german" => Some(include_str!("./templates/nsis-languages/German.nsh")),
     "japanese" => Some(include_str!("./templates/nsis-languages/Japanese.nsh")),
     "korean" => Some(include_str!("./templates/nsis-languages/Korean.nsh")),
     "portuguesebr" => Some(include_str!("./templates/nsis-languages/PortugueseBR.nsh")),

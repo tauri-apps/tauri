@@ -30,8 +30,8 @@ getrandom = { version = "0.2", optional = true, features = [ "std" ] }
 serialize-to-javascript = { version = "=0.1.1", optional = true }
 ctor = "0.2"
 json5 = { version = "0.4", optional = true }
-toml = { version = "0.7", optional = true }
-json-patch = "1.0"
+toml = { version = "0.8", optional = true }
+json-patch = "1.2"
 glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
 memchr = "2"
@@ -44,7 +44,7 @@ log = "0.4.20"
 heck = "0.4"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.51.0"
+version = "0.51.1"
 features = [
   "implement",
   "Win32_Foundation",

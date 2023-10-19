@@ -224,14 +224,14 @@ impl Interface for Rust {
   fn env(&self) -> HashMap<&str, String> {
     let mut env = HashMap::new();
     env.insert(
-      "TAURI_TARGET_TRIPLE",
+      "TAURI_ENV_TARGET_TRIPLE",
       self.app_settings.target_triple.clone(),
     );
 
     let mut s = self.app_settings.target_triple.split('-');
     let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
     env.insert(
-      "TAURI_ARCH",
+      "TAURI_ENV_ARCH",
       match arch {
         // keeps compatibility with old `std::env::consts::ARCH` implementation
         "i686" | "i586" => "x86".into(),
@@ -239,7 +239,7 @@ impl Interface for Rust {
       },
     );
     env.insert(
-      "TAURI_PLATFORM",
+      "TAURI_ENV_PLATFORM",
       match host {
         // keeps compatibility with old `std::env::consts::OS` implementation
         "darwin" => "macos".into(),
@@ -250,7 +250,7 @@ impl Interface for Rust {
     );
 
     env.insert(
-      "TAURI_FAMILY",
+      "TAURI_ENV_FAMILY",
       match host {
         "windows" => "windows".into(),
         _ => "unix".into(),
@@ -258,9 +258,9 @@ impl Interface for Rust {
     );
 
     match host {
-      "linux" => env.insert("TAURI_PLATFORM_TYPE", "Linux".into()),
-      "windows" => env.insert("TAURI_PLATFORM_TYPE", "Windows_NT".into()),
-      "darwin" => env.insert("TAURI_PLATFORM_TYPE", "Darwin".into()),
+      "linux" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Linux".into()),
+      "windows" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Windows_NT".into()),
+      "darwin" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Darwin".into()),
       _ => None,
     };
 

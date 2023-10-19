@@ -339,7 +339,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   let target_triple = std::env::var("TARGET").unwrap();
 
-  println!("cargo:rustc-env=TAURI_TARGET_TRIPLE={target_triple}");
+  println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
 
   let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>

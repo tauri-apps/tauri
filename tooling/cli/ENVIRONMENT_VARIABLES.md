@@ -39,10 +39,10 @@ These environment variables are inputs to the CLI which may have an equivalent C
 
 These environment variables are set for each hook command (`beforeDevCommand`, `beforeBuildCommand`, ...etc) which could be useful to conditionally build your frontend or execute a specific action.
 
-- `TAURI_ARCH` — Target arch, `x86_64`, `aarch64`...etc.
-- `TAURI_PLATFORM` — Target platform, `windows`, `macos`, `linux`...etc.
-- `TAURI_FAMILY` — Target platform family `unix` or `windows`.
-- `TAURI_PLATFORM_TYPE` — Target platform type `Linux`, `Windows_NT` or `Darwin`
-- `TAURI_PLATFORM_VERSION` — Build platform version
-- `TAURI_DEBUG` — `true` for `dev` command, `false` for `build` command.
-- `TAURI_TARGET_TRIPLE` — Target triple the CLI is building.
+- `TAURI_ENV_ARCH` — Target arch, `x86_64`, `aarch64`...etc.
+- `TAURI_ENV_PLATFORM` — Target platform, `windows`, `macos`, `linux`...etc.
+- `TAURI_ENV_FAMILY` — Target platform family `unix` or `windows`.
+- `TAURI_ENV_PLATFORM_TYPE` — Target platform type `Linux`, `Windows_NT` or `Darwin`
+- `TAURI_ENV_PLATFORM_VERSION` — Build platform version
+- `TAURI_ENV_DEBUG` — `true` for `dev` command, `false` for `build` command.
+- `TAURI_ENV_TARGET_TRIPLE` — Target triple the CLI is building.

@@ -122,7 +122,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } = data;
 
   let target = std::env::var("TARGET")
-    .or_else(|_| std::env::var("TAURI_TARGET_TRIPLE"))
+    .or_else(|_| std::env::var("TAURI_ENV_TARGET_TRIPLE"))
     .as_deref()
     .map(Target::from_triple)
     .unwrap_or_else(|_| Target::current());

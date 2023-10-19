@@ -23,12 +23,12 @@ tauri-utils = { version = "1.5.0", path = "../tauri-utils", features = [ "build"
 thiserror = "1"
 walkdir = "2"
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
-regex = { version = "1.7.1", optional = true }
+regex = { version = "1.10.2", optional = true }
 uuid = { version = "1", features = [ "v4" ] }
 semver = "1"
 ico = "0.3"
 png = "0.17"
-json-patch = "1.0"
+json-patch = "1.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"

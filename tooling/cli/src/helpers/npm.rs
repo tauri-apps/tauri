@@ -11,6 +11,7 @@ pub enum PackageManager {
   Pnpm,
   Yarn,
   YarnBerry,
+  Bun,
 }
 
 impl Display for PackageManager {
@@ -23,6 +24,7 @@ impl Display for PackageManager {
         PackageManager::Pnpm => "pnpm",
         PackageManager::Yarn => "yarn",
         PackageManager::YarnBerry => "yarn berry",
+        PackageManager::Bun => "bun",
       }
     )
   }
@@ -95,6 +97,14 @@ impl PackageManager {
       }
       PackageManager::Pnpm => {
         let mut cmd = cross_command("pnpm");
+        cmd
+          .arg("install")
+          .args(dependencies)
+          .status()
+          .map_err(Into::into)
+      }
+      PackageManager::Bun => {
+        let mut cmd = cross_command("bun");
         cmd
           .arg("install")
           .args(dependencies)

@@ -438,6 +438,21 @@ pub struct WixConfig {
   pub dialog_image_path: Option<PathBuf>,
 }
 
+/// Compression algorithms used in the NSIS installer.
+///
+/// See <https://nsis.sourceforge.io/Reference/SetCompressor>
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum NsisCompression {
+  /// ZLIB uses the deflate algorithm, it is a quick and simple method. With the default compression level it uses about 300 KB of memory.
+  Zlib,
+  /// BZIP2 usually gives better compression ratios than ZLIB, but it is a bit slower and uses more memory. With the default compression level it uses about 4 MB of memory.
+  Bzip2,
+  /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
+  Lzma,
+}
+
 /// Configuration for the Installer bundle using NSIS.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -480,6 +495,10 @@ pub struct NsisConfig {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   #[serde(default, alias = "display-language-selector")]
   pub display_language_selector: bool,
+  /// Set the compression algorithm used to compress files in the installer.
+  ///
+  /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
+  pub compression: Option<NsisCompression>,
 }
 
 /// Install Modes for the NSIS installer.
@@ -755,6 +774,31 @@ impl Default for UpdaterConfig {
   }
 }
 
+/// Definition for bundle resources.
+/// Can be either a list of paths to include or a map of source to target paths.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
+pub enum BundleResources {
+  /// A list of paths to include.
+  List(Vec<String>),
+  /// A map of source to target paths.
+  Map(HashMap<String, String>),
+}
+
+impl BundleResources {
+  /// Adds a path to the resource collection.
+  pub fn push(&mut self, path: impl Into<String>) {
+    match self {
+      Self::List(l) => l.push(path.into()),
+      Self::Map(l) => {
+        let path = path.into();
+        l.insert(path.clone(), path);
+      }
+    }
+  }
+}
+
 /// Configuration for tauri-bundler.
 ///
 /// See more: <https://tauri.app/v1/api/config#bundleconfig>
@@ -784,7 +828,7 @@ pub struct BundleConfig {
   /// App resources to bundle.
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
-  pub resources: Option<Vec<String>>,
+  pub resources: Option<BundleResources>,
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
   /// The application kind.
@@ -1249,6 +1293,7 @@ pub struct RemoteDomainAccessScope {
   /// The list of window labels this scope applies to.
   pub windows: Vec<String>,
   /// The list of plugins that are allowed in this scope.
+  /// The names should be without the `tauri-plugin-` prefix, for example `"store"` for `tauri-plugin-store`.
   #[serde(default)]
   pub plugins: Vec<String>,
 }
@@ -1711,17 +1756,17 @@ pub struct BuildConfig {
   pub dist_dir: AppUrl,
   /// A shell command to run before `tauri dev` kicks in.
   ///
-  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-dev-command")]
   pub before_dev_command: Option<BeforeDevCommand>,
   /// A shell command to run before `tauri build` kicks in.
   ///
-  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-build-command")]
   pub before_build_command: Option<HookCommand>,
   /// A shell command to run before the bundling phase in `tauri build` kicks in.
   ///
-  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-bundle-command")]
   pub before_bundle_command: Option<HookCommand>,
   /// Features passed to `cargo` commands.

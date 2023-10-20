@@ -251,9 +251,6 @@ fn build_dev_app<F: FnOnce(Option<i32>, ExitReason) + Send + 'static>(
         break;
       }
       let _ = io_stderr.write_all(&buf);
-      if !buf.ends_with(&[b'\r']) {
-        let _ = io_stderr.write_all(b"\n");
-      }
       lines.push(String::from_utf8_lossy(&buf).into_owned());
     }
   });

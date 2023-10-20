@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "2.0.0-alpha.8",
+  "version": "2.0.0-alpha.9",
   "description": "Tauri API definitions",
   "type": "module",
   "funding": {
@@ -11,14 +11,13 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "yarn tsup && node ./scripts/after-build.cjs && yarn generate-docs",
+    "build": "yarn tsup && node ./scripts/after-build.cjs",
     "npm-pack": "yarn build && cd ./dist && npm pack",
     "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path ../../.prettierignore",
-    "format:check": "prettier --check --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path ../../.prettierignore",
-    "generate-docs": "typedoc --plugin typedoc-plugin-markdown --plugin typedoc-plugin-mdn-links"
+    "format:check": "prettier --check --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path ../../.prettierignore"
   },
   "repository": {
     "type": "git",
@@ -59,6 +58,7 @@
     "typescript": "5.2.2"
   },
   "resolutions": {
-    "semver": ">=7.5.2"
+    "semver": ">=7.5.2",
+    "optionator": ">=0.9.3"
   }
 }

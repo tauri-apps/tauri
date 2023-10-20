@@ -10,6 +10,9 @@ on:
       - dev
       - 1.x
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/bench.yml'
 
 env:
   RUST_BACKTRACE: 1

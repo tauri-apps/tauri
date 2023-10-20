@@ -5,13 +5,29 @@
 import WebKit
 import os.log
 
+struct RegisterListenerArgs: Decodable {
+  let event: String
+  let handler: Channel
+}
+
+struct RemoveListenerArgs: Decodable {
+  let event: String
+  let channelId: UInt64
+}
+
 open class Plugin: NSObject {
   public let manager: PluginManager = PluginManager.shared
-  public var config: JSObject = [:]
+  var config: String = "{}"
   private var listeners = [String: [Channel]]()
 
-  internal func setConfig(_ config: JSObject) {
+  internal func setConfig(_ config: String) {
     self.config = config
+  }
+
+  public func parseConfig<T: Decodable>(_ type: T.Type) throws -> T {
+    let jsonData = self.config.data(using: .utf8)!
+    let decoder = JSONDecoder()
+    return try decoder.decode(type, from: jsonData)
   }
 
   @objc open func load(webview: WKWebView) {}
@@ -32,38 +48,24 @@ open class Plugin: NSObject {
     }
   }
 
-  @objc func registerListener(_ invoke: Invoke) {
-    guard let event = invoke.getString("event") else {
-      invoke.reject("`event` not provided")
-      return
-    }
-    guard let channel = invoke.getChannel("handler") else {
-      invoke.reject("`handler` not provided")
-      return
-    }
+  @objc func registerListener(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(RegisterListenerArgs.self)
 
-    if var eventListeners = listeners[event] {
-      eventListeners.append(channel)
+    if var eventListeners = listeners[args.event] {
+      eventListeners.append(args.handler)
     } else {
-      listeners[event] = [channel]
+      listeners[args.event] = [args.handler]
     }
 
     invoke.resolve()
   }
 
-  @objc func removeListener(_ invoke: Invoke) {
-    guard let event = invoke.getString("event") else {
-      invoke.reject("`event` not provided")
-      return
-    }
+  @objc func removeListener(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(RemoveListenerArgs.self)
 
-    if let eventListeners = listeners[event] {
-      guard let channelId = invoke.getInt("channelId") else {
-        invoke.reject("`channelId` not provided")
-        return
-      }
+    if let eventListeners = listeners[args.event] {
 
-      listeners[event] = eventListeners.filter { $0.id != channelId }
+      listeners[args.event] = eventListeners.filter { $0.id != args.channelId }
     }
 
     invoke.resolve()

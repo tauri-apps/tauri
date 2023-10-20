@@ -168,7 +168,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
             crate::ios::register_plugin(
               &name.into(),
               init_fn(),
-              crate::ios::json_to_dictionary(&config) as _,
+              &serde_json::to_string(&config).unwrap().as_str().into(),
               w.inner() as _,
             )
           };
@@ -181,7 +181,10 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
         crate::ios::register_plugin(
           &self.name.into(),
           init_fn(),
-          crate::ios::json_to_dictionary(&self.raw_config) as _,
+          &serde_json::to_string(&self.raw_config)
+            .unwrap()
+            .as_str()
+            .into(),
           std::ptr::null(),
         )
       };
@@ -373,7 +376,7 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
       id,
       &name.into(),
       &command.as_ref().into(),
-      crate::ios::json_to_dictionary(&payload) as _,
+      &serde_json::to_string(&payload).unwrap().as_str().into(),
       crate::ios::PluginMessageCallback(plugin_command_response_handler),
       crate::ios::ChannelSendDataCallback(send_channel_data_handler),
     );

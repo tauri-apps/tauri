@@ -42,7 +42,7 @@ development = [ "quickcheck_macros" ]
 
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
-serde = { version = "1.0", features = [ "derive" ] }
+serde = { version = "1.0", features = [ "derive", "rc" ] }
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures-util = "0.3"
 uuid = { version = "1", features = [ "v4" ], optional = true }

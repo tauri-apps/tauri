@@ -47,7 +47,7 @@ pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> crate::Re
         let serve_dir_ = serve_dir.clone();
         thread::spawn(move || {
           let (tx, rx) = sync_channel(1);
-          let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+          let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
             if let Ok(events) = r {
               tx.send(events).unwrap()
             }

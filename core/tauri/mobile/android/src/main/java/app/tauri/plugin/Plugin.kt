@@ -24,6 +24,10 @@ import org.json.JSONException
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 
+internal class RegisterListenerArgs(val event: String, val handler: Channel)
+
+internal class RemoveListenerArgs(val event: String, val channelId: Long)
+
 abstract class Plugin(private val activity: Activity) {
   var handle: PluginHandle? = null
   private val listeners: MutableMap<String, MutableList<Channel>> = mutableMapOf()
@@ -92,39 +96,29 @@ abstract class Plugin(private val activity: Activity) {
 
   @Command
   open fun registerListener(invoke: Invoke) {
-    /*val event = invoke.getString("event")
-    val channel = invoke.getChannel("handler")
+    val data = invoke.parseArgs(RegisterListenerArgs::class.java)
 
-    if (event == null || channel == null) {
-      invoke.reject("`event` or `handler` not provided")
+    val eventListeners = listeners[data.event]
+    if (eventListeners.isNullOrEmpty()) {
+      listeners[data.event] = mutableListOf(data.handler)
     } else {
-      val eventListeners = listeners[event]
-      if (eventListeners.isNullOrEmpty()) {
-        listeners[event] = mutableListOf(channel)
-      } else {
-        eventListeners.add(channel)
-      }
-    }*/
+      eventListeners.add(data.handler)
+    }
 
     invoke.resolve()
   }
 
   @Command
   open fun removeListener(invoke: Invoke) {
-    /*val event = invoke.getString("event")
-    val channelId = invoke.getLong("channelId")
+    val data = invoke.parseArgs(RemoveListenerArgs::class.java)
 
-    if (event == null || channelId == null) {
-      invoke.reject("`event` or `channelId` not provided")
-    } else {
-      val eventListeners = listeners[event]
-      if (!eventListeners.isNullOrEmpty()) {
-        val c = eventListeners.find { c -> c.id == channelId }
-        if (c != null) {
-          eventListeners.remove(c)
-        }
+    val eventListeners = listeners[data.event]
+    if (!eventListeners.isNullOrEmpty()) {
+      val c = eventListeners.find { c -> c.id == data.channelId }
+      if (c != null) {
+        eventListeners.remove(c)
       }
-    }*/
+    }
 
     invoke.resolve()
   }

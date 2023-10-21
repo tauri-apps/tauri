@@ -125,10 +125,10 @@ class PluginManager(val activity: AppCompatActivity) {
         plugins[pluginId]?.invoke(invoke)
       }
     } catch (e: Exception) {
-      var exception = e
+      var exception: Throwable = e
       if (exception.message?.isEmpty() != false) {
         if (e is InvocationTargetException) {
-          exception = e.targetException as Exception
+          exception = e.targetException
         }
       }
       invoke.reject(if (exception.message?.isEmpty() != false) { exception.toString() } else { exception.message })

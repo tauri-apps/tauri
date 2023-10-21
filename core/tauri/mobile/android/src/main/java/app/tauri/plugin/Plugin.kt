@@ -94,15 +94,25 @@ abstract class Plugin(private val activity: Activity) {
     }
   }
 
+  fun triggerObject(event: String, payload: Any) {
+    val eventListeners = listeners[event]
+    if (!eventListeners.isNullOrEmpty()) {
+      val listeners = CopyOnWriteArrayList(eventListeners)
+      for (channel in listeners) {
+        channel.sendObject(payload)
+      }
+    }
+  }
+
   @Command
   open fun registerListener(invoke: Invoke) {
-    val data = invoke.parseArgs(RegisterListenerArgs::class.java)
+    val args = invoke.parseArgs(RegisterListenerArgs::class.java)
 
-    val eventListeners = listeners[data.event]
+    val eventListeners = listeners[args.event]
     if (eventListeners.isNullOrEmpty()) {
-      listeners[data.event] = mutableListOf(data.handler)
+      listeners[args.event] = mutableListOf(args.handler)
     } else {
-      eventListeners.add(data.handler)
+      eventListeners.add(args.handler)
     }
 
     invoke.resolve()
@@ -110,11 +120,11 @@ abstract class Plugin(private val activity: Activity) {
 
   @Command
   open fun removeListener(invoke: Invoke) {
-    val data = invoke.parseArgs(RemoveListenerArgs::class.java)
+    val args = invoke.parseArgs(RemoveListenerArgs::class.java)
 
-    val eventListeners = listeners[data.event]
+    val eventListeners = listeners[args.event]
     if (!eventListeners.isNullOrEmpty()) {
-      val c = eventListeners.find { c -> c.id == data.channelId }
+      val c = eventListeners.find { c -> c.id == args.channelId }
       if (c != null) {
         eventListeners.remove(c)
       }

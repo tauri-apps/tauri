@@ -404,7 +404,6 @@ pub(crate) fn run_command<
     plugin: &str,
     command: String,
     payload: &serde_json::Value,
-    runtime_handle: R::Handle,
     env: &mut JNIEnv<'_>,
     activity: &JObject<'_>,
   ) -> Result<(), JniError> {
@@ -444,7 +443,6 @@ pub(crate) fn run_command<
   let id: i32 = PENDING_PLUGIN_CALLS_ID.fetch_add(1, Ordering::Relaxed);
   let plugin_name = name.to_string();
   let command = command.as_ref().to_string();
-  let handle_ = handle.clone();
 
   PENDING_PLUGIN_CALLS
     .get_or_init(Default::default)
@@ -453,7 +451,7 @@ pub(crate) fn run_command<
     .insert(id, Box::new(handler.clone()));
 
   handle.run_on_android_context(move |env, activity, _webview| {
-    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, handle_, env, activity) {
+    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, env, activity) {
       handler(Err(e.to_string().into()));
     }
   });

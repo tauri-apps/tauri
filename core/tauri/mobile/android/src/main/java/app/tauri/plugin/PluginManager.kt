@@ -95,16 +95,16 @@ class PluginManager(val activity: AppCompatActivity) {
     val successId = 0L
     val errorId = 1L
     val invoke = Invoke(id.toLong(), command, successId, errorId, { fn, result ->
-      var success: PluginResult? = null
-      var error: PluginResult? = null
+      var success: String? = null
+      var error: String? = null
       if (fn == successId) {
         success = result
       } else {
         error = result
       }
-      handlePluginResponse(id, success?.toString(), error?.toString())
+      handlePluginResponse(id, success, error)
     }, { channelId, payload ->
-      sendChannelData(channelId, payload.toString())
+      sendChannelData(channelId, payload)
     }, data)
 
     dispatchPluginMessage(invoke, pluginId)
@@ -135,10 +135,11 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   companion object {
-    fun loadConfig(context: Context, plugin: String): String {
+    fun<T> loadConfig(context: Context, plugin: String, cls: Class<T>): T {
       val tauriConfigJson = FsUtils.readAsset(context.assets, "tauri.conf.json")
-      val config = ObjectMapper().registerKotlinModule().readValue(tauriConfigJson, Config::class.java)
-      return config.plugins[plugin].toString()
+      val mapper = ObjectMapper().registerKotlinModule()
+      val config = mapper.readValue(tauriConfigJson, Config::class.java)
+      return mapper.readValue(config.plugins[plugin].toString(), cls)
     }
   }
 

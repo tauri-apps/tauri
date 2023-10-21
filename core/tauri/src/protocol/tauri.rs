@@ -27,7 +27,7 @@ struct CachedResponse {
 }
 
 pub fn get<R: Runtime>(
-  manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: &WindowManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {

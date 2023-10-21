@@ -15,10 +15,10 @@ class ExamplePlugin(private val activity: Activity): Plugin(activity) {
 
     @Command
     fun ping(invoke: Invoke) {
-        val data = invoke.parseArgs(PingArgs::class.java)
+        val args = invoke.parseArgs(PingArgs::class.java)
 
         val ret = JSObject()
-        ret.put("value", implementation.pong(data.value ?: "default value :("))
+        ret.put("value", implementation.pong(args.value ?: "default value :("))
         invoke.resolve(ret)
     }
 }

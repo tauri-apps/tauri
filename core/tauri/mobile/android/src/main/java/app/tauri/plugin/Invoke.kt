@@ -11,9 +11,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 
-// Just a marker to differentiate on resolve()
-interface InvokeResponse {}
-
 class Invoke(
   val id: Long,
   val command: String,
@@ -43,7 +40,7 @@ class Invoke(
     sendResponse(callback, PluginResult(data).toString())
   }
 
-  fun<T: InvokeResponse> resolve(data: T) {
+  fun resolveObject(data: Any) {
     sendResponse(
       callback,
       ObjectMapper()

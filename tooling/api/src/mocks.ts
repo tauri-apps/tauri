@@ -152,11 +152,12 @@ export function mockWindows(
  *
  * @since 1.6.0
  */
-export function mockConvertFileSrc(
-  osName: string
-): void {
+export function mockConvertFileSrc(osName: string): void {
   window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
-  window.__TAURI_INTERNALS__.convertFileSrc = function (filePath, protocol = 'asset') {
+  window.__TAURI_INTERNALS__.convertFileSrc = function (
+    filePath,
+    protocol = 'asset'
+  ) {
     const path = encodeURIComponent(filePath)
     return osName === 'windows'
       ? `http://${protocol}.localhost/${path}`
@@ -191,6 +192,10 @@ export function mockConvertFileSrc(
  * @since 1.0.0
  */
 export function clearMocks(): void {
+  if (typeof window.__TAURI_INTERNALS__ !== 'object') {
+    return
+  }
+
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
   delete window.__TAURI_INTERNALS__.convertFileSrc
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case

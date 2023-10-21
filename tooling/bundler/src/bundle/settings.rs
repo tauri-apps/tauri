@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, FileAssociation, NSISInstallerMode},
+  config::{BundleType, FileAssociation, NSISInstallerMode, NsisCompression},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -92,6 +92,26 @@ impl PackageType {
   /// Gets the list of the possible package types.
   pub fn all() -> &'static [PackageType] {
     ALL_PACKAGE_TYPES
+  }
+
+  /// Gets a number representing priority which used to sort package types
+  /// in an order that guarantees that if a certain package type
+  /// depends on another (like Dmg depending on MacOsBundle), the dependency
+  /// will be built first
+  ///
+  /// The lower the number, the higher the priority
+  pub fn priority(&self) -> u32 {
+    match self {
+      PackageType::MacOsBundle => 0,
+      PackageType::IosBundle => 0,
+      PackageType::WindowsMsi => 0,
+      PackageType::Nsis => 0,
+      PackageType::Deb => 0,
+      PackageType::Rpm => 0,
+      PackageType::AppImage => 0,
+      PackageType::Dmg => 1,
+      PackageType::Updater => 2,
+    }
   }
 }
 
@@ -289,6 +309,8 @@ pub struct NsisSettings {
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
+  /// Set compression algorithm used to compress files in the installer.
+  pub compression: Option<NsisCompression>,
 }
 
 /// The Windows bundle settings.
@@ -358,6 +380,12 @@ pub struct BundleSettings {
   ///
   /// supports glob patterns.
   pub resources: Option<Vec<String>>,
+  /// The app's resources to bundle. Takes precedence over `Self::resources` when specified.
+  ///
+  /// Maps each resource path to its target directory in the bundle resources directory.
+  ///
+  /// Supports glob patterns.
+  pub resources_map: Option<HashMap<String, String>>,
   /// the app's copyright.
   pub copyright: Option<String>,
   /// the app's category.
@@ -709,9 +737,14 @@ impl Settings {
   /// Returns an iterator over the resource files to be included in this
   /// bundle.
   pub fn resource_files(&self) -> ResourcePaths<'_> {
-    match self.bundle_settings.resources {
-      Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
-      None => ResourcePaths::new(&[], true),
+    match (
+      &self.bundle_settings.resources,
+      &self.bundle_settings.resources_map,
+    ) {
+      (Some(paths), None) => ResourcePaths::new(paths.as_slice(), true),
+      (None, Some(map)) => ResourcePaths::from_map(map, true),
+      (Some(_), Some(_)) => panic!("cannot use both `resources` and `resources_map`"),
+      (None, None) => ResourcePaths::new(&[], true),
     }
   }
 
@@ -725,7 +758,11 @@ impl Settings {
   }
 
   /// Copies external binaries to a path.
-  pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
+  ///
+  /// Returns the list of destination paths.
+  pub fn copy_binaries(&self, path: &Path) -> crate::Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+
     for src in self.external_binaries() {
       let src = src?;
       let dest = path.join(
@@ -735,17 +772,18 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      common::copy_file(&src, dest)?;
+      common::copy_file(&src, &dest)?;
+      paths.push(dest);
     }
-    Ok(())
+    Ok(paths)
   }
 
   /// Copies resources to a path.
   pub fn copy_resources(&self, path: &Path) -> crate::Result<()> {
-    for src in self.resource_files() {
-      let src = src?;
-      let dest = path.join(tauri_utils::resources::resource_relpath(&src));
-      common::copy_file(&src, dest)?;
+    for resource in self.resource_files().iter() {
+      let resource = resource?;
+      let dest = path.join(resource.target());
+      common::copy_file(resource.path(), dest)?;
     }
     Ok(())
   }

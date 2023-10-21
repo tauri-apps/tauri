@@ -314,13 +314,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             #[cfg(any(debug_assertions, feature = "devtools"))]
             desktop_commands::internal_toggle_devtools,
           ]);
-        #[allow(clippy::needless_return)]
-        return handler(invoke);
+        handler(invoke)
       }
       #[cfg(mobile)]
       {
         invoke.resolver.reject("Window API not available on mobile");
-        return true;
+        true
       }
     })
     .build()

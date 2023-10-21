@@ -346,12 +346,19 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
         .unwrap()
         .remove(&id)
       {
-        let payload = serde_json::from_str(payload.to_str().unwrap()).unwrap();
-        handler(if success == 1 {
-          Ok(payload)
-        } else {
-          Err(payload)
-        });
+        let json = payload.to_str().unwrap();
+        match serde_json::from_str(json) {
+          Ok(payload) => {
+            handler(if success == 1 {
+              Ok(payload)
+            } else {
+              Err(payload)
+            });
+          }
+          Err(err) => {
+            handler(Err(format!("{err}, data: {}", json).into()));
+          }
+        }
       }
     }
 

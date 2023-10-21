@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(target_os = "windows")]
-use crate::bundle::windows::util::try_sign;
+use crate::bundle::windows::sign::{sign_command, try_sign};
 use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
       download, download_and_verify, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
-      NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
-      WEBVIEW2_X86_INSTALLER_GUID,
+      NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL,
+      WEBVIEW2_X64_OFFLINE_INSTALLER_GUID, WEBVIEW2_X86_OFFLINE_INSTALLER_GUID,
     },
   },
   Settings,
@@ -20,10 +20,7 @@ use tauri_utils::display_path;
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
-use tauri_utils::{
-  config::{NSISInstallerMode, WebviewInstallMode},
-  resources::resource_relpath,
-};
+use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{
   collections::{BTreeMap, HashMap},
@@ -40,8 +37,8 @@ const NSIS_URL: &str =
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.1.1/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "A21C67CF5AB6D4274AFFF0D68CFCE680D213DDC7";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.1/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "53A7CFAEB6A4A9653D6D5FBFF02A3C3B8720130A";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -160,17 +157,6 @@ fn build_nsis_app_installer(
 
   info!("Target: {}", arch);
 
-  #[cfg(target_os = "windows")]
-  {
-    let main_binary = settings
-      .binaries()
-      .iter()
-      .find(|bin| bin.main())
-      .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
-    let app_exe_source = settings.binary_path(main_binary);
-    try_sign(&app_exe_source, settings)?;
-  }
-
   #[cfg(not(target_os = "windows"))]
   info!("Code signing is currently only supported on Windows hosts, skipping...");
 
@@ -200,6 +186,18 @@ fn build_nsis_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("short_description", to_json(settings.short_description()));
   data.insert("copyright", to_json(settings.copyright_string()));
+
+  // Code signing is currently only supported on Windows hosts
+  #[cfg(target_os = "windows")]
+  if settings.can_sign() {
+    data.insert(
+      "uninstaller_sign_cmd",
+      to_json(format!(
+        "{:?}",
+        sign_command("%1", &settings.sign_params())?.0
+      )),
+    );
+  }
 
   let version = settings.version_string();
   data.insert("version", to_json(version));
@@ -243,6 +241,15 @@ fn build_nsis_app_installer(
         to_json(dunce::canonicalize(sidebar_image)?),
       );
     }
+
+    data.insert(
+      "compression",
+      to_json(match &nsis.compression.unwrap_or(NsisCompression::Lzma) {
+        NsisCompression::Zlib => "zlib",
+        NsisCompression::Bzip2 => "bzip2",
+        NsisCompression::Lzma => "lzma",
+      }),
+    );
 
     data.insert(
       "display_language_selector",
@@ -364,9 +371,9 @@ fn build_nsis_app_installer(
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
       let guid = if arch == "x64" {
-        WEBVIEW2_X64_INSTALLER_GUID
+        WEBVIEW2_X64_OFFLINE_INSTALLER_GUID
       } else {
-        WEBVIEW2_X86_INSTALLER_GUID
+        WEBVIEW2_X86_OFFLINE_INSTALLER_GUID
       };
       let offline_installer_path = tauri_tools_path
         .join("Webview2OfflineInstaller")
@@ -522,16 +529,18 @@ fn association_description(
 }
 
 /// BTreeMap<OriginalPath, (ParentOfTargetPath, TargetPath)>
-type ResourcesMap = BTreeMap<PathBuf, (String, PathBuf)>;
+type ResourcesMap = BTreeMap<PathBuf, (PathBuf, PathBuf)>;
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
   let mut resources = ResourcesMap::new();
   let cwd = std::env::current_dir()?;
 
   let mut added_resources = Vec::new();
 
-  for src in settings.resource_files() {
-    let src = src?;
-    let resource_path = dunce::canonicalize(cwd.join(&src))?;
+  for resource in settings.resource_files().iter() {
+    let resource = resource?;
+
+    let src = cwd.join(resource.path());
+    let resource_path = dunce::simplified(&src).to_path_buf();
 
     // In some glob resource paths like `assets/**/*` a file might appear twice
     // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
@@ -541,15 +550,15 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     }
     added_resources.push(resource_path.clone());
 
-    let target_path = resource_relpath(&src);
+    let target_path = resource.target();
     resources.insert(
       resource_path,
       (
         target_path
           .parent()
-          .map(|p| p.to_string_lossy().to_string())
-          .unwrap_or_default(),
-        target_path,
+          .expect("Couldn't get parent of target path")
+          .to_path_buf(),
+        target_path.to_path_buf(),
       ),
     );
   }
@@ -605,6 +614,7 @@ fn get_lang_data(
     "bulgarian" => Some(include_str!("./templates/nsis-languages/Bulgarian.nsh")),
     "dutch" => Some(include_str!("./templates/nsis-languages/Dutch.nsh")),
     "english" => Some(include_str!("./templates/nsis-languages/English.nsh")),
+    "german" => Some(include_str!("./templates/nsis-languages/German.nsh")),
     "japanese" => Some(include_str!("./templates/nsis-languages/Japanese.nsh")),
     "korean" => Some(include_str!("./templates/nsis-languages/Korean.nsh")),
     "portuguesebr" => Some(include_str!("./templates/nsis-languages/PortugueseBR.nsh")),

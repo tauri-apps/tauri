@@ -86,6 +86,24 @@
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
 
+## \[1.5.0]
+
+### What's Changed
+
+- [`d1e09da0`](https://www.github.com/tauri-apps/tauri/commit/d1e09da084b849b9e384fc27ed250dd17e72c7a3)([#7918](https://www.github.com/tauri-apps/tauri/pull/7918)) Bump to 1.5 due to tauri-utils dependency bump.
+
+## \[1.4.1]
+
+### Bug Fixes
+
+- [`5ecb46b3`](https://www.github.com/tauri-apps/tauri/commit/5ecb46b3410afd1b5c82494c1e0a91d5a358c41a)([#7773](https://www.github.com/tauri-apps/tauri/pull/7773)) Automatically set rpath on macOS if frameworks are bundled and copy frameworks to `src-tauri/target/Frameworks` for usage in development.
+- [`290e366a`](https://www.github.com/tauri-apps/tauri/commit/290e366ae98e9a52b1b43bfd3e285150427ebffa)([#7419](https://www.github.com/tauri-apps/tauri/pull/7419)) Correctly copy the WebView2 runtime in development when `webviewInstallMode` is used instead of `webviewFixedRuntimePath`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
+- Upgraded to `tauri-codegen@1.4.1`
+
 ## \[1.4.0]
 
 ### Enhancements

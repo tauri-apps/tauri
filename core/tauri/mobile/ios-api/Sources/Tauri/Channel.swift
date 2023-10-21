@@ -57,7 +57,7 @@ public class Channel: Decodable {
     handler(serialize(data))
   }
 
-  public func resolve<T: Encodable>(_ data: T) throws {
+  public func send<T: Encodable>(_ data: T) throws {
     let json = try JSONEncoder().encode(data)
     handler(String(decoding: json, as: UTF8.self))
   }

@@ -48,6 +48,14 @@ open class Plugin: NSObject {
     }
   }
 
+  public func trigger<T: Encodable>(_ event: String, data: T) throws {
+    if let eventListeners = listeners[event] {
+      for channel in eventListeners {
+        try channel.send(data)
+      }
+    }
+  }
+
   @objc func registerListener(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(RegisterListenerArgs.self)
 

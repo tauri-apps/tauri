@@ -18,8 +18,9 @@ import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
-import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.json.JSONException
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -34,8 +35,11 @@ abstract class Plugin(private val activity: Activity) {
 
   open fun load(webView: WebView) {}
 
-  fun<T> getConfig(): T {
-    return ObjectMapper().readValue(handle!!.config, object : TypeReference<T>() {})
+  fun<T> getConfig(cls: Class<T>): T {
+    return ObjectMapper()
+      .registerKotlinModule()
+      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+      .readValue(handle!!.config, cls)
   }
 
   /**

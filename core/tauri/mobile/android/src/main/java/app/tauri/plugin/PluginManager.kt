@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import app.tauri.FsUtils
 import app.tauri.JniMethod
 import app.tauri.Logger
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -137,7 +138,9 @@ class PluginManager(val activity: AppCompatActivity) {
   companion object {
     fun<T> loadConfig(context: Context, plugin: String, cls: Class<T>): T {
       val tauriConfigJson = FsUtils.readAsset(context.assets, "tauri.conf.json")
-      val mapper = ObjectMapper().registerKotlinModule()
+      val mapper = ObjectMapper()
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        .registerKotlinModule()
       val config = mapper.readValue(tauriConfigJson, Config::class.java)
       return mapper.readValue(config.plugins[plugin].toString(), cls)
     }

@@ -6,6 +6,7 @@ package app.tauri.plugin
 
 import app.tauri.Logger
 import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -23,6 +24,7 @@ class Invoke(
   private fun objectMapper(): ObjectMapper {
     return ObjectMapper()
       .registerKotlinModule()
+      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
       .registerModule(SimpleModule().addDeserializer(Channel::class.java, ChannelDeserializer(sendChannelData)))
   }
 

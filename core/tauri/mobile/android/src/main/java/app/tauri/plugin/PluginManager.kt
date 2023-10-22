@@ -18,8 +18,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import org.json.JSONObject
 import java.lang.reflect.InvocationTargetException
 
 class PluginManager(val activity: AppCompatActivity) {
@@ -56,7 +54,6 @@ class PluginManager(val activity: AppCompatActivity) {
       }
 
     jsonMapper = ObjectMapper()
-      .registerKotlinModule()
       .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
       .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
 
@@ -151,7 +148,6 @@ class PluginManager(val activity: AppCompatActivity) {
       val tauriConfigJson = FsUtils.readAsset(context.assets, "tauri.conf.json")
       val mapper = ObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        .registerKotlinModule()
       val config = mapper.readValue(tauriConfigJson, Config::class.java)
       return mapper.readValue(config.plugins[plugin].toString(), cls)
     }

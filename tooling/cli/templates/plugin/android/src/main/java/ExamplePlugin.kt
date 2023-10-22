@@ -2,12 +2,16 @@ package {{android_package_id}}
 
 import android.app.Activity
 import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
 
-class PingArgs(val value: String?)
+@InvokeArg
+class PingArgs {
+  var value: String? = null
+}
 
 @TauriPlugin
 class ExamplePlugin(private val activity: Activity): Plugin(activity) {

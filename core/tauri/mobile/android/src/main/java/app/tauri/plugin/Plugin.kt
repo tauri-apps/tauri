@@ -18,9 +18,7 @@ import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
-import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.json.JSONException
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList

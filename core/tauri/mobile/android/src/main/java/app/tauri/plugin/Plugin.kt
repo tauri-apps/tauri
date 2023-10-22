@@ -16,6 +16,7 @@ import app.tauri.PermissionHelper
 import app.tauri.PermissionState
 import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -23,9 +24,17 @@ import org.json.JSONException
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 
-internal class RegisterListenerArgs(val event: String, val handler: Channel)
+@InvokeArg
+internal class RegisterListenerArgs {
+  lateinit var event: String
+  lateinit var handler: Channel
+}
 
-internal class RemoveListenerArgs(val event: String, val channelId: Long)
+@InvokeArg
+internal class RemoveListenerArgs {
+  lateinit var event: String
+  var channelId: Long = 0
+}
 
 abstract class Plugin(private val activity: Activity) {
   var handle: PluginHandle? = null

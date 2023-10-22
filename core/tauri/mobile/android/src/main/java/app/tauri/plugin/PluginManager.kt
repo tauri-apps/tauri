@@ -11,6 +11,7 @@ import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import app.tauri.annotation.InvokeArg
 import app.tauri.FsUtils
 import app.tauri.JniMethod
 import app.tauri.Logger
@@ -157,4 +158,7 @@ class PluginManager(val activity: AppCompatActivity) {
   private external fun sendChannelData(id: Long, data: String)
 }
 
-internal class Config(val plugins: Map<String, JsonNode>)
+@InvokeArg
+internal class Config {
+  lateinit var plugins: Map<String, JsonNode>
+}

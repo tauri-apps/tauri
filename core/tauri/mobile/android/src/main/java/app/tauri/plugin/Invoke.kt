@@ -6,10 +6,7 @@ package app.tauri.plugin
 
 import app.tauri.Logger
 import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 
 class Invoke(
   val id: Long,
@@ -17,23 +14,15 @@ class Invoke(
   val callback: Long,
   val error: Long,
   private val sendResponse: (callback: Long, data: String) -> Unit,
-  private val sendChannelData: (channelId: Long, data: String) -> Unit,
-  private val argsJson: String
+  private val argsJson: String,
+  private val jsonMapper: ObjectMapper
 ) {
-
-  private fun objectMapper(): ObjectMapper {
-    return ObjectMapper()
-      .registerKotlinModule()
-      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-      .registerModule(SimpleModule().addDeserializer(Channel::class.java, ChannelDeserializer(sendChannelData)))
-  }
-
   fun<T> parseArgs(cls: Class<T>): T {
-    return objectMapper().readValue(argsJson, cls)
+    return jsonMapper.readValue(argsJson, cls)
   }
 
   fun<T> parseArgs(ref: TypeReference<T>): T {
-    return objectMapper().readValue(argsJson, ref)
+    return jsonMapper.readValue(argsJson, ref)
   }
 
   fun resolve(data: JSObject?) {
@@ -41,12 +30,7 @@ class Invoke(
   }
 
   fun resolveObject(data: Any) {
-    sendResponse(
-      callback,
-      ObjectMapper()
-      .registerKotlinModule()
-      .writeValueAsString(data)
-    )
+    sendResponse(callback, jsonMapper.writeValueAsString(data))
   }
 
   fun resolve() {

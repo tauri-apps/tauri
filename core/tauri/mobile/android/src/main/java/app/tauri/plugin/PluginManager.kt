@@ -17,6 +17,7 @@ import app.tauri.Logger
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.json.JSONObject
 import java.lang.reflect.InvocationTargetException
@@ -35,6 +36,7 @@ class PluginManager(val activity: AppCompatActivity) {
   private val requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
   private var requestPermissionsCallback: RequestPermissionsCallback? = null
   private var startActivityForResultCallback: ActivityResultCallback? = null
+  private var jsonMapper: ObjectMapper
 
   init {
     startActivityForResultLauncher =
@@ -52,6 +54,17 @@ class PluginManager(val activity: AppCompatActivity) {
           requestPermissionsCallback!!.onResult(result)
         }
       }
+
+    jsonMapper = ObjectMapper()
+      .registerKotlinModule()
+      .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+      .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+
+    val channelDeserializer = ChannelDeserializer({ channelId, payload ->
+      sendChannelData(channelId, payload)
+    }, jsonMapper)
+    jsonMapper
+      .registerModule(SimpleModule().addDeserializer(Channel::class.java, channelDeserializer))
   }
 
   fun onNewIntent(intent: Intent) {
@@ -84,7 +97,7 @@ class PluginManager(val activity: AppCompatActivity) {
 
   @JniMethod
   fun load(webView: WebView?, name: String, plugin: Plugin, config: String) {
-    val handle = PluginHandle(this, name, plugin, config)
+    val handle = PluginHandle(this, name, plugin, config, jsonMapper)
     plugins[name] = handle
     if (webView != null) {
       plugin.load(webView)
@@ -104,9 +117,7 @@ class PluginManager(val activity: AppCompatActivity) {
         error = result
       }
       handlePluginResponse(id, success, error)
-    }, { channelId, payload ->
-      sendChannelData(channelId, payload)
-    }, data)
+    }, data, jsonMapper)
 
     dispatchPluginMessage(invoke, pluginId)
   }

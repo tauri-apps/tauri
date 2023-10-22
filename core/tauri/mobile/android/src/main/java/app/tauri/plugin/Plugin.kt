@@ -35,11 +35,12 @@ abstract class Plugin(private val activity: Activity) {
 
   open fun load(webView: WebView) {}
 
+  fun jsonMapper(): ObjectMapper {
+    return handle!!.jsonMapper
+  }
+
   fun<T> getConfig(cls: Class<T>): T {
-    return ObjectMapper()
-      .registerKotlinModule()
-      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-      .readValue(handle!!.config, cls)
+    return jsonMapper().readValue(handle!!.config, cls)
   }
 
   /**

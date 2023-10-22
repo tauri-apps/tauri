@@ -71,7 +71,7 @@
   const ping = document.querySelector("#ping")
   const pong = document.querySelector('#pong')
   ping.addEventListener("click", () => {
-    window.__TAURI__.tauri.invoke("ping")
+    window.__TAURI__.primitives.invoke("ping")
       .then(() => {
         pong.innerText = `ok: ${Date.now()}`
       })

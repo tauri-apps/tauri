@@ -20,9 +20,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: install Linux dependencies
         run: |
@@ -40,10 +38,7 @@ jobs:
           if-no-files-found: error
 
       - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo build --manifest-path ./tooling/cli/Cargo.toml
 
       - name: Upload CLI
         uses: actions/upload-artifact@v3
@@ -67,12 +62,9 @@ jobs:
         uses: actions/checkout@v3
 
       - name: install stable
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
-          default: true
-          target: ${{ matrix.target.name }}
+          targets: ${{ matrix.target.name }}
 
       - name: Setup node
         uses: actions/setup-node@v3

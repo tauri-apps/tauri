@@ -101,14 +101,11 @@ jobs:
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'
           architecture: ${{ matrix.settings.architecture }}
-      - name: Install
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         if: ${{ !matrix.settings.docker }}
         with:
-          profile: minimal
-          override: true
-          toolchain: stable
-          target: ${{ matrix.settings.target }}
+          targets: ${{ matrix.settings.target }}
       - uses: Swatinem/rust-cache@v1
         with:
           key: ${{ matrix.settings.target }}

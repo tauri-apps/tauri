@@ -34,10 +34,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
@@ -74,10 +71,7 @@ jobs:
             examples/api/src-tauri
 
       - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo build --manifest-path ./tooling/cli/Cargo.toml
 
       - name: build Tauri API
         working-directory: ./tooling/api

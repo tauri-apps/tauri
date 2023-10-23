@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.4.5]
+
+### Enhancements
+
+- [`cfe6fa6c`](https://www.github.com/tauri-apps/tauri/commit/cfe6fa6c91a8cc177d4665ba04dad32ba545159d)([#8061](https://www.github.com/tauri-apps/tauri/pull/8061)) Added German language support to the NSIS bundler.
+
 ## \[1.4.4]
 
 ### Enhancements

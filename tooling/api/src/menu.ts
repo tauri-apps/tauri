@@ -727,7 +727,7 @@ interface CheckMenuItemOptions extends MenuItemOptions {
 }
 
 /**
- * A chcek menu item inside a {@linkcode Menu} or {@linkcode Submenu}
+ * A check menu item inside a {@linkcode Menu} or {@linkcode Submenu}
  * and usually contains a text and a check mark or a similar toggle
  * that corresponds to a checked and unchecked states.
  */

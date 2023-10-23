@@ -36,6 +36,10 @@ internal class RemoveListenerArgs {
   var channelId: Long = 0
 }
 
+@InvokeArg internal class RequestPermissionsArgs {
+  var permissions: List<String>? = null
+}
+
 abstract class Plugin(private val activity: Activity) {
   var handle: PluginHandle? = null
   private val listeners: MutableMap<String, MutableList<Channel>> = mutableMapOf()
@@ -183,27 +187,32 @@ abstract class Plugin(private val activity: Activity) {
       var permAliases: Array<String>? = null
       val autoGrantPerms: MutableSet<String> = HashSet()
 
-      // If call was made with a list of specific permission aliases to request, save them
-      // to be requested
-      // TODO val providedPerms: JSArray = invoke.getArray("permissions", JSArray())
-      val providedPerms = JSArray()
-      var providedPermsList: List<String?>? = null
-      try {
-        providedPermsList = providedPerms.toList()
-      } catch (ignore: JSONException) {
-        // do nothing
-      }
+      val args = invoke.parseArgs(RequestPermissionsArgs::class.java)
 
-      // If call was made without any custom permissions, request all from plugin annotation
-      val aliasSet: MutableSet<String> = HashSet()
-      if (providedPermsList.isNullOrEmpty()) {
+      args.permissions?.let {
+        val aliasSet: MutableSet<String> = HashSet()
+
+        for (perm in annotation.permissions) {
+          if (it.contains(perm.alias)) {
+            aliasSet.add(perm.alias)
+          }
+        }
+        if (aliasSet.isEmpty()) {
+          invoke.reject("No valid permission alias was requested of this plugin.")
+          return
+        } else {
+          permAliases = aliasSet.toTypedArray()
+        }
+      } ?: run {
+        val aliasSet: MutableSet<String> = HashSet()
+
         for (perm in annotation.permissions) {
           // If a permission is defined with no permission strings, separate it for auto-granting.
           // Otherwise, the alias is added to the list to be requested.
           if (perm.strings.isEmpty() || perm.strings.size == 1 && perm.strings[0]
               .isEmpty()
           ) {
-            if (!perm.alias.isEmpty()) {
+            if (perm.alias.isNotEmpty()) {
               autoGrantPerms.add(perm.alias)
             }
           } else {
@@ -211,31 +220,23 @@ abstract class Plugin(private val activity: Activity) {
           }
         }
         permAliases = aliasSet.toTypedArray()
-      } else {
-        for (perm in annotation.permissions) {
-          if (providedPermsList.contains(perm.alias)) {
-            aliasSet.add(perm.alias)
-          }
-        }
-        if (aliasSet.isEmpty()) {
-          invoke.reject("No valid permission alias was requested of this plugin.")
-        } else {
-          permAliases = aliasSet.toTypedArray()
-        }
       }
-      if (!permAliases.isNullOrEmpty()) {
+
+      permAliases?.let {
         // request permissions using provided aliases or all defined on the plugin
-        requestPermissionForAliases(permAliases, invoke, "checkPermissions")
-      } else if (autoGrantPerms.isNotEmpty()) {
-        // if the plugin only has auto-grant permissions, return all as GRANTED
-        val permissionsResults = JSObject()
-        for (perm in autoGrantPerms) {
-          permissionsResults.put(perm, PermissionState.GRANTED.toString())
+        requestPermissionForAliases(it, invoke, "checkPermissions")
+      } ?: run {
+        if (autoGrantPerms.isNotEmpty()) {
+          // if the plugin only has auto-grant permissions, return all as GRANTED
+          val permissionsResults = JSObject()
+          for (perm in autoGrantPerms) {
+            permissionsResults.put(perm, PermissionState.GRANTED.toString())
+          }
+          invoke.resolve(permissionsResults)
+        } else {
+          // no permissions are defined on the plugin, resolve undefined
+          invoke.resolve()
         }
-        invoke.resolve(permissionsResults)
-      } else {
-        // no permissions are defined on the plugin, resolve undefined
-        invoke.resolve()
       }
     }
   }
@@ -307,15 +308,15 @@ abstract class Plugin(private val activity: Activity) {
    * [PermissionCallback] annotation.
    *
    * @param alias an alias defined on the plugin
-   * @param invoke  the invoke involved in originating the request
+   * @param invoke the invoke involved in originating the request
    * @param callbackName the name of the callback to run when the permission request is complete
    */
   protected fun requestPermissionForAlias(
     alias: String,
-    call: Invoke,
+    invoke: Invoke,
     callbackName: String
   ) {
-    requestPermissionForAliases(arrayOf(alias), call, callbackName)
+    requestPermissionForAliases(arrayOf(alias), invoke, callbackName)
   }
 
   /**

@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 import type { Menu, Submenu } from './menu'
-import { TauriEvent, listen, type UnlistenFn } from './event'
 import { Resource } from './internal'
-import { invoke } from './primitives'
-import { getCurrent } from './window'
+import { Channel, invoke } from './primitives'
 
 /**
  * Describes a tray event emitted when a tray icon is clicked
@@ -90,6 +88,8 @@ export interface TrayIconOptions {
   iconAsTemplate?: boolean
   /** Whether to show the tray menu on left click or not, default is `true`. **macOS only**. */
   menuOnLeftClieck?: boolean
+  /** A handler for an event on the tray icon. */
+  action?: (event: TrayIconEvent) => void
 }
 
 /**
@@ -132,8 +132,16 @@ export class TrayIcon extends Resource {
       // @ts-expect-error we only need the rid and kind
       options.menu = [options.menu.rid, options.menu.kind]
     }
+
+    const handler = new Channel<TrayIconEvent>()
+    if (options?.action) {
+      handler.onmessage = options.action
+      delete options.action
+    }
+
     return invoke<[number, string]>('plugin:tray|new', {
-      options: options ?? {}
+      options: options ?? {},
+      handler
     }).then(([rid, id]) => new TrayIcon(rid, id))
   }
 
@@ -213,40 +221,5 @@ export class TrayIcon extends Resource {
       rid: this.rid,
       onLeft
     })
-  }
-
-  /**
-   * Listen to this tray icon events.
-   *
-   * @example
-   * ```typescript
-   * import { TrayIcon } from '@tauri-apps/api/tray';
-   * const tray = await TrayIcon.new();
-   * const unlisten = await tray.on((event) => {
-   *   console.log(event)
-   * });
-   *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
-   * ```
-   *
-   * @param handler Event handler.
-   * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   *
-   * @since 2.0.0
-   */
-  async on(handler: (event: TrayIconEvent) => void): Promise<UnlistenFn> {
-    return listen<TrayIconEvent>(
-      TauriEvent.TRAY,
-      (e) => {
-        if (e.payload.id === this.id) {
-          handler(e.payload)
-        }
-      },
-      {
-        target: getCurrent().label
-      }
-    )
   }
 }

@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::{collections::HashMap, sync::Mutex};
+
 use serde::{Deserialize, Serialize};
 
 use super::{sealed::ContextMenuBase, *};
 use crate::{
   command,
+  ipc::Channel,
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
-  AppHandle, IconDto, Manager, RunEvent, Runtime,
+  AppHandle, IconDto, Manager, RunEvent, Runtime, State,
 };
 use tauri_macros::do_menu_item;
 
@@ -98,6 +101,8 @@ fn new<R: Runtime>(
   app: AppHandle<R>,
   kind: ItemKind,
   options: Option<NewOptions>,
+  channels: State<'_, MenuChannels>,
+  handler: Channel,
 ) -> crate::Result<(ResourceId, MenuId)> {
   let options = options.unwrap_or_default();
   let mut resources_table = app.manager.resources_table();
@@ -116,6 +121,9 @@ fn new<R: Runtime>(
       let menu = builder.build()?;
       let id = menu.id().clone();
       let rid = resources_table.add(menu);
+
+      channels.0.lock().unwrap().insert(id.clone(), handler);
+
       Some((rid, id))
     }
 
@@ -133,6 +141,9 @@ fn new<R: Runtime>(
       let submenu = builder.build()?;
       let id = submenu.id().clone();
       let rid = resources_table.add(submenu);
+
+      channels.0.lock().unwrap().insert(id.clone(), handler);
+
       Some((rid, id))
     }
 
@@ -601,11 +612,19 @@ fn set_native_icon<R: Runtime>(
   icon_item.set_native_icon(icon)
 }
 
+struct MenuChannels(Mutex<HashMap<MenuId, Channel>>);
+
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("menu")
+    .setup(|app, _api| {
+      app.manage(MenuChannels(Mutex::default()));
+      Ok(())
+    })
     .on_event(|app, e| {
       if let RunEvent::MenuEvent(e) = e {
-        let _ = app.emit_all("tauri://menu", e);
+        if let Some(channel) = app.state::<MenuChannels>().0.lock().unwrap().get(&e.id) {
+          let _ = channel.send(e);
+        }
       }
     })
     .invoke_handler(crate::generate_handler![

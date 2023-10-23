@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { TauriEvent, listen } from './event'
 import { Resource, applyMixins } from './internal'
-import { invoke } from './primitives'
-import { getCurrent } from './window'
+import { Channel, invoke } from './primitives'
 
 /**
  * Menu types and utilities.
@@ -18,48 +16,6 @@ import { getCurrent } from './window'
 interface MenuEvent {
   /** Id of the menu item that triggered this event */
   id: string
-}
-
-declare global {
-  interface Window {
-    __TAURI_MENU__?: {
-      handlers: Record<string, Array<() => void>>
-    }
-  }
-}
-
-async function addEventListener(
-  id: string,
-  handler: () => void
-): Promise<void> {
-  if (!window.__TAURI_MENU__) {
-    window.__TAURI_MENU__ = { handlers: {} }
-    const unlisten = await listen<MenuEvent>(
-      TauriEvent.MENU,
-      (e) => {
-        const handlers = window.__TAURI_MENU__?.handlers[e.payload.id]
-        if (handlers) {
-          for (handler of handlers) {
-            handler()
-          }
-        }
-      },
-      {
-        target: getCurrent().label
-      }
-    )
-
-    window.addEventListener('unload', unlisten)
-  }
-
-  // eslint-disable-next-line
-  if (!window.__TAURI_MENU__.handlers[id]) {
-    // eslint-disable-next-line
-    window.__TAURI_MENU__.handlers[id] = []
-  }
-
-  // eslint-disable-next-line
-  window.__TAURI_MENU__.handlers[id].push(handler)
 }
 
 /**
@@ -222,12 +178,12 @@ async function newMenu(
     | PredefinedMenuItemOptions
     | IconMenuItemOptions
 ): Promise<[number, string]> {
-  let handler: null | (() => void) = null
+  const handler = new Channel()
   let items: null | Array<[number, string]> = null
   if (opts) {
-    if ('action' in opts && opts.action !== void 0) {
-      // eslint-disable-next-line
-      handler = opts.action
+    if ('action' in opts && opts.action) {
+      handler.onmessage = opts.action
+      delete opts.action
     }
 
     if ('items' in opts) {
@@ -237,14 +193,10 @@ async function newMenu(
     }
   }
 
-  return invoke<[number, string]>('plugin:menu|new', {
+  return invoke('plugin:menu|new', {
     kind,
-    options: opts ? { ...opts, items } : undefined
-  }).then((ret) => {
-    if (handler) {
-      void addEventListener(ret[1], handler)
-    }
-    return ret
+    options: opts ? { ...opts, items } : undefined,
+    handler
   })
 }
 
@@ -279,11 +231,11 @@ class MenuBase extends MenuItemBase {
    */
   async append<
     T extends
-      | Submenu
-      | MenuItem
-      | PredefinedMenuItem
-      | CheckMenuItem
-      | IconMenuItem
+    | Submenu
+    | MenuItem
+    | PredefinedMenuItem
+    | CheckMenuItem
+    | IconMenuItem
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|append', {
       rid: this.rid,
@@ -304,11 +256,11 @@ class MenuBase extends MenuItemBase {
    */
   async prepend<
     T extends
-      | Submenu
-      | MenuItem
-      | PredefinedMenuItem
-      | CheckMenuItem
-      | IconMenuItem
+    | Submenu
+    | MenuItem
+    | PredefinedMenuItem
+    | CheckMenuItem
+    | IconMenuItem
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
@@ -329,11 +281,11 @@ class MenuBase extends MenuItemBase {
    */
   async insert<
     T extends
-      | Submenu
-      | MenuItem
-      | PredefinedMenuItem
-      | CheckMenuItem
-      | IconMenuItem
+    | Submenu
+    | MenuItem
+    | PredefinedMenuItem
+    | CheckMenuItem
+    | IconMenuItem
   >(items: T | T[], position: number): Promise<void> {
     return invoke('plugin:menu|insert', {
       rid: this.rid,
@@ -553,7 +505,7 @@ class MenuItem extends MenuItemBase4 {
 type SubmenuOptions = Omit<MenuItemOptions, 'accelerator' | 'action'> &
   MenuOptions
 
-interface Submenu extends MenuItemBase3 {}
+interface Submenu extends MenuItemBase3 { }
 
 /** A type that is a submenu inside a {@linkcode Menu} or {@linkcode Submenu}. */
 class Submenu extends MenuBase {
@@ -683,25 +635,25 @@ interface PredefinedMenuItemOptions {
   text?: string
   /** The predefined item type */
   item:
-    | 'Separator'
-    | 'Copy'
-    | 'Cut'
-    | 'Paste'
-    | 'SelectAll'
-    | 'Undo'
-    | 'Redo'
-    | 'Minimize'
-    | 'Maximize'
-    | 'Fullscreen'
-    | 'Hide'
-    | 'HideOthers'
-    | 'ShowAll'
-    | 'CloseWindow'
-    | 'Quit'
-    | 'Services'
-    | {
-        About: AboutMetadata | null
-      }
+  | 'Separator'
+  | 'Copy'
+  | 'Cut'
+  | 'Paste'
+  | 'SelectAll'
+  | 'Undo'
+  | 'Redo'
+  | 'Minimize'
+  | 'Maximize'
+  | 'Fullscreen'
+  | 'Hide'
+  | 'HideOthers'
+  | 'ShowAll'
+  | 'CloseWindow'
+  | 'Quit'
+  | 'Services'
+  | {
+    About: AboutMetadata | null
+  }
 }
 
 /** A predefined (native) menu item which has a predfined behavior by the OS or by tauri.  */

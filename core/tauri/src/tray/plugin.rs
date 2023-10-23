@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 use crate::{
   command,
+  ipc::Channel,
   menu::{plugin::ItemKind, Menu, Submenu},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
@@ -34,6 +35,7 @@ struct TrayIconOptions {
 fn new<R: Runtime>(
   app: AppHandle<R>,
   options: TrayIconOptions,
+  handler: Option<Channel>,
 ) -> crate::Result<(ResourceId, String)> {
   let mut builder = if let Some(id) = options.id {
     TrayIconBuilder::<R>::with_id(id)
@@ -41,9 +43,11 @@ fn new<R: Runtime>(
     TrayIconBuilder::<R>::new()
   };
 
-  builder = builder.on_tray_event(|tray, e| {
-    let _ = tray.app_handle().emit_all("tauri://tray", e);
-  });
+  if let Some(handler) = handler {
+    builder = builder.on_tray_event(|tray, e| {
+      let _ = handler.send(e);
+    });
+  }
 
   let mut resources_table = app.manager.resources_table();
 

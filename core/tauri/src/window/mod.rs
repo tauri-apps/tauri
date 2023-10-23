@@ -15,7 +15,7 @@ use crate::TitleBarStyle;
 use crate::{
   app::{AppHandle, UriSchemeResponder},
   command::{CommandArg, CommandItem},
-  event::{Event, EventId},
+  event::{EmitArgs, Event, EventId},
   ipc::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
@@ -69,26 +69,6 @@ pub(crate) type UriSchemeProtocolHandler =
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
   label: String,
-}
-
-pub(crate) struct WindowEmitArgs {
-  pub event: String,
-  pub source_window_label: String,
-  pub payload: String,
-}
-
-impl WindowEmitArgs {
-  pub fn from<S: Serialize>(
-    event: &str,
-    source_window_label: Option<&str>,
-    payload: S,
-  ) -> crate::Result<Self> {
-    Ok(WindowEmitArgs {
-      event: serde_json::to_string(event)?,
-      source_window_label: serde_json::to_string(&source_window_label)?,
-      payload: serde_json::to_string(&payload)?,
-    })
-  }
 }
 
 /// Monitor descriptor.
@@ -976,6 +956,11 @@ impl<R: Runtime> PartialEq for Window<R> {
 }
 
 impl<R: Runtime> Manager<R> for Window<R> {
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self.manager().emit(event, Some(self.label()), payload)?;
+    Ok(())
+  }
+
   fn emit_to<S: Serialize + Clone>(
     &self,
     label: &str,
@@ -987,10 +972,14 @@ impl<R: Runtime> Manager<R> for Window<R> {
       .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
   }
 
-  fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&Window<R>) -> bool,
+  {
     self
       .manager()
-      .emit_filter(event, Some(self.label()), payload, |_| true)
+      .emit_filter(event, Some(self.label()), payload, filter)
   }
 }
 impl<R: Runtime> ManagerBase<R> for Window<R> {
@@ -2337,6 +2326,14 @@ impl<R: Runtime> Window<R> {
     Ok(())
   }
 
+  pub(crate) fn emit_js(&self, emit_args: &EmitArgs) -> crate::Result<()> {
+    self.eval(&crate::event::emit_js(
+      self.manager().listeners().function_name(),
+      emit_args,
+    )?)?;
+    Ok(())
+  }
+
   /// Whether this window registered a listener to an event from the given window and event name.
   pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
     self
@@ -2445,74 +2442,7 @@ impl<R: Runtime> Window<R> {
 
 /// Event system APIs.
 impl<R: Runtime> Window<R> {
-  /// Emits an event to both the JavaScript and the Rust listeners.
-  ///
-  /// This API is a combination of [`Self::trigger`] and [`Self::emit`].
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::Window) {
-  ///   window.emit_and_trigger("download-started", ());
-  ///
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners
-  ///     window.emit_and_trigger("download-progress", i);
-  ///   }
-  /// }
-  /// ```
-  pub fn emit_and_trigger<S: Serialize + Clone>(
-    &self,
-    event: &str,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.trigger(event, Some(serde_json::to_string(&payload)?));
-    self.emit(event, payload)
-  }
-
-  pub(crate) fn emit_internal(&self, emit_args: &WindowEmitArgs) -> crate::Result<()> {
-    self.eval(&format!(
-      "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
-      self.manager.event_emit_function_name(),
-      emit_args.event,
-      emit_args.source_window_label,
-      emit_args.payload
-    ))?;
-    Ok(())
-  }
-
-  /// Emits an event to the JavaScript listeners on the current window or globally.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::Window) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners registed in the webview
-  ///     window.emit("download-progress", i);
-  ///   }
-  /// }
-  /// ```
-  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self
-      .manager
-      .emit_filter(event, Some(self.label()), payload, |w| {
-        w.has_js_listener(None, event) || w.has_js_listener(Some(self.label().into()), event)
-      })?;
-    Ok(())
-  }
-
   /// Listen to an event on this window.
-  ///
-  /// This listener only receives events that are triggered using the
-  /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
-  /// the `emit` function from the window plugin (`@tauri-apps/api/window` package).
   ///
   /// # Examples
   /// ```
@@ -2532,8 +2462,9 @@ impl<R: Runtime> Window<R> {
   where
     F: Fn(Event) + Send + 'static,
   {
-    let label = self.window.label.clone();
-    self.manager.listen(event.into(), Some(label), handler)
+    self
+      .manager
+      .listen(event.into(), Some(self.clone()), handler)
   }
 
   /// Unlisten to an event on this window.
@@ -2565,7 +2496,7 @@ impl<R: Runtime> Window<R> {
     self.manager.unlisten(id)
   }
 
-  /// Listen to an event on this window a single time.
+  /// Listen to an event on this window only once.
   ///
   /// See [`Self::listen`] for more information.
   pub fn once<F>(&self, event: impl Into<String>, handler: F)
@@ -2574,26 +2505,6 @@ impl<R: Runtime> Window<R> {
   {
     let label = self.window.label.clone();
     self.manager.once(event.into(), Some(label), handler)
-  }
-
-  /// Triggers an event to the Rust listeners on this window or global listeners.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::Window) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners registed on `window` in Rust
-  ///     window.trigger("download-progress", Some(i.to_string()));
-  ///   }
-  /// }
-  /// ```
-  pub fn trigger(&self, event: &str, data: Option<String>) {
-    let label = self.window.label.clone();
-    self.manager.trigger(event, Some(label), data)
   }
 }
 

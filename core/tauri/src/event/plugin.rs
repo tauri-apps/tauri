@@ -37,6 +37,12 @@ impl<'de> Deserialize<'de> for EventName {
 
 pub struct WindowLabel(String);
 
+impl AsRef<str> for WindowLabel {
+  fn as_ref(&self) -> &str {
+    &self.0
+  }
+}
+
 impl<'de> Deserialize<'de> for WindowLabel {
   fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
   where
@@ -75,25 +81,10 @@ pub fn emit<R: Runtime>(
   window_label: Option<WindowLabel>,
   payload: Option<JsonValue>,
 ) -> Result<()> {
-  // dispatch the event to Rust listeners
-  window.trigger(
-    &event.0,
-    payload.as_ref().and_then(|p| {
-      serde_json::to_string(&p)
-        .map_err(|e| {
-          #[cfg(debug_assertions)]
-          eprintln!("{e}");
-          e
-        })
-        .ok()
-    }),
-  );
-
-  // emit event to JS
-  if let Some(target) = window_label {
-    window.emit_to(&target.0, &event.0, payload)
+  if let Some(label) = window_label {
+    window.emit_filter(&event.0, payload, |w| label.as_ref() == w.label())
   } else {
-    window.emit_all(&event.0, payload)
+    window.emit(&event.0, payload)
   }
 }
 

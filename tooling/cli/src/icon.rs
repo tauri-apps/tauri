@@ -41,8 +41,7 @@ struct PngEntry {
 #[derive(Debug, Parser)]
 #[clap(about = "Generate various icons for all major platforms")]
 pub struct Options {
-  // TODO: Confirm 1240px
-  /// Path to the source icon (png, 1240x1240px with transparency).
+  /// Path to the source icon (png, 1024x1024px with transparency).
   #[clap(default_value = "./app-icon.png")]
   input: PathBuf,
   /// Output directory.

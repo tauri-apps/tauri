@@ -1116,6 +1116,24 @@ class Window {
   }
 
   /**
+   * Whether the window should always be below other windows.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().setAlwaysOnBottom(true);
+   * ```
+   *
+   * @param alwaysOnBottom Whether the window should always be below other windows or not.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setAlwaysOnBottom(alwaysOnBottom: boolean): Promise<void> {
+    return invoke('plugin:window|set_always_on_bottom', {
+      label: this.label,
+      value: alwaysOnBottom
+    })
+  }
+
+  /**
    * Prevents the window contents from being captured by other apps.
    * @example
    * ```typescript
@@ -1996,6 +2014,8 @@ interface WindowOptions {
   decorations?: boolean
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
+  /** Whether the window should always be below other windows. */
+  alwaysOnBottom?: boolean
   /** Prevents the window contents from being captured by other apps. */
   contentProtected?: boolean
   /** Whether or not the window icon should be added to the taskbar. */

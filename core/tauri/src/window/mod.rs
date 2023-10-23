@@ -32,10 +32,7 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::{
-    config::{WindowConfig, WindowEffectsConfig, WindowUrl},
-    ProgressBarState,
-  },
+  utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
   EventLoopMessage, Manager, Runtime, Theme, WindowEvent,
 };
 #[cfg(desktop)]
@@ -72,6 +69,26 @@ pub(crate) type UriSchemeProtocolHandler =
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
   label: String,
+}
+
+pub(crate) struct WindowEmitArgs {
+  pub event: String,
+  pub source_window_label: String,
+  pub payload: String,
+}
+
+impl WindowEmitArgs {
+  pub fn from<S: Serialize>(
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+  ) -> crate::Result<Self> {
+    Ok(WindowEmitArgs {
+      event: serde_json::to_string(event)?,
+      source_window_label: serde_json::to_string(&source_window_label)?,
+      payload: serde_json::to_string(&payload)?,
+    })
+  }
 }
 
 /// Monitor descriptor.
@@ -611,6 +628,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn decorations(mut self, decorations: bool) -> Self {
     self.window_builder = self.window_builder.decorations(decorations);
+    self
+  }
+
+  /// Whether the window should always be below other windows.
+  #[must_use]
+  pub fn always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.window_builder = self.window_builder.always_on_bottom(always_on_bottom);
     self
   }
 
@@ -1880,6 +1904,15 @@ impl<R: Runtime> Window<R> {
     })
   }
 
+  /// Determines if this window should always be below other windows.
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_always_on_bottom(always_on_bottom)
+      .map_err(Into::into)
+  }
+
   /// Determines if this window should always be on top of other windows.
   pub fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()> {
     self
@@ -2055,7 +2088,10 @@ impl<R: Runtime> Window<R> {
   /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
   /// - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
-  pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
+  pub fn set_progress_bar(
+    &self,
+    progress_state: crate::utils::ProgressBarState,
+  ) -> crate::Result<()> {
     self
       .window
       .dispatcher
@@ -2437,18 +2473,13 @@ impl<R: Runtime> Window<R> {
     self.emit(event, payload)
   }
 
-  pub(crate) fn emit_internal<S: Serialize>(
-    &self,
-    event: &str,
-    source_window_label: Option<&str>,
-    payload: S,
-  ) -> crate::Result<()> {
+  pub(crate) fn emit_internal(&self, emit_args: &WindowEmitArgs) -> crate::Result<()> {
     self.eval(&format!(
       "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
-      self.manager.listeners().function_name(),
-      serde_json::to_string(event)?,
-      serde_json::to_string(&source_window_label)?,
-      serde_json::to_value(payload)?,
+      self.manager.event_emit_function_name(),
+      emit_args.event,
+      emit_args.source_window_label,
+      emit_args.payload
     ))?;
     Ok(())
   }

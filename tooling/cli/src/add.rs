@@ -90,6 +90,7 @@ pub fn command(options: Options) -> Result<()> {
         PackageManager::Pnpm => cross_command("pnpm"),
         PackageManager::Yarn => cross_command("yarn"),
         PackageManager::YarnBerry => cross_command("yarn"),
+        PackageManager::Bun => cross_command("bun"),
       };
 
       cmd.arg("add").arg(&npm_spec);

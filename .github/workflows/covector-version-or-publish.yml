@@ -71,7 +71,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 18
           registry-url: 'https://registry.npmjs.org'
           cache: yarn
           cache-dependency-path: tooling/*/yarn.lock
@@ -115,15 +115,13 @@ jobs:
           repository: tauri-apps/tauri-docs
           event-type: update-docs
 
-      - name: Get `@tauri-apps/cli` release id
-        id: cliReleaseId
+      - name: Process covector output
+        id: covectorOutput
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
         run: |
-          echo '${{ toJSON(steps.covector.outputs) }}' > output.json
-          id=$(jq '.["-tauri-apps-cli-releaseId"]' < output.json)
-          rm output.json
+          id=$(node .scripts/covector/parse-output.js '${{ toJSON(steps.covector.outputs) }}' "-tauri-apps-cli-releaseId")
           echo "cliReleaseId=$id" >> "$GITHUB_OUTPUT"
 
       - name: Trigger `@tauri-apps/cli` publishing workflow
@@ -135,7 +133,7 @@ jobs:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
           event-type: publish-js-cli
-          client-payload: '{"releaseId": "${{ steps.cliReleaseId.outputs.cliReleaseId }}" }'
+          client-payload: '{"releaseId": "${{ steps.covectorOutput.outputs.cliReleaseId }}" }'
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |

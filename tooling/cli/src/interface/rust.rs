@@ -30,7 +30,7 @@ use tauri_utils::config::parse::is_configuration_file;
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::{nsis_settings, reload as reload_config, wix_settings, Config},
+  config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
 };
 use tauri_utils::{display_path, platform::Target};
 
@@ -108,7 +108,7 @@ impl Interface for Rust {
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
-      let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+      let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
         if let Ok(events) = r {
           let _ = tx.send(events);
         }
@@ -224,14 +224,14 @@ impl Interface for Rust {
   fn env(&self) -> HashMap<&str, String> {
     let mut env = HashMap::new();
     env.insert(
-      "TAURI_TARGET_TRIPLE",
+      "TAURI_ENV_TARGET_TRIPLE",
       self.app_settings.target_triple.clone(),
     );
 
     let mut s = self.app_settings.target_triple.split('-');
     let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
     env.insert(
-      "TAURI_ARCH",
+      "TAURI_ENV_ARCH",
       match arch {
         // keeps compatibility with old `std::env::consts::ARCH` implementation
         "i686" | "i586" => "x86".into(),
@@ -239,7 +239,7 @@ impl Interface for Rust {
       },
     );
     env.insert(
-      "TAURI_PLATFORM",
+      "TAURI_ENV_PLATFORM",
       match host {
         // keeps compatibility with old `std::env::consts::OS` implementation
         "darwin" => "macos".into(),
@@ -250,7 +250,7 @@ impl Interface for Rust {
     );
 
     env.insert(
-      "TAURI_FAMILY",
+      "TAURI_ENV_FAMILY",
       match host {
         "windows" => "windows".into(),
         _ => "unix".into(),
@@ -258,9 +258,9 @@ impl Interface for Rust {
     );
 
     match host {
-      "linux" => env.insert("TAURI_PLATFORM_TYPE", "Linux".into()),
-      "windows" => env.insert("TAURI_PLATFORM_TYPE", "Windows_NT".into()),
-      "darwin" => env.insert("TAURI_PLATFORM_TYPE", "Darwin".into()),
+      "linux" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Linux".into()),
+      "windows" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Windows_NT".into()),
+      "darwin" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Darwin".into()),
       _ => None,
     };
 
@@ -482,7 +482,7 @@ impl Rust {
     let common_ancestor = common_path::common_path_all(watch_folders.clone()).unwrap();
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
-    let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+    let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
       if let Ok(events) = r {
         tx.send(events).unwrap()
       }
@@ -1062,7 +1062,9 @@ fn tauri_config_to_bundle_settings(
   let windows_icon_path = PathBuf::from("");
 
   #[allow(unused_mut)]
-  let mut resources = config.resources.unwrap_or_default();
+  let mut resources = config
+    .resources
+    .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
   let mut depends = config.deb.depends.unwrap_or_default();
 
@@ -1143,15 +1145,17 @@ fn tauri_config_to_bundle_settings(
     None => config.macos.provider_short_name,
   };
 
+  let (resources, resources_map) = match resources {
+    BundleResources::List(paths) => (Some(paths), None),
+    BundleResources::Map(map) => (None, Some(map)),
+  };
+
   Ok(BundleSettings {
     identifier: Some(config.identifier),
     publisher: config.publisher,
     icon: Some(config.icon),
-    resources: if resources.is_empty() {
-      None
-    } else {
-      Some(resources)
-    },
+    resources,
+    resources_map,
     copyright: config.copyright,
     category: match config.category {
       Some(category) => Some(AppCategory::from_str(&category).map_err(|e| match e {

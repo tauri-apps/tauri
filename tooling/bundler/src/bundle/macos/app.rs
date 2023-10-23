@@ -23,9 +23,9 @@
 // files into the `Contents` directory of the bundle.
 
 use super::{
-  super::common,
+  super::common::{self, CommandExt},
   icon::create_icns_file,
-  sign::{notarize, notarize_auth_args, sign},
+  sign::{notarize, notarize_auth, sign, NotarizeAuthError, SignTarget},
 };
 use crate::Settings;
 
@@ -33,8 +33,10 @@ use anyhow::Context;
 use log::{info, warn};
 
 use std::{
+  ffi::OsStr,
   fs,
   path::{Path, PathBuf},
+  process::Command,
 };
 
 /// Bundles the project.
@@ -65,6 +67,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let resources_dir = bundle_directory.join("Resources");
   let bin_dir = bundle_directory.join("MacOS");
+  let mut sign_paths = Vec::new();
 
   let bundle_icon_file: Option<PathBuf> =
     { create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")? };
@@ -72,27 +75,63 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   create_info_plist(&bundle_directory, bundle_icon_file, settings)
     .with_context(|| "Failed to create Info.plist")?;
 
-  copy_frameworks_to_bundle(&bundle_directory, settings)
+  let framework_paths = copy_frameworks_to_bundle(&bundle_directory, settings)
     .with_context(|| "Failed to bundle frameworks")?;
+  sign_paths.extend(
+    framework_paths
+      .into_iter()
+      .filter(|p| {
+        let ext = p.extension();
+        ext == Some(OsStr::new("framework")) || ext == Some(OsStr::new("dylib"))
+      })
+      .map(|path| SignTarget {
+        path,
+        is_an_executable: false,
+      }),
+  );
 
   settings.copy_resources(&resources_dir)?;
 
-  settings
+  let bin_paths = settings
     .copy_binaries(&bin_dir)
     .with_context(|| "Failed to copy external binaries")?;
+  sign_paths.extend(bin_paths.into_iter().map(|path| SignTarget {
+    path,
+    is_an_executable: true,
+  }));
 
-  copy_binaries_to_bundle(&bundle_directory, settings)?;
+  let bin_paths = copy_binaries_to_bundle(&bundle_directory, settings)?;
+  sign_paths.extend(bin_paths.into_iter().map(|path| SignTarget {
+    path,
+    is_an_executable: true,
+  }));
 
   if let Some(identity) = &settings.macos().signing_identity {
+    // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
+    // https://developer.apple.com/forums/thread/701514
+    sign_paths.push(SignTarget {
+      path: app_bundle_path.clone(),
+      is_an_executable: true,
+    });
+
+    // Remove extra attributes, which could cause codesign to fail
+    // https://developer.apple.com/library/archive/qa/qa1940/_index.html
+    remove_extra_attr(&app_bundle_path)?;
+
     // sign application
-    sign(app_bundle_path.clone(), identity, settings, true)?;
+    sign(sign_paths, identity, settings)?;
+
     // notarization is required for distribution
-    match notarize_auth_args() {
-      Ok(args) => {
-        notarize(app_bundle_path.clone(), args, settings)?;
+    match notarize_auth() {
+      Ok(auth) => {
+        notarize(app_bundle_path.clone(), auth, settings)?;
       }
       Err(e) => {
-        warn!("skipping app notarization, {}", e.to_string());
+        if matches!(e, NotarizeAuthError::MissingTeamId) {
+          return Err(anyhow::anyhow!("{e}").into());
+        } else {
+          warn!("skipping app notarization, {}", e.to_string());
+        }
       }
     }
   }
@@ -100,15 +139,30 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![app_bundle_path])
 }
 
+fn remove_extra_attr(app_bundle_path: &Path) -> crate::Result<()> {
+  Command::new("xattr")
+    .arg("-cr")
+    .arg(app_bundle_path)
+    .output_ok()
+    .context("failed to remove extra attributes from app bundle")?;
+  Ok(())
+}
+
 // Copies the app's binaries to the bundle.
-fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+fn copy_binaries_to_bundle(
+  bundle_directory: &Path,
+  settings: &Settings,
+) -> crate::Result<Vec<PathBuf>> {
+  let mut paths = Vec::new();
   let dest_dir = bundle_directory.join("MacOS");
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    common::copy_file(&bin_path, &dest_dir.join(bin.name()))
+    let dest_path = dest_dir.join(bin.name());
+    common::copy_file(&bin_path, &dest_path)
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+    paths.push(dest_path);
   }
-  Ok(())
+  Ok(paths)
 }
 
 // Creates the Info.plist file.
@@ -247,7 +301,12 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
 }
 
 // Copies the macOS application bundle frameworks to the .app
-fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+fn copy_frameworks_to_bundle(
+  bundle_directory: &Path,
+  settings: &Settings,
+) -> crate::Result<Vec<PathBuf>> {
+  let mut paths = Vec::new();
+
   let frameworks = settings
     .macos()
     .frameworks
@@ -255,7 +314,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
     .cloned()
     .unwrap_or_default();
   if frameworks.is_empty() {
-    return Ok(());
+    return Ok(paths);
   }
   let dest_dir = bundle_directory.join("Frameworks");
   fs::create_dir_all(bundle_directory)
@@ -266,7 +325,9 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
       let src_name = src_path
         .file_name()
         .expect("Couldn't get framework filename");
-      common::copy_dir(&src_path, &dest_dir.join(src_name))?;
+      let dest_path = dest_dir.join(src_name);
+      common::copy_dir(&src_path, &dest_path)?;
+      paths.push(dest_path);
       continue;
     } else if framework.ends_with(".dylib") {
       let src_path = PathBuf::from(framework);
@@ -277,7 +338,9 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         )));
       }
       let src_name = src_path.file_name().expect("Couldn't get library filename");
-      common::copy_file(&src_path, &dest_dir.join(src_name))?;
+      let dest_path = dest_dir.join(src_name);
+      common::copy_file(&src_path, &dest_path)?;
+      paths.push(dest_path);
       continue;
     } else if framework.contains('/') {
       return Err(crate::Error::GenericError(format!(
@@ -304,5 +367,5 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
       framework
     )));
   }
-  Ok(())
+  Ok(paths)
 }

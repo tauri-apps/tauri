@@ -88,8 +88,6 @@ pub mod window;
 use tauri_runtime as runtime;
 #[cfg(target_os = "ios")]
 mod ios;
-#[cfg(target_os = "android")]
-mod jni_helpers;
 #[cfg(desktop)]
 pub mod menu;
 /// Path APIs.
@@ -548,7 +546,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().package_info()
   }
 
-  /// Emits a event to all windows.
+  /// Emits an event to all windows.
   ///
   /// Only the webviews receives this event.
   /// To trigger Rust listeners, use [`Self::trigger_global`], [`Window::trigger`] or [`Window::emit_and_trigger`].
@@ -565,6 +563,26 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// ```
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, None, payload, |_| true)
+  }
+
+  /// Emits an event to windows matching the filter critera.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(app: tauri::AppHandle) {
+  ///   // emits the synchronized event to all windows
+  ///   app.emit_filter("synchronized", (), |w| w.label().starts_with("foo-"));
+  /// }
+  /// ```
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&Window<R>) -> bool,
+  {
+    self.manager().emit_filter(event, None, payload, filter)
   }
 
   /// Emits an event to the window with the specified label.

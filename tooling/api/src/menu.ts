@@ -148,6 +148,7 @@ type ItemKind =
   | 'Submenu'
   | 'Menu'
 
+/* eslint-disable @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
 function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
   | Submenu
   | MenuItem
@@ -156,18 +157,19 @@ function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
   | IconMenuItem {
   switch (kind) {
     case 'Submenu':
-      return new Submenu(rid, id)
+      return new (Submenu as any)(rid, id)
     case 'Predefined':
-      return new PredefinedMenuItem(rid, id)
+      return new (PredefinedMenuItem as any)(rid, id)
     case 'Check':
-      return new CheckMenuItem(rid, id)
+      return new (CheckMenuItem as any)(rid, id)
     case 'Icon':
-      return new IconMenuItem(rid, id)
+      return new (IconMenuItem as any)(rid, id)
     case 'MenuItem':
     default:
-      return new MenuItem(rid, id)
+      return new (MenuItem as any)(rid, id)
   }
 }
+/* eslint-enable @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
 
 async function newMenu(
   kind: ItemKind,
@@ -212,7 +214,8 @@ class MenuItemBase extends Resource {
     return this.#kind
   }
 
-  constructor(rid: number, id: string, kind: ItemKind) {
+  /** @ignore */
+  protected constructor(rid: number, id: string, kind: ItemKind) {
     super(rid)
     this.#id = id
     this.#kind = kind
@@ -229,11 +232,11 @@ class MenuBase extends MenuItemBase {
    */
   async append<
     T extends
-      | Submenu
-      | MenuItem
-      | PredefinedMenuItem
-      | CheckMenuItem
-      | IconMenuItem
+    | Submenu
+    | MenuItem
+    | PredefinedMenuItem
+    | CheckMenuItem
+    | IconMenuItem
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|append', {
       rid: this.rid,
@@ -254,11 +257,11 @@ class MenuBase extends MenuItemBase {
    */
   async prepend<
     T extends
-      | Submenu
-      | MenuItem
-      | PredefinedMenuItem
-      | CheckMenuItem
-      | IconMenuItem
+    | Submenu
+    | MenuItem
+    | PredefinedMenuItem
+    | CheckMenuItem
+    | IconMenuItem
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
@@ -279,11 +282,11 @@ class MenuBase extends MenuItemBase {
    */
   async insert<
     T extends
-      | Submenu
-      | MenuItem
-      | PredefinedMenuItem
-      | CheckMenuItem
-      | IconMenuItem
+    | Submenu
+    | MenuItem
+    | PredefinedMenuItem
+    | CheckMenuItem
+    | IconMenuItem
   >(items: T | T[], position: number): Promise<void> {
     return invoke('plugin:menu|insert', {
       rid: this.rid,
@@ -386,7 +389,8 @@ interface MenuOptions {
  * on Windows and Linux or as a global menu in the menubar on macOS.
  */
 class Menu extends MenuBase {
-  constructor(rid: number, id: string) {
+  /** @ignore */
+  protected constructor(rid: number, id: string) {
     super(rid, id, 'Menu')
   }
 
@@ -490,7 +494,8 @@ interface MenuItemOptions {
 
 /** A menu item inside a {@linkcode Menu} or {@linkcode Submenu} and contains only text. */
 class MenuItem extends MenuItemBase4 {
-  constructor(rid: number, id: string) {
+  /** @ignore */
+  protected constructor(rid: number, id: string) {
     super(rid, id, 'MenuItem')
   }
 
@@ -504,12 +509,13 @@ type SubmenuOptions = Omit<MenuItemOptions, 'accelerator' | 'action'> &
   MenuOptions
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-interface Submenu extends MenuItemBase3 {}
+interface Submenu extends MenuItemBase3 { }
 
 /** A type that is a submenu inside a {@linkcode Menu} or {@linkcode Submenu}. */
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 class Submenu extends MenuBase {
-  constructor(rid: number, id: string) {
+  /** @ignore */
+  protected constructor(rid: number, id: string) {
     super(rid, id, 'Submenu')
   }
 
@@ -635,30 +641,31 @@ interface PredefinedMenuItemOptions {
   text?: string
   /** The predefined item type */
   item:
-    | 'Separator'
-    | 'Copy'
-    | 'Cut'
-    | 'Paste'
-    | 'SelectAll'
-    | 'Undo'
-    | 'Redo'
-    | 'Minimize'
-    | 'Maximize'
-    | 'Fullscreen'
-    | 'Hide'
-    | 'HideOthers'
-    | 'ShowAll'
-    | 'CloseWindow'
-    | 'Quit'
-    | 'Services'
-    | {
-        About: AboutMetadata | null
-      }
+  | 'Separator'
+  | 'Copy'
+  | 'Cut'
+  | 'Paste'
+  | 'SelectAll'
+  | 'Undo'
+  | 'Redo'
+  | 'Minimize'
+  | 'Maximize'
+  | 'Fullscreen'
+  | 'Hide'
+  | 'HideOthers'
+  | 'ShowAll'
+  | 'CloseWindow'
+  | 'Quit'
+  | 'Services'
+  | {
+    About: AboutMetadata | null
+  }
 }
 
 /** A predefined (native) menu item which has a predfined behavior by the OS or by tauri.  */
 class PredefinedMenuItem extends MenuItemBase2 {
-  constructor(rid: number, id: string) {
+  /** @ignore */
+  protected constructor(rid: number, id: string) {
     super(rid, id, 'MenuItem')
   }
 
@@ -684,7 +691,8 @@ interface CheckMenuItemOptions extends MenuItemOptions {
  * that corresponds to a checked and unchecked states.
  */
 class CheckMenuItem extends MenuItemBase4 {
-  constructor(rid: number, id: string) {
+  /** @ignore */
+  protected constructor(rid: number, id: string) {
     super(rid, id, 'Check')
   }
 
@@ -730,7 +738,8 @@ interface IconMenuItemOptions extends MenuItemOptions {
  * and usually contains an icon and a text.
  */
 class IconMenuItem extends MenuItemBase4 {
-  constructor(rid: number, id: string) {
+  /** @ignore */
+  protected constructor(rid: number, id: string) {
     super(rid, id, 'Icon')
   }
 

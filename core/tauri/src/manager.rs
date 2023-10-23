@@ -1350,9 +1350,24 @@ mod tests {
 
 #[cfg(test)]
 mod test {
-  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
+  use std::{
+    sync::mpsc::{channel, Receiver, Sender},
+    time::Duration,
+  };
+
+  use crate::{
+    generate_context,
+    plugin::PluginStore,
+    test::{mock_app, MockRuntime},
+    App, Manager, StateManager, Window, WindowBuilder, Wry,
+  };
 
   use super::WindowManager;
+
+  const WINDOW_LISTEN_ID: &str = "Window::listen";
+  const WINDOW_LISTEN_GLOBAL_ID: &str = "Window::listen_global";
+  const APP_LISTEN_GLOBAL_ID: &str = "App::listen_global";
+  const TEST_EVENT_NAME: &str = "event";
 
   #[test]
   fn check_get_url() {
@@ -1383,5 +1398,143 @@ mod test {
 
     #[cfg(dev)]
     assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+  }
+
+  fn setup_events() -> (
+    App<MockRuntime>,
+    Window<MockRuntime>,
+    Sender<(&'static str, String)>,
+    Receiver<(&'static str, String)>,
+  ) {
+    let app = mock_app();
+    let window = WindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    let (tx, rx) = channel();
+
+    let tx_ = tx.clone();
+    window.listen(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          WINDOW_LISTEN_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    let tx_ = tx.clone();
+    window.listen_global(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          WINDOW_LISTEN_GLOBAL_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    let tx_ = tx.clone();
+    app.listen_global(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          APP_LISTEN_GLOBAL_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    (app, window, tx, rx)
+  }
+
+  fn assert_events(received: &[&str], expected: &[&str]) {
+    for e in expected {
+      assert!(received.contains(e), "{e} did not receive global event");
+    }
+    assert_eq!(
+      received.len(),
+      expected.len(),
+      "received {:?} events but expected {:?}",
+      received,
+      expected
+    );
+  }
+
+  #[test]
+  fn app_global_events() {
+    let (app, _window, _tx, rx) = setup_events();
+
+    let mut received = Vec::new();
+    let payload = "global-payload";
+    app.emit(TEST_EVENT_NAME, payload).unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(
+      &received,
+      &[
+        WINDOW_LISTEN_ID,
+        WINDOW_LISTEN_GLOBAL_ID,
+        APP_LISTEN_GLOBAL_ID,
+      ],
+    );
+  }
+
+  #[test]
+  fn window_global_events() {
+    let (_app, window, _tx, rx) = setup_events();
+
+    let mut received = Vec::new();
+    let payload = "global-payload";
+    window.emit(TEST_EVENT_NAME, payload).unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(
+      &received,
+      &[
+        WINDOW_LISTEN_ID,
+        WINDOW_LISTEN_GLOBAL_ID,
+        APP_LISTEN_GLOBAL_ID,
+      ],
+    );
+  }
+
+  #[test]
+  fn window_local_events() {
+    let (app, window, tx, rx) = setup_events();
+
+    let mut received = Vec::new();
+    let payload = "global-payload";
+    window
+      .emit_to(window.label(), TEST_EVENT_NAME, payload)
+      .unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(&received, &[WINDOW_LISTEN_ID]);
+
+    received.clear();
+    let other_window_listen_id = "OtherWindow::listen";
+    let other_window = WindowBuilder::new(&app, "other", Default::default())
+      .build()
+      .unwrap();
+    other_window.listen(TEST_EVENT_NAME, move |evt| {
+      tx.send((
+        other_window_listen_id,
+        serde_json::from_str::<String>(evt.payload()).unwrap(),
+      ))
+      .unwrap();
+    });
+    window
+      .emit_to(other_window.label(), TEST_EVENT_NAME, payload)
+      .unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(&received, &[other_window_listen_id]);
   }
 }

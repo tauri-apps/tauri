@@ -15,7 +15,7 @@ use crate::TitleBarStyle;
 use crate::{
   app::{AppHandle, UriSchemeResponder},
   command::{CommandArg, CommandItem},
-  event::{Event, EventId},
+  event::{EmitArgs, Event, EventId},
   ipc::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
@@ -32,10 +32,7 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::{
-    config::{WindowConfig, WindowEffectsConfig, WindowUrl},
-    ProgressBarState,
-  },
+  utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
   EventLoopMessage, Manager, Runtime, Theme, WindowEvent,
 };
 #[cfg(desktop)]
@@ -611,6 +608,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn decorations(mut self, decorations: bool) -> Self {
     self.window_builder = self.window_builder.decorations(decorations);
+    self
+  }
+
+  /// Whether the window should always be below other windows.
+  #[must_use]
+  pub fn always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.window_builder = self.window_builder.always_on_bottom(always_on_bottom);
     self
   }
 
@@ -1889,6 +1893,15 @@ impl<R: Runtime> Window<R> {
     })
   }
 
+  /// Determines if this window should always be below other windows.
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_always_on_bottom(always_on_bottom)
+      .map_err(Into::into)
+  }
+
   /// Determines if this window should always be on top of other windows.
   pub fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()> {
     self
@@ -2064,7 +2077,10 @@ impl<R: Runtime> Window<R> {
   /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
   /// - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
-  pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
+  pub fn set_progress_bar(
+    &self,
+    progress_state: crate::utils::ProgressBarState,
+  ) -> crate::Result<()> {
     self
       .window
       .dispatcher
@@ -2310,17 +2326,10 @@ impl<R: Runtime> Window<R> {
     Ok(())
   }
 
-  pub(crate) fn emit_js<S: Serialize>(
-    &self,
-    event: &str,
-    source_window_label: Option<&str>,
-    payload: S,
-  ) -> crate::Result<()> {
+  pub(crate) fn emit_js(&self, emit_args: &EmitArgs) -> crate::Result<()> {
     self.eval(&crate::event::emit_js(
       self.manager().listeners().function_name(),
-      event,
-      source_window_label,
-      payload,
+      emit_args,
     )?)?;
     Ok(())
   }

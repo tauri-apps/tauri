@@ -230,9 +230,9 @@ pub fn write_options(
     let addr = server.local_addr()?;
 
     let mut module = RpcModule::new(());
-    module.register_method("options", move |_, _| Ok(options.clone()))?;
+    module.register_method("options", move |_, _| Some(options.clone()))?;
 
-    let handle = server.start(module)?;
+    let handle = server.start(module);
 
     Ok((handle, addr))
   });

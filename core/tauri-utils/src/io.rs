@@ -6,7 +6,7 @@
 
 use std::io::BufRead;
 
-/// Read a line breaking in both \n and \r.
+/// Read all bytes until a newline (the `0xA` byte) or a carriage return (`\r`) is reached, and append them to the provided buffer.
 ///
 /// Adapted from <https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_line>.
 pub fn read_line<R: BufRead + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> std::io::Result<usize> {
@@ -16,6 +16,7 @@ pub fn read_line<R: BufRead + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> std::io::
       let available = match r.fill_buf() {
         Ok(n) => n,
         Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+
         Err(e) => return Err(e),
       };
       match memchr::memchr(b'\n', available) {
@@ -40,9 +41,6 @@ pub fn read_line<R: BufRead + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> std::io::
     r.consume(used);
     read += used;
     if done || used == 0 {
-      if buf.ends_with(&[b'\n']) {
-        buf.pop();
-      }
       return Ok(read);
     }
   }

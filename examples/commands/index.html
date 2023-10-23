@@ -15,10 +15,13 @@
       function runCommand(commandName, args, optional) {
         const id = optional ? '#response-optional' : '#response'
         const result = document.querySelector(id)
-        window.__TAURI__
+        window.__TAURI__.primitives
           .invoke(commandName, args)
           .then((response) => {
-            const val = response instanceof ArrayBuffer ? new TextDecoder().decode(response) : response
+            const val =
+              response instanceof ArrayBuffer
+                ? new TextDecoder().decode(response)
+                : response
             result.innerText = `Ok(${val})`
           })
           .catch((error) => {

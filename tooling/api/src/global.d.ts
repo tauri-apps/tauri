@@ -13,7 +13,13 @@ declare global {
       invoke: typeof invoke
       transformCallback: typeof transformCallback
       convertFileSrc: typeof convertFileSrc
-      ipc: (message: any) => void
+      ipc: (message: {
+        cmd: string
+        callback: number
+        error: number
+        payload: unknown
+        options?: InvokeOptions
+      }) => void
       metadata: {
         windows: WindowDef[]
         currentWindow: WindowDef

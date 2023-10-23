@@ -13,15 +13,15 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
   },
-  // to make use of `TAURI_DEBUG` and other env variables
+  // to make use of `TAURI_ENV_DEBUG` and other env variables
   // https://tauri.studio/v1/api/config#buildconfig.beforedevcommand
-  envPrefix: ["VITE_", "TAURI_"],
+  envPrefix: ["VITE_", "TAURI_ENV_"],
   build: {
     // Tauri supports es2021
     target: ["es2021", "chrome100", "safari13"],
     // don't minify for debug builds
-    minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
+    minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
     // produce sourcemaps for debug builds
-    sourcemap: !!process.env.TAURI_DEBUG,
+    sourcemap: !!process.env.TAURI_ENV_DEBUG,
   },
 });

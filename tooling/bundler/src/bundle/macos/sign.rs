@@ -3,13 +3,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ffi::OsString;
-use std::{fs::File, io::prelude::*, path::PathBuf, process::Command};
+use std::{
+  env::{var, var_os},
+  ffi::OsString,
+  fs::File,
+  io::prelude::*,
+  path::PathBuf,
+  process::Command,
+};
 
 use crate::{bundle::common::CommandExt, Settings};
 use anyhow::Context;
 use log::info;
-use regex::Regex;
+use serde::Deserialize;
 
 const KEYCHAIN_ID: &str = "tauri-build.keychain";
 const KEYCHAIN_PWD: &str = "tauri-build";
@@ -138,17 +144,17 @@ pub fn delete_keychain() {
     .output_ok();
 }
 
-pub fn sign(
-  path_to_sign: PathBuf,
-  identity: &str,
-  settings: &Settings,
-  is_an_executable: bool,
-) -> crate::Result<()> {
-  info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
+pub struct SignTarget {
+  pub path: PathBuf,
+  pub is_an_executable: bool,
+}
+
+pub fn sign(targets: Vec<SignTarget>, identity: &str, settings: &Settings) -> crate::Result<()> {
+  info!(action = "Signing"; "with identity \"{}\"", identity);
 
   let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
-    std::env::var_os("APPLE_CERTIFICATE"),
-    std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
+    var_os("APPLE_CERTIFICATE"),
+    var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
     // setup keychain allow you to import your certificate
     // for CI build
@@ -158,20 +164,24 @@ pub fn sign(
     false
   };
 
-  let res = try_sign(
-    path_to_sign,
-    identity,
-    settings,
-    is_an_executable,
-    setup_keychain,
-  );
+  info!("Signing app bundle...");
+
+  for target in targets {
+    try_sign(
+      target.path,
+      identity,
+      settings,
+      target.is_an_executable,
+      setup_keychain,
+    )?;
+  }
 
   if setup_keychain {
     // delete the keychain again after signing
     delete_keychain();
   }
 
-  res
+  Ok(())
 }
 
 fn try_sign(
@@ -181,6 +191,8 @@ fn try_sign(
   is_an_executable: bool,
   tauri_keychain: bool,
 ) -> crate::Result<()> {
+  info!(action = "Signing"; "{}", path_to_sign.display());
+
   let mut args = vec!["--force", "-s", identity];
 
   if tauri_keychain {
@@ -199,26 +211,27 @@ fn try_sign(
     args.push("runtime");
   }
 
-  if path_to_sign.is_dir() {
-    args.push("--deep");
-  }
-
   Command::new("codesign")
     .args(args)
-    .arg(path_to_sign.to_string_lossy().to_string())
+    .arg(path_to_sign)
     .output_ok()
     .context("failed to sign app")?;
 
   Ok(())
 }
 
+#[derive(Deserialize)]
+struct NotarytoolSubmitOutput {
+  id: String,
+  status: String,
+  message: String,
+}
+
 pub fn notarize(
   app_bundle_path: PathBuf,
-  auth_args: Vec<String>,
+  auth: NotarizeAuth,
   settings: &Settings,
 ) -> crate::Result<()> {
-  let identifier = settings.bundle_identifier();
-
   let bundle_stem = app_bundle_path
     .file_stem()
     .expect("failed to get bundle filename");
@@ -249,58 +262,70 @@ pub fn notarize(
 
   // sign the zip file
   if let Some(identity) = &settings.macos().signing_identity {
-    sign(zip_path.clone(), identity, settings, false)?;
+    sign(
+      vec![SignTarget {
+        path: zip_path.clone(),
+        is_an_executable: false,
+      }],
+      identity,
+      settings,
+    )?;
   };
 
-  let mut notarize_args = vec![
-    "altool",
-    "--notarize-app",
-    "-f",
+  let notarize_args = vec![
+    "notarytool",
+    "submit",
     zip_path
       .to_str()
       .expect("failed to convert zip_path to string"),
-    "--primary-bundle-id",
-    identifier,
+    "--wait",
+    "--output-format",
+    "json",
   ];
-
-  if let Some(provider_short_name) = &settings.macos().provider_short_name {
-    notarize_args.push("--asc-provider");
-    notarize_args.push(provider_short_name);
-  }
 
   info!(action = "Notarizing"; "{}", app_bundle_path.display());
 
   let output = Command::new("xcrun")
     .args(notarize_args)
-    .args(auth_args.clone())
+    .notarytool_args(&auth)
     .output_ok()
     .context("failed to upload app to Apple's notarization servers.")?;
 
-  // combine both stdout and stderr to support macOS below 10.15
-  let mut notarize_response = std::str::from_utf8(&output.stdout)?.to_string();
-  notarize_response.push('\n');
-  notarize_response.push_str(std::str::from_utf8(&output.stderr)?);
-  notarize_response.push('\n');
-  if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
-    .captures_iter(&notarize_response)
-    .next()
-  {
-    info!("notarization started; waiting for Apple response...");
-
-    let uuid = uuid[1].to_string();
-    get_notarization_status(uuid, auth_args)?;
-    staple_app(app_bundle_path.clone())?;
-  } else {
-    return Err(
-      anyhow::anyhow!(
-        "failed to parse RequestUUID from upload output. {}",
-        notarize_response
-      )
-      .into(),
-    );
+  if !output.status.success() {
+    return Err(anyhow::anyhow!("failed to notarize app").into());
   }
 
-  Ok(())
+  let output_str = String::from_utf8_lossy(&output.stdout);
+  if let Ok(submit_output) = serde_json::from_str::<NotarytoolSubmitOutput>(&output_str) {
+    let log_message = format!(
+      "Finished with status {} for id {} ({})",
+      submit_output.status, submit_output.id, submit_output.message
+    );
+    if submit_output.status == "Accepted" {
+      log::info!(action = "Notarizing"; "{}", log_message);
+      staple_app(app_bundle_path)?;
+      Ok(())
+    } else {
+      if let Ok(output) = Command::new("xcrun")
+        .args(["notarytool", "log"])
+        .arg(&submit_output.id)
+        .notarytool_args(&auth)
+        .output_ok()
+      {
+        Err(
+          anyhow::anyhow!(
+            "{log_message}\nLog:\n{}",
+            String::from_utf8_lossy(&output.stdout)
+          )
+          .into(),
+        )
+      } else {
+        Err(anyhow::anyhow!("{log_message}").into())
+      }
+    }
+  } else {
+    Err(anyhow::anyhow!("failed to parse notarytool output as JSON: `{output_str}`").into())
+  }
 }
 
 fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
@@ -322,83 +347,116 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
   Ok(())
 }
 
-fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Result<()> {
-  std::thread::sleep(std::time::Duration::from_secs(10));
-  let result = Command::new("xcrun")
-    .args(vec!["altool", "--notarization-info", &uuid])
-    .args(auth_args.clone())
-    .output_ok();
+pub enum NotarizeAuth {
+  AppleId {
+    apple_id: OsString,
+    password: OsString,
+    team_id: OsString,
+  },
+  ApiKey {
+    key: OsString,
+    key_path: PathBuf,
+    issuer: OsString,
+  },
+}
 
-  if let Ok(output) = result {
-    // combine both stdout and stderr to support macOS below 10.15
-    let mut notarize_status = std::str::from_utf8(&output.stdout)?.to_string();
-    notarize_status.push('\n');
-    notarize_status.push_str(std::str::from_utf8(&output.stderr)?);
-    notarize_status.push('\n');
-    if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
-      .captures_iter(&notarize_status)
-      .next()
-    {
-      let status = status[1].to_string();
-      if status == "in progress" {
-        get_notarization_status(uuid, auth_args)
-      } else if status == "invalid" {
-        Err(
-          anyhow::anyhow!(format!(
-            "Apple failed to notarize your app. {}",
-            notarize_status
-          ))
-          .into(),
-        )
-      } else if status != "success" {
-        Err(
-          anyhow::anyhow!(format!(
-            "Unknown notarize status {}. {}",
-            status, notarize_status
-          ))
-          .into(),
-        )
-      } else {
-        Ok(())
-      }
-    } else {
-      get_notarization_status(uuid, auth_args)
+pub trait NotarytoolCmdExt {
+  fn notarytool_args(&mut self, auth: &NotarizeAuth) -> &mut Self;
+}
+
+impl NotarytoolCmdExt for Command {
+  fn notarytool_args(&mut self, auth: &NotarizeAuth) -> &mut Self {
+    match auth {
+      NotarizeAuth::AppleId {
+        apple_id,
+        password,
+        team_id,
+      } => self
+        .arg("--apple-id")
+        .arg(apple_id)
+        .arg("--password")
+        .arg(password)
+        .arg("--team-id")
+        .arg(team_id),
+      NotarizeAuth::ApiKey {
+        key,
+        key_path,
+        issuer,
+      } => self
+        .arg("--key-id")
+        .arg(key)
+        .arg("--key")
+        .arg(key_path)
+        .arg("--issuer")
+        .arg(issuer),
     }
-  } else {
-    get_notarization_status(uuid, auth_args)
   }
 }
 
-pub fn notarize_auth_args() -> crate::Result<Vec<String>> {
+#[derive(Debug, thiserror::Error)]
+pub enum NotarizeAuthError {
+  #[error(
+    "The team ID is now required for notarization with app-specific password as authentication. Please set the `APPLE_TEAM_ID` environment variable. You can find the team ID in https://developer.apple.com/account#MembershipDetailsCard."
+  )]
+  MissingTeamId,
+  #[error(transparent)]
+  Anyhow(#[from] anyhow::Error),
+}
+
+pub fn notarize_auth() -> Result<NotarizeAuth, NotarizeAuthError> {
   match (
-    std::env::var_os("APPLE_ID"),
-    std::env::var_os("APPLE_PASSWORD"),
+    var_os("APPLE_ID"),
+    var_os("APPLE_PASSWORD"),
+    var_os("APPLE_TEAM_ID"),
   ) {
-    (Some(apple_id), Some(apple_password)) => {
-      let apple_id = apple_id
-        .to_str()
-        .expect("failed to convert APPLE_ID to string")
-        .to_string();
-      let apple_password = apple_password
-        .to_str()
-        .expect("failed to convert APPLE_PASSWORD to string")
-        .to_string();
-      Ok(vec![
-        "-u".to_string(),
-        apple_id,
-        "-p".to_string(),
-        apple_password,
-      ])
-    }
+    (Some(apple_id), Some(password), Some(team_id)) => Ok(NotarizeAuth::AppleId {
+      apple_id,
+      password,
+      team_id,
+    }),
+    (Some(_apple_id), Some(_password), None) => Err(NotarizeAuthError::MissingTeamId),
     _ => {
-      match (std::env::var_os("APPLE_API_KEY"), std::env::var_os("APPLE_API_ISSUER")) {
-        (Some(api_key), Some(api_issuer)) => {
-          let api_key = api_key.to_str().expect("failed to convert APPLE_API_KEY to string").to_string();
-          let api_issuer = api_issuer.to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
-          Ok(vec!["--apiKey".to_string(), api_key, "--apiIssuer".to_string(), api_issuer])
+      match (var_os("APPLE_API_KEY"), var_os("APPLE_API_ISSUER"), var("APPLE_API_KEY_PATH")) {
+        (Some(key), Some(issuer), Ok(key_path)) => {
+          Ok(NotarizeAuth::ApiKey { key, key_path: key_path.into(), issuer })
         },
-        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER environment variables found").into())
+        (Some(key), Some(issuer), Err(_)) => {
+          let mut api_key_file_name = OsString::from("AuthKey_");
+          api_key_file_name.push(&key);
+          api_key_file_name.push(".p8");
+          let mut key_path = None;
+
+          let mut search_paths = vec!["./private_keys".into()];
+          if let Some(home_dir) = dirs_next::home_dir() {
+            search_paths.push(home_dir.join("private_keys"));
+            search_paths.push(home_dir.join(".private_keys"));
+            search_paths.push(home_dir.join(".appstoreconnect").join("private_keys"));
+          }
+
+          for folder in search_paths {
+            if let Some(path) = find_api_key(folder, &api_key_file_name) {
+              key_path = Some(path);
+              break;
+            }
+          }
+
+          if let Some(key_path) = key_path {
+          Ok(NotarizeAuth::ApiKey { key, key_path, issuer })
+          } else {
+            Err(anyhow::anyhow!("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {api_key_file_name:?} file").into())
+          }
+        }
+        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
       }
     }
+  }
+}
+
+fn find_api_key(folder: PathBuf, file_name: &OsString) -> Option<PathBuf> {
+  let path = folder.join(file_name);
+  if path.exists() {
+    Some(path)
+  } else {
+    None
   }
 }

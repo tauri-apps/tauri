@@ -4,9 +4,8 @@
 
 use crate::{Runtime, Window};
 
-use super::{Event, EventId};
+use super::{EmitArgs, Event, EventId};
 
-use serde::Serialize;
 use std::{
   boxed::Box,
   cell::Cell,
@@ -21,7 +20,7 @@ use std::{
 enum Pending<R: Runtime> {
   Unlisten(EventId),
   Listen(EventId, String, Handler<R>),
-  Emit(String, Option<String>),
+  Emit(EmitArgs),
 }
 
 /// Stored in [`Listeners`] to be called upon when the event that stored it is triggered.
@@ -106,8 +105,8 @@ impl<R: Runtime> Listeners<R> {
       match action {
         Pending::Unlisten(id) => self.unlisten(id),
         Pending::Listen(id, event, handler) => self.listen_with_id(id, event, handler),
-        Pending::Emit(ref event, payload) => {
-          self.emit(event, payload)?;
+        Pending::Emit(args) => {
+          self.emit(&args)?;
         }
       }
     }
@@ -172,24 +171,15 @@ impl<R: Runtime> Listeners<R> {
   }
 
   /// Emits the given event with its payload based on a filter.
-  pub(crate) fn emit_filter<S, F>(
-    &self,
-    event: &str,
-    payload: Option<S>,
-    filter: Option<F>,
-  ) -> crate::Result<()>
+  pub(crate) fn emit_filter<F>(&self, emit_args: &EmitArgs, filter: Option<F>) -> crate::Result<()>
   where
-    S: Serialize + Clone,
     F: Fn(&Window<R>) -> bool,
   {
     let mut maybe_pending = false;
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::Emit(
-        event.to_owned(),
-        payload.map(|p| serde_json::to_string(&p)).transpose()?,
-      )),
+      Err(_) => self.insert_pending(Pending::Emit(emit_args.clone())),
       Ok(lock) => {
-        if let Some(handlers) = lock.get(event) {
+        if let Some(handlers) = lock.get(&emit_args.event_name) {
           let handlers = if let Some(filter) = filter {
             handlers
               .iter()
@@ -211,13 +201,11 @@ impl<R: Runtime> Listeners<R> {
           };
 
           if !handlers.is_empty() {
-            let data = payload.map(|p| serde_json::to_string(&p)).transpose()?;
-
             for (&id, handler) in handlers {
               maybe_pending = true;
               (handler.callback)(self::Event {
                 id,
-                data: data.clone(),
+                data: emit_args.payload.clone(),
               })
             }
           }
@@ -233,11 +221,8 @@ impl<R: Runtime> Listeners<R> {
   }
 
   /// Emits the given event with its payload.
-  pub(crate) fn emit<S>(&self, event: &str, payload: Option<S>) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-  {
-    self.emit_filter(event, payload, None::<&dyn Fn(&Window<R>) -> bool>)
+  pub(crate) fn emit(&self, emit_args: &EmitArgs) -> crate::Result<()> {
+    self.emit_filter(emit_args, None::<&dyn Fn(&Window<R>) -> bool>)
   }
 }
 

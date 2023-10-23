@@ -1153,7 +1153,7 @@ impl<R: Runtime> Window<R> {
   ///         {
   ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
   ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
-  ///           use webkit2gtk::traits::WebViewExt;
+  ///           use webkit2gtk::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///

@@ -38,7 +38,7 @@ version = "0.48"
 features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.16", features = [ "v3_24" ] }
+gtk = { version = "0.18", features = [ "v3_24" ] }
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"

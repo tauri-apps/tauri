@@ -1400,12 +1400,14 @@ mod test {
     assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
   }
 
-  fn setup_events() -> (
-    App<MockRuntime>,
-    Window<MockRuntime>,
-    Sender<(&'static str, String)>,
-    Receiver<(&'static str, String)>,
-  ) {
+  struct EventSetup {
+    app: App<MockRuntime>,
+    window: Window<MockRuntime>,
+    tx: Sender<(&'static str, String)>,
+    rx: Receiver<(&'static str, String)>,
+  }
+
+  fn setup_events() -> EventSetup {
     let app = mock_app();
     let window = WindowBuilder::new(&app, "main", Default::default())
       .build()
@@ -1443,7 +1445,12 @@ mod test {
         .unwrap();
     });
 
-    (app, window, tx, rx)
+    EventSetup {
+      app,
+      window,
+      tx,
+      rx,
+    }
   }
 
   fn assert_events(received: &[&str], expected: &[&str]) {
@@ -1461,7 +1468,12 @@ mod test {
 
   #[test]
   fn app_global_events() {
-    let (app, _window, _tx, rx) = setup_events();
+    let EventSetup {
+      app,
+      window: _,
+      tx: _,
+      rx,
+    } = setup_events();
 
     let mut received = Vec::new();
     let payload = "global-payload";
@@ -1482,7 +1494,12 @@ mod test {
 
   #[test]
   fn window_global_events() {
-    let (_app, window, _tx, rx) = setup_events();
+    let EventSetup {
+      app: _,
+      window,
+      tx: _,
+      rx,
+    } = setup_events();
 
     let mut received = Vec::new();
     let payload = "global-payload";
@@ -1503,7 +1520,12 @@ mod test {
 
   #[test]
   fn window_local_events() {
-    let (app, window, tx, rx) = setup_events();
+    let EventSetup {
+      app,
+      window,
+      tx,
+      rx,
+    } = setup_events();
 
     let mut received = Vec::new();
     let payload = "global-payload";

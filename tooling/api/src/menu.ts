@@ -186,9 +186,7 @@ async function newMenu(
       delete opts.action
     }
 
-    if ('items' in opts) {
-      // @ts-expect-error items should all have rid and kind accessors
-      // eslint-disable-next-line
+    if ('items' in opts && opts.items) {
       items = opts.items.map((i) => [i.rid, i.kind])
     }
   }
@@ -231,11 +229,11 @@ class MenuBase extends MenuItemBase {
    */
   async append<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|append', {
       rid: this.rid,
@@ -256,11 +254,11 @@ class MenuBase extends MenuItemBase {
    */
   async prepend<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
@@ -281,11 +279,11 @@ class MenuBase extends MenuItemBase {
    */
   async insert<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
   >(items: T | T[], position: number): Promise<void> {
     return invoke('plugin:menu|insert', {
       rid: this.rid,
@@ -505,9 +503,11 @@ class MenuItem extends MenuItemBase4 {
 type SubmenuOptions = Omit<MenuItemOptions, 'accelerator' | 'action'> &
   MenuOptions
 
-interface Submenu extends MenuItemBase3 { }
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+interface Submenu extends MenuItemBase3 {}
 
 /** A type that is a submenu inside a {@linkcode Menu} or {@linkcode Submenu}. */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 class Submenu extends MenuBase {
   constructor(rid: number, id: string) {
     super(rid, id, 'Submenu')
@@ -635,25 +635,25 @@ interface PredefinedMenuItemOptions {
   text?: string
   /** The predefined item type */
   item:
-  | 'Separator'
-  | 'Copy'
-  | 'Cut'
-  | 'Paste'
-  | 'SelectAll'
-  | 'Undo'
-  | 'Redo'
-  | 'Minimize'
-  | 'Maximize'
-  | 'Fullscreen'
-  | 'Hide'
-  | 'HideOthers'
-  | 'ShowAll'
-  | 'CloseWindow'
-  | 'Quit'
-  | 'Services'
-  | {
-    About: AboutMetadata | null
-  }
+    | 'Separator'
+    | 'Copy'
+    | 'Cut'
+    | 'Paste'
+    | 'SelectAll'
+    | 'Undo'
+    | 'Redo'
+    | 'Minimize'
+    | 'Maximize'
+    | 'Fullscreen'
+    | 'Hide'
+    | 'HideOthers'
+    | 'ShowAll'
+    | 'CloseWindow'
+    | 'Quit'
+    | 'Services'
+    | {
+        About: AboutMetadata | null
+      }
 }
 
 /** A predefined (native) menu item which has a predfined behavior by the OS or by tauri.  */

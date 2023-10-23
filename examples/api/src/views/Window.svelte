@@ -10,7 +10,6 @@
     ProgressBarStatus,
     Window
   } from '@tauri-apps/api/window'
-  import { invoke } from '@tauri-apps/api/primitives'
 
   const appWindow = getCurrent()
 

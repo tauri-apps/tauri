@@ -63,7 +63,7 @@ export interface TrayIconOptions {
   /** The tray icon tooltip */
   tooltip?: string
   /**
-   * The tooltip text
+   * The tray title
    *
    * #### Platform-specific
    *
@@ -87,7 +87,7 @@ export interface TrayIconOptions {
    */
   iconAsTemplate?: boolean
   /** Whether to show the tray menu on left click or not, default is `true`. **macOS only**. */
-  menuOnLeftClieck?: boolean
+  menuOnLeftClick?: boolean
   /** A handler for an event on the tray icon. */
   action?: (event: TrayIconEvent) => void
 }

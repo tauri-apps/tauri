@@ -8,7 +8,7 @@
   import Window from './views/Window.svelte'
   import WebRTC from './views/WebRTC.svelte'
   import App from './views/App.svelte'
-
+  import Tray from './views/Tray.svelte'
 
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
@@ -39,6 +39,11 @@
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
+    },
+    {
+      label: 'Tray',
+      component: Tray,
+      icon: 'i-ph-broadcast'
     },
     {
       label: 'WebRTC',

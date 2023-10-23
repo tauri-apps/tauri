@@ -13,7 +13,7 @@ use crate::{
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
-  AppHandle, IconDto, Manager, Runtime,
+  AppHandle, IconDto, Runtime,
 };
 
 use super::TrayIcon;
@@ -35,7 +35,7 @@ struct TrayIconOptions {
 fn new<R: Runtime>(
   app: AppHandle<R>,
   options: TrayIconOptions,
-  handler: Option<Channel>,
+  handler: Channel,
 ) -> crate::Result<(ResourceId, String)> {
   let mut builder = if let Some(id) = options.id {
     TrayIconBuilder::<R>::with_id(id)
@@ -43,11 +43,9 @@ fn new<R: Runtime>(
     TrayIconBuilder::<R>::new()
   };
 
-  if let Some(handler) = handler {
-    builder = builder.on_tray_event(|tray, e| {
-      let _ = handler.send(e);
-    });
-  }
+  builder = builder.on_tray_icon_event(move |_tray, e| {
+    let _ = handler.send(e);
+  });
 
   let mut resources_table = app.manager.resources_table();
 

@@ -281,12 +281,12 @@ where
     Ok(initial)
   } else {
     let theme = dialoguer::theme::ColorfulTheme::default();
-    let mut builder = Input::with_theme(&theme);
-    builder.with_prompt(prompt);
-    builder.allow_empty(allow_empty);
+    let mut builder = Input::with_theme(&theme)
+      .with_prompt(prompt)
+      .allow_empty(allow_empty);
 
     if let Some(v) = initial {
-      builder.with_initial_text(v.to_string());
+      builder = builder.with_initial_text(v.to_string());
     }
 
     builder.interact_text().map(Some).map_err(Into::into)

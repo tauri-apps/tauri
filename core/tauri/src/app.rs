@@ -1393,6 +1393,11 @@ impl<R: Runtime> Builder<R> {
   /// Similar to [`Self::register_uri_scheme_protocol`] but with an asynchronous responder that allows you
   /// to process the request in a separate thread and respond asynchronously.
   ///
+  /// # Arguments
+  ///
+  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  ///
   /// # Examples
   /// ```
   /// tauri::Builder::default()
@@ -1485,6 +1490,7 @@ impl<R: Runtime> Builder<R> {
     for config in manager.config().tauri.windows.clone() {
       let label = config.label.clone();
       let webview_attributes = WebviewAttributes::from(&config);
+
       self.pending_windows.push(PendingWindow::with_config(
         config,
         webview_attributes,

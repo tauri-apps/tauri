@@ -110,6 +110,16 @@
   - Bumped due to a bump in tauri-utils.
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
 
+## \[0.14.1]
+
+### Enhancements
+
+- [`9aa34ada`](https://www.github.com/tauri-apps/tauri/commit/9aa34ada5769dbefa7dfe5f7a6288b3d20b294e4)([#7645](https://www.github.com/tauri-apps/tauri/pull/7645)) Add setting to switch to `http://<scheme>.localhost/` for custom protocols on Windows.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
+
 ## \[0.14.0]
 
 ### New Features

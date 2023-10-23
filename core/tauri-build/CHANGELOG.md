@@ -1,5 +1,27 @@
 # Changelog
 
+## \[2.0.0-alpha.10]
+
+### New Features
+
+- [`880266a7`](https://www.github.com/tauri-apps/tauri/commit/880266a7f697e1fe58d685de3bb6836ce5251e92)([#8031](https://www.github.com/tauri-apps/tauri/pull/8031)) Bump the MSRV to 1.70.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.9`
+- Upgraded to `tauri-codegen@2.0.0-alpha.9`
+
+### Breaking Changes
+
+- [`ebcc21e4`](https://www.github.com/tauri-apps/tauri/commit/ebcc21e4b95f4e8c27639fb1bca545b432f52d5e)([#8057](https://www.github.com/tauri-apps/tauri/pull/8057)) Renamed the beforeDevCommand, beforeBuildCommand and beforeBundleCommand hooks environment variables from `TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG` to `TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG` to differentiate the prefix with other CLI environment variables.
+
+## \[2.0.0-alpha.9]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-alpha.8`
+- Upgraded to `tauri-utils@2.0.0-alpha.8`
+
 ## \[2.0.0-alpha.8]
 
 ### Bug Fixes
@@ -63,6 +85,24 @@
   - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.0]
+
+### What's Changed
+
+- [`d1e09da0`](https://www.github.com/tauri-apps/tauri/commit/d1e09da084b849b9e384fc27ed250dd17e72c7a3)([#7918](https://www.github.com/tauri-apps/tauri/pull/7918)) Bump to 1.5 due to tauri-utils dependency bump.
+
+## \[1.4.1]
+
+### Bug Fixes
+
+- [`5ecb46b3`](https://www.github.com/tauri-apps/tauri/commit/5ecb46b3410afd1b5c82494c1e0a91d5a358c41a)([#7773](https://www.github.com/tauri-apps/tauri/pull/7773)) Automatically set rpath on macOS if frameworks are bundled and copy frameworks to `src-tauri/target/Frameworks` for usage in development.
+- [`290e366a`](https://www.github.com/tauri-apps/tauri/commit/290e366ae98e9a52b1b43bfd3e285150427ebffa)([#7419](https://www.github.com/tauri-apps/tauri/pull/7419)) Correctly copy the WebView2 runtime in development when `webviewInstallMode` is used instead of `webviewFixedRuntimePath`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
+- Upgraded to `tauri-codegen@1.4.1`
 
 ## \[1.4.0]
 

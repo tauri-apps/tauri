@@ -19,7 +19,6 @@ use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
 
-use http::Request as HttpRequest;
 use tauri_macros::default_runtime;
 use tauri_utils::debug_eprintln;
 use tauri_utils::{
@@ -28,12 +27,13 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
+use crate::event::EmitArgs;
 use crate::{
   app::{
     AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
     UriSchemeResponder,
   },
-  event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
+  event::{assert_event_name_is_valid, Event, EventId, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
   plugin::PluginStore,
@@ -195,7 +195,14 @@ fn replace_csp_nonce(
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
-    let nonce = rand::random::<usize>();
+    #[cfg(target_pointer_width = "64")]
+    let mut raw = [0u8; 8];
+    #[cfg(target_pointer_width = "32")]
+    let mut raw = [0u8; 4];
+    #[cfg(target_pointer_width = "16")]
+    let mut raw = [0u8; 2];
+    getrandom::getrandom(&mut raw).expect("failed to get random bytes");
+    let nonce = usize::from_ne_bytes(raw);
     nonces.push(nonce);
     nonce.to_string()
   });
@@ -219,7 +226,7 @@ fn replace_csp_nonce(
 pub struct InnerWindowManager<R: Runtime> {
   pub(crate) windows: Mutex<HashMap<String, Window<R>>>,
   pub(crate) plugins: Mutex<PluginStore<R>>,
-  listeners: Listeners,
+  listeners: Listeners<R>,
   pub(crate) state: Arc<StateManager>,
 
   /// The JS message handler.
@@ -237,7 +244,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   package_info: PackageInfo,
   /// The webview protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+  uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
   /// A set containing a reference to the active menus, including
   /// the app-wide menu and the window-specific menus
   ///
@@ -308,10 +315,11 @@ pub struct Asset {
 }
 
 /// Uses a custom URI scheme handler to resolve file requests
-pub struct CustomProtocol<R: Runtime> {
+pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol: Box<dyn Fn(&AppHandle<R>, HttpRequest<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
+  pub protocol:
+    Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -335,7 +343,7 @@ impl<R: Runtime> WindowManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Box<OnPageLoad<R>>,
-    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
+    uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<
@@ -367,7 +375,7 @@ impl<R: Runtime> WindowManager<R> {
         package_info: context.package_info,
         pattern: context.pattern,
         resources_table: Arc::default(),
-        uri_scheme_protocols,
+        uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         #[cfg(desktop)]
         menus: Default::default(),
         #[cfg(desktop)]
@@ -494,6 +502,20 @@ impl<R: Runtime> WindowManager<R> {
     self.inner.invoke_responder.clone()
   }
 
+  pub(crate) fn register_uri_scheme_protocol<N: Into<String>>(
+    &self,
+    uri_scheme: N,
+    protocol: Arc<UriSchemeProtocol<R>>,
+  ) {
+    let uri_scheme = uri_scheme.into();
+    self
+      .inner
+      .uri_scheme_protocols
+      .lock()
+      .unwrap()
+      .insert(uri_scheme, protocol);
+  }
+
   /// Get the base path to serve data from.
   ///
   /// * In dev mode, this will be based on the `devPath` configuration value.
@@ -561,6 +583,8 @@ impl<R: Runtime> WindowManager<R> {
     }
     .render_default(&Default::default())?;
 
+    let mut webview_attributes = pending.webview_attributes;
+
     let ipc_init = IpcJavascript {
       isolation_origin: &match self.pattern() {
         #[cfg(feature = "isolation")]
@@ -570,28 +594,42 @@ impl<R: Runtime> WindowManager<R> {
     }
     .render_default(&Default::default())?;
 
-    let mut webview_attributes = pending.webview_attributes;
-
     let mut window_labels = window_labels.to_vec();
     let l = label.to_string();
     if !window_labels.contains(&l) {
       window_labels.push(l);
     }
     webview_attributes = webview_attributes
+      .initialization_script(
+        r#"
+        if (!window.__TAURI_INTERNALS__) {
+          Object.defineProperty(window, '__TAURI_INTERNALS__', {
+            value: {
+              plugins: {}
+            }
+          })
+        }
+      "#,
+      )
       .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(
         r#"
-          Object.defineProperty(window, '__TAURI_METADATA__', {{
+          Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
-              __windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
-              __currentWindow: {{ label: {current_window_label} }}
+              windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
+              currentWindow: {{ label: {current_window_label} }}
             }}
           }})
         "#,
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?);
+      .initialization_script(&self.initialization_script(
+        &ipc_init.into_string(),
+        &pattern_init.into_string(),
+        &plugin_init,
+        is_init_global,
+      )?);
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -609,7 +647,7 @@ impl<R: Runtime> WindowManager<R> {
 
     let mut registered_scheme_protocols = Vec::new();
 
-    for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
+    for (uri_scheme, protocol) in &*self.inner.uri_scheme_protocols.lock().unwrap() {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
       let app_handle = Mutex::new(app_handle.clone());
@@ -785,9 +823,6 @@ impl<R: Runtime> WindowManager<R> {
       ipc_script: &'a str,
       #[raw]
       bundle_script: &'a str,
-      // A function to immediately listen to an event.
-      #[raw]
-      listen_function: &'a str,
       #[raw]
       core_script: &'a str,
       #[raw]
@@ -820,22 +855,15 @@ impl<R: Runtime> WindowManager<R> {
       pattern_script,
       ipc_script,
       bundle_script,
-      listen_function: &format!(
-        "function listen(eventName, cb) {{ {} }}",
-        crate::event::listen_js(
-          self.event_listeners_object_name(),
-          "eventName".into(),
-          0,
-          None,
-          "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
-        )
-      ),
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
       }
       .render_default(&Default::default())?
       .into_string(),
-      event_initialization_script: &self.event_initialization_script(),
+      event_initialization_script: &crate::event::event_initialization_script(
+        self.listeners().function_name(),
+        self.listeners().listeners_object_name(),
+      ),
       plugin_initialization_script,
       freeze_prototype,
     }
@@ -844,64 +872,8 @@ impl<R: Runtime> WindowManager<R> {
     .map_err(Into::into)
   }
 
-  fn event_initialization_script(&self) -> String {
-    format!(
-      "
-      Object.defineProperty(window, '{function}', {{
-        value: function (eventData) {{
-          const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
-
-          for (let i = listeners.length - 1; i >= 0; i--) {{
-            const listener = listeners[i]
-            if (listener.windowLabel === null || eventData.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
-              eventData.id = listener.id
-              listener.handler(eventData)
-            }}
-          }}
-        }}
-      }});
-    ",
-      function = self.event_emit_function_name(),
-      listeners = self.event_listeners_object_name()
-    )
-  }
-}
-
-#[cfg(test)]
-mod test {
-  use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
-
-  use super::WindowManager;
-
-  #[test]
-  fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
-    let manager: WindowManager<Wry> = WindowManager::with_handlers(
-      context,
-      PluginStore::default(),
-      Box::new(|_| false),
-      Box::new(|_, _| ()),
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
-      Default::default(),
-      (None, "".into()),
-    );
-
-    #[cfg(custom_protocol)]
-    {
-      assert_eq!(
-        manager.get_url().to_string(),
-        if cfg!(windows) || cfg!(target_os = "android") {
-          "http://tauri.localhost/"
-        } else {
-          "tauri://localhost"
-        }
-      );
-    }
-
-    #[cfg(dev)]
-    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+  pub(crate) fn listeners(&self) -> &Listeners<R> {
+    &self.inner.listeners
   }
 }
 
@@ -994,8 +966,8 @@ impl<R: Runtime> WindowManager<R> {
           let html = String::from_utf8_lossy(&body).into_owned();
           // naive way to check if it's an html
           if html.contains('<') && html.contains('>') {
-            let mut document = tauri_utils::html::parse(html);
-            tauri_utils::html::inject_csp(&mut document, &csp.to_string());
+            let document = tauri_utils::html::parse(html);
+            tauri_utils::html::inject_csp(&document, &csp.to_string());
             url.set_path(&format!("{},{}", mime::TEXT_HTML, document.to_string()));
           }
         }
@@ -1168,25 +1140,6 @@ impl<R: Runtime> WindowManager<R> {
     self.windows_lock().remove(label);
   }
 
-  pub fn emit_filter<S, F>(
-    &self,
-    event: &str,
-    source_window_label: Option<&str>,
-    payload: S,
-    filter: F,
-  ) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&Window<R>) -> bool,
-  {
-    assert_event_name_is_valid(event);
-    self
-      .windows_lock()
-      .values()
-      .filter(|&w| filter(w))
-      .try_for_each(|window| window.emit_internal(event, source_window_label, payload.clone()))
-  }
-
   pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {
     let script = script.into();
     self
@@ -1207,23 +1160,18 @@ impl<R: Runtime> WindowManager<R> {
     &self.inner.package_info
   }
 
-  pub fn unlisten(&self, handler_id: EventHandler) {
-    self.inner.listeners.unlisten(handler_id)
-  }
-
-  pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
-    assert_event_name_is_valid(event);
-    self.inner.listeners.trigger(event, window, data)
-  }
-
   pub fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<String>,
+    window: Option<Window<R>>,
     handler: F,
-  ) -> EventHandler {
+  ) -> EventId {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.listen(event, window, handler)
+    self.listeners().listen(event, window, handler)
+  }
+
+  pub fn unlisten(&self, id: EventId) {
+    self.listeners().unlisten(id)
   }
 
   pub fn once<F: FnOnce(Event) + Send + 'static>(
@@ -1231,17 +1179,65 @@ impl<R: Runtime> WindowManager<R> {
     event: String,
     window: Option<String>,
     handler: F,
-  ) -> EventHandler {
+  ) {
     assert_event_name_is_valid(&event);
-    self.inner.listeners.once(event, window, handler)
+    self
+      .listeners()
+      .once(event, window.and_then(|w| self.get_window(&w)), handler)
   }
 
-  pub fn event_listeners_object_name(&self) -> String {
-    self.inner.listeners.listeners_object_name()
+  pub fn emit_filter<S, F>(
+    &self,
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+    filter: F,
+  ) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&Window<R>) -> bool,
+  {
+    assert_event_name_is_valid(event);
+
+    let emit_args = EmitArgs::from(event, source_window_label, payload)?;
+
+    self
+      .windows_lock()
+      .values()
+      .filter(|w| {
+        w.has_js_listener(None, event)
+          || w.has_js_listener(source_window_label.map(Into::into), event)
+      })
+      .filter(|w| filter(w))
+      .try_for_each(|window| window.emit_js(&emit_args))?;
+
+    self.listeners().emit_filter(&emit_args, Some(filter))?;
+
+    Ok(())
   }
 
-  pub fn event_emit_function_name(&self) -> String {
-    self.inner.listeners.function_name()
+  pub fn emit<S: Serialize + Clone>(
+    &self,
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+  ) -> crate::Result<()> {
+    assert_event_name_is_valid(event);
+
+    let emit_args = EmitArgs::from(event, source_window_label, payload)?;
+
+    self
+      .windows_lock()
+      .values()
+      .filter(|w| {
+        w.has_js_listener(None, event)
+          || w.has_js_listener(source_window_label.map(Into::into), event)
+      })
+      .try_for_each(|window| window.emit_js(&emit_args))?;
+
+    self.listeners().emit(&emit_args)?;
+
+    Ok(())
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {
@@ -1288,7 +1284,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"(function () {{ const metadata = window.__TAURI_METADATA__; if (metadata != null) {{ metadata.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{label}"); }} }})()"#,
+          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.windows = window.__TAURI_INTERNALS__.metadata.windows.filter(w => w.label !== "{label}"); }} }})()"#,
         ))?;
       }
     }
@@ -1362,5 +1358,218 @@ mod tests {
     )] {
       assert_eq!(replace_with_callback(src, pattern, replacement), result);
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use std::{
+    sync::mpsc::{channel, Receiver, Sender},
+    time::Duration,
+  };
+
+  use crate::{
+    generate_context,
+    plugin::PluginStore,
+    test::{mock_app, MockRuntime},
+    App, Manager, StateManager, Window, WindowBuilder, Wry,
+  };
+
+  use super::WindowManager;
+
+  const WINDOW_LISTEN_ID: &str = "Window::listen";
+  const WINDOW_LISTEN_GLOBAL_ID: &str = "Window::listen_global";
+  const APP_LISTEN_GLOBAL_ID: &str = "App::listen_global";
+  const TEST_EVENT_NAME: &str = "event";
+
+  #[test]
+  fn check_get_url() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let manager: WindowManager<Wry> = WindowManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      Box::new(|_, _| ()),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      Default::default(),
+      (None, "".into()),
+    );
+
+    #[cfg(custom_protocol)]
+    {
+      assert_eq!(
+        manager.get_url().to_string(),
+        if cfg!(windows) || cfg!(target_os = "android") {
+          "http://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+    }
+
+    #[cfg(dev)]
+    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+  }
+
+  struct EventSetup {
+    app: App<MockRuntime>,
+    window: Window<MockRuntime>,
+    tx: Sender<(&'static str, String)>,
+    rx: Receiver<(&'static str, String)>,
+  }
+
+  fn setup_events() -> EventSetup {
+    let app = mock_app();
+    let window = WindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    let (tx, rx) = channel();
+
+    let tx_ = tx.clone();
+    window.listen(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          WINDOW_LISTEN_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    let tx_ = tx.clone();
+    window.listen_global(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          WINDOW_LISTEN_GLOBAL_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    let tx_ = tx.clone();
+    app.listen_global(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          APP_LISTEN_GLOBAL_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    EventSetup {
+      app,
+      window,
+      tx,
+      rx,
+    }
+  }
+
+  fn assert_events(received: &[&str], expected: &[&str]) {
+    for e in expected {
+      assert!(received.contains(e), "{e} did not receive global event");
+    }
+    assert_eq!(
+      received.len(),
+      expected.len(),
+      "received {:?} events but expected {:?}",
+      received,
+      expected
+    );
+  }
+
+  #[test]
+  fn app_global_events() {
+    let EventSetup {
+      app,
+      window: _,
+      tx: _,
+      rx,
+    } = setup_events();
+
+    let mut received = Vec::new();
+    let payload = "global-payload";
+    app.emit(TEST_EVENT_NAME, payload).unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(
+      &received,
+      &[
+        WINDOW_LISTEN_ID,
+        WINDOW_LISTEN_GLOBAL_ID,
+        APP_LISTEN_GLOBAL_ID,
+      ],
+    );
+  }
+
+  #[test]
+  fn window_global_events() {
+    let EventSetup {
+      app: _,
+      window,
+      tx: _,
+      rx,
+    } = setup_events();
+
+    let mut received = Vec::new();
+    let payload = "global-payload";
+    window.emit(TEST_EVENT_NAME, payload).unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(
+      &received,
+      &[
+        WINDOW_LISTEN_ID,
+        WINDOW_LISTEN_GLOBAL_ID,
+        APP_LISTEN_GLOBAL_ID,
+      ],
+    );
+  }
+
+  #[test]
+  fn window_local_events() {
+    let EventSetup {
+      app,
+      window,
+      tx,
+      rx,
+    } = setup_events();
+
+    let mut received = Vec::new();
+    let payload = "global-payload";
+    window
+      .emit_to(window.label(), TEST_EVENT_NAME, payload)
+      .unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(&received, &[WINDOW_LISTEN_ID]);
+
+    received.clear();
+    let other_window_listen_id = "OtherWindow::listen";
+    let other_window = WindowBuilder::new(&app, "other", Default::default())
+      .build()
+      .unwrap();
+    other_window.listen(TEST_EVENT_NAME, move |evt| {
+      tx.send((
+        other_window_listen_id,
+        serde_json::from_str::<String>(evt.payload()).unwrap(),
+      ))
+      .unwrap();
+    });
+    window
+      .emit_to(other_window.label(), TEST_EVENT_NAME, payload)
+      .unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(&received, &[other_window_listen_id]);
   }
 }

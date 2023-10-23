@@ -11,7 +11,7 @@ use anyhow::Context;
 use clap::Parser;
 use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
-use heck::{AsKebabCase, ToKebabCase, ToPascalCase, ToSnakeCase};
+use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
 use log::warn;
 use std::{
@@ -27,27 +27,36 @@ use std::{
 pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
 
 #[derive(Debug, Parser)]
-#[clap(about = "Initializes a Tauri plugin project")]
+#[clap(about = "Initialize a Tauri plugin project on an existing directory")]
 pub struct Options {
-  /// Name of your Tauri plugin
-  #[clap(short = 'n', long = "name")]
-  plugin_name: String,
+  /// Name of your Tauri plugin.
+  /// If not specified, it will be infered from the current directory.
+  pub(crate) plugin_name: Option<String>,
   /// Initializes a Tauri plugin without the TypeScript API
   #[clap(long)]
-  no_api: bool,
+  pub(crate) no_api: bool,
   /// Initializes a Tauri core plugin (internal usage)
   #[clap(long, hide(true))]
-  tauri: bool,
+  pub(crate) tauri: bool,
   /// Set target directory for init
   #[clap(short, long)]
   #[clap(default_value_t = current_dir().expect("failed to read cwd").display().to_string())]
-  directory: String,
+  pub(crate) directory: String,
   /// Path of the Tauri project to use (relative to the cwd)
   #[clap(short, long)]
-  tauri_path: Option<PathBuf>,
+  pub(crate) tauri_path: Option<PathBuf>,
   /// Author name
   #[clap(short, long)]
-  author: Option<String>,
+  pub(crate) author: Option<String>,
+  /// Whether to initialize an Android project for the plugin.
+  #[clap(long)]
+  pub(crate) android: bool,
+  /// Whether to initialize an iOS project for the plugin.
+  #[clap(long)]
+  pub(crate) ios: bool,
+  /// Whether to initialize Android and iOS projects for the plugin.
+  #[clap(long)]
+  pub(crate) mobile: bool,
 }
 
 impl Options {
@@ -64,12 +73,15 @@ impl Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options.load();
-  let template_target_path = PathBuf::from(options.directory).join(format!(
-    "tauri-plugin-{}",
-    AsKebabCase(&options.plugin_name)
-  ));
+
+  let plugin_name = match options.plugin_name {
+    None => super::infer_plugin_name(&options.directory)?,
+    Some(name) => name,
+  };
+
+  let template_target_path = PathBuf::from(options.directory);
   let metadata = crates_metadata()?;
-  if template_target_path.exists() {
+  if std::fs::read_dir(&template_target_path)?.count() > 0 {
     warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
     let (tauri_dep, tauri_example_dep, tauri_build_dep) =
@@ -101,7 +113,7 @@ pub fn command(mut options: Options) -> Result<()> {
     handlebars.register_escape_fn(handlebars::no_escape);
 
     let mut data = BTreeMap::new();
-    plugin_name_data(&mut data, &options.plugin_name);
+    plugin_name_data(&mut data, &plugin_name);
     data.insert("tauri_dep", to_json(tauri_dep));
     data.insert("tauri_example_dep", to_json(tauri_example_dep));
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
@@ -120,15 +132,20 @@ pub fn command(mut options: Options) -> Result<()> {
       );
     }
 
-    let plugin_id = request_input(
-      "What should be the Android Package ID for your plugin?",
-      Some(format!("com.plugin.{}", options.plugin_name)),
-      false,
-      false,
-    )?
-    .unwrap();
+    let plugin_id = if options.android || options.mobile {
+      let plugin_id = request_input(
+        "What should be the Android Package ID for your plugin?",
+        Some(format!("com.plugin.{}", plugin_name)),
+        false,
+        false,
+      )?
+      .unwrap();
 
-    data.insert("android_package_id", to_json(&plugin_id));
+      data.insert("android_package_id", to_json(&plugin_id));
+      Some(plugin_id)
+    } else {
+      None
+    };
 
     let mut created_dirs = Vec::new();
     template::render_with_generator(
@@ -157,13 +174,18 @@ pub fn command(mut options: Options) -> Result<()> {
               }
             }
             "android" => {
-              return generate_android_out_file(
-                &path,
-                &template_target_path,
-                &plugin_id.replace('.', "/"),
-                &mut created_dirs,
-              );
+              if options.android || options.mobile {
+                return generate_android_out_file(
+                  &path,
+                  &template_target_path,
+                  &plugin_id.as_ref().unwrap().replace('.', "/"),
+                  &mut created_dirs,
+                );
+              } else {
+                return Ok(None);
+              }
             }
+            "ios" if !(options.ios || options.mobile) => return Ok(None),
             "webview-dist" | "webview-src" | "package.json" => {
               if options.no_api {
                 return Ok(None);
@@ -259,12 +281,12 @@ where
     Ok(initial)
   } else {
     let theme = dialoguer::theme::ColorfulTheme::default();
-    let mut builder = Input::with_theme(&theme);
-    builder.with_prompt(prompt);
-    builder.allow_empty(allow_empty);
+    let mut builder = Input::with_theme(&theme)
+      .with_prompt(prompt)
+      .allow_empty(allow_empty);
 
     if let Some(v) = initial {
-      builder.with_initial_text(v.to_string());
+      builder = builder.with_initial_text(v.to_string());
     }
 
     builder.interact_text().map(Some).map_err(Into::into)

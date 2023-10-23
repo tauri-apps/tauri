@@ -11,6 +11,9 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
 };
 
+#[cfg(mobile)]
+use std::sync::atomic::{AtomicI32, Ordering};
+
 use once_cell::sync::OnceCell;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -24,6 +27,8 @@ type PluginResponse = Result<serde_json::Value, serde_json::Value>;
 
 type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>;
 
+#[cfg(mobile)]
+static PENDING_PLUGIN_CALLS_ID: AtomicI32 = AtomicI32::new(0);
 static PENDING_PLUGIN_CALLS: OnceCell<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
   OnceCell::new();
 static CHANNELS: OnceCell<Mutex<HashMap<u32, Channel>>> = OnceCell::new();
@@ -163,7 +168,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
             crate::ios::register_plugin(
               &name.into(),
               init_fn(),
-              crate::ios::json_to_dictionary(&config) as _,
+              &serde_json::to_string(&config).unwrap().as_str().into(),
               w.inner() as _,
             )
           };
@@ -176,7 +181,10 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
         crate::ios::register_plugin(
           &self.name.into(),
           init_fn(),
-          crate::ios::json_to_dictionary(&self.raw_config) as _,
+          &serde_json::to_string(&self.raw_config)
+            .unwrap()
+            .as_str()
+            .into(),
           std::ptr::null(),
         )
       };
@@ -225,17 +233,16 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
         .l()?;
 
       let plugin_name = env.new_string(plugin_name)?;
-      let config =
-        crate::jni_helpers::to_jsobject::<R>(env, activity, &runtime_handle, plugin_config)?;
+      let config = env.new_string(&serde_json::to_string(plugin_config).unwrap())?;
       env.call_method(
         plugin_manager,
         "load",
-        "(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;Lapp/tauri/plugin/JSObject;)V",
+        "(Landroid/webkit/WebView;Ljava/lang/String;Lapp/tauri/plugin/Plugin;Ljava/lang/String;)V",
         &[
           webview.into(),
           (&plugin_name).into(),
           (&plugin).into(),
-          config.borrow()
+          (&config).into(),
         ],
       )?;
 
@@ -315,7 +322,7 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
     os::raw::{c_char, c_int, c_ulonglong},
   };
 
-  let id: i32 = rand::random();
+  let id: i32 = PENDING_PLUGIN_CALLS_ID.fetch_add(1, Ordering::Relaxed);
   PENDING_PLUGIN_CALLS
     .get_or_init(Default::default)
     .lock()
@@ -339,12 +346,19 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
         .unwrap()
         .remove(&id)
       {
-        let payload = serde_json::from_str(payload.to_str().unwrap()).unwrap();
-        handler(if success == 1 {
-          Ok(payload)
-        } else {
-          Err(payload)
-        });
+        let json = payload.to_str().unwrap();
+        match serde_json::from_str(json) {
+          Ok(payload) => {
+            handler(if success == 1 {
+              Ok(payload)
+            } else {
+              Err(payload)
+            });
+          }
+          Err(err) => {
+            handler(Err(format!("{err}, data: {}", json).into()));
+          }
+        }
       }
     }
 
@@ -369,7 +383,7 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
       id,
       &name.into(),
       &command.as_ref().into(),
-      crate::ios::json_to_dictionary(&payload) as _,
+      &serde_json::to_string(&payload).unwrap().as_str().into(),
       crate::ios::PluginMessageCallback(plugin_command_response_handler),
       crate::ios::ChannelSendDataCallback(send_channel_data_handler),
     );
@@ -397,13 +411,12 @@ pub(crate) fn run_command<
     plugin: &str,
     command: String,
     payload: &serde_json::Value,
-    runtime_handle: R::Handle,
     env: &mut JNIEnv<'_>,
     activity: &JObject<'_>,
   ) -> Result<(), JniError> {
     let plugin = env.new_string(plugin)?;
     let command = env.new_string(&command)?;
-    let data = crate::jni_helpers::to_jsobject::<R>(env, activity, &runtime_handle, payload)?;
+    let data = env.new_string(&serde_json::to_string(payload).unwrap())?;
     let plugin_manager = env
       .call_method(
         activity,
@@ -416,12 +429,12 @@ pub(crate) fn run_command<
     env.call_method(
       plugin_manager,
       "runCommand",
-      "(ILjava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;)V",
+      "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
       &[
         id.into(),
         (&plugin).into(),
         (&command).into(),
-        data.borrow(),
+        (&data).into(),
       ],
     )?;
 
@@ -434,10 +447,9 @@ pub(crate) fn run_command<
     _ => unreachable!(),
   };
 
-  let id: i32 = rand::random();
+  let id: i32 = PENDING_PLUGIN_CALLS_ID.fetch_add(1, Ordering::Relaxed);
   let plugin_name = name.to_string();
   let command = command.as_ref().to_string();
-  let handle_ = handle.clone();
 
   PENDING_PLUGIN_CALLS
     .get_or_init(Default::default)
@@ -446,7 +458,7 @@ pub(crate) fn run_command<
     .insert(id, Box::new(handler.clone()));
 
   handle.run_on_android_context(move |env, activity, _webview| {
-    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, handle_, env, activity) {
+    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, env, activity) {
       handler(Err(e.to_string().into()));
     }
   });

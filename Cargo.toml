@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
   # core
   "core/tauri",
@@ -13,7 +14,6 @@ members = [
   # integration tests
   "core/tests/restart",
 ]
-resolver = "2"
 
 exclude = [
   # examples that can be compiled with the tauri CLI
@@ -31,7 +31,7 @@ repository = "https://github.com/tauri-apps/tauri"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 
 # default to small, optimized workspace release binaries
 [profile.release]

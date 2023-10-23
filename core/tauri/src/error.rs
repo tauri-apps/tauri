@@ -43,9 +43,6 @@ pub enum Error {
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
-  /// Failed to execute tauri API.
-  #[error("failed to execute API: {0}")]
-  FailedToExecuteApi(#[from] crate::api::Error),
   /// IO error.
   #[error("{0}")]
   Io(#[from] std::io::Error),
@@ -110,6 +107,29 @@ pub enum Error {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
   BadTrayIcon(#[from] tray_icon::BadIcon),
+  /// Path does not have a parent.
+  #[error("path does not have a parent")]
+  NoParent,
+  /// Path does not have an extension.
+  #[error("path does not have an extension")]
+  NoExtension,
+  /// Path does not have a basename.
+  #[error("path does not have a basename")]
+  NoBasename,
+  /// Cannot resolve current directory.
+  #[error("failed to read current dir: {0}")]
+  CurrentDir(std::io::Error),
+  /// Unknown path.
+  #[cfg(not(target_os = "android"))]
+  #[error("unknown path")]
+  UnknownPath,
+  /// Failed to invoke mobile plugin.
+  #[cfg(target_os = "android")]
+  #[error(transparent)]
+  PluginInvoke(#[from] crate::plugin::mobile::PluginInvokeError),
+  /// window not found.
+  #[error("window not found")]
+  WindowNotFound,
   /// The resource id is invalid.
   #[error("The resource id {0} is invalid.")]
   BadResourceId(crate::resources::ResourceId),
@@ -117,3 +137,6 @@ pub enum Error {
   #[error(transparent)]
   Anyhow(#[from] anyhow::Error),
 }
+
+/// `Result<T, ::tauri::Error>`
+pub type Result<T> = std::result::Result<T, Error>;

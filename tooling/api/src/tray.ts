@@ -5,7 +5,8 @@
 import type { Menu, Submenu } from './menu'
 import { TauriEvent, listen, type UnlistenFn } from './event'
 import { Resource } from './internal'
-import { invoke } from './tauri'
+import { invoke } from './primitives'
+import { getCurrent } from './window'
 
 /**
  * Describes a tray event emitted when a tray icon is clicked
@@ -244,7 +245,7 @@ export class TrayIcon extends Resource {
         }
       },
       {
-        target: window.__TAURI_METADATA__.__currentWindow.label
+        target: getCurrent().label
       }
     )
   }

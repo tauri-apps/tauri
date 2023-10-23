@@ -27,7 +27,7 @@ struct CachedResponse {
 }
 
 pub fn get<R: Runtime>(
-  manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: &WindowManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
@@ -69,7 +69,7 @@ pub fn get<R: Runtime>(
 
 fn get_response<R: Runtime>(
   request: Request<Vec<u8>>,
-  manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: &WindowManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
   #[cfg(all(dev, mobile))] (url, response_cache): (

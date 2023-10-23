@@ -95,7 +95,7 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     enable_elevated_update_task: config.enable_elevated_update_task,
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,
-    fips_compliant: var_os("TAURI_FIPS_COMPLIANT").map_or(false, |v| v == "true"),
+    fips_compliant: var_os("TAURI_BUNDLER_WIX_FIPS_COMPLIANT").map_or(false, |v| v == "true"),
   }
 }
 
@@ -110,6 +110,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     languages: config.languages,
     custom_language_files: config.custom_language_files,
     display_language_selector: config.display_language_selector,
+    compression: config.compression,
   }
 }
 
@@ -205,8 +206,13 @@ pub fn get(target: Target, merge_config: Option<&str>) -> crate::Result<ConfigHa
 }
 
 pub fn reload(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
-  if let Some(conf) = &*config_handle().lock().unwrap() {
-    get_internal(merge_config, true, conf.target)
+  let target = config_handle()
+    .lock()
+    .unwrap()
+    .as_ref()
+    .map(|conf| conf.target);
+  if let Some(target) = target {
+    get_internal(merge_config, true, target)
   } else {
     Err(anyhow::anyhow!("config not loaded"))
   }

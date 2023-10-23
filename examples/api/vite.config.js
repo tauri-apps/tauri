@@ -10,8 +10,8 @@ import { internalIpV4 } from 'internal-ip'
 // https://vitejs.dev/config/
 export default defineConfig(async ({ command, mode }) => {
   const host =
-    process.env.TAURI_PLATFORM === 'android' ||
-    process.env.TAURI_PLATFORM === 'ios'
+    process.env.TAURI_ENV_PLATFORM === 'android' ||
+    process.env.TAURI_ENV_PLATFORM === 'ios'
       ? await internalIpV4()
       : 'localhost'
   return {

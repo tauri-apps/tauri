@@ -46,7 +46,7 @@ public class PluginManager {
     }
   }
 
-  func load<P: Plugin>(name: String, plugin: P, config: JSObject, webview: WKWebView?) {
+  func load<P: Plugin>(name: String, plugin: P, config: String, webview: WKWebView?) {
     plugin.setConfig(config)
     let handle = PluginHandle(plugin: plugin)
     if let webview = webview {
@@ -95,11 +95,11 @@ extension PluginManager: NSCopying {
 }
 
 @_cdecl("register_plugin")
-func registerPlugin(name: SRString, plugin: NSObject, config: NSDictionary?, webview: WKWebView?) {
+func registerPlugin(name: SRString, plugin: NSObject, config: SRString, webview: WKWebView?) {
   PluginManager.shared.load(
     name: name.toString(),
     plugin: plugin as! Plugin,
-    config: JSTypes.coerceDictionaryToJSObject(config ?? [:], formattingDatesAsStrings: true)!,
+    config: config.toString(),
     webview: webview
   )
 }
@@ -115,34 +115,20 @@ func runCommand(
   id: Int,
   name: SRString,
   command: SRString,
-  data: NSDictionary,
-  callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>?) -> Void,
+  data: SRString,
+  callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>) -> Void,
   sendChannelData: @escaping @convention(c) (UInt64, UnsafePointer<CChar>) -> Void
 ) {
   let callbackId: UInt64 = 0
   let errorId: UInt64 = 1
   let invoke = Invoke(
     command: command.toString(), callback: callbackId, error: errorId,
-    sendResponse: { (fn: UInt64, payload: JsonValue?) -> Void in
+    sendResponse: { (fn: UInt64, payload: String?) -> Void in
       let success = fn == callbackId
-      var payloadJson: String = ""
-      do {
-        try payloadJson =
-          payload == nil ? "null" : payload!.jsonRepresentation() ?? "`Failed to serialize payload`"
-      } catch {
-        payloadJson = "`\(error)`"
-      }
-      callback(id, success, payloadJson.cString(using: String.Encoding.utf8))
+      callback(id, success, payload ?? "null")
     },
-    sendChannelData: { (id: UInt64, payload: JsonValue) -> Void in
-      var payloadJson: String = ""
-      do {
-        try payloadJson =
-          payload.jsonRepresentation() ?? "`Failed to serialize payload`"
-      } catch {
-        payloadJson = "`\(error)`"
-      }
-      sendChannelData(id, payloadJson)
-    }, data: JSTypes.coerceDictionaryToJSObject(data, formattingDatesAsStrings: true))
+    sendChannelData: { (id: UInt64, payload: String) -> Void in
+      sendChannelData(id, payload)
+    }, data: data.toString())
   PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
 }

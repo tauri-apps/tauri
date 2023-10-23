@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v2
         with:
-          node-version: '14'
+          node-version: '18'
           cache: yarn
           cache-dependency-path: tooling/cli/node/yarn.lock
       - name: install deps via yarn
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v2
         with:
-          node-version: '14'
+          node-version: '18'
           cache: yarn
           cache-dependency-path: tooling/api/yarn.lock
 

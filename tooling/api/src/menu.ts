@@ -4,7 +4,8 @@
 
 import { TauriEvent, listen } from './event'
 import { Resource, applyMixins } from './internal'
-import { invoke } from './tauri'
+import { invoke } from './primitives'
+import { getCurrent } from './window'
 
 /**
  * Menu types and utilities.
@@ -44,7 +45,7 @@ async function addEventListener(
         }
       },
       {
-        target: window.__TAURI_METADATA__.__currentWindow.label
+        target: getCurrent().label
       }
     )
 
@@ -212,11 +213,19 @@ function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
   }
 }
 
-async function newMenu(kind: ItemKind, opts?: any): Promise<[number, string]> {
+async function newMenu(
+  kind: ItemKind,
+  opts?:
+    | MenuOptions
+    | MenuItemOptions
+    | SubmenuOptions
+    | PredefinedMenuItemOptions
+    | IconMenuItemOptions
+): Promise<[number, string]> {
   let handler: null | (() => void) = null
   let items: null | Array<[number, string]> = null
   if (opts) {
-    if ('action' in opts) {
+    if ('action' in opts && opts.action !== void 0) {
       // eslint-disable-next-line
       handler = opts.action
     }

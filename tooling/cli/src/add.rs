@@ -17,7 +17,7 @@ use crate::{
 use std::{collections::HashMap, process::Command};
 
 #[derive(Debug, Parser)]
-#[clap(about = "Installs a plugin on the project")]
+#[clap(about = "Add a tauri plugin to the project")]
 pub struct Options {
   /// The plugin to add.
   plugin: String,
@@ -90,6 +90,7 @@ pub fn command(options: Options) -> Result<()> {
         PackageManager::Pnpm => cross_command("pnpm"),
         PackageManager::Yarn => cross_command("yarn"),
         PackageManager::YarnBerry => cross_command("yarn"),
+        PackageManager::Bun => cross_command("bun"),
       };
 
       cmd.arg("add").arg(&npm_spec);

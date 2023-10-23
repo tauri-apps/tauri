@@ -14,12 +14,12 @@
     "@zerodevx/svelte-json-view": "0.2.1"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^2.4.2",
-    "svelte": "^4.0.5",
-    "vite": "^4.4.5",
+    "@iconify-json/codicon": "^1.1.10",
+    "@iconify-json/ph": "^1.1.1",
     "internal-ip": "^7.0.0",
     "unocss": "^0.39.3",
-    "@iconify-json/codicon": "^1.1.10",
-    "@iconify-json/ph": "^1.1.1"
+    "@sveltejs/vite-plugin-svelte": "^2.4.6",
+    "svelte": "^4.2.1",
+    "vite": "^4.4.9"
   }
 }

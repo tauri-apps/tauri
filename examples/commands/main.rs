@@ -8,7 +8,6 @@
 mod commands;
 use commands::{cmd, invoke, message, resolver};
 
-use serde::Deserialize;
 use tauri::{
   command,
   ipc::{Request, Response},

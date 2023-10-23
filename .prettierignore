@@ -10,3 +10,4 @@ dist
 /tooling/cli/node
 /tooling/cli/schema.json
 /core/tauri-config-schema/schema.json
+CHANGELOG.md

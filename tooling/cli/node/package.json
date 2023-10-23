@@ -47,8 +47,7 @@
     "prettier": "2.8.8"
   },
   "resolutions": {
-    "json5": "2.2.3",
-    "semver": ">=7.5.2"
+    "json5": "2.2.3"
   },
   "engines": {
     "node": ">= 10"
@@ -67,6 +66,5 @@
     "tauri": "node ./tauri.js",
     "format": "prettier --write ./package.json ./tauri.js",
     "format:check": "prettier --check ./package.json ./tauri.js"
-  },
-  "dependencies": {}
+  }
 }

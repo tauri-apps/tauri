@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-module.exports = {
-  singleQuote: true,
-  semi: false,
-  trailingComma: 'none'
-}
+package app.tauri.annotation
+
+@Retention(AnnotationRetention.RUNTIME)
+@Target(AnnotationTarget.CLASS)
+annotation class InvokeArg

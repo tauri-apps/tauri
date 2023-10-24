@@ -18,7 +18,7 @@ use tauri_runtime::{
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{config::WindowConfig, ProgressBarState, Theme};
 use url::Url;
 
 #[cfg(windows)]
@@ -280,6 +280,10 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   fn decorations(self, decorations: bool) -> Self {
+    self
+  }
+
+  fn always_on_bottom(self, always_on_bottom: bool) -> Self {
     self
   }
 
@@ -600,6 +604,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
+  fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
+    Ok(())
+  }
+
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
     Ok(())
   }
@@ -674,6 +682,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
       .lock()
       .unwrap()
       .replace(script.into());
+    Ok(())
+  }
+
+  fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
     Ok(())
   }
 }

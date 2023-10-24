@@ -65,8 +65,7 @@ pub use cocoa;
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;
-/// The Tauri error enum.
-pub use error::Error;
+pub use error::{Error, Result};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
@@ -89,8 +88,6 @@ pub mod window;
 use tauri_runtime as runtime;
 #[cfg(target_os = "ios")]
 mod ios;
-#[cfg(target_os = "android")]
-mod jni_helpers;
 #[cfg(desktop)]
 pub mod menu;
 /// Path APIs.
@@ -160,9 +157,6 @@ pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
 pub use tauri_runtime_wry::wry;
-
-/// `Result<T, ::tauri::Error>`
-pub type Result<T> = std::result::Result<T, Error>;
 
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
@@ -552,47 +546,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().package_info()
   }
 
-  /// Emits a event to all windows.
-  ///
-  /// Only the webviews receives this event.
-  /// To trigger Rust listeners, use [`Self::trigger_global`], [`Window::trigger`] or [`Window::emit_and_trigger`].
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn synchronize(app: tauri::AppHandle) {
-  ///   // emits the synchronized event to all windows
-  ///   app.emit_all("synchronized", ());
-  /// }
-  /// ```
-  fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-    self.manager().emit_filter(event, None, payload, |_| true)
-  }
-
-  /// Emits an event to the window with the specified label.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn download(app: tauri::AppHandle) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to the updater window
-  ///     app.emit_to("updater", "download-progress", i);
-  ///   }
-  /// }
-  /// ```
-  fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
-    self
-      .manager()
-      .emit_filter(event, None, payload, |w| label == w.label())
-  }
-
-  /// Listen to a event triggered on any window ([`Window::trigger`] or [`Window::emit_and_trigger`]) or with [`Self::trigger_global`].
+  /// Listen to an event emitted on any window.
   ///
   /// # Examples
   /// ```
@@ -601,7 +555,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// #[tauri::command]
   /// fn synchronize(window: tauri::Window) {
   ///   // emits the synchronized event to all windows
-  ///   window.emit_and_trigger("synchronized", ());
+  ///   window.emit("synchronized", ());
   /// }
   ///
   /// tauri::Builder::default()
@@ -618,40 +572,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     F: Fn(Event) + Send + 'static,
   {
     self.manager().listen(event.into(), None, handler)
-  }
-
-  /// Listen to a global event only once.
-  ///
-  /// See [`Self::listen_global`] for more information.
-  fn once_global<F>(&self, event: impl Into<String>, handler: F)
-  where
-    F: FnOnce(Event) + Send + 'static,
-  {
-    self.manager().once(event.into(), None, handler)
-  }
-
-  /// Trigger a global event to Rust listeners.
-  /// To send the events to the webview, see [`Self::emit_all`] and [`Self::emit_to`].
-  /// To trigger listeners registed on an specific window, see [`Window::trigger`].
-  /// To trigger all listeners, see [`Window::emit_and_trigger`].
-  ///
-  /// A global event does not have a source or target window attached.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn download(app: tauri::AppHandle) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners registed in Rust
-  ///     app.trigger_global("download-progress", Some(i.to_string()));
-  ///   }
-  /// }
-  /// ```
-  fn trigger_global(&self, event: &str, data: Option<String>) {
-    self.manager().trigger(event, None, data)
   }
 
   /// Remove an event listener.
@@ -680,6 +600,82 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// ```
   fn unlisten(&self, id: EventId) {
     self.manager().unlisten(id)
+  }
+
+  /// Listen to a global event only once.
+  ///
+  /// See [`Self::listen_global`] for more information.
+  fn once_global<F>(&self, event: impl Into<String>, handler: F)
+  where
+    F: FnOnce(Event) + Send + 'static,
+  {
+    self.manager().once(event.into(), None, handler)
+  }
+
+  /// Emits an event to all windows.
+  ///
+  /// If using [`Window`] to emit the event, it will be used as the source.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(app: tauri::AppHandle) {
+  ///   // emits the synchronized event to all windows
+  ///   app.emit("synchronized", ());
+  /// }
+  /// ```
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
+    self.manager().emit(event, None, payload)
+  }
+
+  /// Emits an event to the window with the specified label.
+  ///
+  /// If using [`Window`] to emit the event, it will be used as the source.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(app: tauri::AppHandle) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to the updater window
+  ///     app.emit_to("updater", "download-progress", i);
+  ///   }
+  /// }
+  /// ```
+  fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
+    self
+      .manager()
+      .emit_filter(event, None, payload, |w| label == w.label())
+  }
+
+  /// Emits an event to specific windows based on a filter.
+  ///
+  /// If using [`Window`] to emit the event, it will be used as the source.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[tauri::command]
+  /// fn download(app: tauri::AppHandle) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to the updater window
+  ///     app.emit_filter("download-progress", i, |w| w.label() == "main" );
+  ///   }
+  /// }
+  /// ```
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&Window<R>) -> bool,
+  {
+    self.manager().emit_filter(event, None, payload, filter)
   }
 
   /// Fetch a single window from the manager.

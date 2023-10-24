@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.0.0-alpha.8"
+version = "2.0.0-alpha.9"
 description = "Utilities for Tauri"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -16,7 +16,7 @@ rust-version = { workspace = true }
 serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
 thiserror = "1"
-phf = { version = "0.10", features = [ "macros" ] }
+phf = { version = "0.11", features = [ "macros" ] }
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
 url = { version = "2", features = [ "serde" ] }
 html5ever = "0.26"
@@ -28,15 +28,15 @@ serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.2", optional = true, features = [ "std" ] }
 serialize-to-javascript = { version = "=0.1.1", optional = true }
-ctor = "0.1"
+ctor = "0.2"
 json5 = { version = "0.4", optional = true }
-toml = { version = "0.5", optional = true }
-json-patch = "1.0"
+toml = { version = "0.8", optional = true }
+json-patch = "1.2"
 glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
-infer = "0.12"
+infer = "0.15"
 dunce = "1"
 log = "0.4.20"
 
@@ -44,7 +44,7 @@ log = "0.4.20"
 heck = "0.4"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.51.0"
+version = "0.51.1"
 features = [
   "implement",
   "Win32_Foundation",

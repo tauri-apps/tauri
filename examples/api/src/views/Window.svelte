@@ -7,267 +7,283 @@
     PhysicalPosition,
     Effect,
     EffectState,
+    ProgressBarStatus,
     Window
-  } from "@tauri-apps/api/window";
-  import { invoke } from "@tauri-apps/api/primitives";
+  } from '@tauri-apps/api/window'
+  import { invoke } from '@tauri-apps/api/primitives'
 
-  const appWindow = getCurrent();
+  const appWindow = getCurrent()
 
-  let selectedWindow = appWindow.label;
+  let selectedWindow = appWindow.label
   const windowMap = {
-    [appWindow.label]: appWindow,
-  };
+    [appWindow.label]: appWindow
+  }
 
   const cursorIconOptions = [
-    "default",
-    "crosshair",
-    "hand",
-    "arrow",
-    "move",
-    "text",
-    "wait",
-    "help",
-    "progress",
+    'default',
+    'crosshair',
+    'hand',
+    'arrow',
+    'move',
+    'text',
+    'wait',
+    'help',
+    'progress',
     // something cannot be done
-    "notAllowed",
-    "contextMenu",
-    "cell",
-    "verticalText",
-    "alias",
-    "copy",
-    "noDrop",
+    'notAllowed',
+    'contextMenu',
+    'cell',
+    'verticalText',
+    'alias',
+    'copy',
+    'noDrop',
     // something can be grabbed
-    "grab",
+    'grab',
     /// something is grabbed
-    "grabbing",
-    "allScroll",
-    "zoomIn",
-    "zoomOut",
+    'grabbing',
+    'allScroll',
+    'zoomIn',
+    'zoomOut',
     // edge is to be moved
-    "eResize",
-    "nResize",
-    "neResize",
-    "nwResize",
-    "sResize",
-    "seResize",
-    "swResize",
-    "wResize",
-    "ewResize",
-    "nsResize",
-    "neswResize",
-    "nwseResize",
-    "colResize",
-    "rowResize",
-  ];
+    'eResize',
+    'nResize',
+    'neResize',
+    'nwResize',
+    'sResize',
+    'seResize',
+    'swResize',
+    'wResize',
+    'ewResize',
+    'nsResize',
+    'neswResize',
+    'nwseResize',
+    'colResize',
+    'rowResize'
+  ]
 
-  const windowsEffects = ["mica", "blur", "acrylic", "tabbed", "tabbedDark", "tabbedLight"];
-  const isWindows = navigator.appVersion.includes("Windows");
-  const isMacOS = navigator.appVersion.includes("Macintosh");
+  const windowsEffects = [
+    'mica',
+    'blur',
+    'acrylic',
+    'tabbed',
+    'tabbedDark',
+    'tabbedLight'
+  ]
+  const isWindows = navigator.appVersion.includes('Windows')
+  const isMacOS = navigator.appVersion.includes('Macintosh')
   let effectOptions = isWindows
     ? windowsEffects
     : Object.keys(Effect)
         .map((effect) => Effect[effect])
-        .filter((e) => !windowsEffects.includes(e));
+        .filter((e) => !windowsEffects.includes(e))
   const effectStateOptions = Object.keys(EffectState).map(
     (state) => EffectState[state]
-  );
+  )
 
-  export let onMessage;
-  const mainEl = document.querySelector("main");
+  const progressBarStatusOptions = Object.keys(ProgressBarStatus).map(s => ProgressBarStatus[s])
 
-  let newWindowLabel;
+  export let onMessage
+  const mainEl = document.querySelector('main')
 
-  let urlValue = "https://tauri.app";
-  let resizable = true;
-  let maximizable = true;
-  let minimizable = true;
-  let closable = true;
-  let maximized = false;
-  let decorations = true;
-  let alwaysOnTop = false;
-  let contentProtected = true;
-  let fullscreen = false;
-  let width = null;
-  let height = null;
-  let minWidth = null;
-  let minHeight = null;
-  let maxWidth = null;
-  let maxHeight = null;
-  let x = null;
-  let y = null;
-  let scaleFactor = 1;
-  let innerPosition = new PhysicalPosition(x, y);
-  let outerPosition = new PhysicalPosition(x, y);
-  let innerSize = new PhysicalSize(width, height);
-  let outerSize = new PhysicalSize(width, height);
-  let resizeEventUnlisten;
-  let moveEventUnlisten;
-  let cursorGrab = false;
-  let cursorVisible = true;
-  let cursorX = null;
-  let cursorY = null;
-  let cursorIcon = "default";
-  let cursorIgnoreEvents = false;
-  let windowTitle = "Awesome Tauri Example!";
+  let newWindowLabel
 
-  let effects = [];
-  let selectedEffect;
-  let effectState;
-  let effectRadius;
-  let effectR, effectG, effectB, effectA;
+  let urlValue = 'https://tauri.app'
+  let resizable = true
+  let maximizable = true
+  let minimizable = true
+  let closable = true
+  let maximized = false
+  let decorations = true
+  let alwaysOnTop = false
+  let alwaysOnBottom = false
+  let contentProtected = true
+  let fullscreen = false
+  let width = null
+  let height = null
+  let minWidth = null
+  let minHeight = null
+  let maxWidth = null
+  let maxHeight = null
+  let x = null
+  let y = null
+  let scaleFactor = 1
+  let innerPosition = new PhysicalPosition(x, y)
+  let outerPosition = new PhysicalPosition(x, y)
+  let innerSize = new PhysicalSize(width, height)
+  let outerSize = new PhysicalSize(width, height)
+  let resizeEventUnlisten
+  let moveEventUnlisten
+  let cursorGrab = false
+  let cursorVisible = true
+  let cursorX = null
+  let cursorY = null
+  let cursorIcon = 'default'
+  let cursorIgnoreEvents = false
+  let windowTitle = 'Awesome Tauri Example!'
 
-  let windowIconPath;
+  let effects = []
+  let selectedEffect
+  let effectState
+  let effectRadius
+  let effectR, effectG, effectB, effectA
+
+  let selectedProgressBarStatus = 'none'
+  let progress = 0
+
+  let windowIconPath
 
   function setTitle_() {
-    windowMap[selectedWindow].setTitle(windowTitle);
+    windowMap[selectedWindow].setTitle(windowTitle)
   }
 
   function hide_() {
-    windowMap[selectedWindow].hide();
-    setTimeout(windowMap[selectedWindow].show, 2000);
+    windowMap[selectedWindow].hide()
+    setTimeout(windowMap[selectedWindow].show, 2000)
   }
 
   function minimize_() {
-    windowMap[selectedWindow].minimize();
-    setTimeout(windowMap[selectedWindow].unminimize, 2000);
+    windowMap[selectedWindow].minimize()
+    setTimeout(windowMap[selectedWindow].unminimize, 2000)
   }
 
   function changeIcon() {
-    windowMap[selectedWindow].setIcon(path);
+    windowMap[selectedWindow].setIcon(path)
   }
 
   function createWindow() {
-    if (!newWindowLabel) return;
+    if (!newWindowLabel) return
 
-    const webview = new Window(newWindowLabel);
-    windowMap[newWindowLabel] = webview;
-    webview.once("tauri://error", function () {
-      onMessage("Error creating new webview");
-    });
+    const webview = new Window(newWindowLabel)
+    windowMap[newWindowLabel] = webview
+    webview.once('tauri://error', function () {
+      onMessage('Error creating new webview')
+    })
   }
 
   function loadWindowSize() {
     windowMap[selectedWindow].innerSize().then((response) => {
-      innerSize = response;
-      width = innerSize.width;
-      height = innerSize.height;
-    });
+      innerSize = response
+      width = innerSize.width
+      height = innerSize.height
+    })
     windowMap[selectedWindow].outerSize().then((response) => {
-      outerSize = response;
-    });
+      outerSize = response
+    })
   }
 
   function loadWindowPosition() {
     windowMap[selectedWindow].innerPosition().then((response) => {
-      innerPosition = response;
-    });
+      innerPosition = response
+    })
     windowMap[selectedWindow].outerPosition().then((response) => {
-      outerPosition = response;
-      x = outerPosition.x;
-      y = outerPosition.y;
-    });
+      outerPosition = response
+      x = outerPosition.x
+      y = outerPosition.y
+    })
   }
 
   async function addWindowEventListeners(window) {
-    if (!window) return;
+    if (!window) return
     if (resizeEventUnlisten) {
-      resizeEventUnlisten();
+      resizeEventUnlisten()
     }
     if (moveEventUnlisten) {
-      moveEventUnlisten();
+      moveEventUnlisten()
     }
-    moveEventUnlisten = await window.listen("tauri://move", loadWindowPosition);
-    resizeEventUnlisten = await window.listen("tauri://resize", loadWindowSize);
+    moveEventUnlisten = await window.listen('tauri://move', loadWindowPosition)
+    resizeEventUnlisten = await window.listen('tauri://resize', loadWindowSize)
   }
 
   async function requestUserAttention_() {
-    await windowMap[selectedWindow].minimize();
+    await windowMap[selectedWindow].minimize()
     await windowMap[selectedWindow].requestUserAttention(
       UserAttentionType.Critical
-    );
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    await windowMap[selectedWindow].requestUserAttention(null);
+    )
+    await new Promise((resolve) => setTimeout(resolve, 3000))
+    await windowMap[selectedWindow].requestUserAttention(null)
   }
 
   async function addEffect() {
     if (!effects.includes(selectedEffect)) {
-      effects = [...effects, selectedEffect];
+      effects = [...effects, selectedEffect]
     }
 
     const payload = {
       effects,
       state: effectState,
-      radius: effectRadius,
-    };
+      radius: effectRadius
+    }
     if (
       Number.isInteger(effectR) &&
       Number.isInteger(effectG) &&
       Number.isInteger(effectB) &&
       Number.isInteger(effectA)
     ) {
-      payload.color = [effectR, effectG, effectB, effectA];
+      payload.color = [effectR, effectG, effectB, effectA]
     }
 
-    mainEl.classList.remove("bg-primary");
-    mainEl.classList.remove("dark:bg-darkPrimary");
-    await windowMap[selectedWindow].clearEffects();
-    await windowMap[selectedWindow].setEffects(payload);
+    mainEl.classList.remove('bg-primary')
+    mainEl.classList.remove('dark:bg-darkPrimary')
+    await windowMap[selectedWindow].clearEffects()
+    await windowMap[selectedWindow].setEffects(payload)
   }
 
   async function clearEffects() {
-    effects = [];
-    await windowMap[selectedWindow].clearEffects();
-    mainEl.classList.add("bg-primary");
-    mainEl.classList.add("dark:bg-darkPrimary");
+    effects = []
+    await windowMap[selectedWindow].clearEffects()
+    mainEl.classList.add('bg-primary')
+    mainEl.classList.add('dark:bg-darkPrimary')
   }
 
   $: {
-    windowMap[selectedWindow];
-    loadWindowPosition();
-    loadWindowSize();
+    windowMap[selectedWindow]
+    loadWindowPosition()
+    loadWindowSize()
   }
-  $: windowMap[selectedWindow]?.setResizable(resizable);
-  $: windowMap[selectedWindow]?.setMaximizable(maximizable);
-  $: windowMap[selectedWindow]?.setMinimizable(minimizable);
-  $: windowMap[selectedWindow]?.setClosable(closable);
+  $: windowMap[selectedWindow]?.setResizable(resizable)
+  $: windowMap[selectedWindow]?.setMaximizable(maximizable)
+  $: windowMap[selectedWindow]?.setMinimizable(minimizable)
+  $: windowMap[selectedWindow]?.setClosable(closable)
   $: maximized
     ? windowMap[selectedWindow]?.maximize()
-    : windowMap[selectedWindow]?.unmaximize();
-  $: windowMap[selectedWindow]?.setDecorations(decorations);
-  $: windowMap[selectedWindow]?.setAlwaysOnTop(alwaysOnTop);
-  $: windowMap[selectedWindow]?.setContentProtected(contentProtected);
-  $: windowMap[selectedWindow]?.setFullscreen(fullscreen);
+    : windowMap[selectedWindow]?.unmaximize()
+  $: windowMap[selectedWindow]?.setDecorations(decorations)
+  $: windowMap[selectedWindow]?.setAlwaysOnTop(alwaysOnTop)
+  $: windowMap[selectedWindow]?.setAlwaysOnBottom(alwaysOnBottom)
+  $: windowMap[selectedWindow]?.setContentProtected(contentProtected)
+  $: windowMap[selectedWindow]?.setFullscreen(fullscreen)
 
   $: width &&
     height &&
-    windowMap[selectedWindow]?.setSize(new PhysicalSize(width, height));
+    windowMap[selectedWindow]?.setSize(new PhysicalSize(width, height))
   $: minWidth && minHeight
     ? windowMap[selectedWindow]?.setMinSize(
         new LogicalSize(minWidth, minHeight)
       )
-    : windowMap[selectedWindow]?.setMinSize(null);
+    : windowMap[selectedWindow]?.setMinSize(null)
   $: maxWidth > 800 && maxHeight > 400
     ? windowMap[selectedWindow]?.setMaxSize(
         new LogicalSize(maxWidth, maxHeight)
       )
-    : windowMap[selectedWindow]?.setMaxSize(null);
+    : windowMap[selectedWindow]?.setMaxSize(null)
   $: x !== null &&
     y !== null &&
-    windowMap[selectedWindow]?.setPosition(new PhysicalPosition(x, y));
+    windowMap[selectedWindow]?.setPosition(new PhysicalPosition(x, y))
   $: windowMap[selectedWindow]
     ?.scaleFactor()
-    .then((factor) => (scaleFactor = factor));
-  $: addWindowEventListeners(windowMap[selectedWindow]);
+    .then((factor) => (scaleFactor = factor))
+  $: addWindowEventListeners(windowMap[selectedWindow])
 
-  $: windowMap[selectedWindow]?.setCursorGrab(cursorGrab);
-  $: windowMap[selectedWindow]?.setCursorVisible(cursorVisible);
-  $: windowMap[selectedWindow]?.setCursorIcon(cursorIcon);
+  $: windowMap[selectedWindow]?.setCursorGrab(cursorGrab)
+  $: windowMap[selectedWindow]?.setCursorVisible(cursorVisible)
+  $: windowMap[selectedWindow]?.setCursorIcon(cursorIcon)
   $: cursorX !== null &&
     cursorY !== null &&
     windowMap[selectedWindow]?.setCursorPosition(
       new PhysicalPosition(cursorX, cursorY)
-    );
-  $: windowMap[selectedWindow]?.setIgnoreCursorEvents(cursorIgnoreEvents);
+    )
+  $: windowMap[selectedWindow]?.setIgnoreCursorEvents(cursorIgnoreEvents)
+  $: windowMap[selectedWindow]?.setProgressBar({ status: selectedProgressBarStatus, progress })
 </script>
 
 <div class="flex flex-col children:grow gap-2">
@@ -293,9 +309,7 @@
   {#if windowMap[selectedWindow]}
     <br />
     <div class="flex gap-1 items-center">
-       <label>
-        Icon path
-      </label>
+      <label> Icon path </label>
       <form class="flex gap-1 grow" on:submit|preventDefault={setTitle_}>
         <input class="input grow" bind:value={windowIconPath} />
         <button class="btn" type="submit"> Change window icon </button>
@@ -360,6 +374,10 @@
       <label>
         Always on top
         <input type="checkbox" bind:checked={alwaysOnTop} />
+      </label>
+      <label>
+        Always on bottom
+        <input type="checkbox" bind:checked={alwaysOnBottom} />
       </label>
       <label>
         Content protected
@@ -527,6 +545,24 @@
 
     <br />
 
+    <div class="flex flex-col gap-1">
+      <div class="flex gap-2">
+        <label>
+          Progress Status
+          <select class="input" bind:value={selectedProgressBarStatus}>
+            {#each progressBarStatusOptions as status}
+              <option value={status}>{status}</option>
+            {/each}
+          </select>
+        </label>
+
+        <label>
+          Progress
+          <input class="input" type="number" min="0" max="100" bind:value={progress} />
+        </label>
+      </div>
+    </div>
+
     {#if isWindows || isMacOS}
       <div class="flex flex-col gap-1">
         <div class="flex">
@@ -598,7 +634,7 @@
 
         <div class="flex">
           <div>
-            Applied effects: {effects.length ? effects.join(",") : "None"}
+            Applied effects: {effects.length ? effects.join(',') : 'None'}
           </div>
 
           <button class="btn" style="width: 80px;" on:click={clearEffects}

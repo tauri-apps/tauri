@@ -240,6 +240,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn decorations(self, decorations: bool) -> Self;
 
+  /// Whether the window should always be below other windows.
+  #[must_use]
+  fn always_on_bottom(self, always_on_bottom: bool) -> Self;
+
   /// Whether the window should always be on top of other windows.
   #[must_use]
   fn always_on_top(self, always_on_top: bool) -> Self;

@@ -41,7 +41,9 @@ use wry::webview::WebViewBuilderExtWindows;
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
+use tauri_utils::{
+  config::WindowConfig, debug_eprintln, ProgressBarState, ProgressBarStatus, Theme,
+};
 use wry::{
   application::{
     dpi::{
@@ -56,8 +58,9 @@ use wry::{
     },
     monitor::MonitorHandle,
     window::{
-      CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon, Theme as WryTheme,
-      UserAttentionType as WryUserAttentionType,
+      CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon,
+      ProgressBarState as WryProgressBarState, ProgressState as WryProgressState,
+      Theme as WryTheme, UserAttentionType as WryUserAttentionType,
     },
   },
   webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
@@ -520,6 +523,35 @@ impl From<CursorIcon> for CursorIconWrapper {
   }
 }
 
+pub struct ProgressStateWrapper(pub WryProgressState);
+
+impl From<ProgressBarStatus> for ProgressStateWrapper {
+  fn from(status: ProgressBarStatus) -> Self {
+    let state = match status {
+      ProgressBarStatus::None => WryProgressState::None,
+      ProgressBarStatus::Normal => WryProgressState::Normal,
+      ProgressBarStatus::Indeterminate => WryProgressState::Indeterminate,
+      ProgressBarStatus::Paused => WryProgressState::Paused,
+      ProgressBarStatus::Error => WryProgressState::Error,
+    };
+    Self(state)
+  }
+}
+
+pub struct ProgressBarStateWrapper(pub WryProgressBarState);
+
+impl From<ProgressBarState> for ProgressBarStateWrapper {
+  fn from(progress_state: ProgressBarState) -> Self {
+    Self(WryProgressBarState {
+      progress: progress_state.progress,
+      state: progress_state
+        .status
+        .map(|state| ProgressStateWrapper::from(state).0),
+      unity_uri: progress_state.unity_uri,
+    })
+  }
+}
+
 #[derive(Clone, Default)]
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
@@ -595,6 +627,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         .fullscreen(config.fullscreen)
         .decorations(config.decorations)
         .maximized(config.maximized)
+        .always_on_bottom(config.always_on_bottom)
         .always_on_top(config.always_on_top)
         .visible_on_all_workspaces(config.visible_on_all_workspaces)
         .content_protected(config.content_protected)
@@ -710,6 +743,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn decorations(mut self, decorations: bool) -> Self {
     self.inner = self.inner.with_decorations(decorations);
+    self
+  }
+
+  fn always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.inner = self.inner.with_always_on_bottom(always_on_bottom);
     self
   }
 
@@ -990,6 +1028,7 @@ pub enum WindowMessage {
   Close,
   SetDecorations(bool),
   SetShadow(bool),
+  SetAlwaysOnBottom(bool),
   SetAlwaysOnTop(bool),
   SetVisibleOnAllWorkspaces(bool),
   SetContentProtected(bool),
@@ -1006,6 +1045,7 @@ pub enum WindowMessage {
   SetCursorIcon(CursorIcon),
   SetCursorPosition(Position),
   SetIgnoreCursorEvents(bool),
+  SetProgressBar(ProgressBarState),
   DragWindow,
   RequestRedraw,
 }
@@ -1380,6 +1420,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetAlwaysOnBottom(always_on_bottom),
+      ),
+    )
+  }
+
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1517,6 +1567,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
       Message::Webview(
         self.window_id,
         WebviewMessage::EvaluateScript(script.into()),
+      ),
+    )
+  }
+
+  fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetProgressBar(progress_state),
       ),
     )
   }
@@ -2246,6 +2306,9 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(target_os = "macos")]
             window.set_has_shadow(_enable);
           }
+          WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
+            window.set_always_on_bottom(always_on_bottom)
+          }
           WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
           WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => {
             window.set_visible_on_all_workspaces(visible_on_all_workspaces)
@@ -2301,6 +2364,9 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::RequestRedraw => {
             window.request_redraw();
+          }
+          WindowMessage::SetProgressBar(progress_state) => {
+            window.set_progress_bar(ProgressBarStateWrapper::from(progress_state).0);
           }
         }
       }
@@ -2607,6 +2673,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   let is_window_transparent = window_builder.inner.window.transparent;
+  let focused = window_builder.inner.window.focused;
   let window = window_builder.inner.build(event_loop).unwrap();
 
   context.webview_id_map.insert(window.id(), window_id);
@@ -2642,6 +2709,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
+    .with_focused(focused)
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent)
@@ -2674,6 +2742,11 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         _ => wry::webview::Theme::Light,
       });
     }
+  }
+
+  #[cfg(windows)]
+  {
+    webview_builder = webview_builder.with_https_scheme(false);
   }
 
   if let Some(handler) = ipc_handler {

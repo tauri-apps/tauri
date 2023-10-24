@@ -440,6 +440,11 @@
           "default": true,
           "type": "boolean"
         },
+        "alwaysOnBottom": {
+          "description": "Whether the window should always be below other windows.",
+          "default": false,
+          "type": "boolean"
+        },
         "alwaysOnTop": {
           "description": "Whether the window should always be on top of other windows.",
           "default": false,
@@ -929,13 +934,14 @@
         },
         "resources": {
           "description": "App resources to bundle. Each resource is a path to a file or directory. Glob patterns are supported.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BundleResources"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "copyright": {
           "description": "A copyright string associated with your application.",
@@ -1155,6 +1161,25 @@
           "enum": [
             "updater"
           ]
+        }
+      ]
+    },
+    "BundleResources": {
+      "description": "Definition for bundle resources. Can be either a list of paths to include or a map of source to target paths.",
+      "anyOf": [
+        {
+          "description": "A list of paths to include.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "A map of source to target paths.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       ]
     },
@@ -1748,6 +1773,17 @@
           "description": "Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not. By default the OS language is selected, with a fallback to the first language in the `languages` array.",
           "default": false,
           "type": "boolean"
+        },
+        "compression": {
+          "description": "Set the compression algorithm used to compress files in the installer.\n\nSee <https://nsis.sourceforge.io/Reference/SetCompressor>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NsisCompression"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1774,6 +1810,32 @@
           "type": "string",
           "enum": [
             "both"
+          ]
+        }
+      ]
+    },
+    "NsisCompression": {
+      "description": "Compression algorithms used in the NSIS installer.\n\nSee <https://nsis.sourceforge.io/Reference/SetCompressor>",
+      "oneOf": [
+        {
+          "description": "ZLIB uses the deflate algorithm, it is a quick and simple method. With the default compression level it uses about 300 KB of memory.",
+          "type": "string",
+          "enum": [
+            "zlib"
+          ]
+        },
+        {
+          "description": "BZIP2 usually gives better compression ratios than ZLIB, but it is a bit slower and uses more memory. With the default compression level it uses about 4 MB of memory.",
+          "type": "string",
+          "enum": [
+            "bzip2"
+          ]
+        },
+        {
+          "description": "LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.",
+          "type": "string",
+          "enum": [
+            "lzma"
           ]
         }
       ]
@@ -2014,7 +2076,7 @@
           }
         },
         "plugins": {
-          "description": "The list of plugins that are allowed in this scope.",
+          "description": "The list of plugins that are allowed in this scope. The names should be without the `tauri-plugin-` prefix, for example `\"store\"` for `tauri-plugin-store`.",
           "default": [],
           "type": "array",
           "items": {
@@ -2161,7 +2223,7 @@
           ]
         },
         "beforeDevCommand": {
-          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
           "anyOf": [
             {
               "$ref": "#/definitions/BeforeDevCommand"
@@ -2172,7 +2234,7 @@
           ]
         },
         "beforeBuildCommand": {
-          "description": "A shell command to run before `tauri build` kicks in.\n\nThe TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri build` kicks in.\n\nThe TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
           "anyOf": [
             {
               "$ref": "#/definitions/HookCommand"
@@ -2183,7 +2245,7 @@
           ]
         },
         "beforeBundleCommand": {
-          "description": "A shell command to run before the bundling phase in `tauri build` kicks in.\n\nThe TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before the bundling phase in `tauri build` kicks in.\n\nThe TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
           "anyOf": [
             {
               "$ref": "#/definitions/HookCommand"

@@ -12,6 +12,7 @@ use crate::{
 #[cfg(desktop)]
 mod desktop_commands {
   use serde::Deserialize;
+  use tauri_utils::ProgressBarState;
 
   use super::*;
   use crate::{
@@ -139,6 +140,7 @@ mod desktop_commands {
   setter!(set_shadow, bool);
   setter!(set_effects, Option<WindowEffectsConfig>);
   setter!(set_always_on_top, bool);
+  setter!(set_always_on_bottom, bool);
   setter!(set_content_protected, bool);
   setter!(set_size, Size);
   setter!(set_min_size, Option<Size>);
@@ -153,6 +155,7 @@ mod desktop_commands {
   setter!(set_cursor_position, Position);
   setter!(set_ignore_cursor_events, bool);
   setter!(start_dragging);
+  setter!(set_progress_bar, ProgressBarState);
   setter!(print);
 
   #[command(root = "crate")]
@@ -288,6 +291,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_shadow,
             desktop_commands::set_effects,
             desktop_commands::set_always_on_top,
+            desktop_commands::set_always_on_bottom,
             desktop_commands::set_content_protected,
             desktop_commands::set_size,
             desktop_commands::set_min_size,
@@ -302,6 +306,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_cursor_position,
             desktop_commands::set_ignore_cursor_events,
             desktop_commands::start_dragging,
+            desktop_commands::set_progress_bar,
             desktop_commands::print,
             desktop_commands::set_icon,
             desktop_commands::toggle_maximize,
@@ -309,13 +314,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             #[cfg(any(debug_assertions, feature = "devtools"))]
             desktop_commands::internal_toggle_devtools,
           ]);
-        #[allow(clippy::needless_return)]
-        return handler(invoke);
+        handler(invoke)
       }
       #[cfg(mobile)]
       {
         invoke.resolver.reject("Window API not available on mobile");
-        return true;
+        true
       }
     })
     .build()

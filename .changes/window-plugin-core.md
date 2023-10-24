@@ -1,5 +1,5 @@
 ---
-"tauri": patch:changes
+'tauri': patch:changes
 ---
 
 Added the `window` plugin back into core.

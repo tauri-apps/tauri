@@ -23,12 +23,12 @@ pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
 
   map.insert(
-    "TAURI_PLATFORM_VERSION",
+    "TAURI_ENV_PLATFORM_VERSION",
     os_info::get().version().to_string(),
   );
 
   if debug {
-    map.insert("TAURI_DEBUG", "true".into());
+    map.insert("TAURI_ENV_DEBUG", "true".into());
   }
 
   map

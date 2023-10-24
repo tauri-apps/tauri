@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-alpha.9]
+
+### New Features
+
+- [`c1ec0f15`](https://www.github.com/tauri-apps/tauri/commit/c1ec0f155118527361dd5645d920becbc8afd569)([#7933](https://www.github.com/tauri-apps/tauri/pull/7933)) Added `setAlwaysOnBottom` function on `Window` and the `alwaysOnBottom` option when creating a window.
+- [`fb10b879`](https://www.github.com/tauri-apps/tauri/commit/fb10b87970a43320ef4d14564f45e7579b774eaf)([#8039](https://www.github.com/tauri-apps/tauri/pull/8039)) Add the `app` module back.
+- [`ed32257d`](https://www.github.com/tauri-apps/tauri/commit/ed32257d044f90b5eb15053efd1667125def2d2b)([#7794](https://www.github.com/tauri-apps/tauri/pull/7794)) On Windows, add `Effect.Tabbed`,`Effect.TabbedDark` and `Effect.TabbedLight` effects.
+- [`c9a9246c`](https://www.github.com/tauri-apps/tauri/commit/c9a9246c37bdf190661355c8ee406dac6c427344)([#8007](https://www.github.com/tauri-apps/tauri/pull/8007)) Add the `window` module back.
+- [`c085adda`](https://www.github.com/tauri-apps/tauri/commit/c085addab58ba851398373c6fd13f9cb026d71e8)([#8009](https://www.github.com/tauri-apps/tauri/pull/8009)) Added the `setProgressBar` API on the `Window` class.
+
+### What's Changed
+
+- [`5c0eeb40`](https://www.github.com/tauri-apps/tauri/commit/5c0eeb40c1003583290ff3aebfa02e2b5f5b9c41)([#7638](https://www.github.com/tauri-apps/tauri/pull/7638)) Updated minimum Node.js version to 18.
+
+### Breaking Changes
+
+- [`a63e71f9`](https://www.github.com/tauri-apps/tauri/commit/a63e71f9799e9bbc82521d2f17b5238fbf690e89)([#7942](https://www.github.com/tauri-apps/tauri/pull/7942)) Changed `tauri` module to `primitives` and removed the undocumented `invoke` export from the root module.
+
 ## \[2.0.0-alpha.8]
 
 ### Breaking Changes
@@ -68,6 +86,26 @@
 
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.1]
+
+### New Features
+
+- [`2b0212af`](https://www.github.com/tauri-apps/tauri/commit/2b0212af49c386e52bb2357381813d6d435ec4af)([#7961](https://www.github.com/tauri-apps/tauri/pull/7961)) Add `mockConvertFileSrc` in `mocks` module, to mock `convertFileSrc` function.
+
+## \[1.5.0]
+
+### New Features
+
+- [`6c408b73`](https://www.github.com/tauri-apps/tauri/commit/6c408b736c7aa2a0a91f0a40d45a2b7a7dedfe78)([#7269](https://www.github.com/tauri-apps/tauri/pull/7269)) Add option to specify notification sound.
+
+### Enhancements
+
+- [`58d6b899`](https://www.github.com/tauri-apps/tauri/commit/58d6b899e21d37bb42810890d289deb57f2273bd)([#7636](https://www.github.com/tauri-apps/tauri/pull/7636)) Add `append` option to `FsOptions` in the `fs` JS module, used in `writeTextFile` and `writeBinaryFile`, to be able to append to existing files instead of overwriting it.
+
+### Bug Fixes
+
+- [`2eab1505`](https://www.github.com/tauri-apps/tauri/commit/2eab1505632ff71431d4c31c49b5afc78fa5b9dd)([#7394](https://www.github.com/tauri-apps/tauri/pull/7394)) Fix `Body.form` static not reading and sending entries of type `Blob` (including subclasses such as `File`)
 
 ## \[1.4.0]
 

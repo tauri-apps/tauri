@@ -56,6 +56,8 @@ use crate::runtime::RuntimeHandle;
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
 
+pub(crate) mod plugin;
+
 #[cfg(desktop)]
 pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync>;
 #[cfg(all(desktop, feature = "tray-icon"))]
@@ -244,7 +246,7 @@ impl<R: Runtime> GlobalWindowEvent<R> {
     &self.event
   }
 
-  /// The window that the menu belongs to.
+  /// The window that the event belongs to.
   pub fn window(&self) -> &Window<R> {
     &self.window
   }
@@ -805,9 +807,10 @@ shared_app_impl!(AppHandle<R>);
 
 impl<R: Runtime> App<R> {
   fn register_core_plugins(&self) -> crate::Result<()> {
-    self.handle.plugin(crate::path::init())?;
-    self.handle.plugin(crate::event::init())?;
+    self.handle.plugin(crate::path::plugin::init())?;
+    self.handle.plugin(crate::event::plugin::init())?;
     self.handle.plugin(crate::window::plugin::init())?;
+    self.handle.plugin(crate::app::plugin::init())?;
     Ok(())
   }
 
@@ -1390,6 +1393,11 @@ impl<R: Runtime> Builder<R> {
   /// Similar to [`Self::register_uri_scheme_protocol`] but with an asynchronous responder that allows you
   /// to process the request in a separate thread and respond asynchronously.
   ///
+  /// # Arguments
+  ///
+  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  ///
   /// # Examples
   /// ```
   /// tauri::Builder::default()
@@ -1482,6 +1490,7 @@ impl<R: Runtime> Builder<R> {
     for config in manager.config().tauri.windows.clone() {
       let label = config.label.clone();
       let webview_attributes = WebviewAttributes::from(&config);
+
       self.pending_windows.push(PendingWindow::with_config(
         config,
         webview_attributes,

@@ -1,5 +1,23 @@
 # Changelog
 
+## \[1.0.0-alpha.4]
+
+### New Features
+
+- [`c085adda`](https://www.github.com/tauri-apps/tauri/commit/c085addab58ba851398373c6fd13f9cb026d71e8)([#8009](https://www.github.com/tauri-apps/tauri/pull/8009)) Added `set_progress_bar` to `Window`.
+- [`c1ec0f15`](https://www.github.com/tauri-apps/tauri/commit/c1ec0f155118527361dd5645d920becbc8afd569)([#7933](https://www.github.com/tauri-apps/tauri/pull/7933)) Added `Window::set_always_on_bottom` and the `always_on_bottom` option when creating a window.
+- [`880266a7`](https://www.github.com/tauri-apps/tauri/commit/880266a7f697e1fe58d685de3bb6836ce5251e92)([#8031](https://www.github.com/tauri-apps/tauri/pull/8031)) Bump the MSRV to 1.70.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@1.0.0-alpha.3`
+- Upgraded to `tauri-utils@2.0.0-alpha.9`
+
+### Breaking Changes
+
+- [`8b166e9b`](https://www.github.com/tauri-apps/tauri/commit/8b166e9bf82e69ddb3200a3a825614980bd8d433)([#7949](https://www.github.com/tauri-apps/tauri/pull/7949)) Check if automation is enabled with the `TAURI_WEBVIEW_AUTOMATION` environment variable instead of `TAURI_AUTOMATION`.
+- [`2558fab8`](https://www.github.com/tauri-apps/tauri/commit/2558fab861006936296e8511e43ccd69a38f61b0)([#7939](https://www.github.com/tauri-apps/tauri/pull/7939)) Changed `WebviewId` to be an alias for `u32` instead of `u64`
+
 ## \[1.0.0-alpha.3]
 
 ### Dependencies
@@ -102,6 +120,21 @@
 
 - Support `with_webview` for Android platform alowing execution of JNI code in context.
   - [8ea87e9c](https://www.github.com/tauri-apps/tauri/commit/8ea87e9c9ca8ba4c7017c8281f78aacd08f45785) feat(android): with_webview access for jni execution ([#5148](https://www.github.com/tauri-apps/tauri/pull/5148)) on 2022-09-08
+
+## \[0.14.1]
+
+### Enhancements
+
+- [`9aa34ada`](https://www.github.com/tauri-apps/tauri/commit/9aa34ada5769dbefa7dfe5f7a6288b3d20b294e4)([#7645](https://www.github.com/tauri-apps/tauri/pull/7645)) Add setting to switch to `http://<scheme>.localhost/` for custom protocols on Windows.
+
+### Bug Fixes
+
+- [`4bf1e85e`](https://www.github.com/tauri-apps/tauri/commit/4bf1e85e6bf85a7ec92d50c8465bc0588a6399d8)([#7722](https://www.github.com/tauri-apps/tauri/pull/7722)) Properly respect the `focused` option when creating the webview.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
+- Upgraded to `tauri-runtime@0.14.1`
 
 ## \[0.14.0]
 

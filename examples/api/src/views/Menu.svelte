@@ -11,9 +11,13 @@
     })
     await menu.setAsWindowMenu('main')
   }
+
+  function onItemClick(event) {
+    onMessage(`Item ${event.detail.text} clicked`)
+  }
 </script>
 
 <div>
-  <MenuBuilder bind:items />
+  <MenuBuilder bind:items on:itemClick={onItemClick} />
   <button class="btn" on:click={create}>Create menu</button>
 </div>

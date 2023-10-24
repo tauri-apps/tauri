@@ -45,21 +45,36 @@
   async function create() {
     let options = null
     let item = null
+
+    const t = text
+
     switch (kind) {
       case 'Normal':
-        options = { text }
+        options = {
+          text,
+          action: (id) => dispatch('itemClick', { id, text: t })
+        }
         item = await MenuItem.new(options)
         break
       case 'Icon':
-        options = { text, icon }
+        options = {
+          text,
+          icon,
+          action: (id) => dispatch('itemClick', { id, text: t })
+        }
         item = await IconMenuItem.new(options)
         break
       case 'Check':
-        options = { text }
+        options = {
+          text,
+          action: (id) => dispatch('itemClick', { id, text: t })
+        }
         item = await CheckMenuItem.new(options)
         break
       case 'Predefined':
-        options = { item: predefinedItem }
+        options = {
+          item: predefinedItem
+        }
         item = await PredefinedMenuItem.new(options)
         break
     }

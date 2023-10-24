@@ -12,6 +12,10 @@
   let menuOnLeftClick = true
   let menuItems = []
 
+  function onItemClick(event) {
+    onMessage(`Item ${event.detail.text} clicked`)
+  }
+
   async function create() {
     TrayIcon.new({
       icon,
@@ -64,7 +68,7 @@
   </div>
 
   <div class="flex children:grow">
-    <MenuBuilder bind:items={menuItems} />
+    <MenuBuilder bind:items={menuItems} on:itemClick={onItemClick} />
   </div>
 
   <div class="flex">

@@ -107,7 +107,7 @@ fn new<R: Runtime>(
   let options = options.unwrap_or_default();
   let mut resources_table = app.manager.resources_table();
 
-  let ret = match kind {
+  let (rid, id) = match kind {
     ItemKind::Menu => {
       let mut builder = MenuBuilder::new(&app);
       if let Some(id) = options.id {
@@ -122,9 +122,7 @@ fn new<R: Runtime>(
       let id = menu.id().clone();
       let rid = resources_table.add(menu);
 
-      channels.0.lock().unwrap().insert(id.clone(), handler);
-
-      Some((rid, id))
+      (rid, id)
     }
 
     ItemKind::Submenu => {
@@ -142,9 +140,7 @@ fn new<R: Runtime>(
       let id = submenu.id().clone();
       let rid = resources_table.add(submenu);
 
-      channels.0.lock().unwrap().insert(id.clone(), handler);
-
-      Some((rid, id))
+      (rid, id)
     }
 
     ItemKind::MenuItem => {
@@ -158,7 +154,7 @@ fn new<R: Runtime>(
       let item = builder.build(&app);
       let id = item.id().clone();
       let rid = resources_table.add(item);
-      Some((rid, id))
+      (rid, id)
     }
 
     ItemKind::Predefined => {
@@ -185,7 +181,7 @@ fn new<R: Runtime>(
       };
       let id = item.id().clone();
       let rid = resources_table.add(item);
-      Some((rid, id))
+      (rid, id)
     }
 
     ItemKind::Check => {
@@ -202,7 +198,7 @@ fn new<R: Runtime>(
       let item = builder.build(&app);
       let id = item.id().clone();
       let rid = resources_table.add(item);
-      Some((rid, id))
+      (rid, id)
     }
 
     ItemKind::Icon => {
@@ -222,11 +218,13 @@ fn new<R: Runtime>(
       let item = builder.build(&app);
       let id = item.id().clone();
       let rid = resources_table.add(item);
-      Some((rid, id))
+      (rid, id)
     }
   };
 
-  ret.ok_or_else(|| anyhow::anyhow!("Unkown menu item kind").into())
+  channels.0.lock().unwrap().insert(id.clone(), handler);
+
+  Ok((rid, id))
 }
 
 #[command(root = "crate")]
@@ -623,7 +621,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     .on_event(|app, e| {
       if let RunEvent::MenuEvent(e) = e {
         if let Some(channel) = app.state::<MenuChannels>().0.lock().unwrap().get(&e.id) {
-          let _ = channel.send(e);
+          let _ = channel.send(&e.id);
         }
       }
     })

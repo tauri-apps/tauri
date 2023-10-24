@@ -180,7 +180,7 @@ async function newMenu(
     | PredefinedMenuItemOptions
     | IconMenuItemOptions
 ): Promise<[number, string]> {
-  const handler = new Channel()
+  const handler = new Channel<string>()
   let items: null | Array<[number, string]> = null
   if (opts) {
     if ('action' in opts && opts.action) {
@@ -489,7 +489,7 @@ interface MenuItemOptions {
   /** Specify an accelerator for the new menu item. */
   accelerator?: string
   /** Specify a handler to be called when this menu item is activated. */
-  action?: () => void
+  action?: (id: string) => void
 }
 
 /** A menu item inside a {@linkcode Menu} or {@linkcode Submenu} and contains only text. */

@@ -59,7 +59,7 @@ export interface TrayIconOptions {
    * tauri = { version = "...", features = ["...", "icon-png"] }
    * ```
    */
-  icon?: string | Uint8Array
+  icon?: string | Uint8Array | number[]
   /** The tray icon tooltip */
   tooltip?: string
   /**
@@ -132,6 +132,12 @@ export class TrayIcon extends Resource {
       // @ts-expect-error we only need the rid and kind
       options.menu = [options.menu.rid, options.menu.kind]
     }
+    if (options?.icon) {
+      options.icon =
+        typeof options.icon === 'string'
+          ? options.icon
+          : Array.from(options.icon)
+    }
 
     const handler = new Channel<TrayIconEvent>()
     if (options?.action) {
@@ -147,7 +153,11 @@ export class TrayIcon extends Resource {
 
   /** Sets a new tray icon. If `null` is provided, it will remove the icon. */
   async setIcon(icon: string | Uint8Array | null): Promise<void> {
-    return invoke('plugin:tray|set_icon', { rid: this.rid, icon })
+    let trayIcon = null
+    if (icon) {
+      trayIcon = typeof icon === 'string' ? icon : Array.from(icon)
+    }
+    return invoke('plugin:tray|set_icon', { rid: this.rid, icon: trayIcon })
   }
 
   /**

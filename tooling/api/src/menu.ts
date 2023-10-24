@@ -232,11 +232,11 @@ class MenuBase extends MenuItemBase {
    */
   async append<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|append', {
       rid: this.rid,
@@ -257,11 +257,11 @@ class MenuBase extends MenuItemBase {
    */
   async prepend<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
@@ -282,11 +282,11 @@ class MenuBase extends MenuItemBase {
    */
   async insert<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
   >(items: T | T[], position: number): Promise<void> {
     return invoke('plugin:menu|insert', {
       rid: this.rid,
@@ -509,7 +509,7 @@ type SubmenuOptions = Omit<MenuItemOptions, 'accelerator' | 'action'> &
   MenuOptions
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-interface Submenu extends MenuItemBase3 { }
+interface Submenu extends MenuItemBase3 {}
 
 /** A type that is a submenu inside a {@linkcode Menu} or {@linkcode Submenu}. */
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
@@ -641,25 +641,25 @@ interface PredefinedMenuItemOptions {
   text?: string
   /** The predefined item type */
   item:
-  | 'Separator'
-  | 'Copy'
-  | 'Cut'
-  | 'Paste'
-  | 'SelectAll'
-  | 'Undo'
-  | 'Redo'
-  | 'Minimize'
-  | 'Maximize'
-  | 'Fullscreen'
-  | 'Hide'
-  | 'HideOthers'
-  | 'ShowAll'
-  | 'CloseWindow'
-  | 'Quit'
-  | 'Services'
-  | {
-    About: AboutMetadata | null
-  }
+    | 'Separator'
+    | 'Copy'
+    | 'Cut'
+    | 'Paste'
+    | 'SelectAll'
+    | 'Undo'
+    | 'Redo'
+    | 'Minimize'
+    | 'Maximize'
+    | 'Fullscreen'
+    | 'Hide'
+    | 'HideOthers'
+    | 'ShowAll'
+    | 'CloseWindow'
+    | 'Quit'
+    | 'Services'
+    | {
+        About: AboutMetadata | null
+      }
 }
 
 /** A predefined (native) menu item which has a predfined behavior by the OS or by tauri.  */

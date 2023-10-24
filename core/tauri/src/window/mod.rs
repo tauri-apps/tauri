@@ -1160,9 +1160,9 @@ impl<R: Runtime> Window<R> {
   ///       main_window.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
-  ///           use webkit2gtk::traits::WebViewExt;
+  ///           // see https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html
+  ///           use webkit2gtk::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///

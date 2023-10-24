@@ -4,12 +4,20 @@
 
   export let onMessage
   let items = []
+  let menu = null
 
   async function create() {
-    const menu = await Menu.new({
+    menu = await Menu.new({
       items: items.map((i) => i.item)
     })
-    await menu.setAsWindowMenu('main')
+    await menu.setAsWindowMenu()
+  }
+
+  async function popup() {
+    if (!menu) {
+      await create()
+    }
+    menu.popup()
   }
 
   function onItemClick(event) {
@@ -20,4 +28,5 @@
 <div>
   <MenuBuilder bind:items on:itemClick={onItemClick} />
   <button class="btn" on:click={create}>Create menu</button>
+  <button class="btn" on:click={popup}>Popup</button>
 </div>

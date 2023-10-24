@@ -5,6 +5,7 @@
 use std::{collections::HashMap, sync::Mutex};
 
 use serde::{Deserialize, Serialize};
+use tauri_runtime::window::dpi::Position;
 
 use super::{sealed::ContextMenuBase, *};
 use crate::{
@@ -12,7 +13,7 @@ use crate::{
   ipc::Channel,
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
-  AppHandle, IconDto, Manager, RunEvent, Runtime, State,
+  AppHandle, IconDto, Manager, RunEvent, Runtime, State, Window,
 };
 use tauri_macros::do_menu_item;
 
@@ -427,22 +428,26 @@ fn get<R: Runtime>(
 #[command(root = "crate")]
 fn popup<R: Runtime>(
   app: AppHandle<R>,
+  current_window: Window<R>,
   rid: ResourceId,
   kind: ItemKind,
-  window: String,
-  position: Option<(u32, u32)>,
+  window: Option<String>,
+  at: Option<Position>,
 ) -> crate::Result<()> {
-  if let Some(window) = app.get_window(&window) {
-    let position = position.map(|p| crate::Position::Logical(p.into()));
+  let window = window
+    .map(|w| app.get_window(&w))
+    .unwrap_or(Some(current_window));
+
+  if let Some(window) = window {
     let resources_table = app.manager.resources_table();
     match kind {
       ItemKind::Menu => {
         let menu = resources_table.get::<Menu<R>>(rid)?;
-        menu.popup_inner(window, position)?;
+        menu.popup_inner(window, at)?;
       }
       ItemKind::Submenu => {
         let submenu = resources_table.get::<Submenu<R>>(rid)?;
-        submenu.popup_inner(window, position)?;
+        submenu.popup_inner(window, at)?;
       }
       _ => unreachable!(),
     };
@@ -478,10 +483,15 @@ async fn set_as_app_menu<R: Runtime>(
 #[command(root = "crate")]
 async fn set_as_window_menu<R: Runtime>(
   app: AppHandle<R>,
+  current_window: Window<R>,
   rid: ResourceId,
-  window: String,
+  window: Option<String>,
 ) -> crate::Result<Option<(ResourceId, MenuId)>> {
-  if let Some(window) = app.get_window(&window) {
+  let window = window
+    .map(|w| app.get_window(&w))
+    .unwrap_or(Some(current_window));
+
+  if let Some(window) = window {
     let mut resources_table = app.manager.resources_table();
     let menu = resources_table.get::<Menu<R>>(rid)?;
     if let Some(menu) = menu.set_as_window_menu(&window)? {

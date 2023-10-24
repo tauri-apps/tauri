@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+import { PhysicalPosition } from './dpi'
+import type { LogicalPosition } from './dpi'
 import { Resource, applyMixins } from './internal'
 import { Channel, invoke } from './primitives'
+import type { Window } from './window'
 
 /**
  * Menu types and utilities.
@@ -358,19 +361,27 @@ class MenuBase extends MenuItemBase {
     }).then((r) => (r ? itemFromKind(r) : null))
   }
 
-  // TODO change to logical position
-  // TODO use window type after migrating window back to core
   /**
    * Popup this menu as a context menu on the specified window.
    *
    * If the position, is provided, it is relative to the window's top-left corner.
    */
-  async popup(window: string, position?: [number, number]): Promise<void> {
+  async popup(
+    at?: PhysicalPosition | LogicalPosition,
+    window?: Window
+  ): Promise<void> {
+    let atValue = null
+    if (at) {
+      atValue = {
+        type: at instanceof PhysicalPosition ? 'Physical' : 'Logical',
+        data: at
+      }
+    }
     return invoke('plugin:menu|popup', {
       rid: this.rid,
       kind: this.kind,
-      window,
-      position
+      window: window?.label ?? null,
+      at: atValue
     })
   }
 }
@@ -418,7 +429,6 @@ class Menu extends MenuBase {
     }).then((r) => (r ? new Menu(r[0], r[1]) : null))
   }
 
-  // TODO use window type after migrating window back to core
   /**
    * Sets the window menu and returns the previous one.
    *
@@ -427,10 +437,10 @@ class Menu extends MenuBase {
    * - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
    * window, if you need to set it, use {@linkcode Menu.setAsAppMenu} instead.
    */
-  async setAsWindowMenu(window: string): Promise<Menu | null> {
+  async setAsWindowMenu(window?: Window): Promise<Menu | null> {
     return invoke<[number, string] | null>('plugin:menu|set_as_window_menu', {
       rid: this.rid,
-      window
+      window: window?.label ?? null
     }).then((r) => (r ? new Menu(r[0], r[1]) : null))
   }
 }

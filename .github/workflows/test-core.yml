@@ -67,14 +67,8 @@ jobs:
               command: 'build'
             }
         features:
-          - {
-              args: --no-default-features,
-              key: no-default
-            }
-          - {
-              args: --all-features,
-              key: all
-            }
+          - { args: --no-default-features, key: no-default }
+          - { args: --all-features, key: all }
 
     steps:
       - uses: actions/checkout@v4

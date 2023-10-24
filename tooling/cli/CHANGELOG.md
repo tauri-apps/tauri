@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.5.6]
+
+### Bug Fixes
+
+- [`5264e41d`](https://www.github.com/tauri-apps/tauri/commit/5264e41db3763e4c2eb0c3c21bd423fb7bece3e2)([#8082](https://www.github.com/tauri-apps/tauri/pull/8082)) Downgraded `rust-minisign` to `0.7.3` to fix signing updater bundles with empty passwords.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.4.5`
+
 ## \[1.5.5]
 
 ### Enhancements

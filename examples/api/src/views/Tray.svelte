@@ -1,5 +1,7 @@
 <script>
   import { TrayIcon } from '@tauri-apps/api/tray'
+  import MenuBuilder from '../components/MenuBuilder.svelte'
+  import { Menu } from '@tauri-apps/api/menu'
 
   export let onMessage
 
@@ -8,14 +10,18 @@
   let title = null
   let iconAsTemplate = false
   let menuOnLeftClick = true
+  let menuItems = []
 
-  function create() {
+  async function create() {
     TrayIcon.new({
       icon,
       tooltip,
       title,
       iconAsTemplate,
       menuOnLeftClick,
+      menu: await Menu.new({
+        items: menuItems.map((i) => i.item)
+      }),
       action: (event) => onMessage(event)
     }).catch(onMessage)
   }
@@ -57,9 +63,13 @@
     </label>
   </div>
 
+  <div class="flex children:grow">
+    <MenuBuilder bind:items={menuItems} />
+  </div>
+
   <div class="flex">
     <button class="btn" on:click={create} title="Creates the tray icon"
-      >Create</button
+      >Create tray</button
     >
   </div>
 </div>

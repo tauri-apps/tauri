@@ -8,6 +8,7 @@
   import Window from './views/Window.svelte'
   import WebRTC from './views/WebRTC.svelte'
   import App from './views/App.svelte'
+  import Menu from './views/Menu.svelte'
   import Tray from './views/Tray.svelte'
 
   document.addEventListener('keydown', (event) => {
@@ -39,6 +40,11 @@
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
+    },
+    {
+      label: 'Menu',
+      component: Menu,
+      icon: 'i-ph-broadcast'
     },
     {
       label: 'Tray',

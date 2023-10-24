@@ -72,7 +72,7 @@ jobs:
               key: no-default
             }
           - {
-              args: --features compression,wry,linux-ipc-protocol,isolation,custom-protocol,tray-icon,test,
+              args: --all-features,
               key: all
             }
 

@@ -12,11 +12,8 @@ license = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
 
-[package.metadata.docs.rs]
-features = [ "dox" ]
-
 [dependencies]
-wry = { version = "0.33", default-features = false, features = [ "tao", "file-drop", "protocol" ] }
+wry = { version = "0.34.1", default-features = false, features = [ "tao", "file-drop", "protocol" ] }
 tauri-runtime = { version = "1.0.0-alpha.3", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-alpha.9", path = "../tauri-utils" }
 raw-window-handle = "0.5"
@@ -30,8 +27,8 @@ webview2-com = "0.25"
   features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.16", features = [ "v3_24" ] }
-webkit2gtk = { version = "1.1", features = [ "v2_38" ] }
+gtk = { version = "0.18", features = [ "v3_24" ] }
+webkit2gtk = { version = "=2.0", features = [ "v2_38" ] }
 percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
@@ -41,7 +38,6 @@ cocoa = "0.24"
 jni = "0.21"
 
 [features]
-dox = [ "wry/dox" ]
 devtools = [ "wry/devtools", "tauri-runtime/devtools" ]
 macos-private-api = [
   "wry/fullscreen",

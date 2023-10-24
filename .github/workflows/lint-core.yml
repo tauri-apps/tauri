@@ -49,10 +49,7 @@ jobs:
       matrix:
         clippy:
           - { args: '', key: 'empty' }
-          - {
-              args: '--features compression,wry,linux-ipc-protocol,isolation,custom-protocol,tray-icon,test',
-              key: 'all'
-            }
+          - { args: '--all-features', key: 'all' }
           - { args: '--features custom-protocol', key: 'custom-protocol' }
 
     steps:

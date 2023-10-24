@@ -67,14 +67,8 @@ jobs:
               command: 'build'
             }
         features:
-          - {
-              args: --no-default-features,
-              key: no-default
-            }
-          - {
-              args: --features compression,wry,linux-ipc-protocol,isolation,custom-protocol,tray-icon,test,
-              key: all
-            }
+          - { args: --no-default-features, key: no-default }
+          - { args: --all-features, key: all }
 
     steps:
       - uses: actions/checkout@v4
@@ -91,7 +85,7 @@ jobs:
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libxdo-dev libayatana-appindicator3-dev
 
       - uses: Swatinem/rust-cache@v2
         with:

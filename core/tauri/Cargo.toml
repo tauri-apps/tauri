@@ -23,7 +23,6 @@ features = [
   "icon-png",
   "protocol-asset",
   "test",
-  "dox"
 ]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 default-target = "x86_64-unknown-linux-gnu"
@@ -73,13 +72,12 @@ ico = { version = "0.3.0", optional = true }
 http-range = { version = "0.1.4", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-muda = { version = "0.8", default-features = false }
-tray-icon = { version = "0.8", default-features = false, optional = true }
+muda = { version = "0.10", default-features = false }
+tray-icon = { version = "0.10", default-features = false, optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.16", features = [ "v3_24" ] }
-glib = "0.16"
-webkit2gtk = { version = "1.1", features = [ "v2_38" ] }
+gtk = { version = "0.18", features = [ "v3_24" ] }
+webkit2gtk = { version = "=2.0", features = [ "v2_38" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -145,7 +143,6 @@ native-tls = [ "reqwest/native-tls" ]
 native-tls-vendored = [ "reqwest/native-tls-vendored" ]
 rustls-tls = [ "reqwest/rustls-tls" ]
 devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
-dox = [ "tauri-runtime-wry/dox" ]
 process-relaunch-dangerous-allow-symlink-macos = [ "tauri-utils/process-relaunch-dangerous-allow-symlink-macos" ]
 macos-private-api = [
   "tauri-runtime/macos-private-api",

@@ -14,7 +14,6 @@
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
 //! - **test**: Enables the [`test`] module exposing unit test helpers.
-//! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
 //! - **linux-ipc-protocol**: Use custom protocol for faster IPC on Linux. Requires webkit2gtk v2.40 or above.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.

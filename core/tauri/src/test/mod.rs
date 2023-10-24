@@ -27,7 +27,7 @@
 //! }
 //!
 //! fn main() {
-//!   let app = create_app(tauri::Builder::default());
+//!   // let app = create_app(tauri::Builder::default());
 //!   // app.run(|_handle, _event| {});
 //! }
 //!
@@ -190,7 +190,7 @@ pub fn mock_app() -> App<MockRuntime> {
 /// }
 ///
 /// fn main() {
-///   let app = create_app(tauri::Builder::default());
+///   // let app = create_app(tauri::Builder::default());
 ///   // app.run(|_handle, _event| {});}
 /// }
 ///

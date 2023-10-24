@@ -85,7 +85,7 @@ jobs:
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libxdo-dev libayatana-appindicator3-dev
 
       - uses: Swatinem/rust-cache@v2
         with:

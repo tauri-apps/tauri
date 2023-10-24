@@ -16,6 +16,7 @@ abstract class TauriActivity : WryActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     if (intent != null) {
+      // TODO: Should this also call onCreate instead of onNewIntent on the plugin manager?
       pluginManager.onNewIntent(intent)
     }
   }
@@ -23,5 +24,15 @@ abstract class TauriActivity : WryActivity() {
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     pluginManager.onNewIntent(intent)
+  }
+
+  override fun onResume() {
+    super.onResume()
+    pluginManager.onResume()
+  }
+
+  override fun onPause() {
+    super.onPause()
+    pluginManager.onPause()
   }
 }

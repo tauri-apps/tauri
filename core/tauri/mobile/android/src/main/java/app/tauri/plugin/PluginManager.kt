@@ -54,6 +54,19 @@ class PluginManager(val activity: AppCompatActivity) {
     }
   }
 
+
+  fun onPause() {
+    for (plugin in plugins.values) {
+      plugin.instance.onPause()
+    }
+  }
+
+  fun onResume() {
+    for (plugin in plugins.values) {
+      plugin.instance.onResume()
+    }
+  }
+
   fun startActivityForResult(intent: Intent, callback: ActivityResultCallback) {
     startActivityForResultCallback = callback
     startActivityForResultLauncher.launch(intent)

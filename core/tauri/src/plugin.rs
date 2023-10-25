@@ -643,10 +643,10 @@ impl<R: Runtime> PluginStore<R> {
 
   /// Runs the on_event hook for all plugins in the store.
   pub(crate) fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
-    self.store.iter_mut().for_each(|plugin| {
-      let _span = tracing::trace_span!("plugin::hooks::on_event", name = plugin.name()).entered();
-      plugin.on_event(app, event)
-    })
+    self
+      .store
+      .iter_mut()
+      .for_each(|plugin| plugin.on_event(app, event))
   }
 
   /// Runs the plugin `extend_api` hook if it exists. Returns whether the invoke message was handled or not.

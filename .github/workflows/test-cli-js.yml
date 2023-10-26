@@ -36,10 +36,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
+
       - name: setup node
         uses: actions/setup-node@v2
         with:

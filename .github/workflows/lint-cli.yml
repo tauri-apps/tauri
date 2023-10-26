@@ -29,17 +29,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions-rs/toolchain@v1
+      - name: install Rust stable and rustfmt
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --manifest-path ./tooling/cli/Cargo.toml --all -- --check
+      - name: Run cargo fmt
+        run: cargo fmt --manifest-path ./tooling/cli/Cargo.toml --all -- --check
 
   clippy:
     runs-on: ubuntu-latest
@@ -47,11 +43,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions-rs/toolchain@v1
+      - name: install Rust stable and clippy
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: clippy
 
       - name: install dependencies
@@ -63,8 +57,5 @@ jobs:
         with:
           workspaces: tooling/cli
 
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./tooling/cli/Cargo.toml --all-targets --all-features -- -D warnings
-          name: cli
+      - name: run Clippy
+        run: cargo clippy --manifest-path ./tooling/cli/Cargo.toml --all-targets --all-features -- -D warnings

@@ -141,7 +141,7 @@ export function mockWindows(
  * @example
  * ```js
  * import { mockConvertFileSrc } from "@tauri-apps/api/mocks";
- * import { convertFileSrc } from "@tauri-apps/api/tauri";
+ * import { convertFileSrc } from "@tauri-apps/api/primitives";
  *
  * mockConvertFileSrc("windows")
  *

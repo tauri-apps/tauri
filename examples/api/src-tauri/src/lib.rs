@@ -77,6 +77,18 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       let window = window_builder.build().unwrap();
 
+      let window_ = window.clone();
+      window.listen("js-event", move |event| {
+        println!("got js-event with message '{:?}'", event.payload());
+        let reply = Reply {
+          data: "something else".to_string(),
+        };
+
+        window_
+          .emit("rust-event", Some(reply))
+          .expect("failed to emit");
+      });
+
       #[cfg(debug_assertions)]
       window.open_devtools();
 
@@ -121,19 +133,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       setup(app);
 
       Ok(())
-    })
-    .on_page_load(|window, _| {
-      let window_ = window.clone();
-      window.listen("js-event", move |event| {
-        println!("got js-event with message '{:?}'", event.payload());
-        let reply = Reply {
-          data: "something else".to_string(),
-        };
-
-        window_
-          .emit("rust-event", Some(reply))
-          .expect("failed to emit");
-      });
     });
 
   #[allow(unused_mut)]

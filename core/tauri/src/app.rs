@@ -30,7 +30,6 @@ use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 #[cfg(desktop)]
 use crate::window::WindowMenu;
 use raw_window_handle::HasRawDisplayHandle;
-use serde::Deserialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
 #[cfg(desktop)]
@@ -67,21 +66,6 @@ pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) 
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
-/// A closure that is run once every time a window is created and loaded.
-pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
-
-/// The payload for the [`OnPageLoad`] hook.
-#[derive(Debug, Clone, Deserialize)]
-pub struct PageLoadPayload {
-  url: String,
-}
-
-impl PageLoadPayload {
-  /// The page URL.
-  pub fn url(&self) -> &str {
-    &self.url
-  }
-}
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -981,9 +965,6 @@ pub struct Builder<R: Runtime> {
   /// The setup hook.
   setup: SetupHook<R>,
 
-  /// Page load hook.
-  on_page_load: Box<OnPageLoad<R>>,
-
   /// windows to create when starting up.
   pending_windows: Vec<PendingWindow<EventLoopMessage, R>>,
 
@@ -1040,7 +1021,6 @@ impl<R: Runtime> Builder<R> {
       .render_default(&Default::default())
       .unwrap()
       .into_string(),
-      on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
@@ -1123,16 +1103,6 @@ impl<R: Runtime> Builder<R> {
     F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
   {
     self.setup = Box::new(setup);
-    self
-  }
-
-  /// Defines the page load hook.
-  #[must_use]
-  pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
-  where
-    F: Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static,
-  {
-    self.on_page_load = Box::new(on_page_load);
     self
   }
 
@@ -1477,7 +1447,6 @@ impl<R: Runtime> Builder<R> {
       context,
       self.plugins,
       self.invoke_handler,
-      self.on_page_load,
       self.uri_scheme_protocols,
       self.state,
       self.window_event_listeners,

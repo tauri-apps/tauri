@@ -22,18 +22,16 @@ async fn create_child_window(id: String, window: Window) {
 
 fn main() {
   tauri::Builder::default()
-    .on_page_load(|window, _payload| {
-      let label = window.label().to_string();
-      window.listen("clicked".to_string(), move |_payload| {
-        println!("got 'clicked' event on window '{label}'");
-      });
-    })
     .invoke_handler(tauri::generate_handler![create_child_window])
     .setup(|app| {
-      WindowBuilder::new(app, "main".to_string(), WindowUrl::default())
+      let window = WindowBuilder::new(app, "main".to_string(), WindowUrl::default())
         .title("Main")
         .inner_size(600.0, 400.0)
         .build()?;
+
+      window.listen("clicked".to_string(), move |_payload| {
+        println!("got 'clicked' event on window 'main'");
+      });
       Ok(())
     })
     .run(tauri::generate_context!(

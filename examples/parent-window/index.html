@@ -1,54 +1,56 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <style>
-      #response {
-        white-space: pre-wrap;
-      }
-    </style>
-  </head>
 
-  <body>
-    <div id="window-label"></div>
-    <div id="container"></div>
-    <div id="response"></div>
+<head>
+  <style>
+    #response {
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
 
-    <script>
-      const WebviewWindow = window.__TAURI__.window.WebviewWindow
-      const thisTauriWindow = window.__TAURI__.window.getCurrent()
-      const windowLabel = thisTauriWindow.label
-      const windowLabelContainer = document.getElementById('window-label')
-      windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
+<body>
+  <div id="window-label"></div>
+  <div id="container"></div>
+  <div id="response"></div>
 
-      const container = document.getElementById('container')
+  <script>
+    const WebviewWindow = window.__TAURI__.window.Window
+    const thisTauriWindow = window.__TAURI__.window.getCurrent()
+    const windowLabel = thisTauriWindow.label
+    const windowLabelContainer = document.getElementById('window-label')
+    windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
 
-      const responseContainer = document.getElementById('response')
-      function runCommand(commandName, args, optional) {
-        window.__TAURI__.primitives
-          .invoke(commandName, args)
-          .then((response) => {
-            responseContainer.innerText += `Ok(${response})\n\n`
-          })
-          .catch((error) => {
-            responseContainer.innerText += `Err(${error})\n\n`
-          })
-      }
-      window.__TAURI__.event.listen('tauri://window-created', function (event) {
-        responseContainer.innerText += 'Got window-created event\n\n'
-      })
+    const container = document.getElementById('container')
 
-      const createWindowButton = document.createElement('button')
-      const windowId = Math.random().toString().replace('.', '')
-      const windowNumber = 1
-      createWindowButton.innerHTML = 'Create child window ' + windowNumber
-      createWindowButton.addEventListener('click', function () {
-        runCommand('create_child_window', {
-          id: `child-${windowId}-${windowNumber}`
+    const responseContainer = document.getElementById('response')
+    function runCommand(commandName, args, optional) {
+      window.__TAURI__.primitives
+        .invoke(commandName, args)
+        .then((response) => {
+          responseContainer.innerText += `Ok(${response})\n\n`
         })
-        windowNumber += 1
-        createWindowButton.innerHTML = 'Create child window ' + windowNumber
+        .catch((error) => {
+          responseContainer.innerText += `Err(${error})\n\n`
+        })
+    }
+    window.__TAURI__.event.listen('tauri://window-created', function (event) {
+      responseContainer.innerText += 'Got window-created event\n\n'
+    })
+
+    const createWindowButton = document.createElement('button')
+    const windowId = Math.random().toString().replace('.', '')
+    const windowNumber = 1
+    createWindowButton.innerHTML = 'Create child window ' + windowNumber
+    createWindowButton.addEventListener('click', function () {
+      runCommand('create_child_window', {
+        id: `child-${windowId}-${windowNumber}`
       })
-      container.appendChild(createWindowButton)
-    </script>
-  </body>
+      windowNumber += 1
+      createWindowButton.innerHTML = 'Create child window ' + windowNumber
+    })
+    container.appendChild(createWindowButton)
+  </script>
+</body>
+
 </html>

@@ -2155,109 +2155,98 @@ impl<R: Runtime> Window<R> {
       request.error,
     );
 
-    match request.cmd.as_str() {
-      "__initialized" => match request.body.deserialize() {
-        Ok(payload) => {
-          manager.run_on_page_load(self, payload);
-          resolver.resolve(());
-        }
-        Err(e) => resolver.reject(e.to_string()),
-      },
-      _ => {
-        #[cfg(mobile)]
-        let app_handle = self.app_handle.clone();
+    #[cfg(mobile)]
+    let app_handle = self.app_handle.clone();
 
-        let message = InvokeMessage::new(
-          self,
-          manager.state(),
-          request.cmd.to_string(),
-          request.body,
-          request.headers,
-        );
+    let message = InvokeMessage::new(
+      self,
+      manager.state(),
+      request.cmd.to_string(),
+      request.body,
+      request.headers,
+    );
 
-        let mut invoke = Invoke {
-          message,
-          resolver: resolver.clone(),
-        };
+    let mut invoke = Invoke {
+      message,
+      resolver: resolver.clone(),
+    };
 
-        if !is_local && scope.is_none() {
-          invoke.resolver.reject(scope_not_found_error_message);
-        } else if request.cmd.starts_with("plugin:") {
-          let command = invoke.message.command.replace("plugin:", "");
-          let mut tokens = command.split('|');
-          // safe to unwrap: split always has a least one item
-          let plugin = tokens.next().unwrap();
-          invoke.message.command = tokens
-            .next()
-            .map(|c| c.to_string())
-            .unwrap_or_else(String::new);
+    if !is_local && scope.is_none() {
+      invoke.resolver.reject(scope_not_found_error_message);
+    } else if request.cmd.starts_with("plugin:") {
+      let command = invoke.message.command.replace("plugin:", "");
+      let mut tokens = command.split('|');
+      // safe to unwrap: split always has a least one item
+      let plugin = tokens.next().unwrap();
+      invoke.message.command = tokens
+        .next()
+        .map(|c| c.to_string())
+        .unwrap_or_else(String::new);
 
-          if !(is_local
-            || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
-            || scope
-              .map(|s| s.plugins().contains(&plugin.into()))
-              .unwrap_or(true))
-          {
-            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-            return;
-          }
+      if !(is_local
+        || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
+        || scope
+          .map(|s| s.plugins().contains(&plugin.into()))
+          .unwrap_or(true))
+      {
+        invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+        return;
+      }
 
-          let command = invoke.message.command.clone();
+      let command = invoke.message.command.clone();
 
-          #[cfg(mobile)]
-          let message = invoke.message.clone();
+      #[cfg(mobile)]
+      let message = invoke.message.clone();
 
-          #[allow(unused_mut)]
-          let mut handled = manager.extend_api(plugin, invoke);
+      #[allow(unused_mut)]
+      let mut handled = manager.extend_api(plugin, invoke);
 
-          #[cfg(mobile)]
-          {
-            if !handled {
-              handled = true;
+      #[cfg(mobile)]
+      {
+        if !handled {
+          handled = true;
 
-              fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
-                if let serde_json::Value::Object(map) = payload {
-                  for v in map.values() {
-                    if let serde_json::Value::String(s) = v {
-                      if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
-                        crate::ipc::Channel::load_from_ipc(window.clone(), s);
-                      }
-                    }
+          fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
+            if let serde_json::Value::Object(map) = payload {
+              for v in map.values() {
+                if let serde_json::Value::String(s) = v {
+                  if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
+                    crate::ipc::Channel::load_from_ipc(window.clone(), s);
                   }
                 }
-              }
-
-              let payload = message.payload.into_json();
-              // initialize channels
-              load_channels(&payload, &message.window);
-
-              let resolver_ = resolver.clone();
-              if let Err(e) = crate::plugin::mobile::run_command(
-                plugin,
-                &app_handle,
-                message.command,
-                payload,
-                move |response| match response {
-                  Ok(r) => resolver_.resolve(r),
-                  Err(e) => resolver_.reject(e),
-                },
-              ) {
-                resolver.reject(e.to_string());
-                return;
               }
             }
           }
 
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
-          }
-        } else {
-          let command = invoke.message.command.clone();
-          let handled = manager.run_invoke_handler(invoke);
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
+          let payload = message.payload.into_json();
+          // initialize channels
+          load_channels(&payload, &message.window);
+
+          let resolver_ = resolver.clone();
+          if let Err(e) = crate::plugin::mobile::run_command(
+            plugin,
+            &app_handle,
+            message.command,
+            payload,
+            move |response| match response {
+              Ok(r) => resolver_.resolve(r),
+              Err(e) => resolver_.reject(e),
+            },
+          ) {
+            resolver.reject(e.to_string());
+            return;
           }
         }
+      }
+
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
+      }
+    } else {
+      let command = invoke.message.command.clone();
+      let handled = manager.run_invoke_handler(invoke);
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
       }
     }
   }

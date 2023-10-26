@@ -29,10 +29,7 @@ use tauri_utils::{
 
 use crate::event::EmitArgs;
 use crate::{
-  app::{
-    AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
-    UriSchemeResponder,
-  },
+  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener, UriSchemeResponder},
   event::{assert_event_name_is_valid, Event, EventId, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
@@ -231,9 +228,6 @@ pub struct InnerWindowManager<R: Runtime> {
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<R>>,
 
-  /// The page load hook, invoked when the webview performs a navigation.
-  on_page_load: Box<OnPageLoad<R>>,
-
   config: Arc<Config>,
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
@@ -339,7 +333,6 @@ impl<R: Runtime> WindowManager<R> {
     #[allow(unused_mut)] mut context: Context<impl Assets>,
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
-    on_page_load: Box<OnPageLoad<R>>,
     uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
@@ -362,7 +355,6 @@ impl<R: Runtime> WindowManager<R> {
         listeners: Listeners::default(),
         state: Arc::new(state),
         invoke_handler,
-        on_page_load,
         config: Arc::new(context.config),
         assets: context.assets,
         default_window_icon: context.default_window_icon,
@@ -869,16 +861,6 @@ impl<R: Runtime> WindowManager<R> {
     (self.inner.invoke_handler)(invoke)
   }
 
-  pub fn run_on_page_load(&self, window: Window<R>, payload: PageLoadPayload) {
-    (self.inner.on_page_load)(window.clone(), payload.clone());
-    self
-      .inner
-      .plugins
-      .lock()
-      .expect("poisoned plugin store")
-      .on_page_load(window, payload);
-  }
-
   pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .inner
@@ -1376,7 +1358,6 @@ mod test {
       context,
       PluginStore::default(),
       Box::new(|_| false),
-      Box::new(|_, _| ()),
       Default::default(),
       StateManager::new(),
       Default::default(),

@@ -5,7 +5,7 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  app::{PageLoadPayload, UriSchemeResponder},
+  app::UriSchemeResponder,
   error::Error,
   ipc::{Invoke, InvokeHandler},
   manager::UriSchemeProtocol,
@@ -60,10 +60,6 @@ pub trait Plugin<R: Runtime>: Send {
     true
   }
 
-  /// Callback invoked when the webview performs a navigation to a page.
-  #[allow(unused_variables)]
-  fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {}
-
   /// Callback invoked when the event loop receives a new event.
   #[allow(unused_variables)]
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
@@ -80,7 +76,6 @@ type SetupHook<R, C> =
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
 type OnNavigation<R> = dyn Fn(&Window<R>, &Url) -> bool + Send;
-type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
 /// A handle to a plugin.
@@ -207,7 +202,6 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   setup: Option<Box<SetupHook<R, C>>>,
   js_init_script: Option<String>,
   on_navigation: Box<OnNavigation<R>>,
-  on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
@@ -223,7 +217,6 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       js_init_script: None,
       invoke_handler: Box::new(|_| false),
       on_navigation: Box::new(|_, _| true),
-      on_page_load: Box::new(|_, _| ()),
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
       on_drop: None,
@@ -355,30 +348,6 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     F: Fn(&Window<R>, &Url) -> bool + Send + 'static,
   {
     self.on_navigation = Box::new(on_navigation);
-    self
-  }
-
-  /// Callback invoked when the webview performs a navigation to a page.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
-  ///
-  /// fn init<R: Runtime>() -> TauriPlugin<R> {
-  ///   Builder::new("example")
-  ///     .on_page_load(|window, payload| {
-  ///       println!("Loaded URL {} in window {}", payload.url(), window.label());
-  ///     })
-  ///     .build()
-  /// }
-  /// ```
-  #[must_use]
-  pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
-  where
-    F: FnMut(Window<R>, PageLoadPayload) + Send + 'static,
-  {
-    self.on_page_load = Box::new(on_page_load);
     self
   }
 
@@ -577,7 +546,6 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       setup: self.setup,
       js_init_script: self.js_init_script,
       on_navigation: self.on_navigation,
-      on_page_load: self.on_page_load,
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
       on_drop: self.on_drop,
@@ -594,7 +562,6 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   setup: Option<Box<SetupHook<R, C>>>,
   js_init_script: Option<String>,
   on_navigation: Box<OnNavigation<R>>,
-  on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
@@ -650,10 +617,6 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
 
   fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
     (self.on_navigation)(window, url)
-  }
-
-  fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
-    (self.on_page_load)(window, payload)
   }
 
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
@@ -747,14 +710,6 @@ impl<R: Runtime> PluginStore<R> {
       }
     }
     true
-  }
-
-  /// Runs the on_page_load hook for all plugins in the store.
-  pub(crate) fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
-    self
-      .store
-      .iter_mut()
-      .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
   }
 
   /// Runs the on_event hook for all plugins in the store.

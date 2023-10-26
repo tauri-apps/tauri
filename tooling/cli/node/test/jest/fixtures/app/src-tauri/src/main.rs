@@ -9,14 +9,16 @@ fn exit(window: tauri::Window) {
 
 fn main() {
   tauri::Builder::default()
-    .on_page_load(|window, _| {
-      let window_ = window.clone();
-      window.listen("hello".into(), move |_| {
-        window_
-          .emit(&"reply".to_string(), Some("{ msg: 'TEST' }".to_string()))
-          .unwrap();
-      });
-      window.eval("window.onTauriInit()").unwrap();
+    .on_page_load(|window, payload| {
+      if payload.event() == tauri::window::PageLoadEvent::Finished {
+        let window_ = window.clone();
+        window.listen("hello".into(), move |_| {
+          window_
+            .emit(&"reply".to_string(), Some("{ msg: 'TEST' }".to_string()))
+            .unwrap();
+        });
+        window.eval("window.onTauriInit()").unwrap();
+      }
     })
     .invoke_handler(tauri::generate_handler![exit])
     .run(tauri::generate_context!())

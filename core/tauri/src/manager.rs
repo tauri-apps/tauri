@@ -27,12 +27,8 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::event::EmitArgs;
 use crate::{
-  app::{
-    AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, PageLoadPayload,
-    UriSchemeResponder,
-  },
+  app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener, OnPageLoad, UriSchemeResponder},
   event::{assert_event_name_is_valid, Event, EventId, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
@@ -52,6 +48,7 @@ use crate::{
   Context, EventLoopMessage, Icon, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
 };
+use crate::{event::EmitArgs, window::PageLoadPayload};
 
 #[cfg(desktop)]
 use crate::app::GlobalMenuEventListener;
@@ -232,7 +229,7 @@ pub struct InnerWindowManager<R: Runtime> {
   invoke_handler: Box<InvokeHandler<R>>,
 
   /// The page load hook, invoked when the webview performs a navigation.
-  on_page_load: Box<OnPageLoad<R>>,
+  on_page_load: Option<Arc<OnPageLoad<R>>>,
 
   config: Arc<Config>,
   assets: Arc<dyn Assets>,
@@ -339,7 +336,7 @@ impl<R: Runtime> WindowManager<R> {
     #[allow(unused_mut)] mut context: Context<impl Assets>,
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
-    on_page_load: Box<OnPageLoad<R>>,
+    on_page_load: Option<Arc<OnPageLoad<R>>>,
     uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
@@ -685,6 +682,32 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push("ipc".into());
     }
 
+    let label = pending.label.clone();
+    let manager = self.clone();
+    let on_page_load_handler = pending.on_page_load_handler.take();
+    pending
+      .on_page_load_handler
+      .replace(Box::new(move |url, event| {
+        let payload = PageLoadPayload { url: &url, event };
+
+        if let Some(w) = manager.get_window(&label) {
+          if let Some(on_page_load) = &manager.inner.on_page_load {
+            on_page_load(&w, &payload);
+          }
+
+          manager
+            .inner
+            .plugins
+            .lock()
+            .unwrap()
+            .on_page_load(&w, &payload);
+        }
+
+        if let Some(handler) = &on_page_load_handler {
+          handler(url, event);
+        }
+      }));
+
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
@@ -867,16 +890,6 @@ impl<R: Runtime> WindowManager<R> {
 impl<R: Runtime> WindowManager<R> {
   pub fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
     (self.inner.invoke_handler)(invoke)
-  }
-
-  pub fn run_on_page_load(&self, window: Window<R>, payload: PageLoadPayload) {
-    (self.inner.on_page_load)(window.clone(), payload.clone());
-    self
-      .inner
-      .plugins
-      .lock()
-      .expect("poisoned plugin store")
-      .on_page_load(window, payload);
   }
 
   pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
@@ -1376,7 +1389,7 @@ mod test {
       context,
       PluginStore::default(),
       Box::new(|_| false),
-      Box::new(|_, _| ()),
+      None,
       Default::default(),
       StateManager::new(),
       Default::default(),

@@ -34,6 +34,17 @@ type WebResourceRequestHandler =
 
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
+type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
+
+/// Kind of event for the page load handler.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PageLoadEvent {
+  /// Page started to load.
+  Started,
+  /// Page finished loading.
+  Finished,
+}
+
 /// UI scaling utilities.
 pub mod dpi;
 
@@ -238,6 +249,8 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
     Option<Box<dyn Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send>>,
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+
+  pub on_page_load_handler: Option<Box<OnPageLoadHandler>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -270,11 +283,12 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        navigation_handler: Default::default(),
+        navigation_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
-        web_resource_request_handler: Default::default(),
+        web_resource_request_handler: None,
+        on_page_load_handler: None,
       })
     }
   }
@@ -298,11 +312,12 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        navigation_handler: Default::default(),
+        navigation_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
-        web_resource_request_handler: Default::default(),
+        web_resource_request_handler: None,
+        on_page_load_handler: None,
       })
     }
   }

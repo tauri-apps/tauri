@@ -5,12 +5,13 @@
   export let onMessage
   let items = []
   let menu = null
+  let submenu = null
   let menuItemCount = 0
 
   const macOS = navigator.userAgent.includes('Macintosh')
 
   async function create() {
-    const submenu = await Submenu.new({
+    submenu = await Submenu.new({
       text: 'app',
       items: items.map((i) => i.item)
     })
@@ -22,10 +23,12 @@
   }
 
   async function popup() {
-    if (!menu || menuItemCount !== items.length) {
+    if (!submenu || menuItemCount !== items.length) {
       await create()
     }
-    menu.popup()
+    // we can't popup the menu because it's the app menu (it crashes on macOS)
+    const m = await Menu.new({ items: [submenu] })
+    m.popup()
   }
 
   function onItemClick(event) {

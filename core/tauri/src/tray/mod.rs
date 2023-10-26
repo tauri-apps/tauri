@@ -54,6 +54,7 @@ impl Default for ClickType {
 /// - **Linux**: Unsupported. The event is not emmited even though the icon is shown,
 /// the icon will still show a context menu on right click.
 #[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TrayIconEvent {
   /// Id of the tray icon which triggered this event.
   pub id: TrayIconId,

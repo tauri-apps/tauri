@@ -369,7 +369,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
   ///     .on_page_load(|window, payload| {
-  ///       println!("{} URL {} in window {}", payload.event(), payload.url(), window.label());
+  ///       println!("{:?} URL {} in window {}", payload.event(), payload.url(), window.label());
   ///     })
   ///     .build()
   /// }

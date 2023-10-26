@@ -426,7 +426,7 @@ fn get<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn popup<R: Runtime>(
+async fn popup<R: Runtime>(
   app: AppHandle<R>,
   current_window: Window<R>,
   rid: ResourceId,

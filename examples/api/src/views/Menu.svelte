@@ -1,20 +1,28 @@
 <script>
-  import { Menu } from '@tauri-apps/api/menu'
+  import { Menu, Submenu } from '@tauri-apps/api/menu'
   import MenuBuilder from '../components/MenuBuilder.svelte'
 
   export let onMessage
   let items = []
   let menu = null
+  let menuItemCount = 0
+
+  const macOS = navigator.userAgent.includes('Macintosh')
 
   async function create() {
-    menu = await Menu.new({
+    const submenu = await Submenu.new({
+      text: 'app',
       items: items.map((i) => i.item)
     })
-    await menu.setAsWindowMenu()
+    menuItemCount = items.length
+    menu = await Menu.new({
+      items: [submenu]
+    })
+    await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
   }
 
   async function popup() {
-    if (!menu) {
+    if (!menu || menuItemCount !== items.length) {
       await create()
     }
     menu.popup()

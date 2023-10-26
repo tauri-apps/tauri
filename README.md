@@ -77,8 +77,7 @@ For **running** Tauri apps we support the below configurations (these are automa
   - `webkit2gtk3`, `gtk3`, `libappindicator-gtk3`<sup>1</sup>
 - Void with the following packages installed:
   - `webkit2gtk`, `gtk+3`, `libappindicator`<sup>1</sup>
-
-<sup>1</sup> `appindicator` is only required if system trays are used
+- <sup>1</sup> `appindicator` is only required if system trays are used
 
 ### Features
 

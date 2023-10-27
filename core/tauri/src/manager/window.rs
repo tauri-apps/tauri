@@ -246,7 +246,7 @@ impl<R: Runtime> WindowManager<R> {
     let ipc_init = IpcJavascript {
       isolation_origin: &match &app_handle.manager.pattern {
         #[cfg(feature = "isolation")]
-        Pattern::Isolation { schema, .. } => crate::pattern::format_real_schema(schema),
+        crate::Pattern::Isolation { schema, .. } => crate::pattern::format_real_schema(schema),
         _ => "".to_string(),
       },
     }
@@ -291,7 +291,7 @@ impl<R: Runtime> WindowManager<R> {
       )?);
 
     #[cfg(feature = "isolation")]
-    if let Pattern::Isolation { schema, .. } = &app_handle.manager.pattern {
+    if let crate::Pattern::Isolation { schema, .. } = &app_handle.manager.pattern {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
           isolation_src: &crate::pattern::format_real_schema(schema),
@@ -396,7 +396,7 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     #[cfg(feature = "isolation")]
-    if let Pattern::Isolation {
+    if let crate::Pattern::Isolation {
       assets,
       schema,
       key: _,
@@ -527,7 +527,7 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     #[cfg(feature = "window-data-url")]
-    if let Some(csp) = self.csp() {
+    if let Some(csp) = app_handle.manager.csp() {
       if url.scheme() == "data" {
         if let Ok(data_url) = data_url::DataUrl::process(url.as_str()) {
           let (body, _) = data_url.decode_to_vec().unwrap();
@@ -621,7 +621,7 @@ impl<R: Runtime> WindowManager<R> {
     pending.navigation_handler = Some(Box::new(move |url| {
       // always allow navigation events for the isolation iframe and do not emit them for consumers
       #[cfg(feature = "isolation")]
-      if let Pattern::Isolation { schema, .. } = &pattern {
+      if let crate::Pattern::Isolation { schema, .. } = &pattern {
         if url.scheme() == schema
           && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
         {

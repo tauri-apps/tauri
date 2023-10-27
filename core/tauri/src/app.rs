@@ -486,7 +486,8 @@ macro_rules! shared_app_impl {
         self
           .manager
           .window
-          .global_menu_event_listeners
+          .menu
+          .global_event_listeners
           .lock()
           .unwrap()
           .push(Box::new(handler));
@@ -1778,7 +1779,8 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
           for listener in &*app_handle
             .manager
             .window
-            .global_menu_event_listeners
+            .menu
+            .global_event_listeners
             .lock()
             .unwrap()
           {
@@ -1787,7 +1789,8 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
           for (label, listener) in &*app_handle
             .manager
             .window
-            .menu_event_listeners
+            .menu
+            .event_listeners
             .lock()
             .unwrap()
           {

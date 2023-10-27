@@ -75,6 +75,22 @@ pub struct UriSchemeProtocol<R: Runtime> {
     Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
+#[cfg(desktop)]
+pub struct MenuManager<R: Runtime> {
+  /// A set containing a reference to the active menus, including
+  /// the app-wide menu and the window-specific menus
+  ///
+  /// This should be mainly used to acceess [`Menu::haccel`]
+  /// to setup the accelerator handling in the event loop
+  pub menus: Arc<Mutex<HashMap<MenuId, Menu<R>>>>,
+  /// The menu set to all windows.
+  pub menu: Arc<Mutex<Option<Menu<R>>>>,
+  /// Menu event listeners to all windows.
+  pub global_event_listeners: Arc<Mutex<Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>>>,
+  /// Menu event listeners to specific windows.
+  pub event_listeners: Arc<Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>>,
+}
+
 pub struct WindowManager<R: Runtime> {
   pub windows: Mutex<HashMap<String, Window<R>>>,
   /// The JS message handler.
@@ -85,24 +101,8 @@ pub struct WindowManager<R: Runtime> {
   /// The webview protocols available to all windows.
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
 
-  /// A set containing a reference to the active menus, including
-  /// the app-wide menu and the window-specific menus
-  ///
-  /// This should be mainly used to acceess [`Menu::haccel`]
-  /// to setup the accelerator handling in the event loop
   #[cfg(desktop)]
-  pub menus: Arc<Mutex<HashMap<MenuId, Menu<R>>>>,
-  /// The menu set to all windows.
-  #[cfg(desktop)]
-  pub menu: Arc<Mutex<Option<Menu<R>>>>,
-  /// Menu event listeners to all windows.
-  #[cfg(desktop)]
-  pub global_menu_event_listeners:
-    Arc<Mutex<Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>>>,
-  /// Menu event listeners to specific windows.
-  #[cfg(desktop)]
-  pub menu_event_listeners:
-    Arc<Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>>,
+  pub menu: MenuManager<R>,
 
   /// Window event listeners to all windows.
   pub event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
@@ -185,13 +185,13 @@ impl<R: Runtime> WindowManager<R> {
   /// App-wide menu.
   #[cfg(desktop)]
   pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<Menu<R>>> {
-    self.menu.lock().expect("poisoned window manager")
+    self.menu.menu.lock().expect("poisoned window manager")
   }
 
   /// Menus stash.
   #[cfg(desktop)]
   pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<MenuId, Menu<R>>> {
-    self.menus.lock().expect("poisoned window manager")
+    self.menu.menus.lock().expect("poisoned window manager")
   }
 
   #[cfg(desktop)]

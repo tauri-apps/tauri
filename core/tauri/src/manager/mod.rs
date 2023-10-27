@@ -262,13 +262,12 @@ impl<R: Runtime> AppManager<R> {
         default_icon: context.default_window_icon,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         #[cfg(desktop)]
-        menus: Default::default(),
-        #[cfg(desktop)]
-        menu: Default::default(),
-        #[cfg(desktop)]
-        global_menu_event_listeners: Default::default(),
-        #[cfg(desktop)]
-        menu_event_listeners: Arc::new(Mutex::new(window_menu_event_listeners)),
+        menu: window::MenuManager {
+          menus: Default::default(),
+          menu: Default::default(),
+          global_event_listeners: Default::default(),
+          event_listeners: Arc::new(Mutex::new(window_menu_event_listeners)),
+        },
         event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,

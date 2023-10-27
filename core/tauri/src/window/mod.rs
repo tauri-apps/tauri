@@ -1326,7 +1326,8 @@ impl<R: Runtime> Window<R> {
     self
       .manager
       .window
-      .menu_event_listeners
+      .menu
+      .event_listeners
       .lock()
       .unwrap()
       .insert(self.label().to_string(), Box::new(f));

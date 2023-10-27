@@ -295,7 +295,8 @@ impl<R: Runtime> TrayIcon<R> {
       app_handle
         .manager
         .window
-        .global_menu_event_listeners
+        .menu
+        .global_event_listeners
         .lock()
         .unwrap()
         .push(handler);
@@ -334,7 +335,8 @@ impl<R: Runtime> TrayIcon<R> {
       .app_handle
       .manager
       .window
-      .global_menu_event_listeners
+      .menu
+      .global_event_listeners
       .lock()
       .unwrap()
       .push(Box::new(f));

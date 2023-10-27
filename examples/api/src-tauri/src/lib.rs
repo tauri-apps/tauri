@@ -13,7 +13,9 @@ mod tray;
 
 use serde::Serialize;
 use tauri::{
-  ipc::Channel, window::WindowBuilder, App, AppHandle, Manager, RunEvent, Runtime, WindowUrl,
+  ipc::Channel,
+  window::{PageLoadEvent, WindowBuilder},
+  App, AppHandle, Manager, RunEvent, Runtime, WindowUrl,
 };
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
@@ -121,18 +123,20 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       Ok(())
     })
-    .on_page_load(|window, _| {
-      let window_ = window.clone();
-      window.listen("js-event", move |event| {
-        println!("got js-event with message '{:?}'", event.payload());
-        let reply = Reply {
-          data: "something else".to_string(),
-        };
+    .on_page_load(|window, payload| {
+      if payload.event() == PageLoadEvent::Finished {
+        let window_ = window.clone();
+        window.listen("js-event", move |event| {
+          println!("got js-event with message '{:?}'", event.payload());
+          let reply = Reply {
+            data: "something else".to_string(),
+          };
 
-        window_
-          .emit("rust-event", Some(reply))
-          .expect("failed to emit");
-      });
+          window_
+            .emit("rust-event", Some(reply))
+            .expect("failed to emit");
+        });
+      }
     });
 
   #[allow(unused_mut)]

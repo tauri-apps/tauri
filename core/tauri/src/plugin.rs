@@ -5,11 +5,12 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  app::{PageLoadPayload, UriSchemeResponder},
+  app::UriSchemeResponder,
   error::Error,
   ipc::{Invoke, InvokeHandler},
   manager::UriSchemeProtocol,
   utils::config::PluginConfig,
+  window::PageLoadPayload,
   AppHandle, RunEvent, Runtime, Window,
 };
 use serde::de::DeserializeOwned;
@@ -62,7 +63,7 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Callback invoked when the webview performs a navigation to a page.
   #[allow(unused_variables)]
-  fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {}
+  fn on_page_load(&mut self, window: &Window<R>, payload: &PageLoadPayload<'_>) {}
 
   /// Callback invoked when the event loop receives a new event.
   #[allow(unused_variables)]
@@ -80,7 +81,7 @@ type SetupHook<R, C> =
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
 type OnNavigation<R> = dyn Fn(&Window<R>, &Url) -> bool + Send;
-type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
+type OnPageLoad<R> = dyn FnMut(&Window<R>, &PageLoadPayload<'_>) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
 /// A handle to a plugin.
@@ -368,7 +369,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
   ///     .on_page_load(|window, payload| {
-  ///       println!("Loaded URL {} in window {}", payload.url(), window.label());
+  ///       println!("{:?} URL {} in window {}", payload.event(), payload.url(), window.label());
   ///     })
   ///     .build()
   /// }
@@ -376,7 +377,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: FnMut(Window<R>, PageLoadPayload) + Send + 'static,
+    F: FnMut(&Window<R>, &PageLoadPayload<'_>) + Send + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
     self
@@ -652,7 +653,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     (self.on_navigation)(window, url)
   }
 
-  fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
+  fn on_page_load(&mut self, window: &Window<R>, payload: &PageLoadPayload<'_>) {
     (self.on_page_load)(window, payload)
   }
 
@@ -750,11 +751,11 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Runs the on_page_load hook for all plugins in the store.
-  pub(crate) fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
+  pub(crate) fn on_page_load(&mut self, window: &Window<R>, payload: &PageLoadPayload<'_>) {
     self
       .store
       .iter_mut()
-      .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
+      .for_each(|plugin| plugin.on_page_load(window, payload))
   }
 
   /// Runs the on_event hook for all plugins in the store.

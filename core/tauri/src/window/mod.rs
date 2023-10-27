@@ -7,6 +7,7 @@
 pub(crate) mod plugin;
 
 use http::HeaderMap;
+pub use tauri_runtime::window::PageLoadEvent;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -65,10 +66,30 @@ pub(crate) type WebResourceRequestHandler =
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
+pub(crate) type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
   label: String,
+}
+
+/// The payload for the [`WindowBuilder::on_page_load`] hook.
+#[derive(Debug, Clone)]
+pub struct PageLoadPayload<'a> {
+  pub(crate) url: &'a Url,
+  pub(crate) event: PageLoadEvent,
+}
+
+impl<'a> PageLoadPayload<'a> {
+  /// The page URL.
+  pub fn url(&self) -> &'a Url {
+    self.url
+  }
+
+  /// The page load event.
+  pub fn event(&self) -> PageLoadEvent {
+    self.event
+  }
 }
 
 /// Monitor descriptor.
@@ -128,6 +149,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
+  on_page_load_handler: Option<Box<OnPageLoad<R>>>,
   #[cfg(desktop)]
   on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
 }
@@ -206,6 +228,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      on_page_load_handler: None,
       #[cfg(desktop)]
       on_menu_event: None,
     }
@@ -250,6 +273,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       navigation_handler: None,
       #[cfg(desktop)]
       on_menu_event: None,
+      on_page_load_handler: None,
     };
 
     builder
@@ -329,6 +353,44 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Defines a closure to be executed when a page load event is triggered.
+  /// The event can be either [`PageLoadEvent::Started`] if the page has started loading
+  /// or [`PageLoadEvent::Finished`] when the page finishes loading.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   window::{PageLoadEvent, WindowBuilder},
+  /// };
+  /// use http::header::HeaderValue;
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
+  ///       .on_page_load(|window, payload| {
+  ///         match payload.event() {
+  ///           PageLoadEvent::Started => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///           PageLoadEvent::Finished => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///         }
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_page_load<F: Fn(Window<R>, PageLoadPayload<'_>) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.on_page_load_handler.replace(Box::new(f));
+    self
+  }
+
   /// Registers a global menu event listener.
   ///
   /// Note that this handler is called for any menu event,
@@ -380,6 +442,18 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     )?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
+
+    if let Some(on_page_load_handler) = self.on_page_load_handler.take() {
+      let label = pending.label.clone();
+      let manager = self.app_handle.manager.clone();
+      pending
+        .on_page_load_handler
+        .replace(Box::new(move |url, event| {
+          if let Some(w) = manager.get_window(&label) {
+            on_page_load_handler(w, PageLoadPayload { url: &url, event });
+          }
+        }));
+    }
 
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
     let pending = self
@@ -2155,109 +2229,98 @@ impl<R: Runtime> Window<R> {
       request.error,
     );
 
-    match request.cmd.as_str() {
-      "__initialized" => match request.body.deserialize() {
-        Ok(payload) => {
-          manager.run_on_page_load(self, payload);
-          resolver.resolve(());
-        }
-        Err(e) => resolver.reject(e.to_string()),
-      },
-      _ => {
-        #[cfg(mobile)]
-        let app_handle = self.app_handle.clone();
+    #[cfg(mobile)]
+    let app_handle = self.app_handle.clone();
 
-        let message = InvokeMessage::new(
-          self,
-          manager.state(),
-          request.cmd.to_string(),
-          request.body,
-          request.headers,
-        );
+    let message = InvokeMessage::new(
+      self,
+      manager.state(),
+      request.cmd.to_string(),
+      request.body,
+      request.headers,
+    );
 
-        let mut invoke = Invoke {
-          message,
-          resolver: resolver.clone(),
-        };
+    let mut invoke = Invoke {
+      message,
+      resolver: resolver.clone(),
+    };
 
-        if !is_local && scope.is_none() {
-          invoke.resolver.reject(scope_not_found_error_message);
-        } else if request.cmd.starts_with("plugin:") {
-          let command = invoke.message.command.replace("plugin:", "");
-          let mut tokens = command.split('|');
-          // safe to unwrap: split always has a least one item
-          let plugin = tokens.next().unwrap();
-          invoke.message.command = tokens
-            .next()
-            .map(|c| c.to_string())
-            .unwrap_or_else(String::new);
+    if !is_local && scope.is_none() {
+      invoke.resolver.reject(scope_not_found_error_message);
+    } else if request.cmd.starts_with("plugin:") {
+      let command = invoke.message.command.replace("plugin:", "");
+      let mut tokens = command.split('|');
+      // safe to unwrap: split always has a least one item
+      let plugin = tokens.next().unwrap();
+      invoke.message.command = tokens
+        .next()
+        .map(|c| c.to_string())
+        .unwrap_or_else(String::new);
 
-          if !(is_local
-            || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
-            || scope
-              .map(|s| s.plugins().contains(&plugin.into()))
-              .unwrap_or(true))
-          {
-            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-            return;
-          }
+      if !(is_local
+        || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
+        || scope
+          .map(|s| s.plugins().contains(&plugin.into()))
+          .unwrap_or(true))
+      {
+        invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+        return;
+      }
 
-          let command = invoke.message.command.clone();
+      let command = invoke.message.command.clone();
 
-          #[cfg(mobile)]
-          let message = invoke.message.clone();
+      #[cfg(mobile)]
+      let message = invoke.message.clone();
 
-          #[allow(unused_mut)]
-          let mut handled = manager.extend_api(plugin, invoke);
+      #[allow(unused_mut)]
+      let mut handled = manager.extend_api(plugin, invoke);
 
-          #[cfg(mobile)]
-          {
-            if !handled {
-              handled = true;
+      #[cfg(mobile)]
+      {
+        if !handled {
+          handled = true;
 
-              fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
-                if let serde_json::Value::Object(map) = payload {
-                  for v in map.values() {
-                    if let serde_json::Value::String(s) = v {
-                      if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
-                        crate::ipc::Channel::load_from_ipc(window.clone(), s);
-                      }
-                    }
+          fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
+            if let serde_json::Value::Object(map) = payload {
+              for v in map.values() {
+                if let serde_json::Value::String(s) = v {
+                  if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
+                    crate::ipc::Channel::load_from_ipc(window.clone(), s);
                   }
                 }
-              }
-
-              let payload = message.payload.into_json();
-              // initialize channels
-              load_channels(&payload, &message.window);
-
-              let resolver_ = resolver.clone();
-              if let Err(e) = crate::plugin::mobile::run_command(
-                plugin,
-                &app_handle,
-                message.command,
-                payload,
-                move |response| match response {
-                  Ok(r) => resolver_.resolve(r),
-                  Err(e) => resolver_.reject(e),
-                },
-              ) {
-                resolver.reject(e.to_string());
-                return;
               }
             }
           }
 
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
-          }
-        } else {
-          let command = invoke.message.command.clone();
-          let handled = manager.run_invoke_handler(invoke);
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
+          let payload = message.payload.into_json();
+          // initialize channels
+          load_channels(&payload, &message.window);
+
+          let resolver_ = resolver.clone();
+          if let Err(e) = crate::plugin::mobile::run_command(
+            plugin,
+            &app_handle,
+            message.command,
+            payload,
+            move |response| match response {
+              Ok(r) => resolver_.resolve(r),
+              Err(e) => resolver_.reject(e),
+            },
+          ) {
+            resolver.reject(e.to_string());
+            return;
           }
         }
+      }
+
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
+      }
+    } else {
+      let command = invoke.message.command.clone();
+      let handled = manager.run_invoke_handler(invoke);
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
       }
     }
   }

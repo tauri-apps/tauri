@@ -342,7 +342,7 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
   /// Name of the window
   pub label: String,
 
-  /// The [`Dispatch`](crate::Dispatch) associated with the window.
+  /// The [`Dispatch`] associated with the window.
   pub dispatcher: R::Dispatcher,
 }
 

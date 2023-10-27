@@ -20,7 +20,7 @@ use crate::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
   },
-  manager::WindowManager,
+  manager::AppManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     webview::{WebviewAttributes, WindowBuilder as _},
@@ -118,7 +118,7 @@ impl Monitor {
 /// A builder for a webview window managed by Tauri.
 #[default_runtime(crate::Wry, wry)]
 pub struct WindowBuilder<'a, R: Runtime> {
-  manager: WindowManager<R>,
+  manager: AppManager<R>,
   runtime: RuntimeOrDispatch<'a, R>,
   app_handle: AppHandle<R>,
   label: String,
@@ -381,9 +381,10 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
-    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
+    let labels = self.manager.window.labels().into_iter().collect::<Vec<_>>();
     let pending = self
       .manager
+      .window
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
 
     #[cfg(desktop)]
@@ -398,6 +399,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     #[cfg(desktop)]
     let handler = self
       .manager
+      .window
       .prepare_window_menu_creation_handler(window_menu.as_ref());
     #[cfg(not(desktop))]
     #[allow(clippy::type_complexity)]
@@ -410,7 +412,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
     }
     .map(|window| {
-      self.manager.attach_window(
+      self.manager.window.attach_window(
         self.app_handle.clone(),
         window,
         #[cfg(desktop)]
@@ -426,9 +428,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     if let Some(effects) = window_effects {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
-    self.manager.eval_script_all(format!(
+    self.manager.window.eval_script_all(format!(
       "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&self.manager.labels())?,
+      window_labels_array = serde_json::to_string(&self.manager.window.labels())?,
     ))?;
 
     self.manager.emit_filter(
@@ -902,7 +904,7 @@ pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
-  pub(crate) manager: WindowManager<R>,
+  pub(crate) manager: AppManager<R>,
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<EventId>>>>,
   // The menu set for this window
@@ -983,7 +985,7 @@ impl<R: Runtime> Manager<R> for Window<R> {
   }
 }
 impl<R: Runtime> ManagerBase<R> for Window<R> {
-  fn manager(&self) -> &WindowManager<R> {
+  fn manager(&self) -> &AppManager<R> {
     &self.manager
   }
 
@@ -1088,7 +1090,7 @@ impl PlatformWebview {
 impl<R: Runtime> Window<R> {
   /// Create a new window that is attached to the manager.
   pub(crate) fn new(
-    manager: WindowManager<R>,
+    manager: AppManager<R>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
     #[cfg(desktop)] menu: Option<WindowMenu<R>>,
@@ -1249,8 +1251,8 @@ impl<R: Runtime> Window<R> {
   ) {
     self
       .manager
-      .inner
-      .window_menu_event_listeners
+      .window
+      .menu_event_listeners
       .lock()
       .unwrap()
       .insert(self.label().to_string(), Box::new(f));
@@ -1293,7 +1295,7 @@ impl<R: Runtime> Window<R> {
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
 
-    self.manager.insert_menu_into_stash(&menu);
+    self.manager.window.insert_menu_into_stash(&menu);
 
     let window = self.clone();
     let menu_ = menu.clone();
@@ -1359,6 +1361,7 @@ impl<R: Runtime> Window<R> {
 
     self
       .manager
+      .window
       .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
 
     Ok(prev_menu)
@@ -2136,7 +2139,7 @@ impl<R: Runtime> Window<R> {
       }
     };
 
-    let custom_responder = self.manager.invoke_responder();
+    let custom_responder = self.manager.window.invoke_responder.clone();
 
     let resolver = InvokeResolver::new(
       self.clone(),

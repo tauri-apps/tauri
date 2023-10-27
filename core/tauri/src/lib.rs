@@ -794,7 +794,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   {
     self
       .manager()
-      .inner
       .state
       .try_get()
       .expect("state() called before manage() for given type")
@@ -807,7 +806,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().inner.state.try_get()
+    self.manager().state.try_get()
   }
 
   /// Gets the managed [`Env`].
@@ -835,7 +834,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
   use super::Runtime;
-  use crate::{app::AppHandle, manager::WindowManager};
+  use crate::{app::AppHandle, manager::AppManager};
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, R: Runtime> {
@@ -852,7 +851,7 @@ pub(crate) mod sealed {
   /// Managed handle to the application runtime.
   pub trait ManagerBase<R: Runtime> {
     /// The manager behind the [`Managed`] item.
-    fn manager(&self) -> &WindowManager<R>;
+    fn manager(&self) -> &AppManager<R>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
     fn managed_app_handle(&self) -> &AppHandle<R>;
   }

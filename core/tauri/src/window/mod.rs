@@ -73,7 +73,7 @@ struct WindowCreatedEvent {
   label: String,
 }
 
-/// The payload for the [`OnPageLoad`] hook.
+/// The payload for the [`WindowBuilder::on_page_load`] hook.
 #[derive(Debug, Clone)]
 pub struct PageLoadPayload<'a> {
   pub(crate) url: &'a Url,
@@ -353,14 +353,16 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Defines a closure to be executed when the webview navigates to a URL. Returning `false` cancels the navigation.
+  /// Defines a closure to be executed when a page load event is triggered.
+  /// The event can be either [`PageLoadEvent::Started`] if the page has started loading
+  /// or [`PageLoadEvent::Finished`] when the page finishes loading.
   ///
   /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::{
   ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
-  ///   window::WindowBuilder,
+  ///   window::{PageLoadEvent, WindowBuilder},
   /// };
   /// use http::header::HeaderValue;
   /// use std::collections::HashMap;
@@ -368,7 +370,14 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///   .setup(|app| {
   ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
   ///       .on_page_load(|window, payload| {
-  ///         println!("{:?} {}", payload.event(), payload.url());
+  ///         match payload.event() {
+  ///           PageLoadEvent::Started => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///           PageLoadEvent::Finished => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///         }
   ///       })
   ///       .build()?;
   ///     Ok(())

@@ -1198,7 +1198,7 @@
           }
         },
         "name": {
-          "description": "The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]",
+          "description": "The name. Maps to `CFBundleTypeName` on macOS. Default to `ext[0]`",
           "type": [
             "string",
             "null"

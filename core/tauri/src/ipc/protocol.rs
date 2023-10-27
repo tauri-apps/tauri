@@ -184,7 +184,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
         options: Option<RequestOptions>,
       }
 
-      if let crate::Pattern::Isolation { crypto_keys, .. } = &manager.pattern {
+      if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
         invoke_message.replace(
           serde_json::from_str::<IsolationMessage<'_>>(&message)
             .map_err(Into::into)

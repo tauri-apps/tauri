@@ -3499,8 +3499,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-cli"
-version = "0.0.0"
-source = "git+https://github.com/tauri-apps/plugins-workspace?branch=next#4a10f218f0e1fdd66a549dc0bf16be3efb17ea49"
+version = "2.0.0-alpha.3"
+source = "git+https://github.com/tauri-apps/plugins-workspace?branch=v2#76cfdc32b4593acfdfed95bf3028cdba0d83fe61"
 dependencies = [
  "clap",
  "log",

@@ -299,7 +299,7 @@ fn parse_invoke_request<R: Runtime>(
 
   // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
   #[cfg(all(feature = "isolation", ipc_custom_protocol))]
-  if let crate::Pattern::Isolation { crypto_keys, .. } = &manager.pattern {
+  if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
     body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
       .and_then(|raw| crypto_keys.decrypt(raw))
       .map_err(|e| e.to_string())?;

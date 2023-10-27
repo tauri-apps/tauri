@@ -100,7 +100,7 @@ fn set_csp<R: Runtime>(
   }
 
   #[cfg(feature = "isolation")]
-  if let Pattern::Isolation { schema, .. } = &manager.pattern {
+  if let Pattern::Isolation { schema, .. } = &*manager.pattern {
     let default_src = csp
       .entry("default-src".into())
       .or_insert_with(Default::default);
@@ -185,12 +185,12 @@ pub struct AppManager<R: Runtime> {
   pub config: Arc<Config>,
   pub assets: Arc<dyn Assets>,
 
-  pub app_icon: Option<Vec<u8>>,
+  pub app_icon: Option<Arc<Vec<u8>>>,
 
-  pub package_info: PackageInfo,
+  pub package_info: Arc<PackageInfo>,
 
   /// Application pattern.
-  pub pattern: Pattern,
+  pub pattern: Arc<Pattern>,
 }
 
 impl<R: Runtime> Clone for AppManager<R> {
@@ -284,9 +284,9 @@ impl<R: Runtime> AppManager<R> {
       state: Arc::new(state),
       config: Arc::new(context.config),
       assets: context.assets,
-      app_icon: context.app_icon,
-      package_info: context.package_info,
-      pattern: context.pattern,
+      app_icon: context.app_icon.map(Arc::new),
+      package_info: Arc::new(context.package_info),
+      pattern: Arc::new(context.pattern),
     }
   }
 

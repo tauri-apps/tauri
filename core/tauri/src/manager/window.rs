@@ -241,14 +241,14 @@ impl<R: Runtime> WindowManager<R> {
       .initialization_script();
 
     let pattern_init = PatternJavascript {
-      pattern: (&app_handle.manager.pattern).into(),
+      pattern: (&*app_handle.manager.pattern).into(),
     }
     .render_default(&Default::default())?;
 
     let mut webview_attributes = pending.webview_attributes;
 
     let ipc_init = IpcJavascript {
-      isolation_origin: &match &app_handle.manager.pattern {
+      isolation_origin: &match &*app_handle.manager.pattern {
         #[cfg(feature = "isolation")]
         crate::Pattern::Isolation { schema, .. } => crate::pattern::format_real_schema(schema),
         _ => "".to_string(),
@@ -295,7 +295,7 @@ impl<R: Runtime> WindowManager<R> {
       )?);
 
     #[cfg(feature = "isolation")]
-    if let crate::Pattern::Isolation { schema, .. } = &app_handle.manager.pattern {
+    if let crate::Pattern::Isolation { schema, .. } = &*app_handle.manager.pattern {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
           isolation_src: &crate::pattern::format_real_schema(schema),
@@ -405,7 +405,7 @@ impl<R: Runtime> WindowManager<R> {
       schema,
       key: _,
       crypto_keys,
-    } = &app_handle.manager.pattern
+    } = &*app_handle.manager.pattern
     {
       let protocol = crate::protocol::isolation::get(assets.clone(), *crypto_keys.aes_gcm().raw());
       pending.register_uri_scheme_protocol(schema, move |request, responder| {
@@ -625,7 +625,7 @@ impl<R: Runtime> WindowManager<R> {
     pending.navigation_handler = Some(Box::new(move |url| {
       // always allow navigation events for the isolation iframe and do not emit them for consumers
       #[cfg(feature = "isolation")]
-      if let crate::Pattern::Isolation { schema, .. } = &pattern {
+      if let crate::Pattern::Isolation { schema, .. } = &*pattern {
         if url.scheme() == schema
           && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
         {

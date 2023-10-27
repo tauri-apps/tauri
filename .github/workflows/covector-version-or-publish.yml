@@ -22,10 +22,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
+
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -39,10 +39,7 @@ jobs:
             tooling/cli
 
       - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo build --manifest-path ./tooling/cli/Cargo.toml
 
       - name: run integration tests
         run: cargo test --test '*' -- --ignored

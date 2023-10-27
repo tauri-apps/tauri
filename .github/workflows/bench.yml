@@ -36,14 +36,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: install ${{ matrix.rust }}
-        uses: actions-rs/toolchain@v1
+
+      - name: install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          override: true
-          default: true
           components: rust-src
-          target: ${{ matrix.platform.target }}
+          targets: ${{ matrix.platform.target }}
 
       - name: setup python
         uses: actions/setup-python@v4

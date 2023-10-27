@@ -25,6 +25,7 @@ use crate::{
   app::{GlobalWindowEventListener, OnPageLoad, UriSchemeResponder},
   ipc::{InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
+  window::PageLoadPayload,
   AppHandle, EventLoopMessage, GlobalWindowEvent, Icon, Manager, Runtime, Scopes, Window,
   WindowEvent,
 };
@@ -79,7 +80,7 @@ pub struct WindowManager<R: Runtime> {
   /// The JS message handler.
   pub invoke_handler: Box<InvokeHandler<R>>,
   /// The page load hook, invoked when the webview performs a navigation.
-  pub on_page_load: Box<OnPageLoad<R>>,
+  pub on_page_load: Option<Arc<OnPageLoad<R>>>,
   pub default_icon: Option<Icon>,
   /// The webview protocols available to all windows.
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
@@ -164,7 +165,7 @@ impl<R: Runtime> WindowManager<R> {
       let menu = menu.menu.clone();
       Some(move |raw: tauri_runtime::window::RawWindow<'_>| {
         #[cfg(target_os = "windows")]
-        let _ = menu().init_for_hwnd(raw.hwnd as _);
+        let _ = menu.inner().init_for_hwnd(raw.hwnd as _);
         #[cfg(any(
           target_os = "linux",
           target_os = "dragonfly",
@@ -172,7 +173,9 @@ impl<R: Runtime> WindowManager<R> {
           target_os = "netbsd",
           target_os = "openbsd"
         ))]
-        let _ = menu().init_for_gtk_window(raw.gtk_window, raw.default_vbox);
+        let _ = menu
+          .inner()
+          .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
       })
     } else {
       None
@@ -356,6 +359,27 @@ impl<R: Runtime> WindowManager<R> {
       });
       registered_scheme_protocols.push("ipc".into());
     }
+
+    let label = pending.label.clone();
+    let manager = app_handle.manager.clone();
+    let on_page_load_handler = pending.on_page_load_handler.take();
+    pending
+      .on_page_load_handler
+      .replace(Box::new(move |url, event| {
+        let payload = PageLoadPayload { url: &url, event };
+
+        if let Some(w) = manager.get_window(&label) {
+          if let Some(on_page_load) = &manager.window.on_page_load {
+            on_page_load(&w, &payload);
+          }
+
+          manager.plugins.lock().unwrap().on_page_load(&w, &payload);
+        }
+
+        if let Some(handler) = &on_page_load_handler {
+          handler(url, event);
+        }
+      }));
 
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
@@ -574,8 +598,8 @@ impl<R: Runtime> WindowManager<R> {
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
       let local_app_data = app_handle.path().resolve(
-        &self.config.tauri.bundle.identifier,
-        BaseDirectory::LocalData,
+        &app_handle.manager.config.tauri.bundle.identifier,
+        crate::path::BaseDirectory::LocalData,
       );
       if let Ok(user_data_dir) = local_app_data {
         pending.webview_attributes.data_directory = Some(user_data_dir);

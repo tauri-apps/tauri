@@ -22,7 +22,7 @@ use tauri_utils::{
 
 use crate::event::EmitArgs;
 use crate::{
-  app::{AppHandle, GlobalWindowEventListener, OnPageLoad, PageLoadPayload},
+  app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
   event::{assert_event_name_is_valid, Event, EventId, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   plugin::PluginStore,
@@ -33,9 +33,6 @@ use crate::{
   },
   Context, Pattern, Runtime, StateManager, Window,
 };
-
-#[cfg(any(target_os = "linux", target_os = "windows"))]
-use crate::path::BaseDirectory;
 
 #[cfg(all(desktop, feature = "tray-icon"))]
 pub mod tray;
@@ -241,7 +238,7 @@ impl<R: Runtime> AppManager<R> {
     #[allow(unused_mut)] mut context: Context<impl Assets>,
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
-    on_page_load: Box<OnPageLoad<R>>,
+    on_page_load: Option<Arc<OnPageLoad<R>>>,
     uri_scheme_protocols: HashMap<String, Arc<window::UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
@@ -277,7 +274,7 @@ impl<R: Runtime> AppManager<R> {
         invoke_initialization_script,
       }),
       #[cfg(all(desktop, feature = "tray-icon"))]
-      tray: Arc::new(TrayManager {
+      tray: Arc::new(tray::TrayManager {
         icon: context.tray_icon,
         icons: Default::default(),
         global_event_listeners: Default::default(),
@@ -434,15 +431,6 @@ impl<R: Runtime> AppManager<R> {
 
   pub fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
     (self.window.invoke_handler)(invoke)
-  }
-
-  pub fn run_on_page_load(&self, window: Window<R>, payload: PageLoadPayload) {
-    (self.window.on_page_load)(window.clone(), payload.clone());
-    self
-      .plugins
-      .lock()
-      .expect("poisoned plugin store")
-      .on_page_load(window, payload);
   }
 
   pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
@@ -619,7 +607,7 @@ mod test {
       context,
       PluginStore::default(),
       Box::new(|_| false),
-      Box::new(|_, _| ()),
+      None,
       Default::default(),
       StateManager::new(),
       Default::default(),

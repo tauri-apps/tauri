@@ -19,6 +19,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
+  window::PageLoadPayload,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
   StateManager, Theme, Window,
 };
@@ -30,7 +31,6 @@ use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 #[cfg(desktop)]
 use crate::window::WindowMenu;
 use raw_window_handle::HasRawDisplayHandle;
-use serde::Deserialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
 #[cfg(desktop)]
@@ -68,20 +68,7 @@ pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) 
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 /// A closure that is run once every time a window is created and loaded.
-pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
-
-/// The payload for the [`OnPageLoad`] hook.
-#[derive(Debug, Clone, Deserialize)]
-pub struct PageLoadPayload {
-  url: String,
-}
-
-impl PageLoadPayload {
-  /// The page URL.
-  pub fn url(&self) -> &str {
-    &self.url
-  }
-}
+pub type OnPageLoad<R> = dyn Fn(&Window<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -718,7 +705,7 @@ macro_rules! shared_app_impl {
       pub fn hide_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
         {
-          let is_app_menu_set = self.manager.menu_lock().is_some();
+          let is_app_menu_set = self.manager.window.menu_lock().is_some();
           if is_app_menu_set {
             for window in self.manager.windows().values() {
               if window.has_app_wide_menu() {
@@ -739,7 +726,7 @@ macro_rules! shared_app_impl {
       pub fn show_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
         {
-          let is_app_menu_set = self.manager.menu_lock().is_some();
+          let is_app_menu_set = self.manager.window.menu_lock().is_some();
           if is_app_menu_set {
             for window in self.manager.windows().values() {
               if window.has_app_wide_menu() {
@@ -964,7 +951,7 @@ pub struct Builder<R: Runtime> {
   setup: SetupHook<R>,
 
   /// Page load hook.
-  on_page_load: Box<OnPageLoad<R>>,
+  on_page_load: Option<Arc<OnPageLoad<R>>>,
 
   /// windows to create when starting up.
   pending_windows: Vec<PendingWindow<EventLoopMessage, R>>,
@@ -1022,7 +1009,7 @@ impl<R: Runtime> Builder<R> {
       .render_default(&Default::default())
       .unwrap()
       .into_string(),
-      on_page_load: Box::new(|_, _| ()),
+      on_page_load: None,
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
@@ -1112,9 +1099,9 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static,
+    F: Fn(&Window<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
-    self.on_page_load = Box::new(on_page_load);
+    self.on_page_load.replace(Arc::new(on_page_load));
     self
   }
 

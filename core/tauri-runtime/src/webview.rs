@@ -230,7 +230,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
   )]
   #[must_use]

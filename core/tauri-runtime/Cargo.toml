@@ -14,7 +14,8 @@ rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [ "--cfg", "doc_cfg" ]
+rustc-args = [ "--cfg", "docsrs" ]
+rustdoc-args = [ "--cfg", "docsrs" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",

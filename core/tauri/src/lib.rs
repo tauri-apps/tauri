@@ -48,7 +48,7 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
 #![warn(missing_docs, rust_2018_idioms)]
-#![cfg_attr(doc_cfg, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 /// Setups the binding that initializes an iOS plugin.
 #[cfg(target_os = "ios")]
@@ -97,7 +97,7 @@ pub mod scope;
 mod state;
 
 #[cfg(all(desktop, feature = "tray-icon"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+#[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
 pub mod tray;
 pub use tauri_utils as utils;
 
@@ -105,11 +105,11 @@ pub use http;
 
 /// A Tauri [`Runtime`] wrapper around wry.
 #[cfg(feature = "wry")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 
 #[cfg(all(feature = "wry", target_os = "android"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", target_os = "android"))))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
 #[doc(hidden)]
 #[macro_export]
 macro_rules! android_binding {
@@ -168,11 +168,11 @@ use std::{
 };
 
 #[cfg(feature = "wry")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub use tauri_runtime_wry::webview_version;
 
 #[cfg(target_os = "macos")]
-#[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+#[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
 pub use runtime::ActivationPolicy;
 
 #[cfg(target_os = "macos")]
@@ -251,7 +251,7 @@ pub enum EventLoopMessage {
   MenuEvent(menu::MenuEvent),
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
   #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   TrayIconEvent(tray::TrayIconEvent),
 }
 
@@ -302,11 +302,11 @@ pub use pattern::Pattern;
 pub enum Icon {
   /// Icon from file path.
   #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
   File(std::path::PathBuf),
   /// Icon from raw RGBA bytes. Width and height is parsed at runtime.
   #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
   Raw(Vec<u8>),
   /// Icon from raw RGBA bytes.
   Rgba {
@@ -454,7 +454,7 @@ impl<A: Assets> Context<A> {
 
   /// The icon to use on the system tray UI.
   #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
   pub fn tray_icon(&self) -> Option<&Icon> {
     self.tray_icon.as_ref()
@@ -462,7 +462,7 @@ impl<A: Assets> Context<A> {
 
   /// A mutable reference to the icon to use on the tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
   pub fn tray_icon_mut(&mut self) -> &mut Option<Icon> {
     &mut self.tray_icon
@@ -513,7 +513,7 @@ impl<A: Assets> Context<A> {
 
   /// Sets the app tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
   pub fn set_tray_icon(&mut self, icon: Icon) {
     self.tray_icon.replace(icon);
@@ -859,7 +859,7 @@ pub(crate) mod sealed {
 }
 
 #[cfg(any(test, feature = "test"))]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "test")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "test")))]
 pub mod test;
 
 #[cfg(test)]

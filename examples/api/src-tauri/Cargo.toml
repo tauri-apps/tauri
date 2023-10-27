@@ -21,13 +21,9 @@ log = "0.4"
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "next" }
+tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
 
 [patch.crates-io]
-tauri = { path = "../../../core/tauri" }
-tauri-build = { path = "../../../core/tauri-build" }
-
-[patch.'https://github.com/tauri-apps/tauri']
 tauri = { path = "../../../core/tauri" }
 tauri-build = { path = "../../../core/tauri-build" }
 

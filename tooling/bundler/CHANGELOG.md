@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-alpha.11]
+
+### Enhancements
+
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+- [`cfe6fa6c`](https://www.github.com/tauri-apps/tauri/commit/cfe6fa6c91a8cc177d4665ba04dad32ba545159d)([#8061](https://www.github.com/tauri-apps/tauri/pull/8061)) Added German language support to the NSIS bundler.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.10`
+
 ## \[2.0.0-alpha.10]
 
 ### New Features

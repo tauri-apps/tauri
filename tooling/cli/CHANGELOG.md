@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.0.0-alpha.17]
+
+### Enhancements
+
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.0-alpha.11`
+- Upgraded to `tauri-utils@2.0.0-alpha.10`
+
+### Breaking Changes
+
+- [`198abe3c`](https://www.github.com/tauri-apps/tauri/commit/198abe3c2cae06dacab860b3a93f715dcf529a95)([#8076](https://www.github.com/tauri-apps/tauri/pull/8076)) Updated the mobile plugin templates following the tauri v2.0.0-alpha.17 changes.
+
 ## \[2.0.0-alpha.16]
 
 ### New Features

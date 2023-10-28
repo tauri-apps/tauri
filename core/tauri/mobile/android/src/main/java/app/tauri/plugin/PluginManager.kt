@@ -6,6 +6,7 @@ package app.tauri.plugin
 
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
@@ -71,6 +72,11 @@ class PluginManager(val activity: AppCompatActivity) {
     }
   }
 
+  fun onCreate(savedInstanceState: Bundle?) {
+    for (plugin in plugins.values) {
+      plugin.instance.onCreate(savedInstanceState)
+    }
+  }
 
   fun onPause() {
     for (plugin in plugins.values) {

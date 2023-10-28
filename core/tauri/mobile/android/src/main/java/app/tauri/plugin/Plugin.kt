@@ -8,6 +8,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Bundle
 import android.webkit.WebView
 import androidx.core.app.ActivityCompat
 import app.tauri.FsUtils
@@ -59,7 +60,13 @@ abstract class Plugin(private val activity: Activity) {
    */
   open fun onNewIntent(intent: Intent) {}
 
-    /**
+
+  /**
+   * Called when the activity is starting.
+   */
+  open fun onCreate(savedInstanceState: Bundle?) {}
+
+  /**
    * This event is called just before another activity comes into the foreground.
    */
   open fun onPause() {}

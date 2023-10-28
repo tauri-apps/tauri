@@ -8,6 +8,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Bundle
 import android.webkit.WebView
 import androidx.core.app.ActivityCompat
 import app.tauri.FsUtils
@@ -58,6 +59,17 @@ abstract class Plugin(private val activity: Activity) {
    * Handle a new intent being received by the application
    */
   open fun onNewIntent(intent: Intent) {}
+
+
+  /**
+   * This event is called just before another activity comes into the foreground.
+   */
+  open fun onPause() {}
+
+  /**
+   * This event is called when the user returns to the activity. It is also called on cold starts.
+   */
+  open fun onResume() {}
 
   /**
    * Start activity for result with the provided Intent and resolve calling the provided callback method name.

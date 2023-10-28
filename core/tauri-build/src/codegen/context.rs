@@ -14,7 +14,7 @@ use tauri_utils::config::{AppUrl, WindowUrl};
 
 // TODO docs
 /// A builder for generating a Tauri application context during compile time.
-#[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 #[derive(Debug)]
 pub struct CodegenContext {
   dev: bool,

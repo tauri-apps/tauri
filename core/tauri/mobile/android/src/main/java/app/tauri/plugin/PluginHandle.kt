@@ -15,11 +15,10 @@ import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
+import com.fasterxml.jackson.databind.ObjectMapper
 import java.lang.reflect.Method
-import java.util.Arrays
 
-
-class PluginHandle(private val manager: PluginManager, val name: String, val instance: Plugin, val config: JSObject) {
+class PluginHandle(private val manager: PluginManager, val name: String, val instance: Plugin, val config: String, val jsonMapper: ObjectMapper) {
   private val commands: HashMap<String, CommandData> = HashMap()
   private val permissionCallbackMethods: HashMap<String, Method> = HashMap()
   private val startActivityCallbackMethods: HashMap<String, Method> = HashMap()

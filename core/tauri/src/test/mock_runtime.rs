@@ -272,7 +272,7 @@ impl WindowBuilder for MockWindowBuilder {
 
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
   )]
   fn transparent(self, transparent: bool) -> Self {
@@ -777,15 +777,15 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn show(&self) {}
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self) {}
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}

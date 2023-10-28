@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
   # core
   "core/tauri",
@@ -13,7 +14,6 @@ members = [
   # integration tests
   "core/tests/restart",
 ]
-resolver = "2"
 
 exclude = [
   # examples that can be compiled with the tauri CLI

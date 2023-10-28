@@ -19,6 +19,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
+  window::PageLoadPayload,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
   StateManager, Theme, Window,
 };
@@ -30,7 +31,6 @@ use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 #[cfg(desktop)]
 use crate::window::WindowMenu;
 use raw_window_handle::HasRawDisplayHandle;
-use serde::Deserialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
 #[cfg(desktop)]
@@ -68,20 +68,7 @@ pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) 
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 /// A closure that is run once every time a window is created and loaded.
-pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
-
-/// The payload for the [`OnPageLoad`] hook.
-#[derive(Debug, Clone, Deserialize)]
-pub struct PageLoadPayload {
-  url: String,
-}
-
-impl PageLoadPayload {
-  /// The page URL.
-  pub fn url(&self) -> &str {
-    &self.url
-  }
-}
+pub type OnPageLoad<R> = dyn Fn(&Window<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -206,18 +193,18 @@ pub enum RunEvent {
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", feature = "ios"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", feature = "ios"))))]
   Opened {
     /// The URL of the resources that is being open.
     urls: Vec<url::Url>,
   },
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
   #[cfg(desktop)]
-  #[cfg_attr(doc_cfg, doc(cfg(desktop)))]
+  #[cfg_attr(docsrs, doc(cfg(desktop)))]
   MenuEvent(crate::menu::MenuEvent),
   /// An event from a tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   TrayIconEvent(crate::tray::TrayIconEvent),
 }
 
@@ -246,7 +233,7 @@ impl<R: Runtime> GlobalWindowEvent<R> {
     &self.event
   }
 
-  /// The window that the menu belongs to.
+  /// The window that the event belongs to.
   pub fn window(&self) -> &Window<R> {
     &self.window
   }
@@ -519,7 +506,7 @@ macro_rules! shared_app_impl {
 
       /// Registers a global tray icon menu event listener.
       #[cfg(all(desktop, feature = "tray-icon"))]
-      #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+      #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn on_tray_icon_event<F: Fn(&AppHandle<R>, TrayIconEvent) + Send + Sync + 'static>(
         &self,
         handler: F,
@@ -536,7 +523,7 @@ macro_rules! shared_app_impl {
       /// Gets the first tray icon registered,
       /// usually the one configured in the Tauri configuration file.
       #[cfg(all(desktop, feature = "tray-icon"))]
-      #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+      #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn tray(&self) -> Option<TrayIcon<R>> {
         self
           .manager
@@ -553,7 +540,7 @@ macro_rules! shared_app_impl {
       ///
       /// Note that dropping the returned icon, will cause the tray icon to disappear.
       #[cfg(all(desktop, feature = "tray-icon"))]
-      #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+      #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn remove_tray(&self) -> Option<TrayIcon<R>> {
         let mut tray_icons = self.manager.inner.tray_icons.lock().unwrap();
         if !tray_icons.is_empty() {
@@ -564,7 +551,7 @@ macro_rules! shared_app_impl {
 
       /// Gets a tray icon using the provided id.
       #[cfg(all(desktop, feature = "tray-icon"))]
-      #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+      #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
       where
         I: ?Sized,
@@ -585,7 +572,7 @@ macro_rules! shared_app_impl {
       ///
       /// Note that dropping the returned icon, will cause the tray icon to disappear.
       #[cfg(all(desktop, feature = "tray-icon"))]
-      #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+      #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn remove_tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
       where
         I: ?Sized,
@@ -837,7 +824,7 @@ impl<R: Runtime> App<R> {
   /// app.run(|_app_handle, _event| {});
   /// ```
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   pub fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     self
       .runtime
@@ -982,7 +969,7 @@ pub struct Builder<R: Runtime> {
   setup: SetupHook<R>,
 
   /// Page load hook.
-  on_page_load: Box<OnPageLoad<R>>,
+  on_page_load: Option<Arc<OnPageLoad<R>>>,
 
   /// windows to create when starting up.
   pending_windows: Vec<PendingWindow<EventLoopMessage, R>>,
@@ -1040,7 +1027,7 @@ impl<R: Runtime> Builder<R> {
       .render_default(&Default::default())
       .unwrap()
       .into_string(),
-      on_page_load: Box::new(|_, _| ()),
+      on_page_load: None,
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
@@ -1059,7 +1046,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// - **macOS:** on macOS the application *must* be executed on the main thread, so this function is not exposed.
   #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(windows, target_os = "linux"))))]
   #[must_use]
   pub fn any_thread(mut self) -> Self {
     self.runtime_any_thread = true;
@@ -1130,9 +1117,9 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static,
+    F: Fn(&Window<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
-    self.on_page_load = Box::new(on_page_load);
+    self.on_page_load.replace(Arc::new(on_page_load));
     self
   }
 
@@ -1189,7 +1176,7 @@ impl<R: Runtime> Builder<R> {
   /// refers to a different `T`.
   ///
   /// Managed state can be retrieved by any command handler via the
-  /// [`State`](crate::State) guard. In particular, if a value of type `T`
+  /// [`State`] guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
   /// Additionally, [`state`](crate::Manager#method.state) can be used to retrieve the value manually.
@@ -1393,6 +1380,11 @@ impl<R: Runtime> Builder<R> {
   /// Similar to [`Self::register_uri_scheme_protocol`] but with an asynchronous responder that allows you
   /// to process the request in a separate thread and respond asynchronously.
   ///
+  /// # Arguments
+  ///
+  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  ///
   /// # Examples
   /// ```
   /// tauri::Builder::default()
@@ -1485,6 +1477,7 @@ impl<R: Runtime> Builder<R> {
     for config in manager.config().tauri.windows.clone() {
       let label = config.label.clone();
       let webview_attributes = WebviewAttributes::from(&config);
+
       self.pending_windows.push(PendingWindow::with_config(
         config,
         webview_attributes,
@@ -1866,7 +1859,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
 
 /// Make `Wry` the default `Runtime` for `Builder`
 #[cfg(feature = "wry")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 impl Default for Builder<crate::Wry> {
   fn default() -> Self {
     Self::new()

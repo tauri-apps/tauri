@@ -2673,6 +2673,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   let is_window_transparent = window_builder.inner.window.transparent;
+  let focused = window_builder.inner.window.focused;
   let window = window_builder.inner.build(event_loop).unwrap();
 
   context.webview_id_map.insert(window.id(), window_id);
@@ -2708,6 +2709,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
+    .with_focused(focused)
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent)
@@ -2723,6 +2725,21 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .unwrap_or(true)
     });
   }
+
+  if let Some(page_load_handler) = pending.on_page_load_handler {
+    webview_builder = webview_builder.with_on_page_load_handler(move |event, url| {
+      let _ = Url::parse(&url).map(|url| {
+        page_load_handler(
+          url,
+          match event {
+            wry::webview::PageLoadEvent::Started => tauri_runtime::window::PageLoadEvent::Started,
+            wry::webview::PageLoadEvent::Finished => tauri_runtime::window::PageLoadEvent::Finished,
+          },
+        )
+      });
+    });
+  }
+
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }
@@ -2740,6 +2757,11 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         _ => wry::webview::Theme::Light,
       });
     }
+  }
+
+  #[cfg(windows)]
+  {
+    webview_builder = webview_builder.with_https_scheme(false);
   }
 
   if let Some(handler) = ipc_handler {

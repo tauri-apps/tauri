@@ -7,6 +7,7 @@
 pub(crate) mod plugin;
 
 use http::HeaderMap;
+pub use tauri_runtime::window::PageLoadEvent;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -15,7 +16,7 @@ use crate::TitleBarStyle;
 use crate::{
   app::{AppHandle, UriSchemeResponder},
   command::{CommandArg, CommandItem},
-  event::{Event, EventId},
+  event::{EmitArgs, Event, EventId},
   ipc::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
@@ -65,10 +66,30 @@ pub(crate) type WebResourceRequestHandler =
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
+pub(crate) type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
   label: String,
+}
+
+/// The payload for the [`WindowBuilder::on_page_load`] hook.
+#[derive(Debug, Clone)]
+pub struct PageLoadPayload<'a> {
+  pub(crate) url: &'a Url,
+  pub(crate) event: PageLoadEvent,
+}
+
+impl<'a> PageLoadPayload<'a> {
+  /// The page URL.
+  pub fn url(&self) -> &'a Url {
+    self.url
+  }
+
+  /// The page load event.
+  pub fn event(&self) -> PageLoadEvent {
+    self.event
+  }
 }
 
 /// Monitor descriptor.
@@ -128,6 +149,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
+  on_page_load_handler: Option<Box<OnPageLoad<R>>>,
   #[cfg(desktop)]
   on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
 }
@@ -206,6 +228,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      on_page_load_handler: None,
       #[cfg(desktop)]
       on_menu_event: None,
     }
@@ -250,6 +273,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       navigation_handler: None,
       #[cfg(desktop)]
       on_menu_event: None,
+      on_page_load_handler: None,
     };
 
     builder
@@ -329,6 +353,44 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Defines a closure to be executed when a page load event is triggered.
+  /// The event can be either [`PageLoadEvent::Started`] if the page has started loading
+  /// or [`PageLoadEvent::Finished`] when the page finishes loading.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   window::{PageLoadEvent, WindowBuilder},
+  /// };
+  /// use http::header::HeaderValue;
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
+  ///       .on_page_load(|window, payload| {
+  ///         match payload.event() {
+  ///           PageLoadEvent::Started => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///           PageLoadEvent::Finished => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///         }
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_page_load<F: Fn(Window<R>, PageLoadPayload<'_>) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.on_page_load_handler.replace(Box::new(f));
+    self
+  }
+
   /// Registers a global menu event listener.
   ///
   /// Note that this handler is called for any menu event,
@@ -380,6 +442,18 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     )?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
+
+    if let Some(on_page_load_handler) = self.on_page_load_handler.take() {
+      let label = pending.label.clone();
+      let manager = self.app_handle.manager.clone();
+      pending
+        .on_page_load_handler
+        .replace(Box::new(move |url, event| {
+          if let Some(w) = manager.get_window(&label) {
+            on_page_load_handler(w, PageLoadPayload { url: &url, event });
+          }
+        }));
+    }
 
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
     let pending = self
@@ -595,7 +669,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
   )]
   #[must_use]
@@ -956,6 +1030,11 @@ impl<R: Runtime> PartialEq for Window<R> {
 }
 
 impl<R: Runtime> Manager<R> for Window<R> {
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self.manager().emit(event, Some(self.label()), payload)?;
+    Ok(())
+  }
+
   fn emit_to<S: Serialize + Clone>(
     &self,
     label: &str,
@@ -967,10 +1046,14 @@ impl<R: Runtime> Manager<R> for Window<R> {
       .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
   }
 
-  fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&Window<R>) -> bool,
+  {
     self
       .manager()
-      .emit_filter(event, Some(self.label()), payload, |_| true)
+      .emit_filter(event, Some(self.label()), payload, filter)
   }
 }
 impl<R: Runtime> ManagerBase<R> for Window<R> {
@@ -996,7 +1079,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
 #[cfg(feature = "wry")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
 #[cfg(feature = "wry")]
@@ -1010,7 +1093,7 @@ impl PlatformWebview {
     target_os = "openbsd"
   ))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1025,7 +1108,7 @@ impl PlatformWebview {
 
   /// Returns the WebView2 controller.
   #[cfg(windows)]
-  #[cfg_attr(doc_cfg, doc(cfg(windows)))]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
   pub fn controller(
     &self,
   ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller {
@@ -1036,7 +1119,7 @@ impl PlatformWebview {
   ///
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
   #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn inner(&self) -> cocoa::base::id {
     self.0.webview
   }
@@ -1045,7 +1128,7 @@ impl PlatformWebview {
   ///
   /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
   #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn controller(&self) -> cocoa::base::id {
     self.0.manager
   }
@@ -1054,7 +1137,7 @@ impl PlatformWebview {
   ///
   /// [NSWindow]: https://developer.apple.com/documentation/appkit/nswindow
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   pub fn ns_window(&self) -> cocoa::base::id {
     self.0.ns_window
   }
@@ -1063,7 +1146,7 @@ impl PlatformWebview {
   ///
   /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
   #[cfg(target_os = "ios")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "ios")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "ios")))]
   pub fn view_controller(&self) -> cocoa::base::id {
     self.0.view_controller
   }
@@ -1151,9 +1234,9 @@ impl<R: Runtime> Window<R> {
   ///       main_window.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
-  ///           use webkit2gtk::traits::WebViewExt;
+  ///           // see https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html
+  ///           use webkit2gtk::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///
@@ -1184,7 +1267,7 @@ impl<R: Runtime> Window<R> {
   /// }
   /// ```
   #[cfg(feature = "wry")]
-  #[cfg_attr(doc_cfg, doc(feature = "wry"))]
+  #[cfg_attr(docsrs, doc(feature = "wry"))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,
@@ -2146,109 +2229,98 @@ impl<R: Runtime> Window<R> {
       request.error,
     );
 
-    match request.cmd.as_str() {
-      "__initialized" => match request.body.deserialize() {
-        Ok(payload) => {
-          manager.run_on_page_load(self, payload);
-          resolver.resolve(());
-        }
-        Err(e) => resolver.reject(e.to_string()),
-      },
-      _ => {
-        #[cfg(mobile)]
-        let app_handle = self.app_handle.clone();
+    #[cfg(mobile)]
+    let app_handle = self.app_handle.clone();
 
-        let message = InvokeMessage::new(
-          self,
-          manager.state(),
-          request.cmd.to_string(),
-          request.body,
-          request.headers,
-        );
+    let message = InvokeMessage::new(
+      self,
+      manager.state(),
+      request.cmd.to_string(),
+      request.body,
+      request.headers,
+    );
 
-        let mut invoke = Invoke {
-          message,
-          resolver: resolver.clone(),
-        };
+    let mut invoke = Invoke {
+      message,
+      resolver: resolver.clone(),
+    };
 
-        if !is_local && scope.is_none() {
-          invoke.resolver.reject(scope_not_found_error_message);
-        } else if request.cmd.starts_with("plugin:") {
-          let command = invoke.message.command.replace("plugin:", "");
-          let mut tokens = command.split('|');
-          // safe to unwrap: split always has a least one item
-          let plugin = tokens.next().unwrap();
-          invoke.message.command = tokens
-            .next()
-            .map(|c| c.to_string())
-            .unwrap_or_else(String::new);
+    if !is_local && scope.is_none() {
+      invoke.resolver.reject(scope_not_found_error_message);
+    } else if request.cmd.starts_with("plugin:") {
+      let command = invoke.message.command.replace("plugin:", "");
+      let mut tokens = command.split('|');
+      // safe to unwrap: split always has a least one item
+      let plugin = tokens.next().unwrap();
+      invoke.message.command = tokens
+        .next()
+        .map(|c| c.to_string())
+        .unwrap_or_else(String::new);
 
-          if !(is_local
-            || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
-            || scope
-              .map(|s| s.plugins().contains(&plugin.into()))
-              .unwrap_or(true))
-          {
-            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-            return;
-          }
+      if !(is_local
+        || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
+        || scope
+          .map(|s| s.plugins().contains(&plugin.into()))
+          .unwrap_or(true))
+      {
+        invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+        return;
+      }
 
-          let command = invoke.message.command.clone();
+      let command = invoke.message.command.clone();
 
-          #[cfg(mobile)]
-          let message = invoke.message.clone();
+      #[cfg(mobile)]
+      let message = invoke.message.clone();
 
-          #[allow(unused_mut)]
-          let mut handled = manager.extend_api(plugin, invoke);
+      #[allow(unused_mut)]
+      let mut handled = manager.extend_api(plugin, invoke);
 
-          #[cfg(mobile)]
-          {
-            if !handled {
-              handled = true;
+      #[cfg(mobile)]
+      {
+        if !handled {
+          handled = true;
 
-              fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
-                if let serde_json::Value::Object(map) = payload {
-                  for v in map.values() {
-                    if let serde_json::Value::String(s) = v {
-                      if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
-                        crate::ipc::Channel::load_from_ipc(window.clone(), s);
-                      }
-                    }
+          fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
+            if let serde_json::Value::Object(map) = payload {
+              for v in map.values() {
+                if let serde_json::Value::String(s) = v {
+                  if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
+                    crate::ipc::Channel::load_from_ipc(window.clone(), s);
                   }
                 }
-              }
-
-              let payload = message.payload.into_json();
-              // initialize channels
-              load_channels(&payload, &message.window);
-
-              let resolver_ = resolver.clone();
-              if let Err(e) = crate::plugin::mobile::run_command(
-                plugin,
-                &app_handle,
-                message.command,
-                payload,
-                move |response| match response {
-                  Ok(r) => resolver_.resolve(r),
-                  Err(e) => resolver_.reject(e),
-                },
-              ) {
-                resolver.reject(e.to_string());
-                return;
               }
             }
           }
 
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
-          }
-        } else {
-          let command = invoke.message.command.clone();
-          let handled = manager.run_invoke_handler(invoke);
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
+          let payload = message.payload.into_json();
+          // initialize channels
+          load_channels(&payload, &message.window);
+
+          let resolver_ = resolver.clone();
+          if let Err(e) = crate::plugin::mobile::run_command(
+            plugin,
+            &app_handle,
+            message.command,
+            payload,
+            move |response| match response {
+              Ok(r) => resolver_.resolve(r),
+              Err(e) => resolver_.reject(e),
+            },
+          ) {
+            resolver.reject(e.to_string());
+            return;
           }
         }
+      }
+
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
+      }
+    } else {
+      let command = invoke.message.command.clone();
+      let handled = manager.run_invoke_handler(invoke);
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
       }
     }
   }
@@ -2317,6 +2389,14 @@ impl<R: Runtime> Window<R> {
     Ok(())
   }
 
+  pub(crate) fn emit_js(&self, emit_args: &EmitArgs) -> crate::Result<()> {
+    self.eval(&crate::event::emit_js(
+      self.manager().listeners().function_name(),
+      emit_args,
+    )?)?;
+    Ok(())
+  }
+
   /// Whether this window registered a listener to an event from the given window and event name.
   pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
     self
@@ -2349,7 +2429,7 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn open_devtools(&self) {
     self.window.dispatcher.open_devtools();
   }
@@ -2382,7 +2462,7 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn close_devtools(&self) {
     self.window.dispatcher.close_devtools();
   }
@@ -2413,7 +2493,7 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn is_devtools_open(&self) -> bool {
     self
       .window
@@ -2425,79 +2505,7 @@ impl<R: Runtime> Window<R> {
 
 /// Event system APIs.
 impl<R: Runtime> Window<R> {
-  /// Emits an event to both the JavaScript and the Rust listeners.
-  ///
-  /// This API is a combination of [`Self::trigger`] and [`Self::emit`].
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::Window) {
-  ///   window.emit_and_trigger("download-started", ());
-  ///
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners
-  ///     window.emit_and_trigger("download-progress", i);
-  ///   }
-  /// }
-  /// ```
-  pub fn emit_and_trigger<S: Serialize + Clone>(
-    &self,
-    event: &str,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.trigger(event, Some(serde_json::to_string(&payload)?));
-    self.emit(event, payload)
-  }
-
-  pub(crate) fn emit_internal<S: Serialize>(
-    &self,
-    event: &str,
-    source_window_label: Option<&str>,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.eval(&format!(
-      "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
-      self.manager.listeners().function_name(),
-      serde_json::to_string(event)?,
-      serde_json::to_string(&source_window_label)?,
-      serde_json::to_value(payload)?,
-    ))?;
-    Ok(())
-  }
-
-  /// Emits an event to the JavaScript listeners on the current window or globally.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::Window) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners registed in the webview
-  ///     window.emit("download-progress", i);
-  ///   }
-  /// }
-  /// ```
-  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self
-      .manager
-      .emit_filter(event, Some(self.label()), payload, |w| {
-        w.has_js_listener(None, event) || w.has_js_listener(Some(self.label().into()), event)
-      })?;
-    Ok(())
-  }
-
   /// Listen to an event on this window.
-  ///
-  /// This listener only receives events that are triggered using the
-  /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
-  /// the `emit` function from the window plugin (`@tauri-apps/api/window` package).
   ///
   /// # Examples
   /// ```
@@ -2517,8 +2525,9 @@ impl<R: Runtime> Window<R> {
   where
     F: Fn(Event) + Send + 'static,
   {
-    let label = self.window.label.clone();
-    self.manager.listen(event.into(), Some(label), handler)
+    self
+      .manager
+      .listen(event.into(), Some(self.clone()), handler)
   }
 
   /// Unlisten to an event on this window.
@@ -2550,7 +2559,7 @@ impl<R: Runtime> Window<R> {
     self.manager.unlisten(id)
   }
 
-  /// Listen to an event on this window a single time.
+  /// Listen to an event on this window only once.
   ///
   /// See [`Self::listen`] for more information.
   pub fn once<F>(&self, event: impl Into<String>, handler: F)
@@ -2559,26 +2568,6 @@ impl<R: Runtime> Window<R> {
   {
     let label = self.window.label.clone();
     self.manager.once(event.into(), Some(label), handler)
-  }
-
-  /// Triggers an event to the Rust listeners on this window or global listeners.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::Window) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners registed on `window` in Rust
-  ///     window.trigger("download-progress", Some(i.to_string()));
-  ///   }
-  /// }
-  /// ```
-  pub fn trigger(&self, event: &str, data: Option<String>) {
-    let label = self.window.label.clone();
-    self.manager.trigger(event, Some(label), data)
   }
 }
 

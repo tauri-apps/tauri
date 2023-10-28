@@ -12,21 +12,8 @@
   __RAW_core_script__
 
   __RAW_event_initialization_script__
-  ;(function () {
-    __RAW_bundle_script__
-  })()
 
-  if (window.ipc) {
-    window.__TAURI_INTERNALS__.invoke('__initialized', {
-      url: window.location.href
-    })
-  } else {
-    window.addEventListener('DOMContentLoaded', function () {
-      window.__TAURI_INTERNALS__.invoke('__initialized', {
-        url: window.location.href
-      })
-    })
-  }
+  __RAW_bundle_script__
 
   __RAW_plugin_initialization_script__
 })()

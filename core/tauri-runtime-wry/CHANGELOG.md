@@ -121,6 +121,21 @@
 - Support `with_webview` for Android platform alowing execution of JNI code in context.
   - [8ea87e9c](https://www.github.com/tauri-apps/tauri/commit/8ea87e9c9ca8ba4c7017c8281f78aacd08f45785) feat(android): with_webview access for jni execution ([#5148](https://www.github.com/tauri-apps/tauri/pull/5148)) on 2022-09-08
 
+## \[0.14.1]
+
+### Enhancements
+
+- [`9aa34ada`](https://www.github.com/tauri-apps/tauri/commit/9aa34ada5769dbefa7dfe5f7a6288b3d20b294e4)([#7645](https://www.github.com/tauri-apps/tauri/pull/7645)) Add setting to switch to `http://<scheme>.localhost/` for custom protocols on Windows.
+
+### Bug Fixes
+
+- [`4bf1e85e`](https://www.github.com/tauri-apps/tauri/commit/4bf1e85e6bf85a7ec92d50c8465bc0588a6399d8)([#7722](https://www.github.com/tauri-apps/tauri/pull/7722)) Properly respect the `focused` option when creating the webview.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
+- Upgraded to `tauri-runtime@0.14.1`
+
 ## \[0.14.0]
 
 ### New Features

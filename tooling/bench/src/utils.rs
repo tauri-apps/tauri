@@ -64,7 +64,7 @@ pub fn bench_root_path() -> PathBuf {
 pub fn home_path() -> PathBuf {
   #[cfg(any(target_os = "macos", target_os = "linux"))]
   return PathBuf::from(env!("HOME"));
-  #[cfg(any(target_os = "windows"))]
+  #[cfg(target_os = "windows")]
   return PathBuf::from(env!("HOMEPATH"));
 }
 

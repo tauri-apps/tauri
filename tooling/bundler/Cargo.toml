@@ -47,6 +47,13 @@ bitness = "0.4"
 winreg = "0.51"
 glob = "0.3"
 
+  [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
+  version = "0.48"
+  features = [
+  "Win32_System_SystemInformation",
+  "Win32_System_Diagnostics_Debug"
+]
+
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = [ "formatting" ] }

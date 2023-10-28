@@ -669,7 +669,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
   )]
   #[must_use]
@@ -1079,7 +1079,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
 #[cfg(feature = "wry")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
 #[cfg(feature = "wry")]
@@ -1093,7 +1093,7 @@ impl PlatformWebview {
     target_os = "openbsd"
   ))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1108,7 +1108,7 @@ impl PlatformWebview {
 
   /// Returns the WebView2 controller.
   #[cfg(windows)]
-  #[cfg_attr(doc_cfg, doc(cfg(windows)))]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
   pub fn controller(
     &self,
   ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller {
@@ -1119,7 +1119,7 @@ impl PlatformWebview {
   ///
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
   #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn inner(&self) -> cocoa::base::id {
     self.0.webview
   }
@@ -1128,7 +1128,7 @@ impl PlatformWebview {
   ///
   /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
   #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn controller(&self) -> cocoa::base::id {
     self.0.manager
   }
@@ -1137,7 +1137,7 @@ impl PlatformWebview {
   ///
   /// [NSWindow]: https://developer.apple.com/documentation/appkit/nswindow
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   pub fn ns_window(&self) -> cocoa::base::id {
     self.0.ns_window
   }
@@ -1146,7 +1146,7 @@ impl PlatformWebview {
   ///
   /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
   #[cfg(target_os = "ios")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "ios")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "ios")))]
   pub fn view_controller(&self) -> cocoa::base::id {
     self.0.view_controller
   }
@@ -1267,7 +1267,7 @@ impl<R: Runtime> Window<R> {
   /// }
   /// ```
   #[cfg(feature = "wry")]
-  #[cfg_attr(doc_cfg, doc(feature = "wry"))]
+  #[cfg_attr(docsrs, doc(feature = "wry"))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,
@@ -2429,7 +2429,7 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn open_devtools(&self) {
     self.window.dispatcher.open_devtools();
   }
@@ -2462,7 +2462,7 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn close_devtools(&self) {
     self.window.dispatcher.close_devtools();
   }
@@ -2493,7 +2493,7 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn is_devtools_open(&self) -> bool {
     self
       .window

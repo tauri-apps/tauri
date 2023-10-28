@@ -10,7 +10,7 @@
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
-#![cfg_attr(doc_cfg, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use anyhow::Context;
 pub use anyhow::Result;
@@ -37,7 +37,7 @@ pub mod mobile;
 mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
 
 fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {

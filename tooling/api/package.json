@@ -29,9 +29,6 @@
     "format": "prettier --write . --config ../../.prettierrc --ignore-path .gitignore --ignore-path ../../.prettierignore",
     "format:check": "prettier --check . --config ../../.prettierrc --ignore-path .gitignore --ignore-path ../../.prettierignore"
   },
-  "dependencies": {
-    "tslib": "2.6.2"
-  },
   "devDependencies": {
     "@rollup/plugin-terser": "0.4.4",
     "@rollup/plugin-typescript": "11.1.5",
@@ -49,6 +46,7 @@
     "fast-glob": "3.3.1",
     "prettier": "3.0.3",
     "rollup": "4.1.4",
+    "tslib": "2.6.2",
     "typescript": "5.2.2"
   },
   "exports": {

@@ -28,22 +28,14 @@ class Channel<T = unknown> {
   id: number
   // @ts-expect-error field used by the IPC serializer
   private readonly __TAURI_CHANNEL_MARKER__ = true
-  #onmessage: (response: T) => void = () => {
+  onmessage: (response: T) => void = () => {
     // no-op
   }
 
   constructor() {
     this.id = transformCallback((response: T) => {
-      this.#onmessage(response)
+      this.onmessage(response)
     })
-  }
-
-  set onmessage(handler: (response: T) => void) {
-    this.#onmessage = handler
-  }
-
-  get onmessage(): (response: T) => void {
-    return this.#onmessage
   }
 
   toJSON(): string {

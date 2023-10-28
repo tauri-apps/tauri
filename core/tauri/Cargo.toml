@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.0.0-alpha.16"
+version = "2.0.0-alpha.17"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -22,7 +22,7 @@ features = [
   "devtools",
   "icon-png",
   "protocol-asset",
-  "test",
+  "test"
 ]
 rustc-args = [ "--cfg", "docsrs" ]
 rustdoc-args = [ "--cfg", "docsrs" ]
@@ -50,10 +50,10 @@ url = { version = "2.4" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1"
-tauri-runtime = { version = "1.0.0-alpha.3", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.0-alpha.9", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-alpha.9", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "1.0.0-alpha.4", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "1.0.0-alpha.4", path = "../tauri-runtime" }
+tauri-macros = { version = "2.0.0-alpha.10", path = "../tauri-macros" }
+tauri-utils = { version = "2.0.0-alpha.10", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "1.0.0-alpha.5", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
@@ -110,7 +110,7 @@ swift-rs = "1.0.5"
 [build-dependencies]
 heck = "0.4"
 once_cell = "1"
-tauri-build = { path = "../tauri-build/", version = "2.0.0-alpha.10" }
+tauri-build = { path = "../tauri-build/", version = "2.0.0-alpha.11" }
 
 [dev-dependencies]
 proptest = "1.2.0"

@@ -13,11 +13,6 @@ import app.tauri.plugin.PluginManager
 abstract class TauriActivity : WryActivity() {
   var pluginManager: PluginManager = PluginManager(this)
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    pluginManager.onCreate(savedInstanceState)
-  }
-
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     pluginManager.onNewIntent(intent)

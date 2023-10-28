@@ -72,12 +72,6 @@ class PluginManager(val activity: AppCompatActivity) {
     }
   }
 
-  fun onCreate(savedInstanceState: Bundle?) {
-    for (plugin in plugins.values) {
-      plugin.instance.onCreate(savedInstanceState)
-    }
-  }
-
   fun onPause() {
     for (plugin in plugins.values) {
       plugin.instance.onPause()

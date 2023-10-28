@@ -62,11 +62,6 @@ abstract class Plugin(private val activity: Activity) {
 
 
   /**
-   * Called when the activity is starting.
-   */
-  open fun onCreate(savedInstanceState: Bundle?) {}
-
-  /**
    * This event is called just before another activity comes into the foreground.
    */
   open fun onPause() {}

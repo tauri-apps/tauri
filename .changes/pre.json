@@ -88,6 +88,7 @@
     ".changes/event-api-window-label.md",
     ".changes/file-associations-config.md",
     ".changes/file-associations.md",
+    ".changes/fix-api-package.md",
     ".changes/fix-build-script-mobile-runner-npm.md",
     ".changes/fix-channel-data-request.md",
     ".changes/fix-clearmocks.md",

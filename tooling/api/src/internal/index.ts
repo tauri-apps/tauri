@@ -12,7 +12,7 @@ import { invoke } from '../primitives'
  * except on application exit. If you want to clean it up early, call {@linkcode Resource.close}
  */
 export class Resource {
-  #rid: number
+  readonly #rid: number
 
   get rid(): number {
     return this.#rid

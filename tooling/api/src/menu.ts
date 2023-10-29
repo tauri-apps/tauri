@@ -204,8 +204,8 @@ async function newMenu(
 }
 
 class MenuItemBase extends Resource {
-  #id: string
-  #kind: ItemKind
+  readonly #id: string
+  readonly #kind: ItemKind
 
   /// The id of this item.
   get id(): string {

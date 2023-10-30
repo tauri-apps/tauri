@@ -23,8 +23,6 @@ use tauri_runtime::{
 use tauri_utils::config::WindowUrl;
 use url::Url;
 
-#[cfg(desktop)]
-use crate::menu::{Menu, MenuId};
 use crate::{
   app::{GlobalWindowEventListener, OnPageLoad, UriSchemeResponder},
   ipc::{InvokeHandler, InvokeResponder},
@@ -79,22 +77,6 @@ pub struct UriSchemeProtocol<R: Runtime> {
     Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
-#[cfg(desktop)]
-pub struct MenuManager<R: Runtime> {
-  /// A set containing a reference to the active menus, including
-  /// the app-wide menu and the window-specific menus
-  ///
-  /// This should be mainly used to acceess [`Menu::haccel`]
-  /// to setup the accelerator handling in the event loop
-  pub menus: Mutex<HashMap<MenuId, Menu<R>>>,
-  /// The menu set to all windows.
-  pub menu: Mutex<Option<Menu<R>>>,
-  /// Menu event listeners to all windows.
-  pub global_event_listeners: Mutex<Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>>,
-  /// Menu event listeners to specific windows.
-  pub event_listeners: Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>,
-}
-
 pub struct WindowManager<R: Runtime> {
   pub windows: Mutex<HashMap<String, Window<R>>>,
   /// The JS message handler.
@@ -104,9 +86,6 @@ pub struct WindowManager<R: Runtime> {
   pub default_icon: Option<Icon>,
   /// The webview protocols available to all windows.
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
-
-  #[cfg(desktop)]
-  pub menu: MenuManager<R>,
 
   /// Window event listeners to all windows.
   pub event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
@@ -146,83 +125,6 @@ impl<R: Runtime> WindowManager<R> {
   /// Get a locked handle to the windows.
   pub(crate) fn windows_lock(&self) -> MutexGuard<'_, HashMap<String, Window<R>>> {
     self.windows.lock().expect("poisoned window manager")
-  }
-
-  #[cfg(desktop)]
-  pub(crate) fn prepare_window_menu_creation_handler(
-    &self,
-    window_menu: Option<&crate::window::WindowMenu<R>>,
-  ) -> Option<impl Fn(tauri_runtime::window::RawWindow<'_>)> {
-    {
-      if let Some(menu) = window_menu {
-        self
-          .menus_stash_lock()
-          .insert(menu.menu.id().clone(), menu.menu.clone());
-      }
-    }
-
-    #[cfg(target_os = "macos")]
-    return None;
-
-    #[cfg_attr(target_os = "macos", allow(unused_variables, unreachable_code))]
-    if let Some(menu) = &window_menu {
-      let menu = menu.menu.clone();
-      Some(move |raw: tauri_runtime::window::RawWindow<'_>| {
-        #[cfg(target_os = "windows")]
-        let _ = menu.inner().init_for_hwnd(raw.hwnd as _);
-        #[cfg(any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
-        ))]
-        let _ = menu
-          .inner()
-          .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
-      })
-    } else {
-      None
-    }
-  }
-
-  /// App-wide menu.
-  #[cfg(desktop)]
-  pub(crate) fn menu_lock(&self) -> MutexGuard<'_, Option<Menu<R>>> {
-    self.menu.menu.lock().expect("poisoned window manager")
-  }
-
-  /// Menus stash.
-  #[cfg(desktop)]
-  pub(crate) fn menus_stash_lock(&self) -> MutexGuard<'_, HashMap<MenuId, Menu<R>>> {
-    self.menu.menus.lock().expect("poisoned window manager")
-  }
-
-  #[cfg(desktop)]
-  pub(crate) fn is_menu_in_use<I: PartialEq<MenuId>>(&self, id: &I) -> bool {
-    self
-      .menu_lock()
-      .as_ref()
-      .map(|m| id.eq(m.id()))
-      .unwrap_or(false)
-  }
-
-  /// Menus stash.
-  #[cfg(desktop)]
-  pub(crate) fn insert_menu_into_stash(&self, menu: &Menu<R>) {
-    self
-      .menus_stash_lock()
-      .insert(menu.id().clone(), menu.clone());
-  }
-
-  #[cfg(desktop)]
-  pub(crate) fn remove_menu_from_stash_by_id(&self, id: Option<&MenuId>) {
-    if let Some(id) = id {
-      let is_used_by_a_window = self.windows_lock().values().any(|w| w.is_menu_in_use(id));
-      if !(self.is_menu_in_use(id) || is_used_by_a_window) {
-        self.menus_stash_lock().remove(id);
-      }
-    }
   }
 
   fn prepare_pending_window(

@@ -34,8 +34,10 @@ use crate::{
   Context, Pattern, Runtime, StateManager, Window,
 };
 
+#[cfg(desktop)]
+mod menu;
 #[cfg(all(desktop, feature = "tray-icon"))]
-pub mod tray;
+mod tray;
 pub mod window;
 
 #[derive(Default)]
@@ -179,6 +181,8 @@ pub struct AppManager<R: Runtime> {
   pub window: window::WindowManager<R>,
   #[cfg(all(desktop, feature = "tray-icon"))]
   pub tray: tray::TrayManager<R>,
+  #[cfg(desktop)]
+  pub menu: menu::MenuManager<R>,
 
   pub(crate) plugins: Mutex<PluginStore<R>>,
   pub listeners: Listeners<R>,
@@ -244,13 +248,6 @@ impl<R: Runtime> AppManager<R> {
         on_page_load,
         default_icon: context.default_window_icon,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
-        #[cfg(desktop)]
-        menu: window::MenuManager {
-          menus: Default::default(),
-          menu: Default::default(),
-          global_event_listeners: Default::default(),
-          event_listeners: Mutex::new(window_menu_event_listeners),
-        },
         event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,
@@ -261,6 +258,13 @@ impl<R: Runtime> AppManager<R> {
         icons: Default::default(),
         global_event_listeners: Default::default(),
         event_listeners: Default::default(),
+      },
+      #[cfg(desktop)]
+      menu: menu::MenuManager {
+        menus: Default::default(),
+        menu: Default::default(),
+        global_event_listeners: Default::default(),
+        event_listeners: Mutex::new(window_menu_event_listeners),
       },
       plugins: Mutex::new(plugins),
       listeners: Listeners::default(),
@@ -530,6 +534,22 @@ impl<R: Runtime> AppManager<R> {
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.window.windows_lock().clone()
+  }
+}
+
+#[cfg(desktop)]
+impl<R: Runtime> AppManager<R> {
+  pub fn remove_menu_from_stash_by_id(&self, id: Option<&crate::menu::MenuId>) {
+    if let Some(id) = id {
+      let is_used_by_a_window = self
+        .window
+        .windows_lock()
+        .values()
+        .any(|w| w.is_menu_in_use(id));
+      if !(self.menu.is_menu_in_use(id) || is_used_by_a_window) {
+        self.menu.menus_stash_lock().remove(id);
+      }
+    }
   }
 }
 

@@ -493,7 +493,6 @@ macro_rules! shared_app_impl {
       ) {
         self
           .manager
-          .window
           .menu
           .global_event_listeners
           .lock()
@@ -624,7 +623,7 @@ macro_rules! shared_app_impl {
       /// Returns the app-wide menu.
       #[cfg(desktop)]
       pub fn menu(&self) -> Option<Menu<R>> {
-        self.manager.window.menu_lock().clone()
+        self.manager.menu.menu_lock().clone()
       }
 
       /// Sets the app-wide menu and returns the previous one.
@@ -635,9 +634,9 @@ macro_rules! shared_app_impl {
       pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
         let prev_menu = self.remove_menu()?;
 
-        self.manager.window.insert_menu_into_stash(&menu);
+        self.manager.menu.insert_menu_into_stash(&menu);
 
-        self.manager.window.menu_lock().replace(menu.clone());
+        self.manager.menu.menu_lock().replace(menu.clone());
 
         // set it on all windows that don't have one or previously had the app-wide menu
         #[cfg(not(target_os = "macos"))]
@@ -672,7 +671,7 @@ macro_rules! shared_app_impl {
       /// this will remove the menu from it.
       #[cfg(desktop)]
       pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
-        let menu = self.manager.window.menu_lock().as_ref().cloned();
+        let menu = self.manager.menu.menu_lock().as_ref().cloned();
         #[allow(unused_variables)]
         if let Some(menu) = menu {
           // remove from windows that have the app-wide menu
@@ -696,11 +695,10 @@ macro_rules! shared_app_impl {
           }
         }
 
-        let prev_menu = self.manager.window.menu_lock().take();
+        let prev_menu = self.manager.menu.menu_lock().take();
 
         self
           .manager
-          .window
           .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
 
         Ok(prev_menu)
@@ -714,7 +712,7 @@ macro_rules! shared_app_impl {
       pub fn hide_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
         {
-          let is_app_menu_set = self.manager.window.menu_lock().is_some();
+          let is_app_menu_set = self.manager.menu.menu_lock().is_some();
           if is_app_menu_set {
             for window in self.manager.windows().values() {
               if window.has_app_wide_menu() {
@@ -735,7 +733,7 @@ macro_rules! shared_app_impl {
       pub fn show_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
         {
-          let is_app_menu_set = self.manager.window.menu_lock().is_some();
+          let is_app_menu_set = self.manager.menu.menu_lock().is_some();
           if is_app_menu_set {
             for window in self.manager.windows().values() {
               if window.has_app_wide_menu() {
@@ -1546,14 +1544,14 @@ impl<R: Runtime> Builder<R> {
       let menu = menu(&app.handle)?;
       app
         .manager
-        .window
+        .menu
         .menus_stash_lock()
         .insert(menu.id().clone(), menu.clone());
 
       #[cfg(target_os = "macos")]
       init_app_menu(&menu)?;
 
-      app.manager.window.menu_lock().replace(menu);
+      app.manager.menu.menu_lock().replace(menu);
     }
 
     app.register_core_plugins()?;
@@ -1692,14 +1690,14 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         .prepare_window(app_handle.clone(), pending, &window_labels)?;
 
       #[cfg(desktop)]
-      let window_menu = app.manager.window.menu_lock().as_ref().map(|m| WindowMenu {
+      let window_menu = app.manager.menu.menu_lock().as_ref().map(|m| WindowMenu {
         is_app_wide: true,
         menu: m.clone(),
       });
 
       #[cfg(desktop)]
       let handler = manager
-        .window
+        .menu
         .prepare_window_menu_creation_handler(window_menu.as_ref());
       #[cfg(not(desktop))]
       #[allow(clippy::type_complexity)]
@@ -1786,7 +1784,6 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
         EventLoopMessage::MenuEvent(ref e) => {
           for listener in &*app_handle
             .manager
-            .window
             .menu
             .global_event_listeners
             .lock()
@@ -1794,14 +1791,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
           {
             listener(app_handle, e.clone());
           }
-          for (label, listener) in &*app_handle
-            .manager
-            .window
-            .menu
-            .event_listeners
-            .lock()
-            .unwrap()
-          {
+          for (label, listener) in &*app_handle.manager.menu.event_listeners.lock().unwrap() {
             if let Some(w) = app_handle.get_window(label) {
               listener(&w, e.clone());
             }

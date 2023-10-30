@@ -473,7 +473,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     #[cfg(desktop)]
     let handler = self
       .manager
-      .window
+      .menu
       .prepare_window_menu_creation_handler(window_menu.as_ref());
     #[cfg(not(desktop))]
     #[allow(clippy::type_complexity)]
@@ -1329,7 +1329,6 @@ impl<R: Runtime> Window<R> {
   ) {
     self
       .manager
-      .window
       .menu
       .event_listeners
       .lock()
@@ -1374,7 +1373,7 @@ impl<R: Runtime> Window<R> {
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
 
-    self.manager.window.insert_menu_into_stash(&menu);
+    self.manager.menu.insert_menu_into_stash(&menu);
 
     let window = self.clone();
     let menu_ = menu.clone();
@@ -1440,7 +1439,6 @@ impl<R: Runtime> Window<R> {
 
     self
       .manager
-      .window
       .remove_menu_from_stash_by_id(prev_menu.as_ref().map(|m| m.id()));
 
     Ok(prev_menu)

@@ -294,7 +294,6 @@ impl<R: Runtime> TrayIcon<R> {
     if let Some(handler) = on_menu_event {
       app_handle
         .manager
-        .window
         .menu
         .global_event_listeners
         .lock()
@@ -334,7 +333,6 @@ impl<R: Runtime> TrayIcon<R> {
     self
       .app_handle
       .manager
-      .window
       .menu
       .global_event_listeners
       .lock()

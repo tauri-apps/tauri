@@ -1477,7 +1477,7 @@ impl<R: Runtime> Builder<R> {
     let runtime_args = RuntimeInitArgs {
       #[cfg(windows)]
       msg_hook: {
-        let menus = manager.window.menu.menus.clone();
+        let menus = manager.menu.menus.clone();
         Some(Box::new(move |msg| {
           use windows::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, HACCEL, MSG};
           unsafe {

@@ -4,7 +4,7 @@
 
 use std::{
   collections::HashMap,
-  sync::{Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 use crate::{
@@ -18,7 +18,7 @@ pub struct MenuManager<R: Runtime> {
   ///
   /// This should be mainly used to acceess [`Menu::haccel`]
   /// to setup the accelerator handling in the event loop
-  pub menus: Mutex<HashMap<MenuId, Menu<R>>>,
+  pub menus: Arc<Mutex<HashMap<MenuId, Menu<R>>>>,
   /// The menu set to all windows.
   pub menu: Mutex<Option<Menu<R>>>,
   /// Menu event listeners to all windows.

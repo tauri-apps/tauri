@@ -141,10 +141,7 @@ pub fn event_initialization_script(function: &str, listeners: &str) -> String {
 
         for (let i = listeners.length - 1; i >= 0; i--) {{
           const listener = listeners[i]
-          if (
-              (listener.windowLabel && listener.windowLabel === eventData.windowLabel) ||
-              (!listener.windowLabel && (listener.windowLabel === null || eventData.windowLabel === null))
-            ) {{
+          if (listener.windowLabel === null || eventData.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
             eventData.id = listener.id
             listener.handler(eventData)
           }}

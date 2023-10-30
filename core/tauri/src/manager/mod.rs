@@ -47,9 +47,10 @@ struct CspHashStrings {
 
 /// Sets the CSP value to the asset HTML if needed (on Linux).
 /// Returns the CSP string for access on the response header (on Windows and macOS).
+#[allow(clippy::borrowed_box)]
 fn set_csp<R: Runtime>(
   asset: &mut String,
-  assets: Arc<dyn Assets>,
+  assets: &Box<dyn Assets>,
   asset_path: &AssetKey,
   manager: &AppManager<R>,
   csp: Csp,
@@ -175,40 +176,22 @@ pub struct Asset {
 
 #[default_runtime(crate::Wry, wry)]
 pub struct AppManager<R: Runtime> {
-  pub window: Arc<window::WindowManager<R>>,
+  pub window: window::WindowManager<R>,
   #[cfg(all(desktop, feature = "tray-icon"))]
-  pub tray: Arc<tray::TrayManager<R>>,
+  pub tray: tray::TrayManager<R>,
 
-  pub(crate) plugins: Arc<Mutex<PluginStore<R>>>,
+  pub(crate) plugins: Mutex<PluginStore<R>>,
   pub listeners: Listeners<R>,
   pub state: Arc<StateManager>,
-  pub config: Arc<Config>,
-  pub assets: Arc<dyn Assets>,
+  pub config: Config,
+  pub assets: Box<dyn Assets>,
 
-  pub app_icon: Option<Arc<Vec<u8>>>,
+  pub app_icon: Option<Vec<u8>>,
 
-  pub package_info: Arc<PackageInfo>,
+  pub package_info: PackageInfo,
 
   /// Application pattern.
   pub pattern: Arc<Pattern>,
-}
-
-impl<R: Runtime> Clone for AppManager<R> {
-  fn clone(&self) -> Self {
-    Self {
-      window: self.window.clone(),
-      #[cfg(all(desktop, feature = "tray-icon"))]
-      tray: self.tray.clone(),
-      plugins: self.plugins.clone(),
-      listeners: self.listeners.clone(),
-      state: self.state.clone(),
-      config: self.config.clone(),
-      assets: self.assets.clone(),
-      app_icon: self.app_icon.clone(),
-      package_info: self.package_info.clone(),
-      pattern: self.pattern.clone(),
-    }
-  }
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -255,7 +238,7 @@ impl<R: Runtime> AppManager<R> {
     }
 
     Self {
-      window: Arc::new(window::WindowManager {
+      window: window::WindowManager {
         windows: Mutex::default(),
         invoke_handler,
         on_page_load,
@@ -266,26 +249,26 @@ impl<R: Runtime> AppManager<R> {
           menus: Default::default(),
           menu: Default::default(),
           global_event_listeners: Default::default(),
-          event_listeners: Arc::new(Mutex::new(window_menu_event_listeners)),
+          event_listeners: Mutex::new(window_menu_event_listeners),
         },
         event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,
-      }),
+      },
       #[cfg(all(desktop, feature = "tray-icon"))]
-      tray: Arc::new(tray::TrayManager {
+      tray: tray::TrayManager {
         icon: context.tray_icon,
         icons: Default::default(),
         global_event_listeners: Default::default(),
         event_listeners: Default::default(),
-      }),
-      plugins: Arc::new(Mutex::new(plugins)),
+      },
+      plugins: Mutex::new(plugins),
       listeners: Listeners::default(),
       state: Arc::new(state),
-      config: Arc::new(context.config),
+      config: context.config,
       assets: context.assets,
-      app_icon: context.app_icon.map(Arc::new),
-      package_info: Arc::new(context.package_info),
+      app_icon: context.app_icon,
+      package_info: context.package_info,
       pattern: Arc::new(context.pattern),
     }
   }
@@ -397,13 +380,7 @@ impl<R: Runtime> AppManager<R> {
         let final_data = if is_html {
           let mut asset = String::from_utf8_lossy(&asset).into_owned();
           if let Some(csp) = self.csp() {
-            csp_header.replace(set_csp(
-              &mut asset,
-              self.assets.clone(),
-              &asset_path,
-              self,
-              csp,
-            ));
+            csp_header.replace(set_csp(&mut asset, &self.assets, &asset_path, self, csp));
           }
 
           asset.as_bytes().to_vec()
@@ -448,8 +425,8 @@ impl<R: Runtime> AppManager<R> {
       .initialize(app, &self.config.plugins)
   }
 
-  pub fn config(&self) -> Arc<Config> {
-    self.config.clone()
+  pub fn config(&self) -> &Config {
+    &self.config
   }
 
   pub fn package_info(&self) -> &PackageInfo {

@@ -65,7 +65,6 @@ use std::{
   borrow::Cow,
   fmt::Debug,
   hash::{Hash, Hasher},
-  sync::Arc,
 };
 
 use crate::{
@@ -130,7 +129,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       build: Default::default(),
       plugins: Default::default(),
     },
-    assets: Arc::new(assets),
+    assets: Box::new(assets),
     default_window_icon: None,
     app_icon: None,
     #[cfg(all(desktop, feature = "tray-icon"))]

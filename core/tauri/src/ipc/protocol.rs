@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use http::{
   header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
@@ -22,12 +22,12 @@ const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
 
 #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 pub fn message_handler<R: Runtime>(
-  manager: AppManager<R>,
+  manager: Arc<AppManager<R>>,
 ) -> crate::runtime::webview::WebviewIpcHandler<crate::EventLoopMessage, R> {
   Box::new(move |window, request| handle_ipc_message(request, &manager, &window.label))
 }
 
-pub fn get<R: Runtime>(manager: AppManager<R>, label: String) -> UriSchemeProtocolHandler {
+pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeProtocolHandler {
   Box::new(move |request, responder| {
     let manager = manager.clone();
     let label = label.clone();

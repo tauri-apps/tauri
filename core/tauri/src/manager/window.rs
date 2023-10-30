@@ -86,13 +86,13 @@ pub struct MenuManager<R: Runtime> {
   ///
   /// This should be mainly used to acceess [`Menu::haccel`]
   /// to setup the accelerator handling in the event loop
-  pub menus: Arc<Mutex<HashMap<MenuId, Menu<R>>>>,
+  pub menus: Mutex<HashMap<MenuId, Menu<R>>>,
   /// The menu set to all windows.
-  pub menu: Arc<Mutex<Option<Menu<R>>>>,
+  pub menu: Mutex<Option<Menu<R>>>,
   /// Menu event listeners to all windows.
-  pub global_event_listeners: Arc<Mutex<Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>>>,
+  pub global_event_listeners: Mutex<Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>>,
   /// Menu event listeners to specific windows.
-  pub event_listeners: Arc<Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>>,
+  pub event_listeners: Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>,
 }
 
 pub struct WindowManager<R: Runtime> {
@@ -346,7 +346,7 @@ impl<R: Runtime> WindowManager<R> {
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
       let protocol = crate::protocol::tauri::get(
-        &app_handle.manager,
+        app_handle.manager.clone(),
         &window_origin,
         web_resource_request_handler,
       );

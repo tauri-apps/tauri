@@ -139,7 +139,7 @@ impl Monitor {
 /// A builder for a webview window managed by Tauri.
 #[default_runtime(crate::Wry, wry)]
 pub struct WindowBuilder<'a, R: Runtime> {
-  manager: AppManager<R>,
+  manager: Arc<AppManager<R>>,
   runtime: RuntimeOrDispatch<'a, R>,
   app_handle: AppHandle<R>,
   label: String,
@@ -218,7 +218,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let runtime = manager.runtime();
     let app_handle = manager.app_handle().clone();
     Self {
-      manager: manager.manager().clone(),
+      manager: manager.manager_owned(),
       runtime,
       app_handle,
       label: label.into(),
@@ -259,7 +259,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
     let builder = Self {
-      manager: manager.manager().clone(),
+      manager: manager.manager_owned(),
       runtime: manager.runtime(),
       app_handle: manager.app_handle().clone(),
       label: config.label.clone(),
@@ -978,7 +978,7 @@ pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
-  pub(crate) manager: AppManager<R>,
+  pub(crate) manager: Arc<AppManager<R>>,
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<EventId>>>>,
   // The menu set for this window
@@ -1061,6 +1061,10 @@ impl<R: Runtime> Manager<R> for Window<R> {
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &AppManager<R> {
     &self.manager
+  }
+
+  fn manager_owned(&self) -> Arc<AppManager<R>> {
+    self.manager.clone()
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
@@ -1164,7 +1168,7 @@ impl PlatformWebview {
 impl<R: Runtime> Window<R> {
   /// Create a new window that is attached to the manager.
   pub(crate) fn new(
-    manager: AppManager<R>,
+    manager: Arc<AppManager<R>>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
     #[cfg(desktop)] menu: Option<WindowMenu<R>>,

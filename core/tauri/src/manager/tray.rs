@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  collections::HashMap,
-  fmt,
-  sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, fmt, sync::Mutex};
 
 use crate::{
   app::GlobalTrayIconEventListener,
@@ -17,12 +13,11 @@ use crate::{
 pub struct TrayManager<R: Runtime> {
   pub(crate) icon: Option<Icon>,
   /// Tray icons
-  pub(crate) icons: Arc<Mutex<Vec<TrayIcon<R>>>>,
+  pub(crate) icons: Mutex<Vec<TrayIcon<R>>>,
   /// Global Tray icon event listeners.
-  pub(crate) global_event_listeners: Arc<Mutex<Vec<GlobalTrayIconEventListener<AppHandle<R>>>>>,
+  pub(crate) global_event_listeners: Mutex<Vec<GlobalTrayIconEventListener<AppHandle<R>>>>,
   /// Tray icon event listeners.
-  pub(crate) event_listeners:
-    Arc<Mutex<HashMap<TrayIconId, GlobalTrayIconEventListener<TrayIcon<R>>>>>,
+  pub(crate) event_listeners: Mutex<HashMap<TrayIconId, GlobalTrayIconEventListener<TrayIcon<R>>>>,
 }
 
 impl<R: Runtime> fmt::Debug for TrayManager<R> {

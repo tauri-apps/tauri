@@ -242,7 +242,7 @@ impl<R: Runtime> GlobalWindowEvent<R> {
 /// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
 #[derive(Debug, Clone)]
 pub struct AssetResolver<R: Runtime> {
-  manager: AppManager<R>,
+  manager: Arc<AppManager<R>>,
 }
 
 impl<R: Runtime> AssetResolver<R> {
@@ -259,7 +259,7 @@ impl<R: Runtime> AssetResolver<R> {
 #[derive(Debug)]
 pub struct AppHandle<R: Runtime> {
   pub(crate) runtime_handle: R::Handle,
-  pub(crate) manager: AppManager<R>,
+  pub(crate) manager: Arc<AppManager<R>>,
 }
 
 /// APIs specific to the wry runtime.
@@ -406,6 +406,10 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
     &self.manager
   }
 
+  fn manager_owned(&self) -> Arc<AppManager<R>> {
+    self.manager.clone()
+  }
+
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
     RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
@@ -423,7 +427,7 @@ pub struct App<R: Runtime> {
   runtime: Option<R>,
   pending_windows: Option<Vec<PendingWindow<EventLoopMessage, R>>>,
   setup: Option<SetupHook<R>>,
-  manager: AppManager<R>,
+  manager: Arc<AppManager<R>>,
   handle: AppHandle<R>,
 }
 
@@ -441,6 +445,10 @@ impl<R: Runtime> Manager<R> for App<R> {}
 impl<R: Runtime> ManagerBase<R> for App<R> {
   fn manager(&self) -> &AppManager<R> {
     &self.manager
+  }
+
+  fn manager_owned(&self) -> Arc<AppManager<R>> {
+    self.manager.clone()
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
@@ -569,7 +577,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.
-      pub fn config(&self) -> Arc<Config> {
+      pub fn config(&self) -> &Config {
         self.manager.config()
       }
 
@@ -1443,7 +1451,7 @@ impl<R: Runtime> Builder<R> {
       }));
     }
 
-    let manager = AppManager::with_handlers(
+    let manager = Arc::new(AppManager::with_handlers(
       context,
       self.plugins,
       self.invoke_handler,
@@ -1454,7 +1462,7 @@ impl<R: Runtime> Builder<R> {
       #[cfg(desktop)]
       HashMap::new(),
       (self.invoke_responder, self.invoke_initialization_script),
-    );
+    ));
 
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
@@ -1554,7 +1562,7 @@ impl<R: Runtime> Builder<R> {
     app.manage(env);
 
     app.manage(Scopes {
-      ipc: scope::ipc::Scope::new(&app.config()),
+      ipc: scope::ipc::Scope::new(app.config()),
       #[cfg(feature = "protocol-asset")]
       asset_protocol: scope::fs::Scope::for_fs_api(
         &app,

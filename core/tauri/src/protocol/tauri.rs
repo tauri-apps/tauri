@@ -13,10 +13,7 @@ use crate::{
 };
 
 #[cfg(all(dev, mobile))]
-use std::{
-  collections::HashMap,
-  sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Mutex};
 
 #[cfg(all(dev, mobile))]
 #[derive(Clone)]

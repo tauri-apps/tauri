@@ -2643,7 +2643,6 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     label,
     ipc_handler,
     url,
-    download_started_handler,
     ..
   } = pending;
 
@@ -2727,10 +2726,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     });
   }
 
-  #[cfg(target_os = "macos")]
-  let download_started = download_started_handler.or_else(|| Some(Box::from(|_, _: &mut _| true)));
-
-  if let Some(download_started) = download_started {
+  if let Some(download_started) = pending.download_started_handler {
     webview_builder = webview_builder.with_download_started_handler(download_started)
   }
 

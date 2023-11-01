@@ -64,6 +64,8 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+pub(crate) type DownloadStartedHandler = dyn Fn(String, &mut PathBuf) -> bool + Send;
+pub(crate) type DownloadCompletedHandler = dyn Fn(String, Option<PathBuf>, bool) + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
@@ -149,6 +151,8 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
+  download_started: Option<Box<DownloadStartedHandler>>,
+  download_completed: Option<Box<DownloadCompletedHandler>>,
   on_page_load_handler: Option<Box<OnPageLoad<R>>>,
   #[cfg(desktop)]
   on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
@@ -228,6 +232,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      download_started: None,
+      download_completed: None,
       on_page_load_handler: None,
       #[cfg(desktop)]
       on_menu_event: None,
@@ -267,6 +273,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
         config,
       ),
+      download_started: None,
+      download_completed: None,
       web_resource_request_handler: None,
       #[cfg(desktop)]
       menu: None,
@@ -350,6 +358,22 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
+    self
+  }
+
+  pub fn on_download_started<F: Fn(String, &mut PathBuf) -> bool + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.download_started.replace(Box::new(f));
+    self
+  }
+
+  pub fn on_download_completed<F: Fn(String, Option<PathBuf>, bool) + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.download_completed.replace(Box::new(f));
     self
   }
 
@@ -441,6 +465,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       self.label.clone(),
     )?;
     pending.navigation_handler = self.navigation_handler.take();
+    pending.download_started_handler = self.download_started.take();
+    pending.download_completed_handler = self.download_completed.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
     if let Some(on_page_load_handler) = self.on_page_load_handler.take() {

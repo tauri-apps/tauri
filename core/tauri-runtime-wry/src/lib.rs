@@ -2643,8 +2643,6 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     label,
     ipc_handler,
     url,
-    #[cfg(target_os = "android")]
-    on_webview_created,
     ..
   } = pending;
 
@@ -2714,16 +2712,26 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+
   if webview_attributes.file_drop_handler_enabled {
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
   }
+
   if let Some(navigation_handler) = pending.navigation_handler {
     webview_builder = webview_builder.with_navigation_handler(move |url| {
       Url::parse(&url)
         .map(|url| navigation_handler(&url))
         .unwrap_or(true)
     });
+  }
+
+  if let Some(download_started_handler) = pending.download_started_handler {
+    webview_builder = webview_builder.with_download_started_handler(download_started_handler)
+  }
+
+  if let Some(download_completed_handler) = pending.download_completed_handler {
+    webview_builder = webview_builder.with_download_completed_handler(download_completed_handler);
   }
 
   if let Some(page_load_handler) = pending.on_page_load_handler {
@@ -2824,7 +2832,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   #[cfg(target_os = "android")]
   {
-    if let Some(on_webview_created) = on_webview_created {
+    if let Some(on_webview_created) = pending.on_webview_created {
       webview_builder = webview_builder.on_webview_created(move |ctx| {
         on_webview_created(tauri_runtime::window::CreationContext {
           env: ctx.env,

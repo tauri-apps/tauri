@@ -36,6 +36,10 @@ type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
 type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 
+type DownloadStartedHandler = dyn Fn(String, &mut PathBuf) -> bool + Send;
+
+type DownloadCompletedHandler = dyn Fn(String, Option<PathBuf>, bool) + Send;
+
 /// Kind of event for the page load handler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PageLoadEvent {
@@ -240,6 +244,10 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<NavigationHandler>>,
 
+  pub download_started_handler: Option<Box<DownloadStartedHandler>>,
+
+  pub download_completed_handler: Option<Box<DownloadCompletedHandler>>,
+
   /// The resolved URL to load on the webview.
   pub url: String,
 
@@ -284,6 +292,8 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         label,
         ipc_handler: None,
         navigation_handler: None,
+        download_started_handler: None,
+        download_completed_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
@@ -313,6 +323,8 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         label,
         ipc_handler: None,
         navigation_handler: None,
+        download_started_handler: None,
+        download_completed_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,

@@ -110,6 +110,10 @@ impl Notification {
   }
 
   /// Sets the notification icon.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: The app must be installed for this to have any effect.
   #[must_use]
   pub fn icon(mut self, icon: impl Into<String>) -> Self {
     self.icon = Some(icon.into());

@@ -34,6 +34,7 @@ pub struct Options {
 
 pub fn command(options: Options) -> Result<()> {
   let plugin = options.plugin;
+  let plugin_snake_case = plugin.replace("-", "_");
   let crate_name = format!("tauri-plugin-{plugin}");
   let npm_name = format!("@tauri-apps/plugin-{plugin}");
 
@@ -111,7 +112,7 @@ pub fn command(options: Options) -> Result<()> {
         r#"tauri::Builder::default()
     .setup(|app| {{
         #[cfg(desktop)]
-        app.handle().plugin(tauri_plugin_{plugin}::Builder::new().build());
+        app.handle().plugin(tauri_plugin_{plugin_snake_case}::Builder::new().build());
         Ok(())
     }})
     "#,
@@ -120,7 +121,7 @@ pub fn command(options: Options) -> Result<()> {
       format!(
         r#"tauri::Builder::default()
     .setup(|app| {{
-        app.handle().plugin(tauri_plugin_{plugin}::Builder::new().build());
+        app.handle().plugin(tauri_plugin_{plugin_snake_case}::Builder::new().build());
         Ok(())
     }})
     "#,
@@ -131,14 +132,14 @@ pub fn command(options: Options) -> Result<()> {
       r#"tauri::Builder::default()
     .setup(|app| {{
         #[cfg(desktop)]
-        app.handle().plugin(tauri_plugin_{plugin}::init());
+        app.handle().plugin(tauri_plugin_{plugin_snake_case}::init());
         Ok(())
     }})
     "#,
     )
   } else {
     format!(
-      r#"tauri::Builder::default().plugin(tauri_plugin_{plugin}::init())
+      r#"tauri::Builder::default().plugin(tauri_plugin_{plugin_snake_case}::init())
     "#,
     )
   };

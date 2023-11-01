@@ -9,7 +9,7 @@ edition = "2021"
 rust-version = "1.70"
 
 [lib]
-name = "api_lib"
+name = "tauri_app"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

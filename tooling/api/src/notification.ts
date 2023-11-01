@@ -36,7 +36,14 @@ interface Options {
   title: string
   /** Optional notification body. */
   body?: string
-  /** Optional notification icon. */
+  /**
+   * Optional notification icon.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows**: The app must be installed for this to have any effect.
+   *
+   */
   icon?: string
   /**
    * Optional notification sound.

@@ -549,15 +549,15 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           res.set_version_info(VersionInfo::FILEVERSION, version);
           res.set_version_info(VersionInfo::PRODUCTVERSION, version);
         }
-        if let Some(product_name) = &config.package.product_name {
-          res.set("ProductName", product_name);
-        }
-        if let Some(short_description) = &config.tauri.bundle.short_description {
-          res.set("FileDescription", short_description);
-        }
-        if let Some(copyright) = &config.tauri.bundle.copyright {
-          res.set("LegalCopyright", copyright);
-        }
+      }
+      if let Some(product_name) = &config.package.product_name {
+        res.set("ProductName", product_name);
+      }
+      if let Some(short_description) = &config.tauri.bundle.short_description {
+        res.set("FileDescription", short_description);
+      }
+      if let Some(copyright) = &config.tauri.bundle.copyright {
+        res.set("LegalCopyright", copyright);
       }
       res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
       res.compile().with_context(|| {

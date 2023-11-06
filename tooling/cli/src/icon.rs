@@ -5,7 +5,6 @@
 use crate::{helpers::app_paths::tauri_dir, Result};
 
 use std::{
-  borrow::Cow,
   collections::HashMap,
   fs::{create_dir_all, File},
   io::{BufWriter, Write},
@@ -22,8 +21,10 @@ use image::{
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open, ColorType, DynamicImage, ImageBuffer, ImageEncoder, Rgba, RgbaImage,
+  open, ColorType, DynamicImage, ImageBuffer, ImageEncoder, Rgba,
 };
+use resvg::usvg::{fontdb, TreeParsing, TreeTextToPath};
+use resvg::{tiny_skia, usvg};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -60,46 +61,38 @@ pub struct Options {
 }
 
 enum Source {
-  Svg(nsvg::SvgImage),
+  Svg(resvg::Tree),
   DynamicImage(DynamicImage),
 }
 
 impl Source {
   fn width(&self) -> u32 {
     match self {
-      Self::Svg(svg) => svg.width() as u32,
+      Self::Svg(svg) => svg.size.width() as u32,
       Self::DynamicImage(i) => i.width(),
     }
   }
 
   fn height(&self) -> u32 {
     match self {
-      Self::Svg(svg) => svg.height() as u32,
+      Self::Svg(svg) => svg.size.height() as u32,
       Self::DynamicImage(i) => i.height(),
     }
   }
 
   fn resize_exact(&self, size: u32) -> Result<DynamicImage> {
     match self {
-      Self::Svg(svg) => svg
-        .rasterize_to_raw_rgba(size as f32 / svg.width())
-        .map(|(width, height, bytes)| {
-          DynamicImage::ImageRgba8(ImageBuffer::from_raw(width, height, bytes).unwrap())
-        })
-        .map_err(Into::into),
+      Self::Svg(svg) => {
+        let mut pixmap = tiny_skia::Pixmap::new(size, size).unwrap();
+        let scale = size as f32 / svg.size.height();
+        svg.render(
+          tiny_skia::Transform::from_scale(scale, scale),
+          &mut pixmap.as_mut(),
+        );
+        let img_buffer = ImageBuffer::from_raw(size, size, pixmap.take()).unwrap();
+        Ok(DynamicImage::ImageRgba8(img_buffer))
+      }
       Self::DynamicImage(i) => Ok(i.resize_exact(size, size, FilterType::Lanczos3)),
-    }
-  }
-
-  fn as_rgba8(&self) -> Option<Cow<'_, RgbaImage>> {
-    match self {
-      Self::Svg(svg) => svg
-        .rasterize_to_raw_rgba(1.)
-        .ok()
-        .map(|(width, height, bytes)| {
-          Cow::Owned(ImageBuffer::from_raw(width, height, bytes).unwrap())
-        }),
-      Self::DynamicImage(i) => i.as_rgba8().map(Cow::Borrowed),
     }
   }
 }
@@ -123,9 +116,25 @@ pub fn command(options: Options) -> Result<()> {
 
   let source = if let Some(extension) = input.extension() {
     if extension == "svg" {
-      Source::Svg(
-        nsvg::parse_file(&input, nsvg::Units::Pixel, 96.0).context("Cannot read SVG file")?,
-      )
+      let rtree = {
+        let opt = usvg::Options {
+          // Get file's absolute directory.
+          resources_dir: std::fs::canonicalize(&input)
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf())),
+          ..Default::default()
+        };
+
+        let mut fontdb = fontdb::Database::new();
+        fontdb.load_system_fonts();
+
+        let svg_data = std::fs::read(&input).unwrap();
+        let mut tree = usvg::Tree::from_data(&svg_data, &opt).unwrap();
+        tree.convert_text(&fontdb);
+        resvg::Tree::from_usvg(&tree)
+      };
+
+      Source::Svg(rtree)
     } else {
       Source::DynamicImage(DynamicImage::ImageRgba8(
         open(&input)
@@ -162,7 +171,7 @@ pub fn command(options: Options) -> Result<()> {
       .collect::<Vec<PngEntry>>()
     {
       log::info!(action = "PNG"; "Creating {}", target.name);
-      resize_and_save_png(&source, target.size, &target.out_path)?;
+      resize_and_save_png(&source, target.size, &target.out_path, None)?;
     }
   }
 
@@ -171,13 +180,13 @@ pub fn command(options: Options) -> Result<()> {
 
 fn appx(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "Appx"; "Creating StoreLogo.png");
-  resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"))?;
+  resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"), None)?;
 
   for size in [30, 44, 71, 89, 107, 142, 150, 284, 310] {
     let file_name = format!("Square{size}x{size}Logo.png");
     log::info!(action = "Appx"; "Creating {}", file_name);
 
-    resize_and_save_png(source, size, &out_dir.join(&file_name))?;
+    resize_and_save_png(source, size, &out_dir.join(&file_name), None)?;
   }
 
   Ok(())
@@ -439,31 +448,32 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
 
   for entry in entries {
     log::info!(action = "PNG"; "Creating {}", entry.name);
-    resize_and_save_png(source, entry.size, &entry.out_path)?;
+    resize_and_save_png(source, entry.size, &entry.out_path, None)?;
   }
-
-  let source_rgba8 = source.as_rgba8().expect("unexpected image type");
-  let mut img = ImageBuffer::from_fn(source_rgba8.width(), source_rgba8.height(), |_, _| {
-    ios_color
-  });
-  match source_rgba8 {
-    Cow::Borrowed(i) => image::imageops::overlay(&mut img, i, 0, 0),
-    Cow::Owned(i) => image::imageops::overlay(&mut img, &i, 0, 0),
-  }
-
-  let image = Source::DynamicImage(DynamicImage::ImageRgba8(img));
 
   for entry in ios_entries(&out)? {
     log::info!(action = "iOS"; "Creating {}", entry.name);
-    resize_and_save_png(&image, entry.size, &entry.out_path)?;
+    resize_and_save_png(source, entry.size, &entry.out_path, Some(ios_color))?;
   }
 
   Ok(())
 }
 
 // Resize image and save it to disk.
-fn resize_and_save_png(source: &Source, size: u32, file_path: &Path) -> Result<()> {
-  let image = source.resize_exact(size)?;
+fn resize_and_save_png(
+  source: &Source,
+  size: u32,
+  file_path: &Path,
+  ios_color: Option<Rgba<u8>>,
+) -> Result<()> {
+  let mut image = source.resize_exact(size)?;
+
+  if let Some(ios_color) = ios_color {
+    let mut ios_img = ImageBuffer::from_fn(size, size, |_, _| ios_color);
+    image::imageops::overlay(&mut ios_img, &image, 0, 0);
+    image = ios_img.into();
+  }
+
   let mut out_file = BufWriter::new(File::create(file_path)?);
   write_png(image.as_bytes(), &mut out_file, size)?;
   Ok(out_file.flush()?)

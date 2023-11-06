@@ -534,46 +534,49 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       .window_icon_path
       .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
 
-    if target_triple.contains("windows") {
-      if window_icon_path.exists() {
-        let mut res = WindowsResource::new();
+    let mut res = WindowsResource::new();
 
-        if let Some(manifest) = attributes.windows_attributes.app_manifest {
-          res.set_manifest(&manifest);
-        } else {
-          res.set_manifest(include_str!("window-app-manifest.xml"));
-        }
+    if let Some(manifest) = attributes.windows_attributes.app_manifest {
+      res.set_manifest(&manifest);
+    } else {
+      res.set_manifest(include_str!("window-app-manifest.xml"));
+    }
 
-        if let Some(version_str) = &config.package.version {
-          if let Ok(v) = Version::parse(version_str) {
-            let version = v.major << 48 | v.minor << 32 | v.patch << 16;
-            res.set_version_info(VersionInfo::FILEVERSION, version);
-            res.set_version_info(VersionInfo::PRODUCTVERSION, version);
-          }
-          if let Some(product_name) = &config.package.product_name {
-            res.set("ProductName", product_name);
-          }
-          if let Some(short_description) = &config.tauri.bundle.short_description {
-            res.set("FileDescription", short_description);
-          }
-          if let Some(copyright) = &config.tauri.bundle.copyright {
-            res.set("LegalCopyright", copyright);
-          }
-          res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
-          res.compile().with_context(|| {
-            format!(
-              "failed to compile `{}` into a Windows Resource file during tauri-build",
-              window_icon_path.display()
-            )
-          })?;
-        }
-      } else {
-        return Err(anyhow!(format!(
-          "`{}` not found; required for generating a Windows Resource file during tauri-build",
-          window_icon_path.display()
-        )));
+    if let Some(version_str) = &config.package.version {
+      if let Ok(v) = Version::parse(version_str) {
+        let version = v.major << 48 | v.minor << 32 | v.patch << 16;
+        res.set_version_info(VersionInfo::FILEVERSION, version);
+        res.set_version_info(VersionInfo::PRODUCTVERSION, version);
       }
     }
+
+    if let Some(product_name) = &config.package.product_name {
+      res.set("ProductName", product_name);
+    }
+
+    if let Some(short_description) = &config.tauri.bundle.short_description {
+      res.set("FileDescription", short_description);
+    }
+
+    if let Some(copyright) = &config.tauri.bundle.copyright {
+      res.set("LegalCopyright", copyright);
+    }
+
+    if window_icon_path.exists() {
+      res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
+    } else {
+      return Err(anyhow!(format!(
+        "`{}` not found; required for generating a Windows Resource file during tauri-build",
+        window_icon_path.display()
+      )));
+    }
+
+    res.compile().with_context(|| {
+      format!(
+        "failed to compile `{}` into a Windows Resource file during tauri-build",
+        window_icon_path.display()
+      )
+    })?;
 
     let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap();
     match target_env.as_str() {

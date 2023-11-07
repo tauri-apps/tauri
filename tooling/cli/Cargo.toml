@@ -94,6 +94,7 @@ serde-value = "0.7.0"
 itertools = "0.11"
 local-ip-address = "0.5"
 css-color = "0.2"
+resvg = "0.36.0"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }

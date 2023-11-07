@@ -30,7 +30,7 @@ pub fn command(
   reinstall_deps: bool,
   skip_targets_install: bool,
 ) -> Result<()> {
-  let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
+  let wrapper = TextWrapper::default();
 
   exec(
     target,

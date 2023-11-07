@@ -164,7 +164,6 @@ use serde::Serialize;
 use std::{
   collections::HashMap,
   fmt::{self, Debug},
-  sync::Arc,
 };
 
 #[cfg(feature = "wry")]
@@ -389,7 +388,7 @@ impl TryFrom<Icon> for runtime::Icon {
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
-  pub(crate) assets: Arc<A>,
+  pub(crate) assets: Box<A>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(all(desktop, feature = "tray-icon"))]
@@ -430,13 +429,13 @@ impl<A: Assets> Context<A> {
 
   /// The assets to be served directly by Tauri.
   #[inline(always)]
-  pub fn assets(&self) -> Arc<A> {
-    self.assets.clone()
+  pub fn assets(&self) -> &A {
+    &self.assets
   }
 
   /// A mutable reference to the assets to be served directly by Tauri.
   #[inline(always)]
-  pub fn assets_mut(&mut self) -> &mut Arc<A> {
+  pub fn assets_mut(&mut self) -> &mut A {
     &mut self.assets
   }
 
@@ -491,7 +490,7 @@ impl<A: Assets> Context<A> {
   #[allow(clippy::too_many_arguments)]
   pub fn new(
     config: Config,
-    assets: Arc<A>,
+    assets: Box<A>,
     default_window_icon: Option<Icon>,
     app_icon: Option<Vec<u8>>,
     package_info: PackageInfo,
@@ -536,7 +535,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// The [`Config`] the manager was created with.
-  fn config(&self) -> Arc<Config> {
+  fn config(&self) -> &Config {
     self.manager().config()
   }
 
@@ -794,7 +793,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   {
     self
       .manager()
-      .inner
       .state
       .try_get()
       .expect("state() called before manage() for given type")
@@ -807,7 +805,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().inner.state.try_get()
+    self.manager().state.try_get()
   }
 
   /// Gets the managed [`Env`].
@@ -835,7 +833,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
   use super::Runtime;
-  use crate::{app::AppHandle, manager::WindowManager};
+  use crate::{app::AppHandle, manager::AppManager};
+  use std::sync::Arc;
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, R: Runtime> {
@@ -851,8 +850,8 @@ pub(crate) mod sealed {
 
   /// Managed handle to the application runtime.
   pub trait ManagerBase<R: Runtime> {
-    /// The manager behind the [`Managed`] item.
-    fn manager(&self) -> &WindowManager<R>;
+    fn manager(&self) -> &AppManager<R>;
+    fn manager_owned(&self) -> Arc<AppManager<R>>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
     fn managed_app_handle(&self) -> &AppHandle<R>;
   }

@@ -294,8 +294,8 @@ impl<R: Runtime> TrayIcon<R> {
     if let Some(handler) = on_menu_event {
       app_handle
         .manager
-        .inner
-        .menu_event_listeners
+        .menu
+        .global_event_listeners
         .lock()
         .unwrap()
         .push(handler);
@@ -304,8 +304,8 @@ impl<R: Runtime> TrayIcon<R> {
     if let Some(handler) = on_tray_icon_event {
       app_handle
         .manager
-        .inner
-        .tray_event_listeners
+        .tray
+        .event_listeners
         .lock()
         .unwrap()
         .insert(self.id.clone(), handler);
@@ -313,8 +313,8 @@ impl<R: Runtime> TrayIcon<R> {
 
     app_handle
       .manager
-      .inner
-      .tray_icons
+      .tray
+      .icons
       .lock()
       .unwrap()
       .push(self.clone());
@@ -333,8 +333,8 @@ impl<R: Runtime> TrayIcon<R> {
     self
       .app_handle
       .manager
-      .inner
-      .menu_event_listeners
+      .menu
+      .global_event_listeners
       .lock()
       .unwrap()
       .push(Box::new(f));
@@ -348,8 +348,8 @@ impl<R: Runtime> TrayIcon<R> {
     self
       .app_handle
       .manager
-      .inner
-      .tray_event_listeners
+      .tray
+      .event_listeners
       .lock()
       .unwrap()
       .insert(self.id.clone(), Box::new(f));

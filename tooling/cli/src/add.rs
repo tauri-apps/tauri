@@ -34,7 +34,7 @@ pub struct Options {
 
 pub fn command(options: Options) -> Result<()> {
   let plugin = options.plugin;
-  let plugin_snake_case = plugin.replace("-", "_");
+  let plugin_snake_case = plugin.replace('-', "_");
   let crate_name = format!("tauri-plugin-{plugin}");
   let npm_name = format!("@tauri-apps/plugin-{plugin}");
 

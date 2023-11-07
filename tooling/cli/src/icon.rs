@@ -464,14 +464,14 @@ fn resize_and_save_png(
   source: &Source,
   size: u32,
   file_path: &Path,
-  ios_color: Option<Rgba<u8>>,
+  bg_color: Option<Rgba<u8>>,
 ) -> Result<()> {
   let mut image = source.resize_exact(size)?;
 
-  if let Some(ios_color) = ios_color {
-    let mut ios_img = ImageBuffer::from_fn(size, size, |_, _| ios_color);
-    image::imageops::overlay(&mut ios_img, &image, 0, 0);
-    image = ios_img.into();
+  if let Some(bg_color) = bg_color {
+    let mut bg_img = ImageBuffer::from_fn(size, size, |_, _| bg_color);
+    image::imageops::overlay(&mut bg_img, &image, 0, 0);
+    image = bg_img.into();
   }
 
   let mut out_file = BufWriter::new(File::create(file_path)?);

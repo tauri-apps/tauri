@@ -2405,14 +2405,22 @@ impl<R: Runtime> Window<R> {
 
   /// Whether this window registered a listener to an event from the given window and event name.
   pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
-    self
-      .js_event_listeners
-      .lock()
-      .unwrap()
-      .contains_key(&JsEventListenerKey {
-        window_label,
-        event: event.into(),
+    let listeners = self.js_event_listeners.lock().unwrap();
+
+    if let Some(label) = window_label {
+      let event = event.to_string();
+      // window-specific event is also triggered on global events, so we check that
+      listeners.contains_key(&JsEventListenerKey {
+        window_label: Some(label),
+        event: event.clone(),
+      }) || listeners.contains_key(&JsEventListenerKey {
+        window_label: None,
+        event,
       })
+    } else {
+      // for global events, any listener is triggered
+      listeners.keys().any(|k| k.event == event)
+    }
   }
 
   /// Opens the developer tools window (Web Inspector).

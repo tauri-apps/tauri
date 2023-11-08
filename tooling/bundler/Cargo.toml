@@ -28,7 +28,7 @@ strsim = "0.10.0"
 tar = "0.4.40"
 walkdir = "2"
 handlebars = "4.4"
-tempfile = "3.8.0"
+tempfile = "3.8.1"
 log = { version = "0.4.20", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 os_pipe = "1"

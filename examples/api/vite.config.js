@@ -5,38 +5,35 @@
 import { defineConfig } from 'vite'
 import Unocss from 'unocss/vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { internalIpV4 } from 'internal-ip'
+import { internalIpV4Sync } from 'internal-ip'
+
+const mobile = !!/android|ios/.exec(process.env.TAURI_ENV_PLATFORM)
 
 // https://vitejs.dev/config/
-export default defineConfig(async ({ command, mode }) => {
-  const host =
-    process.env.TAURI_ENV_PLATFORM === 'android' ||
-    process.env.TAURI_ENV_PLATFORM === 'ios'
-      ? await internalIpV4()
-      : 'localhost'
-  return {
-    plugins: [Unocss(), svelte()],
-    build: {
-      rollupOptions: {
-        output: {
-          entryFileNames: `assets/[name].js`,
-          chunkFileNames: `assets/[name].js`,
-          assetFileNames: `assets/[name].[ext]`
+export default defineConfig({
+  plugins: [Unocss(), svelte()],
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: `assets/[name].js`,
+        chunkFileNames: `assets/[name].js`,
+        assetFileNames: `assets/[name].[ext]`
+      }
+    }
+  },
+  server: {
+    host: mobile ? '0.0.0.0' : false,
+    port: 5173,
+    strictPort: true,
+    hmr: mobile
+      ? {
+          protocol: 'ws',
+          host: internalIpV4Sync(),
+          port: 5183
         }
-      }
-    },
-    server: {
-      host: '0.0.0.0',
-      port: 5173,
-      strictPort: true,
-      hmr: {
-        protocol: 'ws',
-        host,
-        port: 5183
-      },
-      fs: {
-        allow: ['.', '../../tooling/api/dist']
-      }
+      : undefined,
+    fs: {
+      allow: ['.', '../../tooling/api/dist']
     }
   }
 })

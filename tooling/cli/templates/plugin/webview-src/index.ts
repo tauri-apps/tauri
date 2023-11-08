@@ -1,4 +1,4 @@
-{#if license_header}}
+{{#if license_header}}
 {{ license_header }}
 {{/if}}
 import { invoke } from '@tauri-apps/api/primitives'

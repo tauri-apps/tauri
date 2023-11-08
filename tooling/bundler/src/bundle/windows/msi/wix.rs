@@ -807,7 +807,8 @@ pub fn build_wix_app_installer(
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
-    let msi_path = app_installer_output_path(settings, &language, &app_version, updater)?;
+    let msi_path =
+      app_installer_output_path(settings, &language, settings.version_string(), updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
     info!(action = "Running"; "light to produce {}", display_path(&msi_path));

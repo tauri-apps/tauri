@@ -30,14 +30,26 @@ export default defineConfig([
       {
         format: 'esm',
         dir: './dist',
-        entryFileNames: '[name].js',
-        preserveModules: true
+        preserveModules: true,
+        entryFileNames: (chunkInfo) => {
+          if (chunkInfo.name.includes('node_modules')) {
+            return chunkInfo.name.replace('node_modules', 'external') + '.js'
+          }
+
+          return '[name].js'
+        }
       },
       {
         format: 'cjs',
         dir: './dist',
-        entryFileNames: '[name].cjs',
-        preserveModules: true
+        preserveModules: true,
+        entryFileNames: (chunkInfo) => {
+          if (chunkInfo.name.includes('node_modules')) {
+            return chunkInfo.name.replace('node_modules', 'external') + '.cjs'
+          }
+
+          return '[name].cjs'
+        }
       }
     ],
     plugins: [

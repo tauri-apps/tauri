@@ -1,5 +1,43 @@
 # Changelog
 
+## \[2.0.0-alpha.17]
+
+### Enhancements
+
+- [`b89de9fa`](https://www.github.com/tauri-apps/tauri/commit/b89de9fa43b793c74a42230c7a82c11c3734278e)([#8092](https://www.github.com/tauri-apps/tauri/pull/8092)) Add support for onResume and onPause events in android plugins.
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+- [`198abe3c`](https://www.github.com/tauri-apps/tauri/commit/198abe3c2cae06dacab860b3a93f715dcf529a95)([#8076](https://www.github.com/tauri-apps/tauri/pull/8076)) Mobile plugins can now resolve using an arbitrary object instead of using the `JSObject` class via `Invoke.resolve` on iOS and `Invoke.resolveObject` on Android.
+
+### Bug Fixes
+
+- [`22f26882`](https://www.github.com/tauri-apps/tauri/commit/22f26882cfe0adbfe4c51586a1c9fdcf8e9cfb68)([#8049](https://www.github.com/tauri-apps/tauri/pull/8049)) Prevent crash on iOS when the Swift plugin data is not a valid JSON string.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-alpha.11`
+- Upgraded to `tauri-macros@2.0.0-alpha.10`
+- Upgraded to `tauri-utils@2.0.0-alpha.10`
+- Upgraded to `tauri-runtime@1.0.0-alpha.4`
+- Upgraded to `tauri-runtime-wry@1.0.0-alpha.5`
+- [`9580df1d`](https://www.github.com/tauri-apps/tauri/commit/9580df1d7b027befb9e5f025ea2cbaf2dcc82c8e)([#8084](https://www.github.com/tauri-apps/tauri/pull/8084)) Upgrade `gtk` to 0.18.
+- [`c7c2507d`](https://www.github.com/tauri-apps/tauri/commit/c7c2507da16a9beb71bf06745fe7ac1325ab7c2a)([#8035](https://www.github.com/tauri-apps/tauri/pull/8035)) Update `windows` to version `0.51` and `webview2-com` to version `0.27`
+- [`9580df1d`](https://www.github.com/tauri-apps/tauri/commit/9580df1d7b027befb9e5f025ea2cbaf2dcc82c8e)([#8084](https://www.github.com/tauri-apps/tauri/pull/8084)) Updated to wry@0.34, removing the `dox` feature flag.
+
+### Breaking Changes
+
+- [`198abe3c`](https://www.github.com/tauri-apps/tauri/commit/198abe3c2cae06dacab860b3a93f715dcf529a95)([#8076](https://www.github.com/tauri-apps/tauri/pull/8076)) The Android `PluginManager.loadConfig` now takes a third parameter to define the class type of the config object.
+- [`198abe3c`](https://www.github.com/tauri-apps/tauri/commit/198abe3c2cae06dacab860b3a93f715dcf529a95)([#8076](https://www.github.com/tauri-apps/tauri/pull/8076)) Mobile plugins now have access to a parser for the invoke arguments instead of relying on the `Invoke#get${TYPE}` methods.
+- [`74d2464d`](https://www.github.com/tauri-apps/tauri/commit/74d2464d0e490fae341ad73bdf2964cf215fe6c5)([#8116](https://www.github.com/tauri-apps/tauri/pull/8116)) Added `WindowBuilder::on_page_load` and refactored the `Builder::on_page_load` handler to take references.
+  The page load hook is now triggered for load started and finished events, to determine what triggered it see `PageLoadPayload::event`.
+- [`93c8a77b`](https://www.github.com/tauri-apps/tauri/commit/93c8a77b347b9934ec0732784d4b78b3260abc08)([#7996](https://www.github.com/tauri-apps/tauri/pull/7996)) The event system APIS on Rust is recieving a few changes for consistency and quality of life improvements:
+
+  - Renamed `Manager::emit_all` to just `Manager::emit` and will now both trigger the events on JS side as well as Rust.
+  - Removed `Manager::trigger_global`, use `Manager::emit`
+  - Added `Manager::emit_filter`.
+  - Removed `Window::emit`, and moved the implementation to `Manager::emit`.
+  - Removed `Window::emit_and_trigger` and `Window::trigger`, use `Window::emit` instead.
+  - Changed `Window::emit_to` to only trigger the target window listeners so it won't be catched by `Manager::listen_global`
+
 ## \[2.0.0-alpha.16]
 
 ### New Features

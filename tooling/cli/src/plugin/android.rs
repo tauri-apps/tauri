@@ -68,6 +68,7 @@ pub fn command(cli: Cli) -> Result<()> {
 
       let mut data = BTreeMap::new();
       super::init::plugin_name_data(&mut data, &plugin_name);
+      data.insert("android_package_id", handlebars::to_json(&plugin_id));
 
       let mut created_dirs = Vec::new();
       template::render_with_generator(

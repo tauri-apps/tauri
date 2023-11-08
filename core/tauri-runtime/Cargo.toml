@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "1.0.0-alpha.3"
+version = "1.0.0-alpha.4"
 description = "Runtime for Tauri applications"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -14,7 +14,8 @@ rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [ "--cfg", "doc_cfg" ]
+rustc-args = [ "--cfg", "docsrs" ]
+rustdoc-args = [ "--cfg", "docsrs" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",
@@ -28,7 +29,7 @@ targets = [
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "2.0.0-alpha.9", path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-alpha.10", path = "../tauri-utils" }
 http = "0.2.4"
 raw-window-handle = "0.5"
 url = { version = "2" }

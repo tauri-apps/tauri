@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "1.0.0-alpha.4"
+version = "1.0.0-alpha.5"
 description = "Wry bindings to the Tauri runtime"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -13,9 +13,9 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-wry = { version = "0.34.1", default-features = false, features = [ "tao", "file-drop", "protocol" ] }
-tauri-runtime = { version = "1.0.0-alpha.3", path = "../tauri-runtime" }
-tauri-utils = { version = "2.0.0-alpha.9", path = "../tauri-utils" }
+wry = { version = "0.34.2", default-features = false, features = [ "tao", "file-drop", "protocol" ] }
+tauri-runtime = { version = "1.0.0-alpha.4", path = "../tauri-runtime" }
+tauri-utils = { version = "2.0.0-alpha.10", path = "../tauri-utils" }
 raw-window-handle = "0.5"
 http = "0.2"
 

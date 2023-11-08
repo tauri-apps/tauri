@@ -10,7 +10,7 @@
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
-#![cfg_attr(doc_cfg, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use raw_window_handle::RawDisplayHandle;
 use serde::Deserialize;
@@ -176,7 +176,7 @@ pub struct RunIteration {
 
 /// Application's activation policy. Corresponds to NSApplicationActivationPolicy.
 #[cfg(target_os = "macos")]
-#[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+#[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
 #[non_exhaustive]
 pub enum ActivationPolicy {
   /// Corresponds to NSApplicationActivationPolicyRegular.
@@ -211,12 +211,12 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn show(&self) -> Result<()>;
 
   /// Hides the application.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self) -> Result<()>;
 
   /// Finds an Android class in the project scope.
@@ -261,7 +261,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Creates a new webview runtime on any thread.
   #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(windows, target_os = "linux"))))]
   fn new_any_thread(args: RuntimeInitArgs) -> Result<Self>;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
@@ -282,17 +282,17 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn show(&self);
 
   /// Hides the application.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self);
 
   /// Change the device event filter mode.

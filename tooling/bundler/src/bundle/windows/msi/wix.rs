@@ -576,6 +576,11 @@ pub fn build_wix_app_installer(
   let app_exe_name = settings.main_binary_name().to_string();
   data.insert("app_exe_name", to_json(app_exe_name));
 
+  data.insert(
+    "deep_link_protocols",
+    to_json(settings.deep_link_protocols()),
+  );
+
   let binaries = generate_binaries_data(settings)?;
 
   let binaries_json = to_json(binaries);

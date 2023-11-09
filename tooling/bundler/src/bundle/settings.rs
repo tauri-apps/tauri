@@ -414,6 +414,8 @@ pub struct BundleSettings {
   /// e.g. `sqlite3-universal-apple-darwin`. See
   /// <https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary>
   pub external_bin: Option<Vec<String>>,
+  /// Deep-link protocols.
+  pub deep_link_protocols: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
   /// MacOS-specific settings.
@@ -829,6 +831,16 @@ impl Settings {
   /// Return file associations.
   pub fn file_associations(&self) -> &Option<Vec<FileAssociation>> {
     &self.bundle_settings.file_associations
+  }
+
+  /// Return the list of deep link protocols to be registered for
+  /// this bundle.
+  pub fn deep_link_protocols(&self) -> Vec<String> {
+    self
+      .bundle_settings
+      .deep_link_protocols
+      .clone()
+      .unwrap_or_else(Vec::new)
   }
 
   /// Returns the app's short description.

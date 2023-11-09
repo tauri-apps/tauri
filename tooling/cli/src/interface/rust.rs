@@ -28,9 +28,12 @@ use tauri_bundler::{
 use tauri_utils::config::parse::is_configuration_file;
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
-use crate::helpers::{
-  app_paths::{app_dir, tauri_dir},
-  config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
+use crate::{
+  helpers::{
+    app_paths::{app_dir, tauri_dir},
+    config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
+  },
+  plugin,
 };
 use tauri_utils::{display_path, platform::Target};
 
@@ -701,7 +704,28 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone())
+    tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone()).map(
+      |mut settings| {
+        if let Some(plugin_config) = config
+          .plugins
+          .0
+          .get("deep-link")
+          .and_then(|c| c.get("desktop"))
+          .and_then(|c| c.as_array())
+        {
+          if !plugin_config.is_empty() {
+            let mut protocols = Vec::new();
+            for s in plugin_config {
+              if let Some(s) = s.as_str() {
+                protocols.push(s.to_string());
+              }
+            }
+            settings.deep_link_protocols = Some(protocols);
+          }
+        }
+        settings
+      },
+    )
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {

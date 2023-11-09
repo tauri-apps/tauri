@@ -29,7 +29,7 @@ use sublime_fuzzy::best_match;
 use super::{
   ensure_init, get_app,
   init::{command as init_command, configure_cargo},
-  log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
+  log_finished, read_options, setup_dev_config, CliOptions, OptionsHandle, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{helpers::config::Config as TauriConfig, Result};

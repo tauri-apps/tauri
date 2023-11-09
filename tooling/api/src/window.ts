@@ -59,8 +59,8 @@ interface ScaleFactorChanged {
 
 /** The file drop event types. */
 type FileDropEvent =
-  | { type: 'hover'; paths: string[] }
-  | { type: 'drop'; paths: string[] }
+  | { type: 'hover'; paths: string[]; position: PhysicalPosition }
+  | { type: 'drop'; paths: string[]; position: PhysicalPosition }
   | { type: 'cancel' }
 
 /**
@@ -1733,14 +1733,14 @@ class Window {
     const unlistenFileDrop = await this.listen<string[]>(
       TauriEvent.WINDOW_FILE_DROP,
       (event) => {
-        handler({ ...event, payload: { type: 'drop', paths: event.payload } })
+        handler({ ...event, payload: { type: 'drop', paths: event.payload.paths, position: event.payload.position } })
       }
     )
 
     const unlistenFileHover = await this.listen<string[]>(
       TauriEvent.WINDOW_FILE_DROP_HOVER,
       (event) => {
-        handler({ ...event, payload: { type: 'hover', paths: event.payload } })
+        handler({ ...event, payload: { type: 'hover', paths: event.payload.paths, position: event.payload.position } })
       }
     )
 

@@ -361,6 +361,12 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Set a download started handler to manage incoming downloads.
+  ///
+  /// The closure takes two parameters - the first is a `String` representing the url being downloaded from and and the
+  /// second is a mutable `PathBuf` reference that (possibly) represents where the file will be downloaded to. The latter
+  /// parameter can be used to set the download location by assigning a new path to it - the assigned path _must_ be
+  /// absolute. The closure returns a `bool` to allow or deny the download.
   pub fn on_download_started<F: Fn(String, &mut PathBuf) -> bool + Send + 'static>(
     mut self,
     f: F,
@@ -369,6 +375,19 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Sets a download completion handler to manage downloads that have finished.
+  ///
+  /// The closure is fired when the download completes, whether it was successful or not.
+  /// The closure takes a `String` representing the URL of the original download request, an `Option<PathBuf>`
+  /// potentially representing the filesystem path the file was downloaded to, and a `bool` indicating if the download
+  /// succeeded. A value of `None` being passed instead of a `PathBuf` does not necessarily indicate that the download
+  /// did not succeed, and may instead indicate some other failure - always check the third parameter if you need to
+  /// know if the download succeeded.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS**: The second parameter indicating the path the file was saved to is always empty, due to API
+  /// limitations.
   pub fn on_download_completed<F: Fn(String, Option<PathBuf>, bool) + Send + 'static>(
     mut self,
     f: F,

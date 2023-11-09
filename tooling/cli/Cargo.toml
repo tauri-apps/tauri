@@ -39,8 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.7", default-features = false }
-textwrap = { version = "0.11.0", features = [ "term_size" ] }
+cargo-mobile2 = { version = "0.8", default-features = false }
 jsonrpsee = { version = "0.20", features = [ "server" ] }
 jsonrpsee-core = "0.20"
 jsonrpsee-client-transport = { version = "0.20", features = [ "ws" ] }
@@ -68,11 +67,11 @@ jsonschema = "0.17"
 handlebars = "4.4"
 include_dir = "0.7"
 minisign = "=0.7.5"
-base64 = "0.21.4"
+base64 = "0.21.5"
 ureq = { version = "2.8", default-features = false, features = [ "gzip" ] }
 os_info = "3"
 semver = "1.0"
-regex = "1.6.0"
+regex = "1.10.2"
 unicode-width = "0.1"
 zeroize = "1.6"
 heck = { version = "0.4", features = [ "unicode" ] }

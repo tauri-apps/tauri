@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
-  open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
+  merge_plist, open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -149,6 +149,7 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
   inject_assets(&config)?;
+  merge_plist(&config)?;
   run_dev(options, tauri_config, &app, &config, noise_level)
 }
 

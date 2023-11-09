@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_assets,
-  log_finished, open_and_wait, MobileTarget,
+  log_finished, merge_plist, open_and_wait, MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -98,6 +98,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
   inject_assets(&config)?;
+  merge_plist(&config)?;
 
   let mut env = env()?;
   configure_cargo(&app, None)?;

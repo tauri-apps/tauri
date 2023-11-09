@@ -27,12 +27,16 @@ use super::{
   log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
-use crate::{
-  helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
-  Result,
-};
+use crate::{helpers::config::Config as TauriConfig, Result};
 
-use std::{env::set_var, fs::create_dir_all, process::exit, thread::sleep, time::Duration};
+use std::{
+  env::set_var,
+  fs::create_dir_all,
+  path::{Path, PathBuf},
+  process::exit,
+  thread::sleep,
+  time::Duration,
+};
 
 mod build;
 mod dev;
@@ -265,24 +269,18 @@ fn inject_assets(config: &AppleConfig) -> Result<()> {
   Ok(())
 }
 
-fn merge_plist(config: &AppleConfig) -> Result<()> {
-  let tauri_path = tauri_dir();
+fn merge_plist(src: &[PathBuf], dest: &Path) -> Result<()> {
+  let mut dest_plist = None;
 
-  let info_plist_path = config
-    .project_dir()
-    .join(config.scheme())
-    .join("Info.plist");
-  let mut info_plist = None;
-
-  for plist_file in ["Info.plist", "Info.ios.plist"] {
-    if let Ok(user_plist) = plist::Value::from_file(tauri_path.join(plist_file)) {
-      if info_plist.is_none() {
-        info_plist.replace(plist::Value::from_file(&info_plist_path)?);
+  for src_path in src {
+    if let Ok(src_plist) = plist::Value::from_file(src_path) {
+      if dest_plist.is_none() {
+        dest_plist.replace(plist::Value::from_file(dest)?);
       }
 
-      let plist = info_plist.as_mut().expect("Info.plist not loaded");
+      let plist = dest_plist.as_mut().expect("Info.plist not loaded");
       if let Some(plist) = plist.as_dictionary_mut() {
-        if let Some(dict) = user_plist.into_dictionary() {
+        if let Some(dict) = src_plist.into_dictionary() {
           for (key, value) in dict {
             plist.insert(key, value);
           }
@@ -291,8 +289,8 @@ fn merge_plist(config: &AppleConfig) -> Result<()> {
     }
   }
 
-  if let Some(info_plist) = info_plist {
-    info_plist.to_file_xml(info_plist_path)?;
+  if let Some(dest_plist) = dest_plist {
+    dest_plist.to_file_xml(dest)?;
   }
 
   Ok(())

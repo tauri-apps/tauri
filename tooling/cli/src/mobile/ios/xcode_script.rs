@@ -134,22 +134,24 @@ pub fn command(options: Options) -> Result<()> {
 
   let isysroot = format!("-isysroot {}", options.sdk_root.display());
 
-  // when using Xcode, the arches will be ['Simulator', 'arm64'] instead of ['arm64-sim']
-  let arches = if options.arches.contains(&"Simulator".into()) {
-    vec![if cfg!(target_arch = "aarch64") {
-      "arm64-sim".to_string()
-    } else {
-      "x86_64".to_string()
-    }]
-  } else {
-    options.arches
-  };
-  for arch in arches {
+  /*let simulator_platform_component =
+    std::path::Component::Normal(std::ffi::OsStr::new("iPhoneSimulator.platform"));
+  let simulator_build = options
+    .sdk_root
+    .components()
+    .any(|c| c == simulator_platform_component);*/
+
+  for arch in options.arches {
     // Set target-specific flags
     let (env_triple, rust_triple) = match arch.as_str() {
       "arm64" => ("aarch64_apple_ios", "aarch64-apple-ios"),
       "arm64-sim" => ("aarch64_apple_ios_sim", "aarch64-apple-ios-sim"),
       "x86_64" => ("x86_64_apple_ios", "x86_64-apple-ios"),
+      "Simulator" => {
+        // when using Xcode, the arches for a simulator build will be ['Simulator', 'arm64-sim'] instead of ['arm64-sim']
+        // so we fix that on our end
+        continue;
+      }
       _ => {
         return Err(anyhow::anyhow!(
           "Arch specified by Xcode was invalid. {} isn't a known arch",
@@ -206,14 +208,11 @@ pub fn command(options: Options) -> Result<()> {
     }
 
     let project_dir = config.project_dir();
-    std::fs::create_dir_all(project_dir.join(format!("Externals/{}", profile.as_str())))?;
+    let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));
+    std::fs::create_dir_all(&externals_lib_dir)?;
     std::fs::copy(
       lib_path,
-      project_dir.join(format!(
-        "Externals/{}/lib{}.a",
-        profile.as_str(),
-        config.app().lib_name()
-      )),
+      externals_lib_dir.join(format!("lib{}.a", config.app().lib_name())),
     )?;
   }
   Ok(())

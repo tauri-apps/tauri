@@ -7,6 +7,7 @@
 pub(crate) mod plugin;
 
 use http::HeaderMap;
+pub use tauri_runtime::window::PageLoadEvent;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -20,7 +21,7 @@ use crate::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
   },
-  manager::WindowManager,
+  manager::AppManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     webview::{WebviewAttributes, WindowBuilder as _},
@@ -65,10 +66,30 @@ pub(crate) type WebResourceRequestHandler =
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
+pub(crate) type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
   label: String,
+}
+
+/// The payload for the [`WindowBuilder::on_page_load`] hook.
+#[derive(Debug, Clone)]
+pub struct PageLoadPayload<'a> {
+  pub(crate) url: &'a Url,
+  pub(crate) event: PageLoadEvent,
+}
+
+impl<'a> PageLoadPayload<'a> {
+  /// The page URL.
+  pub fn url(&self) -> &'a Url {
+    self.url
+  }
+
+  /// The page load event.
+  pub fn event(&self) -> PageLoadEvent {
+    self.event
+  }
 }
 
 /// Monitor descriptor.
@@ -118,7 +139,7 @@ impl Monitor {
 /// A builder for a webview window managed by Tauri.
 #[default_runtime(crate::Wry, wry)]
 pub struct WindowBuilder<'a, R: Runtime> {
-  manager: WindowManager<R>,
+  manager: Arc<AppManager<R>>,
   runtime: RuntimeOrDispatch<'a, R>,
   app_handle: AppHandle<R>,
   label: String,
@@ -128,6 +149,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
+  on_page_load_handler: Option<Box<OnPageLoad<R>>>,
   #[cfg(desktop)]
   on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
 }
@@ -196,7 +218,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let runtime = manager.runtime();
     let app_handle = manager.app_handle().clone();
     Self {
-      manager: manager.manager().clone(),
+      manager: manager.manager_owned(),
       runtime,
       app_handle,
       label: label.into(),
@@ -206,6 +228,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      on_page_load_handler: None,
       #[cfg(desktop)]
       on_menu_event: None,
     }
@@ -236,7 +259,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
     let builder = Self {
-      manager: manager.manager().clone(),
+      manager: manager.manager_owned(),
       runtime: manager.runtime(),
       app_handle: manager.app_handle().clone(),
       label: config.label.clone(),
@@ -250,6 +273,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       navigation_handler: None,
       #[cfg(desktop)]
       on_menu_event: None,
+      on_page_load_handler: None,
     };
 
     builder
@@ -329,6 +353,44 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Defines a closure to be executed when a page load event is triggered.
+  /// The event can be either [`PageLoadEvent::Started`] if the page has started loading
+  /// or [`PageLoadEvent::Finished`] when the page finishes loading.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   window::{PageLoadEvent, WindowBuilder},
+  /// };
+  /// use http::header::HeaderValue;
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
+  ///       .on_page_load(|window, payload| {
+  ///         match payload.event() {
+  ///           PageLoadEvent::Started => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///           PageLoadEvent::Finished => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///         }
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_page_load<F: Fn(Window<R>, PageLoadPayload<'_>) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.on_page_load_handler.replace(Box::new(f));
+    self
+  }
+
   /// Registers a global menu event listener.
   ///
   /// Note that this handler is called for any menu event,
@@ -381,9 +443,22 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
-    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
+    if let Some(on_page_load_handler) = self.on_page_load_handler.take() {
+      let label = pending.label.clone();
+      let manager = self.app_handle.manager.clone();
+      pending
+        .on_page_load_handler
+        .replace(Box::new(move |url, event| {
+          if let Some(w) = manager.get_window(&label) {
+            on_page_load_handler(w, PageLoadPayload { url: &url, event });
+          }
+        }));
+    }
+
+    let labels = self.manager.window.labels().into_iter().collect::<Vec<_>>();
     let pending = self
       .manager
+      .window
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
 
     #[cfg(desktop)]
@@ -398,6 +473,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     #[cfg(desktop)]
     let handler = self
       .manager
+      .menu
       .prepare_window_menu_creation_handler(window_menu.as_ref());
     #[cfg(not(desktop))]
     #[allow(clippy::type_complexity)]
@@ -410,7 +486,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
     }
     .map(|window| {
-      self.manager.attach_window(
+      self.manager.window.attach_window(
         self.app_handle.clone(),
         window,
         #[cfg(desktop)]
@@ -426,9 +502,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     if let Some(effects) = window_effects {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
-    self.manager.eval_script_all(format!(
+    self.manager.window.eval_script_all(format!(
       "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&self.manager.labels())?,
+      window_labels_array = serde_json::to_string(&self.manager.window.labels())?,
     ))?;
 
     self.manager.emit_filter(
@@ -595,7 +671,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
   )]
   #[must_use]
@@ -902,7 +978,7 @@ pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
-  pub(crate) manager: WindowManager<R>,
+  pub(crate) manager: Arc<AppManager<R>>,
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<EventId>>>>,
   // The menu set for this window
@@ -983,8 +1059,12 @@ impl<R: Runtime> Manager<R> for Window<R> {
   }
 }
 impl<R: Runtime> ManagerBase<R> for Window<R> {
-  fn manager(&self) -> &WindowManager<R> {
+  fn manager(&self) -> &AppManager<R> {
     &self.manager
+  }
+
+  fn manager_owned(&self) -> Arc<AppManager<R>> {
+    self.manager.clone()
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
@@ -1005,7 +1085,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
 #[cfg(feature = "wry")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
 #[cfg(feature = "wry")]
@@ -1019,7 +1099,7 @@ impl PlatformWebview {
     target_os = "openbsd"
   ))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1034,7 +1114,7 @@ impl PlatformWebview {
 
   /// Returns the WebView2 controller.
   #[cfg(windows)]
-  #[cfg_attr(doc_cfg, doc(cfg(windows)))]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
   pub fn controller(
     &self,
   ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller {
@@ -1045,7 +1125,7 @@ impl PlatformWebview {
   ///
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
   #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn inner(&self) -> cocoa::base::id {
     self.0.webview
   }
@@ -1054,7 +1134,7 @@ impl PlatformWebview {
   ///
   /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
   #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn controller(&self) -> cocoa::base::id {
     self.0.manager
   }
@@ -1063,7 +1143,7 @@ impl PlatformWebview {
   ///
   /// [NSWindow]: https://developer.apple.com/documentation/appkit/nswindow
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   pub fn ns_window(&self) -> cocoa::base::id {
     self.0.ns_window
   }
@@ -1072,7 +1152,7 @@ impl PlatformWebview {
   ///
   /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
   #[cfg(target_os = "ios")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "ios")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "ios")))]
   pub fn view_controller(&self) -> cocoa::base::id {
     self.0.view_controller
   }
@@ -1088,7 +1168,7 @@ impl PlatformWebview {
 impl<R: Runtime> Window<R> {
   /// Create a new window that is attached to the manager.
   pub(crate) fn new(
-    manager: WindowManager<R>,
+    manager: Arc<AppManager<R>>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
     #[cfg(desktop)] menu: Option<WindowMenu<R>>,
@@ -1193,7 +1273,7 @@ impl<R: Runtime> Window<R> {
   /// }
   /// ```
   #[cfg(feature = "wry")]
-  #[cfg_attr(doc_cfg, doc(feature = "wry"))]
+  #[cfg_attr(docsrs, doc(feature = "wry"))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,
@@ -1249,8 +1329,8 @@ impl<R: Runtime> Window<R> {
   ) {
     self
       .manager
-      .inner
-      .window_menu_event_listeners
+      .menu
+      .event_listeners
       .lock()
       .unwrap()
       .insert(self.label().to_string(), Box::new(f));
@@ -1293,7 +1373,7 @@ impl<R: Runtime> Window<R> {
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
 
-    self.manager.insert_menu_into_stash(&menu);
+    self.manager.menu.insert_menu_into_stash(&menu);
 
     let window = self.clone();
     let menu_ = menu.clone();
@@ -2135,7 +2215,7 @@ impl<R: Runtime> Window<R> {
       }
     };
 
-    let custom_responder = self.manager.invoke_responder();
+    let custom_responder = self.manager.window.invoke_responder.clone();
 
     let resolver = InvokeResolver::new(
       self.clone(),
@@ -2154,109 +2234,98 @@ impl<R: Runtime> Window<R> {
       request.error,
     );
 
-    match request.cmd.as_str() {
-      "__initialized" => match request.body.deserialize() {
-        Ok(payload) => {
-          manager.run_on_page_load(self, payload);
-          resolver.resolve(());
-        }
-        Err(e) => resolver.reject(e.to_string()),
-      },
-      _ => {
-        #[cfg(mobile)]
-        let app_handle = self.app_handle.clone();
+    #[cfg(mobile)]
+    let app_handle = self.app_handle.clone();
 
-        let message = InvokeMessage::new(
-          self,
-          manager.state(),
-          request.cmd.to_string(),
-          request.body,
-          request.headers,
-        );
+    let message = InvokeMessage::new(
+      self,
+      manager.state(),
+      request.cmd.to_string(),
+      request.body,
+      request.headers,
+    );
 
-        let mut invoke = Invoke {
-          message,
-          resolver: resolver.clone(),
-        };
+    let mut invoke = Invoke {
+      message,
+      resolver: resolver.clone(),
+    };
 
-        if !is_local && scope.is_none() {
-          invoke.resolver.reject(scope_not_found_error_message);
-        } else if request.cmd.starts_with("plugin:") {
-          let command = invoke.message.command.replace("plugin:", "");
-          let mut tokens = command.split('|');
-          // safe to unwrap: split always has a least one item
-          let plugin = tokens.next().unwrap();
-          invoke.message.command = tokens
-            .next()
-            .map(|c| c.to_string())
-            .unwrap_or_else(String::new);
+    if !is_local && scope.is_none() {
+      invoke.resolver.reject(scope_not_found_error_message);
+    } else if request.cmd.starts_with("plugin:") {
+      let command = invoke.message.command.replace("plugin:", "");
+      let mut tokens = command.split('|');
+      // safe to unwrap: split always has a least one item
+      let plugin = tokens.next().unwrap();
+      invoke.message.command = tokens
+        .next()
+        .map(|c| c.to_string())
+        .unwrap_or_else(String::new);
 
-          if !(is_local
-            || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
-            || scope
-              .map(|s| s.plugins().contains(&plugin.into()))
-              .unwrap_or(true))
-          {
-            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-            return;
-          }
+      if !(is_local
+        || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
+        || scope
+          .map(|s| s.plugins().contains(&plugin.into()))
+          .unwrap_or(true))
+      {
+        invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+        return;
+      }
 
-          let command = invoke.message.command.clone();
+      let command = invoke.message.command.clone();
 
-          #[cfg(mobile)]
-          let message = invoke.message.clone();
+      #[cfg(mobile)]
+      let message = invoke.message.clone();
 
-          #[allow(unused_mut)]
-          let mut handled = manager.extend_api(plugin, invoke);
+      #[allow(unused_mut)]
+      let mut handled = manager.extend_api(plugin, invoke);
 
-          #[cfg(mobile)]
-          {
-            if !handled {
-              handled = true;
+      #[cfg(mobile)]
+      {
+        if !handled {
+          handled = true;
 
-              fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
-                if let serde_json::Value::Object(map) = payload {
-                  for v in map.values() {
-                    if let serde_json::Value::String(s) = v {
-                      if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
-                        crate::ipc::Channel::load_from_ipc(window.clone(), s);
-                      }
-                    }
+          fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
+            if let serde_json::Value::Object(map) = payload {
+              for v in map.values() {
+                if let serde_json::Value::String(s) = v {
+                  if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
+                    crate::ipc::Channel::load_from_ipc(window.clone(), s);
                   }
                 }
-              }
-
-              let payload = message.payload.into_json();
-              // initialize channels
-              load_channels(&payload, &message.window);
-
-              let resolver_ = resolver.clone();
-              if let Err(e) = crate::plugin::mobile::run_command(
-                plugin,
-                &app_handle,
-                message.command,
-                payload,
-                move |response| match response {
-                  Ok(r) => resolver_.resolve(r),
-                  Err(e) => resolver_.reject(e),
-                },
-              ) {
-                resolver.reject(e.to_string());
-                return;
               }
             }
           }
 
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
-          }
-        } else {
-          let command = invoke.message.command.clone();
-          let handled = manager.run_invoke_handler(invoke);
-          if !handled {
-            resolver.reject(format!("Command {command} not found"));
+          let payload = message.payload.into_json();
+          // initialize channels
+          load_channels(&payload, &message.window);
+
+          let resolver_ = resolver.clone();
+          if let Err(e) = crate::plugin::mobile::run_command(
+            plugin,
+            &app_handle,
+            message.command,
+            payload,
+            move |response| match response {
+              Ok(r) => resolver_.resolve(r),
+              Err(e) => resolver_.reject(e),
+            },
+          ) {
+            resolver.reject(e.to_string());
+            return;
           }
         }
+      }
+
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
+      }
+    } else {
+      let command = invoke.message.command.clone();
+      let handled = manager.run_invoke_handler(invoke);
+      if !handled {
+        resolver.reject(format!("Command {command} not found"));
       }
     }
   }
@@ -2335,14 +2404,22 @@ impl<R: Runtime> Window<R> {
 
   /// Whether this window registered a listener to an event from the given window and event name.
   pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
-    self
-      .js_event_listeners
-      .lock()
-      .unwrap()
-      .contains_key(&JsEventListenerKey {
-        window_label,
-        event: event.into(),
+    let listeners = self.js_event_listeners.lock().unwrap();
+
+    if let Some(label) = window_label {
+      let event = event.to_string();
+      // window-specific event is also triggered on global events, so we check that
+      listeners.contains_key(&JsEventListenerKey {
+        window_label: Some(label),
+        event: event.clone(),
+      }) || listeners.contains_key(&JsEventListenerKey {
+        window_label: None,
+        event,
       })
+    } else {
+      // for global events, any listener is triggered
+      listeners.keys().any(|k| k.event == event)
+    }
   }
 
   /// Opens the developer tools window (Web Inspector).
@@ -2365,7 +2442,7 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn open_devtools(&self) {
     self.window.dispatcher.open_devtools();
   }
@@ -2398,7 +2475,7 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn close_devtools(&self) {
     self.window.dispatcher.close_devtools();
   }
@@ -2429,7 +2506,7 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn is_devtools_open(&self) -> bool {
     self
       .window

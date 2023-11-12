@@ -482,9 +482,9 @@ dependencies = [
 
 [[package]]
 name = "cargo_toml"
-version = "0.16.3"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3f9629bc6c4388ea699781dc988c2b99766d7679b151c81990b4fa1208fafd3"
+checksum = "6ca592ad99e6a0fd4b95153406138b997cc26ccd3cd0aecdfd4fbdbf1519bd77"
 dependencies = [
  "serde",
  "toml 0.8.2",
@@ -3392,7 +3392,7 @@ checksum = "14c39fd04924ca3a864207c66fc2cd7d22d7c016007f9ce846cbb9326331930a"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-alpha.16"
+version = "2.0.0-alpha.17"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3443,7 +3443,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-alpha.10"
+version = "2.0.0-alpha.11"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3464,7 +3464,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-alpha.9"
+version = "2.0.0-alpha.10"
 dependencies = [
  "base64",
  "brotli",
@@ -3488,7 +3488,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-alpha.9"
+version = "2.0.0-alpha.10"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -3500,8 +3500,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-cli"
-version = "0.0.0"
-source = "git+https://github.com/tauri-apps/plugins-workspace?branch=next#4a10f218f0e1fdd66a549dc0bf16be3efb17ea49"
+version = "2.0.0-alpha.3"
+source = "git+https://github.com/tauri-apps/plugins-workspace?branch=v2#76cfdc32b4593acfdfed95bf3028cdba0d83fe61"
 dependencies = [
  "clap",
  "log",
@@ -3524,7 +3524,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "1.0.0-alpha.3"
+version = "1.0.0-alpha.4"
 dependencies = [
  "gtk",
  "http",
@@ -3540,7 +3540,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "1.0.0-alpha.4"
+version = "1.0.0-alpha.5"
 dependencies = [
  "cocoa 0.24.1",
  "gtk",
@@ -3558,7 +3558,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-alpha.9"
+version = "2.0.0-alpha.10"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -4157,9 +4157,9 @@ dependencies = [
 
 [[package]]
 name = "webkit2gtk"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6acc7a3245bac463799553012b372602aa8ffe9a6a9ce0e71e97a9a47ef8a6b3"
+checksum = "76b1bc1e54c581da1e9f179d0b38512ba358fb1af2d634a1affe42e37172361a"
 dependencies = [
  "bitflags 1.3.2",
  "cairo-rs",
@@ -4181,9 +4181,9 @@ dependencies = [
 
 [[package]]
 name = "webkit2gtk-sys"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cef00972aada3b33d7ca262219a57bf64eac88731e02e3f5380178816e796f2e"
+checksum = "62daa38afc514d1f8f12b8693d30d5993ff77ced33ce30cd04deebc267a6d57c"
 dependencies = [
  "bitflags 1.3.2",
  "cairo-sys-rs",
@@ -4505,9 +4505,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.34.1"
+version = "0.34.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91ad4935cc1cbd02e7cfcf41baa44e35f134c108389be3949d8b369eb69e741b"
+checksum = "3f1e29660f22d8eec141f41f59b7fef231e4113c370c89b90ae3a0db8dec1927"
 dependencies = [
  "base64",
  "block",

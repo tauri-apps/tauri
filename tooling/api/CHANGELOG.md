@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-alpha.11]
+
+### Bug Fixes
+
+- [`822bf15d`](https://www.github.com/tauri-apps/tauri/commit/822bf15d6b258556b689ca55ac2ac224897e913a)([#8130](https://www.github.com/tauri-apps/tauri/pull/8130)) Fix tslib missing in the distributed api package.
+
+## \[2.0.0-alpha.10]
+
+### Enhancements
+
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+
+### Bug Fixes
+
+- [`287066b2`](https://www.github.com/tauri-apps/tauri/commit/287066b279f503dd09bfd43d5da37d1f471451fb)([#8071](https://www.github.com/tauri-apps/tauri/pull/8071)) No longer crashing in tests without mocks when `clearMocks` is defined in `afterEach` hook.
+
 ## \[2.0.0-alpha.9]
 
 ### New Features

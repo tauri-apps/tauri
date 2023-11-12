@@ -49,7 +49,7 @@ impl From<muda::MenuEvent> for MenuEvent {
   }
 }
 
-/// Application metadata for the [`PredefinedMenuItem::about`](crate::PredefinedMenuItem::about).
+/// Application metadata for the [`PredefinedMenuItem::about`].
 #[derive(Debug, Clone, Default)]
 pub struct AboutMetadata {
   /// Sets the application name.

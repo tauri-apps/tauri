@@ -377,7 +377,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
       #config,
-      ::std::sync::Arc::new(#assets),
+      ::std::boxed::Box::new(#assets),
       #default_window_icon,
       #app_icon,
       #package_info,

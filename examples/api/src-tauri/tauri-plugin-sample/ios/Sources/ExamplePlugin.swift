@@ -15,7 +15,7 @@ class PingArgs: Decodable {
 class ExamplePlugin: Plugin {
   @objc public func ping(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(PingArgs.self)
-    args.onEvent?.send(["kind": "ping"])
+    try args.onEvent?.send(["kind": "ping"])
     invoke.resolve(["value": args.value ?? ""])
   }
 }

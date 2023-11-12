@@ -67,7 +67,4 @@ jobs:
           workspaces: tooling/cli
 
       - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml ${{ matrix.platform.args }}
+        run: cargo build --manifest-path ./tooling/cli/Cargo.toml ${{ matrix.platform.args }}

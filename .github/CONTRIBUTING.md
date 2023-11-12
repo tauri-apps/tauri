@@ -78,7 +78,7 @@ The code for Tauri Core is located in `[Tauri repo root]/core/tauri`, and the Ru
 You can build the Rust documentation locally running the following script:
 
 ```bash
-$ RUSTDOCFLAGS="--cfg doc_cfg" cargo +nightly doc --all-features --open
+$ RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features --open
 ```
 
 ### Developing the JS API

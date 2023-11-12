@@ -2725,6 +2725,21 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .unwrap_or(true)
     });
   }
+
+  if let Some(page_load_handler) = pending.on_page_load_handler {
+    webview_builder = webview_builder.with_on_page_load_handler(move |event, url| {
+      let _ = Url::parse(&url).map(|url| {
+        page_load_handler(
+          url,
+          match event {
+            wry::webview::PageLoadEvent::Started => tauri_runtime::window::PageLoadEvent::Started,
+            wry::webview::PageLoadEvent::Finished => tauri_runtime::window::PageLoadEvent::Finished,
+          },
+        )
+      });
+    });
+  }
+
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }

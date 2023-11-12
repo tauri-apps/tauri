@@ -24,66 +24,65 @@ use tauri_runtime::{
   WindowEventId,
 };
 
+#[cfg(target_os = "macos")]
+use tao::platform::macos::EventLoopWindowTargetExtMacOS;
+#[cfg(target_os = "macos")]
+use tao::platform::macos::WindowBuilderExtMacOS;
+#[cfg(target_os = "linux")]
+use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
+#[cfg(windows)]
+use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
-#[cfg(target_os = "macos")]
-use wry::application::platform::macos::EventLoopWindowTargetExtMacOS;
-#[cfg(target_os = "macos")]
-use wry::application::platform::macos::WindowBuilderExtMacOS;
-#[cfg(target_os = "linux")]
-use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
-use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
-#[cfg(windows)]
-use wry::webview::WebViewBuilderExtWindows;
+use wry::WebViewBuilderExtWindows;
 
+use tao::{
+  dpi::{
+    LogicalPosition as WryLogicalPosition, LogicalSize as WryLogicalSize,
+    PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
+    Position as WryPosition, Size as WrySize,
+  },
+  event::{Event, StartCause, WindowEvent as WryWindowEvent},
+  event_loop::{
+    ControlFlow, DeviceEventFilter as WryDeviceEventFilter, EventLoop, EventLoopBuilder,
+    EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
+  },
+  monitor::MonitorHandle,
+  window::{
+    CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon,
+    ProgressBarState as WryProgressBarState, ProgressState as WryProgressState, Theme as WryTheme,
+    UserAttentionType as WryUserAttentionType,
+  },
+};
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{
   config::WindowConfig, debug_eprintln, ProgressBarState, ProgressBarStatus, Theme,
 };
-use wry::{
-  application::{
-    dpi::{
-      LogicalPosition as WryLogicalPosition, LogicalSize as WryLogicalSize,
-      PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
-      Position as WryPosition, Size as WrySize,
-    },
-    event::{Event, StartCause, WindowEvent as WryWindowEvent},
-    event_loop::{
-      ControlFlow, DeviceEventFilter as WryDeviceEventFilter, EventLoop, EventLoopBuilder,
-      EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
-    },
-    monitor::MonitorHandle,
-    window::{
-      CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon,
-      ProgressBarState as WryProgressBarState, ProgressState as WryProgressState,
-      Theme as WryTheme, UserAttentionType as WryUserAttentionType,
-    },
-  },
-  webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
-};
+use wry::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder};
 
+pub use tao;
+pub use tao::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
 pub use wry;
-pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
-pub use wry::webview::webview_version;
+pub use wry::webview_version;
 
 #[cfg(windows)]
-use wry::webview::WebviewExtWindows;
+use wry::WebviewExtWindows;
 #[cfg(target_os = "android")]
-use wry::webview::{
+use wry::{
   prelude::{dispatch, find_class},
   WebViewBuilderExtAndroid, WebviewExtAndroid,
 };
 
 #[cfg(target_os = "macos")]
-use tauri_runtime::ActivationPolicy;
-#[cfg(target_os = "macos")]
-pub use wry::application::platform::macos::{
+pub use tao::platform::macos::{
   ActivationPolicy as WryActivationPolicy, EventLoopExtMacOS, WindowExtMacOS,
 };
+#[cfg(target_os = "macos")]
+use tauri_runtime::ActivationPolicy;
 
 use std::{
   cell::RefCell,
@@ -104,8 +103,8 @@ use std::{
 };
 
 pub type WebviewId = u32;
-type IpcHandler = dyn Fn(&Window, String) + 'static;
-type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
+type IpcHandler = dyn Fn(String) + 'static;
+type FileDropHandler = dyn Fn(WryFileDropEvent) -> bool + 'static;
 
 mod webview;
 pub use webview::Webview;
@@ -287,7 +286,7 @@ impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
   }
 }
 
-/// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
+/// Wrapper around a [`tao::window::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(pub WryWindowIcon);
 
 fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {
@@ -902,11 +901,11 @@ impl From<FileDropEventWrapper> for FileDropEvent {
     match event.0 {
       WryFileDropEvent::Hovered { paths, position } => FileDropEvent::Hovered {
         paths: paths.into_iter().map(decode_path).collect(),
-        position: PhysicalPositionWrapper(position).into(),
+        position: PhysicalPosition::new(position.0 as f64, position.1 as f64),
       },
       WryFileDropEvent::Dropped { paths, position } => FileDropEvent::Dropped {
         paths: paths.into_iter().map(decode_path).collect(),
-        position: PhysicalPositionWrapper(position).into(),
+        position: PhysicalPosition::new(position.0 as f64, position.1 as f64),
       },
       // default to cancelled
       // FIXME(maybe): Add `FileDropEvent::Unknown` event?
@@ -1585,6 +1584,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 #[derive(Clone)]
 enum WindowHandle {
   Webview {
+    window: Arc<Window>,
     inner: Rc<WebView>,
     context_store: WebContextStore,
     // the key of the WebContext if it's not shared
@@ -1597,6 +1597,7 @@ impl Drop for WindowHandle {
   fn drop(&mut self) {
     if let Self::Webview {
       inner,
+      window: _,
       context_store,
       context_key,
     } = self
@@ -1620,7 +1621,7 @@ impl Deref for WindowHandle {
   #[inline(always)]
   fn deref(&self) -> &Window {
     match self {
-      Self::Webview { inner, .. } => inner.window(),
+      Self::Webview { window, .. } => window,
       Self::Window(w) => w,
     }
   }
@@ -1630,7 +1631,7 @@ impl WindowHandle {
   fn inner_size(&self) -> WryPhysicalSize<u32> {
     match self {
       WindowHandle::Window(w) => w.inner_size(),
-      WindowHandle::Webview { inner, .. } => inner.inner_size(),
+      WindowHandle::Webview { window, .. } => window.inner_size(),
     }
   }
 }
@@ -1845,7 +1846,7 @@ impl<T: UserEvent> Wry<T> {
   ) -> Result<Self> {
     #[cfg(windows)]
     if let Some(hook) = args.msg_hook {
-      use wry::application::platform::windows::EventLoopBuilderExtWindows;
+      use tao::platform::windows::EventLoopBuilderExtWindows;
       event_loop_builder.with_msg_hook(hook);
     }
     Self::init(event_loop_builder.build())
@@ -1897,7 +1898,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     target_os = "openbsd"
   ))]
   fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
-    use wry::application::platform::unix::EventLoopBuilderExtUnix;
+    use tao::platform::unix::EventLoopBuilderExtUnix;
     let mut event_loop_builder = EventLoopBuilder::<Message<T>>::with_user_event();
     event_loop_builder.with_any_thread(true);
     Self::init_with_builder(event_loop_builder, args)
@@ -1905,7 +1906,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   #[cfg(windows)]
   fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
-    use wry::application::platform::windows::EventLoopBuilderExtWindows;
+    use tao::platform::windows::EventLoopBuilderExtWindows;
     let mut event_loop_builder = EventLoopBuilder::<Message<T>>::with_user_event();
     event_loop_builder.with_any_thread(true);
     Self::init_with_builder(event_loop_builder, args)
@@ -2002,7 +2003,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
-    use wry::application::platform::run_return::EventLoopExtRunReturn;
+    use tao::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = &self.context.main_thread.web_context;
@@ -2144,12 +2145,12 @@ fn handle_user_message<T: UserEvent>(
                 target_os = "openbsd"
               ))]
               {
-                use wry::webview::WebviewExtUnix;
+                use wry::WebviewExtUnix;
                 f(w.webview());
               }
               #[cfg(target_os = "macos")]
               {
-                use wry::webview::WebviewExtMacOS;
+                use wry::WebviewExtMacOS;
                 f(Webview {
                   webview: w.webview(),
                   manager: w.manager(),
@@ -2158,7 +2159,8 @@ fn handle_user_message<T: UserEvent>(
               }
               #[cfg(target_os = "ios")]
               {
-                use wry::{application::platform::ios::WindowExtIOS, webview::WebviewExtIOS};
+                use tao::platform::ios::WindowExtIOS;
+                use wrt::WebviewExtIOS;
 
                 f(Webview {
                   webview: w.webview(),
@@ -2512,9 +2514,9 @@ fn handle_event_loop<T: UserEvent>(
             if let Some(window) = windows.borrow().get(&window_id) {
               if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
                 let theme = match theme {
-                  WryTheme::Dark => wry::webview::Theme::Dark,
-                  WryTheme::Light => wry::webview::Theme::Light,
-                  _ => wry::webview::Theme::Light,
+                  WryTheme::Dark => wry::Theme::Dark,
+                  WryTheme::Light => wry::Theme::Light,
+                  _ => wry::Theme::Light,
                 };
                 inner.set_theme(theme);
               }
@@ -2707,8 +2709,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     handler(raw);
   }
 
-  let mut webview_builder = WebViewBuilder::new(window)
-    .map_err(|e| Error::CreateWebview(Box::new(e)))?
+  let mut webview_builder = WebViewBuilder::new(&window)
     .with_focused(focused)
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
@@ -2732,8 +2733,8 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         page_load_handler(
           url,
           match event {
-            wry::webview::PageLoadEvent::Started => tauri_runtime::window::PageLoadEvent::Started,
-            wry::webview::PageLoadEvent::Finished => tauri_runtime::window::PageLoadEvent::Finished,
+            wry::PageLoadEvent::Started => tauri_runtime::window::PageLoadEvent::Started,
+            wry::PageLoadEvent::Finished => tauri_runtime::window::PageLoadEvent::Finished,
           },
         )
       });
@@ -2752,9 +2753,9 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
     if let Some(theme) = window_theme {
       webview_builder = webview_builder.with_theme(match theme {
-        WryTheme::Dark => wry::webview::Theme::Dark,
-        WryTheme::Light => wry::webview::Theme::Light,
-        _ => wry::webview::Theme::Light,
+        WryTheme::Dark => wry::Theme::Dark,
+        WryTheme::Light => wry::Theme::Light,
+        _ => wry::Theme::Light,
       });
     }
   }
@@ -2765,8 +2766,12 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   if let Some(handler) = ipc_handler {
-    webview_builder =
-      webview_builder.with_ipc_handler(create_ipc_handler(context.clone(), label.clone(), handler));
+    webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
+      window_id,
+      context.clone(),
+      label.clone(),
+      handler,
+    ));
   }
 
   for (scheme, protocol) in uri_scheme_protocols {
@@ -2810,11 +2815,11 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   };
 
   if webview_attributes.clipboard {
-    webview_builder.webview.clipboard = true;
+    webview_builder.attrs.clipboard = true;
   }
 
   if webview_attributes.incognito {
-    webview_builder.webview.incognito = true;
+    webview_builder.attrs.incognito = true;
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -2876,6 +2881,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   Ok(WindowWrapper {
     label,
     inner: Some(WindowHandle::Webview {
+      window: Arc::new(window),
       inner: Rc::new(webview),
       context_store: web_context_store.clone(),
       context_key: if automation_enabled {
@@ -2890,12 +2896,12 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
 /// Create a wry ipc handler from a tauri ipc handler.
 fn create_ipc_handler<T: UserEvent>(
+  window_id: u32,
   context: Context<T>,
   label: String,
   handler: WebviewIpcHandler<T, Wry<T>>,
 ) -> Box<IpcHandler> {
-  Box::new(move |window, request| {
-    let window_id = context.webview_id_map.get(&window.id()).unwrap();
+  Box::new(move |request| {
     handler(
       DetachedWindow {
         dispatcher: WryDispatcher {
@@ -2911,7 +2917,7 @@ fn create_ipc_handler<T: UserEvent>(
 
 /// Create a wry file drop handler.
 fn create_file_drop_handler(window_event_listeners: WindowEventListeners) -> Box<FileDropHandler> {
-  Box::new(move |_window, event| {
+  Box::new(move |event| {
     let event: FileDropEvent = FileDropEventWrapper(event).into();
     let window_event = WindowEvent::FileDrop(event);
     let listeners_map = window_event_listeners.lock().unwrap();

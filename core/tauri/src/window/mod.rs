@@ -1159,7 +1159,7 @@ impl PlatformWebview {
 
   /// Returns handle for JNI execution.
   #[cfg(target_os = "android")]
-  pub fn jni_handle(&self) -> tauri_runtime_wry::wry::webview::JniHandle {
+  pub fn jni_handle(&self) -> tauri_runtime_wry::wry::JniHandle {
     self.0
   }
 }

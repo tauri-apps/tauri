@@ -47,7 +47,7 @@ mod imp {
 
 #[cfg(target_os = "android")]
 mod imp {
-  use wry::webview::JniHandle;
+  use wry::JniHandle;
   pub type Webview = JniHandle;
 }
 

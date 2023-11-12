@@ -114,15 +114,30 @@ pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 #[macro_export]
 macro_rules! android_binding {
   ($domain:ident, $package:ident, $main: ident, $wry: path) => {
-    ::tauri::wry::android_binding!($domain, $package, $main, $wry);
-    ::tauri::wry::application::android_fn!(
+    use $wry::{
+      android_setup,
+      prelude::{JClass, JNIEnv, JString},
+    };
+
+    ::tauri::wry::android_binding!($domain, $package, $wry);
+
+    ::tauri::tao::android_binding!(
+      $domain,
+      $package,
+      WryActivity,
+      android_setup,
+      $main,
+      ::tauri::tao
+    );
+
+    ::tauri::tao::platform::android::prelude::android_fn!(
       app_tauri,
       plugin,
       PluginManager,
       handlePluginResponse,
       [i32, JString, JString],
     );
-    ::tauri::wry::application::android_fn!(
+    ::tauri::tao::platform::android::prelude::android_fn!(
       app_tauri,
       plugin,
       PluginManager,
@@ -155,7 +170,7 @@ macro_rules! android_binding {
 pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[doc(hidden)]
-pub use tauri_runtime_wry::wry;
+pub use tauri_runtime_wry::{tao, wry};
 
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;

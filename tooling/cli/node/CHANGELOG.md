@@ -1,5 +1,99 @@
 # Changelog
 
+## \[2.0.0-alpha.17]
+
+### Enhancements
+
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.17`
+
+### Breaking Changes
+
+- [`198abe3c`](https://www.github.com/tauri-apps/tauri/commit/198abe3c2cae06dacab860b3a93f715dcf529a95)([#8076](https://www.github.com/tauri-apps/tauri/pull/8076)) Updated the mobile plugin templates following the tauri v2.0.0-alpha.17 changes.
+
+## \[2.0.0-alpha.16]
+
+### New Features
+
+- [`8b166e9b`](https://www.github.com/tauri-apps/tauri/commit/8b166e9bf82e69ddb3200a3a825614980bd8d433)([#7949](https://www.github.com/tauri-apps/tauri/pull/7949)) Add `--no-dev-server-wait` option to skip waiting for the dev server to start when using `tauri dev`.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.16`
+
+### Breaking Changes
+
+- [`8b166e9b`](https://www.github.com/tauri-apps/tauri/commit/8b166e9bf82e69ddb3200a3a825614980bd8d433)([#7949](https://www.github.com/tauri-apps/tauri/pull/7949)) Changed a number of environment variables used by tauri CLI for consistency and clarity:
+
+  - `TAURI_PRIVATE_KEY` -> `TAURI_SIGNING_PRIVATE_KEY`
+  - `TAURI_KEY_PASSWORD` -> `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+  - `TAURI_SKIP_DEVSERVER_CHECK` -> `TAURI_CLI_NO_DEV_SERVER_WAIT`
+  - `TAURI_DEV_SERVER_PORT` -> `TAURI_CLI_PORT`
+  - `TAURI_PATH_DEPTH` -> `TAURI_CLI_CONFIG_DEPTH`
+  - `TAURI_FIPS_COMPLIANT` -> `TAURI_BUNDLER_WIX_FIPS_COMPLIANT`
+  - `TAURI_DEV_WATCHER_IGNORE_FILE` -> `TAURI_CLI_WATCHER_IGNORE_FILENAME`
+  - `TAURI_TRAY` -> `TAURI_LINUX_AYATANA_APPINDICATOR`
+  - `TAURI_APPLE_DEVELOPMENT_TEAM` -> `APPLE_DEVELOPMENT_TEAM`
+- [`4caa1cca`](https://www.github.com/tauri-apps/tauri/commit/4caa1cca990806f2c2ef32d5dabaf56e82f349e6)([#7990](https://www.github.com/tauri-apps/tauri/pull/7990)) The `tauri plugin` subcommand is receving a couple of consitency and quality of life improvements:
+
+  - Renamed `tauri plugin android/ios add` command to `tauri plugin android/ios init` to match the `tauri plugin init` command.
+  - Removed the `-n/--name` argument from the `tauri plugin init`, `tauri plugin android/ios init`, and is now parsed from the first positional argument.
+  - Added `tauri plugin new` to create a plugin in a new directory.
+  - Changed `tauri plugin init` to initalize a plugin in an existing directory (defaults to current directory) instead of creating a new one.
+  - Changed `tauri plugin init` to NOT generate mobile projects by default, you can opt-in to generate them using `--android` and `--ios` flags or `--mobile` flag or initalize them later using `tauri plugin android/ios init`.
+- [`8b166e9b`](https://www.github.com/tauri-apps/tauri/commit/8b166e9bf82e69ddb3200a3a825614980bd8d433)([#7949](https://www.github.com/tauri-apps/tauri/pull/7949)) Removed checking for a new version of the CLI.
+- [`ebcc21e4`](https://www.github.com/tauri-apps/tauri/commit/ebcc21e4b95f4e8c27639fb1bca545b432f52d5e)([#8057](https://www.github.com/tauri-apps/tauri/pull/8057)) Renamed the beforeDevCommand, beforeBuildCommand and beforeBundleCommand hooks environment variables from `TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG` to `TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG` to differentiate the prefix with other CLI environment variables.
+
+## \[2.0.0-alpha.15]
+
+### New Features
+
+- [`b2f17723`](https://www.github.com/tauri-apps/tauri/commit/b2f17723a415f04c2620132a6305eb138d7cb47f)([#7971](https://www.github.com/tauri-apps/tauri/pull/7971)) Use `devicectl` to connect to iOS 17+ devices on macOS 14+.
+
+### Bug Fixes
+
+- [`100d9ede`](https://www.github.com/tauri-apps/tauri/commit/100d9ede35995d9db21d2087dd5606adfafb89a5)([#7802](https://www.github.com/tauri-apps/tauri/pull/7802)) Properly read platform-specific configuration files for mobile targets.
+- [`228e5a4c`](https://www.github.com/tauri-apps/tauri/commit/228e5a4c76ad5f97409c912d07699b49ba4bb162)([#7902](https://www.github.com/tauri-apps/tauri/pull/7902)) Fixes `icon` command not writing files to the correct Android project folders.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.15`
+
+## \[2.0.0-alpha.14]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.14`
+
+### Breaking Changes
+
+- [`d5074af5`](https://www.github.com/tauri-apps/tauri/commit/d5074af562b2b5cb6c5711442097c4058af32db6)([#7801](https://www.github.com/tauri-apps/tauri/pull/7801)) The custom protocol on Android now uses the `http` scheme instead of `https`.
+
+## \[2.0.0-alpha.13]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.13`
+
+### Breaking Changes
+
+- [`4cb51a2d`](https://www.github.com/tauri-apps/tauri/commit/4cb51a2d56cfcae0749062c79ede5236bd8c02c2)([#7779](https://www.github.com/tauri-apps/tauri/pull/7779)) The custom protocol on Windows now uses the `http` scheme instead of `https`.
+- [`974e38b4`](https://www.github.com/tauri-apps/tauri/commit/974e38b4ddc198530aa977ec77d513b76013b9f3)([#7744](https://www.github.com/tauri-apps/tauri/pull/7744)) Renamed the `plugin add` command to `add`.
+
+## \[2.0.0-alpha.12]
+
+### Bug Fixes
+
+- [`b75a1210`](https://www.github.com/tauri-apps/tauri/commit/b75a1210bed589187678861d7314ae6279bf7c87)([#7762](https://www.github.com/tauri-apps/tauri/pull/7762)) Fixes a regression on alpha.11 where iOS logs aren't being displayed when using `ios dev` with a real device.
+- [`8faa5a4a`](https://www.github.com/tauri-apps/tauri/commit/8faa5a4a1238a44ca7b54d2084aaed553ac2a1ba)([#7765](https://www.github.com/tauri-apps/tauri/pull/7765)) Ensure asset directory exists on the iOS project.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.12`
+
 ## \[2.0.0-alpha.11]
 
 ### New Features
@@ -159,6 +253,66 @@
   - [a9c8e565](https://www.github.com/tauri-apps/tauri/commit/a9c8e565c6495961940877df7090f307be16b554) feat: add `android open` and `ios open` commands ([#4946](https://www.github.com/tauri-apps/tauri/pull/4946)) on 2022-08-15
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.5]
+
+### Enhancements
+
+- [`9bead42d`](https://www.github.com/tauri-apps/tauri/commit/9bead42dbca0fb6dd7ea0b6bfb2f2308a5c5f992)([#8059](https://www.github.com/tauri-apps/tauri/pull/8059)) Allow rotating the updater private key.
+
+### Bug Fixes
+
+- [`be8e5aa3`](https://www.github.com/tauri-apps/tauri/commit/be8e5aa3071d9bc5d0bd24647e8168f312d11c8d)([#8042](https://www.github.com/tauri-apps/tauri/pull/8042)) Fixes duplicated newlines on command outputs.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.5`
+
+## \[1.5.4]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.4`
+
+## \[1.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.3`
+
+## \[1.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.2`
+
+## \[1.5.1]
+
+### Bug Fixes
+
+- [`d6eb46cf`](https://www.github.com/tauri-apps/tauri/commit/d6eb46cf1116d147121f6b6db9d390b5e2fb238d)([#7934](https://www.github.com/tauri-apps/tauri/pull/7934)) On macOS, fix the `apple-id` option name when using `notarytools submit`.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.1`
+
+## \[1.5.0]
+
+### New Features
+
+- [`e1526626`](https://www.github.com/tauri-apps/tauri/commit/e152662687ece7a62d383923a50751cc0dd34331)([#7723](https://www.github.com/tauri-apps/tauri/pull/7723)) Support Bun package manager in CLI
+
+### Enhancements
+
+- [`13279917`](https://www.github.com/tauri-apps/tauri/commit/13279917d4cae071d0ce3a686184d48af079f58a)([#7713](https://www.github.com/tauri-apps/tauri/pull/7713)) Add version of Rust Tauri CLI installed with Cargo to `tauri info` command.
+
+### Bug Fixes
+
+- [`dad4f54e`](https://www.github.com/tauri-apps/tauri/commit/dad4f54eec9773d2ea6233a7d9fd218741173823)([#7277](https://www.github.com/tauri-apps/tauri/pull/7277)) Removed the automatic version check of the CLI that ran after `tauri` commands which caused various issues.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.0`
 
 ## \[1.4.0]
 

@@ -31,9 +31,9 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///       .copy()
 ///       .paste()
 ///       .separator()
-///       .text("MenuItem 2")
-///       .check("CheckMenuItem 2")
-///       .icon("IconMenuItem 2", app.default_window_icon().cloned().unwrap())
+///       .text("item2", "MenuItem 2")
+///       .check("checkitem2", "CheckMenuItem 2")
+///       .icon("iconitem2", "IconMenuItem 2", app.default_window_icon().cloned().unwrap())
 ///       .build()?;
 ///     menu.append(&submenu)?;
 ///     app.set_menu(menu);
@@ -104,26 +104,26 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   }
 
   /// Add a [MenuItem] to the submenu.
-  pub fn text<S: AsRef<str>>(mut self, text: S) -> Self {
+  pub fn text<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S) -> Self {
     self
       .items
-      .push(MenuItem::new(self.manager, text, true, None).kind());
+      .push(MenuItem::with_id(self.manager, id, text, true, None).kind());
     self
   }
 
   /// Add a [CheckMenuItem] to the submenu.
-  pub fn check<S: AsRef<str>>(mut self, text: S) -> Self {
+  pub fn check<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S) -> Self {
     self
       .items
-      .push(CheckMenuItem::new(self.manager, text, true, true, None).kind());
+      .push(CheckMenuItem::with_id(self.manager, id, text, true, true, None).kind());
     self
   }
 
   /// Add an [IconMenuItem] to the submenu.
-  pub fn icon<S: AsRef<str>>(mut self, text: S, icon: Icon) -> Self {
+  pub fn icon<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S, icon: Icon) -> Self {
     self
       .items
-      .push(IconMenuItem::new(self.manager, text, true, Some(icon), None).kind());
+      .push(IconMenuItem::with_id(self.manager, id, text, true, Some(icon), None).kind());
     self
   }
 
@@ -132,10 +132,15 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux**: Unsupported.
-  pub fn native_icon<S: AsRef<str>>(mut self, text: S, icon: NativeIcon) -> Self {
-    self
-      .items
-      .push(IconMenuItem::with_native_icon(self.manager, text, true, Some(icon), None).kind());
+  pub fn native_icon<I: Into<MenuId>, S: AsRef<str>>(
+    mut self,
+    id: I,
+    text: S,
+    icon: NativeIcon,
+  ) -> Self {
+    self.items.push(
+      IconMenuItem::with_id_and_native_icon(self.manager, id, text, true, Some(icon), None).kind(),
+    );
     self
   }
 

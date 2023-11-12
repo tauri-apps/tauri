@@ -5,7 +5,6 @@
 //! A layer between raw [`Runtime`] webview windows and Tauri.
 
 use crate::{
-  http::{Request as HttpRequest, Response as HttpResponse},
   webview::{WebviewAttributes, WebviewIpcHandler},
   Dispatch, Runtime, UserEvent, WindowBuilder,
 };
@@ -15,6 +14,7 @@ use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
 
 use std::{
+  borrow::Cow,
   collections::HashMap,
   hash::{Hash, Hasher},
   marker::PhantomData,
@@ -24,12 +24,26 @@ use std::{
 
 use self::dpi::PhysicalPosition;
 
-type UriSchemeProtocol =
-  dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
+type UriSchemeProtocol = dyn Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
+  + Send
+  + Sync
+  + 'static;
 
-type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+type WebResourceRequestHandler =
+  dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+
+type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
+
+/// Kind of event for the page load handler.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PageLoadEvent {
+  /// Page started to load.
+  Started,
+  /// Page finished loading.
+  Finished,
+}
 
 /// UI scaling utilities.
 pub mod dpi;
@@ -235,6 +249,8 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
     Option<Box<dyn Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send>>,
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+
+  pub on_page_load_handler: Option<Box<OnPageLoadHandler>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -267,11 +283,12 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        navigation_handler: Default::default(),
+        navigation_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
-        web_resource_request_handler: Default::default(),
+        web_resource_request_handler: None,
+        on_page_load_handler: None,
       })
     }
   }
@@ -295,18 +312,22 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        navigation_handler: Default::default(),
+        navigation_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
-        web_resource_request_handler: Default::default(),
+        web_resource_request_handler: None,
+        on_page_load_handler: None,
       })
     }
   }
 
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
+    H: Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
+      + Send
+      + Sync
+      + 'static,
   >(
     &mut self,
     uri_scheme: N,
@@ -315,7 +336,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     let uri_scheme = uri_scheme.into();
     self
       .uri_scheme_protocols
-      .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
+      .insert(uri_scheme, Box::new(protocol));
   }
 
   #[cfg(target_os = "android")]
@@ -336,7 +357,7 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
   /// Name of the window
   pub label: String,
 
-  /// The [`Dispatch`](crate::Dispatch) associated with the window.
+  /// The [`Dispatch`] associated with the window.
   pub dispatcher: R::Dispatcher,
 }
 

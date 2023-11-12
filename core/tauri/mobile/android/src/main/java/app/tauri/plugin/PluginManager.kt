@@ -6,14 +6,21 @@ package app.tauri.plugin
 
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import app.tauri.annotation.InvokeArg
 import app.tauri.FsUtils
 import app.tauri.JniMethod
 import app.tauri.Logger
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.module.SimpleModule
+import java.lang.reflect.InvocationTargetException
 
 class PluginManager(val activity: AppCompatActivity) {
   fun interface RequestPermissionsCallback {
@@ -29,6 +36,7 @@ class PluginManager(val activity: AppCompatActivity) {
   private val requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
   private var requestPermissionsCallback: RequestPermissionsCallback? = null
   private var startActivityForResultCallback: ActivityResultCallback? = null
+  private var jsonMapper: ObjectMapper
 
   init {
     startActivityForResultLauncher =
@@ -46,11 +54,33 @@ class PluginManager(val activity: AppCompatActivity) {
           requestPermissionsCallback!!.onResult(result)
         }
       }
+
+    jsonMapper = ObjectMapper()
+      .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+      .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+
+    val channelDeserializer = ChannelDeserializer({ channelId, payload ->
+      sendChannelData(channelId, payload)
+    }, jsonMapper)
+    jsonMapper
+      .registerModule(SimpleModule().addDeserializer(Channel::class.java, channelDeserializer))
   }
 
   fun onNewIntent(intent: Intent) {
     for (plugin in plugins.values) {
       plugin.instance.onNewIntent(intent)
+    }
+  }
+
+  fun onPause() {
+    for (plugin in plugins.values) {
+      plugin.instance.onPause()
+    }
+  }
+
+  fun onResume() {
+    for (plugin in plugins.values) {
+      plugin.instance.onResume()
     }
   }
 
@@ -77,8 +107,8 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun load(webView: WebView?, name: String, plugin: Plugin, config: JSObject) {
-    val handle = PluginHandle(this, name, plugin, config)
+  fun load(webView: WebView?, name: String, plugin: Plugin, config: String) {
+    val handle = PluginHandle(this, name, plugin, config, jsonMapper)
     plugins[name] = handle
     if (webView != null) {
       plugin.load(webView)
@@ -86,21 +116,19 @@ class PluginManager(val activity: AppCompatActivity) {
   }
 
   @JniMethod
-  fun runCommand(id: Int, pluginId: String, command: String, data: JSObject) {
+  fun runCommand(id: Int, pluginId: String, command: String, data: String) {
     val successId = 0L
     val errorId = 1L
     val invoke = Invoke(id.toLong(), command, successId, errorId, { fn, result ->
-      var success: PluginResult? = null
-      var error: PluginResult? = null
+      var success: String? = null
+      var error: String? = null
       if (fn == successId) {
         success = result
       } else {
         error = result
       }
-      handlePluginResponse(id, success?.toString(), error?.toString())
-    }, { channelId, payload ->
-      sendChannelData(channelId, payload.toString())
-    }, data)
+      handlePluginResponse(id, success, error)
+    }, data, jsonMapper)
 
     dispatchPluginMessage(invoke, pluginId)
   }
@@ -119,19 +147,31 @@ class PluginManager(val activity: AppCompatActivity) {
         plugins[pluginId]?.invoke(invoke)
       }
     } catch (e: Exception) {
-      invoke.reject(if (e.message?.isEmpty() != false) { e.toString() } else { e.message })
+      var exception: Throwable = e
+      if (exception.message?.isEmpty() != false) {
+        if (e is InvocationTargetException) {
+          exception = e.targetException
+        }
+      }
+      invoke.reject(if (exception.message?.isEmpty() != false) { exception.toString() } else { exception.message })
     }
   }
 
   companion object {
-    fun loadConfig(context: Context, plugin: String): JSObject {
+    fun<T> loadConfig(context: Context, plugin: String, cls: Class<T>): T {
       val tauriConfigJson = FsUtils.readAsset(context.assets, "tauri.conf.json")
-      val tauriConfig = JSObject(tauriConfigJson)
-      val plugins = tauriConfig.getJSObject("plugins", JSObject())
-      return plugins.getJSObject(plugin, JSObject())
+      val mapper = ObjectMapper()
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+      val config = mapper.readValue(tauriConfigJson, Config::class.java)
+      return mapper.readValue(config.plugins[plugin].toString(), cls)
     }
   }
 
   private external fun handlePluginResponse(id: Int, success: String?, error: String?)
   private external fun sendChannelData(id: Long, data: String)
+}
+
+@InvokeArg
+internal class Config {
+  lateinit var plugins: Map<String, JsonNode>
 }

@@ -20,7 +20,7 @@
       <source type="video/mp4" />
     </video>
     <script>
-      const { invoke, convertFileSrc } = window.__TAURI__.tauri
+      const { invoke, convertFileSrc } = window.__TAURI__.primitives
       const video = document.getElementById('video_source')
       const source = document.createElement('source')
       invoke('video_uri').then(([scheme, path]) => {

@@ -7,13 +7,16 @@ import Tauri
 import UIKit
 import WebKit
 
+class PingArgs: Decodable {
+  let value: String?
+  let onEvent: Channel?
+}
+
 class ExamplePlugin: Plugin {
   @objc public func ping(_ invoke: Invoke) throws {
-    let onEvent = invoke.getChannel("onEvent")
-    onEvent?.send(["kind": "ping"])
-
-    let value = invoke.getString("value")
-    invoke.resolve(["value": value as Any])
+    let args = try invoke.parseArgs(PingArgs.self)
+    try args.onEvent?.send(["kind": "ping"])
+    invoke.resolve(["value": args.value ?? ""])
   }
 }
 

@@ -3,10 +3,10 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "2.0.0-alpha.11"
+version = "2.0.0-alpha.17"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
@@ -39,61 +39,61 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-tauri-mobile = { version = "0.5.2", default-features = false }
-textwrap = { version = "0.11.0", features = [ "term_size" ] }
-jsonrpsee = { version = "0.16", features = [ "server" ] }
-jsonrpsee-core = "0.16"
-jsonrpsee-client-transport = { version = "0.16", features = [ "ws" ] }
-jsonrpsee-ws-client = { version = "0.16", default-features = false }
+cargo-mobile2 = { version = "0.8", default-features = false }
+jsonrpsee = { version = "0.20", features = [ "server" ] }
+jsonrpsee-core = "0.20"
+jsonrpsee-client-transport = { version = "0.20", features = [ "ws" ] }
+jsonrpsee-ws-client = { version = "0.20", default-features = false }
 thiserror = "1"
 sublime_fuzzy = "0.7"
 clap_complete = "4"
-clap = { version = "4.0", features = [ "derive" ] }
+clap = { version = "4.4", features = [ "derive", "env" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "2.0.0-alpha.7", default-features = false, path = "../bundler" }
+tauri-bundler = { version = "2.0.0-alpha.11", default-features = false, path = "../bundler" }
 colored = "2.0"
 once_cell = "1"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-notify = "6.0"
-notify-debouncer-mini = "0.3"
+notify = "6.1"
+notify-debouncer-mini = "0.4"
 shared_child = "1.0"
 duct = "0.13"
-toml_edit = "0.14"
-json-patch = "1.0"
-tauri-utils = { version = "2.0.0-alpha.7", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
+toml_edit = "0.20"
+json-patch = "1.2"
+tauri-utils = { version = "2.0.0-alpha.10", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
-toml = "0.5"
-jsonschema = "0.16"
-handlebars = "4.3"
+toml = "0.8"
+jsonschema = "0.17"
+handlebars = "4.4"
 include_dir = "0.7"
-minisign = "=0.7.3"
-base64 = "0.21.0"
-ureq = { version = "2.5", default-features = false, features = [ "gzip" ] }
+minisign = "=0.7.5"
+base64 = "0.21.5"
+ureq = { version = "2.8", default-features = false, features = [ "gzip" ] }
 os_info = "3"
 semver = "1.0"
-regex = "1.6.0"
+regex = "1.10.2"
 unicode-width = "0.1"
-zeroize = "1.5"
+zeroize = "1.6"
 heck = { version = "0.4", features = [ "unicode" ] }
-dialoguer = "0.10"
-url = { version = "2.3", features = [ "serde" ] }
+dialoguer = "0.11"
+url = { version = "2.4", features = [ "serde" ] }
 os_pipe = "1"
 ignore = "0.4"
-ctrlc = "3.2"
-log = { version = "0.4.17", features = [ "kv_unstable", "kv_unstable_std" ] }
-env_logger = "0.9.1"
+ctrlc = "3.4"
+log = { version = "0.4.20", features = [ "kv_unstable", "kv_unstable_std" ] }
+env_logger = "0.10.0"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.24", default-features = false, features = [ "ico" ] }
-axum = { version = "0.5.16", features = [ "ws" ] }
+axum = { version = "0.6.20", features = [ "ws" ] }
 html5ever = "0.26"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
 serde-value = "0.7.0"
-itertools = "0.10"
-local-ip-address = "0.4"
+itertools = "0.11"
+local-ip-address = "0.5"
 css-color = "0.2"
+resvg = "0.36.0"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }
@@ -106,15 +106,15 @@ libc = "0.2"
 default = [ "rustls" ]
 native-tls = [
   "tauri-bundler/native-tls",
-  "tauri-mobile/native-tls",
+  "cargo-mobile2/native-tls",
   "ureq/native-tls"
 ]
 native-tls-vendored = [
   "native-tls",
   "tauri-bundler/native-tls-vendored",
-  "tauri-mobile/openssl-vendored"
+  "cargo-mobile2/openssl-vendored"
 ]
-rustls = [ "tauri-bundler/rustls", "tauri-mobile/rustls", "ureq/tls" ]
+rustls = [ "tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/tls" ]
 
 [profile.release-size-optimized]
 inherits = "release"

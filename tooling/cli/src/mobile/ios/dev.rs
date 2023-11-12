@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, open_and_wait,
-  setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
+  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
+  open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -20,18 +20,21 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use dialoguer::{theme::ColorfulTheme, Select};
-use tauri_mobile::{
+use cargo_mobile2::{
   apple::{config::Config as AppleConfig, device::Device, teams::find_development_teams},
   config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use std::env::{set_current_dir, set_var, var_os};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "iOS dev")]
+#[clap(
+  about = "Run your app in development mode on iOS",
+  long_about = "Run your app in development mode on iOS with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer."
+)]
 pub struct Options {
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
@@ -45,24 +48,26 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
+  /// Skip waiting for the frontend dev server to start before building the tauri application.
+  #[clap(long, env = "TAURI_CLI_NO_DEV_SERVER_WAIT")]
+  pub no_dev_server_wait: bool,
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
-  /// Disable the dev server for static files.
-  #[clap(long)]
-  pub no_dev_server: bool,
   /// Open Xcode instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
-  /// Specify port for the dev server for static files. Defaults to 1430
-  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
-  #[clap(long)]
-  pub port: Option<u16>,
   /// Force prompting for an IP to use to connect to the dev server on mobile.
   #[clap(long)]
   pub force_ip_prompt: bool,
+  /// Disable the built-in dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
+  /// Specify port for the built-in dev server for static files. Defaults to 1430.
+  #[clap(long, env = "TAURI_CLI_PORT")]
+  pub port: Option<u16>,
 }
 
 impl From<Options> for DevOptions {
@@ -77,6 +82,7 @@ impl From<Options> for DevOptions {
       args: Vec::new(),
       no_watch: options.no_watch,
       no_dev_server: options.no_dev_server,
+      no_dev_server_wait: options.no_dev_server_wait,
       port: options.port,
       force_ip_prompt: options.force_ip_prompt,
     }
@@ -126,7 +132,10 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let tauri_config = get_tauri_config(
+    tauri_utils::platform::Target::Ios,
+    options.config.as_deref(),
+  )?;
   let (app, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
@@ -139,6 +148,7 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  inject_assets(&config)?;
   run_dev(options, tauri_config, &app, &config, noise_level)
 }
 
@@ -149,7 +159,11 @@ fn run_dev(
   config: &AppleConfig,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  setup_dev_config(&mut options.config, options.force_ip_prompt)?;
+  setup_dev_config(
+    MobileTarget::Ios,
+    &mut options.config,
+    options.force_ip_prompt,
+  )?;
   let env = env()?;
   let device = if options.open {
     None
@@ -170,7 +184,8 @@ fn run_dev(
       .map(|d| d.target().triple.to_string())
       .unwrap_or_else(|| "aarch64-apple-ios".into()),
   );
-  let mut interface = crate::dev::setup(&mut dev_options, true)?;
+  let mut interface =
+    crate::dev::setup(tauri_utils::platform::Target::Ios, &mut dev_options, true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
@@ -221,7 +236,7 @@ fn run_dev(
             crate::dev::wait_dev_process(c.clone(), move |status, reason| {
               crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
             });
-            Ok(Box::new(c) as Box<dyn DevProcess>)
+            Ok(Box::new(c) as Box<dyn DevProcess + Send>)
           }
           Err(e) => {
             crate::dev::kill_before_dev_process();

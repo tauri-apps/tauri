@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, log_finished,
-  open_and_wait, MobileTarget,
+  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_assets,
+  log_finished, open_and_wait, MobileTarget,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -20,7 +20,7 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use tauri_mobile::{
+use cargo_mobile2::{
   apple::{config::Config as AppleConfig, target::Target},
   env::Env,
   opts::{NoiseLevel, Profile},
@@ -30,7 +30,10 @@ use tauri_mobile::{
 use std::{env::set_current_dir, fs};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "iOS build")]
+#[clap(
+  about = "Build your app in release mode for iOS and generate IPAs",
+  long_about = "Build your app in release mode for iOS and generate IPAs. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`."
+)]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]
@@ -78,7 +81,10 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let tauri_config = get_tauri_config(options.config.as_deref())?;
+  let tauri_config = get_tauri_config(
+    tauri_utils::platform::Target::Ios,
+    options.config.as_deref(),
+  )?;
   let (app, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
@@ -91,6 +97,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  inject_assets(&config)?;
 
   let mut env = env()?;
   configure_cargo(&app, None)?;
@@ -126,7 +133,8 @@ fn run_build(
       .triple
       .into(),
   );
-  let interface = crate::build::setup(&mut build_options, true)?;
+  let interface =
+    crate::build::setup(tauri_utils::platform::Target::Ios, &mut build_options, true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

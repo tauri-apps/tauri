@@ -4,15 +4,17 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::WindowBuilder;
+use tauri::{window::PageLoadEvent, WindowBuilder};
 
 fn main() {
   tauri::Builder::default()
-    .on_page_load(|window, _payload| {
-      let label = window.label().to_string();
-      window.listen("clicked".to_string(), move |_payload| {
-        println!("got 'clicked' event on window '{label}'");
-      });
+    .on_page_load(|window, payload| {
+      if payload.event() == PageLoadEvent::Finished {
+        let label = window.label().to_string();
+        window.listen("clicked".to_string(), move |_payload| {
+          println!("got 'clicked' event on window '{label}'");
+        });
+      }
     })
     .setup(|app| {
       #[allow(unused_mut)]

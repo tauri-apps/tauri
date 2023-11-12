@@ -44,7 +44,7 @@ fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
   value: &T,
   options: serialize_to_javascript::Options,
   cb: F,
-) -> crate::api::Result<String> {
+) -> crate::Result<String> {
   // get a raw &str representation of a serialized json value.
   let string = serde_json::to_string(value)?;
   let raw = RawValue::from_string(string)?;
@@ -83,7 +83,7 @@ fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
 /// but will serialize arrays and objects whose serialized JSON string is smaller than 1 GB and larger
 /// than 10 KiB with `JSON.parse('...')`.
 /// See [json-parse-benchmark](https://github.com/GoogleChromeLabs/json-parse-benchmark).
-pub fn format<T: Serialize>(function_name: CallbackFn, arg: &T) -> crate::api::Result<String> {
+pub fn format<T: Serialize>(function_name: CallbackFn, arg: &T) -> crate::Result<String> {
   serialize_js_with(arg, Default::default(), |arg| {
     format!(
       r#"
@@ -111,7 +111,7 @@ pub fn format_result<T: Serialize, E: Serialize>(
   result: Result<T, E>,
   success_callback: CallbackFn,
   error_callback: CallbackFn,
-) -> crate::api::Result<String> {
+) -> crate::Result<String> {
   match result {
     Ok(res) => format(success_callback, &res),
     Err(err) => format(error_callback, &err),
@@ -130,7 +130,7 @@ mod test {
     }
   }
 
-  fn serialize_js<T: Serialize>(value: &T) -> crate::api::Result<String> {
+  fn serialize_js<T: Serialize>(value: &T) -> crate::Result<String> {
     serialize_js_with(value, Default::default(), |v| v.into())
   }
 

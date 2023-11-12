@@ -5,9 +5,12 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  app::PageLoadPayload,
+  app::UriSchemeResponder,
+  error::Error,
   ipc::{Invoke, InvokeHandler},
+  manager::window::UriSchemeProtocol,
   utils::config::PluginConfig,
+  window::PageLoadPayload,
   AppHandle, RunEvent, Runtime, Window,
 };
 use serde::de::DeserializeOwned;
@@ -15,14 +18,11 @@ use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 use url::Url;
 
-use std::{fmt, result::Result as StdResult, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, fmt, sync::Arc};
 
 /// Mobile APIs.
 #[cfg(mobile)]
 pub mod mobile;
-
-/// The result type of Tauri plugin module.
-pub type Result<T> = StdResult<T, Box<dyn std::error::Error>>;
 
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {
@@ -31,7 +31,11 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Initializes the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
+  fn initialize(
+    &mut self,
+    app: &AppHandle<R>,
+    config: JsonValue,
+  ) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
   }
 
@@ -59,7 +63,7 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Callback invoked when the webview performs a navigation to a page.
   #[allow(unused_variables)]
-  fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {}
+  fn on_page_load(&mut self, window: &Window<R>, payload: &PageLoadPayload<'_>) {}
 
   /// Callback invoked when the event loop receives a new event.
   #[allow(unused_variables)]
@@ -72,11 +76,12 @@ pub trait Plugin<R: Runtime>: Send {
   }
 }
 
-type SetupHook<R, C> = dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send;
+type SetupHook<R, C> =
+  dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<(), Box<dyn std::error::Error>> + Send;
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
 type OnNavigation<R> = dyn Fn(&Window<R>, &Url) -> bool + Send;
-type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
+type OnPageLoad<R> = dyn FnMut(&Window<R>, &PageLoadPayload<'_>) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
 /// A handle to a plugin.
@@ -207,6 +212,7 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
 }
 
 impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
@@ -222,6 +228,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
       on_drop: None,
+      uri_scheme_protocols: Default::default(),
     }
   }
 
@@ -319,7 +326,9 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<()> + Send + 'static,
+    F: FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<(), Box<dyn std::error::Error>>
+      + Send
+      + 'static,
   {
     self.setup.replace(Box::new(setup));
     self
@@ -360,7 +369,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
   ///     .on_page_load(|window, payload| {
-  ///       println!("Loaded URL {} in window {}", payload.url(), window.label());
+  ///       println!("{:?} URL {} in window {}", payload.event(), payload.url(), window.label());
   ///     })
   ///     .build()
   /// }
@@ -368,7 +377,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: FnMut(Window<R>, PageLoadPayload) + Send + 'static,
+    F: FnMut(&Window<R>, &PageLoadPayload<'_>) + Send + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
     self
@@ -455,6 +464,111 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
+  /// Registers a URI scheme protocol available to all webviews.
+  /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
+  /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
+  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  ///
+  /// # Known limitations
+  ///
+  /// URI scheme protocols are registered when the webview is created. Due to this limitation, if the plugin is registed after a webview has been created, this protocol won't be available.
+  ///
+  /// # Arguments
+  ///
+  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("myplugin")
+  ///     .register_uri_scheme_protocol("myscheme", |app, req| {
+  ///       http::Response::builder().body(Vec::new()).unwrap()
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
+  #[must_use]
+  pub fn register_uri_scheme_protocol<
+    N: Into<String>,
+    T: Into<Cow<'static, [u8]>>,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>) -> http::Response<T> + Send + Sync + 'static,
+  >(
+    mut self,
+    uri_scheme: N,
+    protocol: H,
+  ) -> Self {
+    self.uri_scheme_protocols.insert(
+      uri_scheme.into(),
+      Arc::new(UriSchemeProtocol {
+        protocol: Box::new(move |app, request, responder| {
+          responder.respond(protocol(app, request))
+        }),
+      }),
+    );
+    self
+  }
+
+  /// Similar to [`Self::register_uri_scheme_protocol`] but with an asynchronous responder that allows you
+  /// to process the request in a separate thread and respond asynchronously.
+  ///
+  /// # Arguments
+  ///
+  /// * `uri_scheme` The URI scheme to register, such as `example`.
+  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("myplugin")
+  ///     .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, responder| {
+  ///       // skip leading `/`
+  ///       let path = request.uri().path()[1..].to_string();
+  ///       std::thread::spawn(move || {
+  ///         if let Ok(data) = std::fs::read(path) {
+  ///           responder.respond(
+  ///             http::Response::builder()
+  ///               .body(data)
+  ///               .unwrap()
+  ///           );
+  ///         } else {
+  ///           responder.respond(
+  ///             http::Response::builder()
+  ///               .status(http::StatusCode::BAD_REQUEST)
+  ///               .header(http::header::CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+  ///               .body("failed to read file".as_bytes().to_vec())
+  ///               .unwrap()
+  ///           );
+  ///         }
+  ///       });
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
+  #[must_use]
+  pub fn register_asynchronous_uri_scheme_protocol<
+    N: Into<String>,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
+  >(
+    mut self,
+    uri_scheme: N,
+    protocol: H,
+  ) -> Self {
+    self.uri_scheme_protocols.insert(
+      uri_scheme.into(),
+      Arc::new(UriSchemeProtocol {
+        protocol: Box::new(protocol),
+      }),
+    );
+    self
+  }
+
   /// Builds the [TauriPlugin].
   pub fn build(self) -> TauriPlugin<R, C> {
     TauriPlugin {
@@ -468,6 +582,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
       on_drop: self.on_drop,
+      uri_scheme_protocols: self.uri_scheme_protocols,
     }
   }
 }
@@ -484,6 +599,7 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
+  uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
 }
 
 impl<R: Runtime, C: DeserializeOwned> Drop for TauriPlugin<R, C> {
@@ -499,7 +615,11 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     self.name
   }
 
-  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
+  fn initialize(
+    &mut self,
+    app: &AppHandle<R>,
+    config: JsonValue,
+  ) -> Result<(), Box<dyn std::error::Error>> {
     self.app.replace(app.clone());
     if let Some(s) = self.setup.take() {
       (s)(
@@ -511,6 +631,13 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
           config: serde_json::from_value(config)?,
         },
       )?;
+    }
+
+    for (uri_scheme, protocol) in &self.uri_scheme_protocols {
+      app
+        .manager
+        .window
+        .register_uri_scheme_protocol(uri_scheme, protocol.clone())
     }
     Ok(())
   }
@@ -527,7 +654,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     (self.on_navigation)(window, url)
   }
 
-  fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
+  fn on_page_load(&mut self, window: &Window<R>, payload: &PageLoadPayload<'_>) {
     (self.on_page_load)(window, payload)
   }
 
@@ -592,7 +719,7 @@ impl<R: Runtime> PluginStore<R> {
           app,
           config.0.get(plugin.name()).cloned().unwrap_or_default(),
         )
-        .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
+        .map_err(|e| Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
     })
   }
 
@@ -625,11 +752,11 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Runs the on_page_load hook for all plugins in the store.
-  pub(crate) fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
+  pub(crate) fn on_page_load(&mut self, window: &Window<R>, payload: &PageLoadPayload<'_>) {
     self
       .store
       .iter_mut()
-      .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
+      .for_each(|plugin| plugin.on_page_load(window, payload))
   }
 
   /// Runs the on_event hook for all plugins in the store.

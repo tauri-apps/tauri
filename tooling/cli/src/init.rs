@@ -30,7 +30,7 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
 
 #[derive(Debug, Parser)]
-#[clap(about = "Initializes a Tauri project")]
+#[clap(about = "Initialize a Tauri project in an existing directory")]
 pub struct Options {
   /// Skip prompting for values
   #[clap(long)]
@@ -294,12 +294,12 @@ where
     Ok(initial)
   } else {
     let theme = dialoguer::theme::ColorfulTheme::default();
-    let mut builder = Input::with_theme(&theme);
-    builder.with_prompt(prompt);
-    builder.allow_empty(allow_empty);
+    let mut builder = Input::with_theme(&theme)
+      .with_prompt(prompt)
+      .allow_empty(allow_empty);
 
     if let Some(v) = initial {
-      builder.with_initial_text(v.to_string());
+      builder = builder.with_initial_text(v.to_string());
     }
 
     builder.interact_text().map(Some).map_err(Into::into)

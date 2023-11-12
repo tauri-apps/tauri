@@ -8,7 +8,7 @@ use log::error;
 use once_cell::sync::Lazy;
 use serde_json::Value as JsonValue;
 
-pub use tauri_utils::config::*;
+pub use tauri_utils::{config::*, platform::Target};
 
 use std::{
   collections::HashMap,
@@ -21,6 +21,8 @@ use std::{
 pub const MERGE_CONFIG_EXTENSION_NAME: &str = "--config";
 
 pub struct ConfigMetadata {
+  /// The current target.
+  target: Target,
   /// The actual configuration, merged with any extension.
   inner: Config,
   /// The config extensions (platform-specific config files or the config CLI argument).
@@ -93,7 +95,7 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     enable_elevated_update_task: config.enable_elevated_update_task,
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,
-    fips_compliant: var_os("TAURI_FIPS_COMPLIANT").map_or(false, |v| v == "true"),
+    fips_compliant: var_os("TAURI_BUNDLER_WIX_FIPS_COMPLIANT").map_or(false, |v| v == "true"),
   }
 }
 
@@ -108,6 +110,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     languages: config.languages,
     custom_language_files: config.custom_language_files,
     display_language_selector: config.display_language_selector,
+    compression: config.compression,
   }
 }
 
@@ -117,19 +120,23 @@ fn config_handle() -> &'static ConfigHandle {
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.
-fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<ConfigHandle> {
+fn get_internal(
+  merge_config: Option<&str>,
+  reload: bool,
+  target: Target,
+) -> crate::Result<ConfigHandle> {
   if !reload && config_handle().lock().unwrap().is_some() {
     return Ok(config_handle().clone());
   }
 
   let tauri_dir = super::app_paths::tauri_dir();
   let (mut config, config_path) =
-    tauri_utils::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))?;
+    tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))?;
   let config_file_name = config_path.file_name().unwrap().to_string_lossy();
   let mut extensions = HashMap::new();
 
   if let Some((platform_config, config_path)) =
-    tauri_utils::config::parse::read_platform(tauri_dir)?
+    tauri_utils::config::parse::read_platform(target, tauri_dir)?
   {
     merge(&mut config, &platform_config);
     extensions.insert(
@@ -186,6 +193,7 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   }
 
   *config_handle().lock().unwrap() = Some(ConfigMetadata {
+    target,
     inner: config,
     extensions,
   });
@@ -193,10 +201,19 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   Ok(config_handle().clone())
 }
 
-pub fn get(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
-  get_internal(merge_config, false)
+pub fn get(target: Target, merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
+  get_internal(merge_config, false, target)
 }
 
 pub fn reload(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
-  get_internal(merge_config, true)
+  let target = config_handle()
+    .lock()
+    .unwrap()
+    .as_ref()
+    .map(|conf| conf.target);
+  if let Some(target) = target {
+    get_internal(merge_config, true, target)
+  } else {
+    Err(anyhow::anyhow!("config not loaded"))
+  }
 }

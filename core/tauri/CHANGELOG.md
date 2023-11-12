@@ -1,5 +1,168 @@
 # Changelog
 
+## \[2.0.0-alpha.17]
+
+### Enhancements
+
+- [`b89de9fa`](https://www.github.com/tauri-apps/tauri/commit/b89de9fa43b793c74a42230c7a82c11c3734278e)([#8092](https://www.github.com/tauri-apps/tauri/pull/8092)) Add support for onResume and onPause events in android plugins.
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+- [`198abe3c`](https://www.github.com/tauri-apps/tauri/commit/198abe3c2cae06dacab860b3a93f715dcf529a95)([#8076](https://www.github.com/tauri-apps/tauri/pull/8076)) Mobile plugins can now resolve using an arbitrary object instead of using the `JSObject` class via `Invoke.resolve` on iOS and `Invoke.resolveObject` on Android.
+
+### Bug Fixes
+
+- [`22f26882`](https://www.github.com/tauri-apps/tauri/commit/22f26882cfe0adbfe4c51586a1c9fdcf8e9cfb68)([#8049](https://www.github.com/tauri-apps/tauri/pull/8049)) Prevent crash on iOS when the Swift plugin data is not a valid JSON string.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-alpha.11`
+- Upgraded to `tauri-macros@2.0.0-alpha.10`
+- Upgraded to `tauri-utils@2.0.0-alpha.10`
+- Upgraded to `tauri-runtime@1.0.0-alpha.4`
+- Upgraded to `tauri-runtime-wry@1.0.0-alpha.5`
+- [`9580df1d`](https://www.github.com/tauri-apps/tauri/commit/9580df1d7b027befb9e5f025ea2cbaf2dcc82c8e)([#8084](https://www.github.com/tauri-apps/tauri/pull/8084)) Upgrade `gtk` to 0.18.
+- [`c7c2507d`](https://www.github.com/tauri-apps/tauri/commit/c7c2507da16a9beb71bf06745fe7ac1325ab7c2a)([#8035](https://www.github.com/tauri-apps/tauri/pull/8035)) Update `windows` to version `0.51` and `webview2-com` to version `0.27`
+- [`9580df1d`](https://www.github.com/tauri-apps/tauri/commit/9580df1d7b027befb9e5f025ea2cbaf2dcc82c8e)([#8084](https://www.github.com/tauri-apps/tauri/pull/8084)) Updated to wry@0.34, removing the `dox` feature flag.
+
+### Breaking Changes
+
+- [`198abe3c`](https://www.github.com/tauri-apps/tauri/commit/198abe3c2cae06dacab860b3a93f715dcf529a95)([#8076](https://www.github.com/tauri-apps/tauri/pull/8076)) The Android `PluginManager.loadConfig` now takes a third parameter to define the class type of the config object.
+- [`198abe3c`](https://www.github.com/tauri-apps/tauri/commit/198abe3c2cae06dacab860b3a93f715dcf529a95)([#8076](https://www.github.com/tauri-apps/tauri/pull/8076)) Mobile plugins now have access to a parser for the invoke arguments instead of relying on the `Invoke#get${TYPE}` methods.
+- [`74d2464d`](https://www.github.com/tauri-apps/tauri/commit/74d2464d0e490fae341ad73bdf2964cf215fe6c5)([#8116](https://www.github.com/tauri-apps/tauri/pull/8116)) Added `WindowBuilder::on_page_load` and refactored the `Builder::on_page_load` handler to take references.
+  The page load hook is now triggered for load started and finished events, to determine what triggered it see `PageLoadPayload::event`.
+- [`93c8a77b`](https://www.github.com/tauri-apps/tauri/commit/93c8a77b347b9934ec0732784d4b78b3260abc08)([#7996](https://www.github.com/tauri-apps/tauri/pull/7996)) The event system APIS on Rust is recieving a few changes for consistency and quality of life improvements:
+
+  - Renamed `Manager::emit_all` to just `Manager::emit` and will now both trigger the events on JS side as well as Rust.
+  - Removed `Manager::trigger_global`, use `Manager::emit`
+  - Added `Manager::emit_filter`.
+  - Removed `Window::emit`, and moved the implementation to `Manager::emit`.
+  - Removed `Window::emit_and_trigger` and `Window::trigger`, use `Window::emit` instead.
+  - Changed `Window::emit_to` to only trigger the target window listeners so it won't be catched by `Manager::listen_global`
+
+## \[2.0.0-alpha.16]
+
+### New Features
+
+- [`c085adda`](https://www.github.com/tauri-apps/tauri/commit/c085addab58ba851398373c6fd13f9cb026d71e8)([#8009](https://www.github.com/tauri-apps/tauri/pull/8009)) Added `set_progress_bar` to `Window`.
+- [`c1ec0f15`](https://www.github.com/tauri-apps/tauri/commit/c1ec0f155118527361dd5645d920becbc8afd569)([#7933](https://www.github.com/tauri-apps/tauri/pull/7933)) Added `Window::set_always_on_bottom` and the `always_on_bottom` option when creating a window.
+- [`880266a7`](https://www.github.com/tauri-apps/tauri/commit/880266a7f697e1fe58d685de3bb6836ce5251e92)([#8031](https://www.github.com/tauri-apps/tauri/pull/8031)) Bump the MSRV to 1.70.
+- [`ed32257d`](https://www.github.com/tauri-apps/tauri/commit/ed32257d044f90b5eb15053efd1667125def2d2b)([#7794](https://www.github.com/tauri-apps/tauri/pull/7794)) On Windows, add `Effect::Tabbed`,`Effect::TabbedDark` and `Effect::TabbedLight` effects.
+
+### Enhancements
+
+- [`46dcb941`](https://www.github.com/tauri-apps/tauri/commit/46dcb94110ac16d0d4328fa149bb86975b658f59)([#8006](https://www.github.com/tauri-apps/tauri/pull/8006)) Include mobile on docs.rs targets.
+
+### What's Changed
+
+- [`fb10b879`](https://www.github.com/tauri-apps/tauri/commit/fb10b87970a43320ef4d14564f45e7579b774eaf)([#8039](https://www.github.com/tauri-apps/tauri/pull/8039)) Added the `app` plugin back into core.
+- [`c9a9246c`](https://www.github.com/tauri-apps/tauri/commit/c9a9246c37bdf190661355c8ee406dac6c427344)([#8007](https://www.github.com/tauri-apps/tauri/pull/8007)) Added the `window` plugin back into core.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@1.0.0-alpha.3`
+- Upgraded to `tauri-runtime-wry@1.0.0-alpha.4`
+- Upgraded to `tauri-utils@2.0.0-alpha.9`
+- Upgraded to `tauri-build@2.0.0-alpha.10`
+- Upgraded to `tauri-macros@2.0.0-alpha.9`
+
+### Breaking Changes
+
+- [`a63e71f9`](https://www.github.com/tauri-apps/tauri/commit/a63e71f9799e9bbc82521d2f17b5238fbf690e89)([#7942](https://www.github.com/tauri-apps/tauri/pull/7942)) The initialization script for `Builder::invoke_system` now must initialize the `window.__TAURI_INTERNALS__.postMessage` function instead of `window.__TAURI_POST_MESSAGE__`.
+- [`12b8d18b`](https://www.github.com/tauri-apps/tauri/commit/12b8d18bf7ff833047cb87f356fd007d47d082c9)([#7875](https://www.github.com/tauri-apps/tauri/pull/7875)) -   Removed `tauri::path::Error` and added its variants to `tauri::Error`
+  - Removed `tauri::path::Result` and `tauri::plugin::Result` aliases, you should use `tauri::Result` or your own `Result` type.
+- [`8b166e9b`](https://www.github.com/tauri-apps/tauri/commit/8b166e9bf82e69ddb3200a3a825614980bd8d433)([#7949](https://www.github.com/tauri-apps/tauri/pull/7949)) Changed `TAURI_AUTOMATION` to `TAURI_WEBVIEW_AUTOMATION`
+- [`2558fab8`](https://www.github.com/tauri-apps/tauri/commit/2558fab861006936296e8511e43ccd69a38f61b0)([#7939](https://www.github.com/tauri-apps/tauri/pull/7939)) This release contains a number of breaking changes to improve the consistency of tauri internals and the public facing APIs
+  and simplifying the types where applicable:
+
+  - Removed `EventHandler` type.
+  - Added `EventId` type
+  - Changed `Manager::listen_global` and `Window::listen` to return the new `EventId` type instead of `EventHandler`.
+  - Removed the return type of `Manager::once_global` and `Window::once`
+  - Changed `Manager::unlisten` and `Window::unlisten` to take he new `EventId` type.
+  - Added `tauri::scope::ScopeEventId`
+  - Changed `FsScope::listen` to return the new `ScopeEventId` instead of `Uuid`.
+  - Added `FsScope::unlisten`
+
+## \[2.0.0-alpha.15]
+
+### Enhancements
+
+- [`b597aa5f`](https://www.github.com/tauri-apps/tauri/commit/b597aa5f3974f5ca5ca5159d441abc9ed3e80721)([#7871](https://www.github.com/tauri-apps/tauri/pull/7871)) Set `main` as the default `id` for the tray icon registered from the configuration file, so if the `id` is not specified, it can be retrieved using `app.tray_by_id("main")`.
+
+### Bug Fixes
+
+- [`a2021c30`](https://www.github.com/tauri-apps/tauri/commit/a2021c30ba1139fcfe4db2522b96125f3fa4d9d6)([#7866](https://www.github.com/tauri-apps/tauri/pull/7866)) Changed `IconMenuItem::set_native_icon` signature to take `&self` instead of `&mut self` to fix compilation error on macos.
+- [`a68ccaf5`](https://www.github.com/tauri-apps/tauri/commit/a68ccaf59a6731dc030bdb4642a35e3bc64d5769)([#7822](https://www.github.com/tauri-apps/tauri/pull/7822)) Fix `asset` protocol failing to fetch files.
+- [`6fbd6dba`](https://www.github.com/tauri-apps/tauri/commit/6fbd6dba5290dc017ab0ba5a44cf4358b022836f)([#17](https://www.github.com/tauri-apps/tauri/pull/17)) Fix the validation of `std::env::current_exe` warn the user if AppImage is not mounted instead of panicking
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.0.0-alpha.8`
+- Upgraded to `tauri-utils@2.0.0-alpha.8`
+- Upgraded to `tauri-build@2.0.0-alpha.9`
+- Upgraded to `tauri-runtime@1.0.0-alpha.2`
+- Upgraded to `tauri-runtime-wry@1.0.0-alpha.3`
+
+### Breaking Changes
+
+- [`092a561c`](https://www.github.com/tauri-apps/tauri/commit/092a561ca69a631d2a03777e29debeba37b197a7)([#7874](https://www.github.com/tauri-apps/tauri/pull/7874)) Removed `tauri::api` module as most apis have been moved to either a plugin or we recommend using other crates.
+- [`deea9436`](https://www.github.com/tauri-apps/tauri/commit/deea9436261f651188e0bc86104779bf30029c32)([#7876](https://www.github.com/tauri-apps/tauri/pull/7876)) Changed `Env.args` to `Env.args_os` and now uses `OsString` instead of `String`
+- [`b7fd88e1`](https://www.github.com/tauri-apps/tauri/commit/b7fd88e18d24e4450129a5a5007f2e740c69afe5)([#7944](https://www.github.com/tauri-apps/tauri/pull/7944)) `tauri::scope` module is recieving a couple of consistency changes:
+
+  - Added `tauri::scope::fs` module.
+  - Removed `scope::IpcScope` re-export, use `scope::ipc::Scope`.
+  - Removed `FsScope`, `GlobPattern` and `FsScopeEvent`, use `scope::fs::Scope`, `scope::fs::Pattern` and `scope::fs::Event` respectively.
+- [`c0d03af4`](https://www.github.com/tauri-apps/tauri/commit/c0d03af4704c828698e06e9662dab1087c99c42e)([#7943](https://www.github.com/tauri-apps/tauri/pull/7943)) Changed `TrayIconBuilder/TrayIcon::on_tray_event` to `TrayIconBuilder/TrayIcon::on_tray_icon_event` for consistency of naming.
+
+## \[2.0.0-alpha.14]
+
+### Bug Fixes
+
+- [`d5074af5`](https://www.github.com/tauri-apps/tauri/commit/d5074af562b2b5cb6c5711442097c4058af32db6)([#7801](https://www.github.com/tauri-apps/tauri/pull/7801)) Fixes custom protocol not working on Windows.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@1.0.0-alpha.2`
+
+### Breaking Changes
+
+- [`d5074af5`](https://www.github.com/tauri-apps/tauri/commit/d5074af562b2b5cb6c5711442097c4058af32db6)([#7801](https://www.github.com/tauri-apps/tauri/pull/7801)) The custom protocol on Android now uses the `http` scheme instead of `https`.
+
+## \[2.0.0-alpha.13]
+
+### Breaking Changes
+
+- [`4cb51a2d`](https://www.github.com/tauri-apps/tauri/commit/4cb51a2d56cfcae0749062c79ede5236bd8c02c2)([#7779](https://www.github.com/tauri-apps/tauri/pull/7779)) The custom protocol on Windows now uses the `http` scheme instead of `https`.
+
+## \[2.0.0-alpha.12]
+
+### Enhancements
+
+- [`8a676617`](https://www.github.com/tauri-apps/tauri/commit/8a6766173b3da4446a87642e7282c73a5b631afe)([#7618](https://www.github.com/tauri-apps/tauri/pull/7618)) Ensure Builder is Send by requiring the menu closure to be Send.
+- [`0d63732b`](https://www.github.com/tauri-apps/tauri/commit/0d63732b962e71b98430f8d7b34ea5b59a2e8bb4)([#7754](https://www.github.com/tauri-apps/tauri/pull/7754)) Added `Builder::register_asynchronous_uri_scheme_protocol` to allow resolving a custom URI scheme protocol request asynchronously to prevent blocking the main thread.
+
+### Bug Fixes
+
+- [`0d63732b`](https://www.github.com/tauri-apps/tauri/commit/0d63732b962e71b98430f8d7b34ea5b59a2e8bb4)([#7754](https://www.github.com/tauri-apps/tauri/pull/7754)) Fixes invalid header value type when requesting IPC body through a channel.
+- [`e98393e4`](https://www.github.com/tauri-apps/tauri/commit/e98393e499c03504851e97dd9f740b817c4534df)([#7673](https://www.github.com/tauri-apps/tauri/pull/7673)) No longer unpacking and flattening the `payload` over the IPC so that commands with arguments called `cmd`, `callback`, `error`, `options` or `payload` aren't breaking the IPC.
+- [`29818de6`](https://www.github.com/tauri-apps/tauri/commit/29818de682146a75cd9a886f7b215154cad1d42d)([#7662](https://www.github.com/tauri-apps/tauri/pull/7662)) Fixes IPC failing to communicate for remote URLs on macOS and iOS.
+
+### What's Changed
+
+- [`6177150b`](https://www.github.com/tauri-apps/tauri/commit/6177150b6f83b52ca359d6e20f7e540f7554e4eb)([#7601](https://www.github.com/tauri-apps/tauri/pull/7601)) Changed `FileDropEvent` to include drop and hover position.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@1.0.0-alpha.1`
+- Upgraded to `tauri-runtime-wry@1.0.0-alpha.1`
+
+### Breaking Changes
+
+- [`0d63732b`](https://www.github.com/tauri-apps/tauri/commit/0d63732b962e71b98430f8d7b34ea5b59a2e8bb4)([#7754](https://www.github.com/tauri-apps/tauri/pull/7754)) Changed `Builder::register_uri_scheme_protocol` to return a `http::Response` instead of `Result<http::Response>`. To return an error response, manually create a response with status code >= 400.
+- [`0d63732b`](https://www.github.com/tauri-apps/tauri/commit/0d63732b962e71b98430f8d7b34ea5b59a2e8bb4)([#7754](https://www.github.com/tauri-apps/tauri/pull/7754)) `tauri-runtime` no longer implements its own HTTP types and relies on the `http` crate instead.
+- [`0d63732b`](https://www.github.com/tauri-apps/tauri/commit/0d63732b962e71b98430f8d7b34ea5b59a2e8bb4)([#7754](https://www.github.com/tauri-apps/tauri/pull/7754)) Changed `Builder::invoke_system` to take references instead of owned values.
+- [`5c95152c`](https://www.github.com/tauri-apps/tauri/commit/5c95152c76391607746f6da942ec57d23c89e89e)([#7621](https://www.github.com/tauri-apps/tauri/pull/7621)) Changed `MenuBuilder\SubmenuBuilder::text`, `MenuBuilder\SubmenuBuilder::check`, `MenuBuilder\SubmenuBuilder::icon` and `MenuBuilder\SubmenuBuilder::native_icon` to take an `id` as the first argument.
+- [`0d63732b`](https://www.github.com/tauri-apps/tauri/commit/0d63732b962e71b98430f8d7b34ea5b59a2e8bb4)([#7754](https://www.github.com/tauri-apps/tauri/pull/7754)) Changed `Window::on_message` signature to take a responder closure instead of returning the response object in order to asynchronously process the request.
+
 ## \[2.0.0-alpha.11]
 
 ### New Features
@@ -213,6 +376,50 @@
   - [b4622ea4](https://www.github.com/tauri-apps/tauri/commit/b4622ea4d32720bc3bb2a8c740bb70cfe32fed93) refactor(app): run setup and window creation when event loop is ready ([#4914](https://www.github.com/tauri-apps/tauri/pull/4914)) on 2022-08-11
 - Export types required by the `mobile_entry_point` macro.
   - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
+
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`21cdbb41`](https://www.github.com/tauri-apps/tauri/commit/21cdbb41a38f465148bbeb82feb3e7886c320182)([#7982](https://www.github.com/tauri-apps/tauri/pull/7982)) Set the correct `truncate` option on `OpenOptions` so that `write_file` can completely overwrite existing files.
+
+## \[1.5.1]
+
+### Bug Fixes
+
+- [`3671edbc`](https://www.github.com/tauri-apps/tauri/commit/3671edbcff37447c95382ab4c9fd1c36a460a037)([#7937](https://www.github.com/tauri-apps/tauri/pull/7937)) Fix devtools not toggling on `ctrl+shift+i` or `cmd+alt+i` shortcuts.
+
+## \[1.5.0]
+
+### New Features
+
+- [`eeb6be54`](https://www.github.com/tauri-apps/tauri/commit/eeb6be54228f3e5463a28c68956abb06a694c010)([#7512](https://www.github.com/tauri-apps/tauri/pull/7512)) Add `tauri::Manager::emit_filter` and only serialize once when emitting to multiple windows.
+- [`6c408b73`](https://www.github.com/tauri-apps/tauri/commit/6c408b736c7aa2a0a91f0a40d45a2b7a7dedfe78)([#7269](https://www.github.com/tauri-apps/tauri/pull/7269)) Add option to specify notification sound.
+- [`fdaee9a5`](https://www.github.com/tauri-apps/tauri/commit/fdaee9a5ce988c448dd035c2050c339d275e8d15)([#7350](https://www.github.com/tauri-apps/tauri/pull/7350)) Add `tauri::plugin::Builder::register_uri_scheme_protocol`
+- [`10e362d0`](https://www.github.com/tauri-apps/tauri/commit/10e362d098c9bed48f832bad471fb2fab83ab0bb)([#7432](https://www.github.com/tauri-apps/tauri/pull/7432)) Added `UpdateBuilder::endpoints` to add request endpoints at runtime.
+- [`10e362d0`](https://www.github.com/tauri-apps/tauri/commit/10e362d098c9bed48f832bad471fb2fab83ab0bb)([#7432](https://www.github.com/tauri-apps/tauri/pull/7432)) Added `UpdateResponse::header` and `UpdateResponse::remove_header` to modify the update download request headers.
+
+### Enhancements
+
+- [`757e959e`](https://www.github.com/tauri-apps/tauri/commit/757e959eb276ed535cfddb0dea8897c56441c644)([#7344](https://www.github.com/tauri-apps/tauri/pull/7344)) Open links externally when `<base target="_blank" />` exists
+- [`c9827338`](https://www.github.com/tauri-apps/tauri/commit/c98273387c0ffbb8d0de78ce17006411a1f503ee)([#7416](https://www.github.com/tauri-apps/tauri/pull/7416)) Enhance `readDir` API error with path information.
+- [`58d6b899`](https://www.github.com/tauri-apps/tauri/commit/58d6b899e21d37bb42810890d289deb57f2273bd)([#7636](https://www.github.com/tauri-apps/tauri/pull/7636)) Add `append` option to `FsOptions` in the `fs` JS module, used in `writeTextFile` and `writeBinaryFile`, to be able to append to existing files instead of overwriting it.
+- [`9aa34ada`](https://www.github.com/tauri-apps/tauri/commit/9aa34ada5769dbefa7dfe5f7a6288b3d20b294e4)([#7645](https://www.github.com/tauri-apps/tauri/pull/7645)) Add setting to switch to `http://<scheme>.localhost/` for custom protocols on Windows.
+
+### Bug Fixes
+
+- [`4bf1e85e`](https://www.github.com/tauri-apps/tauri/commit/4bf1e85e6bf85a7ec92d50c8465bc0588a6399d8)([#7722](https://www.github.com/tauri-apps/tauri/pull/7722)) Properly respect the `focused` option when creating the webview.
+- [`0797a002`](https://www.github.com/tauri-apps/tauri/commit/0797a002caad29cd8bedccf01f64bf3b45a5e528)([#7746](https://www.github.com/tauri-apps/tauri/pull/7746)) On macOS, fixed tapping on custom title bar doesn't maximize the window.
+- [`1a3dcdb8`](https://www.github.com/tauri-apps/tauri/commit/1a3dcdb8302fad511f2c1cd418fbc4cff0bd62ac)([#7185](https://www.github.com/tauri-apps/tauri/pull/7185)) On Windows, fix NSIS installers requiring administrator rights failing to be launched by updater.
+- [`fa7f9b77`](https://www.github.com/tauri-apps/tauri/commit/fa7f9b77ab8f0c890e9d7b120901610e0d3e4c46)([#7341](https://www.github.com/tauri-apps/tauri/pull/7341)) Fix updater not following endpoint redirects.
+- [`6fbd6dba`](https://www.github.com/tauri-apps/tauri/commit/6fbd6dba5290dc017ab0ba5a44cf4358b022836f)([#17](https://www.github.com/tauri-apps/tauri/pull/17)) Fix the validation of `std::env::current_exe` warn the user if AppImage is not mounted instead of panicking
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
+- Upgraded to `tauri-runtime-wry@0.14.1`
+- Upgraded to `tauri-runtime@0.14.1`
+- Upgraded to `tauri-macros@1.4.1`
 
 ## \[1.4.1]
 

@@ -230,7 +230,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
   )]
   #[must_use]
@@ -239,6 +239,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Whether the window should have borders and bars.
   #[must_use]
   fn decorations(self, decorations: bool) -> Self;
+
+  /// Whether the window should always be below other windows.
+  #[must_use]
+  fn always_on_bottom(self, always_on_bottom: bool) -> Self;
 
   /// Whether the window should always be on top of other windows.
   #[must_use]

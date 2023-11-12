@@ -30,9 +30,9 @@ use tauri_utils::config::parse::is_configuration_file;
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::{nsis_settings, reload as reload_config, wix_settings, Config},
+  config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
 };
-use tauri_utils::display_path;
+use tauri_utils::{display_path, platform::Target};
 
 mod cargo_config;
 mod desktop;
@@ -90,7 +90,7 @@ pub struct MobileOptions {
 }
 
 #[derive(Debug)]
-pub struct Target {
+pub struct RustupTarget {
   name: String,
   installed: bool,
 }
@@ -99,7 +99,7 @@ pub struct Rust {
   app_settings: RustAppSettings,
   config_features: Vec<String>,
   product_name: Option<String>,
-  available_targets: Option<Vec<Target>>,
+  available_targets: Option<Vec<RustupTarget>>,
 }
 
 impl Interface for Rust {
@@ -108,7 +108,7 @@ impl Interface for Rust {
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
-      let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+      let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
         if let Ok(events) = r {
           let _ = tx.send(events);
         }
@@ -197,7 +197,7 @@ impl Interface for Rust {
     }
   }
 
-  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess>>>(
+  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     mut options: MobileOptions,
     runner: R,
@@ -224,14 +224,14 @@ impl Interface for Rust {
   fn env(&self) -> HashMap<&str, String> {
     let mut env = HashMap::new();
     env.insert(
-      "TAURI_TARGET_TRIPLE",
+      "TAURI_ENV_TARGET_TRIPLE",
       self.app_settings.target_triple.clone(),
     );
 
     let mut s = self.app_settings.target_triple.split('-');
     let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
     env.insert(
-      "TAURI_ARCH",
+      "TAURI_ENV_ARCH",
       match arch {
         // keeps compatibility with old `std::env::consts::ARCH` implementation
         "i686" | "i586" => "x86".into(),
@@ -239,7 +239,7 @@ impl Interface for Rust {
       },
     );
     env.insert(
-      "TAURI_PLATFORM",
+      "TAURI_ENV_PLATFORM",
       match host {
         // keeps compatibility with old `std::env::consts::OS` implementation
         "darwin" => "macos".into(),
@@ -250,7 +250,7 @@ impl Interface for Rust {
     );
 
     env.insert(
-      "TAURI_FAMILY",
+      "TAURI_ENV_FAMILY",
       match host {
         "windows" => "windows".into(),
         _ => "unix".into(),
@@ -258,9 +258,9 @@ impl Interface for Rust {
     );
 
     match host {
-      "linux" => env.insert("TAURI_PLATFORM_TYPE", "Linux".into()),
-      "windows" => env.insert("TAURI_PLATFORM_TYPE", "Windows_NT".into()),
-      "darwin" => env.insert("TAURI_PLATFORM_TYPE", "Darwin".into()),
+      "linux" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Linux".into()),
+      "windows" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Windows_NT".into()),
+      "darwin" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Darwin".into()),
       _ => None,
     };
 
@@ -306,11 +306,14 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 
       ignore_builder.add(path);
 
-      if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+      if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
         ignore_builder.add(dir.join(ignore_file));
       }
 
-      for line in crate::dev::TAURI_DEV_WATCHER_GITIGNORE.lines().flatten() {
+      for line in crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE
+        .lines()
+        .flatten()
+      {
         let _ = ignore_builder.add_line(None, &line);
       }
 
@@ -328,14 +331,14 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
     if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      let _ = file.write_all(crate::dev::TAURI_DEV_WATCHER_GITIGNORE);
+      let _ = file.write_all(crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE);
     }
   }
 
   let mut builder = ignore::WalkBuilder::new(dir);
   builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
-  if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+  if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
     builder.add_ignore(ignore_file);
   }
   builder.require_git(false).ignore(false).max_depth(Some(1));
@@ -431,7 +434,7 @@ impl Rust {
     options: Options,
     run_args: Vec<String>,
     on_exit: F,
-  ) -> crate::Result<Box<dyn DevProcess>> {
+  ) -> crate::Result<Box<dyn DevProcess + Send>> {
     desktop::run_dev(
       options,
       run_args,
@@ -441,10 +444,10 @@ impl Rust {
       self.product_name.clone(),
       on_exit,
     )
-    .map(|c| Box::new(c) as Box<dyn DevProcess>)
+    .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
   }
 
-  fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess>>>(
+  fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     config: Option<String>,
     run: Arc<F>,
@@ -479,7 +482,7 @@ impl Rust {
     let common_ancestor = common_path::common_path_all(watch_folders.clone()).unwrap();
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
-    let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+    let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
       if let Ok(events) = r {
         tx.send(events).unwrap()
       }
@@ -510,7 +513,7 @@ impl Rust {
           let event_path = event.path;
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
-            if is_configuration_file(&event_path) {
+            if is_configuration_file(self.app_settings.target, &event_path) {
               match reload_config(config.as_deref()) {
                 Ok(config) => {
                   info!("Tauri configuration changed. Rewriting manifest...");
@@ -685,6 +688,7 @@ pub struct RustAppSettings {
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
   target_triple: String,
+  target: Target,
 }
 
 impl AppSettings for RustAppSettings {
@@ -954,6 +958,7 @@ impl RustAppSettings {
             .to_string()
         })
     });
+    let target = Target::from_triple(&target_triple);
 
     Ok(Self {
       manifest,
@@ -962,6 +967,7 @@ impl RustAppSettings {
       package_settings,
       cargo_config,
       target_triple,
+      target,
     })
   }
 
@@ -1056,7 +1062,9 @@ fn tauri_config_to_bundle_settings(
   let windows_icon_path = PathBuf::from("");
 
   #[allow(unused_mut)]
-  let mut resources = config.resources.unwrap_or_default();
+  let mut resources = config
+    .resources
+    .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
   let mut depends = config.deb.depends.unwrap_or_default();
 
@@ -1066,9 +1074,9 @@ fn tauri_config_to_bundle_settings(
     if enabled_features.contains(&"tray-icon".into())
       || enabled_features.contains(&"tauri/tray-icon".into())
     {
-      let (tray_kind, path) = std::env::var("TAURI_TRAY")
-        .map(|kind| {
-          if kind == "ayatana" {
+      let (tray_kind, path) = std::env::var("TAURI_LINUX_AYATANA_APPINDICATOR")
+        .map(|ayatana| {
+          if ayatana == "true" || ayatana == "1" {
             (
               pkgconfig_utils::TrayKind::Ayatana,
               format!(
@@ -1098,7 +1106,7 @@ fn tauri_config_to_bundle_settings(
         }
       }
 
-      std::env::set_var("TRAY_LIBRARY_PATH", path);
+      std::env::set_var("TAURI_TRAY_LIBRARY_PATH", path);
     }
 
     // provides `libwebkit2gtk-4.1.so.37` and all `4.0` versions have the -37 package name
@@ -1137,15 +1145,17 @@ fn tauri_config_to_bundle_settings(
     None => config.macos.provider_short_name,
   };
 
+  let (resources, resources_map) = match resources {
+    BundleResources::List(paths) => (Some(paths), None),
+    BundleResources::Map(map) => (None, Some(map)),
+  };
+
   Ok(BundleSettings {
     identifier: Some(config.identifier),
     publisher: config.publisher,
     icon: Some(config.icon),
-    resources: if resources.is_empty() {
-      None
-    } else {
-      Some(resources)
-    },
+    resources,
+    resources_map,
     copyright: config.copyright,
     category: match config.category {
       Some(category) => Some(AppCategory::from_str(&category).map_err(|e| match e {

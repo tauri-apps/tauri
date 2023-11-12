@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "2.0.0-alpha.7"
+version = "2.0.0-alpha.11"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -13,11 +13,11 @@ keywords = [ "bundle", "cargo", "tauri" ]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-alpha.7", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "2.0.0-alpha.10", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.7"
 libflate = "2.0"
 anyhow = "1.0"
@@ -27,12 +27,12 @@ serde = { version = "1.0", features = [ "derive" ] }
 strsim = "0.10.0"
 tar = "0.4.40"
 walkdir = "2"
-handlebars = "4.3"
-tempfile = "3.7.1"
-log = { version = "0.4.19", features = [ "kv_unstable" ] }
+handlebars = "4.4"
+tempfile = "3.8.1"
+log = { version = "0.4.20", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 os_pipe = "1"
-ureq = { version = "2.7", default-features = false }
+ureq = { version = "2.8", default-features = false }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
@@ -44,8 +44,15 @@ dunce = "1"
 [target."cfg(target_os = \"windows\")".dependencies]
 uuid = { version = "1", features = [ "v4", "v5" ] }
 bitness = "0.4"
-winreg = "0.50"
+winreg = "0.51"
 glob = "0.3"
+
+  [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
+  version = "0.48"
+  features = [
+  "Win32_System_SystemInformation",
+  "Win32_System_Diagnostics_Debug"
+]
 
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = { package = "tauri-icns", version = "0.1" }

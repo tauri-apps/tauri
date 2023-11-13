@@ -14,15 +14,15 @@
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
   monitor::Monitor,
-  webview::{PendingWebview, WebviewIpcHandler},
+  webview::{DetachedWebview, PendingWebview, WebviewIpcHandler},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WindowBuilder,
     WindowBuilderBase, WindowEvent,
   },
-  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
-  RunEvent, RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
-  WindowEventId,
+  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent,
+  RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
+  WebviewDispatch, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
@@ -66,7 +66,7 @@ use tauri_utils::{
 use wry::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder};
 
 pub use tao;
-pub use tao::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
+pub use tao::window::{Window, WindowBuilder as WryWindowBuilder, WindowId as TaoWindowId};
 pub use wry;
 pub use wry::webview_version;
 
@@ -103,7 +103,7 @@ use std::{
   thread::{current as current_thread, ThreadId},
 };
 
-pub type WebviewId = u32;
+pub type WindowId = u32;
 type IpcHandler = dyn Fn(String) + 'static;
 type FileDropHandler = dyn Fn(WryFileDropEvent) -> bool + 'static;
 
@@ -116,14 +116,14 @@ pub type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 pub type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventHandler>>>;
 
 #[derive(Debug, Clone, Default)]
-pub struct WebviewIdStore(Arc<Mutex<HashMap<WindowId, WebviewId>>>);
+pub struct WindowIdStore(Arc<Mutex<HashMap<TaoWindowId, WindowId>>>);
 
-impl WebviewIdStore {
-  pub fn insert(&self, w: WindowId, id: WebviewId) {
+impl WindowIdStore {
+  pub fn insert(&self, w: TaoWindowId, id: WindowId) {
     self.0.lock().unwrap().insert(w, id);
   }
 
-  fn get(&self, w: &WindowId) -> Option<WebviewId> {
+  fn get(&self, w: &TaoWindowId) -> Option<WindowId> {
     self.0.lock().unwrap().get(w).copied()
   }
 }
@@ -170,7 +170,7 @@ pub(crate) fn send_user_message<T: UserEvent>(
 
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
-  pub webview_id_map: WebviewIdStore,
+  pub webview_id_map: WindowIdStore,
   main_thread_id: ThreadId,
   pub proxy: WryEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
@@ -192,15 +192,15 @@ impl<T: UserEvent> Context<T> {
     })
   }
 
-  fn next_window_id(&self) -> WebviewId {
+  fn next_window_id(&self) -> WindowId {
     self.next_window_id.fetch_add(1, Ordering::Relaxed)
   }
 
-  fn next_window_event_id(&self) -> WebviewId {
+  fn next_window_event_id(&self) -> u32 {
     self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
   }
 
-  fn next_webcontext_id(&self) -> WebviewId {
+  fn next_webcontext_id(&self) -> u32 {
     self.next_webcontext_id.fetch_add(1, Ordering::Relaxed)
   }
 }
@@ -217,13 +217,12 @@ impl<T: UserEvent> Context<T> {
 
     send_user_message(
       self,
-      Message::CreateWebview(
+      Message::CreateWindow(
         window_id,
-        Box::new(move |event_loop, web_context| {
+        Box::new(move |event_loop| {
           create_window(
             window_id,
             event_loop,
-            web_context,
             context,
             pending,
             before_window_creation,
@@ -232,11 +231,20 @@ impl<T: UserEvent> Context<T> {
       ),
     )?;
 
-    let dispatcher = WryDispatcher {
+    let dispatcher = WryWindowDispatcher {
       window_id,
       context: self.clone(),
     };
     Ok(DetachedWindow { label, dispatcher })
+  }
+
+  fn create_webview(
+    &self,
+    pending: PendingWebview<T, Wry<T>>,
+  ) -> Result<DetachedWebview<T, Wry<T>>> {
+    let label = pending.label.clone();
+    let context = self.clone();
+    todo!()
   }
 }
 
@@ -244,7 +252,7 @@ impl<T: UserEvent> Context<T> {
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
-  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
 }
 
 impl<T: UserEvent> std::fmt::Debug for DispatcherMainThreadContext<T> {
@@ -306,14 +314,15 @@ impl TryFrom<Icon> for WryIcon {
 pub struct WindowEventWrapper(pub Option<WindowEvent>);
 
 impl WindowEventWrapper {
-  fn parse(webview: &Option<WindowHandle>, event: &WryWindowEvent<'_>) -> Self {
+  fn parse(window: &WindowWrapper, event: &WryWindowEvent<'_>) -> Self {
     match event {
+      // TODO
       // resized event from tao doesn't include a reliable size on macOS
       // because wry replaces the NSView
       WryWindowEvent::Resized(_) => {
-        if let Some(webview) = webview {
+        if let Some(window) = &window.inner {
           Self(Some(WindowEvent::Resized(
-            PhysicalSizeWrapper(webview.inner_size()).into(),
+            PhysicalSizeWrapper(window.inner_size()).into(),
           )))
         } else {
           Self(None)
@@ -1064,6 +1073,9 @@ pub enum WebviewEvent {
   Focused(bool),
 }
 
+pub type CreateWindowClosure<T> =
+  Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
+
 pub type CreateWebviewClosure<T> = Box<
   dyn FnOnce(&EventLoopWindowTarget<Message<T>>, &WebContextStore) -> Result<WindowWrapper> + Send,
 >;
@@ -1072,11 +1084,11 @@ pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
   #[cfg(target_os = "macos")]
   Application(ApplicationMessage),
-  Window(WebviewId, WindowMessage),
-  Webview(WebviewId, WebviewMessage),
-  CreateWebview(WebviewId, CreateWebviewClosure<T>),
-  CreateWindow(
-    WebviewId,
+  Window(WindowId, WindowMessage),
+  Webview(WindowId, WebviewMessage),
+  CreateWindow(WindowId, CreateWindowClosure<T>),
+  CreateRawWindow(
+    WindowId,
     Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
     Sender<Result<Weak<Window>>>,
   ),
@@ -1093,32 +1105,18 @@ impl<T: UserEvent> Clone for Message<T> {
   }
 }
 
-/// The Tauri [`Dispatch`] for [`Wry`].
+/// The Tauri [`WebviewDispatch`] for [`Wry`].
 #[derive(Debug, Clone)]
-pub struct WryDispatcher<T: UserEvent> {
-  window_id: WebviewId,
+pub struct WryWebviewDispatcher<T: UserEvent> {
+  window_id: WindowId,
   context: Context<T>,
 }
 
-// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: UserEvent> Sync for WryDispatcher<T> {}
-
-impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
+impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   type Runtime = Wry<T>;
-  type WindowBuilder = WindowBuilderWrapper;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
-  }
-
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
-    let id = self.context.next_window_event_id();
-    let _ = self.context.proxy.send_event(Message::Window(
-      self.window_id,
-      WindowMessage::AddEventListener(id, Box::new(f)),
-    ));
-    id
   }
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
@@ -1158,6 +1156,56 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   fn url(&self) -> Result<Url> {
     window_getter!(self, WindowMessage::Url)
   }
+
+  // Setters
+
+  fn print(&self) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(self.window_id, WebviewMessage::Print),
+    )
+  }
+
+  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        self.window_id,
+        WebviewMessage::EvaluateScript(script.into()),
+      ),
+    )
+  }
+}
+
+/// The Tauri [`WindowDispatch`] for [`Wry`].
+#[derive(Debug, Clone)]
+pub struct WryWindowDispatcher<T: UserEvent> {
+  window_id: WindowId,
+  context: Context<T>,
+}
+
+// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl<T: UserEvent> Sync for WryWindowDispatcher<T> {}
+
+impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
+  type Runtime = Wry<T>;
+  type WindowBuilder = WindowBuilderWrapper;
+
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
+    send_user_message(&self.context, Message::Task(Box::new(f)))
+  }
+
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
+    let id = self.context.next_window_event_id();
+    let _ = self.context.proxy.send_event(Message::Window(
+      self.window_id,
+      WindowMessage::AddEventListener(id, Box::new(f)),
+    ));
+    id
+  }
+
+  // Getters
 
   fn scale_factor(&self) -> Result<f64> {
     window_getter!(self, WindowMessage::ScaleFactor)
@@ -1284,13 +1332,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  fn print(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(self.window_id, WebviewMessage::Print),
-    )
-  }
-
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1309,6 +1350,15 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     before_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     self.context.create_window(pending, before_window_creation)
+  }
+
+  // Creates a webview by dispatching a message to the event loop.
+  // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
+  fn create_webview(
+    &mut self,
+    pending: PendingWebview<T, Self::Runtime>,
+  ) -> Result<DetachedWebview<T, Self::Runtime>> {
+    self.context.create_webview(pending)
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -1559,16 +1609,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        self.window_id,
-        WebviewMessage::EvaluateScript(script.into()),
-      ),
-    )
-  }
-
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1581,63 +1621,34 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 }
 
 #[derive(Clone)]
-enum WindowHandle {
-  Webview {
-    window: Arc<Window>,
-    inner: Rc<WebView>,
-    context_store: WebContextStore,
-    // the key of the WebContext if it's not shared
-    context_key: Option<PathBuf>,
-  },
-  Window(Arc<Window>),
+pub struct WebviewWrapper {
+  inner: Rc<WebView>,
+  context_store: WebContextStore,
+  // the key of the WebContext if it's not shared
+  context_key: Option<PathBuf>,
 }
 
-impl Drop for WindowHandle {
-  fn drop(&mut self) {
-    if let Self::Webview {
-      inner,
-      window: _,
-      context_store,
-      context_key,
-    } = self
-    {
-      if Rc::get_mut(inner).is_some() {
-        context_store.lock().unwrap().remove(context_key);
-      }
-    }
-  }
-}
-
-impl fmt::Debug for WindowHandle {
-  fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    Ok(())
-  }
-}
-
-impl Deref for WindowHandle {
-  type Target = Window;
+impl Deref for WebviewWrapper {
+  type Target = WebView;
 
   #[inline(always)]
-  fn deref(&self) -> &Window {
-    match self {
-      Self::Webview { window, .. } => window,
-      Self::Window(w) => w,
-    }
+  fn deref(&self) -> &Self::Target {
+    &self.inner
   }
 }
 
-impl WindowHandle {
-  fn inner_size(&self) -> WryPhysicalSize<u32> {
-    match self {
-      WindowHandle::Window(w) => w.inner_size(),
-      WindowHandle::Webview { window, .. } => window.inner_size(),
+impl Drop for WebviewWrapper {
+  fn drop(&mut self) {
+    if Rc::get_mut(&mut self.inner).is_some() {
+      self.context_store.lock().unwrap().remove(&self.context_key);
     }
   }
 }
 
 pub struct WindowWrapper {
   label: String,
-  inner: Option<WindowHandle>,
+  inner: Option<Arc<Window>>,
+  webviews: Vec<WebviewWrapper>,
   window_event_listeners: WindowEventListeners,
 }
 
@@ -1718,12 +1729,12 @@ impl<T: UserEvent> WryHandle<T> {
   ) -> Result<Weak<Window>> {
     let id = self.context.next_window_id();
     let (tx, rx) = channel();
-    send_user_message(&self.context, Message::CreateWindow(id, Box::new(f), tx))?;
+    send_user_message(&self.context, Message::CreateRawWindow(id, Box::new(f), tx))?;
     rx.recv().unwrap()
   }
 
   /// Gets the [`WebviewId'] associated with the given [`WindowId`].
-  pub fn window_id(&self, window_id: WindowId) -> WebviewId {
+  pub fn window_id(&self, window_id: TaoWindowId) -> WindowId {
     *self
       .context
       .webview_id_map
@@ -1772,6 +1783,15 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     before_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     self.context.create_window(pending, before_window_creation)
+  }
+
+  // Creates a webview by dispatching a message to the event loop.
+  // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
+  fn create_webview(
+    &self,
+    pending: PendingWebview<T, Self::Runtime>,
+  ) -> Result<DetachedWebview<T, Self::Runtime>> {
+    self.context.create_webview(pending)
   }
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
@@ -1854,7 +1874,7 @@ impl<T: UserEvent> Wry<T> {
     let web_context = WebContextStore::default();
 
     let windows = Rc::new(RefCell::new(HashMap::default()));
-    let webview_id_map = WebviewIdStore::default();
+    let webview_id_map = WindowIdStore::default();
 
     let context = Context {
       webview_id_map,
@@ -1879,7 +1899,8 @@ impl<T: UserEvent> Wry<T> {
 }
 
 impl<T: UserEvent> Runtime<T> for Wry<T> {
-  type Dispatcher = WryDispatcher<T>;
+  type WindowDispatcher = WryWindowDispatcher<T>;
+  type WebviewDispatcher = WryWebviewDispatcher<T>;
   type Handle = WryHandle<T>;
 
   type EventLoopProxy = EventProxy<T>;
@@ -1930,13 +1951,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let webview = create_window(
       window_id,
       &self.event_loop,
-      &self.context.main_thread.web_context,
       self.context.clone(),
       pending,
       before_window_creation,
     )?;
 
-    let dispatcher = WryDispatcher {
+    let dispatcher = WryWindowDispatcher {
       window_id,
       context: self.context.clone(),
     };
@@ -1949,6 +1969,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .insert(window_id, webview);
 
     Ok(DetachedWindow { label, dispatcher })
+  }
+
+  fn create_webview(&self, pending: PendingWebview<T, Self>) -> Result<DetachedWebview<T, Self>> {
+    let label = pending.label.clone();
+    todo!()
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
@@ -2095,13 +2120,13 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
-  pub webview_id_map: WebviewIdStore,
-  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub webview_id_map: WindowIdStore,
+  pub windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
 }
 
 struct UserMessageContext {
-  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
-  webview_id_map: WebviewIdStore,
+  windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
+  webview_id_map: WindowIdStore,
 }
 
 fn handle_user_message<T: UserEvent>(
@@ -2126,13 +2151,18 @@ fn handle_user_message<T: UserEvent>(
       }
     },
     Message::Window(id, window_message) => {
-      let w = windows
-        .borrow()
-        .get(&id)
-        .map(|w| (w.inner.clone(), w.window_event_listeners.clone()));
-      if let Some((Some(window), window_event_listeners)) = w {
+      let w = windows.borrow().get(&id).map(|w| {
+        (
+          w.inner.clone(),
+          w.webviews.clone(),
+          w.window_event_listeners.clone(),
+        )
+      });
+      if let Some((Some(window), webviews, window_event_listeners)) = w {
         match window_message {
           WindowMessage::WithWebview(f) => {
+            // TODO
+            /*
             if let WindowHandle::Webview { inner: w, .. } = &window {
               #[cfg(any(
                 target_os = "linux",
@@ -2176,6 +2206,7 @@ fn handle_user_message<T: UserEvent>(
                 f(w.handle())
               }
             }
+            */
           }
 
           WindowMessage::AddEventListener(id, listener) => {
@@ -2184,19 +2215,19 @@ fn handle_user_message<T: UserEvent>(
 
           #[cfg(any(debug_assertions, feature = "devtools"))]
           WindowMessage::OpenDevTools => {
-            if let WindowHandle::Webview { inner: w, .. } = &window {
+            if let Some(w) = webviews.first() {
               w.open_devtools();
             }
           }
           #[cfg(any(debug_assertions, feature = "devtools"))]
           WindowMessage::CloseDevTools => {
-            if let WindowHandle::Webview { inner: w, .. } = &window {
+            if let Some(w) = webviews.first() {
               w.close_devtools();
             }
           }
           #[cfg(any(debug_assertions, feature = "devtools"))]
           WindowMessage::IsDevToolsOpen(tx) => {
-            if let WindowHandle::Webview { inner: w, .. } = &window {
+            if let Some(w) = webviews.first() {
               tx.send(w.is_devtools_open()).unwrap();
             } else {
               tx.send(false).unwrap();
@@ -2205,7 +2236,7 @@ fn handle_user_message<T: UserEvent>(
 
           // Getters
           WindowMessage::Url(tx) => {
-            if let WindowHandle::Webview { inner: w, .. } = &window {
+            if let Some(w) = webviews.first() {
               tx.send(w.url()).unwrap();
             }
           }
@@ -2285,7 +2316,7 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetClosable(closable) => window.set_closable(closable),
           WindowMessage::SetTitle(title) => window.set_title(&title),
           WindowMessage::Navigate(url) => {
-            if let WindowHandle::Webview { inner: w, .. } = &window {
+            if let Some(w) = webviews.first() {
               w.load_url(url.as_str())
             }
           }
@@ -2372,24 +2403,20 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::Webview(id, webview_message) => match webview_message {
       WebviewMessage::EvaluateScript(script) => {
-        if let Some(WindowHandle::Webview { inner: webview, .. }) =
-          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
-        {
+        if let Some(webview) = windows.borrow().get(&id).and_then(|w| w.webviews.first()) {
           if let Err(e) = webview.evaluate_script(&script) {
             debug_eprintln!("{}", e);
           }
         }
       }
       WebviewMessage::Print => {
-        if let Some(WindowHandle::Webview { inner: webview, .. }) =
-          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
-        {
+        if let Some(webview) = windows.borrow().get(&id).and_then(|w| w.webviews.first()) {
           let _ = webview.print();
         }
       }
       WebviewMessage::WebviewEvent(_event) => { /* already handled */ }
     },
-    Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
+    Message::CreateWindow(window_id, handler) => match handler(event_loop) {
       Ok(webview) => {
         windows.borrow_mut().insert(window_id, webview);
       }
@@ -2397,7 +2424,7 @@ fn handle_user_message<T: UserEvent>(
         debug_eprintln!("{}", e);
       }
     },
-    Message::CreateWindow(window_id, handler, sender) => {
+    Message::CreateRawWindow(window_id, handler, sender) => {
       let (label, builder) = handler();
       if let Ok(window) = builder.build(event_loop) {
         webview_id_map.insert(window.id(), window_id);
@@ -2408,8 +2435,9 @@ fn handle_user_message<T: UserEvent>(
           window_id,
           WindowWrapper {
             label,
-            inner: Some(WindowHandle::Window(w.clone())),
+            inner: Some(w.clone()),
             window_event_listeners: Default::default(),
+            webviews: Vec::new(),
           },
         );
         sender.send(Ok(Arc::downgrade(&w))).unwrap();
@@ -2486,7 +2514,7 @@ fn handle_event_loop<T: UserEvent>(
         {
           let windows_ref = windows.borrow();
           if let Some(window) = windows_ref.get(&window_id) {
-            if let Some(event) = WindowEventWrapper::parse(&window.inner, &event).0 {
+            if let Some(event) = WindowEventWrapper::parse(&window, &event).0 {
               let label = window.label.clone();
               let window_event_listeners = window.window_event_listeners.clone();
 
@@ -2575,8 +2603,8 @@ fn handle_event_loop<T: UserEvent>(
 
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
-  window_id: WebviewId,
-  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  window_id: WindowId,
+  windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
 ) {
   let (tx, rx) = channel();
   let windows_ref = windows.borrow();
@@ -2604,7 +2632,7 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WebviewId, windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
+fn on_window_close(window_id: WindowId, windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>) {
   if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }
@@ -2627,9 +2655,8 @@ pub fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Resu
 }
 
 fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
-  window_id: WebviewId,
+  window_id: WindowId,
   event_loop: &EventLoopWindowTarget<Message<T>>,
-  web_context_store: &WebContextStore,
   context: Context<T>,
   pending: PendingWindow<T, Wry<T>>,
   before_window_creation: Option<F>,
@@ -2702,19 +2729,20 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   Ok(WindowWrapper {
     label,
-    inner: Some(WindowHandle::Window(Arc::new(window))),
+    inner: Some(Arc::new(window)),
+    webviews: Vec::new(),
     window_event_listeners,
   })
 }
 
 fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   window: Arc<Window>,
-  window_id: WebviewId,
+  window_id: WindowId,
   event_loop: &EventLoopWindowTarget<Message<T>>,
   web_context_store: &WebContextStore,
   context: Context<T>,
   pending: PendingWebview<T, Wry<T>>,
-) -> Result<WindowWrapper> {
+) -> Result<WebviewWrapper> {
   #[allow(unused_mut)]
   let PendingWebview {
     webview_attributes,
@@ -2726,8 +2754,6 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     on_webview_created,
     ..
   } = pending;
-
-  context.webview_id_map.insert(window.id(), window_id);
 
   // TODO remove this
   let window_event_listeners = WindowEventListeners::default();
@@ -2919,25 +2945,20 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     .unwrap();
   }
 
-  Ok(WindowWrapper {
-    label,
-    inner: Some(WindowHandle::Webview {
-      window: window.clone(),
-      inner: Rc::new(webview),
-      context_store: web_context_store.clone(),
-      context_key: if automation_enabled {
-        None
-      } else {
-        web_context_key
-      },
-    }),
-    window_event_listeners,
+  Ok(WebviewWrapper {
+    inner: Rc::new(webview),
+    context_store: web_context_store.clone(),
+    context_key: if automation_enabled {
+      None
+    } else {
+      web_context_key
+    },
   })
 }
 
 /// Create a wry ipc handler from a tauri ipc handler.
 fn create_ipc_handler<T: UserEvent>(
-  window_id: u32,
+  window_id: WindowId,
   context: Context<T>,
   label: String,
   handler: WebviewIpcHandler<T, Wry<T>>,
@@ -2945,7 +2966,7 @@ fn create_ipc_handler<T: UserEvent>(
   Box::new(move |request| {
     handler(
       DetachedWindow {
-        dispatcher: WryDispatcher {
+        dispatcher: WryWindowDispatcher {
           window_id,
           context: context.clone(),
         },

@@ -12,7 +12,12 @@ use crate::{
 use tauri_utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl};
 use url::Url;
 
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{
+  borrow::Cow,
+  collections::HashMap,
+  hash::{Hash, Hasher},
+  path::PathBuf,
+};
 
 type UriSchemeProtocol = dyn Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
   + Send
@@ -122,6 +127,40 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
   ) -> Self {
     self.on_webview_created.replace(Box::new(f));
     self
+  }
+}
+
+/// A webview that is not yet managed by Tauri.
+#[derive(Debug)]
+pub struct DetachedWebview<T: UserEvent, R: Runtime<T>> {
+  /// Name of the window
+  pub label: String,
+
+  /// The [`WebviewDispatch`] associated with the window.
+  pub dispatcher: R::WebviewDispatcher,
+}
+
+impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWebview<T, R> {
+  fn clone(&self) -> Self {
+    Self {
+      label: self.label.clone(),
+      dispatcher: self.dispatcher.clone(),
+    }
+  }
+}
+
+impl<T: UserEvent, R: Runtime<T>> Hash for DetachedWebview<T, R> {
+  /// Only use the [`DetachedWebview`]'s label to represent its hash.
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.label.hash(state)
+  }
+}
+
+impl<T: UserEvent, R: Runtime<T>> Eq for DetachedWebview<T, R> {}
+impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWebview<T, R> {
+  /// Only use the [`DetachedWebview`]'s label to compare equality.
+  fn eq(&self, other: &Self) -> bool {
+    self.label.eq(&other.label)
   }
 }
 

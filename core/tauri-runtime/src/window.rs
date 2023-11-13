@@ -4,7 +4,7 @@
 
 //! A layer between raw [`Runtime`] windows and Tauri.
 
-use crate::{Dispatch, Icon, Runtime, UserEvent};
+use crate::{Icon, Runtime, UserEvent, WindowDispatch};
 
 use serde::{Deserialize, Deserializer};
 use tauri_utils::{config::WindowConfig, Theme};
@@ -192,7 +192,7 @@ impl<'de> Deserialize<'de> for CursorIcon {
 /// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
 pub trait WindowBuilderBase: std::fmt::Debug + Clone + Sized {}
 
-/// A builder for all attributes related to a single webview.
+/// A builder for all attributes related to a single window.
 ///
 /// This trait is only meant to be implemented by a custom [`Runtime`](crate::Runtime)
 /// and not by applications.
@@ -200,7 +200,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Initializes a new window attributes builder.
   fn new() -> Self;
 
-  /// Initializes a new webview builder from a [`WindowConfig`]
+  /// Initializes a new window builder from a [`WindowConfig`]
   fn with_config(config: WindowConfig) -> Self;
 
   /// Show window in the center of the screen.
@@ -388,7 +388,7 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   pub label: String,
 
   /// The [`WindowBuilder`] that the window will be created with.
-  pub window_builder: <R::Dispatcher as Dispatch<T>>::WindowBuilder,
+  pub window_builder: <R::WindowDispatcher as WindowDispatch<T>>::WindowBuilder,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -407,7 +407,7 @@ pub fn assert_label_is_valid(label: &str) {
 impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
   /// Create a new [`PendingWindow`] with a label from the given [`WindowBuilder`].
   pub fn new(
-    window_builder: <R::Dispatcher as Dispatch<T>>::WindowBuilder,
+    window_builder: <R::WindowDispatcher as WindowDispatch<T>>::WindowBuilder,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
     let label = label.into();
@@ -424,7 +424,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
   /// Create a new [`PendingWindow`] from a [`WindowConfig`] with a label from the given [`WindowConfig`].
   pub fn with_config(window_config: WindowConfig, label: impl Into<String>) -> crate::Result<Self> {
     let window_builder =
-      <<R::Dispatcher as Dispatch<T>>::WindowBuilder>::with_config(window_config);
+      <<R::WindowDispatcher as WindowDispatch<T>>::WindowBuilder>::with_config(window_config);
 
     let label = label.into();
     if !is_label_valid(&label) {
@@ -438,14 +438,14 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
   }
 }
 
-/// A webview window that is not yet managed by Tauri.
+/// A window that is not yet managed by Tauri.
 #[derive(Debug)]
 pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
   /// Name of the window
   pub label: String,
 
-  /// The [`Dispatch`] associated with the window.
-  pub dispatcher: R::Dispatcher,
+  /// The [`WindowDispatch`] associated with the window.
+  pub dispatcher: R::WindowDispatcher,
 }
 
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {

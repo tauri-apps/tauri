@@ -201,6 +201,10 @@ export function mockConvertFileSrc(
  * @since 1.0.0
  */
 export function clearMocks(): void {
+  if (typeof window.__TAURI_INTERNALS__ !== 'object') {
+    return
+  }
+
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
   delete window.__TAURI__.convertFileSrc
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case

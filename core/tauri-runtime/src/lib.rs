@@ -24,7 +24,7 @@ pub mod webview;
 pub mod window;
 
 use monitor::Monitor;
-use webview::WindowBuilder;
+use window::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
@@ -194,11 +194,11 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
   fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
 
-  /// Create a new webview window.
+  /// Create a new window.
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
-    before_webview_creation: Option<F>,
+    before_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Run a task on the main thread.

@@ -2,20 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! A layer between raw [`Runtime`] webview windows and Tauri.
+//! A layer between raw [`Runtime`] windows and Tauri.
 
-use crate::{
-  webview::{WebviewAttributes, WebviewIpcHandler},
-  Dispatch, Runtime, UserEvent, WindowBuilder,
-};
+use crate::{Dispatch, Icon, Runtime, UserEvent};
 
 use serde::{Deserialize, Deserializer};
 use tauri_utils::{config::WindowConfig, Theme};
-use url::Url;
 
 use std::{
-  borrow::Cow,
-  collections::HashMap,
   hash::{Hash, Hasher},
   marker::PhantomData,
   path::PathBuf,
@@ -23,27 +17,6 @@ use std::{
 };
 
 use self::dpi::PhysicalPosition;
-
-type UriSchemeProtocol = dyn Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
-  + Send
-  + Sync
-  + 'static;
-
-type WebResourceRequestHandler =
-  dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
-
-type NavigationHandler = dyn Fn(&Url) -> bool + Send;
-
-type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
-
-/// Kind of event for the page load handler.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PageLoadEvent {
-  /// Page started to load.
-  Started,
-  /// Page finished loading.
-  Finished,
-}
 
 /// UI scaling utilities.
 pub mod dpi;
@@ -214,43 +187,208 @@ impl<'de> Deserialize<'de> for CursorIcon {
   }
 }
 
-#[cfg(target_os = "android")]
-pub struct CreationContext<'a, 'b> {
-  pub env: &'a mut jni::JNIEnv<'b>,
-  pub activity: &'a jni::objects::JObject<'b>,
-  pub webview: &'a jni::objects::JObject<'b>,
+/// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::Runtime).
+///
+/// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
+pub trait WindowBuilderBase: std::fmt::Debug + Clone + Sized {}
+
+/// A builder for all attributes related to a single webview.
+///
+/// This trait is only meant to be implemented by a custom [`Runtime`](crate::Runtime)
+/// and not by applications.
+pub trait WindowBuilder: WindowBuilderBase {
+  /// Initializes a new window attributes builder.
+  fn new() -> Self;
+
+  /// Initializes a new webview builder from a [`WindowConfig`]
+  fn with_config(config: WindowConfig) -> Self;
+
+  /// Show window in the center of the screen.
+  #[must_use]
+  fn center(self) -> Self;
+
+  /// The initial position of the window's.
+  #[must_use]
+  fn position(self, x: f64, y: f64) -> Self;
+
+  /// Window size.
+  #[must_use]
+  fn inner_size(self, width: f64, height: f64) -> Self;
+
+  /// Window min inner size.
+  #[must_use]
+  fn min_inner_size(self, min_width: f64, min_height: f64) -> Self;
+
+  /// Window max inner size.
+  #[must_use]
+  fn max_inner_size(self, max_width: f64, max_height: f64) -> Self;
+
+  /// Whether the window is resizable or not.
+  /// When resizable is set to false, native window's maximize button is automatically disabled.
+  #[must_use]
+  fn resizable(self, resizable: bool) -> Self;
+
+  /// Whether the window's native maximize button is enabled or not.
+  /// If resizable is set to false, this setting is ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[must_use]
+  fn maximizable(self, maximizable: bool) -> Self;
+
+  /// Whether the window's native minimize button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[must_use]
+  fn minimizable(self, minimizable: bool) -> Self;
+
+  /// Whether the window's native close button is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  fn closable(self, closable: bool) -> Self;
+
+  /// The title of the window in the title bar.
+  #[must_use]
+  fn title<S: Into<String>>(self, title: S) -> Self;
+
+  /// Whether to start the window in fullscreen or not.
+  #[must_use]
+  fn fullscreen(self, fullscreen: bool) -> Self;
+
+  /// Whether the window will be initially focused or not.
+  #[must_use]
+  fn focused(self, focused: bool) -> Self;
+
+  /// Whether the window should be maximized upon creation.
+  #[must_use]
+  fn maximized(self, maximized: bool) -> Self;
+
+  /// Whether the window should be immediately visible upon creation.
+  #[must_use]
+  fn visible(self, visible: bool) -> Self;
+
+  /// Whether the window should be transparent. If this is true, writing colors
+  /// with alpha values different than `1.0` will produce a transparent window.
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
+  )]
+  #[must_use]
+  fn transparent(self, transparent: bool) -> Self;
+
+  /// Whether the window should have borders and bars.
+  #[must_use]
+  fn decorations(self, decorations: bool) -> Self;
+
+  /// Whether the window should always be below other windows.
+  #[must_use]
+  fn always_on_bottom(self, always_on_bottom: bool) -> Self;
+
+  /// Whether the window should always be on top of other windows.
+  #[must_use]
+  fn always_on_top(self, always_on_top: bool) -> Self;
+
+  /// Whether the window should be visible on all workspaces or virtual desktops.
+  #[must_use]
+  fn visible_on_all_workspaces(self, visible_on_all_workspaces: bool) -> Self;
+
+  /// Prevents the window contents from being captured by other apps.
+  #[must_use]
+  fn content_protected(self, protected: bool) -> Self;
+
+  /// Sets the window icon.
+  fn icon(self, icon: Icon) -> crate::Result<Self>;
+
+  /// Sets whether or not the window icon should be added to the taskbar.
+  #[must_use]
+  fn skip_taskbar(self, skip: bool) -> Self;
+
+  /// Sets whether or not the window has shadow.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:**
+  ///   - `false` has no effect on decorated window, shadows are always ON.
+  ///   - `true` will make ndecorated window have a 1px white border,
+  /// and on Windows 11, it will have a rounded corners.
+  /// - **Linux:** Unsupported.
+  #[must_use]
+  fn shadow(self, enable: bool) -> Self;
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  #[cfg(windows)]
+  #[must_use]
+  fn parent_window(self, parent: HWND) -> Self;
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn parent_window(self, parent: *mut std::ffi::c_void) -> Self;
+
+  /// Set an owner to the window to be created.
+  ///
+  /// From MSDN:
+  /// - An owned window is always above its owner in the z-order.
+  /// - The system automatically destroys an owned window when its owner is destroyed.
+  /// - An owned window is hidden when its owner is minimized.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
+  #[cfg(windows)]
+  #[must_use]
+  fn owner_window(self, owner: HWND) -> Self;
+
+  /// Hide the titlebar. Titlebar buttons will still be visible.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn title_bar_style(self, style: TitleBarStyle) -> Self;
+
+  /// Hide the window title.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn hidden_title(self, hidden: bool) -> Self;
+
+  /// Defines the window [tabbing identifier] for macOS.
+  ///
+  /// Windows with matching tabbing identifiers will be grouped together.
+  /// If the tabbing identifier is not set, automatic tabbing will be disabled.
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn tabbing_identifier(self, identifier: &str) -> Self;
+
+  /// Forces a theme or uses the system settings if None was provided.
+  fn theme(self, theme: Option<Theme>) -> Self;
+
+  /// Whether the icon was set or not.
+  fn has_icon(&self) -> bool;
 }
 
-/// A webview window that has yet to be built.
+/// A window that has yet to be built.
 pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// The label that the window will be named.
   pub label: String,
 
   /// The [`WindowBuilder`] that the window will be created with.
   pub window_builder: <R::Dispatcher as Dispatch<T>>::WindowBuilder,
-
-  /// The [`WebviewAttributes`] that the webview will be created with.
-  pub webview_attributes: WebviewAttributes,
-
-  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
-
-  /// How to handle IPC calls on the webview window.
-  pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
-
-  /// A handler to decide if incoming url is allowed to navigate.
-  pub navigation_handler: Option<Box<NavigationHandler>>,
-
-  /// The resolved URL to load on the webview.
-  pub url: String,
-
-  #[cfg(target_os = "android")]
-  #[allow(clippy::type_complexity)]
-  pub on_webview_created:
-    Option<Box<dyn Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send>>,
-
-  pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
-
-  pub on_page_load_handler: Option<Box<OnPageLoadHandler>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -267,10 +405,9 @@ pub fn assert_label_is_valid(label: &str) {
 }
 
 impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
-  /// Create a new [`PendingWindow`] with a label and starting url.
+  /// Create a new [`PendingWindow`] with a label from the given [`WindowBuilder`].
   pub fn new(
     window_builder: <R::Dispatcher as Dispatch<T>>::WindowBuilder,
-    webview_attributes: WebviewAttributes,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
     let label = label.into();
@@ -279,26 +416,13 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     } else {
       Ok(Self {
         window_builder,
-        webview_attributes,
-        uri_scheme_protocols: Default::default(),
         label,
-        ipc_handler: None,
-        navigation_handler: None,
-        url: "tauri://localhost".to_string(),
-        #[cfg(target_os = "android")]
-        on_webview_created: None,
-        web_resource_request_handler: None,
-        on_page_load_handler: None,
       })
     }
   }
 
-  /// Create a new [`PendingWindow`] from a [`WindowConfig`] with a label and starting url.
-  pub fn with_config(
-    window_config: WindowConfig,
-    webview_attributes: WebviewAttributes,
-    label: impl Into<String>,
-  ) -> crate::Result<Self> {
+  /// Create a new [`PendingWindow`] from a [`WindowConfig`] with a label from the given [`WindowConfig`].
+  pub fn with_config(window_config: WindowConfig, label: impl Into<String>) -> crate::Result<Self> {
     let window_builder =
       <<R::Dispatcher as Dispatch<T>>::WindowBuilder>::with_config(window_config);
 
@@ -308,46 +432,9 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     } else {
       Ok(Self {
         window_builder,
-        webview_attributes,
-        uri_scheme_protocols: Default::default(),
         label,
-        ipc_handler: None,
-        navigation_handler: None,
-        url: "tauri://localhost".to_string(),
-        #[cfg(target_os = "android")]
-        on_webview_created: None,
-        web_resource_request_handler: None,
-        on_page_load_handler: None,
       })
     }
-  }
-
-  pub fn register_uri_scheme_protocol<
-    N: Into<String>,
-    H: Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
-      + Send
-      + Sync
-      + 'static,
-  >(
-    &mut self,
-    uri_scheme: N,
-    protocol: H,
-  ) {
-    let uri_scheme = uri_scheme.into();
-    self
-      .uri_scheme_protocols
-      .insert(uri_scheme, Box::new(protocol));
-  }
-
-  #[cfg(target_os = "android")]
-  pub fn on_webview_created<
-    F: Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send + 'static,
-  >(
-    mut self,
-    f: F,
-  ) -> Self {
-    self.on_webview_created.replace(Box::new(f));
-    self
   }
 }
 

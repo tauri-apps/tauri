@@ -14,10 +14,11 @@
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
   monitor::Monitor,
-  webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
+  webview::{PendingWebview, WebviewIpcHandler},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WindowEvent,
+    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WindowBuilder,
+    WindowBuilderBase, WindowEvent,
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
   RunEvent, RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
@@ -205,10 +206,10 @@ impl<T: UserEvent> Context<T> {
 }
 
 impl<T: UserEvent> Context<T> {
-  fn create_webview<F: Fn(RawWindow) + Send + 'static>(
+  fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Wry<T>>,
-    before_webview_creation: Option<F>,
+    before_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
     let context = self.clone();
@@ -219,13 +220,13 @@ impl<T: UserEvent> Context<T> {
       Message::CreateWebview(
         window_id,
         Box::new(move |event_loop, web_context| {
-          create_webview(
+          create_window(
             window_id,
             event_loop,
             web_context,
             context,
             pending,
-            before_webview_creation,
+            before_window_creation,
           )
         }),
       ),
@@ -1305,11 +1306,9 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
-    before_webview_creation: Option<F>,
+    before_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    self
-      .context
-      .create_webview(pending, before_webview_creation)
+    self.context.create_window(pending, before_window_creation)
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -1770,11 +1769,9 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
-    before_webview_creation: Option<F>,
+    before_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    self
-      .context
-      .create_webview(pending, before_webview_creation)
+    self.context.create_window(pending, before_window_creation)
   }
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
@@ -1925,18 +1922,18 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self>,
-    before_webview_creation: Option<F>,
+    before_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
     let window_id = self.context.next_window_id();
 
-    let webview = create_webview(
+    let webview = create_window(
       window_id,
       &self.event_loop,
       &self.context.main_thread.web_context,
       self.context.clone(),
       pending,
-      before_webview_creation,
+      before_window_creation,
     )?;
 
     let dispatcher = WryDispatcher {
@@ -2629,24 +2626,18 @@ pub fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Resu
   }
 }
 
-fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
+fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   window_id: WebviewId,
   event_loop: &EventLoopWindowTarget<Message<T>>,
   web_context_store: &WebContextStore,
   context: Context<T>,
   pending: PendingWindow<T, Wry<T>>,
-  before_webview_creation: Option<F>,
+  before_window_creation: Option<F>,
 ) -> Result<WindowWrapper> {
   #[allow(unused_mut)]
   let PendingWindow {
-    webview_attributes,
-    uri_scheme_protocols,
     mut window_builder,
     label,
-    ipc_handler,
-    url,
-    #[cfg(target_os = "android")]
-    on_webview_created,
     ..
   } = pending;
 
@@ -2684,7 +2675,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     let _ = center_window(&window, window.inner_size());
   }
 
-  if let Some(handler) = before_webview_creation {
+  if let Some(handler) = before_window_creation {
     let raw = RawWindow {
       #[cfg(windows)]
       hwnd: window.hwnd(),
@@ -2709,6 +2700,38 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     handler(raw);
   }
 
+  Ok(WindowWrapper {
+    label,
+    inner: Some(WindowHandle::Window(Arc::new(window))),
+    window_event_listeners,
+  })
+}
+
+fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
+  window: Arc<Window>,
+  window_id: WebviewId,
+  event_loop: &EventLoopWindowTarget<Message<T>>,
+  web_context_store: &WebContextStore,
+  context: Context<T>,
+  pending: PendingWebview<T, Wry<T>>,
+) -> Result<WindowWrapper> {
+  #[allow(unused_mut)]
+  let PendingWebview {
+    webview_attributes,
+    uri_scheme_protocols,
+    label,
+    ipc_handler,
+    url,
+    #[cfg(target_os = "android")]
+    on_webview_created,
+    ..
+  } = pending;
+
+  context.webview_id_map.insert(window.id(), window_id);
+
+  // TODO remove this
+  let window_event_listeners = WindowEventListeners::default();
+
   #[cfg(any(
     target_os = "windows",
     target_os = "macos",
@@ -2728,10 +2751,10 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   };
 
   let mut webview_builder = builder
-    .with_focused(focused)
+    .with_focused(window.is_focused())
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
-    .with_transparent(is_window_transparent)
+    .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
   if webview_attributes.file_drop_handler_enabled {
     webview_builder = webview_builder
@@ -2751,8 +2774,8 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         page_load_handler(
           url,
           match event {
-            wry::PageLoadEvent::Started => tauri_runtime::window::PageLoadEvent::Started,
-            wry::PageLoadEvent::Finished => tauri_runtime::window::PageLoadEvent::Finished,
+            wry::PageLoadEvent::Started => tauri_runtime::webview::PageLoadEvent::Started,
+            wry::PageLoadEvent::Finished => tauri_runtime::webview::PageLoadEvent::Finished,
           },
         )
       });
@@ -2899,7 +2922,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   Ok(WindowWrapper {
     label,
     inner: Some(WindowHandle::Webview {
-      window: Arc::new(window),
+      window: window.clone(),
       inner: Rc::new(webview),
       context_store: web_context_store.clone(),
       context_key: if automation_enabled {

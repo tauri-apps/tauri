@@ -70,11 +70,11 @@ pub use wry;
 pub use wry::webview_version;
 
 #[cfg(windows)]
-use wry::WebviewExtWindows;
+use wry::WebViewExtWindows;
 #[cfg(target_os = "android")]
 use wry::{
   prelude::{dispatch, find_class},
-  WebViewBuilderExtAndroid, WebviewExtAndroid,
+  WebViewBuilderExtAndroid, WebViewExtAndroid,
 };
 
 #[cfg(target_os = "macos")]
@@ -2145,12 +2145,12 @@ fn handle_user_message<T: UserEvent>(
                 target_os = "openbsd"
               ))]
               {
-                use wry::WebviewExtUnix;
+                use wry::WebViewExtUnix;
                 f(w.webview());
               }
               #[cfg(target_os = "macos")]
               {
-                use wry::WebviewExtMacOS;
+                use wry::WebViewExtMacOS;
                 f(Webview {
                   webview: w.webview(),
                   manager: w.manager(),
@@ -2160,7 +2160,7 @@ fn handle_user_message<T: UserEvent>(
               #[cfg(target_os = "ios")]
               {
                 use tao::platform::ios::WindowExtIOS;
-                use wrt::WebviewExtIOS;
+                use wrt::WebViewExtIOS;
 
                 f(Webview {
                   webview: w.webview(),

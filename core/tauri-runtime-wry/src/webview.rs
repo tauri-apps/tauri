@@ -10,9 +10,7 @@
   target_os = "openbsd"
 ))]
 mod imp {
-  use std::rc::Rc;
-
-  pub type Webview = Rc<webkit2gtk::WebView>;
+  pub type Webview = webkit2gtk::WebView;
 }
 
 #[cfg(target_os = "macos")]

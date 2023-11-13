@@ -4575,7 +4575,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.34.2"
-source = "git+https://github.com/tauri-apps/wry?branch=fix/android-binding#cf314326ac98032db012a6155e48c6ffd8b64673"
+source = "git+https://github.com/tauri-apps/wry#4d6f08e8275378575d2c478c2162aac2934e5842"
 dependencies = [
  "base64",
  "block",

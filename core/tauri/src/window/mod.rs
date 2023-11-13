@@ -1108,7 +1108,7 @@ impl PlatformWebview {
       target_os = "openbsd"
     )))
   )]
-  pub fn inner(&self) -> std::rc::Rc<webkit2gtk::WebView> {
+  pub fn inner(&self) -> webkit2gtk::WebView {
     self.0.clone()
   }
 

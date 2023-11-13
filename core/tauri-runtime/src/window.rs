@@ -438,9 +438,21 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
   }
 }
 
+/// Identifier of a window.
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+pub struct WindowId(u32);
+
+impl From<u32> for WindowId {
+  fn from(value: u32) -> Self {
+    Self(value)
+  }
+}
+
 /// A window that is not yet managed by Tauri.
 #[derive(Debug)]
 pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
+  /// The identifier of the window.
+  pub id: WindowId,
   /// Name of the window
   pub label: String,
 
@@ -451,6 +463,7 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
   fn clone(&self) -> Self {
     Self {
+      id: self.id,
       label: self.label.clone(),
       dispatcher: self.dispatcher.clone(),
     }

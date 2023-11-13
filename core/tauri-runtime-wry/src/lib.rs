@@ -18,7 +18,7 @@ use tauri_runtime::{
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WindowBuilder,
-    WindowBuilderBase, WindowEvent,
+    WindowBuilderBase, WindowEvent, WindowId,
   },
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent,
   RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
@@ -103,7 +103,6 @@ use std::{
   thread::{current as current_thread, ThreadId},
 };
 
-pub type WindowId = u32;
 type IpcHandler = dyn Fn(String) + 'static;
 type FileDropHandler = dyn Fn(WryFileDropEvent) -> bool + 'static;
 
@@ -193,7 +192,7 @@ impl<T: UserEvent> Context<T> {
   }
 
   fn next_window_id(&self) -> WindowId {
-    self.next_window_id.fetch_add(1, Ordering::Relaxed)
+    self.next_window_id.fetch_add(1, Ordering::Relaxed).into()
   }
 
   fn next_window_event_id(&self) -> u32 {
@@ -235,16 +234,38 @@ impl<T: UserEvent> Context<T> {
       window_id,
       context: self.clone(),
     };
-    Ok(DetachedWindow { label, dispatcher })
+
+    Ok(DetachedWindow {
+      id: window_id,
+      label,
+      dispatcher,
+    })
   }
 
   fn create_webview(
     &self,
+    window_id: WindowId,
     pending: PendingWebview<T, Wry<T>>,
   ) -> Result<DetachedWebview<T, Wry<T>>> {
     let label = pending.label.clone();
     let context = self.clone();
-    todo!()
+
+    send_user_message(
+      self,
+      Message::CreateWebview(
+        window_id,
+        Box::new(move |window, web_context| {
+          create_webview(window, window_id, web_context, context, pending)
+        }),
+      ),
+    )?;
+
+    let dispatcher = WryWebviewDispatcher {
+      window_id,
+      context: self.clone(),
+    };
+
+    Ok(DetachedWebview { label, dispatcher })
   }
 }
 
@@ -1076,9 +1097,8 @@ pub enum WebviewEvent {
 pub type CreateWindowClosure<T> =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
 
-pub type CreateWebviewClosure<T> = Box<
-  dyn FnOnce(&EventLoopWindowTarget<Message<T>>, &WebContextStore) -> Result<WindowWrapper> + Send,
->;
+pub type CreateWebviewClosure =
+  Box<dyn FnOnce(&Window, &WebContextStore) -> Result<WebviewWrapper> + Send>;
 
 pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
@@ -1086,6 +1106,7 @@ pub enum Message<T: 'static> {
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewMessage),
+  CreateWebview(WindowId, CreateWebviewClosure),
   CreateWindow(WindowId, CreateWindowClosure<T>),
   CreateRawWindow(
     WindowId,
@@ -1358,7 +1379,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     &mut self,
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
-    self.context.create_webview(pending)
+    self.context.create_webview(self.window_id, pending)
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -1789,9 +1810,10 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
   fn create_webview(
     &self,
+    window_id: WindowId,
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
-    self.context.create_webview(pending)
+    self.context.create_webview(window_id, pending)
   }
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
@@ -1948,7 +1970,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let label = pending.label.clone();
     let window_id = self.context.next_window_id();
 
-    let webview = create_window(
+    let window = create_window(
       window_id,
       &self.event_loop,
       self.context.clone(),
@@ -1966,14 +1988,58 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .main_thread
       .windows
       .borrow_mut()
-      .insert(window_id, webview);
+      .insert(window_id, window);
 
-    Ok(DetachedWindow { label, dispatcher })
+    Ok(DetachedWindow {
+      id: window_id,
+      label,
+      dispatcher,
+    })
   }
 
-  fn create_webview(&self, pending: PendingWebview<T, Self>) -> Result<DetachedWebview<T, Self>> {
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self>,
+  ) -> Result<DetachedWebview<T, Self>> {
     let label = pending.label.clone();
-    todo!()
+
+    let window = self
+      .context
+      .main_thread
+      .windows
+      .borrow()
+      .get(&window_id)
+      .and_then(|w| w.inner.clone());
+    if let Some(window) = window {
+      let webview = create_webview(
+        &window,
+        window_id,
+        &self.context.main_thread.web_context,
+        self.context.clone(),
+        pending,
+      )?;
+
+      self
+        .context
+        .main_thread
+        .windows
+        .borrow_mut()
+        .get_mut(&window_id)
+        .and_then(|w| {
+          w.webviews.push(webview);
+          Some(w)
+        });
+
+      let dispatcher = WryWebviewDispatcher {
+        window_id,
+        context: self.context.clone(),
+      };
+
+      Ok(DetachedWebview { label, dispatcher })
+    } else {
+      todo!()
+    }
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
@@ -2416,6 +2482,25 @@ fn handle_user_message<T: UserEvent>(
       }
       WebviewMessage::WebviewEvent(_event) => { /* already handled */ }
     },
+    Message::CreateWebview(window_id, handler) => {
+      let window = windows
+        .borrow()
+        .get(&window_id)
+        .and_then(|w| w.inner.clone());
+      if let Some(window) = window {
+        match handler(&window, &web_context) {
+          Ok(webview) => {
+            windows.borrow_mut().get_mut(&window_id).and_then(|w| {
+              w.webviews.push(webview);
+              Some(w)
+            });
+          }
+          Err(e) => {
+            debug_eprintln!("{}", e);
+          }
+        }
+      }
+    }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
       Ok(webview) => {
         windows.borrow_mut().insert(window_id, webview);
@@ -2692,8 +2777,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   }
 
-  let is_window_transparent = window_builder.inner.window.transparent;
-  let focused = window_builder.inner.window.focused;
   let window = window_builder.inner.build(event_loop).unwrap();
 
   context.webview_id_map.insert(window.id(), window_id);
@@ -2735,10 +2818,9 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   })
 }
 
-fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
-  window: Arc<Window>,
+fn create_webview<T: UserEvent>(
+  window: &Window,
   window_id: WindowId,
-  event_loop: &EventLoopWindowTarget<Message<T>>,
   web_context_store: &WebContextStore,
   context: Context<T>,
   pending: PendingWebview<T, Wry<T>>,
@@ -2966,11 +3048,12 @@ fn create_ipc_handler<T: UserEvent>(
   Box::new(move |request| {
     handler(
       DetachedWindow {
+        id: window_id,
+        label: label.clone(),
         dispatcher: WryWindowDispatcher {
           window_id,
           context: context.clone(),
         },
-        label: label.clone(),
       },
       request,
     );

@@ -25,11 +25,11 @@ pub mod webview;
 pub mod window;
 
 use monitor::Monitor;
-use window::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
 };
+use window::{WindowBuilder, WindowId};
 
 use http::{
   header::{InvalidHeaderName, InvalidHeaderValue},
@@ -205,6 +205,7 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Create a new window.
   fn create_webview(
     &self,
+    window_id: WindowId,
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>>;
 
@@ -287,7 +288,11 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   ) -> Result<DetachedWindow<T, Self>>;
 
   /// Create a new webview.
-  fn create_webview(&self, pending: PendingWebview<T, Self>) -> Result<DetachedWebview<T, Self>>;
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self>,
+  ) -> Result<DetachedWebview<T, Self>>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;

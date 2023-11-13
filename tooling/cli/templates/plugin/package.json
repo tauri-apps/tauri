@@ -14,8 +14,8 @@
   "devDependencies": {
     "@rollup/plugin-node-resolve": "13.3.0",
     "@rollup/plugin-typescript": "8.3.3",
+    "@rollup/plugin-terser": "0.4.4",
     "rollup": "2.75.6",
-    "rollup-plugin-terser": "7.0.2",
     "typescript": "4.7.3"
   },
   "dependencies": {

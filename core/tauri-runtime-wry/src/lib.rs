@@ -2709,7 +2709,25 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     handler(raw);
   }
 
-  let mut webview_builder = WebViewBuilder::new(&window)
+  #[cfg(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android"
+  ))]
+  let mut webview_builder = WebViewBuilder::new(&window);
+  #[cfg(not(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android"
+  )))]
+  let builder = {
+    let vbox = window.default_vbox().unwrap();
+    WebViewBuilder::new_gtk(vbox)
+  };
+
+  let mut webview_builder = builder
     .with_focused(focused)
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand

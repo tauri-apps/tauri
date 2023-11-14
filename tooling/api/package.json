@@ -42,7 +42,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "5.62.0",
     "@typescript-eslint/parser": "5.62.0",
-    "eslint": "8.52.0",
+    "eslint": "8.53.0",
     "eslint-config-prettier": "8.10.0",
     "eslint-config-standard-with-typescript": "34.0.1",
     "eslint-plugin-import": "2.29.0",

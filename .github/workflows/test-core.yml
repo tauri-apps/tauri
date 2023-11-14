@@ -114,6 +114,7 @@ jobs:
           cargo update -p regex --precise 1.9.6
           cargo update -p bstr --precise 1.6.2
           cargo update -p backtrace --precise 0.3.68
+          cargo update -p blocking --precise 1.4.1
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

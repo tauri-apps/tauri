@@ -31,7 +31,7 @@ pub mod cli;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
 pub use clap;
 
-#[cfg(all(desktop, feature = "notification"))]
+#[cfg(all(desktop, any(feature = "notification", feature = "dox")))]
 #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "notification"))))]
 pub mod notification;
 

@@ -17,7 +17,6 @@ no-default-features = true
 features = [
   "wry",
   "custom-protocol",
-  "api-all",
   "windows7-compat",
   "cli",
   "updater",
@@ -27,7 +26,16 @@ features = [
   "http-multipart",
   "icon-png",
   "test",
-  "dox"
+  "dox",
+  "dialog",
+  "global-shortcut",
+  "http-request",
+  "os-api",
+  "process-relaunch",
+  "process-exit",
+  "protocol-asset",
+  "process-command-api",
+  "shell-open",
 ]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 default-target = "x86_64-unknown-linux-gnu"

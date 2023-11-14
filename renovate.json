@@ -13,11 +13,6 @@
       "enabled": false
     },
     {
-      "matchPackagePatterns": ["cargo_toml", "minisign"],
-      "matchManagers": ["cargo"],
-      "enabled": false
-    },
-    {
       "enabled": true,
       "paths": ["core/tauri/**"],
       "groupName": "Tauri Core",
@@ -26,7 +21,8 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "rebaseConflictedPrs": false
+      "rebaseConflictedPrs": false,
+      "ignoreDeps": ["cargo_toml"]
     },
     {
       "enabled": true,
@@ -37,7 +33,8 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "rebaseConflictedPrs": false
+      "rebaseConflictedPrs": false,
+      "ignoreDeps": ["cargo_toml"]
     },
     {
       "enabled": true,
@@ -82,7 +79,8 @@
         "enabled": true
       },
       "rebaseConflictedPrs": false,
-      "matchManagers": ["cargo"]
+      "matchManagers": ["cargo"],
+      "ignoreDeps": ["minisign"]
     },
     {
       "enabled": true,

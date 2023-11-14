@@ -57,7 +57,7 @@ toml = "0.8"
 jsonschema = "0.17"
 handlebars = "4.4"
 include_dir = "0.7"
-minisign = "=0.7.5"
+minisign = "=0.7.3"
 base64 = "0.21.5"
 ureq = { version = "2.8", default-features = false, features = [ "gzip" ] }
 os_info = "3"

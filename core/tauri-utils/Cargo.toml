@@ -35,7 +35,7 @@ glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
-infer = "0.14"
+infer = "0.13"
 dunce = "1"
 log = "0.4.20"
 

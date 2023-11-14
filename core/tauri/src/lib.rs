@@ -83,6 +83,7 @@ mod pattern;
 pub mod plugin;
 pub(crate) mod protocol;
 mod vibrancy;
+pub mod webview;
 pub mod window;
 use tauri_runtime as runtime;
 #[cfg(target_os = "ios")]
@@ -860,7 +861,7 @@ pub(crate) mod sealed {
     RuntimeHandle(R::Handle),
 
     /// A dispatcher to the running [`Runtime`].
-    Dispatch(R::Dispatcher),
+    Dispatch(R::WindowDispatcher),
   }
 
   /// Managed handle to the application runtime.

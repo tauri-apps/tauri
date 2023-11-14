@@ -77,6 +77,13 @@ use wry::{
   prelude::{dispatch, find_class},
   WebViewBuilderExtAndroid, WebViewExtAndroid,
 };
+#[cfg(not(any(
+  target_os = "windows",
+  target_os = "macos",
+  target_os = "ios",
+  target_os = "android"
+)))]
+use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
 #[cfg(target_os = "macos")]
 pub use tao::platform::macos::{
@@ -2453,7 +2460,6 @@ fn handle_user_message<T: UserEvent>(
               target_os = "openbsd"
             ))]
             {
-              use wry::WebViewExtUnix;
               f(webview.webview());
             }
             #[cfg(target_os = "macos")]

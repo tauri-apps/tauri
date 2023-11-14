@@ -14,7 +14,7 @@ use std::{
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_runtime::{
-  webview::WindowBuilder,
+  window::WindowBuilder,
   window::{
     dpi::{PhysicalPosition, PhysicalSize},
     DetachedWindow, FileDropEvent, PendingWindow,
@@ -27,7 +27,7 @@ use crate::{
   app::{GlobalWindowEventListener, OnPageLoad, UriSchemeResponder},
   ipc::{InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
-  window::PageLoadPayload,
+  webview::PageLoadPayload,
   AppHandle, EventLoopMessage, GlobalWindowEvent, Icon, Manager, Runtime, Scopes, Window,
   WindowEvent,
 };

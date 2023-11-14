@@ -156,7 +156,7 @@ mod desktop_commands {
   setter!(set_ignore_cursor_events, bool);
   setter!(start_dragging);
   setter!(set_progress_bar, ProgressBarState);
-  setter!(print);
+  // TODO setter!(print);
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
@@ -307,7 +307,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_ignore_cursor_events,
             desktop_commands::start_dragging,
             desktop_commands::set_progress_bar,
-            desktop_commands::print,
+            // TODO desktop_commands::print,
             desktop_commands::set_icon,
             desktop_commands::toggle_maximize,
             desktop_commands::internal_toggle_maximize,

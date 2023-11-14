@@ -19,7 +19,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
-  window::PageLoadPayload,
+  webview::PageLoadPayload,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
   StateManager, Theme, Window,
 };

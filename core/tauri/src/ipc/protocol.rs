@@ -11,7 +11,7 @@ use http::{
 
 use crate::{
   manager::AppManager,
-  window::{InvokeRequest, UriSchemeProtocolHandler},
+  webview::{InvokeRequest, UriSchemeProtocolHandler},
   Runtime,
 };
 
@@ -24,7 +24,7 @@ const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
 pub fn message_handler<R: Runtime>(
   manager: Arc<AppManager<R>>,
 ) -> crate::runtime::webview::WebviewIpcHandler<crate::EventLoopMessage, R> {
-  Box::new(move |window, request| handle_ipc_message(request, &manager, &window.label))
+  Box::new(move |webview, request| handle_ipc_message(request, &manager, &webview.label))
 }
 
 pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeProtocolHandler {
@@ -41,12 +41,12 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
 
     match *request.method() {
       Method::POST => {
-        if let Some(window) = manager.get_window(&label) {
+        if let Some(webview) = manager.get_webview(&label) {
           match parse_invoke_request(&manager, request) {
             Ok(request) => {
-              window.on_message(
+              webview.on_message(
                 request,
-                Box::new(move |_window, _cmd, response, _callback, _error| {
+                Box::new(move |_webview, _cmd, response, _callback, _error| {
                   let (mut response, mime_type) = match response {
                     InvokeResponse::Ok(InvokeBody::Json(v)) => (
                       http::Response::new(serde_json::to_vec(&v).unwrap().into()),
@@ -89,7 +89,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
               .status(StatusCode::BAD_REQUEST)
               .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
               .body(
-                "failed to acquire window reference"
+                "failed to acquire webview reference"
                   .as_bytes()
                   .to_vec()
                   .into(),
@@ -128,7 +128,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
 
 #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, label: &str) {
-  if let Some(window) = manager.get_window(label) {
+  if let Some(webview) = manager.get_webview(label) {
     use serde::{Deserialize, Deserializer};
 
     pub(crate) struct HeaderMap(http::HeaderMap);
@@ -205,7 +205,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
       .unwrap_or_else(|| serde_json::from_str::<Message>(&message).map_err(Into::into))
     {
       Ok(message) => {
-        window.on_message(
+        webview.on_message(
           InvokeRequest {
             cmd: message.cmd,
             callback: message.callback,
@@ -213,7 +213,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
             body: message.payload.into(),
             headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
           },
-          Box::new(move |window, cmd, response, callback, error| {
+          Box::new(move |webview, cmd, response, callback, error| {
             use crate::ipc::{
               format_callback::{
                 format as format_callback, format_result as format_callback_result,
@@ -223,11 +223,11 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
             use serde_json::Value as JsonValue;
 
             // the channel data command is the only command that uses a custom protocol on Linux
-            if window.manager.window.invoke_responder.is_none()
+            if webview.manager.webview.invoke_responder.is_none()
               && cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
             {
               fn responder_eval<R: Runtime>(
-                window: &crate::Window<R>,
+                webview: &crate::Webview<R>,
                 js: crate::Result<String>,
                 error: CallbackFn,
               ) {
@@ -237,7 +237,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                     .expect("unable to serialize response error string to json"),
                 };
 
-                let _ = window.eval(&eval_js);
+                let _ = webview.eval(&eval_js);
               }
 
               match &response {
@@ -245,10 +245,10 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                   if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
                     && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
                   {
-                    let _ = Channel::from_ipc(window, callback).send(v);
+                    let _ = Channel::from_ipc(webview, callback).send(v);
                   } else {
                     responder_eval(
-                      &window,
+                      &webview,
                       format_callback_result(Result::<_, ()>::Ok(v), callback, error),
                       error,
                     )
@@ -257,16 +257,16 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                 InvokeResponse::Ok(InvokeBody::Raw(v)) => {
                   if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
                     responder_eval(
-                      &window,
+                      &webview,
                       format_callback_result(Result::<_, ()>::Ok(v), callback, error),
                       error,
                     );
                   } else {
-                    let _ = Channel::from_ipc(window, callback).send(InvokeBody::Raw(v.clone()));
+                    let _ = Channel::from_ipc(webview, callback).send(InvokeBody::Raw(v.clone()));
                   }
                 }
                 InvokeResponse::Err(e) => responder_eval(
-                  &window,
+                  &webview,
                   format_callback_result(Result::<(), _>::Err(&e.0), callback, error),
                   error,
                 ),
@@ -276,7 +276,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
         );
       }
       Err(e) => {
-        let _ = window.eval(&format!(
+        let _ = webview.eval(&format!(
           r#"console.error({})"#,
           serde_json::Value::String(e.to_string())
         ));

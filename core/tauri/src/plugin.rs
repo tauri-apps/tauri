@@ -10,7 +10,7 @@ use crate::{
   ipc::{Invoke, InvokeHandler},
   manager::window::UriSchemeProtocol,
   utils::config::PluginConfig,
-  window::PageLoadPayload,
+  webview::PageLoadPayload,
   AppHandle, RunEvent, Runtime, Window,
 };
 use serde::de::DeserializeOwned;

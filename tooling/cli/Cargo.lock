@@ -4099,6 +4099,7 @@ dependencies = [
  "once_cell",
  "os_info",
  "os_pipe",
+ "plist",
  "regex",
  "resvg",
  "semver",

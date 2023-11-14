@@ -5,7 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{
-  command, webview::PageLoadEvent, window::WindowBuilder, WebviewBuilder, Window, WindowUrl,
+  command, webview::PageLoadEvent, window::WindowBuilder, WebviewBuilder, WebviewUrl, Window,
 };
 
 #[command]
@@ -21,7 +21,7 @@ async fn create_child_window(id: String, window: Window) {
 
   let child = child.build().unwrap();
 
-  let _webview = WebviewBuilder::new(&child, id, WindowUrl::default())
+  let _webview = WebviewBuilder::new(&child, id, WebviewUrl::default())
     .build()
     .unwrap();
 }
@@ -42,7 +42,7 @@ fn main() {
         .title("Main")
         .inner_size(600.0, 400.0)
         .build()?;
-      let _webview = WebviewBuilder::new(&window, "main", WindowUrl::default()).build()?;
+      let _webview = WebviewBuilder::new(&window, "main", WebviewUrl::default()).build()?;
 
       Ok(())
     })

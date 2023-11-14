@@ -15,7 +15,7 @@ use serde::Serialize;
 use tauri::{
   ipc::Channel,
   window::{PageLoadEvent, WindowBuilder},
-  App, AppHandle, Manager, RunEvent, Runtime, WindowUrl,
+  App, AppHandle, Manager, RunEvent, Runtime, WebviewUrl,
 };
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
@@ -65,7 +65,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
-      let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());
+      let mut window_builder = WindowBuilder::new(app, "main", WebviewUrl::default());
       #[cfg(desktop)]
       {
         window_builder = window_builder

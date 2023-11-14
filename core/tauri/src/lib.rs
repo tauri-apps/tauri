@@ -211,7 +211,7 @@ pub use {
   self::state::{State, StateManager},
   self::utils::{
     assets::Assets,
-    config::{Config, WindowUrl},
+    config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
   },
   self::webview::{Webview, WebviewBuilder},

@@ -304,7 +304,7 @@
           "default": "index.html",
           "allOf": [
             {
-              "$ref": "#/definitions/WindowUrl"
+              "$ref": "#/definitions/WebviewUrl"
             }
           ]
         },
@@ -533,7 +533,7 @@
       },
       "additionalProperties": false
     },
-    "WindowUrl": {
+    "WebviewUrl": {
       "description": "An URL to open on a Tauri webview window.",
       "anyOf": [
         {
@@ -2280,7 +2280,7 @@
           "description": "The app's external URL, or the path to the directory containing the app assets.",
           "allOf": [
             {
-              "$ref": "#/definitions/WindowUrl"
+              "$ref": "#/definitions/WebviewUrl"
             }
           ]
         },

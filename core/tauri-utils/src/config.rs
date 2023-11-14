@@ -47,7 +47,7 @@ fn default_true() -> bool {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
 #[non_exhaustive]
-pub enum WindowUrl {
+pub enum WebviewUrl {
   /// An external URL.
   External(Url),
   /// The path portion of an app URL.
@@ -56,7 +56,7 @@ pub enum WindowUrl {
   App(PathBuf),
 }
 
-impl fmt::Display for WindowUrl {
+impl fmt::Display for WebviewUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::External(url) => write!(f, "{url}"),
@@ -65,7 +65,7 @@ impl fmt::Display for WindowUrl {
   }
 }
 
-impl Default for WindowUrl {
+impl Default for WebviewUrl {
   fn default() -> Self {
     Self::App("index.html".into())
   }
@@ -923,7 +923,7 @@ pub struct WindowConfig {
   pub label: String,
   /// The window webview URL.
   #[serde(default)]
-  pub url: WindowUrl,
+  pub url: WebviewUrl,
   /// The user agent for the webview
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
@@ -1081,7 +1081,7 @@ impl Default for WindowConfig {
   fn default() -> Self {
     Self {
       label: default_window_label(),
-      url: WindowUrl::default(),
+      url: WebviewUrl::default(),
       user_agent: None,
       file_drop_enabled: true,
       center: false,
@@ -1673,7 +1673,7 @@ fn default_min_sdk_version() -> u32 {
 #[non_exhaustive]
 pub enum AppUrl {
   /// The app's external URL, or the path to the directory containing the app assets.
-  Url(WindowUrl),
+  Url(WebviewUrl),
   /// An array of files to embed on the app.
   Files(Vec<PathBuf>),
 }
@@ -1792,13 +1792,13 @@ impl Default for BuildConfig {
 }
 
 fn default_dev_path() -> AppUrl {
-  AppUrl::Url(WindowUrl::External(
+  AppUrl::Url(WebviewUrl::External(
     Url::parse("http://localhost:8080").unwrap(),
   ))
 }
 
 fn default_dist_dir() -> AppUrl {
-  AppUrl::Url(WindowUrl::App("../dist".into()))
+  AppUrl::Url(WebviewUrl::App("../dist".into()))
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -2165,9 +2165,9 @@ mod build {
     };
   }
 
-  impl ToTokens for WindowUrl {
+  impl ToTokens for WebviewUrl {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::WindowUrl };
+      let prefix = quote! { ::tauri::utils::config::WebviewUrl };
 
       tokens.append_all(match self {
         Self::App(path) => {
@@ -2793,10 +2793,10 @@ mod test {
     // create a build config
     let build = BuildConfig {
       runner: None,
-      dev_path: AppUrl::Url(WindowUrl::External(
+      dev_path: AppUrl::Url(WebviewUrl::External(
         Url::parse("http://localhost:8080").unwrap(),
       )),
-      dist_dir: AppUrl::Url(WindowUrl::App("../dist".into())),
+      dist_dir: AppUrl::Url(WebviewUrl::App("../dist".into())),
       before_dev_command: None,
       before_build_command: None,
       before_bundle_command: None,
@@ -2810,7 +2810,7 @@ mod test {
     assert_eq!(d_bundle, tauri.bundle);
     assert_eq!(
       d_path,
-      AppUrl::Url(WindowUrl::External(
+      AppUrl::Url(WebviewUrl::External(
         Url::parse("http://localhost:8080").unwrap()
       ))
     );

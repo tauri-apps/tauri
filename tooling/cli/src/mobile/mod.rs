@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{
-      get as get_config, reload as reload_config, AppUrl, Config as TauriConfig, WindowUrl,
+      get as get_config, reload as reload_config, AppUrl, Config as TauriConfig, WebviewUrl,
     },
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
@@ -168,7 +168,7 @@ fn setup_dev_config(
     .dev_path
     .clone();
 
-  if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
+  if let AppUrl::Url(WebviewUrl::External(url)) = &mut dev_path {
     let localhost = match url.host() {
       Some(url::Host::Domain(d)) => d == "localhost",
       Some(url::Host::Ipv4(i)) => {

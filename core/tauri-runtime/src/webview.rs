@@ -9,7 +9,7 @@ use crate::{
   Runtime, UserEvent,
 };
 
-use tauri_utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl};
+use tauri_utils::config::{WebviewUrl, WindowConfig, WindowEffectsConfig};
 use url::Url;
 
 use std::{
@@ -167,7 +167,7 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWebview<T, R> {
 /// The attributes used to create an webview.
 #[derive(Debug, Clone)]
 pub struct WebviewAttributes {
-  pub url: WindowUrl,
+  pub url: WebviewUrl,
   pub user_agent: Option<String>,
   pub initialization_scripts: Vec<String>,
   pub data_directory: Option<PathBuf>,
@@ -204,7 +204,7 @@ impl From<&WindowConfig> for WebviewAttributes {
 
 impl WebviewAttributes {
   /// Initializes the default attributes for a webview.
-  pub fn new(url: WindowUrl) -> Self {
+  pub fn new(url: WebviewUrl) -> Self {
     Self {
       url,
       user_agent: None,

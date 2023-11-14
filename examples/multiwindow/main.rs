@@ -26,7 +26,8 @@ fn main() {
       let window = builder.title("Tauri - Rust").build()?;
 
       let _webview =
-        WebviewBuilder::new(&window, "Rust", tauri::WindowUrl::App("index.html".into())).build()?;
+        WebviewBuilder::new(&window, "Rust", tauri::WebviewUrl::App("index.html".into()))
+          .build()?;
 
       Ok(())
     })

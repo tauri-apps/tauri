@@ -12,7 +12,7 @@ use tauri_runtime::{
   webview::{DetachedWebview, PendingWebview, WebviewAttributes},
   WebviewDispatch, WindowDispatch,
 };
-use tauri_utils::config::{WindowConfig, WindowUrl};
+use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
 
 use crate::{
@@ -213,7 +213,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let window = tauri::WindowBuilder::new(app, "label").build()?;
-  ///     let webview = tauri::WebviewBuilder::new(&window, "label", tauri::WindowUrl::App("index.html".into()))
+  ///     let webview = tauri::WebviewBuilder::new(&window, "label", tauri::WebviewUrl::App("index.html".into()))
   ///       .build()?;
   ///     Ok(())
   ///   });
@@ -227,7 +227,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
   ///       let window = tauri::WindowBuilder::new(&handle, "label").build().unwrap();
-  ///       let webview = tauri::WebviewBuilder::new(&window, "label", tauri::WindowUrl::App("index.html".into()))
+  ///       let webview = tauri::WebviewBuilder::new(&window, "label", tauri::WebviewUrl::App("index.html".into()))
   ///         .build()
   ///         .unwrap();
   ///     });
@@ -241,14 +241,14 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// #[tauri::command]
   /// async fn create_window(app: tauri::AppHandle) {
   ///   let window = tauri::WindowBuilder::new(&app, "label").build().unwrap();
-  ///   let window = tauri::WebviewBuilder::new(&window, "label", tauri::WindowUrl::External("https://tauri.app/".parse().unwrap()))
+  ///   let window = tauri::WebviewBuilder::new(&window, "label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()))
   ///     .build()
   ///     .unwrap();
   /// }
   /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn new<L: Into<String>>(window: &Window<R>, label: L, url: WindowUrl) -> Self {
+  pub fn new<L: Into<String>>(window: &Window<R>, label: L, url: WebviewUrl) -> Self {
     Self {
       window: window.clone(),
       label: label.into(),
@@ -304,7 +304,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// ```rust,no_run
   /// use tauri::{
-  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
   ///   window::WindowBuilder,
   ///   webview::WebviewBuilder,
   /// };
@@ -313,7 +313,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let window = WindowBuilder::new(app, "core").build()?;
-  ///     WebviewBuilder::new(&window, "core", WindowUrl::App("index.html".into()))
+  ///     WebviewBuilder::new(&window, "core", WebviewUrl::App("index.html".into()))
   ///       .on_web_resource_request(|request, response| {
   ///         if request.uri().scheme_str() == Some("tauri") {
   ///           // if we have a CSP header, Tauri is loading an HTML file
@@ -348,7 +348,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// ```rust,no_run
   /// use tauri::{
-  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
   ///   window::WindowBuilder,
   ///   webview::WebviewBuilder,
   /// };
@@ -357,7 +357,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let window = WindowBuilder::new(app, "core").build()?;
-  ///     WebviewBuilder::new(&window, "core", WindowUrl::App("index.html".into()))
+  ///     WebviewBuilder::new(&window, "core", WebviewUrl::App("index.html".into()))
   ///       .on_navigation(|url| {
   ///         // allow the production URL or localhost on dev
   ///         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
@@ -379,7 +379,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// ```rust,no_run
   /// use tauri::{
-  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
   ///   window::WindowBuilder,
   ///   webview::{PageLoadEvent, WebviewBuilder},
   /// };
@@ -388,7 +388,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let window = WindowBuilder::new(app, "core").build()?;
-  ///     WebviewBuilder::new(&window, "core", WindowUrl::App("index.html".into()))
+  ///     WebviewBuilder::new(&window, "core", WebviewUrl::App("index.html".into()))
   ///       .on_page_load(|window, payload| {
   ///         match payload.event() {
   ///           PageLoadEvent::Started => {
@@ -503,7 +503,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///   tauri::Builder::default()
   ///     .setup(|app| {
   ///       let window = tauri::WindowBuilder::new(app, "label").build()?;
-  ///       let webview = tauri::WebviewBuilder::new(&window, "label", tauri::WindowUrl::App("index.html".into()))
+  ///       let webview = tauri::WebviewBuilder::new(&window, "label", tauri::WebviewUrl::App("index.html".into()))
   ///         .initialization_script(INIT_SCRIPT)
   ///         .build()?;
   ///       Ok(())
@@ -642,7 +642,7 @@ impl<R: Runtime> Webview<R> {
   pub fn builder<L: Into<String>>(
     window: &Window<R>,
     label: L,
-    url: WindowUrl,
+    url: WebviewUrl,
   ) -> WebviewBuilder<R> {
     WebviewBuilder::<R>::new(window, label.into(), url)
   }

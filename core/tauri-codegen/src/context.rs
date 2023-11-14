@@ -11,7 +11,7 @@ use quote::quote;
 use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
-use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
+use tauri_utils::config::{AppUrl, Config, PatternKind, WebviewUrl};
 use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
@@ -158,8 +158,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let assets = match app_url {
     AppUrl::Url(url) => match url {
-      WindowUrl::External(_) => Default::default(),
-      WindowUrl::App(path) => {
+      WebviewUrl::External(_) => Default::default(),
+      WebviewUrl::App(path) => {
         if path.components().count() == 0 {
           panic!(
             "The `{}` configuration cannot be empty",

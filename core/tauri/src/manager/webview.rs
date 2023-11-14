@@ -12,7 +12,7 @@ use std::{
 
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_runtime::webview::{DetachedWebview, PendingWebview};
-use tauri_utils::config::WindowUrl;
+use tauri_utils::config::WebviewUrl;
 use url::Url;
 
 use crate::{
@@ -371,7 +371,7 @@ impl<R: Runtime> WebviewManager<R> {
 
     #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
-      WindowUrl::App(path) => {
+      WebviewUrl::App(path) => {
         let url = if PROXY_DEV_SERVER {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
@@ -388,7 +388,7 @@ impl<R: Runtime> WebviewManager<R> {
           url.into_owned()
         }
       }
-      WindowUrl::External(url) => {
+      WebviewUrl::External(url) => {
         let config_url = window.manager.get_url();
         let is_local = config_url.make_relative(url).is_some();
         let mut url = url.clone();
@@ -403,7 +403,7 @@ impl<R: Runtime> WebviewManager<R> {
 
     #[cfg(not(feature = "window-data-url"))]
     if url.scheme() == "data" {
-      return Err(crate::Error::InvalidWindowUrl(
+      return Err(crate::Error::InvalidWebviewUrl(
         "data URLs are not supported without the `window-data-url` feature.",
       ));
     }

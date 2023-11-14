@@ -27,7 +27,7 @@ use crate::{
   plugin::PluginStore,
   utils::{
     assets::Assets,
-    config::{AppUrl, Config, WindowUrl},
+    config::{AppUrl, Config, WebviewUrl},
     PackageInfo,
   },
   Context, Pattern, Runtime, StateManager, Window,
@@ -306,7 +306,7 @@ impl<R: Runtime> AppManager<R> {
   /// In dev mode, this will be based on the `devPath` configuration value.
   pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
-      AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
+      AppUrl::Url(WebviewUrl::External(url)) => Cow::Borrowed(url),
       _ => self.protocol_url(),
     }
   }

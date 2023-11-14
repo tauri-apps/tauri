@@ -1,5 +1,5 @@
 ---
-"@tauri-apps/api": 'minor:breaking'
+"@tauri-apps/api": 'patch:enhance'
 ---
 
-`FileDropEvent` from the Window API did not match the payload structure.
+Added `position` field to the `FileDropEvent` payload.

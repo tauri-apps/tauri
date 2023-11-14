@@ -57,10 +57,15 @@ interface ScaleFactorChanged {
   size: PhysicalSize
 }
 
+interface FileDropPayload {
+  paths: string[]
+  position: PhysicalPosition
+}
+
 /** The file drop event types. */
 type FileDropEvent =
-  | { type: 'hover'; paths: string[] }
-  | { type: 'drop'; paths: string[] }
+  | ({ type: 'hover' } & FileDropPayload)
+  | ({ type: 'drop' } & FileDropPayload)
   | { type: 'cancel' }
 
 /**
@@ -1730,17 +1735,31 @@ class Window {
   async onFileDropEvent(
     handler: EventCallback<FileDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenFileDrop = await this.listen<string[]>(
+    const unlistenFileDrop = await this.listen<FileDropPayload>(
       TauriEvent.WINDOW_FILE_DROP,
       (event) => {
-        handler({ ...event, payload: { type: 'drop', paths: event.payload } })
+        handler({
+          ...event,
+          payload: {
+            type: 'drop',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
       }
     )
 
-    const unlistenFileHover = await this.listen<string[]>(
+    const unlistenFileHover = await this.listen<FileDropPayload>(
       TauriEvent.WINDOW_FILE_DROP_HOVER,
       (event) => {
-        handler({ ...event, payload: { type: 'hover', paths: event.payload } })
+        handler({
+          ...event,
+          payload: {
+            type: 'hover',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
       }
     )
 
@@ -2182,6 +2201,7 @@ export type {
   Theme,
   TitleBarStyle,
   ScaleFactorChanged,
+  FileDropPayload,
   FileDropEvent,
   WindowOptions,
   Color

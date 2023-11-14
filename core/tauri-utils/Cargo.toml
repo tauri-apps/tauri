@@ -43,7 +43,7 @@ log = "0.4.20"
 heck = "0.4"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.51.1"
+version = "0.48"
 features = [
   "implement",
   "Win32_Foundation",

@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_assets,
-  log_finished, merge_plist, open_and_wait, MobileTarget,
+  log_finished, merge_plist, open_and_wait, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -115,7 +115,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   configure_cargo(&app, None)?;
 
   let open = options.open;
-  run_build(options, tauri_config, &config, &mut env, noise_level)?;
+  let _handle = run_build(options, tauri_config, &config, &mut env, noise_level)?;
 
   if open {
     open_and_wait(&config, &env);
@@ -130,7 +130,7 @@ fn run_build(
   config: &AppleConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
-) -> Result<()> {
+) -> Result<OptionsHandle> {
   let profile = if options.debug {
     Profile::Debug
   } else {
@@ -163,7 +163,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  let _handle = write_options(
+  let handle = write_options(
     &tauri_config
       .lock()
       .unwrap()
@@ -211,5 +211,5 @@ fn run_build(
 
   log_finished(out_files, "IPA");
 
-  Ok(())
+  Ok(handle)
 }

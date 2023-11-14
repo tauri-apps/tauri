@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_assets,
-  log_finished, open_and_wait, MobileTarget,
+  log_finished, open_and_wait, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -131,7 +131,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   )?;
 
   let open = options.open;
-  run_build(
+  let _handle = run_build(
     options,
     tauri_config,
     profile,
@@ -154,7 +154,7 @@ fn run_build(
   config: &AndroidConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
-) -> Result<()> {
+) -> Result<OptionsHandle> {
   if !(options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
     options.apk = true;
@@ -192,7 +192,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  let _handle = write_options(
+  let handle = write_options(
     &tauri_config
       .lock()
       .unwrap()
@@ -240,7 +240,7 @@ fn run_build(
   log_finished(apk_outputs, "APK");
   log_finished(aab_outputs, "AAB");
 
-  Ok(())
+  Ok(handle)
 }
 
 fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {

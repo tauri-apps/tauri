@@ -20,7 +20,7 @@
   "homepage": "https://github.com/tauri-apps/tauri#readme",
   "type": "module",
   "scripts": {
-    "build": "yarn rollup --config rollup.config.ts --configPlugin typescript",
+    "build": "rollup -c --configPlugin typescript",
     "npm-pack": "yarn build && cd ./dist && npm pack",
     "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
     "check": "tsc",

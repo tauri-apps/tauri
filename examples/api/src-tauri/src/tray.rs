@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   menu::{Menu, MenuItem},
   tray::{ClickType, TrayIconBuilder},
-  Manager, Runtime, WebviewUrl, WindowBuilder,
+  Manager, Runtime, WebviewUrl,
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
@@ -66,9 +66,12 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         }
       }
       "new-window" => {
-        let _ = WindowBuilder::new(app, "new", WebviewUrl::App("index.html".into()))
+        let window = tauri::WindowBuilder::new(app, "new")
           .title("Tauri")
-          .build();
+          .build()
+          .unwrap();
+        let _ =
+          tauri::WebviewBuilder::new(&window, "new", WebviewUrl::App("index.html".into())).build();
       }
       #[cfg(target_os = "macos")]
       "set-title" => {

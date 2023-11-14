@@ -14,7 +14,8 @@ mod tray;
 use serde::Serialize;
 use tauri::{
   ipc::Channel,
-  window::{PageLoadEvent, WindowBuilder},
+  webview::{PageLoadEvent, WebviewBuilder},
+  window::WindowBuilder,
   App, AppHandle, Manager, RunEvent, Runtime, WebviewUrl,
 };
 use tauri_plugin_sample::{PingRequest, SampleExt};
@@ -49,7 +50,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       #[cfg(desktop)]
       {
         let handle = app.handle();
-        tray::create_tray(&handle)?;
+        tray::create_tray(handle)?;
         handle.plugin(tauri_plugin_cli::init())?;
       }
 
@@ -65,7 +66,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
-      let mut window_builder = WindowBuilder::new(app, "main", WebviewUrl::default());
+      let mut window_builder = WindowBuilder::new(app, "main");
       #[cfg(desktop)]
       {
         window_builder = window_builder
@@ -73,13 +74,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
           .content_protected(true)
-          .menu(tauri::menu::Menu::default(&app.handle())?);
+          .menu(tauri::menu::Menu::default(app.handle())?);
       }
 
-      let window = window_builder.build().unwrap();
+      let window = window_builder.build()?;
+
+      let webview = WebviewBuilder::new(&window, "main", WebviewUrl::default()).build()?;
 
       #[cfg(debug_assertions)]
-      window.open_devtools();
+      webview.open_devtools();
 
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {

@@ -22,7 +22,7 @@
         "enabled": true
       },
       "rebaseConflictedPrs": false,
-      "ignoreDeps": ["cargo_toml"]
+      "ignoreDeps": ["cargo_toml", "toml"]
     },
     {
       "enabled": true,

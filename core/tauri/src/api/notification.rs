@@ -153,55 +153,60 @@ impl Notification {
     deprecated = "This function does not work on Windows 7. Use `Self::notify` instead."
   )]
   pub fn show(self) -> crate::api::Result<()> {
-    let mut notification = notify_rust::Notification::new();
-    if let Some(body) = self.body {
-      notification.body(&body);
-    }
-    if let Some(title) = self.title {
-      notification.summary(&title);
-    }
-    if let Some(icon) = self.icon {
-      notification.icon(&icon);
-    } else {
-      notification.auto_icon();
-    }
-    if let Some(sound) = self.sound {
-      notification.sound_name(&match sound {
-        #[cfg(target_os = "macos")]
-        Sound::Default => "NSUserNotificationDefaultSoundName".to_string(),
-        #[cfg(windows)]
-        Sound::Default => "Default".to_string(),
-        #[cfg(all(unix, not(target_os = "macos")))]
-        Sound::Default => "message-new-instant".to_string(),
-        Sound::Custom(c) => c,
-      });
-    }
-    #[cfg(windows)]
+    #[cfg(feature = "dox")]
+    return Ok(());
+    #[cfg(not(feature = "dox"))]
     {
-      let exe = tauri_utils::platform::current_exe()?;
-      let exe_dir = exe.parent().expect("failed to get exe directory");
-      let curr_dir = exe_dir.display().to_string();
-      // set the notification's System.AppUserModel.ID only when running the installed app
-      if !(curr_dir.ends_with(format!("{SEP}target{SEP}debug").as_str())
-        || curr_dir.ends_with(format!("{SEP}target{SEP}release").as_str()))
-      {
-        notification.app_id(&self.identifier);
+      let mut notification = notify_rust::Notification::new();
+      if let Some(body) = self.body {
+        notification.body(&body);
       }
-    }
-    #[cfg(target_os = "macos")]
-    {
-      let _ = notify_rust::set_application(if cfg!(feature = "custom-protocol") {
-        &self.identifier
+      if let Some(title) = self.title {
+        notification.summary(&title);
+      }
+      if let Some(icon) = self.icon {
+        notification.icon(&icon);
       } else {
-        "com.apple.Terminal"
+        notification.auto_icon();
+      }
+      if let Some(sound) = self.sound {
+        notification.sound_name(&match sound {
+          #[cfg(target_os = "macos")]
+          Sound::Default => "NSUserNotificationDefaultSoundName".to_string(),
+          #[cfg(windows)]
+          Sound::Default => "Default".to_string(),
+          #[cfg(all(unix, not(target_os = "macos")))]
+          Sound::Default => "message-new-instant".to_string(),
+          Sound::Custom(c) => c,
+        });
+      }
+      #[cfg(windows)]
+      {
+        let exe = tauri_utils::platform::current_exe()?;
+        let exe_dir = exe.parent().expect("failed to get exe directory");
+        let curr_dir = exe_dir.display().to_string();
+        // set the notification's System.AppUserModel.ID only when running the installed app
+        if !(curr_dir.ends_with(format!("{SEP}target{SEP}debug").as_str())
+          || curr_dir.ends_with(format!("{SEP}target{SEP}release").as_str()))
+        {
+          notification.app_id(&self.identifier);
+        }
+      }
+      #[cfg(target_os = "macos")]
+      {
+        let _ = notify_rust::set_application(if cfg!(feature = "custom-protocol") {
+          &self.identifier
+        } else {
+          "com.apple.Terminal"
+        });
+      }
+
+      crate::async_runtime::spawn(async move {
+        let _ = notification.show();
       });
+
+      Ok(())
     }
-
-    crate::async_runtime::spawn(async move {
-      let _ = notification.show();
-    });
-
-    Ok(())
   }
 
   /// Shows the notification. This API is similar to [`Self::show`], but it also works on Windows 7.

@@ -134,13 +134,6 @@ pub fn command(options: Options) -> Result<()> {
 
   let isysroot = format!("-isysroot {}", options.sdk_root.display());
 
-  /*let simulator_platform_component =
-    std::path::Component::Normal(std::ffi::OsStr::new("iPhoneSimulator.platform"));
-  let simulator_build = options
-    .sdk_root
-    .components()
-    .any(|c| c == simulator_platform_component);*/
-
   for arch in options.arches {
     // Set target-specific flags
     let (env_triple, rust_triple) = match arch.as_str() {
@@ -149,7 +142,7 @@ pub fn command(options: Options) -> Result<()> {
       "x86_64" => ("x86_64_apple_ios", "x86_64-apple-ios"),
       "Simulator" => {
         // when using Xcode, the arches for a simulator build will be ['Simulator', 'arm64-sim'] instead of ['arm64-sim']
-        // so we fix that on our end
+        // so we ignore that on our end
         continue;
       }
       _ => {

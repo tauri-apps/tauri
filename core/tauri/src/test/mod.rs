@@ -272,6 +272,127 @@ pub fn assert_ipc_response<T: Serialize + Debug>(
   );
 }
 
+use crate::RunEvent;
+/// Invoke a Tauri command given an `InvokePayload`.
+///
+/// The function closes the application after receiving command result.
+///
+/// # Examples
+///
+/// ```rust
+/// #[tauri::command]
+/// fn ping() -> &'static str {
+///   "pong"
+/// }
+///
+/// fn create_app<R: tauri::Runtime>(mut builder: tauri::Builder<R>) -> tauri::App<R> {
+///   builder
+///     .invoke_handler(tauri::generate_handler![ping])
+///     // remove the string argument on your app
+///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///     .expect("failed to build app")
+/// }
+///
+/// fn main() {
+///   let app = create_app(tauri::Builder::default());
+///   // app.run(|_handle, _event| {});}
+/// }
+///
+/// //#[cfg(test)]
+/// mod tests {
+///   use tauri::Manager;
+///
+///   //#[cfg(test)]
+///   fn something() {
+///     let app = super::create_app(tauri::test::mock_builder());
+///     let payload =
+///
+///     invoke_tauri_cmd(app, )
+///     // run the `ping` command and assert it returns `pong`
+///     tauri::test::assert_ipc_response(
+///       &window,
+///       tauri::InvokePayload {
+///         cmd: "ping".into(),
+///         tauri_module: None,
+///         callback: tauri::api::ipc::CallbackFn(0),
+///         error: tauri::api::ipc::CallbackFn(1),
+///         inner: serde_json::Value::Null,
+///       },
+///       // the expected response is a success with the "pong" payload
+///       // we could also use Err("error message") here to ensure the command failed
+///       Ok("pong")
+///     );
+///   }
+/// }
+/// ```
+pub fn invoke_tauri_cmd(app: App<MockRuntime>, payload: InvokePayload) {
+  let w = app.get_window("main").expect("Could not get main window");
+  let w2: Window<MockRuntime> = w.clone();
+
+  let (tx, rx) = std::sync::mpsc::channel();
+
+  std::thread::spawn(move || {
+    let callback = payload.callback;
+    let error = payload.error;
+    let ipc = w2.state::<Ipc>();
+    ipc.0.lock().unwrap().insert(IpcKey { callback, error }, tx);
+    w2.clone().on_message(payload).unwrap();
+  });
+
+  app.run(move |app_handle, event| {
+    match event {
+      // We have received a message that all windows were closed
+      RunEvent::ExitRequested { .. } => {}
+      RunEvent::Exit => {}
+      RunEvent::Ready => {
+        let res = rx.recv().expect("Failed to receive result from command");
+        w.close().expect("Failed to close the fuzz window");
+      }
+      event => {}
+    }
+  });
+}
+
+/// Helper function to create a Tauri `InvokePayload`.
+pub fn create_invoke_payload(cmd_name: String, command_args: CommandArgs) -> InvokePayload {
+  let mut json_map = serde_json::map::Map::new();
+  for (k, v) in command_args.inner {
+    json_map.insert(k, v.into());
+  }
+
+  InvokePayload {
+    cmd: cmd_name,
+    tauri_module: None,
+    callback: CallbackFn(0),
+    error: CallbackFn(1),
+    inner: serde_json::Value::Object(json_map),
+  }
+}
+
+/// A wrapper around HashMap to facilitate `InvokePayload` creation.
+pub struct CommandArgs {
+  /// Inner type
+  pub inner: HashMap<String, serde_json::Value>,
+}
+
+impl CommandArgs {
+  /// Create a `CommandArgs`.
+  pub fn new() -> CommandArgs {
+    CommandArgs {
+      inner: HashMap::new(),
+    }
+  }
+
+  /// Insert a key, value pair that will be converted into the correct json type.
+  pub fn insert(
+    &mut self,
+    key: impl Into<String>,
+    value: impl Into<serde_json::Value>,
+  ) -> Option<serde_json::Value> {
+    self.inner.insert(key.into(), value.into())
+  }
+}
+
 #[cfg(test)]
 pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRuntime> {
   let app = mock_app();

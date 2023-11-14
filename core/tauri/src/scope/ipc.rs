@@ -170,15 +170,18 @@ mod tests {
   use crate::{
     ipc::CallbackFn,
     test::{assert_ipc_response, mock_app, MockRuntime},
-    window::InvokeRequest,
-    App, Manager, Window, WindowBuilder,
+    webview::InvokeRequest,
+    App, Manager, Webview, WebviewBuilder, WindowBuilder,
   };
 
   const PLUGIN_NAME: &str = "test";
 
-  fn test_context(scopes: Vec<RemoteDomainAccessScope>) -> (App<MockRuntime>, Window<MockRuntime>) {
+  fn test_context(
+    scopes: Vec<RemoteDomainAccessScope>,
+  ) -> (App<MockRuntime>, Webview<MockRuntime>) {
     let app = mock_app();
-    let window = WindowBuilder::new(&app, "main", Default::default())
+    let window = WindowBuilder::new(&app, "main").build().unwrap();
+    let webview = WebviewBuilder::new(&window, "main", Default::default())
       .build()
       .unwrap();
 
@@ -186,7 +189,7 @@ mod tests {
       app.ipc_scope().configure_remote_access(scope);
     }
 
-    (app, window)
+    (app, webview)
   }
 
   fn path_is_absolute_request() -> InvokeRequest {
@@ -223,15 +226,15 @@ mod tests {
 
   #[test]
   fn scope_not_defined() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
+    let (_app, mut webview) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
       .add_window("other")
       .add_plugin("path")]);
 
-    window.navigate("https://tauri.app".parse().unwrap());
+    webview.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
-      &window,
+      &webview,
       path_is_absolute_request(),
-      Err(crate::window::ipc_scope_not_found_error_message(
+      Err(crate::webview::ipc_scope_not_found_error_message(
         "main",
         "https://tauri.app/",
       )),
@@ -240,29 +243,29 @@ mod tests {
 
   #[test]
   fn scope_not_defined_for_window() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (_app, mut webview) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("second")
       .add_plugin("path")]);
 
-    window.navigate("https://tauri.app".parse().unwrap());
+    webview.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
-      &window,
+      &webview,
       path_is_absolute_request(),
-      Err(crate::window::ipc_scope_window_error_message("main")),
+      Err(crate::webview::ipc_scope_window_error_message("main")),
     );
   }
 
   #[test]
   fn scope_not_defined_for_url() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("github.com")
+    let (_app, mut webview) = test_context(vec![RemoteDomainAccessScope::new("github.com")
       .add_window("main")
       .add_plugin("path")]);
 
-    window.navigate("https://tauri.app".parse().unwrap());
+    webview.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
-      &window,
+      &webview,
       path_is_absolute_request(),
-      Err(crate::window::ipc_scope_domain_error_message(
+      Err(crate::webview::ipc_scope_domain_error_message(
         "https://tauri.app/",
       )),
     );
@@ -270,7 +273,7 @@ mod tests {
 
   #[test]
   fn subdomain_is_not_allowed() {
-    let (_app, mut window) = test_context(vec![
+    let (_app, mut webview) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app")
         .add_window("main")
         .add_plugin("path"),
@@ -279,27 +282,27 @@ mod tests {
         .add_plugin("path"),
     ]);
 
-    window.navigate("https://tauri.app".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
+    webview.navigate("https://tauri.app".parse().unwrap());
+    assert_ipc_response(&webview, path_is_absolute_request(), Ok(true));
 
-    window.navigate("https://blog.tauri.app".parse().unwrap());
+    webview.navigate("https://blog.tauri.app".parse().unwrap());
     assert_ipc_response(
-      &window,
+      &webview,
       path_is_absolute_request(),
-      Err(crate::window::ipc_scope_domain_error_message(
+      Err(crate::webview::ipc_scope_domain_error_message(
         "https://blog.tauri.app/",
       )),
     );
 
-    window.navigate("https://sub.tauri.app".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
+    webview.navigate("https://sub.tauri.app".parse().unwrap());
+    assert_ipc_response(&webview, path_is_absolute_request(), Ok(true));
 
-    window.window.label = "test".into();
-    window.navigate("https://dev.tauri.app".parse().unwrap());
+    webview.webview.label = "test".into();
+    webview.navigate("https://dev.tauri.app".parse().unwrap());
     assert_ipc_response(
-      &window,
+      &webview,
       path_is_absolute_request(),
-      Err(crate::window::ipc_scope_not_found_error_message(
+      Err(crate::webview::ipc_scope_not_found_error_message(
         "test",
         "https://dev.tauri.app/",
       )),
@@ -308,37 +311,37 @@ mod tests {
 
   #[test]
   fn subpath_is_allowed() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (_app, mut webview) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("main")
       .add_plugin("path")]);
 
-    window.navigate("https://tauri.app/inner/path".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
+    webview.navigate("https://tauri.app/inner/path".parse().unwrap());
+    assert_ipc_response(&webview, path_is_absolute_request(), Ok(true));
   }
 
   #[test]
   fn tauri_api_not_allowed() {
-    let (_app, mut window) = test_context(vec![
+    let (_app, mut webview) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app").add_window("main")
     ]);
 
-    window.navigate("https://tauri.app".parse().unwrap());
+    webview.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
-      &window,
+      &webview,
       path_is_absolute_request(),
-      Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
+      Err(crate::webview::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }
 
   #[test]
   fn plugin_allowed() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (_app, mut webview) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("main")
       .add_plugin(PLUGIN_NAME)]);
 
-    window.navigate("https://tauri.app".parse().unwrap());
+    webview.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
-      &window,
+      &webview,
       plugin_test_request(),
       Err(format!("plugin {PLUGIN_NAME} not found")),
     );
@@ -346,15 +349,15 @@ mod tests {
 
   #[test]
   fn plugin_not_allowed() {
-    let (_app, mut window) = test_context(vec![
+    let (_app, mut webview) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app").add_window("main")
     ]);
 
-    window.navigate("https://tauri.app".parse().unwrap());
+    webview.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
-      &window,
+      &webview,
       plugin_test_request(),
-      Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
+      Err(crate::webview::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }
 }

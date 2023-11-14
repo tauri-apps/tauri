@@ -7,13 +7,15 @@
 
 use tauri_runtime::{
   monitor::Monitor,
-  webview::{WindowBuilder, WindowBuilderBase},
+  webview::{DetachedWebview, PendingWebview},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
+    CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent, WindowId,
   },
-  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
-  RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WindowEventId,
+  window::{WindowBuilder, WindowBuilderBase},
+  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent,
+  Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
+  WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
@@ -36,14 +38,17 @@ use std::{
 };
 
 type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
-type WindowId = u32;
 
 enum Message {
   Task(Box<dyn FnOnce() + Send>),
   CloseWindow(WindowId),
 }
 
-struct Window;
+struct Webview;
+
+struct Window {
+  webviews: Vec<Webview>,
+}
 
 #[derive(Clone)]
 pub struct RuntimeContext {
@@ -52,6 +57,7 @@ pub struct RuntimeContext {
   shortcuts: Arc<Mutex<ShortcutMap>>,
   run_tx: SyncSender<Message>,
   next_window_id: Arc<AtomicU32>,
+  next_webview_id: Arc<AtomicU32>,
   next_window_event_id: Arc<AtomicU32>,
 }
 
@@ -82,7 +88,11 @@ impl RuntimeContext {
   }
 
   fn next_window_id(&self) -> WindowId {
-    self.next_window_id.fetch_add(1, Ordering::Relaxed)
+    self.next_window_id.fetch_add(1, Ordering::Relaxed).into()
+  }
+
+  fn next_webview_id(&self) -> u32 {
+    self.next_webview_id.fetch_add(1, Ordering::Relaxed)
   }
 
   fn next_window_event_id(&self) -> WindowEventId {
@@ -115,10 +125,41 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = self.context.next_window_id();
-    self.context.windows.borrow_mut().insert(id, Window);
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        webviews: Vec::new(),
+      },
+    );
     Ok(DetachedWindow {
+      id,
       label: pending.label,
-      dispatcher: MockDispatcher {
+      dispatcher: MockWindowDispatcher {
+        id,
+        context: self.context.clone(),
+      },
+    })
+  }
+
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self::Runtime>,
+  ) -> Result<DetachedWebview<T, Self::Runtime>> {
+    let id = self.context.next_webview_id();
+    let webview = Webview;
+    self
+      .context
+      .windows
+      .borrow_mut()
+      .get_mut(&window_id)
+      .map(|w| {
+        w.webviews.push(webview);
+      });
+
+    Ok(DetachedWebview {
+      label: pending.label,
+      dispatcher: MockWebviewDispatcher {
         id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
@@ -187,17 +228,23 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 }
 
 #[derive(Debug, Clone)]
-pub struct MockDispatcher {
-  id: WindowId,
+pub struct MockWebviewDispatcher {
+  id: u32,
   context: RuntimeContext,
   url: Arc<Mutex<String>>,
   last_evaluated_script: Arc<Mutex<Option<String>>>,
 }
 
-impl MockDispatcher {
+impl MockWebviewDispatcher {
   pub fn last_evaluated_script(&self) -> Option<String> {
     self.last_evaluated_script.lock().unwrap().clone()
   }
+}
+
+#[derive(Debug, Clone)]
+pub struct MockWindowDispatcher {
+  id: WindowId,
+  context: RuntimeContext,
 }
 
 #[derive(Debug, Clone)]
@@ -350,17 +397,11 @@ impl WindowBuilder for MockWindowBuilder {
   }
 }
 
-impl<T: UserEvent> Dispatch<T> for MockDispatcher {
+impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   type Runtime = MockRuntime;
-
-  type WindowBuilder = MockWindowBuilder;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_message(Message::Task(Box::new(f)))
-  }
-
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
-    self.context.next_window_event_id()
   }
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
@@ -378,6 +419,15 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    self
+      .last_evaluated_script
+      .lock()
+      .unwrap()
+      .replace(script.into());
+    Ok(())
+  }
+
   fn url(&self) -> Result<url::Url> {
     self
       .url
@@ -385,6 +435,29 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
       .unwrap()
       .parse()
       .map_err(|_| Error::FailedToReceiveMessage)
+  }
+
+  fn navigate(&self, url: Url) -> Result<()> {
+    *self.url.lock().unwrap() = url.to_string();
+    Ok(())
+  }
+
+  fn print(&self) -> Result<()> {
+    Ok(())
+  }
+}
+
+impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
+  type Runtime = MockRuntime;
+
+  type WindowBuilder = MockWindowBuilder;
+
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
+    self.context.send_message(Message::Task(Box::new(f)))
+  }
+
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
+    self.context.next_window_event_id()
   }
 
   fn scale_factor(&self) -> Result<f64> {
@@ -516,10 +589,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
-  fn print(&self) -> Result<()> {
-    Ok(())
-  }
-
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
     Ok(())
   }
@@ -530,10 +599,40 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = self.context.next_window_id();
-    self.context.windows.borrow_mut().insert(id, Window);
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        webviews: Vec::new(),
+      },
+    );
     Ok(DetachedWindow {
+      id: id.into(),
       label: pending.label,
-      dispatcher: MockDispatcher {
+      dispatcher: MockWindowDispatcher {
+        id,
+        context: self.context.clone(),
+      },
+    })
+  }
+
+  fn create_webview(
+    &mut self,
+    pending: PendingWebview<T, Self::Runtime>,
+  ) -> Result<DetachedWebview<T, Self::Runtime>> {
+    let id = self.context.next_webview_id();
+    let webview = Webview;
+    self
+      .context
+      .windows
+      .borrow_mut()
+      .get_mut(&self.id)
+      .map(|w| {
+        w.webviews.push(webview);
+      });
+
+    Ok(DetachedWebview {
+      label: pending.label,
+      dispatcher: MockWebviewDispatcher {
         id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
@@ -559,11 +658,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
-    Ok(())
-  }
-
-  fn navigate(&self, url: Url) -> Result<()> {
-    *self.url.lock().unwrap() = url.to_string();
     Ok(())
   }
 
@@ -676,15 +770,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
-  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
-    self
-      .last_evaluated_script
-      .lock()
-      .unwrap()
-      .replace(script.into());
-    Ok(())
-  }
-
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
     Ok(())
   }
@@ -716,6 +801,7 @@ impl MockRuntime {
       shortcuts: Default::default(),
       run_tx: tx,
       next_window_id: Default::default(),
+      next_webview_id: Default::default(),
       next_window_event_id: Default::default(),
     };
     Self {
@@ -727,7 +813,8 @@ impl MockRuntime {
 }
 
 impl<T: UserEvent> Runtime<T> for MockRuntime {
-  type Dispatcher = MockDispatcher;
+  type WindowDispatcher = MockWindowDispatcher;
+  type WebviewDispatcher = MockWebviewDispatcher;
   type Handle = MockRuntimeHandle;
   type EventLoopProxy = EventProxy;
 
@@ -756,10 +843,42 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     let id = self.context.next_window_id();
-    self.context.windows.borrow_mut().insert(id, Window);
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        webviews: Vec::new(),
+      },
+    );
+
     Ok(DetachedWindow {
+      id: id.into(),
       label: pending.label,
-      dispatcher: MockDispatcher {
+      dispatcher: MockWindowDispatcher {
+        id,
+        context: self.context.clone(),
+      },
+    })
+  }
+
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self>,
+  ) -> Result<DetachedWebview<T, Self>> {
+    let id = self.context.next_webview_id();
+    let webview = Webview;
+    self
+      .context
+      .windows
+      .borrow_mut()
+      .get_mut(&window_id)
+      .map(|w| {
+        w.webviews.push(webview);
+      });
+
+    Ok(DetachedWebview {
+      label: pending.label,
+      dispatcher: MockWebviewDispatcher {
         id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),

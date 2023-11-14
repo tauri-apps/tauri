@@ -420,18 +420,18 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   }
 }
 
+struct PendingWebviewWindow<R: Runtime> {
+  window_builder: <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
+  webview: PendingWebview<EventLoopMessage, R>,
+}
+
 /// The instance of the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 #[default_runtime(crate::Wry, wry)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
-  pending_windows: Option<
-    Vec<(
-      <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
-      PendingWebview<EventLoopMessage, R>,
-    )>,
-  >,
+  pending: Option<Vec<PendingWebviewWindow<R>>>,
   setup: Option<SetupHook<R>>,
   manager: Arc<AppManager<R>>,
   handle: AppHandle<R>,
@@ -967,10 +967,7 @@ pub struct Builder<R: Runtime> {
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
   /// windows and webviews to create when starting up.
-  pending_windows: Vec<(
-    <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
-    PendingWebview<EventLoopMessage, R>,
-  )>,
+  pending: Vec<PendingWebviewWindow<R>>,
 
   /// All passed plugins
   plugins: PluginStore<R>,
@@ -1026,7 +1023,7 @@ impl<R: Runtime> Builder<R> {
       .unwrap()
       .into_string(),
       on_page_load: None,
-      pending_windows: Default::default(),
+      pending: Default::default(),
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
@@ -1481,10 +1478,10 @@ impl<R: Runtime> Builder<R> {
           config,
         );
 
-      self.pending_windows.push((
+      self.pending.push(PendingWebviewWindow {
         window_builder,
-        PendingWebview::new(webview_attributes, label)?,
-      ));
+        webview: PendingWebview::new(webview_attributes, label)?,
+      });
     }
 
     let runtime_args = RuntimeInitArgs {
@@ -1543,7 +1540,7 @@ impl<R: Runtime> Builder<R> {
     #[allow(unused_mut)]
     let mut app = App {
       runtime: Some(runtime),
-      pending_windows: Some(self.pending_windows),
+      pending: Some(self.pending),
       setup: Some(self.setup),
       manager: manager.clone(),
       handle: AppHandle {
@@ -1687,24 +1684,28 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
 }
 
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
-  let pending_windows = app.pending_windows.take();
-  if let Some(pending_windows) = pending_windows {
-    let labels = pending_windows
+  let pending = app.pending.take();
+  if let Some(pending) = pending {
+    let labels = pending
       .iter()
-      .map(|p| p.1.label.clone())
+      .map(|p| p.webview.label.clone())
       .collect::<Vec<_>>();
 
     let app_handle = app.handle();
 
-    for (window_builder, pending_webview) in pending_windows {
-      let mut builder = WindowBuilder::new(app_handle, &pending_webview.label);
+    for PendingWebviewWindow {
+      window_builder,
+      webview,
+    } in pending
+    {
+      let mut builder = WindowBuilder::new(app_handle, &webview.label);
       builder.window_builder = window_builder;
       let window = builder.build()?;
 
       let webview_builder = WebviewBuilder {
         window,
-        label: pending_webview.label,
-        webview_attributes: pending_webview.webview_attributes,
+        label: webview.label,
+        webview_attributes: webview.webview_attributes,
         web_resource_request_handler: None,
         navigation_handler: None,
         on_page_load_handler: None,

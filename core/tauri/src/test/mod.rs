@@ -37,12 +37,12 @@
 //!   //#[cfg(test)]
 //!   fn something() {
 //!     let app = super::create_app(tauri::test::mock_builder());
-//!     let window = app.get_window("main").unwrap();
+//!     let webview = app.get_webview("main").unwrap();
 //!     // do something with the app and window
 //!     // in this case we'll run the my_cmd command with no arguments
 //!     tauri::test::assert_ipc_response(
-//!       &window,
-//!       tauri::window::InvokeRequest {
+//!       &webview,
+//!       tauri::webview::InvokeRequest {
 //!         cmd: "my_cmd".into(),
 //!         callback: tauri::ipc::CallbackFn(0),
 //!         error: tauri::ipc::CallbackFn(1),
@@ -69,8 +69,8 @@ use std::{
 
 use crate::{
   ipc::{CallbackFn, InvokeResponse},
-  window::InvokeRequest,
-  App, Builder, Context, Pattern, Window,
+  webview::InvokeRequest,
+  App, Builder, Context, Pattern, Webview,
 };
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
@@ -200,12 +200,12 @@ pub fn mock_app() -> App<MockRuntime> {
 ///   //#[cfg(test)]
 ///   fn something() {
 ///     let app = super::create_app(tauri::test::mock_builder());
-///     let window = app.get_window("main").unwrap();
+///     let webview = app.get_webview("main").unwrap();
 ///
 ///     // run the `ping` command and assert it returns `pong`
 ///     tauri::test::assert_ipc_response(
-///       &window,
-///       tauri::window::InvokeRequest {
+///       &webview,
+///       tauri::webview::InvokeRequest {
 ///         cmd: "ping".into(),
 ///         callback: tauri::ipc::CallbackFn(0),
 ///         error: tauri::ipc::CallbackFn(1),
@@ -220,12 +220,12 @@ pub fn mock_app() -> App<MockRuntime> {
 /// }
 /// ```
 pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
-  window: &Window<MockRuntime>,
+  webview: &Webview<MockRuntime>,
   request: InvokeRequest,
   expected: Result<T, T>,
 ) {
   let (tx, rx) = std::sync::mpsc::sync_channel(1);
-  window.clone().on_message(
+  webview.clone().on_message(
     request,
     Box::new(move |_window, _cmd, response, _callback, _error| {
       assert_eq!(
@@ -247,7 +247,7 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
 
 #[cfg(test)]
 mod tests {
-  use crate::WindowBuilder;
+  use crate::{WebviewBuilder, WindowBuilder};
   use std::time::Duration;
 
   use super::mock_app;
@@ -256,7 +256,8 @@ mod tests {
   fn run_app() {
     let app = mock_app();
 
-    let w = WindowBuilder::new(&app, "main", Default::default())
+    let w = WindowBuilder::new(&app, "main").build().unwrap();
+    let _webview = WebviewBuilder::new(&w, "main", Default::default())
       .build()
       .unwrap();
 

@@ -293,50 +293,23 @@ use crate::RunEvent;
 ///     .expect("failed to build app")
 /// }
 ///
-/// fn main() {
-///   let app = create_app(tauri::Builder::default());
-///   // app.run(|_handle, _event| {});}
-/// }
-///
-/// //#[cfg(test)]
-/// mod tests {
-///   use tauri::Manager;
-///
-///   //#[cfg(test)]
-///   fn something() {
+///fn main() {
 ///     let app = super::create_app(tauri::test::mock_builder());
-///     let payload =
-///
-///     invoke_tauri_cmd(app, )
-///     // run the `ping` command and assert it returns `pong`
-///     tauri::test::assert_ipc_response(
-///       &window,
-///       tauri::InvokePayload {
-///         cmd: "ping".into(),
-///         tauri_module: None,
-///         callback: tauri::api::ipc::CallbackFn(0),
-///         error: tauri::api::ipc::CallbackFn(1),
-///         inner: serde_json::Value::Null,
-///       },
-///       // the expected response is a success with the "pong" payload
-///       // we could also use Err("error message") here to ensure the command failed
-///       Ok("pong")
-///     );
-///   }
-/// }
+///     let payload = create_invoke_payload("ping".into(), CommandArgs::new())
+///     invoke_tauri_cmd(app, payload);
+///}
 /// ```
 pub fn invoke_tauri_cmd(app: App<MockRuntime>, payload: InvokePayload) {
   let w = app.get_window("main").expect("Could not get main window");
-  let w2: Window<MockRuntime> = w.clone();
 
   let (tx, rx) = std::sync::mpsc::channel();
 
   std::thread::spawn(move || {
     let callback = payload.callback;
     let error = payload.error;
-    let ipc = w2.state::<Ipc>();
+    let ipc = w.state::<Ipc>();
     ipc.0.lock().unwrap().insert(IpcKey { callback, error }, tx);
-    w2.clone().on_message(payload).unwrap();
+    w.clone().on_message(payload).unwrap();
   });
 
   app.run(move |app_handle, event| {
@@ -346,7 +319,8 @@ pub fn invoke_tauri_cmd(app: App<MockRuntime>, payload: InvokePayload) {
       RunEvent::Exit => {}
       RunEvent::Ready => {
         let res = rx.recv().expect("Failed to receive result from command");
-        w.close().expect("Failed to close the fuzz window");
+        app_handle.exit(0);
+        // w.close().expect("Failed to close the fuzz window");
       }
       event => {}
     }

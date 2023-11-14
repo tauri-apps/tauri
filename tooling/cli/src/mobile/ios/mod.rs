@@ -29,7 +29,14 @@ use super::{
 };
 use crate::{helpers::config::Config as TauriConfig, Result};
 
-use std::{env::set_var, fs::create_dir_all, process::exit, thread::sleep, time::Duration};
+use std::{
+  env::set_var,
+  fs::create_dir_all,
+  path::{Path, PathBuf},
+  process::exit,
+  thread::sleep,
+  time::Duration,
+};
 
 mod build;
 mod dev;
@@ -259,5 +266,32 @@ fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
 fn inject_assets(config: &AppleConfig) -> Result<()> {
   let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
   create_dir_all(asset_dir)?;
+  Ok(())
+}
+
+fn merge_plist(src: &[PathBuf], dest: &Path) -> Result<()> {
+  let mut dest_plist = None;
+
+  for src_path in src {
+    if let Ok(src_plist) = plist::Value::from_file(src_path) {
+      if dest_plist.is_none() {
+        dest_plist.replace(plist::Value::from_file(dest)?);
+      }
+
+      let plist = dest_plist.as_mut().expect("Info.plist not loaded");
+      if let Some(plist) = plist.as_dictionary_mut() {
+        if let Some(dict) = src_plist.into_dictionary() {
+          for (key, value) in dict {
+            plist.insert(key, value);
+          }
+        }
+      }
+    }
+  }
+
+  if let Some(dest_plist) = dest_plist {
+    dest_plist.to_file_xml(dest)?;
+  }
+
   Ok(())
 }

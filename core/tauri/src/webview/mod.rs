@@ -1,9 +1,15 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+//! The Tauri webview types and functions.
+
 use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 use tauri_runtime::{
   webview::{DetachedWebview, PageLoadEvent, PendingWebview, WebviewAttributes},
-  WebviewDispatch,
+  WebviewDispatch, WindowDispatch,
 };
 use tauri_utils::config::{WindowConfig, WindowUrl};
 use url::Url;
@@ -24,6 +30,7 @@ use crate::{
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
+  hash::{Hash, Hasher},
   path::PathBuf,
   sync::{Arc, Mutex},
 };
@@ -181,16 +188,16 @@ impl PlatformWebview {
 /// A builder for a webview.
 #[default_runtime(crate::Wry, wry)]
 pub struct WebviewBuilder<R: Runtime> {
-  window: Window<R>,
-  label: String,
+  pub(crate) window: Window<R>,
+  pub(crate) label: String,
   pub(crate) webview_attributes: WebviewAttributes,
-  web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
-  navigation_handler: Option<Box<NavigationHandler>>,
-  on_page_load_handler: Option<Box<OnPageLoad<R>>>,
+  pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+  pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
+  pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
 }
 
 impl<R: Runtime> WebviewBuilder<R> {
-  /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  /// Initializes a webview builder with the given webview label and URL to load.
   ///
   /// # Known issues
   ///
@@ -248,18 +255,18 @@ impl<R: Runtime> WebviewBuilder<R> {
     }
   }
 
-  /// Initializes a webview window builder from a window config from tauri.conf.json.
-  /// Keep in mind that you can't create 2 windows with the same `label` so make sure
-  /// that the initial window was closed or change the label of the new `WindowBuilder`.
+  /// Initializes a webview builder from a [`WindowConfig`] from tauri.conf.json.
+  /// Keep in mind that you can't create 2 webviews with the same `label` so make sure
+  /// that the initial webview was closed or change the label of the new [`WebviewBuilder`].
   ///
   /// # Known issues
   ///
   /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// You should use `async` commands when creating webviews.
   ///
   /// # Examples
   ///
-  /// - Create a window in a command:
+  /// - Create a webview in a command:
   ///
   /// ```
   /// #[tauri::command]
@@ -395,7 +402,19 @@ impl<R: Runtime> WebviewBuilder<R> {
   }
 
   /// Creates a new webview.
-  pub fn build(mut self) -> crate::Result<Webview<R>> {
+  pub fn build(self) -> crate::Result<Webview<R>> {
+    let labels = self
+      .window
+      .manager
+      .webview
+      .labels()
+      .into_iter()
+      .collect::<Vec<_>>();
+    self.build_with_labels(&labels)
+  }
+
+  /// Creates a new webview from the list of existing webview labels.
+  pub(crate) fn build_with_labels(mut self, labels: &[String]) -> crate::Result<Webview<R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
@@ -414,7 +433,6 @@ impl<R: Runtime> WebviewBuilder<R> {
         }));
     }
 
-    let labels = manager.webview.labels().into_iter().collect::<Vec<_>>();
     let pending = manager
       .webview
       .prepare_webview(self.window.clone(), pending, &labels)?;
@@ -423,15 +441,11 @@ impl<R: Runtime> WebviewBuilder<R> {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),
       _ => unimplemented!(),
     }
-    .map(|webview| {
-      manager
-        .webview
-        .attach_webview(self.window.app_handle.clone(), webview)
-    })?;
+    .map(|webview| manager.webview.attach_webview(self.window.clone(), webview))?;
 
     manager.webview.eval_script_all(format!(
       "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&self.manager.window.labels())?,
+      window_labels_array = serde_json::to_string(&manager.webview.labels())?,
     ))?;
 
     manager.emit_filter(
@@ -559,22 +573,17 @@ impl<R: Runtime> WebviewBuilder<R> {
 /// Webview.
 #[default_runtime(crate::Wry, wry)]
 pub struct Webview<R: Runtime> {
-  label: String,
   window: Window<R>,
   /// The webview created by the runtime.
   pub(crate) webview: DetachedWebview<EventLoopMessage, R>,
-  /// The manager to associate this webview with.
-  pub(crate) manager: Arc<AppManager<R>>,
-  pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<EventId>>>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("Window")
+      .field("window", &self.window)
       .field("webview", &self.webview)
-      .field("manager", &self.manager)
-      .field("app_handle", &self.app_handle)
       .field("js_event_listeners", &self.js_event_listeners)
       .finish()
   }
@@ -583,13 +592,62 @@ impl<R: Runtime> std::fmt::Debug for Webview<R> {
 impl<R: Runtime> Clone for Webview<R> {
   fn clone(&self) -> Self {
     Self {
-      label: self.label.clone(),
       window: self.window.clone(),
       webview: self.webview.clone(),
-      manager: self.manager.clone(),
-      app_handle: self.app_handle.clone(),
       js_event_listeners: self.js_event_listeners.clone(),
     }
+  }
+}
+
+impl<R: Runtime> Hash for Webview<R> {
+  /// Only use the [`Webview`]'s label to represent its hash.
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.webview.label.hash(state)
+  }
+}
+
+impl<R: Runtime> Eq for Webview<R> {}
+impl<R: Runtime> PartialEq for Webview<R> {
+  /// Only use the [`Webview`]'s label to compare equality.
+  fn eq(&self, other: &Self) -> bool {
+    self.webview.label.eq(&other.webview.label)
+  }
+}
+
+/// Base webview functions.
+impl<R: Runtime> Webview<R> {
+  /// Create a new webview that is attached to the window.
+  pub(crate) fn new(window: Window<R>, webview: DetachedWebview<EventLoopMessage, R>) -> Self {
+    Self {
+      window,
+      webview,
+      js_event_listeners: Default::default(),
+    }
+  }
+
+  /// Initializes a webview builder with the given window label and URL to load on the webview.
+  ///
+  /// Data URLs are only supported with the `window-data-url` feature flag.
+  pub fn builder<L: Into<String>>(
+    window: &Window<R>,
+    label: L,
+    url: WindowUrl,
+  ) -> WebviewBuilder<R> {
+    WebviewBuilder::<R>::new(window, label.into(), url)
+  }
+
+  /// Runs the given closure on the main thread.
+  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .run_on_main_thread(f)
+      .map_err(Into::into)
+  }
+
+  /// The webview label.
+  pub fn label(&self) -> &str {
+    &self.webview.label
   }
 }
 
@@ -687,9 +745,13 @@ impl<R: Runtime> Webview<R> {
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
-    self.manager.get_url().make_relative(current_url).is_some()
+    self
+      .manager()
+      .get_url()
+      .make_relative(current_url)
+      .is_some()
       || {
-        let protocol_url = self.manager.protocol_url();
+        let protocol_url = self.manager().protocol_url();
         current_url.scheme() == protocol_url.scheme()
           && current_url.domain() == protocol_url.domain()
       }
@@ -698,12 +760,12 @@ impl<R: Runtime> Webview<R> {
 
   /// Handles this window receiving an [`InvokeRequest`].
   pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
-    let manager = self.manager.clone();
+    let manager = self.manager_owned();
     let current_url = self.url();
     let is_local = self.is_local_url(&current_url);
 
     let mut scope_not_found_error_message =
-      ipc_scope_not_found_error_message(&self.label, current_url.as_str());
+      ipc_scope_not_found_error_message(&self.webview.label, current_url.as_str());
     let scope = if is_local {
       None
     } else {
@@ -713,14 +775,14 @@ impl<R: Runtime> Webview<R> {
           if e.matches_window {
             scope_not_found_error_message = ipc_scope_domain_error_message(current_url.as_str());
           } else if e.matches_domain {
-            scope_not_found_error_message = ipc_scope_window_error_message(&self.label);
+            scope_not_found_error_message = ipc_scope_window_error_message(&self.webview.label);
           }
           None
         }
       }
     };
 
-    let custom_responder = self.manager.window.invoke_responder.clone();
+    let custom_responder = self.manager().webview.invoke_responder.clone();
 
     let resolver = InvokeResolver::new(
       self.clone(),
@@ -740,7 +802,7 @@ impl<R: Runtime> Webview<R> {
     );
 
     #[cfg(mobile)]
-    let app_handle = self.app_handle.clone();
+    let app_handle = self.window.app_handle.clone();
 
     let message = InvokeMessage::new(
       self,
@@ -847,7 +909,7 @@ impl<R: Runtime> Webview<R> {
     event: String,
     handler: CallbackFn,
   ) -> crate::Result<EventId> {
-    let event_id = self.manager.listeners().next_event_id();
+    let event_id = self.manager().listeners().next_event_id();
 
     self.eval(&crate::event::listen_js(
       self.manager().listeners().listeners_object_name(),
@@ -1041,7 +1103,7 @@ impl<R: Runtime> Manager<R> for Webview<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Window<R>) -> bool,
+    F: Fn(&Webview<R>) -> bool,
   {
     self
       .manager()
@@ -1051,28 +1113,26 @@ impl<R: Runtime> Manager<R> for Webview<R> {
 
 impl<R: Runtime> ManagerBase<R> for Webview<R> {
   fn manager(&self) -> &AppManager<R> {
-    &self.manager
+    &self.window.manager
   }
 
   fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.manager.clone()
+    self.window.manager.clone()
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    self.app_handle.runtime()
+    self.window.app_handle.runtime()
   }
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
-    &self.app_handle
+    &self.window.app_handle
   }
 }
 
 impl<'de, R: Runtime> CommandArg<'de, R> for Webview<R> {
   /// Grabs the [`Webview`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    // TODO
-    todo!()
-    // Ok(command.message.window())
+    Ok(command.message.webview())
   }
 }
 

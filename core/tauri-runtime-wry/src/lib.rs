@@ -1066,7 +1066,6 @@ pub enum WindowMessage {
   SetMinimizable(bool),
   SetClosable(bool),
   SetTitle(String),
-  Navigate(Url),
   Maximize,
   Unmaximize,
   Minimize,
@@ -1102,6 +1101,7 @@ pub enum WebviewMessage {
   EvaluateScript(String),
   #[allow(dead_code)]
   WebviewEvent(WebviewEvent),
+  Navigate(Url),
   Print,
   // Getters
   Url(Sender<Url>),
@@ -1215,6 +1215,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   }
 
   // Setters
+
+  fn navigate(&self, url: Url) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        self.window_id,
+        self.webview_id,
+        WebviewMessage::Navigate(url),
+      ),
+    )
+  }
 
   fn print(&self) -> Result<()> {
     send_user_message(
@@ -1451,13 +1462,6 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetTitle(title.into())),
-    )
-  }
-
-  fn navigate(&self, url: Url) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::Navigate(url)),
     )
   }
 
@@ -2260,14 +2264,11 @@ fn handle_user_message<T: UserEvent>(
       }
     },
     Message::Window(id, window_message) => {
-      let w = windows.borrow().get(&id).map(|w| {
-        (
-          w.inner.clone(),
-          w.webviews.clone(),
-          w.window_event_listeners.clone(),
-        )
-      });
-      if let Some((Some(window), webviews, window_event_listeners)) = w {
+      let w = windows
+        .borrow()
+        .get(&id)
+        .map(|w| (w.inner.clone(), w.window_event_listeners.clone()));
+      if let Some((Some(window), window_event_listeners)) = w {
         match window_message {
           WindowMessage::AddEventListener(id, listener) => {
             window_event_listeners.lock().unwrap().insert(id, listener);
@@ -2349,11 +2350,6 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetMinimizable(minimizable) => window.set_minimizable(minimizable),
           WindowMessage::SetClosable(closable) => window.set_closable(closable),
           WindowMessage::SetTitle(title) => window.set_title(&title),
-          WindowMessage::Navigate(url) => {
-            if let Some(w) = webviews.first() {
-              w.load_url(url.as_str())
-            }
-          }
           WindowMessage::Maximize => window.set_maximized(true),
           WindowMessage::Unmaximize => window.set_maximized(false),
           WindowMessage::Minimize => window.set_minimized(true),
@@ -2447,6 +2443,7 @@ fn handle_user_message<T: UserEvent>(
               debug_eprintln!("{}", e);
             }
           }
+          WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
           WebviewMessage::Print => {
             let _ = webview.print();
           }

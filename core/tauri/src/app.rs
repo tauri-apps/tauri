@@ -8,11 +8,11 @@ use crate::{
     channel::ChannelDataIpcQueue, CallbackFn, Invoke, InvokeError, InvokeHandler, InvokeResponder,
     InvokeResponse,
   },
-  manager::{window::UriSchemeProtocol, AppManager, Asset},
+  manager::{webview::UriSchemeProtocol, AppManager, Asset},
   plugin::{Plugin, PluginStore},
   runtime::{
     webview::WebviewAttributes,
-    window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
+    window::{WindowBuilder as _, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   scope,
@@ -21,7 +21,7 @@ use crate::{
   utils::{assets::Assets, Env},
   webview::PageLoadPayload,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
-  StateManager, Theme, Window,
+  StateManager, Theme, Webview, WebviewBuilder, Window, WindowBuilder,
 };
 
 #[cfg(desktop)]
@@ -36,11 +36,12 @@ use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
+  webview::PendingWebview,
   window::{
     dpi::{PhysicalPosition, PhysicalSize},
     FileDropEvent,
   },
-  RuntimeInitArgs,
+  RuntimeInitArgs, WindowDispatch,
 };
 use tauri_utils::PackageInfo;
 
@@ -67,8 +68,8 @@ pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) 
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
-/// A closure that is run once every time a window is created and loaded.
-pub type OnPageLoad<R> = dyn Fn(&Window<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
+/// A closure that is run every time a page starts or finishes loading.
+pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -278,7 +279,7 @@ impl AppHandle<crate::Wry> {
   /// Sends a window message to the event loop.
   pub fn send_tao_window_event(
     &self,
-    window_id: tauri_runtime_wry::WindowId,
+    window_id: tauri_runtime_wry::TaoWindowId,
     message: tauri_runtime_wry::WindowMessage,
   ) -> crate::Result<()> {
     self
@@ -303,7 +304,7 @@ impl<R: Runtime> Clone for AppHandle<R> {
 impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
   /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`AppHandle`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.window().app_handle)
+    Ok(command.message.webview().window().app_handle.clone())
   }
 }
 
@@ -425,7 +426,12 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 #[default_runtime(crate::Wry, wry)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
-  pending_windows: Option<Vec<PendingWindow<EventLoopMessage, R>>>,
+  pending_windows: Option<
+    Vec<(
+      <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
+      PendingWebview<EventLoopMessage, R>,
+    )>,
+  >,
   setup: Option<SetupHook<R>>,
   manager: Arc<AppManager<R>>,
   handle: AppHandle<R>,
@@ -960,8 +966,11 @@ pub struct Builder<R: Runtime> {
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
-  /// windows to create when starting up.
-  pending_windows: Vec<PendingWindow<EventLoopMessage, R>>,
+  /// windows and webviews to create when starting up.
+  pending_windows: Vec<(
+    <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
+    PendingWebview<EventLoopMessage, R>,
+  )>,
 
   /// All passed plugins
   plugins: PluginStore<R>,
@@ -1008,7 +1017,7 @@ impl<R: Runtime> Builder<R> {
       invoke_handler: Box::new(|_| false),
       invoke_responder: None,
       invoke_initialization_script: InvokeInitializationScript {
-        process_ipc_message_fn: crate::manager::window::PROCESS_IPC_MESSAGE_FN,
+        process_ipc_message_fn: crate::manager::webview::PROCESS_IPC_MESSAGE_FN,
         os_name: std::env::consts::OS,
         fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
         use_custom_protocol: cfg!(ipc_custom_protocol),
@@ -1074,7 +1083,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
-    F: Fn(&Window<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
+    F: Fn(&Webview<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
     self.invoke_initialization_script = initialization_script;
     self.invoke_responder.replace(Arc::new(responder));
@@ -1106,7 +1115,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(&Window<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
+    F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
     self
@@ -1467,11 +1476,15 @@ impl<R: Runtime> Builder<R> {
       let label = config.label.clone();
       let webview_attributes = WebviewAttributes::from(&config);
 
-      self.pending_windows.push(PendingWindow::with_config(
-        config,
-        webview_attributes,
-        label,
-      )?);
+      let window_builder =
+        <<R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder>::with_config(
+          config,
+        );
+
+      self.pending_windows.push((
+        window_builder,
+        PendingWebview::new(webview_attributes, label)?,
+      ));
     }
 
     let runtime_args = RuntimeInitArgs {
@@ -1676,50 +1689,27 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   let pending_windows = app.pending_windows.take();
   if let Some(pending_windows) = pending_windows {
-    let window_labels = pending_windows
+    let labels = pending_windows
       .iter()
-      .map(|p| p.label.clone())
+      .map(|p| p.1.label.clone())
       .collect::<Vec<_>>();
 
     let app_handle = app.handle();
-    let manager = app.manager();
 
-    for pending in pending_windows {
-      let pending = manager
-        .window
-        .prepare_window(app_handle.clone(), pending, &window_labels)?;
+    for (window_builder, pending_webview) in pending_windows {
+      let mut builder = WindowBuilder::new(app_handle, &pending_webview.label);
+      builder.window_builder = window_builder;
+      let window = builder.build()?;
 
-      #[cfg(desktop)]
-      let window_menu = app.manager.menu.menu_lock().as_ref().map(|m| WindowMenu {
-        is_app_wide: true,
-        menu: m.clone(),
-      });
-
-      #[cfg(desktop)]
-      let handler = manager
-        .menu
-        .prepare_window_menu_creation_handler(window_menu.as_ref());
-      #[cfg(not(desktop))]
-      #[allow(clippy::type_complexity)]
-      let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
-
-      let window_effects = pending.webview_attributes.window_effects.clone();
-      let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app_handle.runtime() {
-        runtime.create_window(pending, handler)?
-      } else {
-        // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
-        unreachable!()
+      let webview_builder = WebviewBuilder {
+        window,
+        label: pending_webview.label,
+        webview_attributes: pending_webview.webview_attributes,
+        web_resource_request_handler: None,
+        navigation_handler: None,
+        on_page_load_handler: None,
       };
-      let window = manager.window.attach_window(
-        app_handle.clone(),
-        detached,
-        #[cfg(desktop)]
-        None,
-      );
-
-      if let Some(effects) = window_effects {
-        crate::vibrancy::set_window_effects(&window, Some(effects))?;
-      }
+      webview_builder.build_with_labels(&labels)?;
     }
   }
 
@@ -1741,6 +1731,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     event: RuntimeWindowEvent::Destroyed,
   } = &event
   {
+    // TODO: destroy webviews
     manager.window.on_window_close(label);
   }
 

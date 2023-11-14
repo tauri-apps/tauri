@@ -363,6 +363,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   // SETTER
 
+  /// Naviagte to the given URL.
+  fn navigate(&self, url: Url) -> Result<()>;
+
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> Result<()>;
 
@@ -540,9 +543,6 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window title.
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()>;
-
-  /// Naviagte to the given URL.
-  fn navigate(&self, url: Url) -> Result<()>;
 
   /// Maximizes the window.
   fn maximize(&self) -> Result<()>;

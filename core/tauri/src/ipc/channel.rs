@@ -16,7 +16,7 @@ use crate::{
   command,
   command::{CommandArg, CommandItem},
   plugin::{Builder as PluginBuilder, TauriPlugin},
-  Manager, Runtime, State, Window,
+  Manager, Runtime, State, Webview,
 };
 
 use super::{CallbackFn, InvokeBody, InvokeError, IpcResponse, Request, Response};
@@ -74,16 +74,16 @@ impl Channel {
     channel
   }
 
-  pub(crate) fn from_ipc<R: Runtime>(window: Window<R>, callback: CallbackFn) -> Self {
+  pub(crate) fn from_ipc<R: Runtime>(webview: Webview<R>, callback: CallbackFn) -> Self {
     Channel::new_with_id(callback.0, move |body| {
       let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
-      window
+      webview
         .state::<ChannelDataIpcQueue>()
         .0
         .lock()
         .unwrap()
         .insert(data_id, body);
-      window.eval(&format!(
+      webview.eval(&format!(
         "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then(window['_' + {}]).catch(console.error)",
         callback.0
       ))
@@ -91,14 +91,14 @@ impl Channel {
   }
 
   pub(crate) fn load_from_ipc<R: Runtime>(
-    window: Window<R>,
+    webview: Webview<R>,
     value: impl AsRef<str>,
   ) -> Option<Self> {
     value
       .as_ref()
       .split_once(IPC_PAYLOAD_PREFIX)
       .and_then(|(_prefix, id)| id.parse().ok())
-      .map(|callback_id| Self::from_ipc(window, CallbackFn(callback_id)))
+      .map(|callback_id| Self::from_ipc(webview, CallbackFn(callback_id)))
   }
 
   /// The channel identifier.
@@ -114,14 +114,14 @@ impl Channel {
 }
 
 impl<'de, R: Runtime> CommandArg<'de, R> for Channel {
-  /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`Channel`].
+  /// Grabs the [`Webview`] from the [`CommandItem`] and returns the associated [`Channel`].
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let name = command.name;
     let arg = command.key;
-    let window = command.message.window();
+    let webview = command.message.webview();
     let value: String =
       Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
-    Channel::load_from_ipc(window, &value).ok_or_else(|| {
+    Channel::load_from_ipc(webview, &value).ok_or_else(|| {
       InvokeError::from_anyhow(anyhow::anyhow!(
         "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
       ))

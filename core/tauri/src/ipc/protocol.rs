@@ -220,10 +220,11 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
               },
               Channel,
             };
+            use crate::sealed::ManagerBase;
             use serde_json::Value as JsonValue;
 
             // the channel data command is the only command that uses a custom protocol on Linux
-            if webview.manager.webview.invoke_responder.is_none()
+            if webview.manager().webview.invoke_responder.is_none()
               && cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
             {
               fn responder_eval<R: Runtime>(

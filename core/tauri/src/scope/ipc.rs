@@ -4,7 +4,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use crate::{Config, Runtime, Window};
+use crate::{Config, Runtime, Webview};
 use url::Url;
 
 /// IPC access configuration for a remote domain.
@@ -126,13 +126,13 @@ impl Scope {
 
   pub(crate) fn remote_access_for<R: Runtime>(
     &self,
-    window: &Window<R>,
+    webview: &Webview<R>,
     url: &Url,
   ) -> Result<RemoteDomainAccessScope, RemoteAccessError> {
     let mut scope = None;
     let mut found_scope_for_window = false;
     let mut found_scope_for_domain = false;
-    let label = window.label().to_string();
+    let label = webview.label().to_string();
 
     for s in &*self.remote_access.lock().unwrap() {
       #[allow(unused_mut)]

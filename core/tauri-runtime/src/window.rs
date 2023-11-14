@@ -420,22 +420,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
       })
     }
   }
-
-  /// Create a new [`PendingWindow`] from a [`WindowConfig`] with a label from the given [`WindowConfig`].
-  pub fn with_config(window_config: WindowConfig, label: impl Into<String>) -> crate::Result<Self> {
-    let window_builder =
-      <<R::WindowDispatcher as WindowDispatch<T>>::WindowBuilder>::with_config(window_config);
-
-    let label = label.into();
-    if !is_label_valid(&label) {
-      Err(crate::Error::InvalidWindowLabel)
-    } else {
-      Ok(Self {
-        window_builder,
-        label,
-      })
-    }
-  }
 }
 
 /// Identifier of a window.

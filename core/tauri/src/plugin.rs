@@ -8,10 +8,10 @@ use crate::{
   app::UriSchemeResponder,
   error::Error,
   ipc::{Invoke, InvokeHandler},
-  manager::window::UriSchemeProtocol,
+  manager::webview::UriSchemeProtocol,
   utils::config::PluginConfig,
   webview::PageLoadPayload,
-  AppHandle, RunEvent, Runtime, Window,
+  AppHandle, RunEvent, Runtime, Webview, Window,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
@@ -51,19 +51,23 @@ pub trait Plugin<R: Runtime>: Send {
     None
   }
 
+  /// Callback invoked when the window is created.
+  #[allow(unused_variables)]
+  fn window_created(&mut self, window: Window<R>) {}
+
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  fn created(&mut self, window: Window<R>) {}
+  fn webview_created(&mut self, webview: Webview<R>) {}
 
   /// Callback invoked when webview tries to navigate to the given Url. Returning falses cancels navigation.
   #[allow(unused_variables)]
-  fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
+  fn on_navigation(&mut self, webview: &Webview<R>, url: &Url) -> bool {
     true
   }
 
   /// Callback invoked when the webview performs a navigation to a page.
   #[allow(unused_variables)]
-  fn on_page_load(&mut self, window: &Window<R>, payload: &PageLoadPayload<'_>) {}
+  fn on_page_load(&mut self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {}
 
   /// Callback invoked when the event loop receives a new event.
   #[allow(unused_variables)]
@@ -78,10 +82,11 @@ pub trait Plugin<R: Runtime>: Send {
 
 type SetupHook<R, C> =
   dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<(), Box<dyn std::error::Error>> + Send;
-type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
+type OnWindowReady<R> = dyn FnMut(Window<R>) + Send;
+type OnWebviewReady<R> = dyn FnMut(Webview<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
-type OnNavigation<R> = dyn Fn(&Window<R>, &Url) -> bool + Send;
-type OnPageLoad<R> = dyn FnMut(&Window<R>, &PageLoadPayload<'_>) + Send;
+type OnNavigation<R> = dyn Fn(&Webview<R>, &Url) -> bool + Send;
+type OnPageLoad<R> = dyn FnMut(&Webview<R>, &PageLoadPayload<'_>) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
 /// A handle to a plugin.
@@ -209,6 +214,7 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   js_init_script: Option<String>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
+  on_window_ready: Box<OnWindowReady<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
@@ -225,6 +231,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       invoke_handler: Box::new(|_| false),
       on_navigation: Box::new(|_, _| true),
       on_page_load: Box::new(|_, _| ()),
+      on_window_ready: Box::new(|_| ()),
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
       on_drop: None,
@@ -343,7 +350,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
-  ///     .on_navigation(|window, url| {
+  ///     .on_navigation(|webview, url| {
   ///       // allow the production URL or localhost on dev
   ///       url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
   ///     })
@@ -353,7 +360,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_navigation<F>(mut self, on_navigation: F) -> Self
   where
-    F: Fn(&Window<R>, &Url) -> bool + Send + 'static,
+    F: Fn(&Webview<R>, &Url) -> bool + Send + 'static,
   {
     self.on_navigation = Box::new(on_navigation);
     self
@@ -368,8 +375,8 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
-  ///     .on_page_load(|window, payload| {
-  ///       println!("{:?} URL {} in window {}", payload.event(), payload.url(), window.label());
+  ///     .on_page_load(|webview, payload| {
+  ///       println!("{:?} URL {} in webview {}", payload.event(), payload.url(), webview.label());
   ///     })
   ///     .build()
   /// }
@@ -377,9 +384,33 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: FnMut(&Window<R>, &PageLoadPayload<'_>) + Send + 'static,
+    F: FnMut(&Webview<R>, &PageLoadPayload<'_>) + Send + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
+    self
+  }
+
+  /// Callback invoked when the window is created.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_window_ready(|window| {
+  ///       println!("created window {}", window.label());
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
+  #[must_use]
+  pub fn on_window_ready<F>(mut self, on_window_ready: F) -> Self
+  where
+    F: FnMut(Window<R>) + Send + 'static,
+  {
+    self.on_window_ready = Box::new(on_window_ready);
     self
   }
 
@@ -392,8 +423,8 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
-  ///     .on_webview_ready(|window| {
-  ///       println!("created window {}", window.label());
+  ///     .on_webview_ready(|webview| {
+  ///       println!("created webview {}", webview.label());
   ///     })
   ///     .build()
   /// }
@@ -401,7 +432,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_webview_ready<F>(mut self, on_webview_ready: F) -> Self
   where
-    F: FnMut(Window<R>) + Send + 'static,
+    F: FnMut(Webview<R>) + Send + 'static,
   {
     self.on_webview_ready = Box::new(on_webview_ready);
     self
@@ -579,6 +610,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       js_init_script: self.js_init_script,
       on_navigation: self.on_navigation,
       on_page_load: self.on_page_load,
+      on_window_ready: self.on_window_ready,
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
       on_drop: self.on_drop,
@@ -596,6 +628,7 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   js_init_script: Option<String>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
+  on_window_ready: Box<OnWindowReady<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
@@ -636,7 +669,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     for (uri_scheme, protocol) in &self.uri_scheme_protocols {
       app
         .manager
-        .window
+        .webview
         .register_uri_scheme_protocol(uri_scheme, protocol.clone())
     }
     Ok(())
@@ -646,16 +679,20 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     self.js_init_script.clone()
   }
 
-  fn created(&mut self, window: Window<R>) {
-    (self.on_webview_ready)(window)
+  fn window_created(&mut self, window: Window<R>) {
+    (self.on_window_ready)(window)
   }
 
-  fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
-    (self.on_navigation)(window, url)
+  fn webview_created(&mut self, webview: Webview<R>) {
+    (self.on_webview_ready)(webview)
   }
 
-  fn on_page_load(&mut self, window: &Window<R>, payload: &PageLoadPayload<'_>) {
-    (self.on_page_load)(window, payload)
+  fn on_navigation(&mut self, webview: &Webview<R>, url: &Url) -> bool {
+    (self.on_navigation)(webview, url)
+  }
+
+  fn on_page_load(&mut self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {
+    (self.on_page_load)(webview, payload)
   }
 
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
@@ -734,17 +771,25 @@ impl<R: Runtime> PluginStore<R> {
       })
   }
 
-  /// Runs the created hook for all plugins in the store.
-  pub(crate) fn created(&mut self, window: Window<R>) {
+  /// Runs the window created hook for all plugins in the store.
+  pub(crate) fn window_created(&mut self, window: Window<R>) {
     self
       .store
       .iter_mut()
-      .for_each(|plugin| plugin.created(window.clone()))
+      .for_each(|plugin| plugin.window_created(window.clone()))
   }
 
-  pub(crate) fn on_navigation(&mut self, window: &Window<R>, url: &Url) -> bool {
+  /// Runs the webview created hook for all plugins in the store.
+  pub(crate) fn webview_created(&mut self, webview: Webview<R>) {
+    self
+      .store
+      .iter_mut()
+      .for_each(|plugin| plugin.webview_created(webview.clone()))
+  }
+
+  pub(crate) fn on_navigation(&mut self, webview: &Webview<R>, url: &Url) -> bool {
     for plugin in self.store.iter_mut() {
-      if !plugin.on_navigation(window, url) {
+      if !plugin.on_navigation(webview, url) {
         return false;
       }
     }
@@ -752,11 +797,11 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Runs the on_page_load hook for all plugins in the store.
-  pub(crate) fn on_page_load(&mut self, window: &Window<R>, payload: &PageLoadPayload<'_>) {
+  pub(crate) fn on_page_load(&mut self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {
     self
       .store
       .iter_mut()
-      .for_each(|plugin| plugin.on_page_load(window, payload))
+      .for_each(|plugin| plugin.on_page_load(webview, payload))
   }
 
   /// Runs the on_event hook for all plugins in the store.

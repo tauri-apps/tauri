@@ -24,8 +24,8 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::{WindowConfig, WindowEffectsConfig, WindowUrl},
-  EventLoopMessage, Manager, Runtime, Theme, WindowEvent,
+  utils::config::{WindowConfig, WindowEffectsConfig},
+  EventLoopMessage, Manager, Runtime, Theme, Webview, WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
@@ -121,7 +121,7 @@ impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
 }
 
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
-  /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  /// Initializes a window builder with the given window label.
   ///
   /// # Known issues
   ///
@@ -135,7 +135,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let window = tauri::WindowBuilder::new(app, "label", tauri::WindowUrl::App("index.html".into()))
+  ///     let window = tauri::WindowBuilder::new(app, "label")
   ///       .build()?;
   ///     Ok(())
   ///   });
@@ -148,7 +148,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///   .setup(|app| {
   ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
-  ///       let window = tauri::WindowBuilder::new(&handle, "label", tauri::WindowUrl::App("index.html".into()))
+  ///       let window = tauri::WindowBuilder::new(&handle, "label")
   ///         .build()
   ///         .unwrap();
   ///     });
@@ -161,14 +161,14 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```
   /// #[tauri::command]
   /// async fn create_window(app: tauri::AppHandle) {
-  ///   let window = tauri::WindowBuilder::new(&app, "label", tauri::WindowUrl::External("https://tauri.app/".parse().unwrap()))
+  ///   let window = tauri::WindowBuilder::new(&app, "label")
   ///     .build()
   ///     .unwrap();
   /// }
   /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
+  pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L) -> Self {
     let runtime = manager.runtime();
     let app_handle = manager.app_handle().clone();
     Self {
@@ -186,9 +186,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     }
   }
 
-  /// Initializes a webview window builder from a window config from tauri.conf.json.
+  /// Initializes a window builder from a [`WindowConfig`] from tauri.conf.json.
   /// Keep in mind that you can't create 2 windows with the same `label` so make sure
-  /// that the initial window was closed or change the label of the new `WindowBuilder`.
+  /// that the initial window was closed or change the label of the new [`WindowBuilder`].
   ///
   /// # Known issues
   ///
@@ -247,7 +247,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///         &save_menu_item,
   ///       ])?,
   ///     ])?;
-  ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
+  ///     let window = tauri::WindowBuilder::new(app, "editor")
   ///       .menu(menu)
   ///       .on_menu_event(move |window, event| {
   ///         if event.id == save_menu_item.id() {
@@ -271,13 +271,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
   /// Creates a new window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
-    let mut pending = PendingWindow::new(self.window_builder.clone(), self.label.clone())?;
+    let pending = PendingWindow::new(self.window_builder.clone(), self.label.clone())?;
 
-    let labels = self.manager.window.labels().into_iter().collect::<Vec<_>>();
-    let pending = self
-      .manager
-      .window
-      .prepare_window(self.app_handle.clone(), pending, &labels)?;
+    let pending = self.manager.window.prepare_window(pending)?;
 
     #[cfg(desktop)]
     let window_menu = {
@@ -640,7 +636,7 @@ pub(crate) struct WindowMenu<R: Runtime> {
 }
 
 // TODO: expand these docs since this is a pretty important type
-/// A webview window managed by Tauri.
+/// A window managed by Tauri.
 ///
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
@@ -648,7 +644,7 @@ pub(crate) struct WindowMenu<R: Runtime> {
 pub struct Window<R: Runtime> {
   /// The window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
-  /// The manager to associate this webview window with.
+  /// The manager to associate this window with.
   pub(crate) manager: Arc<AppManager<R>>,
   pub(crate) app_handle: AppHandle<R>,
   // The menu set for this window
@@ -719,7 +715,7 @@ impl<R: Runtime> Manager<R> for Window<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Window<R>) -> bool,
+    F: Fn(&Webview<R>) -> bool,
   {
     self
       .manager()
@@ -770,15 +766,14 @@ impl<R: Runtime> Window<R> {
     }
   }
 
-  /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  /// Initializes a window builder with the given window label.
   ///
   /// Data URLs are only supported with the `window-data-url` feature flag.
   pub fn builder<'a, M: Manager<R>, L: Into<String>>(
     manager: &'a M,
     label: L,
-    url: WindowUrl,
   ) -> WindowBuilder<'a, R> {
-    WindowBuilder::<'a, R>::new(manager, label.into(), url)
+    WindowBuilder::<'a, R>::new(manager, label.into())
   }
 
   /// Runs the given closure on the main thread.
@@ -827,7 +822,7 @@ impl<R: Runtime> Window<R> {
   ///         &save_menu_item,
   ///       ])?,
   ///     ])?;
-  ///     let window = tauri::WindowBuilder::new(app, "editor", tauri::WindowUrl::default())
+  ///     let window = tauri::WindowBuilder::new(app, "editor")
   ///       .menu(menu)
   ///       .build()
   ///       .unwrap();
@@ -1702,9 +1697,8 @@ impl<R: Runtime> Window<R> {
   where
     F: Fn(Event) + Send + 'static,
   {
-    self
-      .manager
-      .listen(event.into(), Some(self.clone()), handler)
+    // TODO: listen on all webviews
+    self.manager.listen(event.into(), None, handler)
   }
 
   /// Unlisten to an event on this window.
@@ -1743,8 +1737,8 @@ impl<R: Runtime> Window<R> {
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    let label = self.window.label.clone();
-    self.manager.once(event.into(), Some(label), handler)
+    // TODO: listen on all webviews
+    self.manager.once(event.into(), None, handler)
   }
 }
 

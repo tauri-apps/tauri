@@ -37,6 +37,9 @@ pub enum Error {
   /// Window label must be unique.
   #[error("a window with label `{0}` already exists")]
   WindowLabelAlreadyExists(String),
+  /// Webview label must be unique.
+  #[error("a webview with label `{0}` already exists")]
+  WebviewLabelAlreadyExists(String),
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),
@@ -130,6 +133,9 @@ pub enum Error {
   /// window not found.
   #[error("window not found")]
   WindowNotFound,
+  /// webview not found.
+  #[error("webview not found")]
+  WebviewNotFound,
 }
 
 /// `Result<T, ::tauri::Error>`

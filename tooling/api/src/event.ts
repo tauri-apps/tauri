@@ -15,7 +15,7 @@ interface Event<T> {
   /** Event name */
   event: EventName
   /** The label of the window that emitted this event. */
-  windowLabel: string
+  webviewLabel: string
   /** Event identifier used to unlisten */
   id: number
   /** Event payload */
@@ -76,13 +76,13 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
 
 /**
  * Listen to an event. The event can be either global or window-specific.
- * See {@link Event.windowLabel} to check the event source.
+ * See {@link Event.webviewLabel} to check the event source.
  *
  * @example
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
  * const unlisten = await listen<string>('error', (event) => {
- *   console.log(`Got error in window ${event.windowLabel}, payload: ${event.payload}`);
+ *   console.log(`Got error in window ${event.webviewLabel}, payload: ${event.payload}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
@@ -103,7 +103,7 @@ async function listen<T>(
 ): Promise<UnlistenFn> {
   return invoke<number>('plugin:event|listen', {
     event,
-    windowLabel: options?.target,
+    webviewLabel: options?.target,
     handler: transformCallback(handler)
   }).then((eventId) => {
     return async () => _unlisten(event, eventId)
@@ -168,7 +168,7 @@ async function emit(
 ): Promise<void> {
   await invoke('plugin:event|emit', {
     event,
-    windowLabel: options?.target,
+    webviewLabel: options?.target,
     payload
   })
 }

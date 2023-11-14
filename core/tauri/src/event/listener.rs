@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{Runtime, Window};
+use crate::{Runtime, Webview};
 
 use super::{EmitArgs, Event, EventId};
 
@@ -25,7 +25,7 @@ enum Pending<R: Runtime> {
 
 /// Stored in [`Listeners`] to be called upon when the event that stored it is triggered.
 struct Handler<R: Runtime> {
-  window: Option<Window<R>>,
+  webview: Option<Webview<R>>,
   callback: Box<dyn Fn(Event) + Send>,
 }
 
@@ -127,12 +127,12 @@ impl<R: Runtime> Listeners<R> {
   pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<Window<R>>,
+    webview: Option<Webview<R>>,
     handler: F,
   ) -> EventId {
     let id = self.next_event_id();
     let handler = Handler {
-      window,
+      webview,
       callback: Box::new(handler),
     };
 
@@ -145,13 +145,13 @@ impl<R: Runtime> Listeners<R> {
   pub(crate) fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<Window<R>>,
+    webview: Option<Webview<R>>,
     handler: F,
   ) {
     let self_ = self.clone();
     let handler = Cell::new(Some(handler));
 
-    self.listen(event, window, move |event| {
+    self.listen(event, webview, move |event| {
       self_.unlisten(event.id);
       let handler = handler
         .take()
@@ -173,7 +173,7 @@ impl<R: Runtime> Listeners<R> {
   /// Emits the given event with its payload based on a filter.
   pub(crate) fn emit_filter<F>(&self, emit_args: &EmitArgs, filter: Option<F>) -> crate::Result<()>
   where
-    F: Fn(&Window<R>) -> bool,
+    F: Fn(&Webview<R>) -> bool,
   {
     let mut maybe_pending = false;
     match self.inner.handlers.try_lock() {
@@ -185,7 +185,7 @@ impl<R: Runtime> Listeners<R> {
               .iter()
               .filter(|h| {
                 h.1
-                  .window
+                  .webview
                   .as_ref()
                   .map(|w| {
                     // clippy sees this as redundant closure but
@@ -222,7 +222,7 @@ impl<R: Runtime> Listeners<R> {
 
   /// Emits the given event with its payload.
   pub(crate) fn emit(&self, emit_args: &EmitArgs) -> crate::Result<()> {
-    self.emit_filter(emit_args, None::<&dyn Fn(&Window<R>) -> bool>)
+    self.emit_filter(emit_args, None::<&dyn Fn(&Webview<R>) -> bool>)
   }
 }
 

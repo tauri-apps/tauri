@@ -20,7 +20,6 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::event::EmitArgs;
 use crate::{
   app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
   event::{assert_event_name_is_valid, Event, EventId, Listeners},
@@ -33,11 +32,13 @@ use crate::{
   },
   Context, Pattern, Runtime, StateManager, Window,
 };
+use crate::{event::EmitArgs, Webview};
 
 #[cfg(desktop)]
 mod menu;
 #[cfg(all(desktop, feature = "tray-icon"))]
 mod tray;
+pub mod webview;
 pub mod window;
 
 #[derive(Default)]
@@ -179,6 +180,7 @@ pub struct Asset {
 #[default_runtime(crate::Wry, wry)]
 pub struct AppManager<R: Runtime> {
   pub window: window::WindowManager<R>,
+  pub webview: webview::WebviewManager<R>,
   #[cfg(all(desktop, feature = "tray-icon"))]
   pub tray: tray::TrayManager<R>,
   #[cfg(desktop)]
@@ -226,7 +228,7 @@ impl<R: Runtime> AppManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
-    uri_scheme_protocols: HashMap<String, Arc<window::UriSchemeProtocol<R>>>,
+    uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<
@@ -244,11 +246,14 @@ impl<R: Runtime> AppManager<R> {
     Self {
       window: window::WindowManager {
         windows: Mutex::default(),
+        default_icon: context.default_window_icon,
+        event_listeners: Arc::new(window_event_listeners),
+      },
+      webview: webview::WebviewManager {
+        webviews: Mutex::default(),
         invoke_handler,
         on_page_load,
-        default_icon: context.default_window_icon,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
-        event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,
       },
@@ -410,7 +415,7 @@ impl<R: Runtime> AppManager<R> {
   }
 
   pub fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
-    (self.window.invoke_handler)(invoke)
+    (self.webview.invoke_handler)(invoke)
   }
 
   pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
@@ -440,7 +445,7 @@ impl<R: Runtime> AppManager<R> {
   pub fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<Window<R>>,
+    window: Option<Webview<R>>,
     handler: F,
   ) -> EventId {
     assert_event_name_is_valid(&event);
@@ -460,7 +465,7 @@ impl<R: Runtime> AppManager<R> {
     assert_event_name_is_valid(&event);
     self
       .listeners()
-      .once(event, window.and_then(|w| self.get_window(&w)), handler)
+      .once(event, window.and_then(|w| self.get_webview(&w)), handler)
   }
 
   pub fn emit_filter<S, F>(
@@ -472,15 +477,15 @@ impl<R: Runtime> AppManager<R> {
   ) -> crate::Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Window<R>) -> bool,
+    F: Fn(&Webview<R>) -> bool,
   {
     assert_event_name_is_valid(event);
 
     let emit_args = EmitArgs::from(event, source_window_label, payload)?;
 
     self
-      .window
-      .windows_lock()
+      .webview
+      .webviews_lock()
       .values()
       .filter(|w| {
         w.has_js_listener(None, event)
@@ -505,8 +510,8 @@ impl<R: Runtime> AppManager<R> {
     let emit_args = EmitArgs::from(event, source_window_label, payload)?;
 
     self
-      .window
-      .windows_lock()
+      .webview
+      .webviews_lock()
       .values()
       .filter(|w| {
         w.has_js_listener(None, event)
@@ -534,6 +539,14 @@ impl<R: Runtime> AppManager<R> {
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.window.windows_lock().clone()
+  }
+
+  pub fn get_webview(&self, label: &str) -> Option<Webview<R>> {
+    self.webview.webviews_lock().get(label).cloned()
+  }
+
+  pub fn webviews(&self) -> HashMap<String, Webview<R>> {
+    self.webview.webviews_lock().clone()
   }
 }
 

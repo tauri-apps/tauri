@@ -7,7 +7,8 @@ use serde_json::Value as JsonValue;
 use tauri_runtime::window::is_label_valid;
 
 use crate::plugin::{Builder, TauriPlugin};
-use crate::{command, ipc::CallbackFn, EventId, Manager, Result, Runtime, Window};
+use crate::Webview;
+use crate::{command, ipc::CallbackFn, EventId, Manager, Result, Runtime};
 
 use super::is_event_name_valid;
 
@@ -35,25 +36,25 @@ impl<'de> Deserialize<'de> for EventName {
   }
 }
 
-pub struct WindowLabel(String);
+pub struct WebviewLabel(String);
 
-impl AsRef<str> for WindowLabel {
+impl AsRef<str> for WebviewLabel {
   fn as_ref(&self) -> &str {
     &self.0
   }
 }
 
-impl<'de> Deserialize<'de> for WindowLabel {
+impl<'de> Deserialize<'de> for WebviewLabel {
   fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
   where
     D: Deserializer<'de>,
   {
     let event_id = String::deserialize(deserializer)?;
     if is_label_valid(&event_id) {
-      Ok(WindowLabel(event_id))
+      Ok(WebviewLabel(event_id))
     } else {
       Err(serde::de::Error::custom(
-        "Window label must include only alphanumeric characters, `-`, `/`, `:` and `_`.",
+        "Webview label must include only alphanumeric characters, `-`, `/`, `:` and `_`.",
       ))
     }
   }
@@ -61,30 +62,34 @@ impl<'de> Deserialize<'de> for WindowLabel {
 
 #[command(root = "crate")]
 pub fn listen<R: Runtime>(
-  window: Window<R>,
+  webview: Webview<R>,
   event: EventName,
-  window_label: Option<WindowLabel>,
+  webview_label: Option<WebviewLabel>,
   handler: CallbackFn,
 ) -> Result<EventId> {
-  window.listen_js(window_label.map(|l| l.0), event.0, handler)
+  webview.listen_js(webview_label.map(|l| l.0), event.0, handler)
 }
 
 #[command(root = "crate")]
-pub fn unlisten<R: Runtime>(window: Window<R>, event: EventName, event_id: EventId) -> Result<()> {
-  window.unlisten_js(event.as_ref(), event_id)
+pub fn unlisten<R: Runtime>(
+  webview: Webview<R>,
+  event: EventName,
+  event_id: EventId,
+) -> Result<()> {
+  webview.unlisten_js(event.as_ref(), event_id)
 }
 
 #[command(root = "crate")]
 pub fn emit<R: Runtime>(
-  window: Window<R>,
+  webview: Webview<R>,
   event: EventName,
-  window_label: Option<WindowLabel>,
+  webview_label: Option<WebviewLabel>,
   payload: Option<JsonValue>,
 ) -> Result<()> {
-  if let Some(label) = window_label {
-    window.emit_filter(&event.0, payload, |w| label.as_ref() == w.label())
+  if let Some(label) = webview_label {
+    webview.emit_filter(&event.0, payload, |w| label.as_ref() == w.label())
   } else {
-    window.emit(&event.0, payload)
+    webview.emit(&event.0, payload)
   }
 }
 

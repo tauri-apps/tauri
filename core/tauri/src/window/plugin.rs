@@ -19,7 +19,7 @@ mod desktop_commands {
     command,
     utils::config::{WindowConfig, WindowEffectsConfig},
     AppHandle, CursorIcon, Icon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
-    Theme, UserAttentionType, Window, WindowBuilder,
+    Theme, UserAttentionType, Webview, Window, WindowBuilder,
   };
 
   #[derive(Deserialize)]
@@ -66,6 +66,16 @@ mod desktop_commands {
     match label {
       Some(l) if !l.is_empty() => window.get_window(&l).ok_or(crate::Error::WindowNotFound),
       _ => Ok(window),
+    }
+  }
+
+  fn get_webview<R: Runtime>(
+    webview: Webview<R>,
+    label: Option<String>,
+  ) -> crate::Result<Webview<R>> {
+    match label {
+      Some(l) if !l.is_empty() => webview.get_webview(&l).ok_or(crate::Error::WebviewNotFound),
+      _ => Ok(webview),
     }
   }
 
@@ -200,14 +210,14 @@ mod desktop_commands {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[command(root = "crate")]
   pub async fn internal_toggle_devtools<R: Runtime>(
-    window: Window<R>,
+    webview: crate::Webview<R>,
     label: Option<String>,
   ) -> crate::Result<()> {
-    let window = get_window(window, label)?;
-    if window.is_devtools_open() {
-      window.close_devtools();
+    let webview = get_webview(webview, label)?;
+    if webview.is_devtools_open() {
+      webview.close_devtools();
     } else {
-      window.open_devtools();
+      webview.open_devtools();
     }
     Ok(())
   }

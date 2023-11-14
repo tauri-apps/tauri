@@ -214,6 +214,7 @@ pub use {
     config::{Config, WindowUrl},
     Env, PackageInfo, Theme,
   },
+  self::webview::{Webview, WebviewBuilder},
   self::window::{Monitor, Window, WindowBuilder},
   scope::*,
 };
@@ -687,7 +688,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Window<R>) -> bool,
+    F: Fn(&Webview<R>) -> bool,
   {
     self.manager().emit_filter(event, None, payload, filter)
   }
@@ -704,6 +705,16 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Fetch all managed windows.
   fn windows(&self) -> HashMap<String, Window<R>> {
     self.manager().windows()
+  }
+
+  /// Fetch a single webview from the manager.
+  fn get_webview(&self, label: &str) -> Option<Webview<R>> {
+    self.manager().get_webview(label)
+  }
+
+  /// Fetch all managed webviews.
+  fn webviews(&self) -> HashMap<String, Webview<R>> {
+    self.manager().webviews()
   }
 
   /// Add `state` to the state managed by the application.

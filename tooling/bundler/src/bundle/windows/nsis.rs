@@ -290,14 +290,12 @@ fn build_nsis_app_installer(
     .iter()
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+  let main_binary_path = settings.binary_path(main_binary).with_extension("exe");
   data.insert(
     "main_binary_name",
     to_json(main_binary.name().replace(".exe", "")),
   );
-  data.insert(
-    "main_binary_path",
-    to_json(settings.binary_path(main_binary).with_extension("exe")),
-  );
+  data.insert("main_binary_path", to_json(&main_binary_path));
 
   let out_file = "nsis-output.exe";
   data.insert("out_file", to_json(out_file));
@@ -306,10 +304,13 @@ fn build_nsis_app_installer(
   let resources_dirs =
     std::collections::HashSet::<PathBuf>::from_iter(resources.values().map(|r| r.0.to_owned()));
   data.insert("resources_dirs", to_json(resources_dirs));
-  data.insert("resources", to_json(resources));
+  data.insert("resources", to_json(&resources));
 
   let binaries = generate_binaries_data(settings)?;
-  data.insert("binaries", to_json(binaries));
+  data.insert("binaries", to_json(&binaries));
+
+  let estimated_size = generate_estimated_size(&main_binary_path, &binaries, &resources)?;
+  data.insert("estimated_size", to_json(estimated_size));
 
   let silent_webview2_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
   | WebviewInstallMode::EmbedBootstrapper { silent }
@@ -553,6 +554,30 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
   }
 
   Ok(binaries)
+}
+
+fn generate_estimated_size(
+  main: &Path,
+  binaries: &BinariesMap,
+  resources: &ResourcesMap,
+) -> crate::Result<String> {
+  use std::fs::metadata;
+
+  let mut size = 0;
+
+  size = size + metadata(main)?.len();
+
+  for (k, _) in binaries {
+    size = size + metadata(k)?.len();
+  }
+
+  for (k, _) in resources {
+    size = size + metadata(k)?.len();
+  }
+
+  size = size / 1000;
+
+  Ok(format!("{size:#08x}"))
 }
 
 fn get_lang_data(

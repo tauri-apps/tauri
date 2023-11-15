@@ -3493,7 +3493,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.38",
  "tauri-codegen",
  "tauri-utils",
 ]

@@ -102,6 +102,9 @@ cc = "1"
 [target."cfg(unix)".dependencies]
 libc = "0.2"
 
+[target."cfg(target_os = \"macos\")".dependencies]
+plist = "1"
+
 [features]
 default = [ "rustls" ]
 native-tls = [

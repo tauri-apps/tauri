@@ -565,17 +565,17 @@ fn generate_estimated_size(
 
   let mut size = 0;
 
-  size = size + metadata(main)?.len();
+  size += metadata(main)?.len();
 
-  for (k, _) in binaries {
-    size = size + metadata(k)?.len();
+  for k in binaries.keys() {
+    size += metadata(k)?.len();
   }
 
-  for (k, _) in resources {
-    size = size + metadata(k)?.len();
+  for k in resources.keys() {
+    size += metadata(k)?.len();
   }
 
-  size = size / 1000;
+  size /= 1000;
 
   Ok(format!("{size:#08x}"))
 }

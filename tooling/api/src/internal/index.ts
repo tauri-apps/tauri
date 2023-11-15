@@ -32,24 +32,3 @@ export class Resource {
     })
   }
 }
-
-/** Extends a base class by other specifed classes */
-export function applyMixins(
-  baseClass: { prototype: unknown },
-  extendedClasses: unknown
-): void {
-  ;(Array.isArray(extendedClasses)
-    ? extendedClasses
-    : [extendedClasses]
-  ).forEach((extendedClass: { prototype: unknown }) => {
-    Object.getOwnPropertyNames(extendedClass.prototype).forEach((name) => {
-      Object.defineProperty(
-        baseClass.prototype,
-        name,
-        // eslint-disable-next-line
-        Object.getOwnPropertyDescriptor(extendedClass.prototype, name) ??
-          Object.create(null)
-      )
-    })
-  })
-}

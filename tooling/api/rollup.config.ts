@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { defineConfig, Plugin } from 'rollup'
+import { defineConfig, Plugin, RollupLog } from 'rollup'
 import typescript from '@rollup/plugin-typescript'
 import terser from '@rollup/plugin-terser'
 import fg from 'fast-glob'
@@ -31,6 +31,7 @@ export default defineConfig([
         format: 'esm',
         dir: './dist',
         preserveModules: true,
+        preserveModulesRoot: 'src',
         entryFileNames: (chunkInfo) => {
           if (chunkInfo.name.includes('node_modules')) {
             return chunkInfo.name.replace('node_modules', 'external') + '.js'
@@ -43,6 +44,7 @@ export default defineConfig([
         format: 'cjs',
         dir: './dist',
         preserveModules: true,
+        preserveModulesRoot: 'src',
         entryFileNames: (chunkInfo) => {
           if (chunkInfo.name.includes('node_modules')) {
             return chunkInfo.name.replace('node_modules', 'external') + '.cjs'
@@ -55,11 +57,12 @@ export default defineConfig([
     plugins: [
       typescript({
         declaration: true,
-        declarationDir: './dist',
+        declarationDir: './dist/types',
         rootDir: 'src'
       }),
       makeFlatPackageInDist()
-    ]
+    ],
+    onwarn
   },
 
   {
@@ -70,9 +73,23 @@ export default defineConfig([
       footer: 'window.__TAURI__ = __TAURI_IIFE__',
       file: '../../core/tauri/scripts/bundle.global.js'
     },
-    plugins: [typescript(), terser()]
+    plugins: [typescript(), terser()],
+    onwarn
   }
 ])
+
+function onwarn(warning: RollupLog) {
+  // Silence circular dependency warning for menu module
+  if (
+    warning.code === 'CIRCULAR_DEPENDENCY' &&
+    warning.message.includes('src/menu')
+  ) {
+    return
+  }
+
+  // deny warnings by default
+  throw Object.assign(new Error(), warning)
+}
 
 function makeFlatPackageInDist(): Plugin {
   return {
@@ -88,13 +105,17 @@ function makeFlatPackageInDist(): Plugin {
         exports: Object.assign(
           {},
           ...mods.map((mod) => {
-            let temp: Record<string, { import: string; require: string }> = {}
+            let temp: Record<
+              string,
+              { types: string; import: string; require: string }
+            > = {}
             let key = `./${mod}`
             if (mod === 'index') {
               key = '.'
             }
 
             temp[key] = {
+              types: `./types/${mod}.d.ts`,
               import: `./${mod}.js`,
               require: `./${mod}.cjs`
             }

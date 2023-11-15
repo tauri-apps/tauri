@@ -21,7 +21,7 @@ anyhow = "1"
 quote = { version = "1", optional = true }
 tauri-codegen = { version = "1.4.1", path = "../tauri-codegen", optional = true }
 tauri-utils = { version = "1.5.0", path = "../tauri-utils", features = [ "build", "resources" ] }
-cargo_toml = "0.15"
+cargo_toml = "0.17"
 serde = "1"
 serde_json = "1"
 heck = "0.4"

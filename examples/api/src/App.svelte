@@ -44,12 +44,12 @@
     {
       label: 'Menu',
       component: Menu,
-      icon: 'i-ph-broadcast'
+      icon: 'i-ph-list'
     },
     {
       label: 'Tray',
       component: Tray,
-      icon: 'i-ph-broadcast'
+      icon: 'i-ph-tray'
     },
     {
       label: 'WebRTC',
@@ -310,16 +310,21 @@
       class="select-none h-15rem grid grid-rows-[2px_2rem_1fr] gap-1 overflow-hidden"
     >
       <div
+        role="button"
+        tabindex="0"
         on:mousedown={startResizingConsole}
         class="bg-black/20 h-2px cursor-ns-resize"
       />
       <div class="flex justify-between items-center px-2">
         <p class="font-semibold">Console</p>
         <div
+          role="button"
+          tabindex="0"
           class="cursor-pointer h-85% rd-1 p-1 flex justify-center items-center
                 hover:bg-hoverOverlay dark:hover:bg-darkHoverOverlay
                 active:bg-hoverOverlay/25 dark:active:bg-darkHoverOverlay/25
           "
+          on:keypress={(e) => e.key === "Enter"? clear() : {} }
           on:click={clear}
         >
           <div class="i-codicon-clear-all" />

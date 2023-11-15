@@ -13,6 +13,7 @@
   let text = ''
   let icon = ''
   let predefinedItem = ''
+  let checked = true
 
   const itemKinds = ['Normal', 'Icon', 'Check', 'Predefined']
   const predefinedOptions = [
@@ -67,6 +68,7 @@
       case 'Check':
         options = {
           text,
+          checked,
           action: (id) => dispatch('itemClick', { id, text: t })
         }
         item = await CheckMenuItem.new(options)
@@ -85,26 +87,29 @@
   }
 </script>
 
-<div class="flex flex-row children:grow gap-2 items-center justify-between">
-  <div class="flex flex-col" style="max-width: 160px">
+<div class="flex flex-row gap-2 flex-grow-0">
+  <div class="flex flex-col">
     {#each itemKinds as itemKind}
-      <label>
+      <div class="flex gap-1">
         <input
-          checked={kind === itemKind}
-          on:change={onKindChange}
-          type="radio"
-          name="kind"
-          bind:value={itemKind}
-        />
-        {itemKind}
-      </label>
+            id="{itemKind}Input"
+            checked={kind === itemKind}
+            on:change={onKindChange}
+            type="radio"
+            name="kind"
+            bind:value={itemKind}
+          />
+        <label for="{itemKind}Input">{itemKind}</label>
+      </div>
     {/each}
   </div>
 
-  <div class="flex flex-col" style="max-height: 40px">
+  <div class="bg-gray/30 dark:bg-white/5 w-1px flex-shrink-0" />
+
+  <div class="flex flex-col gap-2">
     {#if kind == 'Normal' || kind == 'Icon' || kind == 'Check'}
       <input
-        class="input grow"
+        class="input"
         type="text"
         placeholder="Text"
         bind:value={text}
@@ -112,30 +117,42 @@
     {/if}
     {#if kind == 'Icon'}
       <input
-        class="input grow"
+        class="input"
         type="icon"
         placeholder="Icon"
         bind:value={icon}
       />
+    {:else if kind == 'Check'}
+      <div class="flex gap-1">
+        <input
+            id="checkItemCheckedInput"
+            type="checkbox"
+            bind:checked={checked}
+          />
+        <label for="checkItemCheckedInput">Enabled</label>
+      </div>
     {:else if kind == 'Predefined'}
-      <div class="flex flex-col flex-wrap" style="max-height: 40px">
+      <div class="flex gap-2 flex-wrap">
         {#each predefinedOptions as predefinedOption}
-          <label>
+          <div class="flex gap-1">
             <input
-              checked={kind === predefinedOption}
-              on:change={onPredefinedChange}
-              type="radio"
-              name="predefinedKind"
-              bind:value={predefinedOption}
-            />
-            {predefinedOption}
-          </label>
+                id="{predefinedOption}Input"
+                checked={kind === predefinedOption}
+                on:change={onPredefinedChange}
+                type="radio"
+                name="predefinedKind"
+                bind:value={predefinedOption}
+              />
+            <label for="{predefinedOption}Input">{predefinedOption}</label>
+          </div>
         {/each}
       </div>
     {/if}
   </div>
 
-  <div class="flex flex-col items-end">
+  <div class="grow"></div>
+
+  <div class="flex flex-col">
     <button class="btn" on:click={create}>Create</button>
   </div>
 </div>

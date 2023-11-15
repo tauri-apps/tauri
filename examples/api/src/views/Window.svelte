@@ -308,9 +308,9 @@
   {#if windowMap[selectedWindow]}
     <br />
     <div class="flex gap-1 items-center">
-      <label> Icon path </label>
+      <label for="windowIconPath"> Icon path </label>
       <form class="flex gap-1 grow" on:submit|preventDefault={setTitle_}>
-        <input class="input grow" bind:value={windowIconPath} />
+        <input id="windowIconPath" class="input grow" bind:value={windowIconPath} />
         <button class="btn" type="submit"> Change window icon </button>
       </form>
     </div>

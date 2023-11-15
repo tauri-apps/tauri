@@ -23,7 +23,7 @@
       return 'i-ph-images-square'
     }
     if (item.item instanceof CheckMenuItem) {
-      return 'i-ph-check-duotone'
+      return item.options.checked ? 'i-ph-check-duotone' : 'i-ph-square-duotone'
     }
     if (item.options.item) {
       return 'i-ph-globe-stand'

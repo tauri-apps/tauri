@@ -79,14 +79,6 @@ export default defineConfig([
 ])
 
 function onwarn(warning: RollupLog) {
-  // Silence circular dependency warning for menu module
-  if (
-    warning.code === 'CIRCULAR_DEPENDENCY' &&
-    warning.message.includes('src/menu')
-  ) {
-    return
-  }
-
   // deny warnings by default
   throw Object.assign(new Error(), warning)
 }

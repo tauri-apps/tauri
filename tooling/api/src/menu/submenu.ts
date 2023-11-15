@@ -11,8 +11,36 @@ import {
 } from '../menu'
 import { invoke } from '../primitives'
 import { type LogicalPosition, PhysicalPosition, type Window } from '../window'
-import { type ItemKind, MenuItemBase, itemFromKind, newMenu } from './base'
+import { type ItemKind, MenuItemBase, newMenu } from './base'
 import { type MenuOptions } from './menu'
+
+function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
+  | Submenu
+  | MenuItem
+  | PredefinedMenuItem
+  | CheckMenuItem
+  | IconMenuItem {
+  /* eslint-disable @typescript-eslint/no-unsafe-return */
+  switch (kind) {
+    case 'Submenu':
+      // @ts-expect-error constructor is protected for external usage only, safe for us to use
+      return new Submenu(rid, id)
+    case 'Predefined':
+      // @ts-expect-error constructor is protected for external usage only, safe for us to use
+      return new PredefinedMenuItem(rid, id)
+    case 'Check':
+      // @ts-expect-error constructor is protected for external usage only, safe for us to use
+      return new CheckMenuItem(rid, id)
+    case 'Icon':
+      // @ts-expect-error constructor is protected for external usage only, safe for us to use
+      return new IconMenuItem(rid, id)
+    case 'MenuItem':
+    default:
+      // @ts-expect-error constructor is protected for external usage only, safe for us to use
+      return new MenuItem(rid, id)
+  }
+  /* eslint-enable @typescript-eslint/no-unsafe-return */
+}
 
 export type SubmenuOptions = Omit<MenuItemOptions, 'accelerator' | 'action'> &
   MenuOptions

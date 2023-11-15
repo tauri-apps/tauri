@@ -531,21 +531,21 @@ Section Install
 
   ; Copy main executable
   File "${MAINBINARYSRCPATH}"
-  ${GetSize} "$INSTDIR" "/M=${MAINBINARYNAME}.exe /S=0B" $0 $1 $2
+  ${GetSize} "$INSTDIR\${MAINBINARYNAME}.exe" "/S=0B" $0 $1 $2
   IntOp $AppSize $AppSize + $0
 
   ; Copy resources
   {{#each resources}}
     CreateDirectory "$INSTDIR\\{{this.[0]}}"
     File /a "/oname={{this.[1]}}" "{{@key}}"
-    ${GetSize} "$INSTDIR" "/M={{this.[1]}} /S=0B" $0 $1 $2
+    ${GetSize} "$INSTDIR\{{this.[1]}}" "/S=0B" $0 $1 $2
     IntOp $AppSize $AppSize + $0
   {{/each}}
 
   ; Copy external binaries
   {{#each binaries}}
     File /a "/oname={{this}}" "{{@key}}"
-    ${GetSize} "$INSTDIR" "/M={{this}} /S=0B" $0 $1 $2
+    ${GetSize} "$INSTDIR\{{this}}" "/S=0B" $0 $1 $2
     IntOp $AppSize $AppSize + $0
   {{/each}}
 

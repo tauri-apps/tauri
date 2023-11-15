@@ -49,6 +49,9 @@ jobs:
       - name: install deps via yarn
         working-directory: ./tooling/api/
         run: yarn
+      - name: run ts:check
+        working-directory: ./tooling/api/
+        run: yarn ts:check
       - name: run lint
         working-directory: ./tooling/api/
         run: yarn lint

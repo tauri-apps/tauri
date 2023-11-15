@@ -303,6 +303,9 @@ fn build_nsis_app_installer(
   data.insert("out_file", to_json(out_file));
 
   let resources = generate_resource_data(settings)?;
+  let resources_dirs =
+    std::collections::HashSet::<PathBuf>::from_iter(resources.values().map(|r| r.0.to_owned()));
+  data.insert("resources_dirs", to_json(resources_dirs));
   data.insert("resources", to_json(resources));
 
   let binaries = generate_binaries_data(settings)?;

@@ -535,8 +535,10 @@ Section Install
   IntOp $AppSize $AppSize + $0
 
   ; Copy resources
+  {{#each resources_dirs}}
+    CreateDirectory "$INSTDIR\{{this}}"
+  {{/each}}
   {{#each resources}}
-    CreateDirectory "$INSTDIR\\{{this.[0]}}"
     File /a "/oname={{this.[1]}}" "{{@key}}"
     ${GetSize} "$INSTDIR\{{this.[1]}}" "/S=0B" $0 $1 $2
     IntOp $AppSize $AppSize + $0

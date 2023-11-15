@@ -15,18 +15,21 @@ export type ItemKind =
 
 export async function newMenu(
   kind: ItemKind,
-  opts?: { action?: () => void; items: { rid: number; kind: string }[] }
+  opts?: unknown
 ): Promise<[number, string]> {
   const handler = new Channel<string>()
   let items: null | Array<[number, string]> = null
-  if (opts) {
+  if (opts && typeof opts === 'object') {
     if ('action' in opts && opts.action) {
-      handler.onmessage = opts.action
+      handler.onmessage = opts.action as () => void
       delete opts.action
     }
 
     if ('items' in opts && opts.items) {
-      items = opts.items.map((i) => [i.rid, i.kind])
+      items = (opts.items as { rid: number; kind: string }[]).map((i) => [
+        i.rid,
+        i.kind
+      ])
     }
   }
 

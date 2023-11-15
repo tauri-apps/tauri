@@ -15,7 +15,7 @@ export type ItemKind =
 
 export async function newMenu(
   kind: ItemKind,
-  opts?: any
+  opts?: { action?: () => void; items: { rid: number; kind: string }[] }
 ): Promise<[number, string]> {
   const handler = new Channel<string>()
   let items: null | Array<[number, string]> = null
@@ -26,7 +26,7 @@ export async function newMenu(
     }
 
     if ('items' in opts && opts.items) {
-      items = opts.items.map((i: any) => [i.rid, i.kind])
+      items = opts.items.map((i) => [i.rid, i.kind])
     }
   }
 

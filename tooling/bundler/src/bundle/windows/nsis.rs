@@ -563,15 +563,9 @@ fn generate_estimated_size(
 ) -> crate::Result<String> {
   use std::fs::metadata;
 
-  let mut size = 0;
+  let mut size = metadata(main)?.len();
 
-  size += metadata(main)?.len();
-
-  for k in binaries.keys() {
-    size += metadata(k)?.len();
-  }
-
-  for k in resources.keys() {
+  for k in binaries.keys().chain(resources.keys()) {
     size += metadata(k)?.len();
   }
 

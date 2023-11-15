@@ -14,7 +14,7 @@ use crate::TitleBarStyle;
 use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
-  event::{Event, EventId},
+  event::{Event, EventId, EventSource},
   ipc::InvokeError,
   manager::AppManager,
   runtime::{
@@ -697,7 +697,16 @@ impl<R: Runtime> PartialEq for Window<R> {
 
 impl<R: Runtime> Manager<R> for Window<R> {
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager().emit(event, Some(self.label()), payload)?;
+    // store the webviews before emit_filter() to prevent a deadlock
+    let webviews = self.webviews();
+    self.manager().emit_filter(
+      event,
+      EventSource::Window {
+        label: self.label().to_string(),
+      },
+      payload,
+      |w| webviews.values().any(|w2| w2 == w),
+    )?;
     Ok(())
   }
 
@@ -707,9 +716,14 @@ impl<R: Runtime> Manager<R> for Window<R> {
     event: &str,
     payload: S,
   ) -> crate::Result<()> {
-    self
-      .manager()
-      .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
+    self.manager().emit_filter(
+      event,
+      EventSource::Window {
+        label: self.label().to_string(),
+      },
+      payload,
+      |w| label == w.label(),
+    )
   }
 
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
@@ -717,9 +731,14 @@ impl<R: Runtime> Manager<R> for Window<R> {
     S: Serialize + Clone,
     F: Fn(&Webview<R>) -> bool,
   {
-    self
-      .manager()
-      .emit_filter(event, Some(self.label()), payload, filter)
+    self.manager().emit_filter(
+      event,
+      EventSource::Window {
+        label: self.label().to_string(),
+      },
+      payload,
+      filter,
+    )
   }
 }
 

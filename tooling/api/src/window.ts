@@ -22,7 +22,13 @@ import {
   PhysicalPosition,
   PhysicalSize
 } from './dpi'
-import type { Event, EventName, EventCallback, UnlistenFn } from './event'
+import type {
+  Event,
+  EventName,
+  EventCallback,
+  UnlistenFn,
+  EventSource
+} from './event'
 import { TauriEvent, emit, listen, once } from './event'
 import { invoke } from './primitives'
 
@@ -86,15 +92,15 @@ enum UserAttentionType {
 class CloseRequestedEvent {
   /** Event name */
   event: EventName
-  /** The label of the window that emitted this event. */
-  windowLabel: string
+  /** The source of the event. */
+  source: EventSource
   /** Event identifier used to unlisten */
   id: number
   private _preventDefault = false
 
   constructor(event: Event<null>) {
     this.event = event.event
-    this.windowLabel = event.windowLabel
+    this.source = event.source
     this.id = event.id
   }
 
@@ -426,7 +432,12 @@ class Window {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
-        handler({ event, id: -1, windowLabel: this.label, payload })
+        handler({
+          event,
+          id: -1,
+          source: { kind: 'window', label: this.label },
+          payload
+        })
       }
       return Promise.resolve()
     }

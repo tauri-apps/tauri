@@ -229,7 +229,7 @@ impl<R: Runtime> Listeners<R> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::test::MockRuntime;
+  use crate::{event::EventSource, test::MockRuntime};
   use proptest::prelude::*;
 
   // dummy event handler function
@@ -289,7 +289,7 @@ mod test {
       // call listen with key and the event_fn dummy func
       listeners.listen(key.clone(), None, event_fn);
       // call on event with key and d.
-      listeners.emit(&EmitArgs { event_name: key.clone(), event: serde_json::to_string(&key).unwrap(), source_window_label: "null".into(), payload: serde_json::to_string(&d).unwrap() })?;
+      listeners.emit(&EmitArgs { event_name: key.clone(), event: serde_json::to_string(&key).unwrap(), source: EventSource::Global, payload: serde_json::to_string(&d).unwrap() })?;
 
       // lock the mutex
       let l = listeners.inner.handlers.lock().unwrap();

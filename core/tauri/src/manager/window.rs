@@ -19,8 +19,8 @@ use tauri_runtime::{
 };
 
 use crate::{
-  app::GlobalWindowEventListener, AppHandle, EventLoopMessage, GlobalWindowEvent, Icon, Manager,
-  Runtime, Scopes, Window, WindowEvent,
+  app::GlobalWindowEventListener, event::EventSource, AppHandle, EventLoopMessage,
+  GlobalWindowEvent, Icon, Manager, Runtime, Scopes, Window, WindowEvent,
 };
 
 use super::AppManager;
@@ -150,11 +150,14 @@ fn on_window_event<R: Runtime>(
     WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, size)?,
     WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested { api } => {
-      if window
-        .webviews()
-        .values()
-        .any(|w| w.has_js_listener(Some(window.label().into()), WINDOW_CLOSE_REQUESTED_EVENT))
-      {
+      if window.webviews().values().any(|w| {
+        w.has_js_listener(
+          &EventSource::Window {
+            label: window.label().into(),
+          },
+          WINDOW_CLOSE_REQUESTED_EVENT,
+        )
+      }) {
         api.prevent_close();
       }
       window.emit(WINDOW_CLOSE_REQUESTED_EVENT, ())?;

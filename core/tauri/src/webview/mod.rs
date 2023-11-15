@@ -18,7 +18,7 @@ pub use url::Url;
 use crate::{
   app::UriSchemeResponder,
   command::{CommandArg, CommandItem},
-  event::EmitArgs,
+  event::{EmitArgs, EventSource},
   ipc::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
@@ -82,12 +82,31 @@ impl<'a> PageLoadPayload<'a> {
 }
 
 /// Key for a JS event listener.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct JsEventListenerKey {
-  /// The associated window label.
-  pub window_label: Option<String>,
+  /// The source.
+  pub source: EventSource,
   /// The event name.
   pub event: String,
+}
+
+impl Hash for JsEventListenerKey {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.event.hash(state);
+    match &self.source {
+      EventSource::Global => {
+        "global".hash(state);
+      }
+      EventSource::Webview { label } => {
+        "webview".hash(state);
+        label.hash(state);
+      }
+      EventSource::Window { label } => {
+        "window".hash(state);
+        label.hash(state);
+      }
+    }
+  }
 }
 
 /// The IPC invoke request.
@@ -413,18 +432,29 @@ impl<R: Runtime> WebviewBuilder<R> {
 
   /// Creates a new webview.
   pub fn build(self) -> crate::Result<Webview<R>> {
-    let labels = self
+    let window_labels = self
+      .window
+      .manager
+      .window
+      .labels()
+      .into_iter()
+      .collect::<Vec<_>>();
+    let webview_labels = self
       .window
       .manager
       .webview
       .labels()
       .into_iter()
       .collect::<Vec<_>>();
-    self.build_with_labels(&labels)
+    self.build_with_labels(&window_labels, &webview_labels)
   }
 
-  /// Creates a new webview from the list of existing webview labels.
-  pub(crate) fn build_with_labels(mut self, labels: &[String]) -> crate::Result<Webview<R>> {
+  /// Creates a new webview from the list of existing window and webview labels.
+  pub(crate) fn build_with_labels(
+    mut self,
+    window_labels: &[String],
+    webview_labels: &[String],
+  ) -> crate::Result<Webview<R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
@@ -443,9 +473,12 @@ impl<R: Runtime> WebviewBuilder<R> {
         }));
     }
 
-    let pending = manager
-      .webview
-      .prepare_webview(self.window.clone(), pending, labels)?;
+    let pending = manager.webview.prepare_webview(
+      self.window.clone(),
+      pending,
+      window_labels,
+      webview_labels,
+    )?;
 
     let webview = match &mut self.window.runtime() {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),
@@ -460,7 +493,7 @@ impl<R: Runtime> WebviewBuilder<R> {
 
     manager.emit_filter(
       "tauri://window-created",
-      None,
+      EventSource::Global,
       Some(WindowCreatedEvent {
         label: webview.label().into(),
       }),
@@ -916,7 +949,7 @@ impl<R: Runtime> Webview<R> {
   /// Register a JS event listener and return its identifier.
   pub(crate) fn listen_js(
     &self,
-    window_label: Option<String>,
+    source: EventSource,
     event: String,
     handler: CallbackFn,
   ) -> crate::Result<EventId> {
@@ -926,7 +959,6 @@ impl<R: Runtime> Webview<R> {
       self.manager().listeners().listeners_object_name(),
       &format!("'{}'", event),
       event_id,
-      window_label.as_deref(),
       &format!("window['_{}']", handler.0),
     ))?;
 
@@ -934,10 +966,7 @@ impl<R: Runtime> Webview<R> {
       .js_event_listeners
       .lock()
       .unwrap()
-      .entry(JsEventListenerKey {
-        window_label,
-        event,
-      })
+      .entry(JsEventListenerKey { source, event })
       .or_default()
       .insert(event_id);
 
@@ -980,23 +1009,43 @@ impl<R: Runtime> Webview<R> {
     Ok(())
   }
 
-  /// Whether this window registered a listener to an event from the given window and event name.
-  pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
+  /// Whether this webview registered a listener to an event from the given source and event name.
+  pub(crate) fn has_js_listener(&self, source: &EventSource, event: &str) -> bool {
     let listeners = self.js_event_listeners.lock().unwrap();
 
-    if let Some(label) = window_label {
-      let event = event.to_string();
-      // window-specific event is also triggered on global events, so we check that
-      listeners.contains_key(&JsEventListenerKey {
-        window_label: Some(label),
-        event: event.clone(),
-      }) || listeners.contains_key(&JsEventListenerKey {
-        window_label: None,
-        event,
-      })
-    } else {
+    match source {
       // for global events, any listener is triggered
-      listeners.keys().any(|k| k.event == event)
+      EventSource::Global => listeners.keys().any(|k| k.event == event),
+      // if the window matches this webview's window,
+      // the event is delivered as long as it listens to the event name
+      EventSource::Window { label } if label == self.window.label() => {
+        let event = event.to_string();
+        // webview-specific event is also triggered on global events, so we check that
+        listeners.contains_key(&JsEventListenerKey {
+          source: source.clone(),
+          event: event.clone(),
+        }) || listeners.contains_key(&JsEventListenerKey {
+          source: EventSource::Webview {
+            label: label.clone(),
+          },
+          event: event.clone(),
+        }) || listeners.contains_key(&JsEventListenerKey {
+          source: EventSource::Global,
+          event,
+        })
+      }
+      _ => {
+        let event = event.to_string();
+
+        // webview-specific event is also triggered on global events, so we check that
+        listeners.contains_key(&JsEventListenerKey {
+          source: source.clone(),
+          event: event.clone(),
+        }) || listeners.contains_key(&JsEventListenerKey {
+          source: EventSource::Global,
+          event,
+        })
+      }
     }
   }
 
@@ -1165,7 +1214,13 @@ impl<R: Runtime> Webview<R> {
 
 impl<R: Runtime> Manager<R> for Webview<R> {
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager().emit(event, Some(self.label()), payload)?;
+    self.manager().emit(
+      event,
+      EventSource::Webview {
+        label: self.label().to_string(),
+      },
+      payload,
+    )?;
     Ok(())
   }
 
@@ -1175,9 +1230,14 @@ impl<R: Runtime> Manager<R> for Webview<R> {
     event: &str,
     payload: S,
   ) -> crate::Result<()> {
-    self
-      .manager()
-      .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
+    self.manager().emit_filter(
+      event,
+      EventSource::Webview {
+        label: self.label().to_string(),
+      },
+      payload,
+      |w| label == w.label(),
+    )
   }
 
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
@@ -1185,9 +1245,14 @@ impl<R: Runtime> Manager<R> for Webview<R> {
     S: Serialize + Clone,
     F: Fn(&Webview<R>) -> bool,
   {
-    self
-      .manager()
-      .emit_filter(event, Some(self.label()), payload, filter)
+    self.manager().emit_filter(
+      event,
+      EventSource::Webview {
+        label: self.label().to_string(),
+      },
+      payload,
+      filter,
+    )
   }
 }
 

@@ -11,11 +11,24 @@
 
 import { invoke, transformCallback } from './primitives'
 
+type EventSource =
+  | {
+      kind: 'global'
+    }
+  | {
+      kind: 'window'
+      label: string
+    }
+  | {
+      kind: 'webview'
+      label: string
+    }
+
 interface Event<T> {
   /** Event name */
   event: EventName
-  /** The label of the window that emitted this event. */
-  webviewLabel: string
+  /** The source of the event. Can be a global event, an event from a window or an event from another webview. */
+  source: EventSource
   /** Event identifier used to unlisten */
   id: number
   /** Event payload */
@@ -173,6 +186,13 @@ async function emit(
   })
 }
 
-export type { Event, EventCallback, UnlistenFn, EventName, Options }
+export type {
+  EventSource,
+  Event,
+  EventCallback,
+  UnlistenFn,
+  EventName,
+  Options
+}
 
 export { listen, once, emit, TauriEvent }

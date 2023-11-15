@@ -126,16 +126,16 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       Ok(())
     })
-    .on_page_load(|window, payload| {
+    .on_page_load(|webview, payload| {
       if payload.event() == PageLoadEvent::Finished {
-        let window_ = window.clone();
-        window.listen("js-event", move |event| {
+        let webview_ = webview.clone();
+        webview.listen("js-event", move |event| {
           println!("got js-event with message '{:?}'", event.payload());
           let reply = Reply {
             data: "something else".to_string(),
           };
 
-          window_
+          webview_
             .emit("rust-event", Some(reply))
             .expect("failed to emit");
         });

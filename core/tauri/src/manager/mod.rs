@@ -22,7 +22,7 @@ use tauri_utils::{
 
 use crate::{
   app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
-  event::{assert_event_name_is_valid, Event, EventId, Listeners},
+  event::{assert_event_name_is_valid, Event, EventId, EventSource, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   plugin::PluginStore,
   utils::{
@@ -459,19 +459,19 @@ impl<R: Runtime> AppManager<R> {
   pub fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<String>,
+    webview: Option<String>,
     handler: F,
   ) {
     assert_event_name_is_valid(&event);
     self
       .listeners()
-      .once(event, window.and_then(|w| self.get_webview(&w)), handler)
+      .once(event, webview.and_then(|w| self.get_webview(&w)), handler)
   }
 
   pub fn emit_filter<S, F>(
     &self,
     event: &str,
-    source_window_label: Option<&str>,
+    source: EventSource,
     payload: S,
     filter: F,
   ) -> crate::Result<()>
@@ -481,18 +481,15 @@ impl<R: Runtime> AppManager<R> {
   {
     assert_event_name_is_valid(event);
 
-    let emit_args = EmitArgs::from(event, source_window_label, payload)?;
+    let emit_args = EmitArgs::from(event, &source, payload)?;
 
     self
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| {
-        w.has_js_listener(None, event)
-          || w.has_js_listener(source_window_label.map(Into::into), event)
-      })
+      .filter(|w| w.has_js_listener(&source, event))
       .filter(|w| filter(w))
-      .try_for_each(|window| window.emit_js(&emit_args))?;
+      .try_for_each(|webview| webview.emit_js(&emit_args))?;
 
     self.listeners().emit_filter(&emit_args, Some(filter))?;
 
@@ -502,21 +499,18 @@ impl<R: Runtime> AppManager<R> {
   pub fn emit<S: Serialize + Clone>(
     &self,
     event: &str,
-    source_window_label: Option<&str>,
+    source: EventSource,
     payload: S,
   ) -> crate::Result<()> {
     assert_event_name_is_valid(event);
 
-    let emit_args = EmitArgs::from(event, source_window_label, payload)?;
+    let emit_args = EmitArgs::from(event, &source, payload)?;
 
     self
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| {
-        w.has_js_listener(None, event)
-          || w.has_js_listener(source_window_label.map(Into::into), event)
-      })
+      .filter(|w| w.has_js_listener(&source, event))
       .try_for_each(|window| window.emit_js(&emit_args))?;
 
     self.listeners().emit(&emit_args)?;

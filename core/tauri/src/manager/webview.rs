@@ -106,6 +106,7 @@ impl<R: Runtime> WebviewManager<R> {
     &self,
     mut pending: PendingWebview<EventLoopMessage, R>,
     label: &str,
+    window_labels: &[String],
     webview_labels: &[String],
     window: Window<R>,
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
@@ -155,13 +156,17 @@ impl<R: Runtime> WebviewManager<R> {
         r#"
           Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
+              windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
               webviews: {webview_labels_array}.map(function (label) {{ return {{ label: label }} }}),
-              currentWebview: {{ label: {current_window_label} }}
+              currentWindow: {{ label: {current_window_label} }},
+              currentWebview: {{ label: {current_webview_label} }}
             }}
           }})
         "#,
+        window_labels_array = serde_json::to_string(&window_labels)?,
         webview_labels_array = serde_json::to_string(&webview_labels)?,
-        current_window_label = serde_json::to_string(&label)?,
+        current_window_label = serde_json::to_string(window.label())?,
+        current_webview_label = serde_json::to_string(&label)?,
       ))
       .initialization_script(&self.initialization_script(
         &window.manager,
@@ -363,6 +368,7 @@ impl<R: Runtime> WebviewManager<R> {
     &self,
     window: Window<R>,
     mut pending: PendingWebview<EventLoopMessage, R>,
+    window_labels: &[String],
     webview_labels: &[String],
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     if self.webviews_lock().contains_key(&pending.label) {
@@ -455,6 +461,7 @@ impl<R: Runtime> WebviewManager<R> {
     pending = self.prepare_pending_webview(
       pending,
       &label,
+      window_labels,
       webview_labels,
       #[allow(clippy::redundant_clone)]
       window.clone(),

@@ -23,6 +23,8 @@ declare global {
       metadata: {
         windows: WindowDef[]
         currentWindow: WindowDef
+        webviews: WebviewDef[]
+        currentWebview: WebviewDef
       }
       plugins: {
         path: {
@@ -32,6 +34,11 @@ declare global {
       }
     }
   }
+}
+
+/** @ignore */
+interface WebviewDef {
+  label: string
 }
 
 /** @ignore */

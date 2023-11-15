@@ -1710,7 +1710,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         navigation_handler: None,
         on_page_load_handler: None,
       };
-      webview_builder.build_with_labels(&labels)?;
+      webview_builder.build_with_labels(&labels, &labels)?;
     }
   }
 

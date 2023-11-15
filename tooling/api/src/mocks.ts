@@ -130,7 +130,9 @@ export function mockWindows(
 ): void {
   window.__TAURI_INTERNALS__.metadata = {
     windows: [current, ...additionalWindows].map((label) => ({ label })),
-    currentWindow: { label: current }
+    currentWindow: { label: current },
+    webviews: [current, ...additionalWindows].map((label) => ({ label })),
+    currentWebview: { label: current }
   }
 }
 

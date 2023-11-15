@@ -10,7 +10,7 @@ use crate::plugin::{Builder, TauriPlugin};
 use crate::Webview;
 use crate::{command, ipc::CallbackFn, EventId, Manager, Result, Runtime};
 
-use super::is_event_name_valid;
+use super::{is_event_name_valid, EventSource};
 
 pub struct EventName(String);
 
@@ -67,7 +67,13 @@ pub fn listen<R: Runtime>(
   webview_label: Option<WebviewLabel>,
   handler: CallbackFn,
 ) -> Result<EventId> {
-  webview.listen_js(webview_label.map(|l| l.0), event.0, handler)
+  webview.listen_js(
+    webview_label
+      .map(|l| EventSource::Webview { label: l.0 })
+      .unwrap_or(EventSource::Global),
+    event.0,
+    handler,
+  )
 }
 
 #[command(root = "crate")]
@@ -87,7 +93,7 @@ pub fn emit<R: Runtime>(
   payload: Option<JsonValue>,
 ) -> Result<()> {
   if let Some(label) = webview_label {
-    webview.emit_filter(&event.0, payload, |w| label.as_ref() == w.label())
+    webview.emit_to(&label.0, &event.0, payload)
   } else {
     webview.emit(&event.0, payload)
   }

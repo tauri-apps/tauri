@@ -65,6 +65,7 @@ pub use cocoa;
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
+use event::EventSource;
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
@@ -627,7 +628,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().once(event.into(), None, handler)
   }
 
-  /// Emits an event to all windows.
+  /// Emits an event to all webviews.
   ///
   /// If using [`Window`] to emit the event, it will be used as the source.
   ///
@@ -637,15 +638,15 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// #[tauri::command]
   /// fn synchronize(app: tauri::AppHandle) {
-  ///   // emits the synchronized event to all windows
+  ///   // emits the synchronized event to all webviews
   ///   app.emit("synchronized", ());
   /// }
   /// ```
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-    self.manager().emit(event, None, payload)
+    self.manager().emit(event, EventSource::Global, payload)
   }
 
-  /// Emits an event to the window with the specified label.
+  /// Emits an event to the webview with the specified label.
   ///
   /// If using [`Window`] to emit the event, it will be used as the source.
   ///
@@ -665,10 +666,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
-      .emit_filter(event, None, payload, |w| label == w.label())
+      .emit_filter(event, EventSource::Global, payload, |w| label == w.label())
   }
 
-  /// Emits an event to specific windows based on a filter.
+  /// Emits an event to specific webviews based on a filter.
   ///
   /// If using [`Window`] to emit the event, it will be used as the source.
   ///
@@ -690,7 +691,9 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     S: Serialize + Clone,
     F: Fn(&Webview<R>) -> bool,
   {
-    self.manager().emit_filter(event, None, payload, filter)
+    self
+      .manager()
+      .emit_filter(event, EventSource::Global, payload, filter)
   }
 
   /// Fetch a single window from the manager.

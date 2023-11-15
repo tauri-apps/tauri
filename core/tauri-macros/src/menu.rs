@@ -11,6 +11,9 @@ use syn::{
 };
 
 pub struct DoMenuItemInput {
+  resources_table: Ident,
+  rid: Ident,
+  kind: Ident,
   var: Ident,
   expr: Expr,
   kinds: Vec<NegatedIdent>,
@@ -29,6 +32,12 @@ impl Parse for NegatedIdent {
 
 impl Parse for DoMenuItemInput {
   fn parse(input: ParseStream) -> syn::Result<Self> {
+    let resources_table: Ident = input.parse()?;
+    let _: Token![,] = input.parse()?;
+    let rid: Ident = input.parse()?;
+    let _: Token![,] = input.parse()?;
+    let kind: Ident = input.parse()?;
+    let _: Token![,] = input.parse()?;
     let _: Token![|] = input.parse()?;
     let var: Ident = input.parse()?;
     let _: Token![|] = input.parse()?;
@@ -37,6 +46,9 @@ impl Parse for DoMenuItemInput {
     let kinds = Punctuated::<NegatedIdent, Token![|]>::parse_terminated(input)?;
 
     Ok(Self {
+      resources_table,
+      rid,
+      kind,
       var,
       expr,
       kinds: kinds.into_iter().collect(),
@@ -46,6 +58,9 @@ impl Parse for DoMenuItemInput {
 
 pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
   let DoMenuItemInput {
+    rid,
+    resources_table,
+    kind,
     expr,
     var,
     mut kinds,
@@ -90,10 +105,10 @@ pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
     .unzip();
 
   quote! {
-    match kind {
+    match #kind {
       #(
         ItemKind::#kinds => {
-        let #var = resources_table.get::<#types<R>>(rid)?;
+        let #var = #resources_table.get::<#types<R>>(#rid)?;
         #expr
       }
       )*

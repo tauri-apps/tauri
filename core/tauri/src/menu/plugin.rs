@@ -116,7 +116,7 @@ fn new<R: Runtime>(
       }
       if let Some(items) = options.items {
         for (rid, kind) in items {
-          builder = do_menu_item!(|i| builder.item(&*i));
+          builder = do_menu_item!(resources_table, rid, kind, |i| builder.item(&*i));
         }
       }
       let menu = builder.build()?;
@@ -133,7 +133,7 @@ fn new<R: Runtime>(
       }
       if let Some(items) = options.items {
         for (rid, kind) in items {
-          builder = do_menu_item!(|i| builder.item(&*i));
+          builder = do_menu_item!(resources_table, rid, kind, |i| builder.item(&*i));
         }
       }
 
@@ -240,13 +240,13 @@ fn append<R: Runtime>(
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
       for (rid, kind) in items {
-        do_menu_item!(|i| menu.append(&*i))?;
+        do_menu_item!(resources_table, rid, kind, |i| menu.append(&*i))?;
       }
     }
     ItemKind::Submenu => {
       let submenu = resources_table.get::<Submenu<R>>(rid)?;
       for (rid, kind) in items {
-        do_menu_item!(|i| submenu.append(&*i))?;
+        do_menu_item!(resources_table, rid, kind, |i| submenu.append(&*i))?;
       }
     }
     _ => unreachable!(),
@@ -267,13 +267,13 @@ fn prepend<R: Runtime>(
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
       for (rid, kind) in items {
-        do_menu_item!(|i| menu.prepend(&*i))?;
+        do_menu_item!(resources_table, rid, kind, |i| menu.prepend(&*i))?;
       }
     }
     ItemKind::Submenu => {
       let submenu = resources_table.get::<Submenu<R>>(rid)?;
       for (rid, kind) in items {
-        do_menu_item!(|i| submenu.prepend(&*i))?;
+        do_menu_item!(resources_table, rid, kind, |i| submenu.prepend(&*i))?;
       }
     }
     _ => unreachable!(),
@@ -295,14 +295,16 @@ fn insert<R: Runtime>(
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
       for (rid, kind) in items {
-        do_menu_item!(|i| menu.insert(&*i, position))?;
+        do_menu_item!(resources_table, rid, kind, |i| menu.insert(&*i, position))?;
         position += 1
       }
     }
     ItemKind::Submenu => {
       let submenu = resources_table.get::<Submenu<R>>(rid)?;
       for (rid, kind) in items {
-        do_menu_item!(|i| submenu.insert(&*i, position))?;
+        do_menu_item!(resources_table, rid, kind, |i| {
+          submenu.insert(&*i, position)
+        })?;
         position += 1
       }
     }
@@ -324,11 +326,11 @@ fn remove<R: Runtime>(
   match menu_kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(menu_rid)?;
-      do_menu_item!(|i| menu.remove(&*i))?;
+      do_menu_item!(resources_table, rid, kind, |i| menu.remove(&*i))?;
     }
     ItemKind::Submenu => {
       let submenu = resources_table.get::<Submenu<R>>(menu_rid)?;
-      do_menu_item!(|i| submenu.remove(&*i))?;
+      do_menu_item!(resources_table, rid, kind, |i| submenu.remove(&*i))?;
     }
     _ => unreachable!(),
   };
@@ -506,7 +508,7 @@ async fn set_as_window_menu<R: Runtime>(
 #[command(root = "crate")]
 fn text<R: Runtime>(app: AppHandle<R>, rid: ResourceId, kind: ItemKind) -> crate::Result<String> {
   let resources_table = app.manager.resources_table();
-  do_menu_item!(|i| i.text())
+  do_menu_item!(resources_table, rid, kind, |i| i.text())
 }
 
 #[command(root = "crate")]
@@ -517,7 +519,7 @@ fn set_text<R: Runtime>(
   text: String,
 ) -> crate::Result<()> {
   let resources_table = app.manager.resources_table();
-  do_menu_item!(|i| i.set_text(text))
+  do_menu_item!(resources_table, rid, kind, |i| i.set_text(text))
 }
 
 #[command(root = "crate")]
@@ -527,7 +529,7 @@ fn is_enabled<R: Runtime>(
   kind: ItemKind,
 ) -> crate::Result<bool> {
   let resources_table = app.manager.resources_table();
-  do_menu_item!(|i| i.is_enabled(), !Predefined)
+  do_menu_item!(resources_table, rid, kind, |i| i.is_enabled(), !Predefined)
 }
 
 #[command(root = "crate")]
@@ -538,7 +540,13 @@ fn set_enabled<R: Runtime>(
   enabled: bool,
 ) -> crate::Result<()> {
   let resources_table = app.manager.resources_table();
-  do_menu_item!(|i| i.set_enabled(enabled), !Predefined)
+  do_menu_item!(
+    resources_table,
+    rid,
+    kind,
+    |i| i.set_enabled(enabled),
+    !Predefined
+  )
 }
 
 #[command(root = "crate")]
@@ -549,7 +557,13 @@ fn set_accelerator<R: Runtime>(
   accelerator: Option<String>,
 ) -> crate::Result<()> {
   let resources_table = app.manager.resources_table();
-  do_menu_item!(|i| i.set_accelerator(accelerator), !Predefined | !Submenu)
+  do_menu_item!(
+    resources_table,
+    rid,
+    kind,
+    |i| i.set_accelerator(accelerator),
+    !Predefined | !Submenu
+  )
 }
 
 #[command(root = "crate")]

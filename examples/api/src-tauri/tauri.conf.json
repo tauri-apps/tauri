@@ -2,7 +2,7 @@
   "$schema": "../../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": "../dist",
-    "devPath": "http://localhost:1520",
+    "devPath": "http://localhost:1420",
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn build",
     "withGlobalTauri": true
@@ -89,9 +89,7 @@
       "csp": {
         "default-src": "'self' customprotocol: asset:",
         "connect-src": "ipc: http://ipc.localhost",
-        "font-src": [
-          "https://fonts.gstatic.com"
-        ],
+        "font-src": ["https://fonts.gstatic.com"],
         "img-src": "'self' asset: http://asset.localhost blob: data:",
         "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
       },

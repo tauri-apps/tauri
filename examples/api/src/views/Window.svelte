@@ -1,6 +1,5 @@
 <script>
   import {
-    getCurrent,
     LogicalSize,
     UserAttentionType,
     PhysicalSize,
@@ -10,13 +9,14 @@
     ProgressBarStatus,
     Window
   } from '@tauri-apps/api/window'
+  import { getCurrent, Webview } from '@tauri-apps/api/webview'
   import { invoke } from '@tauri-apps/api/primitives'
 
-  const appWindow = getCurrent()
+  const webview = getCurrent()
 
-  let selectedWindow = appWindow.label
-  const windowMap = {
-    [appWindow.label]: appWindow
+  let selectedWindow = webview.label
+  const webviewMap = {
+    [webview.label]: webview
   }
 
   const cursorIconOptions = [
@@ -80,7 +80,9 @@
     (state) => EffectState[state]
   )
 
-  const progressBarStatusOptions = Object.keys(ProgressBarStatus).map(s => ProgressBarStatus[s])
+  const progressBarStatusOptions = Object.keys(ProgressBarStatus).map(
+    (s) => ProgressBarStatus[s]
+  )
 
   export let onMessage
   const mainEl = document.querySelector('main')
@@ -133,49 +135,57 @@
   let windowIconPath
 
   function setTitle_() {
-    windowMap[selectedWindow].setTitle(windowTitle)
+    webviewMap[selectedWindow].window.setTitle(windowTitle)
   }
 
   function hide_() {
-    windowMap[selectedWindow].hide()
-    setTimeout(windowMap[selectedWindow].show, 2000)
+    webviewMap[selectedWindow].window.hide()
+    setTimeout(webviewMap[selectedWindow].window.show, 2000)
   }
 
   function minimize_() {
-    windowMap[selectedWindow].minimize()
-    setTimeout(windowMap[selectedWindow].unminimize, 2000)
+    webviewMap[selectedWindow].window.minimize()
+    setTimeout(webviewMap[selectedWindow].window.unminimize, 2000)
   }
 
   function changeIcon() {
-    windowMap[selectedWindow].setIcon(path)
+    webviewMap[selectedWindow].window.setIcon(path)
   }
 
   function createWindow() {
     if (!newWindowLabel) return
 
-    const webview = new Window(newWindowLabel)
-    windowMap[newWindowLabel] = webview
-    webview.once('tauri://error', function () {
-      onMessage('Error creating new webview')
+    const window = new Window(newWindowLabel, { visible: false })
+    window.once('tauri://error', function (e) {
+      onMessage('Error creating new window ' + JSON.stringify(e))
+    })
+    window.once('tauri://created', function () {
+      onMessage('window created')
+      const webview = new Webview(window, newWindowLabel)
+      window.show()
+      webviewMap[newWindowLabel] = webview
+      webview.once('tauri://error', function (e) {
+        onMessage('Error creating new webview ' + JSON.stringify(e))
+      })
     })
   }
 
   function loadWindowSize() {
-    windowMap[selectedWindow].innerSize().then((response) => {
+    webviewMap[selectedWindow].window.innerSize().then((response) => {
       innerSize = response
       width = innerSize.width
       height = innerSize.height
     })
-    windowMap[selectedWindow].outerSize().then((response) => {
+    webviewMap[selectedWindow].window.outerSize().then((response) => {
       outerSize = response
     })
   }
 
   function loadWindowPosition() {
-    windowMap[selectedWindow].innerPosition().then((response) => {
+    webviewMap[selectedWindow].window.innerPosition().then((response) => {
       innerPosition = response
     })
-    windowMap[selectedWindow].outerPosition().then((response) => {
+    webviewMap[selectedWindow].window.outerPosition().then((response) => {
       outerPosition = response
       x = outerPosition.x
       y = outerPosition.y
@@ -195,12 +205,12 @@
   }
 
   async function requestUserAttention_() {
-    await windowMap[selectedWindow].minimize()
-    await windowMap[selectedWindow].requestUserAttention(
+    await webviewMap[selectedWindow].window.minimize()
+    await webviewMap[selectedWindow].window.requestUserAttention(
       UserAttentionType.Critical
     )
     await new Promise((resolve) => setTimeout(resolve, 3000))
-    await windowMap[selectedWindow].requestUserAttention(null)
+    await webviewMap[selectedWindow].window.requestUserAttention(null)
   }
 
   async function addEffect() {
@@ -224,66 +234,71 @@
 
     mainEl.classList.remove('bg-primary')
     mainEl.classList.remove('dark:bg-darkPrimary')
-    await windowMap[selectedWindow].clearEffects()
-    await windowMap[selectedWindow].setEffects(payload)
+    await webviewMap[selectedWindow].window.clearEffects()
+    await webviewMap[selectedWindow].window.setEffects(payload)
   }
 
   async function clearEffects() {
     effects = []
-    await windowMap[selectedWindow].clearEffects()
+    await webviewMap[selectedWindow].window.clearEffects()
     mainEl.classList.add('bg-primary')
     mainEl.classList.add('dark:bg-darkPrimary')
   }
 
   $: {
-    windowMap[selectedWindow]
+    webviewMap[selectedWindow]
     loadWindowPosition()
     loadWindowSize()
   }
-  $: windowMap[selectedWindow]?.setResizable(resizable)
-  $: windowMap[selectedWindow]?.setMaximizable(maximizable)
-  $: windowMap[selectedWindow]?.setMinimizable(minimizable)
-  $: windowMap[selectedWindow]?.setClosable(closable)
+  $: webviewMap[selectedWindow]?.window.setResizable(resizable)
+  $: webviewMap[selectedWindow]?.window.setMaximizable(maximizable)
+  $: webviewMap[selectedWindow]?.window.setMinimizable(minimizable)
+  $: webviewMap[selectedWindow]?.window.setClosable(closable)
   $: maximized
-    ? windowMap[selectedWindow]?.maximize()
-    : windowMap[selectedWindow]?.unmaximize()
-  $: windowMap[selectedWindow]?.setDecorations(decorations)
-  $: windowMap[selectedWindow]?.setAlwaysOnTop(alwaysOnTop)
-  $: windowMap[selectedWindow]?.setAlwaysOnBottom(alwaysOnBottom)
-  $: windowMap[selectedWindow]?.setContentProtected(contentProtected)
-  $: windowMap[selectedWindow]?.setFullscreen(fullscreen)
+    ? webviewMap[selectedWindow]?.window.maximize()
+    : webviewMap[selectedWindow]?.window.unmaximize()
+  $: webviewMap[selectedWindow]?.window.setDecorations(decorations)
+  $: webviewMap[selectedWindow]?.window.setAlwaysOnTop(alwaysOnTop)
+  $: webviewMap[selectedWindow]?.window.setAlwaysOnBottom(alwaysOnBottom)
+  $: webviewMap[selectedWindow]?.window.setContentProtected(contentProtected)
+  $: webviewMap[selectedWindow]?.window.setFullscreen(fullscreen)
 
   $: width &&
     height &&
-    windowMap[selectedWindow]?.setSize(new PhysicalSize(width, height))
+    webviewMap[selectedWindow]?.window.setSize(new PhysicalSize(width, height))
   $: minWidth && minHeight
-    ? windowMap[selectedWindow]?.setMinSize(
+    ? webviewMap[selectedWindow]?.window.setMinSize(
         new LogicalSize(minWidth, minHeight)
       )
-    : windowMap[selectedWindow]?.setMinSize(null)
+    : webviewMap[selectedWindow]?.window.setMinSize(null)
   $: maxWidth > 800 && maxHeight > 400
-    ? windowMap[selectedWindow]?.setMaxSize(
+    ? webviewMap[selectedWindow]?.window.setMaxSize(
         new LogicalSize(maxWidth, maxHeight)
       )
-    : windowMap[selectedWindow]?.setMaxSize(null)
+    : webviewMap[selectedWindow]?.window.setMaxSize(null)
   $: x !== null &&
     y !== null &&
-    windowMap[selectedWindow]?.setPosition(new PhysicalPosition(x, y))
-  $: windowMap[selectedWindow]
-    ?.scaleFactor()
+    webviewMap[selectedWindow].window?.setPosition(new PhysicalPosition(x, y))
+  $: webviewMap[selectedWindow]?.window
+    .scaleFactor()
     .then((factor) => (scaleFactor = factor))
-  $: addWindowEventListeners(windowMap[selectedWindow])
+  $: addWindowEventListeners(webviewMap[selectedWindow].window)
 
-  $: windowMap[selectedWindow]?.setCursorGrab(cursorGrab)
-  $: windowMap[selectedWindow]?.setCursorVisible(cursorVisible)
-  $: windowMap[selectedWindow]?.setCursorIcon(cursorIcon)
+  $: webviewMap[selectedWindow]?.window.setCursorGrab(cursorGrab)
+  $: webviewMap[selectedWindow]?.window.setCursorVisible(cursorVisible)
+  $: webviewMap[selectedWindow]?.window.setCursorIcon(cursorIcon)
   $: cursorX !== null &&
     cursorY !== null &&
-    windowMap[selectedWindow]?.setCursorPosition(
+    webviewMap[selectedWindow]?.window.setCursorPosition(
       new PhysicalPosition(cursorX, cursorY)
     )
-  $: windowMap[selectedWindow]?.setIgnoreCursorEvents(cursorIgnoreEvents)
-  $: windowMap[selectedWindow]?.setProgressBar({ status: selectedProgressBarStatus, progress })
+  $: webviewMap[selectedWindow]?.window.setIgnoreCursorEvents(
+    cursorIgnoreEvents
+  )
+  $: webviewMap[selectedWindow]?.window.setProgressBar({
+    status: selectedProgressBarStatus,
+    progress
+  })
 </script>
 
 <div class="flex flex-col children:grow gap-2">
@@ -297,16 +312,16 @@
     <button class="btn" on:click={createWindow}>New window</button>
   </div>
   <br />
-  {#if Object.keys(windowMap).length >= 1}
+  {#if Object.keys(webviewMap).length >= 1}
     <span class="font-700 text-sm">Selected window:</span>
     <select class="input" bind:value={selectedWindow}>
       <option value="" disabled selected>Choose a window...</option>
-      {#each Object.keys(windowMap) as label}
+      {#each Object.keys(webviewMap) as label}
         <option value={label}>{label}</option>
       {/each}
     </select>
   {/if}
-  {#if windowMap[selectedWindow]}
+  {#if webviewMap[selectedWindow]}
     <br />
     <div class="flex gap-1 items-center">
       <label> Icon path </label>
@@ -320,7 +335,7 @@
       <button
         class="btn"
         title="Unminimizes after 2 seconds"
-        on:click={() => windowMap[selectedWindow].center()}
+        on:click={() => webviewMap[selectedWindow].window.center()}
       >
         Center
       </button>
@@ -558,7 +573,13 @@
 
         <label>
           Progress
-          <input class="input" type="number" min="0" max="100" bind:value={progress} />
+          <input
+            class="input"
+            type="number"
+            min="0"
+            max="100"
+            bind:value={progress}
+          />
         </label>
       </div>
     </div>

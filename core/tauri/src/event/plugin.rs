@@ -64,16 +64,10 @@ impl<'de> Deserialize<'de> for WebviewLabel {
 pub fn listen<R: Runtime>(
   webview: Webview<R>,
   event: EventName,
-  webview_label: Option<WebviewLabel>,
+  target: Option<EventSource>,
   handler: CallbackFn,
 ) -> Result<EventId> {
-  webview.listen_js(
-    webview_label
-      .map(|l| EventSource::Webview { label: l.0 })
-      .unwrap_or(EventSource::Global),
-    event.0,
-    handler,
-  )
+  webview.listen_js(target.unwrap_or(EventSource::Global), event.0, handler)
 }
 
 #[command(root = "crate")]
@@ -89,13 +83,14 @@ pub fn unlisten<R: Runtime>(
 pub fn emit<R: Runtime>(
   webview: Webview<R>,
   event: EventName,
-  webview_label: Option<WebviewLabel>,
+  target: Option<EventSource>,
   payload: Option<JsonValue>,
 ) -> Result<()> {
-  if let Some(label) = webview_label {
-    webview.emit_to(&label.0, &event.0, payload)
-  } else {
-    webview.emit(&event.0, payload)
+  let target = target.unwrap_or(EventSource::Global);
+  match target {
+    EventSource::Global => webview.emit(&event.0, payload),
+    EventSource::Webview { label } => webview.emit_to(&label, &event.0, payload),
+    EventSource::Window { label } => webview.window().emit_to(&label, &event.0, payload),
   }
 }
 

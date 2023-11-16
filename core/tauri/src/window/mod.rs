@@ -787,7 +787,7 @@ impl<R: Runtime> Window<R> {
 
   /// Initializes a window builder with the given window label.
   ///
-  /// Data URLs are only supported with the `window-data-url` feature flag.
+  /// Data URLs are only supported with the `webview-data-url` feature flag.
   pub fn builder<'a, M: Manager<R>, L: Into<String>>(
     manager: &'a M,
     label: L,

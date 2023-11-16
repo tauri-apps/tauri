@@ -5,7 +5,7 @@
 mod listener;
 pub(crate) mod plugin;
 pub(crate) use listener::Listeners;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Checks if an event name is valid.
 pub fn is_event_name_valid(event: &str) -> bool {
@@ -24,7 +24,7 @@ pub fn assert_event_name_is_valid(event: &str) {
 /// Unique id of an event.
 pub type EventId = u32;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 #[serde(rename_all = "camelCase")]
 pub enum EventSource {

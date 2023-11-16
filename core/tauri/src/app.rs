@@ -8,7 +8,10 @@ use crate::{
     channel::ChannelDataIpcQueue, CallbackFn, Invoke, InvokeError, InvokeHandler, InvokeResponder,
     InvokeResponse,
   },
-  manager::{webview::UriSchemeProtocol, AppManager, Asset},
+  manager::{
+    webview::{UriSchemeProtocol, WebviewLabelDef},
+    AppManager, Asset,
+  },
   plugin::{Plugin, PluginStore},
   runtime::{
     webview::WebviewAttributes,
@@ -792,6 +795,7 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::path::plugin::init())?;
     self.handle.plugin(crate::event::plugin::init())?;
     self.handle.plugin(crate::window::plugin::init())?;
+    self.handle.plugin(crate::webview::plugin::init())?;
     self.handle.plugin(crate::app::plugin::init())?;
     Ok(())
   }
@@ -1686,9 +1690,16 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   let pending = app.pending.take();
   if let Some(pending) = pending {
-    let labels = pending
+    let window_labels = pending
       .iter()
       .map(|p| p.webview.label.clone())
+      .collect::<Vec<_>>();
+    let webview_labels = pending
+      .iter()
+      .map(|p| WebviewLabelDef {
+        window_label: p.webview.label.clone(),
+        label: p.webview.label.clone(),
+      })
       .collect::<Vec<_>>();
 
     let app_handle = app.handle();
@@ -1710,7 +1721,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         navigation_handler: None,
         on_page_load_handler: None,
       };
-      webview_builder.build_with_labels(&labels, &labels)?;
+      webview_builder.build_with_labels(&window_labels, &webview_labels)?;
     }
   }
 

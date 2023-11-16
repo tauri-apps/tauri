@@ -4,6 +4,8 @@
 
 //! The Tauri webview types and functions.
 
+pub(crate) mod plugin;
+
 use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
@@ -23,7 +25,7 @@ use crate::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
   },
-  manager::AppManager,
+  manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
   AppHandle, Event, EventId, EventLoopMessage, Manager, Runtime, Window,
 };
@@ -443,8 +445,12 @@ impl<R: Runtime> WebviewBuilder<R> {
       .window
       .manager
       .webview
-      .labels()
-      .into_iter()
+      .webviews_lock()
+      .values()
+      .map(|w| WebviewLabelDef {
+        window_label: w.window.label().to_string(),
+        label: w.label().to_string(),
+      })
       .collect::<Vec<_>>();
     self.build_with_labels(&window_labels, &webview_labels)
   }
@@ -453,7 +459,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   pub(crate) fn build_with_labels(
     mut self,
     window_labels: &[String],
-    webview_labels: &[String],
+    webview_labels: &[WebviewLabelDef],
   ) -> crate::Result<Webview<R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
@@ -671,7 +677,7 @@ impl<R: Runtime> Webview<R> {
 
   /// Initializes a webview builder with the given window label and URL to load on the webview.
   ///
-  /// Data URLs are only supported with the `window-data-url` feature flag.
+  /// Data URLs are only supported with the `webview-data-url` feature flag.
   pub fn builder<L: Into<String>>(
     window: &Window<R>,
     label: L,

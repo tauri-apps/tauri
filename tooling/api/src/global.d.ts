@@ -38,6 +38,7 @@ declare global {
 
 /** @ignore */
 interface WebviewDef {
+  windowLabel: string
   label: string
 }
 

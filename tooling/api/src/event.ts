@@ -43,14 +43,14 @@ type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
 interface Options {
   /**
-   * Label of the window the function targets.
+   * Event source the function targets.
    *
    * When listening to events and using this value,
-   * only events triggered by the window with the given label are received.
+   * only events triggered by the window or webview with the given label are received.
    *
-   * When emitting events, only the window with the given label will receive it.
+   * When emitting events, only the window or webview with the given label will receive it.
    */
-  target?: string
+  target?: EventSource
 }
 
 /**
@@ -66,9 +66,9 @@ enum TauriEvent {
   WINDOW_BLUR = 'tauri://blur',
   WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
   WINDOW_THEME_CHANGED = 'tauri://theme-changed',
-  WINDOW_FILE_DROP = 'tauri://file-drop',
-  WINDOW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
-  WINDOW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
+  WEBVIEW_FILE_DROP = 'tauri://file-drop',
+  WEBVIEW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
+  WEBVIEW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
   MENU = 'tauri://menu'
 }
 
@@ -89,13 +89,13 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
 
 /**
  * Listen to an event. The event can be either global or window-specific.
- * See {@link Event.webviewLabel} to check the event source.
+ * See {@link Event.source} to check the event source.
  *
  * @example
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
  * const unlisten = await listen<string>('error', (event) => {
- *   console.log(`Got error in window ${event.webviewLabel}, payload: ${event.payload}`);
+ *   console.log(`Got error in window ${event.source}, payload: ${event.payload}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
@@ -116,7 +116,7 @@ async function listen<T>(
 ): Promise<UnlistenFn> {
   return invoke<number>('plugin:event|listen', {
     event,
-    webviewLabel: options?.target,
+    target: options?.target,
     handler: transformCallback(handler)
   }).then((eventId) => {
     return async () => _unlisten(event, eventId)
@@ -181,7 +181,7 @@ async function emit(
 ): Promise<void> {
   await invoke('plugin:event|emit', {
     event,
-    webviewLabel: options?.target,
+    target: options?.target,
     payload
   })
 }

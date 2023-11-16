@@ -19,7 +19,7 @@ mod desktop_commands {
     command,
     utils::config::{WindowConfig, WindowEffectsConfig},
     AppHandle, CursorIcon, Icon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
-    Theme, UserAttentionType, Webview, Window, WindowBuilder,
+    Theme, UserAttentionType, Window, WindowBuilder,
   };
 
   #[derive(Deserialize)]
@@ -66,16 +66,6 @@ mod desktop_commands {
     match label {
       Some(l) if !l.is_empty() => window.get_window(&l).ok_or(crate::Error::WindowNotFound),
       _ => Ok(window),
-    }
-  }
-
-  fn get_webview<R: Runtime>(
-    webview: Webview<R>,
-    label: Option<String>,
-  ) -> crate::Result<Webview<R>> {
-    match label {
-      Some(l) if !l.is_empty() => webview.get_webview(&l).ok_or(crate::Error::WebviewNotFound),
-      _ => Ok(webview),
     }
   }
 
@@ -166,7 +156,6 @@ mod desktop_commands {
   setter!(set_ignore_cursor_events, bool);
   setter!(start_dragging);
   setter!(set_progress_bar, ProgressBarState);
-  // TODO setter!(print);
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
@@ -206,55 +195,12 @@ mod desktop_commands {
     }
     Ok(())
   }
-
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[command(root = "crate")]
-  pub async fn internal_toggle_devtools<R: Runtime>(
-    webview: crate::Webview<R>,
-    label: Option<String>,
-  ) -> crate::Result<()> {
-    let webview = get_webview(webview, label)?;
-    if webview.is_devtools_open() {
-      webview.close_devtools();
-    } else {
-      webview.open_devtools();
-    }
-    Ok(())
-  }
 }
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  let mut init_script = String::new();
-  // window.print works on Linux/Windows; need to use the API on macOS
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  {
-    init_script.push_str(include_str!("./scripts/print.js"));
-  }
-  init_script.push_str(include_str!("./scripts/drag.js"));
-
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  {
-    use serialize_to_javascript::{default_template, DefaultTemplate, Template};
-
-    #[derive(Template)]
-    #[default_template("./scripts/toggle-devtools.js")]
-    struct Devtools<'a> {
-      os_name: &'a str,
-    }
-
-    init_script.push_str(
-      &Devtools {
-        os_name: std::env::consts::OS,
-      }
-      .render_default(&Default::default())
-      .unwrap()
-      .into_string(),
-    );
-  }
-
   Builder::new("window")
-    .js_init_script(init_script)
+    .js_init_script(include_str!("./scripts/drag.js").to_string())
     .invoke_handler(|invoke| {
       #[cfg(desktop)]
       {
@@ -317,12 +263,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_ignore_cursor_events,
             desktop_commands::start_dragging,
             desktop_commands::set_progress_bar,
-            // TODO desktop_commands::print,
             desktop_commands::set_icon,
             desktop_commands::toggle_maximize,
             desktop_commands::internal_toggle_maximize,
-            #[cfg(any(debug_assertions, feature = "devtools"))]
-            desktop_commands::internal_toggle_devtools,
           ]);
         handler(invoke)
       }

@@ -10,6 +10,7 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
+use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_runtime::webview::{DetachedWebview, PendingWebview};
 use tauri_utils::config::WebviewUrl;
@@ -55,6 +56,12 @@ pub struct UriSchemeProtocol<R: Runtime> {
   #[allow(clippy::type_complexity)]
   pub protocol:
     Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
+}
+
+#[derive(Clone, Serialize)]
+pub struct WebviewLabelDef {
+  pub window_label: String,
+  pub label: String,
 }
 
 pub struct WebviewManager<R: Runtime> {
@@ -107,7 +114,7 @@ impl<R: Runtime> WebviewManager<R> {
     mut pending: PendingWebview<EventLoopMessage, R>,
     label: &str,
     window_labels: &[String],
-    webview_labels: &[String],
+    webview_labels: &[WebviewLabelDef],
     window: Window<R>,
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let is_init_global = window.manager.config.build.with_global_tauri;
@@ -135,9 +142,11 @@ impl<R: Runtime> WebviewManager<R> {
     .render_default(&Default::default())?;
 
     let mut webview_labels = webview_labels.to_vec();
-    let l = label.to_string();
-    if !webview_labels.contains(&l) {
-      webview_labels.push(l);
+    if !webview_labels.iter().any(|w| w.label == label) {
+      webview_labels.push(WebviewLabelDef {
+        window_label: window.label().to_string(),
+        label: label.to_string(),
+      });
     }
     webview_attributes = webview_attributes
       .initialization_script(
@@ -369,7 +378,7 @@ impl<R: Runtime> WebviewManager<R> {
     window: Window<R>,
     mut pending: PendingWebview<EventLoopMessage, R>,
     window_labels: &[String],
-    webview_labels: &[String],
+    webview_labels: &[WebviewLabelDef],
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     if self.webviews_lock().contains_key(&pending.label) {
       return Err(crate::Error::WebviewLabelAlreadyExists(pending.label));
@@ -407,14 +416,14 @@ impl<R: Runtime> WebviewManager<R> {
       _ => unimplemented!(),
     };
 
-    #[cfg(not(feature = "window-data-url"))]
+    #[cfg(not(feature = "webview-data-url"))]
     if url.scheme() == "data" {
       return Err(crate::Error::InvalidWebviewUrl(
-        "data URLs are not supported without the `window-data-url` feature.",
+        "data URLs are not supported without the `webview-data-url` feature.",
       ));
     }
 
-    #[cfg(feature = "window-data-url")]
+    #[cfg(feature = "webview-data-url")]
     if let Some(csp) = window.manager.csp() {
       if url.scheme() == "data" {
         if let Ok(data_url) = data_url::DataUrl::process(url.as_str()) {

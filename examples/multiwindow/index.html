@@ -15,6 +15,7 @@
 
     <script>
       const TauriWindow = window.__TAURI__.window.Window
+      const Webview = window.__TAURI__.webview.Webview
       const appWindow = window.__TAURI__.window.getCurrent()
       const windowLabel = appWindow.label
       const windowLabelContainer = document.getElementById('window-label')
@@ -51,17 +52,22 @@
       const createWindowButton = document.createElement('button')
       createWindowButton.innerHTML = 'Create window'
       createWindowButton.addEventListener('click', function () {
-        const tauriWindow = new TauriWindow(
-          Math.random().toString().replace('.', ''),
-          {
-            tabbingIdentifier: windowLabel
-          }
-        )
+        const id = Math.random().toString().replace('.', '')
+        const tauriWindow = new TauriWindow(id, { tabbingIdentifier: windowLabel, visible: false })
         tauriWindow.once('tauri://created', function () {
-          responseContainer.innerHTML += 'Created new webview'
+          responseContainer.innerHTML += 'Created new window'
+
+          const webview = new Webview(tauriWindow, id)
+          tauriWindow.show()
+          webview.once('tauri://created', function () {
+            responseContainer.innerHTML += 'Created new webview'
+          })
+          webview.once('tauri://error', function (e) {
+            responseContainer.innerHTML += 'Error creating new webview ' + e.payload
+          })
         })
         tauriWindow.once('tauri://error', function (e) {
-          responseContainer.innerHTML += 'Error creating new webview'
+          responseContainer.innerHTML += 'Error creating new window ' + e.payload
         })
       })
       container.appendChild(createWindowButton)

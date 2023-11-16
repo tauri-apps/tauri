@@ -14,8 +14,7 @@
     <div id="response"></div>
 
     <script>
-      const TauriWindow = window.__TAURI__.window.Window
-      const Webview = window.__TAURI__.webview.Webview
+      const WebviewWindow = window.__TAURI__.webview.WebviewWindow
       const appWindow = window.__TAURI__.window.getCurrent()
       const windowLabel = appWindow.label
       const windowLabelContainer = document.getElementById('window-label')
@@ -24,11 +23,11 @@
       const container = document.getElementById('container')
 
       function createWindowMessageBtn(label) {
-        const tauriWindow = TauriWindow.getByLabel(label)
+        const webview = WebviewWindow.getByLabel(label)
         const button = document.createElement('button')
         button.innerText = 'Send message to ' + label
         button.addEventListener('click', function () {
-          tauriWindow.emit('clicked', 'message from ' + windowLabel)
+          webview.emit('clicked', 'message from ' + windowLabel)
         })
         container.appendChild(button)
       }
@@ -53,20 +52,11 @@
       createWindowButton.innerHTML = 'Create window'
       createWindowButton.addEventListener('click', function () {
         const id = Math.random().toString().replace('.', '')
-        const tauriWindow = new TauriWindow(id, { tabbingIdentifier: windowLabel, visible: false })
-        tauriWindow.once('tauri://created', function () {
+        const webview = new WebviewWindow(id, { tabbingIdentifier: windowLabel })
+        webview.once('tauri://created', function () {
           responseContainer.innerHTML += 'Created new window'
-
-          const webview = new Webview(tauriWindow, id)
-          tauriWindow.show()
-          webview.once('tauri://created', function () {
-            responseContainer.innerHTML += 'Created new webview'
-          })
-          webview.once('tauri://error', function (e) {
-            responseContainer.innerHTML += 'Error creating new webview ' + e.payload
-          })
         })
-        tauriWindow.once('tauri://error', function (e) {
+        webview.once('tauri://error', function (e) {
           responseContainer.innerHTML += 'Error creating new window ' + e.payload
         })
       })

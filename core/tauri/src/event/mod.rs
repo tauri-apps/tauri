@@ -141,8 +141,7 @@ pub fn event_initialization_script(function: &str, listeners: &str) -> String {
 
         for (let i = listeners.length - 1; i >= 0; i--) {{
           const listener = listeners[i]
-          console.log(listener, eventData)
-          if (listener.source.kind === 'global' || eventData.source.kind === 'global' || listener.source.label === eventData.source.label) {{
+          if (listener.source.kind === 'global' || eventData.source.kind === 'global' || listener.source.kind === 'window' || eventData.source.kind === 'window' || listener.source.label === eventData.source.label) {{
             eventData.id = listener.id
             listener.handler(eventData)
           }}

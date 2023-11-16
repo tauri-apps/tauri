@@ -22,6 +22,7 @@ import type { EventName, EventCallback, UnlistenFn } from './event'
 import { TauriEvent, emit, listen, once } from './event'
 import { invoke } from './primitives'
 import { Window, getCurrent as getCurrentWindow } from './window'
+import type { WindowOptions } from './window'
 
 /** The file drop event types. */
 type FileDropEvent =
@@ -490,6 +491,117 @@ class Webview {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+interface WebviewWindow extends Webview, Window {}
+
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+class WebviewWindow {
+  label: string
+  /** Local event listeners. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  listeners: Record<string, Array<EventCallback<any>>>
+
+  /**
+   * Creates a new {@link Window} hosting a {@link Webview}.
+   * @example
+   * ```typescript
+   * import { WebviewWindow } from '@tauri-apps/api/webview'
+   * const webview = new WebviewWindow('my-label', {
+   *   url: 'https://github.com/tauri-apps/tauri'
+   * });
+   * webview.once('tauri://created', function () {
+   *  // webview successfully created
+   * });
+   * webview.once('tauri://error', function (e) {
+   *  // an error happened creating the webview
+   * });
+   * ```
+   *
+   * @param label The unique webview label. Must be alphanumeric: `a-zA-Z-/:_`.
+   * @returns The {@link WebviewWindow} instance to communicate with the window and webview.
+   */
+  constructor(
+    label: WebviewLabel,
+    options: WindowOptions & WebviewOptions = {}
+  ) {
+    this.label = label
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    this.listeners = Object.create(null)
+
+    // @ts-expect-error `skip` is not a public API so it is not defined in WebviewOptions
+    if (!options?.skip) {
+      invoke('plugin:webview|create_webview_window', {
+        options: {
+          ...options,
+          label
+        }
+      })
+        .then(async () => this.emit('tauri://created'))
+        .catch(async (e: string) => this.emit('tauri://error', e))
+    }
+  }
+
+  /**
+   * Gets the Webview for the webview associated with the given label.
+   * @example
+   * ```typescript
+   * import { Webview } from '@tauri-apps/api/webview';
+   * const mainWebview = Webview.getByLabel('main');
+   * ```
+   *
+   * @param label The webview label.
+   * @returns The Webview instance to communicate with the webview or null if the webview doesn't exist.
+   */
+  static getByLabel(label: string): WebviewWindow | null {
+    const webview = getAll().find((w) => w.label === label) ?? null
+    if (webview) {
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+      return new WebviewWindow(webview.label, { skip: true })
+    }
+    return null
+  }
+
+  /**
+   * Get an instance of `Webview` for the current webview.
+   */
+  static getCurrent(): WebviewWindow {
+    const webview = getCurrent()
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+    return new WebviewWindow(webview.label, { skip: true })
+  }
+
+  /**
+   * Gets a list of instances of `Webview` for all available webviews.
+   */
+  static getAll(): WebviewWindow[] {
+    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+    return getAll().map((w) => new WebviewWindow(w.label, { skip: true }))
+  }
+}
+
+// order matters, we use window APIs by default
+applyMixins(WebviewWindow, [Webview, Window])
+
+/** Extends a base class by other specifed classes */
+function applyMixins(
+  baseClass: { prototype: unknown },
+  extendedClasses: unknown
+): void {
+  ;(Array.isArray(extendedClasses)
+    ? extendedClasses
+    : [extendedClasses]
+  ).forEach((extendedClass: { prototype: unknown }) => {
+    Object.getOwnPropertyNames(extendedClass.prototype).forEach((name) => {
+      Object.defineProperty(
+        baseClass.prototype,
+        name,
+        // eslint-disable-next-line
+        Object.getOwnPropertyDescriptor(extendedClass.prototype, name) ??
+          Object.create(null)
+      )
+    })
+  })
+}
 /**
  * Configuration for the webview to create.
  *
@@ -542,6 +654,6 @@ interface WebviewOptions {
   incognito?: boolean
 }
 
-export { Webview, getCurrent, getAll }
+export { Webview, WebviewWindow, getCurrent, getAll }
 
 export type { FileDropEvent, WebviewOptions }

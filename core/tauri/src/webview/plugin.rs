@@ -13,11 +13,12 @@ use crate::{
 mod desktop_commands {
 
   use serde::Deserialize;
-  use tauri_utils::config::WebviewUrl;
+  use tauri_utils::config::{WebviewUrl, WindowConfig};
 
   use super::*;
   use crate::{
     command, utils::config::WindowEffectsConfig, AppHandle, Manager, Webview, WebviewBuilder,
+    WindowBuilder,
   };
 
   #[derive(Debug, PartialEq, Clone, Deserialize)]
@@ -38,6 +39,16 @@ mod desktop_commands {
     pub window_effects: Option<WindowEffectsConfig>,
     #[serde(default)]
     pub incognito: bool,
+  }
+
+  #[command(root = "crate")]
+  pub async fn create_webview_window<R: Runtime>(
+    app: AppHandle<R>,
+    options: WindowConfig,
+  ) -> crate::Result<()> {
+    let window = WindowBuilder::from_config(&app, options.clone()).build()?;
+    let _webview = WebviewBuilder::from_config(&window, options).build()?;
+    Ok(())
   }
 
   #[command(root = "crate")]
@@ -180,6 +191,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         let handler: Box<dyn Fn(crate::ipc::Invoke<R>) -> bool> =
           Box::new(crate::generate_handler![
             desktop_commands::create_webview,
+            desktop_commands::create_webview_window,
             // getters
             // TODO
             //desktop_commands::position,
@@ -198,7 +210,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       }
       #[cfg(mobile)]
       {
-        invoke.resolver.reject("Webview API not available on mobile");
+        invoke
+          .resolver
+          .reject("Webview API not available on mobile");
         true
       }
     })

@@ -150,7 +150,7 @@ fn on_window_event<R: Runtime>(
     WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, size)?,
     WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested { api } => {
-      if window.webviews().values().any(|w| {
+      if window.webviews().iter().any(|w| {
         w.has_js_listener(
           &EventSource::Window {
             label: window.label().into(),

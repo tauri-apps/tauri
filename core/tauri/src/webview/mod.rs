@@ -965,6 +965,7 @@ impl<R: Runtime> Webview<R> {
       self.manager().listeners().listeners_object_name(),
       &format!("'{}'", event),
       event_id,
+      &serde_json::to_string(&source)?,
       &format!("window['_{}']", handler.0),
     ))?;
 

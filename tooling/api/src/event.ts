@@ -43,14 +43,16 @@ type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
 interface Options {
   /**
-   * Event source the function targets.
+   * Window or webview the function targets.
    *
    * When listening to events and using this value,
-   * only events triggered by the window or webview with the given label are received.
+   * only events triggered by the window with the given label are received.
    *
-   * When emitting events, only the window or webview with the given label will receive it.
+   * When emitting events, only the window with the given label will receive it.
    */
-  target?: EventSource
+  target?:
+    | { kind: 'window'; label: string }
+    | { kind: 'webview'; label: string }
 }
 
 /**

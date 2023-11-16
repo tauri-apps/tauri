@@ -7,8 +7,8 @@ use serde_json::Value as JsonValue;
 use tauri_runtime::window::is_label_valid;
 
 use crate::plugin::{Builder, TauriPlugin};
-use crate::Webview;
 use crate::{command, ipc::CallbackFn, EventId, Manager, Result, Runtime};
+use crate::{AppHandle, Webview};
 
 use super::{is_event_name_valid, EventSource};
 
@@ -62,12 +62,20 @@ impl<'de> Deserialize<'de> for WebviewLabel {
 
 #[command(root = "crate")]
 pub fn listen<R: Runtime>(
+  app: AppHandle<R>,
   webview: Webview<R>,
   event: EventName,
-  target: Option<EventSource>,
+  webview_label: Option<WebviewLabel>,
   handler: CallbackFn,
 ) -> Result<EventId> {
-  webview.listen_js(target.unwrap_or(EventSource::Global), event.0, handler)
+  if let Some(l) = webview_label {
+    app
+      .get_webview(&l.0)
+      .ok_or(crate::Error::WebviewNotFound)?
+      .listen_js(EventSource::Webview { label: l.0 }, event.0, handler)
+  } else {
+    webview.listen_js(EventSource::Global, event.0, handler)
+  }
 }
 
 #[command(root = "crate")]
@@ -81,6 +89,7 @@ pub fn unlisten<R: Runtime>(
 
 #[command(root = "crate")]
 pub fn emit<R: Runtime>(
+  app: AppHandle<R>,
   webview: Webview<R>,
   event: EventName,
   target: Option<EventSource>,
@@ -88,7 +97,7 @@ pub fn emit<R: Runtime>(
 ) -> Result<()> {
   let target = target.unwrap_or(EventSource::Global);
   match target {
-    EventSource::Global => webview.emit(&event.0, payload),
+    EventSource::Global => app.emit(&event.0, payload),
     EventSource::Webview { label } => webview.emit_to(&label, &event.0, payload),
     EventSource::Window { label } => webview.window().emit_to(&label, &event.0, payload),
   }

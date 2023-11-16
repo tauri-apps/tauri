@@ -705,7 +705,7 @@ impl<R: Runtime> Manager<R> for Window<R> {
         label: self.label().to_string(),
       },
       payload,
-      |w| webviews.values().any(|w2| w2 == w),
+      |w| webviews.contains(w),
     )?;
     Ok(())
   }
@@ -793,6 +793,18 @@ impl<R: Runtime> Window<R> {
     label: L,
   ) -> WindowBuilder<'a, R> {
     WindowBuilder::<'a, R>::new(manager, label.into())
+  }
+
+  /// List of webviews associated with this window.
+  pub fn webviews(&self) -> Vec<Webview<R>> {
+    self
+      .manager
+      .webview
+      .webviews_lock()
+      .values()
+      .filter(|w| w.window() == self)
+      .cloned()
+      .collect()
   }
 
   /// Runs the given closure on the main thread.

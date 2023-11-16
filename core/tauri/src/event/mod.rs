@@ -80,6 +80,7 @@ pub fn listen_js(
   listeners_object_name: &str,
   event: &str,
   event_id: EventId,
+  serialized_source: &str,
   handler: &str,
 ) -> String {
   format!(
@@ -94,12 +95,14 @@ pub fn listen_js(
       const eventListeners = window['{listeners}'][{event}]
       const listener = {{
         id: {event_id},
+        source: {source},
         handler: {handler}
       }};
       eventListeners.push(listener);
     }})()
   ",
     listeners = listeners_object_name,
+    source = serialized_source,
   )
 }
 
@@ -138,8 +141,11 @@ pub fn event_initialization_script(function: &str, listeners: &str) -> String {
 
         for (let i = listeners.length - 1; i >= 0; i--) {{
           const listener = listeners[i]
-          eventData.id = listener.id
-          listener.handler(eventData)
+          console.log(listener, eventData)
+          if (listener.source.kind === 'global' || eventData.source.kind === 'global' || listener.source.label === eventData.source.label) {{
+            eventData.id = listener.id
+            listener.handler(eventData)
+          }}
         }}
       }}
     }});

@@ -85,10 +85,13 @@ use tauri_utils::{
   config::{CliConfig, Config, PatternKind, TauriConfig},
 };
 
+/// Hash structure f
 #[derive(Eq, PartialEq)]
 pub struct IpcKey {
-  callback: CallbackFn,
-  error: CallbackFn,
+  /// callback
+  pub callback: CallbackFn,
+  /// error callback
+  pub error: CallbackFn,
 }
 
 impl Hash for IpcKey {
@@ -98,7 +101,24 @@ impl Hash for IpcKey {
   }
 }
 
+/// Structure to retrieve result of a Tauri command
 pub struct Ipc(Mutex<HashMap<IpcKey, Sender<std::result::Result<JsonValue, JsonValue>>>>);
+
+impl Ipc {
+  /// Insert an `Ipc` which will be used by the Tauri backend to send back the result of a Tauri
+  /// command
+  pub fn insert_ipc(&self, key: IpcKey, tx: Sender<std::result::Result<JsonValue, JsonValue>>) {
+    self.0.lock().unwrap().insert(key, tx);
+  }
+
+  /// Remove an `Ipc` from the hashmap
+  pub fn remove_ipc(
+    &self,
+    key: &IpcKey,
+  ) -> Option<Sender<std::result::Result<JsonValue, JsonValue>>> {
+    self.0.lock().unwrap().remove(key)
+  }
+}
 
 /// An empty [`Assets`] implementation.
 pub struct NoopAsset {
@@ -190,8 +210,7 @@ pub fn mock_builder() -> Builder<MockRuntime> {
   builder.invoke_responder = Arc::new(|window, response, callback, error| {
     let window_ = window.clone();
     let ipc = window_.state::<Ipc>();
-    let mut ipc_ = ipc.0.lock().unwrap();
-    if let Some(tx) = ipc_.remove(&IpcKey { callback, error }) {
+    if let Some(tx) = ipc.remove_ipc(&IpcKey { callback, error }) {
       tx.send(response.into_result()).unwrap();
     } else {
       window_invoke_responder(window, response, callback, error)

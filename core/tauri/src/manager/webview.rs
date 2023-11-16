@@ -22,7 +22,7 @@ use crate::{
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  AppHandle, EventLoopMessage, Manager, Runtime, Webview, Window,
+  AppHandle, EventLoopMessage, Runtime, Webview, Window,
 };
 
 use super::AppManager;
@@ -487,6 +487,7 @@ impl<R: Runtime> WebviewManager<R> {
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
+      use crate::Manager;
       let local_app_data = window.path().resolve(
         &window.manager.config.tauri.bundle.identifier,
         crate::path::BaseDirectory::LocalData,

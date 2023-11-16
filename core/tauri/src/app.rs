@@ -31,8 +31,6 @@ use crate::{
 use crate::menu::{Menu, MenuEvent};
 #[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
-#[cfg(desktop)]
-use crate::window::WindowMenu;
 use raw_window_handle::HasRawDisplayHandle;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
@@ -654,7 +652,7 @@ macro_rules! shared_app_impl {
             let has_app_wide_menu = window.has_app_wide_menu() || window.menu().is_none();
             if has_app_wide_menu {
               window.set_menu(menu.clone())?;
-              window.menu_lock().replace(WindowMenu {
+              window.menu_lock().replace(crate::window::WindowMenu {
                 is_app_wide: true,
                 menu: menu.clone(),
               });

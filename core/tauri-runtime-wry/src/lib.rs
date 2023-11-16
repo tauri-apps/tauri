@@ -2880,7 +2880,7 @@ fn create_webview<T: UserEvent>(
     target_os = "ios",
     target_os = "android"
   ))]
-  let mut webview_builder = WebViewBuilder::new(&window);
+  let builder = WebViewBuilder::new(&window);
   #[cfg(not(any(
     target_os = "windows",
     target_os = "macos",

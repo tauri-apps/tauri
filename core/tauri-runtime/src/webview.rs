@@ -184,7 +184,10 @@ impl From<&WindowConfig> for WebviewAttributes {
   fn from(config: &WindowConfig) -> Self {
     let mut builder = Self::new(config.url.clone());
     builder = builder.incognito(config.incognito);
-    builder = builder.transparent(config.transparent);
+    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+    {
+      builder = builder.transparent(config.transparent);
+    }
     builder = builder.accept_first_mouse(config.accept_first_mouse);
     if !config.file_drop_enabled {
       builder = builder.disable_file_drop_handler();

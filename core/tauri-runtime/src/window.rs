@@ -358,7 +358,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Hide the titlebar. Titlebar buttons will still be visible.
   #[cfg(target_os = "macos")]
   #[must_use]
-  fn title_bar_style(self, style: TitleBarStyle) -> Self;
+  fn title_bar_style(self, style: tauri_utils::TitleBarStyle) -> Self;
 
   /// Hide the window title.
   #[cfg(target_os = "macos")]

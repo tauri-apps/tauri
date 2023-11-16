@@ -86,7 +86,7 @@ use tauri_utils::{
 };
 
 #[derive(Eq, PartialEq)]
-struct IpcKey {
+pub struct IpcKey {
   callback: CallbackFn,
   error: CallbackFn,
 }
@@ -98,7 +98,7 @@ impl Hash for IpcKey {
   }
 }
 
-struct Ipc(Mutex<HashMap<IpcKey, Sender<std::result::Result<JsonValue, JsonValue>>>>);
+pub struct Ipc(Mutex<HashMap<IpcKey, Sender<std::result::Result<JsonValue, JsonValue>>>>);
 
 /// An empty [`Assets`] implementation.
 pub struct NoopAsset {

@@ -18,7 +18,7 @@ export interface AboutMetadata {
    *
    * - **Windows / Linux:** Appended to the end of `version` in parentheses.
    */
-  short_version?: string
+  shortVersion?: string
   /**
    * The authors of the application.
    *
@@ -60,7 +60,7 @@ export interface AboutMetadata {
    *
    * - **macOS:** Unsupported.
    */
-  website_label?: string
+  websiteLabel?: string
   /**
    * The credits.
    *

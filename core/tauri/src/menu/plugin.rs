@@ -31,6 +31,7 @@ pub(crate) enum ItemKind {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct AboutMetadata {
   pub name: Option<String>,
   pub version: Option<String>,

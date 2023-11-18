@@ -2289,9 +2289,11 @@ impl<R: Runtime> Window<R> {
             if let serde_json::Value::Object(map) = payload {
               for v in map.values() {
                 if let serde_json::Value::String(s) = v {
-                  if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
-                    crate::ipc::Channel::load_from_ipc(window.clone(), s);
-                  }
+                  s.split_once(crate::ipc::channel::IPC_PAYLOAD_PREFIX)
+                    .and_then(|(_prefix, id)| id.parse().ok())
+                    .map(|callback_id| {
+                      crate::ipc::Channel::from_ipc(window.clone(), CallbackFn(callback_id))
+                    });
                 }
               }
             }

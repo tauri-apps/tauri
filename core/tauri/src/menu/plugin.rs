@@ -13,7 +13,7 @@ use tauri_runtime::window::dpi::Position;
 use super::{sealed::ContextMenuBase, *};
 use crate::{
   command,
-  ipc::{channel::ChannelRef, Channel},
+  ipc::{channel::JavaScriptChannelId, Channel},
   plugin::{Builder, TauriPlugin},
   resources::{ResourceId, ResourceTable},
   AppHandle, IconDto, Manager, RunEvent, Runtime, State, Window,
@@ -117,7 +117,7 @@ impl SubmenuPayload {
 
 #[derive(Deserialize)]
 struct CheckMenuItemPayload {
-  handler: Option<ChannelRef>,
+  handler: Option<JavaScriptChannelId>,
   id: Option<MenuId>,
   text: String,
   checked: bool,
@@ -142,7 +142,7 @@ impl CheckMenuItemPayload {
     let item = builder.checked(self.checked).build(window);
 
     if let Some(handler) = self.handler {
-      let handler = Channel::from_ipc(window.clone(), handler.0);
+      let handler = handler.channel_on(window.clone());
       window
         .state::<MenuChannels>()
         .0
@@ -165,7 +165,7 @@ enum Icon {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct IconMenuItemPayload {
-  handler: Option<ChannelRef>,
+  handler: Option<JavaScriptChannelId>,
   id: Option<MenuId>,
   text: String,
   icon: Icon,
@@ -194,7 +194,7 @@ impl IconMenuItemPayload {
     let item = builder.build(window);
 
     if let Some(handler) = self.handler {
-      let handler = Channel::from_ipc(window.clone(), handler.0);
+      let handler = handler.channel_on(window.clone());
       window
         .state::<MenuChannels>()
         .0
@@ -209,7 +209,7 @@ impl IconMenuItemPayload {
 
 #[derive(Deserialize)]
 struct MenuItemPayload {
-  handler: Option<ChannelRef>,
+  handler: Option<JavaScriptChannelId>,
   id: Option<MenuId>,
   text: String,
   enabled: Option<bool>,
@@ -233,7 +233,7 @@ impl MenuItemPayload {
     let item = builder.build(window);
 
     if let Some(handler) = self.handler {
-      let handler = Channel::from_ipc(window.clone(), handler.0);
+      let handler = handler.channel_on(window.clone());
       window
         .state::<MenuChannels>()
         .0

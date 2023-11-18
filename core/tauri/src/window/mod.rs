@@ -2286,14 +2286,13 @@ impl<R: Runtime> Window<R> {
           handled = true;
 
           fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
+            use std::str::FromStr;
+
             if let serde_json::Value::Object(map) = payload {
               for v in map.values() {
                 if let serde_json::Value::String(s) = v {
-                  s.split_once(crate::ipc::channel::IPC_PAYLOAD_PREFIX)
-                    .and_then(|(_prefix, id)| id.parse().ok())
-                    .map(|callback_id| {
-                      crate::ipc::Channel::from_ipc(window.clone(), CallbackFn(callback_id))
-                    });
+                  crate::ipc::JavaScriptChannelId::from_str(s)
+                    .map(|id| id.channel_on(window.clone()));
                 }
               }
             }

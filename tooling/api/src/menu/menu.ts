@@ -4,16 +4,16 @@
 
 import {
   MenuItemOptions,
-  type CheckMenuItem,
-  type IconMenuItem,
-  type MenuItem,
-  type PredefinedMenuItem,
-  type Submenu,
   SubmenuOptions,
   IconMenuItemOptions,
   PredefinedMenuItemOptions,
   CheckMenuItemOptions
 } from '../menu'
+import { MenuItem } from './menuItem'
+import { CheckMenuItem } from './checkMenuItem'
+import { IconMenuItem } from './iconMenuItem'
+import { PredefinedMenuItem } from './predefinedMenuItem'
+import { Submenu } from './submenu'
 import { type LogicalPosition, PhysicalPosition } from '../dpi'
 import { type Window } from '../window'
 import { invoke } from '../primitives'
@@ -210,7 +210,7 @@ export class Menu extends MenuItemBase {
       Submenu | MenuItem | PredefinedMenuItem | CheckMenuItem | IconMenuItem
     >
   > {
-    return invoke<Array<[number, string, ItemKind]>>('plugin:menu|append', {
+    return invoke<Array<[number, string, ItemKind]>>('plugin:menu|items', {
       rid: this.rid,
       kind: this.kind
     }).then((i) => i.map(itemFromKind))
@@ -227,7 +227,7 @@ export class Menu extends MenuItemBase {
     | IconMenuItem
     | null
   > {
-    return invoke<[number, string, ItemKind] | null>('plugin:menu|append', {
+    return invoke<[number, string, ItemKind] | null>('plugin:menu|get', {
       rid: this.rid,
       kind: this.kind,
       id

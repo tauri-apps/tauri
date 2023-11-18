@@ -110,14 +110,14 @@ export interface PredefinedMenuItemOptions {
 export class PredefinedMenuItem extends MenuItemBase {
   /** @ignore */
   protected constructor(rid: number, id: string) {
-    super(rid, id, 'MenuItem')
+    super(rid, id, 'Predefined')
   }
 
   /** Create a new predefined menu item. */
   static async new(
     opts?: PredefinedMenuItemOptions
   ): Promise<PredefinedMenuItem> {
-    return newMenu('MenuItem', opts).then(
+    return newMenu('Predefined', opts).then(
       ([rid, id]) => new PredefinedMenuItem(rid, id)
     )
   }

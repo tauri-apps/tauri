@@ -10,11 +10,15 @@
 
   const macOS = navigator.userAgent.includes('Macintosh')
 
-  async function create() {
+  async function createSubmenu() {
     submenu = await Submenu.new({
       text: 'app',
       items: items.map((i) => i.item)
     })
+  }
+
+  async function create() {
+    await createSubmenu()
     menuItemCount = items.length
     menu = await Menu.new({
       items: [submenu]
@@ -24,9 +28,9 @@
 
   async function popup() {
     if (!submenu || menuItemCount !== items.length) {
-      await create()
+      await createSubmenu()
     }
-    // we can't popup the menu because it's the app menu (it crashes on macOS)
+    // we can't popup the same menu because it's the app menu (it crashes on macOS)
     const m = await Menu.new({ items: [submenu] })
     m.popup()
   }

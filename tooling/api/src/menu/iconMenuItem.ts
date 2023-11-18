@@ -189,12 +189,7 @@ export class IconMenuItem extends MenuItemBase {
   }
 
   /** Sets an icon for this icon menu item */
-  async setIcon(icon: string | Uint8Array | null): Promise<void> {
+  async setIcon(icon: NativeIcon | string | Uint8Array | null): Promise<void> {
     return invoke('plugin:menu|set_icon', { rid: this.rid, icon })
-  }
-
-  /** Sets a native icon for this icon menu item */
-  async setNativeIcon(icon: NativeIcon | null): Promise<void> {
-    return invoke('plugin:menu|set_native_icon', { rid: this.rid, icon })
   }
 }

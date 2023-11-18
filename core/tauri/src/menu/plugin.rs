@@ -818,22 +818,19 @@ fn set_checked<R: Runtime>(app: AppHandle<R>, rid: ResourceId, checked: bool) ->
 fn set_icon<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
-  icon: Option<IconDto>,
+  icon: Option<Icon>,
 ) -> crate::Result<()> {
   let resources_table = app.manager.resources_table();
   let icon_item = resources_table.get::<IconMenuItem<R>>(rid)?;
-  icon_item.set_icon(icon.map(Into::into))
-}
-
-#[command(root = "crate")]
-fn set_native_icon<R: Runtime>(
-  app: AppHandle<R>,
-  rid: ResourceId,
-  icon: Option<NativeIcon>,
-) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
-  let icon_item = resources_table.get::<IconMenuItem<R>>(rid)?;
-  icon_item.set_native_icon(icon)
+  match icon {
+    Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
+    Some(Icon::Icon(icon)) => icon_item.set_icon(Some(icon.into())),
+    None => {
+      icon_item.set_icon(None)?;
+      icon_item.set_native_icon(None)?;
+      Ok(())
+    }
+  }
 }
 
 struct MenuChannels(Mutex<HashMap<MenuId, Channel>>);
@@ -874,7 +871,6 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       is_checked,
       set_checked,
       set_icon,
-      set_native_icon,
     ])
     .build()
 }

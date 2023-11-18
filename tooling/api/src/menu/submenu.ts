@@ -3,12 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 import {
-  MenuItemKind,
+  IconMenuItemOptions,
   type CheckMenuItem,
   type IconMenuItem,
   type MenuItem,
   type MenuItemOptions,
-  type PredefinedMenuItem
+  type PredefinedMenuItem,
+  PredefinedMenuItemOptions,
+  CheckMenuItemOptions
 } from '../menu'
 import { invoke } from '../primitives'
 import { type LogicalPosition, PhysicalPosition, type Window } from '../window'
@@ -100,7 +102,11 @@ export class Submenu extends MenuItemBase {
       | PredefinedMenuItem
       | CheckMenuItem
       | IconMenuItem
-      | MenuItemKind
+      | MenuItemOptions
+      | SubmenuOptions
+      | IconMenuItemOptions
+      | PredefinedMenuItemOptions
+      | CheckMenuItemOptions
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|append', {
       rid: this.rid,
@@ -125,7 +131,11 @@ export class Submenu extends MenuItemBase {
       | PredefinedMenuItem
       | CheckMenuItem
       | IconMenuItem
-      | MenuItemKind
+      | MenuItemOptions
+      | SubmenuOptions
+      | IconMenuItemOptions
+      | PredefinedMenuItemOptions
+      | CheckMenuItemOptions
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
@@ -150,7 +160,11 @@ export class Submenu extends MenuItemBase {
       | PredefinedMenuItem
       | CheckMenuItem
       | IconMenuItem
-      | MenuItemKind
+      | MenuItemOptions
+      | SubmenuOptions
+      | IconMenuItemOptions
+      | PredefinedMenuItemOptions
+      | CheckMenuItemOptions
   >(items: T | T[], position: number): Promise<void> {
     return invoke('plugin:menu|insert', {
       rid: this.rid,

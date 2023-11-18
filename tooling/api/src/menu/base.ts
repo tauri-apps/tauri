@@ -3,8 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 import { Resource } from '../internal'
-import { MenuItemKind } from '../menu'
 import { Channel, invoke } from '../primitives'
+import { CheckMenuItemOptions } from './checkMenuItem'
+import { IconMenuItemOptions } from './iconMenuItem'
+import { MenuItemOptions } from './menuItem'
+import { PredefinedMenuItemOptions } from './predefinedMenuItem'
+import { SubmenuOptions } from './submenu'
 
 export type ItemKind =
   | 'MenuItem'
@@ -15,8 +19,18 @@ export type ItemKind =
   | 'Menu'
 
 function injectChannel(
-  i: MenuItemKind
-): MenuItemKind & { handler?: Channel<string> } {
+  i:
+    | MenuItemOptions
+    | SubmenuOptions
+    | IconMenuItemOptions
+    | PredefinedMenuItemOptions
+    | CheckMenuItemOptions
+):
+  | MenuItemOptions
+  | SubmenuOptions
+  | IconMenuItemOptions
+  | PredefinedMenuItemOptions
+  | (CheckMenuItemOptions & { handler?: Channel<string> }) {
   if ('items' in i) {
     i.items = i.items?.map((item) =>
       'rid' in item ? item : injectChannel(item)
@@ -35,7 +49,14 @@ export async function newMenu(
   opts?: unknown
 ): Promise<[number, string]> {
   const handler = new Channel<string>()
-  let items: null | Array<[number, string] | MenuItemKind> = null
+  let items: null | Array<
+    | [number, string]
+    | MenuItemOptions
+    | SubmenuOptions
+    | IconMenuItemOptions
+    | PredefinedMenuItemOptions
+    | CheckMenuItemOptions
+  > = null
   if (opts && typeof opts === 'object') {
     if ('action' in opts && opts.action) {
       handler.onmessage = opts.action as () => void
@@ -44,7 +65,14 @@ export async function newMenu(
 
     if ('items' in opts && opts.items) {
       items = (
-        opts.items as Array<{ rid: number; kind: string } | MenuItemKind>
+        opts.items as Array<
+          | { rid: number; kind: string }
+          | MenuItemOptions
+          | SubmenuOptions
+          | IconMenuItemOptions
+          | PredefinedMenuItemOptions
+          | CheckMenuItemOptions
+        >
       ).map((i) => {
         if ('rid' in i) {
           return [i.rid, i.kind]

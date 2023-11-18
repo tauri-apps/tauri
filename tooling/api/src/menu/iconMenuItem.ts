@@ -132,16 +132,8 @@ export enum NativeIcon {
 export interface IconMenuItemOptions extends MenuItemOptions {
   /**
    * Icon to be used for the new icon menu item.
-   *
-   * if both {@linkcode IconMenuItemOptions.icon|icon} and {@linkcode IconMenuItemOptions.nativeIcon|nativeIcon} are specified, only {@linkcode IconMenuItemOptions.icon|icon} is used.
    */
-  icon?: string | Uint8Array
-  /**
-   * NativeIcon to be used for the new icon menu item.
-   *
-   * if both {@linkcode IconMenuItemOptions.icon|icon} and {@linkcode IconMenuItemOptions.nativeIcon|nativeIcon} are specified, only {@linkcode IconMenuItemOptions.icon|icon} is used.
-   */
-  nativeIcon?: NativeIcon
+  icon?: NativeIcon | string | Uint8Array
 }
 
 /**

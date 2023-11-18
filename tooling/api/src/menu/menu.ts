@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import {
+  MenuItemKind,
   type CheckMenuItem,
   type IconMenuItem,
   type MenuItem,
@@ -48,7 +49,12 @@ export interface MenuOptions {
   id?: string
   /** List of items to add to the new menu. */
   items?: Array<
-    Submenu | MenuItem | PredefinedMenuItem | CheckMenuItem | IconMenuItem
+    | Submenu
+    | MenuItem
+    | PredefinedMenuItem
+    | CheckMenuItem
+    | IconMenuItem
+    | MenuItemKind
   >
 }
 
@@ -87,14 +93,14 @@ export class Menu extends MenuItemBase {
       | PredefinedMenuItem
       | CheckMenuItem
       | IconMenuItem
+      | MenuItemKind
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|append', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) => [
-        i.rid,
-        i.kind
-      ])
+      items: (Array.isArray(items) ? items : [items]).map((i) =>
+        'rid' in i ? [i.rid, i.kind] : i
+      )
     })
   }
 
@@ -112,14 +118,14 @@ export class Menu extends MenuItemBase {
       | PredefinedMenuItem
       | CheckMenuItem
       | IconMenuItem
+      | MenuItemKind
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) => [
-        i.rid,
-        i.kind
-      ])
+      items: (Array.isArray(items) ? items : [items]).map((i) =>
+        'rid' in i ? [i.rid, i.kind] : i
+      )
     })
   }
 
@@ -137,14 +143,14 @@ export class Menu extends MenuItemBase {
       | PredefinedMenuItem
       | CheckMenuItem
       | IconMenuItem
+      | MenuItemKind
   >(items: T | T[], position: number): Promise<void> {
     return invoke('plugin:menu|insert', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) => [
-        i.rid,
-        i.kind
-      ]),
+      items: (Array.isArray(items) ? items : [items]).map((i) =>
+        'rid' in i ? [i.rid, i.kind] : i
+      ),
       position
     })
   }

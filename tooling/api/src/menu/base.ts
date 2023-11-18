@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { Resource } from '../internal'
+import { MenuItemKind } from '../menu'
 import { Channel, invoke } from '../primitives'
 
 export type ItemKind =
@@ -13,12 +14,28 @@ export type ItemKind =
   | 'Submenu'
   | 'Menu'
 
+function injectChannel(
+  i: MenuItemKind
+): MenuItemKind & { handler?: Channel<string> } {
+  if ('items' in i) {
+    i.items = i.items?.map((item) =>
+      'rid' in item ? item : injectChannel(item)
+    )
+  } else if ('action' in i && i.action) {
+    const handler = new Channel<string>()
+    handler.onmessage = i.action
+    delete i.action
+    return { ...i, handler }
+  }
+  return i
+}
+
 export async function newMenu(
   kind: ItemKind,
   opts?: unknown
 ): Promise<[number, string]> {
   const handler = new Channel<string>()
-  let items: null | Array<[number, string]> = null
+  let items: null | Array<[number, string] | MenuItemKind> = null
   if (opts && typeof opts === 'object') {
     if ('action' in opts && opts.action) {
       handler.onmessage = opts.action as () => void
@@ -26,10 +43,14 @@ export async function newMenu(
     }
 
     if ('items' in opts && opts.items) {
-      items = (opts.items as { rid: number; kind: string }[]).map((i) => [
-        i.rid,
-        i.kind
-      ])
+      items = (
+        opts.items as Array<{ rid: number; kind: string } | MenuItemKind>
+      ).map((i) => {
+        if ('rid' in i) {
+          return [i.rid, i.kind]
+        }
+        return injectChannel(i)
+      })
     }
   }
 

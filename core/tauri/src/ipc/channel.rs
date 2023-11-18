@@ -10,7 +10,7 @@ use std::{
   },
 };
 
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
   command,
@@ -47,6 +47,32 @@ impl Serialize for Channel {
     S: Serializer,
   {
     serializer.serialize_str(&format!("{IPC_PAYLOAD_PREFIX}{}", self.id))
+  }
+}
+
+pub(crate) struct ChannelRef(pub(crate) CallbackFn);
+
+impl ChannelRef {
+  fn new(value: impl AsRef<str>) -> Option<Self> {
+    value
+      .as_ref()
+      .split_once(IPC_PAYLOAD_PREFIX)
+      .and_then(|(_prefix, id)| id.parse().ok())
+      .map(|id| Self(CallbackFn(id)))
+  }
+}
+
+impl<'de> Deserialize<'de> for ChannelRef {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let value: String = Deserialize::deserialize(deserializer)?;
+    ChannelRef::new(&value).ok_or_else(|| {
+      serde::de::Error::custom(format!(
+        "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
+      ))
+    })
   }
 }
 
@@ -90,17 +116,6 @@ impl Channel {
     })
   }
 
-  pub(crate) fn load_from_ipc<R: Runtime>(
-    window: Window<R>,
-    value: impl AsRef<str>,
-  ) -> Option<Self> {
-    value
-      .as_ref()
-      .split_once(IPC_PAYLOAD_PREFIX)
-      .and_then(|(_prefix, id)| id.parse().ok())
-      .map(|callback_id| Self::from_ipc(window, CallbackFn(callback_id)))
-  }
-
   /// The channel identifier.
   pub fn id(&self) -> u32 {
     self.id
@@ -121,11 +136,13 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel {
     let window = command.message.window();
     let value: String =
       Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
-    Channel::load_from_ipc(window, &value).ok_or_else(|| {
-      InvokeError::from_anyhow(anyhow::anyhow!(
+    ChannelRef::new(&value)
+      .map(|r| Channel::from_ipc(window, r.0))
+      .ok_or_else(|| {
+        InvokeError::from_anyhow(anyhow::anyhow!(
         "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
       ))
-    })
+      })
   }
 }
 

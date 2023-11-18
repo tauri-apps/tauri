@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+import { CheckMenuItemOptions } from './menu/checkMenuItem'
+import { SubmenuOptions } from './menu/submenu'
+import { MenuItemOptions } from './menu/menuItem'
+import { IconMenuItemOptions } from './menu/iconMenuItem'
+import { PredefinedMenuItemOptions } from './menu/predefinedMenuItem'
+
 export * from './menu/submenu'
 export * from './menu/menuItem'
 export * from './menu/menu'
@@ -16,8 +22,9 @@ export * from './menu/predefinedMenuItem'
  * @module
  */
 
-/** Describes a menu event emitted when a menu item is activated */
-export interface MenuEvent {
-  /** Id of the menu item that triggered this event */
-  id: string
-}
+export type MenuItemKind =
+  | MenuItemOptions
+  | SubmenuOptions
+  | IconMenuItemOptions
+  | PredefinedMenuItemOptions
+  | CheckMenuItemOptions

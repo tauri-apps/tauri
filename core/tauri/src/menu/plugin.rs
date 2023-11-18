@@ -452,7 +452,7 @@ fn append<R: Runtime>(
         item.with_item(&window, &resources_table, |i| submenu.append(i))?;
       }
     }
-    _ => unreachable!(),
+    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };
 
   Ok(())
@@ -479,7 +479,7 @@ fn prepend<R: Runtime>(
         item.with_item(&window, &resources_table, |i| submenu.prepend(i))?;
       }
     }
-    _ => unreachable!(),
+    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };
 
   Ok(())
@@ -509,7 +509,7 @@ fn insert<R: Runtime>(
         position += 1
       }
     }
-    _ => unreachable!(),
+    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };
 
   Ok(())
@@ -533,7 +533,7 @@ fn remove<R: Runtime>(
       let submenu = resources_table.get::<Submenu<R>>(menu_rid)?;
       do_menu_item!(resources_table, rid, kind, |i| submenu.remove(&*i))?;
     }
-    _ => unreachable!(),
+    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };
 
   Ok(())
@@ -574,7 +574,7 @@ fn remove_at<R: Runtime>(
         return Ok(Some(make_item_resource!(resources_table, item)));
       }
     }
-    _ => unreachable!(),
+    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };
 
   Ok(None)
@@ -590,7 +590,7 @@ fn items<R: Runtime>(
   let items = match kind {
     ItemKind::Menu => resources_table.get::<Menu<R>>(rid)?.items()?,
     ItemKind::Submenu => resources_table.get::<Submenu<R>>(rid)?.items()?,
-    _ => unreachable!(),
+    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };
 
   Ok(
@@ -622,7 +622,7 @@ fn get<R: Runtime>(
         return Ok(Some(make_item_resource!(resources_table, item)));
       }
     }
-    _ => unreachable!(),
+    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };
 
   Ok(None)
@@ -652,7 +652,7 @@ async fn popup<R: Runtime>(
         let submenu = resources_table.get::<Submenu<R>>(rid)?;
         submenu.popup_inner(window, at)?;
       }
-      _ => unreachable!(),
+      _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
     };
   }
 

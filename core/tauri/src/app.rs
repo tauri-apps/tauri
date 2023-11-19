@@ -1688,6 +1688,8 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   let pending = app.pending.take();
   if let Some(pending) = pending {
+    let app_handle = app.handle();
+
     let window_labels = pending
       .iter()
       .map(|p| p.webview.label.clone())
@@ -1700,8 +1702,6 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
       })
       .collect::<Vec<_>>();
 
-    let app_handle = app.handle();
-
     for PendingWebviewWindow {
       window_builder,
       webview,
@@ -1709,17 +1709,17 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     {
       let mut builder = WindowBuilder::new(app_handle, &webview.label);
       builder.window_builder = window_builder;
-      let window = builder.build()?;
-
-      let webview_builder = WebviewBuilder {
-        window,
-        label: webview.label,
-        webview_attributes: webview.webview_attributes,
-        web_resource_request_handler: None,
-        navigation_handler: None,
-        on_page_load_handler: None,
-      };
-      webview_builder.build_with_labels(&window_labels, &webview_labels)?;
+      builder.with_webview_internal(
+        WebviewBuilder {
+          label: webview.label,
+          webview_attributes: webview.webview_attributes,
+          web_resource_request_handler: None,
+          navigation_handler: None,
+          on_page_load_handler: None,
+        },
+        &window_labels,
+        &webview_labels,
+      )?;
     }
   }
 

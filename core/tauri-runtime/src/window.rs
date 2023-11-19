@@ -4,7 +4,10 @@
 
 //! A layer between raw [`Runtime`] windows and Tauri.
 
-use crate::{Icon, Runtime, UserEvent, WindowDispatch};
+use crate::{
+  webview::{DetachedWebview, PendingWebview},
+  Icon, Runtime, UserEvent, WindowDispatch,
+};
 
 use serde::{Deserialize, Deserializer};
 use tauri_utils::{config::WindowConfig, Theme};
@@ -389,6 +392,9 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
 
   /// The [`WindowBuilder`] that the window will be created with.
   pub window_builder: <R::WindowDispatcher as WindowDispatch<T>>::WindowBuilder,
+
+  /// The webview that gets added to the window. Optional in case you want to use child webviews or other window content instead.
+  pub webview: Option<PendingWebview<T, R>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -417,8 +423,15 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
       Ok(Self {
         window_builder,
         label,
+        webview: None,
       })
     }
+  }
+
+  /// Sets a webview to be created on the window.
+  pub fn set_webview(&mut self, webview: PendingWebview<T, R>) -> &mut Self {
+    self.webview.replace(webview);
+    self
   }
 }
 
@@ -442,6 +455,9 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
 
   /// The [`WindowDispatch`] associated with the window.
   pub dispatcher: R::WindowDispatcher,
+
+  /// The webview dispatcher in case this window has an attached webview.
+  pub webview: Option<DetachedWebview<T, R>>,
 }
 
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
@@ -450,6 +466,7 @@ impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
       id: self.id,
       label: self.label.clone(),
       dispatcher: self.dispatcher.clone(),
+      webview: self.webview.clone(),
     }
   }
 }

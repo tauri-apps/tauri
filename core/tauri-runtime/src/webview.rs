@@ -49,7 +49,7 @@ pub enum PageLoadEvent {
 
 /// A webview that has yet to be built.
 pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
-  /// The label that the window will be named.
+  /// The label that the webview will be named.
   pub label: String,
 
   /// The [`WebviewAttributes`] that the webview will be created with.
@@ -57,7 +57,7 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
 
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 
-  /// How to handle IPC calls on the webview window.
+  /// How to handle IPC calls on the webview.
   pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
 
   /// A handler to decide if incoming url is allowed to navigate.

@@ -22,7 +22,7 @@ use crate::{
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  AppHandle, EventLoopMessage, Runtime, Webview, Window,
+  AppHandle, EventLoopMessage, Manager, Runtime, Webview, Window,
 };
 
 use super::AppManager;
@@ -109,31 +109,33 @@ impl<R: Runtime> WebviewManager<R> {
     self.webviews.lock().expect("poisoned webview manager")
   }
 
-  fn prepare_pending_webview(
+  fn prepare_pending_webview<M: Manager<R>>(
     &self,
     mut pending: PendingWebview<EventLoopMessage, R>,
     label: &str,
+    window_label: &str,
     window_labels: &[String],
     webview_labels: &[WebviewLabelDef],
-    window: Window<R>,
+    manager: &M,
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
-    let is_init_global = window.manager.config.build.with_global_tauri;
-    let plugin_init = window
-      .manager
+    let app_manager = manager.manager();
+
+    let is_init_global = app_manager.config.build.with_global_tauri;
+    let plugin_init = app_manager
       .plugins
       .lock()
       .expect("poisoned plugin store")
       .initialization_script();
 
     let pattern_init = PatternJavascript {
-      pattern: (&*window.manager.pattern).into(),
+      pattern: (&*app_manager.pattern).into(),
     }
     .render_default(&Default::default())?;
 
     let mut webview_attributes = pending.webview_attributes;
 
     let ipc_init = IpcJavascript {
-      isolation_origin: &match &*window.manager.pattern {
+      isolation_origin: &match &*app_manager.pattern {
         #[cfg(feature = "isolation")]
         crate::Pattern::Isolation { schema, .. } => crate::pattern::format_real_schema(schema),
         _ => "".to_string(),
@@ -144,7 +146,7 @@ impl<R: Runtime> WebviewManager<R> {
     let mut webview_labels = webview_labels.to_vec();
     if !webview_labels.iter().any(|w| w.label == label) {
       webview_labels.push(WebviewLabelDef {
-        window_label: window.label().to_string(),
+        window_label: window_label.to_string(),
         label: label.to_string(),
       });
     }
@@ -174,11 +176,11 @@ impl<R: Runtime> WebviewManager<R> {
         "#,
         window_labels_array = serde_json::to_string(&window_labels)?,
         webview_labels_array = serde_json::to_string(&webview_labels)?,
-        current_window_label = serde_json::to_string(window.label())?,
+        current_window_label = serde_json::to_string(window_label)?,
         current_webview_label = serde_json::to_string(&label)?,
       ))
       .initialization_script(&self.initialization_script(
-        &window.manager,
+        app_manager,
         &ipc_init.into_string(),
         &pattern_init.into_string(),
         &plugin_init,
@@ -186,7 +188,7 @@ impl<R: Runtime> WebviewManager<R> {
       )?);
 
     #[cfg(feature = "isolation")]
-    if let crate::Pattern::Isolation { schema, .. } = &*window.manager.pattern {
+    if let crate::Pattern::Isolation { schema, .. } = &*app_manager.pattern {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
           isolation_src: &crate::pattern::format_real_schema(schema),
@@ -204,7 +206,7 @@ impl<R: Runtime> WebviewManager<R> {
     for (uri_scheme, protocol) in &*self.uri_scheme_protocols.lock().unwrap() {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
-      let app_handle = Mutex::new(window.app_handle.clone());
+      let app_handle = Mutex::new(manager.app_handle().clone());
       pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p, responder| {
         (protocol.protocol)(
           &app_handle.lock().unwrap(),
@@ -237,7 +239,7 @@ impl<R: Runtime> WebviewManager<R> {
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
       let protocol = crate::protocol::tauri::get(
-        window.manager.clone(),
+        manager.manager_owned(),
         &window_origin,
         web_resource_request_handler,
       );
@@ -248,7 +250,8 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
-      let protocol = crate::ipc::protocol::get(window.manager.clone(), pending.label.clone());
+      let protocol =
+        crate::ipc::protocol::get(manager.manager_owned().clone(), pending.label.clone());
       pending.register_uri_scheme_protocol("ipc", move |request, responder| {
         protocol(request, UriSchemeResponder(responder))
       });
@@ -256,19 +259,23 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     let label = pending.label.clone();
-    let manager = window.manager.clone();
+    let app_manager_ = manager.manager_owned();
     let on_page_load_handler = pending.on_page_load_handler.take();
     pending
       .on_page_load_handler
       .replace(Box::new(move |url, event| {
         let payload = PageLoadPayload { url: &url, event };
 
-        if let Some(w) = manager.get_webview(&label) {
-          if let Some(on_page_load) = &manager.webview.on_page_load {
+        if let Some(w) = app_manager_.get_webview(&label) {
+          if let Some(on_page_load) = &app_manager_.webview.on_page_load {
             on_page_load(&w, &payload);
           }
 
-          manager.plugins.lock().unwrap().on_page_load(&w, &payload);
+          app_manager_
+            .plugins
+            .lock()
+            .unwrap()
+            .on_page_load(&w, &payload);
         }
 
         if let Some(handler) = &on_page_load_handler {
@@ -278,8 +285,7 @@ impl<R: Runtime> WebviewManager<R> {
 
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
-      let asset_scope = window
-        .manager
+      let asset_scope = app_manager
         .state()
         .get::<crate::Scopes>()
         .asset_protocol
@@ -296,7 +302,7 @@ impl<R: Runtime> WebviewManager<R> {
       schema,
       key: _,
       crypto_keys,
-    } = &*window.manager.pattern
+    } = &*app_manager.pattern
     {
       let protocol = crate::protocol::isolation::get(assets.clone(), *crypto_keys.aes_gcm().raw());
       pending.register_uri_scheme_protocol(schema, move |request, responder| {
@@ -373,10 +379,11 @@ impl<R: Runtime> WebviewManager<R> {
     .map_err(Into::into)
   }
 
-  pub fn prepare_webview(
+  pub fn prepare_webview<M: Manager<R>>(
     &self,
-    window: Window<R>,
+    manager: &M,
     mut pending: PendingWebview<EventLoopMessage, R>,
+    window_label: &str,
     window_labels: &[String],
     webview_labels: &[WebviewLabelDef],
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
@@ -384,13 +391,15 @@ impl<R: Runtime> WebviewManager<R> {
       return Err(crate::Error::WebviewLabelAlreadyExists(pending.label));
     }
 
+    let app_manager = manager.manager();
+
     #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
         let url = if PROXY_DEV_SERVER {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
-          window.manager.get_url()
+          app_manager.get_url()
         };
         // ignore "index.html" just to simplify the url
         if path.to_str() != Some("index.html") {
@@ -404,7 +413,7 @@ impl<R: Runtime> WebviewManager<R> {
         }
       }
       WebviewUrl::External(url) => {
-        let config_url = window.manager.get_url();
+        let config_url = app_manager.get_url();
         let is_local = config_url.make_relative(url).is_some();
         let mut url = url.clone();
         if is_local && PROXY_DEV_SERVER {
@@ -424,7 +433,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     #[cfg(feature = "webview-data-url")]
-    if let Some(csp) = window.manager.csp() {
+    if let Some(csp) = app_manager.csp() {
       if url.scheme() == "data" {
         if let Ok(data_url) = data_url::DataUrl::process(url.as_str()) {
           let (body, _) = data_url.decode_to_vec().unwrap();
@@ -470,16 +479,16 @@ impl<R: Runtime> WebviewManager<R> {
     pending = self.prepare_pending_webview(
       pending,
       &label,
+      window_label,
       window_labels,
       webview_labels,
-      #[allow(clippy::redundant_clone)]
-      window.clone(),
+      manager,
     )?;
 
     #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
     {
       pending.ipc_handler = Some(crate::ipc::protocol::message_handler(
-        window.manager.clone(),
+        manager.manager_owned(),
       ));
     }
 
@@ -487,9 +496,8 @@ impl<R: Runtime> WebviewManager<R> {
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      use crate::Manager;
-      let local_app_data = window.path().resolve(
-        &window.manager.config.tauri.bundle.identifier,
+      let local_app_data = manager.path().resolve(
+        &app_manager.config.tauri.bundle.identifier,
         crate::path::BaseDirectory::LocalData,
       );
       if let Ok(user_data_dir) = local_app_data {
@@ -505,9 +513,9 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     #[cfg(feature = "isolation")]
-    let pattern = window.manager.pattern.clone();
+    let pattern = app_manager.pattern.clone();
     let navigation_handler = pending.navigation_handler.take();
-    let manager = window.manager.clone();
+    let app_manager = manager.manager_owned();
     let label = pending.label.clone();
     pending.navigation_handler = Some(Box::new(move |url| {
       // always allow navigation events for the isolation iframe and do not emit them for consumers
@@ -524,9 +532,9 @@ impl<R: Runtime> WebviewManager<R> {
           return false;
         }
       }
-      let webview = manager.webview.webviews_lock().get(&label).cloned();
+      let webview = app_manager.webview.webviews_lock().get(&label).cloned();
       if let Some(w) = webview {
-        manager
+        app_manager
           .plugins
           .lock()
           .expect("poisoned plugin store")

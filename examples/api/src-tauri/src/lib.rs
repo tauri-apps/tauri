@@ -77,9 +77,8 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .menu(tauri::menu::Menu::default(app.handle())?);
       }
 
-      let window = window_builder.build()?;
-
-      let webview = WebviewBuilder::new(&window, "main", WebviewUrl::default()).build()?;
+      let (_window, webview) =
+        window_builder.with_webview(WebviewBuilder::new("main", WebviewUrl::default()))?;
 
       #[cfg(debug_assertions)]
       webview.open_devtools();

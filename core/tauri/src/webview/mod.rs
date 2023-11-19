@@ -208,9 +208,7 @@ impl PlatformWebview {
 }
 
 /// A builder for a webview.
-#[default_runtime(crate::Wry, wry)]
 pub struct WebviewBuilder<R: Runtime> {
-  pub(crate) window: Window<R>,
   pub(crate) label: String,
   pub(crate) webview_attributes: WebviewAttributes,
   pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
@@ -269,9 +267,8 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn new<L: Into<String>>(window: &Window<R>, label: L, url: WebviewUrl) -> Self {
+  pub fn new<L: Into<String>>(label: L, url: WebviewUrl) -> Self {
     Self {
-      window: window.clone(),
       label: label.into(),
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
@@ -303,9 +300,8 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn from_config(window: &Window<R>, config: WindowConfig) -> Self {
+  pub fn from_config(config: WindowConfig) -> Self {
     Self {
-      window: window.clone(),
       label: config.label.clone(),
       webview_attributes: WebviewAttributes::from(&config),
       web_resource_request_handler: None,
@@ -432,18 +428,48 @@ impl<R: Runtime> WebviewBuilder<R> {
     self
   }
 
-  /// Creates a new webview.
-  pub fn build(self) -> crate::Result<Webview<R>> {
-    let window_labels = self
-      .window
-      .manager
+  pub(crate) fn into_pending_webview<M: Manager<R>>(
+    mut self,
+    manager: &M,
+    window_label: &str,
+    window_labels: &[String],
+    webview_labels: &[WebviewLabelDef],
+  ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
+    let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
+    pending.navigation_handler = self.navigation_handler.take();
+    pending.web_resource_request_handler = self.web_resource_request_handler.take();
+
+    if let Some(on_page_load_handler) = self.on_page_load_handler.take() {
+      let label = pending.label.clone();
+      let manager = manager.manager_owned();
+      pending
+        .on_page_load_handler
+        .replace(Box::new(move |url, event| {
+          if let Some(w) = manager.get_webview(&label) {
+            on_page_load_handler(w, PageLoadPayload { url: &url, event });
+          }
+        }));
+    }
+
+    manager.manager().webview.prepare_webview(
+      manager,
+      pending,
+      window_label,
+      window_labels,
+      webview_labels,
+    )
+  }
+
+  /// Creates a new webview on the given window.
+  pub(crate) fn build(self, window: Window<R>) -> crate::Result<Webview<R>> {
+    let window_labels = window
+      .manager()
       .window
       .labels()
       .into_iter()
       .collect::<Vec<_>>();
-    let webview_labels = self
-      .window
-      .manager
+    let webview_labels = window
+      .manager()
       .webview
       .webviews_lock()
       .values()
@@ -452,52 +478,24 @@ impl<R: Runtime> WebviewBuilder<R> {
         label: w.label().to_string(),
       })
       .collect::<Vec<_>>();
-    self.build_with_labels(&window_labels, &webview_labels)
-  }
 
-  /// Creates a new webview from the list of existing window and webview labels.
-  pub(crate) fn build_with_labels(
-    mut self,
-    window_labels: &[String],
-    webview_labels: &[WebviewLabelDef],
-  ) -> crate::Result<Webview<R>> {
-    let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
-    pending.navigation_handler = self.navigation_handler.take();
-    pending.web_resource_request_handler = self.web_resource_request_handler.take();
+    let app_manager = window.manager();
 
-    let manager = self.window.manager.clone();
+    let pending =
+      self.into_pending_webview(&window, window.label(), &window_labels, &webview_labels)?;
 
-    if let Some(on_page_load_handler) = self.on_page_load_handler.take() {
-      let label = pending.label.clone();
-      let manager_ = manager.clone();
-      pending
-        .on_page_load_handler
-        .replace(Box::new(move |url, event| {
-          if let Some(w) = manager_.get_webview(&label) {
-            on_page_load_handler(w, PageLoadPayload { url: &url, event });
-          }
-        }));
-    }
-
-    let pending = manager.webview.prepare_webview(
-      self.window.clone(),
-      pending,
-      window_labels,
-      webview_labels,
-    )?;
-
-    let webview = match &mut self.window.runtime() {
+    let webview = match &mut window.runtime() {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),
       _ => unimplemented!(),
     }
-    .map(|webview| manager.webview.attach_webview(self.window.clone(), webview))?;
+    .map(|webview| app_manager.webview.attach_webview(window.clone(), webview))?;
 
-    manager.webview.eval_script_all(format!(
+    app_manager.webview.eval_script_all(format!(
       "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&manager.webview.labels())?,
+      window_labels_array = serde_json::to_string(&app_manager.webview.labels())?,
     ))?;
 
-    manager.emit_filter(
+    app_manager.emit_filter(
       "tauri://window-created",
       EventSource::Global,
       Some(WindowCreatedEvent {
@@ -623,7 +621,7 @@ impl<R: Runtime> WebviewBuilder<R> {
 /// Webview.
 #[default_runtime(crate::Wry, wry)]
 pub struct Webview<R: Runtime> {
-  window: Window<R>,
+  pub(crate) window: Window<R>,
   /// The webview created by the runtime.
   pub(crate) webview: DetachedWebview<EventLoopMessage, R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<EventId>>>>,
@@ -678,12 +676,8 @@ impl<R: Runtime> Webview<R> {
   /// Initializes a webview builder with the given window label and URL to load on the webview.
   ///
   /// Data URLs are only supported with the `webview-data-url` feature flag.
-  pub fn builder<L: Into<String>>(
-    window: &Window<R>,
-    label: L,
-    url: WebviewUrl,
-  ) -> WebviewBuilder<R> {
-    WebviewBuilder::<R>::new(window, label.into(), url)
+  pub fn builder<L: Into<String>>(label: L, url: WebviewUrl) -> WebviewBuilder<R> {
+    WebviewBuilder::new(label.into(), url)
   }
 
   /// Runs the given closure on the main thread.

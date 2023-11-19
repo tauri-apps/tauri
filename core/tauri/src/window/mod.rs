@@ -6,7 +6,10 @@
 
 pub(crate) mod plugin;
 
-use tauri_runtime::window::dpi::{PhysicalPosition, PhysicalSize};
+use tauri_runtime::{
+  webview::PendingWebview,
+  window::dpi::{PhysicalPosition, PhysicalSize},
+};
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
 #[cfg(target_os = "macos")]
@@ -16,7 +19,7 @@ use crate::{
   command::{CommandArg, CommandItem},
   event::{Event, EventId, EventSource},
   ipc::InvokeError,
-  manager::AppManager,
+  manager::{webview::WebviewLabelDef, AppManager},
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
@@ -25,7 +28,7 @@ use crate::{
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::{WindowConfig, WindowEffectsConfig},
-  EventLoopMessage, Manager, Runtime, Theme, Webview, WindowEvent,
+  EventLoopMessage, Manager, Runtime, Theme, Webview, WebviewBuilder, WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
@@ -94,11 +97,8 @@ impl Monitor {
 }
 
 /// A builder for a window managed by Tauri.
-#[default_runtime(crate::Wry, wry)]
-pub struct WindowBuilder<'a, R: Runtime> {
-  manager: Arc<AppManager<R>>,
-  runtime: RuntimeOrDispatch<'a, R>,
-  app_handle: AppHandle<R>,
+pub struct WindowBuilder<'a, R: Runtime, M: Manager<R>> {
+  manager: &'a M,
   label: String,
   pub(crate) window_builder:
     <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
@@ -109,18 +109,16 @@ pub struct WindowBuilder<'a, R: Runtime> {
   window_effects: Option<WindowEffectsConfig>,
 }
 
-impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
+impl<'a, R: Runtime, M: Manager<R>> fmt::Debug for WindowBuilder<'a, R, M> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("WindowBuilder")
-      .field("manager", &self.manager)
-      .field("app_handle", &self.app_handle)
       .field("label", &self.label)
       .field("window_builder", &self.window_builder)
       .finish()
   }
 }
 
-impl<'a, R: Runtime> WindowBuilder<'a, R> {
+impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// Initializes a window builder with the given window label.
   ///
   /// # Known issues
@@ -168,13 +166,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L) -> Self {
-    let runtime = manager.runtime();
-    let app_handle = manager.app_handle().clone();
+  pub fn new<L: Into<String>>(manager: &'a M, label: L) -> Self {
     Self {
-      manager: manager.manager_owned(),
-      runtime,
-      app_handle,
+      manager,
       label: label.into(),
       window_builder: <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder::new(
       ),
@@ -209,11 +203,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
+  pub fn from_config(manager: &'a M, config: WindowConfig) -> Self {
     Self {
-      manager: manager.manager_owned(),
-      runtime: manager.runtime(),
-      app_handle: manager.app_handle().clone(),
+      manager,
       label: config.label.clone(),
       window_builder:
         <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder::with_config(
@@ -269,42 +261,99 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Creates a new window.
-  pub fn build(mut self) -> crate::Result<Window<R>> {
-    let pending = PendingWindow::new(self.window_builder.clone(), self.label.clone())?;
+  /// Creates this window with a webview with it.
+  pub fn with_webview(self, webview: WebviewBuilder<R>) -> crate::Result<(Window<R>, Webview<R>)> {
+    let window_labels = self
+      .manager
+      .manager()
+      .window
+      .labels()
+      .into_iter()
+      .collect::<Vec<_>>();
+    let webview_labels = self
+      .manager
+      .manager()
+      .webview
+      .webviews_lock()
+      .values()
+      .map(|w| WebviewLabelDef {
+        window_label: w.window.label().to_string(),
+        label: w.label().to_string(),
+      })
+      .collect::<Vec<_>>();
 
-    let pending = self.manager.window.prepare_window(pending)?;
+    self.with_webview_internal(webview, &window_labels, &webview_labels)
+  }
+
+  pub(crate) fn with_webview_internal(
+    self,
+    webview: WebviewBuilder<R>,
+    window_labels: &[String],
+    webview_labels: &[WebviewLabelDef],
+  ) -> crate::Result<(Window<R>, Webview<R>)> {
+    let pending_webview =
+      webview.into_pending_webview(self.manager, &self.label, window_labels, webview_labels)?;
+    let window = self.build_internal(Some(pending_webview))?;
+
+    let webview = window.webviews().first().unwrap().clone();
+
+    Ok((window, webview))
+  }
+
+  /// Creates a new window.
+  pub fn build(self) -> crate::Result<Window<R>> {
+    self.build_internal(None)
+  }
+
+  /// Creates a new window with an optional webview.
+  fn build_internal(
+    self,
+    webview: Option<PendingWebview<EventLoopMessage, R>>,
+  ) -> crate::Result<Window<R>> {
+    let mut pending = PendingWindow::new(self.window_builder.clone(), self.label.clone())?;
+    if let Some(webview) = webview {
+      pending.set_webview(webview);
+    }
+
+    let app_manager = self.manager.manager();
+
+    let pending = app_manager.window.prepare_window(pending)?;
 
     #[cfg(desktop)]
     let window_menu = {
       let is_app_wide = self.menu.is_none();
       self
         .menu
-        .or_else(|| self.app_handle.menu())
+        .or_else(|| self.manager.app_handle().menu())
         .map(|menu| WindowMenu { is_app_wide, menu })
     };
 
     #[cfg(desktop)]
-    let handler = self
-      .manager
+    let handler = app_manager
       .menu
       .prepare_window_menu_creation_handler(window_menu.as_ref());
     #[cfg(not(desktop))]
     #[allow(clippy::type_complexity)]
     let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
 
-    let window = match &mut self.runtime {
+    let window = match &mut self.manager.runtime() {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending, handler),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending, handler),
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
     }
-    .map(|window| {
-      self.manager.window.attach_window(
-        self.app_handle.clone(),
-        window,
+    .map(|detached_window| {
+      let window = app_manager.window.attach_window(
+        self.manager.app_handle().clone(),
+        detached_window.clone(),
         #[cfg(desktop)]
         window_menu,
-      )
+      );
+
+      if let Some(webview) = detached_window.webview {
+        app_manager.webview.attach_webview(window.clone(), webview);
+      }
+
+      window
     })?;
 
     #[cfg(desktop)]
@@ -322,7 +371,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
 /// Desktop APIs.
 #[cfg(desktop)]
-impl<'a, R: Runtime> WindowBuilder<'a, R> {
+impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// Sets the menu for the window.
   #[must_use]
   pub fn menu(mut self, menu: Menu<R>) -> Self {
@@ -788,10 +837,10 @@ impl<R: Runtime> Window<R> {
   /// Initializes a window builder with the given window label.
   ///
   /// Data URLs are only supported with the `webview-data-url` feature flag.
-  pub fn builder<'a, M: Manager<R>, L: Into<String>>(
-    manager: &'a M,
-    label: L,
-  ) -> WindowBuilder<'a, R> {
+  pub fn builder<M: Manager<R>, L: Into<String>>(manager: &M, label: L) -> WindowBuilder<'_, R, M> {
+    WindowBuilder::new(manager, label.into())
+  }
+
     WindowBuilder::<'a, R>::new(manager, label.into())
   }
 

@@ -175,7 +175,6 @@ pub(crate) fn send_user_message<T: UserEvent>(
         webview_id_map: context.webview_id_map.clone(),
         windows: context.main_thread.windows.clone(),
       },
-      &context.main_thread.web_context,
     );
     Ok(())
   } else {
@@ -237,6 +236,7 @@ impl<T: UserEvent> Context<T> {
     let label = pending.label.clone();
     let context = self.clone();
     let window_id = self.next_window_id();
+    let webview_id = pending.webview.as_ref().map(|_| context.next_webview_id());
 
     send_user_message(
       self,
@@ -245,8 +245,9 @@ impl<T: UserEvent> Context<T> {
         Box::new(move |event_loop| {
           create_window(
             window_id,
+            webview_id.unwrap_or_default(),
             event_loop,
-            context,
+            &context,
             pending,
             before_window_creation,
           )
@@ -259,10 +260,20 @@ impl<T: UserEvent> Context<T> {
       context: self.clone(),
     };
 
+    let detached_webview = webview_id.map(|id| DetachedWebview {
+      label: label.clone(),
+      dispatcher: WryWebviewDispatcher {
+        window_id,
+        webview_id: id,
+        context: self.clone(),
+      },
+    });
+
     Ok(DetachedWindow {
       id: window_id,
       label,
       dispatcher,
+      webview: detached_webview,
     })
   }
 
@@ -280,9 +291,7 @@ impl<T: UserEvent> Context<T> {
       self,
       Message::CreateWebview(
         window_id,
-        Box::new(move |window, web_context| {
-          create_webview(window, window_id, webview_id, web_context, context, pending)
-        }),
+        Box::new(move |window| create_webview(window, window_id, webview_id, &context, pending)),
       ),
     )?;
 
@@ -1124,8 +1133,7 @@ pub enum WebviewEvent {
 pub type CreateWindowClosure<T> =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
 
-pub type CreateWebviewClosure =
-  Box<dyn FnOnce(&Window, &WebContextStore) -> Result<WebviewWrapper> + Send>;
+pub type CreateWebviewClosure = Box<dyn FnOnce(&Window) -> Result<WebviewWrapper> + Send>;
 
 pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
@@ -2012,11 +2020,16 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
     let window_id = self.context.next_window_id();
+    let webview_id = pending
+      .webview
+      .as_ref()
+      .map(|_| self.context.next_webview_id());
 
     let window = create_window(
       window_id,
+      webview_id.unwrap_or_default(),
       &self.event_loop,
-      self.context.clone(),
+      &self.context,
       pending,
       before_window_creation,
     )?;
@@ -2033,10 +2046,20 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .borrow_mut()
       .insert(window_id, window);
 
+    let detached_webview = webview_id.map(|id| DetachedWebview {
+      label: label.clone(),
+      dispatcher: WryWebviewDispatcher {
+        window_id,
+        webview_id: id,
+        context: self.context.clone(),
+      },
+    });
+
     Ok(DetachedWindow {
       id: window_id,
       label,
       dispatcher,
+      webview: detached_webview,
     })
   }
 
@@ -2057,14 +2080,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     if let Some(window) = window {
       let webview_id = self.context.next_webview_id();
 
-      let webview = create_webview(
-        &window,
-        window_id,
-        webview_id,
-        &self.context.main_thread.web_context,
-        self.context.clone(),
-        pending,
-      )?;
+      let webview = create_webview(&window, window_id, webview_id, &self.context, pending)?;
 
       self
         .context
@@ -2183,7 +2199,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             windows: windows.clone(),
             webview_id_map: webview_id_map.clone(),
           },
-          web_context,
         );
       });
 
@@ -2225,7 +2240,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           webview_id_map: webview_id_map.clone(),
           windows: windows.clone(),
         },
-        &web_context,
       );
     })
   }
@@ -2246,7 +2260,6 @@ fn handle_user_message<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   message: Message<T>,
   context: UserMessageContext,
-  web_context: &WebContextStore,
 ) -> RunIteration {
   let UserMessageContext {
     webview_id_map,
@@ -2517,7 +2530,7 @@ fn handle_user_message<T: UserEvent>(
         .get(&window_id)
         .and_then(|w| w.inner.clone());
       if let Some(window) = window {
-        match handler(&window, web_context) {
+        match handler(&window) {
           Ok(webview) => {
             windows.borrow_mut().get_mut(&window_id).map(|w| {
               w.webviews.push(webview);
@@ -2574,7 +2587,6 @@ fn handle_event_loop<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   control_flow: &mut ControlFlow,
   context: EventLoopIterationContext<'_, T>,
-  web_context: &WebContextStore,
 ) -> RunIteration {
   let EventLoopIterationContext {
     callback,
@@ -2702,7 +2714,6 @@ fn handle_event_loop<T: UserEvent>(
             webview_id_map,
             windows,
           },
-          web_context,
         );
       }
     },
@@ -2774,8 +2785,9 @@ pub fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Resu
 
 fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   window_id: WindowId,
+  webview_id: u32,
   event_loop: &EventLoopWindowTarget<Message<T>>,
-  context: Context<T>,
+  context: &Context<T>,
   pending: PendingWindow<T, Wry<T>>,
   before_window_creation: Option<F>,
 ) -> Result<WindowWrapper> {
@@ -2783,6 +2795,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let PendingWindow {
     mut window_builder,
     label,
+    webview,
     ..
   } = pending;
 
@@ -2843,10 +2856,18 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     handler(raw);
   }
 
+  let mut webviews = Vec::new();
+
+  if let Some(webview) = webview {
+    webviews.push(create_webview(
+      &window, window_id, webview_id, context, webview,
+    )?);
+  }
+
   Ok(WindowWrapper {
     label,
     inner: Some(Arc::new(window)),
-    webviews: Vec::new(),
+    webviews,
     window_event_listeners,
   })
 }
@@ -2855,8 +2876,7 @@ fn create_webview<T: UserEvent>(
   window: &Window,
   window_id: WindowId,
   id: WebviewId,
-  web_context_store: &WebContextStore,
-  context: Context<T>,
+  context: &Context<T>,
   pending: PendingWebview<T, Wry<T>>,
 ) -> Result<WebviewWrapper> {
   #[allow(unused_mut)]
@@ -2971,7 +2991,11 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  let mut web_context = web_context_store.lock().expect("poisoned WebContext store");
+  let mut web_context = context
+    .main_thread
+    .web_context
+    .lock()
+    .expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
   let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
   let web_context_key = // force a unique WebContext when automation is false;
@@ -3064,7 +3088,7 @@ fn create_webview<T: UserEvent>(
   Ok(WebviewWrapper {
     id,
     inner: Rc::new(webview),
-    context_store: web_context_store.clone(),
+    context_store: context.main_thread.web_context.clone(),
     context_key: if automation_enabled {
       None
     } else {
@@ -3073,6 +3097,7 @@ fn create_webview<T: UserEvent>(
   })
 }
 
+// TODO: use webview instead
 /// Create a wry ipc handler from a tauri ipc handler.
 fn create_ipc_handler<T: UserEvent>(
   window_id: WindowId,
@@ -3089,6 +3114,7 @@ fn create_ipc_handler<T: UserEvent>(
           window_id,
           context: context.clone(),
         },
+        webview: None,
       },
       request,
     );

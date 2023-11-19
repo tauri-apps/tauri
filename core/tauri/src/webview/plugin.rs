@@ -46,8 +46,8 @@ mod desktop_commands {
     app: AppHandle<R>,
     options: WindowConfig,
   ) -> crate::Result<()> {
-    let window = WindowBuilder::from_config(&app, options.clone()).build()?;
-    let _webview = WebviewBuilder::from_config(&window, options).build()?;
+    WindowBuilder::from_config(&app, options.clone())
+      .with_webview(WebviewBuilder::from_config(options))?;
     Ok(())
   }
 
@@ -61,7 +61,7 @@ mod desktop_commands {
     let window = app
       .get_window(&window_label)
       .ok_or(crate::Error::WindowNotFound)?;
-    let mut builder = WebviewBuilder::new(&window, label, options.url);
+    let mut builder = WebviewBuilder::new(label, options.url);
 
     // TODO: position and size
 
@@ -73,7 +73,8 @@ mod desktop_commands {
     builder.webview_attributes.window_effects = options.window_effects;
     builder.webview_attributes.incognito = options.incognito;
 
-    builder.build()?;
+    window.add_child(builder)?;
+
     Ok(())
   }
 

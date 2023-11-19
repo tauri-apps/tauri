@@ -19,5 +19,7 @@ import * as primitives from './primitives'
 import * as window from './window'
 import * as path from './path'
 import * as dpi from './dpi'
+import * as tray from './tray'
+import * as menu from './menu'
 
-export { app, dpi, event, path, primitives, window }
+export { app, dpi, event, path, primitives, window, tray, menu }

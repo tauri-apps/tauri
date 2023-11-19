@@ -11,7 +11,7 @@ if [ -z "$(git diff --name-only tooling/api)" ]; then
 else
   cd tooling/api
   yarn format
-  yarn lint-fix
+  yarn lint:fix
   cd ../..
 fi
 

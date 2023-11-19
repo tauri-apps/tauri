@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::AboutMetadata;
-use crate::{menu::MenuId, run_main_thread, AppHandle, Manager, Runtime};
+use crate::{menu::MenuId, resources::Resource, run_main_thread, AppHandle, Manager, Runtime};
 
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 pub struct PredefinedMenuItem<R: Runtime> {
@@ -29,7 +29,7 @@ unsafe impl<R: Runtime> Sync for PredefinedMenuItem<R> {}
 unsafe impl<R: Runtime> Send for PredefinedMenuItem<R> {}
 
 impl<R: Runtime> super::sealed::IsMenuItemBase for PredefinedMenuItem<R> {
-  fn inner(&self) -> &dyn muda::IsMenuItem {
+  fn inner_muda(&self) -> &dyn muda::IsMenuItem {
     &self.inner
   }
 }
@@ -285,3 +285,5 @@ impl<R: Runtime> PredefinedMenuItem<R> {
     &self.app_handle
   }
 }
+
+impl<R: Runtime> Resource for PredefinedMenuItem<R> {}

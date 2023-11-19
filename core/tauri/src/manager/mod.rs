@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 use serde::Serialize;
@@ -20,7 +20,6 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::event::EmitArgs;
 use crate::{
   app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
   event::{assert_event_name_is_valid, Event, EventId, Listeners},
@@ -33,6 +32,7 @@ use crate::{
   },
   Context, Pattern, Runtime, StateManager, Window,
 };
+use crate::{event::EmitArgs, resources::ResourceTable};
 
 #[cfg(desktop)]
 mod menu;
@@ -196,6 +196,9 @@ pub struct AppManager<R: Runtime> {
 
   /// Application pattern.
   pub pattern: Arc<Pattern>,
+
+  /// Application Resources Table
+  pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -274,6 +277,7 @@ impl<R: Runtime> AppManager<R> {
       app_icon: context.app_icon,
       package_info: context.package_info,
       pattern: Arc::new(context.pattern),
+      resources_table: Arc::default(),
     }
   }
 
@@ -534,6 +538,14 @@ impl<R: Runtime> AppManager<R> {
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.window.windows_lock().clone()
+  }
+
+  /// Resources table managed by the application.
+  pub(crate) fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window manager")
   }
 }
 

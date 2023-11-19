@@ -2156,6 +2156,7 @@ dependencies = [
  "objc",
  "once_cell",
  "png",
+ "serde",
  "thiserror",
  "windows-sys 0.48.0",
 ]
@@ -3562,7 +3563,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.38",
  "tauri-codegen",
  "tauri-utils",
 ]
@@ -3955,6 +3956,7 @@ dependencies = [
  "objc",
  "once_cell",
  "png",
+ "serde",
  "thiserror",
  "windows-sys 0.48.0",
 ]

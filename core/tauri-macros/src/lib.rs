@@ -16,6 +16,7 @@ use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
 
 mod command;
+mod menu;
 mod mobile;
 mod runtime;
 
@@ -88,4 +89,65 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
   let attributes = parse_macro_input!(attributes as runtime::Attributes);
   let input = parse_macro_input!(input as DeriveInput);
   runtime::default_runtime(attributes, input).into()
+}
+
+/// Accepts a closure-like syntax to call arbitrary code on a menu item
+/// after matching against `kind` and retrieving it from `resources_table` using `rid`.
+///
+/// You can optionally pass a third parameter to select which item kinds
+/// to match against, by providing a `|` separated list of item kinds
+/// ```ignore
+/// do_menu_item!(|i| i.set_text(text), Check | Submenu);
+/// ```
+/// You could also provide a negated list
+/// ```ignore
+/// do_menu_item!(|i| i.set_text(text), !Check);
+/// do_menu_item!(|i| i.set_text(text), !Check | !Submenu);
+/// ```
+/// but you can't have mixed negations and positive kinds.
+/// ```ignore
+/// do_menu_item!(|i| i.set_text(text), !Check | Submeun);
+/// ```
+///
+/// #### Example
+///
+/// ```ignore
+///  let rid = 23;
+///  let kind = ItemKind::Check;
+///  let resources_table = app.manager.resources_table();
+///  do_menu_item!(|i| i.set_text(text))
+/// ```
+/// which will expand into:
+/// ```ignore
+///  let rid = 23;
+///  let kind = ItemKind::Check;
+///  let resources_table = app.manager.resources_table();
+///  match kind {
+///  ItemKind::Submenu => {
+///    let i = resources_table.get::<Submenu<R>>(rid)?;
+///    i.set_text(text)
+///  }
+///  ItemKind::MenuItem => {
+///    let i = resources_table.get::<MenuItem<R>>(rid)?;
+///    i.set_text(text)
+///  }
+///  ItemKind::Predefined => {
+///    let i = resources_table.get::<PredefinedMenuItem<R>>(rid)?;
+///    i.set_text(text)
+///  }
+///  ItemKind::Check => {
+///    let i = resources_table.get::<CheckMenuItem<R>>(rid)?;
+///    i.set_text(text)
+///  }
+///  ItemKind::Icon => {
+///    let i = resources_table.get::<IconMenuItem<R>>(rid)?;
+///    i.set_text(text)
+///  }
+///  _ => unreachable!(),
+///  }
+/// ```
+#[proc_macro]
+pub fn do_menu_item(input: TokenStream) -> TokenStream {
+  let tokens = parse_macro_input!(input as menu::DoMenuItemInput);
+  menu::do_menu_item(tokens).into()
 }

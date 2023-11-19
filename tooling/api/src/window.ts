@@ -1687,27 +1687,6 @@ class Window {
   }
 
   /**
-   * Listen to the window menu item click. The payload is the item id.
-   *
-   * @example
-   * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
-   * const unlisten = await getCurrent().onMenuClicked(({ payload: menuId }) => {
-   *  console.log('Menu clicked: ' + menuId);
-   * });
-   *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
-   * ```
-   *
-   * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   */
-  async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
-    return this.listen<string>(TauriEvent.MENU, handler)
-  }
-
-  /**
    * Listen to a file drop event.
    * The listener is triggered when the user hovers the selected files on the window,
    * drops the files or cancels the operation.

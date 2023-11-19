@@ -2091,6 +2091,7 @@ dependencies = [
  "objc",
  "once_cell",
  "png",
+ "serde",
  "thiserror",
  "windows-sys 0.48.0",
 ]
@@ -3884,6 +3885,7 @@ dependencies = [
  "objc",
  "once_cell",
  "png",
+ "serde",
  "thiserror",
  "windows-sys 0.48.0",
 ]

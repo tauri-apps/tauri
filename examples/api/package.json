@@ -1,11 +1,12 @@
 {
-  "name": "svelte-app",
+  "name": "api",
+  "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --clearScreen false",
+    "dev": "vite",
     "build": "vite build",
-    "serve": "vite preview",
+    "preview": "vite preview",
     "tauri": "node ../../tooling/cli/node/tauri.js"
   },
   "dependencies": {

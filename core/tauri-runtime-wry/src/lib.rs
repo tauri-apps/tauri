@@ -2723,6 +2723,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     target_os = "android"
   )))]
   let builder = {
+    use wry::WebViewBuilderExtUnix;
     let vbox = window.default_vbox().unwrap();
     WebViewBuilder::new_gtk(vbox)
   };

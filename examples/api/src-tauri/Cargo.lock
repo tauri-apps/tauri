@@ -564,6 +564,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cfg_aliases"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
+
+[[package]]
 name = "chrono"
 version = "0.4.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4577,10 +4583,11 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.34.2"
-source = "git+https://github.com/tauri-apps/wry#4d6f08e8275378575d2c478c2162aac2934e5842"
+source = "git+https://github.com/tauri-apps/wry#15ae3c78b0665ed095d169b80ddc4846db88b832"
 dependencies = [
  "base64",
  "block",
+ "cfg_aliases",
  "cocoa 0.25.0",
  "core-graphics 0.23.1",
  "crossbeam-channel",

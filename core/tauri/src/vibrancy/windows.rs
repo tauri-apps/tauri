@@ -12,7 +12,7 @@ use std::ffi::c_void;
 use crate::utils::config::WindowEffectsConfig;
 use crate::window::{Color, Effect};
 use raw_window_handle::HasRawWindowHandle;
-use tauri_utils::platform::{get_function_impl, is_windows_7, windows_version};
+use tauri_utils::platform::{is_windows_7, windows_version};
 use windows::Win32::Foundation::HWND;
 
 pub fn apply_effects(window: impl HasRawWindowHandle, effects: WindowEffectsConfig) {

@@ -12,6 +12,7 @@ use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::PageLoadEvent;
 use tauri_runtime::{
   webview::{DetachedWebview, PendingWebview, WebviewAttributes},
+  window::dpi::{Position, Size},
   WebviewDispatch, WindowDispatch,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
@@ -461,7 +462,12 @@ impl<R: Runtime> WebviewBuilder<R> {
   }
 
   /// Creates a new webview on the given window.
-  pub(crate) fn build(self, window: Window<R>) -> crate::Result<Webview<R>> {
+  pub(crate) fn build(
+    self,
+    window: Window<R>,
+    position: Position,
+    size: Size,
+  ) -> crate::Result<Webview<R>> {
     let window_labels = window
       .manager()
       .window
@@ -481,8 +487,10 @@ impl<R: Runtime> WebviewBuilder<R> {
 
     let app_manager = window.manager();
 
-    let pending =
+    let mut pending =
       self.into_pending_webview(&window, window.label(), &window_labels, &webview_labels)?;
+
+    pending.webview_attributes.bounds = Some((position, size));
 
     let webview = match &mut window.runtime() {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),

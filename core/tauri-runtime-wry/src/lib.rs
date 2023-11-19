@@ -291,7 +291,16 @@ impl<T: UserEvent> Context<T> {
       self,
       Message::CreateWebview(
         window_id,
-        Box::new(move |window| create_webview(window, window_id, webview_id, &context, pending)),
+        Box::new(move |window| {
+          create_webview(
+            WebviewKind::WindowChild,
+            window,
+            window_id,
+            webview_id,
+            &context,
+            pending,
+          )
+        }),
       ),
     )?;
 
@@ -2080,7 +2089,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     if let Some(window) = window {
       let webview_id = self.context.next_webview_id();
 
-      let webview = create_webview(&window, window_id, webview_id, &self.context, pending)?;
+      let webview = create_webview(
+        WebviewKind::WindowChild,
+        &window,
+        window_id,
+        webview_id,
+        &self.context,
+        pending,
+      )?;
 
       self
         .context
@@ -2860,7 +2876,12 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   if let Some(webview) = webview {
     webviews.push(create_webview(
-      &window, window_id, webview_id, context, webview,
+      WebviewKind::WindowContent,
+      &window,
+      window_id,
+      webview_id,
+      context,
+      webview,
     )?);
   }
 
@@ -2872,7 +2893,16 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   })
 }
 
+// the kind of the webview
+enum WebviewKind {
+  // webview is the entire window content
+  WindowContent,
+  // webview is a child of the window, which can contain other webviews too
+  WindowChild,
+}
+
 fn create_webview<T: UserEvent>(
+  kind: WebviewKind,
   window: &Window,
   window_id: WindowId,
   id: WebviewId,
@@ -2894,22 +2924,45 @@ fn create_webview<T: UserEvent>(
   // TODO remove this
   let window_event_listeners = WindowEventListeners::default();
 
-  #[cfg(any(
-    target_os = "windows",
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "android"
-  ))]
-  let builder = WebViewBuilder::new(&window);
-  #[cfg(not(any(
-    target_os = "windows",
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "android"
-  )))]
-  let builder = {
-    let vbox = window.default_vbox().unwrap();
-    WebViewBuilder::new_gtk(vbox)
+  let builder = match kind {
+    #[cfg(not(any(
+      target_os = "windows",
+      target_os = "macos",
+      target_os = "ios",
+      target_os = "android"
+    )))]
+    WebviewKind::WindowChild => {
+      // only way to account for menu bar height, and also works for multiwebviews :)
+      let vbox = window.default_vbox().unwrap();
+      WebViewBuilder::new_gtk(vbox)
+    }
+    #[cfg(any(
+      target_os = "windows",
+      target_os = "macos",
+      target_os = "ios",
+      target_os = "android"
+    ))]
+    WebviewKind::WindowChild => WebViewBuilder::new_as_child(&window),
+    WebviewKind::WindowContent => {
+      #[cfg(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+      ))]
+      let builder = WebViewBuilder::new(&window);
+      #[cfg(not(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+      )))]
+      let builder = {
+        let vbox = window.default_vbox().unwrap();
+        WebViewBuilder::new_gtk(vbox)
+      };
+      builder
+    }
   };
 
   let mut webview_builder = builder
@@ -2927,6 +2980,17 @@ fn create_webview<T: UserEvent>(
       Url::parse(&url)
         .map(|url| navigation_handler(&url))
         .unwrap_or(true)
+    });
+  }
+
+  if let Some((position, size)) = webview_attributes.bounds {
+    let size = size.to_logical(window.scale_factor());
+    let position = position.to_logical(window.scale_factor());
+    webview_builder = webview_builder.with_bounds(wry::Rect {
+      x: position.x,
+      y: position.y,
+      width: size.width,
+      height: size.height,
     });
   }
 

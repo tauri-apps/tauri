@@ -841,7 +841,14 @@ impl<R: Runtime> Window<R> {
     WindowBuilder::new(manager, label.into())
   }
 
-    WindowBuilder::<'a, R>::new(manager, label.into())
+  /// Adds a new webview as a child of this window.
+  pub fn add_child<P: Into<Position>, S: Into<Size>>(
+    &self,
+    webview_builder: WebviewBuilder<R>,
+    position: P,
+    size: S,
+  ) -> crate::Result<Webview<R>> {
+    webview_builder.build(self.clone(), position.into(), size.into())
   }
 
   /// List of webviews associated with this window.

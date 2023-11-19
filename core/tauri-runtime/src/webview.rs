@@ -5,7 +5,10 @@
 //! A layer between raw [`Runtime`] webviews and Tauri.
 //!
 use crate::{
-  window::{is_label_valid, DetachedWindow},
+  window::{
+    dpi::{Position, Size},
+    is_label_valid, DetachedWindow,
+  },
   Runtime, UserEvent,
 };
 
@@ -178,6 +181,7 @@ pub struct WebviewAttributes {
   pub window_effects: Option<WindowEffectsConfig>,
   pub incognito: bool,
   pub transparent: bool,
+  pub bounds: Option<(Position, Size)>,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -220,6 +224,7 @@ impl WebviewAttributes {
       window_effects: None,
       incognito: false,
       transparent: false,
+      bounds: None,
     }
   }
 

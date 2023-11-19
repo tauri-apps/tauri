@@ -13,6 +13,7 @@ use crate::{
 mod desktop_commands {
 
   use serde::Deserialize;
+  use tauri_runtime::window::dpi::{LogicalPosition, LogicalSize};
   use tauri_utils::config::{WebviewUrl, WindowConfig};
 
   use super::*;
@@ -25,20 +26,20 @@ mod desktop_commands {
   #[serde(rename_all = "camelCase")]
   pub struct WebviewConfig {
     #[serde(default)]
-    pub url: WebviewUrl,
-    pub user_agent: Option<String>,
-    pub file_drop_enabled: Option<bool>,
-    pub x: Option<f64>,
-    pub y: Option<f64>,
-    pub width: Option<f64>,
-    pub height: Option<f64>,
+    url: WebviewUrl,
+    user_agent: Option<String>,
+    file_drop_enabled: Option<bool>,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
     #[serde(default)]
-    pub transparent: bool,
+    transparent: bool,
     #[serde(default)]
-    pub accept_first_mouse: bool,
-    pub window_effects: Option<WindowEffectsConfig>,
+    accept_first_mouse: bool,
+    window_effects: Option<WindowEffectsConfig>,
     #[serde(default)]
-    pub incognito: bool,
+    incognito: bool,
   }
 
   #[command(root = "crate")]
@@ -63,8 +64,6 @@ mod desktop_commands {
       .ok_or(crate::Error::WindowNotFound)?;
     let mut builder = WebviewBuilder::new(label, options.url);
 
-    // TODO: position and size
-
     builder.webview_attributes.user_agent = options.user_agent;
     builder.webview_attributes.file_drop_handler_enabled =
       options.file_drop_enabled.unwrap_or(true);
@@ -73,7 +72,11 @@ mod desktop_commands {
     builder.webview_attributes.window_effects = options.window_effects;
     builder.webview_attributes.incognito = options.incognito;
 
-    window.add_child(builder)?;
+    window.add_child(
+      builder,
+      LogicalPosition::new(options.x, options.y),
+      LogicalSize::new(options.width, options.height),
+    )?;
 
     Ok(())
   }

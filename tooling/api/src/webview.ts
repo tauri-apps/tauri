@@ -137,11 +137,7 @@ class Webview {
    * @param label The unique webview label. Must be alphanumeric: `a-zA-Z-/:_`.
    * @returns The {@link Webview} instance to communicate with the webview.
    */
-  constructor(
-    window: Window,
-    label: WebviewLabel,
-    options: WebviewOptions = {}
-  ) {
+  constructor(window: Window, label: WebviewLabel, options: WebviewOptions) {
     this.window = window
     this.label = label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -522,7 +518,8 @@ class WebviewWindow {
    */
   constructor(
     label: WebviewLabel,
-    options: WindowOptions & WebviewOptions = {}
+    options: Omit<WebviewOptions, 'x' | 'y' | 'width' | 'height'> &
+      WindowOptions = {}
   ) {
     this.label = label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -616,14 +613,14 @@ interface WebviewOptions {
    * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
    */
   url?: string
-  /** The initial vertical position. Only applies if `y` is also set. */
-  x?: number
-  /** The initial horizontal position. Only applies if `x` is also set. */
-  y?: number
+  /** The initial vertical position. */
+  x: number
+  /** The initial horizontal position. */
+  y: number
   /** The initial width. */
-  width?: number
+  width: number
   /** The initial height. */
-  height?: number
+  height: number
   /**
    * Whether the webview is transparent or not.
    * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macOSPrivateApi`.

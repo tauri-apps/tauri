@@ -85,10 +85,9 @@ impl<R: Runtime> ContextMenuBase for Submenu<R> {
         target_os = "openbsd"
       ))]
       if let Ok(w) = window.gtk_window() {
-        use gtk::prelude::Cast;
         self_
           .inner()
-          .show_context_menu_for_gtk_window(&w.upcast(), position);
+          .show_context_menu_for_gtk_window(w.as_ref(), position);
       }
 
       #[cfg(windows)]

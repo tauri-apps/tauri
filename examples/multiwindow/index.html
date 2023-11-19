@@ -1,83 +1,85 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <style>
-      #response {
-        white-space: pre-wrap;
+
+<head>
+  <style>
+    #response {
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="window-label"></div>
+  <div id="container"></div>
+  <div id="response"></div>
+
+  <script>
+    const WebviewWindow = window.__TAURI__.webview.WebviewWindow
+    const appWindow = window.__TAURI__.window.getCurrent()
+    const windowLabel = appWindow.label
+    const windowLabelContainer = document.getElementById('window-label')
+    windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
+
+    const container = document.getElementById('container')
+
+    function createWindowMessageBtn(label) {
+      const webview = WebviewWindow.getByLabel(label)
+      const button = document.createElement('button')
+      button.innerText = 'Send message to ' + label
+      button.addEventListener('click', function () {
+        webview.emit('clicked', 'message from ' + windowLabel)
+      })
+      container.appendChild(button)
+    }
+
+    // global listener
+    const responseContainer = document.getElementById('response')
+    window.__TAURI__.event.listen('clicked', function (event) {
+      responseContainer.innerHTML +=
+        'Got ' + JSON.stringify(event) + ' on global listener\n\n'
+    })
+    window.__TAURI__.event.listen('tauri://webview-created', function (event) {
+      createWindowMessageBtn(event.payload.label)
+    })
+
+    // listener tied to this window
+    appWindow.listen('clicked', function (event) {
+      responseContainer.innerText +=
+        'Got ' + JSON.stringify(event) + ' on window listener\n\n'
+    })
+
+    const createWindowButton = document.createElement('button')
+    createWindowButton.innerHTML = 'Create window'
+    createWindowButton.addEventListener('click', function () {
+      const id = Math.random().toString().replace('.', '')
+      const webview = new WebviewWindow(id, { tabbingIdentifier: windowLabel })
+      webview.once('tauri://created', function () {
+        responseContainer.innerHTML += 'Created new window'
+      })
+      webview.once('tauri://error', function (e) {
+        responseContainer.innerHTML += 'Error creating new window ' + e.payload
+      })
+    })
+    container.appendChild(createWindowButton)
+
+    const globalMessageButton = document.createElement('button')
+    globalMessageButton.innerHTML = 'Send global message'
+    globalMessageButton.addEventListener('click', function () {
+      // emit to all windows
+      window.__TAURI__.event.emit('clicked', 'message from ' + windowLabel)
+    })
+    container.appendChild(globalMessageButton)
+
+    const allWindows = window.__TAURI__.window.getAll()
+    for (const index in allWindows) {
+      const label = allWindows[index].label
+      if (label === windowLabel) {
+        continue
       }
-    </style>
-  </head>
+      createWindowMessageBtn(label)
+    }
+  </script>
+</body>
 
-  <body>
-    <div id="window-label"></div>
-    <div id="container"></div>
-    <div id="response"></div>
-
-    <script>
-      const WebviewWindow = window.__TAURI__.webview.WebviewWindow
-      const appWindow = window.__TAURI__.window.getCurrent()
-      const windowLabel = appWindow.label
-      const windowLabelContainer = document.getElementById('window-label')
-      windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
-
-      const container = document.getElementById('container')
-
-      function createWindowMessageBtn(label) {
-        const webview = WebviewWindow.getByLabel(label)
-        const button = document.createElement('button')
-        button.innerText = 'Send message to ' + label
-        button.addEventListener('click', function () {
-          webview.emit('clicked', 'message from ' + windowLabel)
-        })
-        container.appendChild(button)
-      }
-
-      // global listener
-      const responseContainer = document.getElementById('response')
-      window.__TAURI__.event.listen('clicked', function (event) {
-        responseContainer.innerHTML +=
-          'Got ' + JSON.stringify(event) + ' on global listener\n\n'
-      })
-      window.__TAURI__.event.listen('tauri://window-created', function (event) {
-        createWindowMessageBtn(event.payload.label)
-      })
-
-      // listener tied to this window
-      appWindow.listen('clicked', function (event) {
-        responseContainer.innerText +=
-          'Got ' + JSON.stringify(event) + ' on window listener\n\n'
-      })
-
-      const createWindowButton = document.createElement('button')
-      createWindowButton.innerHTML = 'Create window'
-      createWindowButton.addEventListener('click', function () {
-        const id = Math.random().toString().replace('.', '')
-        const webview = new WebviewWindow(id, { tabbingIdentifier: windowLabel })
-        webview.once('tauri://created', function () {
-          responseContainer.innerHTML += 'Created new window'
-        })
-        webview.once('tauri://error', function (e) {
-          responseContainer.innerHTML += 'Error creating new window ' + e.payload
-        })
-      })
-      container.appendChild(createWindowButton)
-
-      const globalMessageButton = document.createElement('button')
-      globalMessageButton.innerHTML = 'Send global message'
-      globalMessageButton.addEventListener('click', function () {
-        // emit to all windows
-        window.__TAURI__.event.emit('clicked', 'message from ' + windowLabel)
-      })
-      container.appendChild(globalMessageButton)
-
-      const allWindows = window.__TAURI__.window.getAll()
-      for (const index in allWindows) {
-        const label = allWindows[index].label
-        if (label === windowLabel) {
-          continue
-        }
-        createWindowMessageBtn(label)
-      }
-    </script>
-  </body>
 </html>

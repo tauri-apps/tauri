@@ -60,7 +60,7 @@ pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
 }
 
 #[derive(Clone, Serialize)]
-struct WindowCreatedEvent {
+struct CreatedEvent {
   label: String,
 }
 
@@ -496,9 +496,9 @@ impl<R: Runtime> WebviewBuilder<R> {
     ))?;
 
     app_manager.emit_filter(
-      "tauri://window-created",
+      "tauri://webview-created",
       EventSource::Global,
-      Some(WindowCreatedEvent {
+      Some(CreatedEvent {
         label: webview.label().into(),
       }),
       |w| w != &webview,

@@ -772,7 +772,8 @@ macro_rules! shared_app_impl {
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
         #[cfg(all(desktop, feature = "tray-icon"))]
-        self.manager.tray.icons.lock().unwrap().clear()
+        self.manager.tray.icons.lock().unwrap().clear();
+        self.manager.resources_table().clear();
       }
     }
   };
@@ -787,6 +788,11 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::event::plugin::init())?;
     self.handle.plugin(crate::window::plugin::init())?;
     self.handle.plugin(crate::app::plugin::init())?;
+    self.handle.plugin(crate::resources::plugin::init())?;
+    #[cfg(desktop)]
+    self.handle.plugin(crate::menu::plugin::init())?;
+    #[cfg(all(desktop, feature = "tray-icon"))]
+    self.handle.plugin(crate::tray::plugin::init())?;
     Ok(())
   }
 

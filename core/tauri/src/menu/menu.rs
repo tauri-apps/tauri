@@ -4,6 +4,7 @@
 
 use super::sealed::ContextMenuBase;
 use super::{AboutMetadata, IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
+use crate::resources::Resource;
 use crate::Window;
 use crate::{run_main_thread, AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
@@ -87,12 +88,12 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
       }
     })
   }
-  fn inner(&self) -> &dyn muda::ContextMenu {
+  fn inner_context(&self) -> &dyn muda::ContextMenu {
     &self.inner
   }
 
-  fn inner_owned(&self) -> Box<dyn muda::ContextMenu> {
-    Box::new(self.clone().inner)
+  fn inner_context_owned(&self) -> Box<dyn muda::ContextMenu> {
+    Box::new(self.inner.clone())
   }
 }
 
@@ -264,8 +265,10 @@ impl<R: Runtime> Menu<R> {
   /// [`Submenu`]: super::Submenu
   pub fn append(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
-    run_main_thread!(self, |self_: Self| self_.inner.append(kind.inner().inner()))?
-      .map_err(Into::into)
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .append(kind.inner().inner_muda()))?
+    .map_err(Into::into)
   }
 
   /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop internally.
@@ -294,7 +297,7 @@ impl<R: Runtime> Menu<R> {
     let kind = item.kind();
     run_main_thread!(self, |self_: Self| self_
       .inner
-      .prepend(kind.inner().inner()))?
+      .prepend(kind.inner().inner_muda()))?
     .map_err(Into::into)
   }
 
@@ -320,7 +323,7 @@ impl<R: Runtime> Menu<R> {
     let kind = item.kind();
     run_main_thread!(self, |self_: Self| self_
       .inner
-      .insert(kind.inner().inner(), position))?
+      .insert(kind.inner().inner_muda(), position))?
     .map_err(Into::into)
   }
 
@@ -342,8 +345,18 @@ impl<R: Runtime> Menu<R> {
   /// Remove a menu item from this menu.
   pub fn remove(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
-    run_main_thread!(self, |self_: Self| self_.inner.remove(kind.inner().inner()))?
-      .map_err(Into::into)
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .remove(kind.inner().inner_muda()))?
+    .map_err(Into::into)
+  }
+
+  /// Remove the menu item at the specified position from this menu and returns it.
+  pub fn remove_at(&self, position: usize) -> crate::Result<Option<MenuItemKind<R>>> {
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .remove_at(position)
+      .map(|i| MenuItemKind::from_muda(self_.app_handle.clone(), i)))
   }
 
   /// Retrieves the menu item matching the given identifier.
@@ -361,40 +374,27 @@ impl<R: Runtime> Menu<R> {
 
   /// Returns a list of menu items that has been added to this menu.
   pub fn items(&self) -> crate::Result<Vec<MenuItemKind<R>>> {
-    let handle = self.app_handle.clone();
     run_main_thread!(self, |self_: Self| self_
       .inner
       .items()
       .into_iter()
-      .map(|i| match i {
-        muda::MenuItemKind::MenuItem(i) => super::MenuItemKind::MenuItem(super::MenuItem {
-          id: i.id().clone(),
-          inner: i,
-          app_handle: handle.clone(),
-        }),
-        muda::MenuItemKind::Submenu(i) => super::MenuItemKind::Submenu(super::Submenu {
-          id: i.id().clone(),
-          inner: i,
-          app_handle: handle.clone(),
-        }),
-        muda::MenuItemKind::Predefined(i) => {
-          super::MenuItemKind::Predefined(super::PredefinedMenuItem {
-            id: i.id().clone(),
-            inner: i,
-            app_handle: handle.clone(),
-          })
-        }
-        muda::MenuItemKind::Check(i) => super::MenuItemKind::Check(super::CheckMenuItem {
-          id: i.id().clone(),
-          inner: i,
-          app_handle: handle.clone(),
-        }),
-        muda::MenuItemKind::Icon(i) => super::MenuItemKind::Icon(super::IconMenuItem {
-          id: i.id().clone(),
-          inner: i,
-          app_handle: handle.clone(),
-        }),
-      })
+      .map(|i| MenuItemKind::from_muda(self_.app_handle.clone(), i))
       .collect::<Vec<_>>())
   }
+
+  /// Set this menu as the application menu.
+  ///
+  /// This is an alias for [`AppHandle::set_menu`].
+  pub fn set_as_app_menu(&self) -> crate::Result<Option<Menu<R>>> {
+    self.app_handle.set_menu(self.clone())
+  }
+
+  /// Set this menu as the window menu.
+  ///
+  /// This is an alias for [`Window::set_menu`].
+  pub fn set_as_window_menu(&self, window: &Window<R>) -> crate::Result<Option<Menu<R>>> {
+    window.set_menu(self.clone())
+  }
 }
+
+impl<R: Runtime> Resource for Menu<R> {}

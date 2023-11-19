@@ -4,7 +4,7 @@
 
 #![cfg(desktop)]
 
-//! Menu types and utility functions
+//! Menu types and utilities.
 
 // TODO(muda-migration): figure out js events
 
@@ -14,6 +14,7 @@ mod icon;
 #[allow(clippy::module_inception)]
 mod menu;
 mod normal;
+pub(crate) mod plugin;
 mod predefined;
 mod submenu;
 pub use builders::*;
@@ -22,13 +23,14 @@ pub use icon::IconMenuItem;
 pub use menu::{Menu, HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 pub use normal::MenuItem;
 pub use predefined::PredefinedMenuItem;
+use serde::{Deserialize, Serialize};
 pub use submenu::Submenu;
 
-use crate::{Icon, Runtime};
+use crate::{AppHandle, Icon, Runtime};
 pub use muda::MenuId;
 
 /// Describes a menu event emitted when a menu item is activated
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MenuEvent {
   /// Id of the menu item which triggered this event
   pub id: MenuId,
@@ -233,7 +235,7 @@ impl From<AboutMetadata> for muda::AboutMetadata {
 /// ## Platform-specific:
 ///
 /// - **Windows / Linux**: Unsupported.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum NativeIcon {
   /// An add item template image.
   Add,
@@ -449,6 +451,36 @@ impl<R: Runtime> MenuItemKind<R> {
     }
   }
 
+  pub(crate) fn from_muda(app_handle: AppHandle<R>, i: muda::MenuItemKind) -> Self {
+    match i {
+      muda::MenuItemKind::MenuItem(i) => Self::MenuItem(MenuItem {
+        id: i.id().clone(),
+        inner: i,
+        app_handle,
+      }),
+      muda::MenuItemKind::Submenu(i) => Self::Submenu(Submenu {
+        id: i.id().clone(),
+        inner: i,
+        app_handle,
+      }),
+      muda::MenuItemKind::Predefined(i) => Self::Predefined(PredefinedMenuItem {
+        id: i.id().clone(),
+        inner: i,
+        app_handle,
+      }),
+      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem {
+        id: i.id().clone(),
+        inner: i,
+        app_handle,
+      }),
+      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem {
+        id: i.id().clone(),
+        inner: i,
+        app_handle,
+      }),
+    }
+  }
+
   /// Casts this item to a [`MenuItem`], and returns `None` if it wasn't.
   pub fn as_menuitem(&self) -> Option<&MenuItem<R>> {
     match self {
@@ -543,8 +575,8 @@ impl<R: Runtime> Clone for MenuItemKind<R> {
 }
 
 impl<R: Runtime> sealed::IsMenuItemBase for MenuItemKind<R> {
-  fn inner(&self) -> &dyn muda::IsMenuItem {
-    self.inner().inner()
+  fn inner_muda(&self) -> &dyn muda::IsMenuItem {
+    self.inner().inner_muda()
   }
 }
 
@@ -593,12 +625,12 @@ pub trait ContextMenu: sealed::ContextMenuBase + Send + Sync {
 pub(crate) mod sealed {
 
   pub trait IsMenuItemBase {
-    fn inner(&self) -> &dyn muda::IsMenuItem;
+    fn inner_muda(&self) -> &dyn muda::IsMenuItem;
   }
 
   pub trait ContextMenuBase {
-    fn inner(&self) -> &dyn muda::ContextMenu;
-    fn inner_owned(&self) -> Box<dyn muda::ContextMenu>;
+    fn inner_context(&self) -> &dyn muda::ContextMenu;
+    fn inner_context_owned(&self) -> Box<dyn muda::ContextMenu>;
     fn popup_inner<R: crate::Runtime, P: Into<crate::Position>>(
       &self,
       window: crate::Window<R>,

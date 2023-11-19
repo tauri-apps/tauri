@@ -13,6 +13,8 @@ SPDX-License-Identifier: Apache-2.0
 SPDX-License-Identifier: MIT`
 const bundlerLicense =
   '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
+const denoLicense =
+  '// Copyright 2018-2023 the Deno authors. All rights reserved. MIT license.'
 
 const extensions = ['.rs', '.js', '.ts', '.yml', '.swift', '.kt']
 const ignore = [
@@ -43,7 +45,8 @@ async function checkFile(file) {
         line.length === 0 ||
         line.startsWith('#!') ||
         line.startsWith('// swift-tools-version:') ||
-        line === bundlerLicense
+        line === bundlerLicense ||
+        line === denoLicense
       ) {
         continue
       }

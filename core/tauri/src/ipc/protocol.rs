@@ -245,7 +245,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                   if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
                     && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
                   {
-                    let _ = Channel::from_ipc(window, callback).send(v);
+                    let _ = Channel::from_callback_fn(window, callback).send(v);
                   } else {
                     responder_eval(
                       &window,
@@ -262,7 +262,8 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                       error,
                     );
                   } else {
-                    let _ = Channel::from_ipc(window, callback).send(InvokeBody::Raw(v.clone()));
+                    let _ =
+                      Channel::from_callback_fn(window, callback).send(InvokeBody::Raw(v.clone()));
                   }
                 }
                 InvokeResponse::Err(e) => responder_eval(

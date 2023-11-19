@@ -4,13 +4,14 @@
 
 use std::{
   collections::HashMap,
+  str::FromStr,
   sync::{
     atomic::{AtomicU32, Ordering},
     Arc, Mutex,
   },
 };
 
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
   command,
@@ -50,6 +51,62 @@ impl Serialize for Channel {
   }
 }
 
+/// The ID of a channel that was defined on the JavaScript layer.
+///
+/// Useful when expecting [`Channel`] as part of a JSON object instead of a top-level command argument.
+///
+/// # Examples
+///
+/// ```rust
+/// use tauri::{ipc::JavaScriptChannelId, Runtime, Window};
+///
+/// #[derive(serde::Deserialize)]
+/// #[serde(rename_all = "camelCase")]
+/// struct Button {
+///   label: String,
+///   on_click: JavaScriptChannelId,
+/// }
+///
+/// #[tauri::command]
+/// fn add_button<R: Runtime>(window: Window<R>, button: Button) {
+///   let channel = button.on_click.channel_on(window);
+///   channel.send("clicked").unwrap();
+/// }
+/// ```
+pub struct JavaScriptChannelId(CallbackFn);
+
+impl FromStr for JavaScriptChannelId {
+  type Err = &'static str;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    s.split_once(IPC_PAYLOAD_PREFIX)
+      .ok_or("invalid channel string")
+      .and_then(|(_prefix, id)| id.parse().map_err(|_| "invalid channel ID"))
+      .map(|id| Self(CallbackFn(id)))
+  }
+}
+
+impl JavaScriptChannelId {
+  /// Gets a [`Channel`] for this channel ID on the given [`Window`].
+  pub fn channel_on<R: Runtime>(&self, window: Window<R>) -> Channel {
+    Channel::from_callback_fn(window, self.0)
+  }
+}
+
+impl<'de> Deserialize<'de> for JavaScriptChannelId {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let value: String = Deserialize::deserialize(deserializer)?;
+    Self::from_str(&value).map_err(|_| {
+      serde::de::Error::custom(format!(
+        "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
+      ))
+    })
+  }
+}
+
 impl Channel {
   /// Creates a new channel with the given message handler.
   pub fn new<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
@@ -58,7 +115,7 @@ impl Channel {
     Self::new_with_id(CHANNEL_COUNTER.fetch_add(1, Ordering::Relaxed), on_message)
   }
 
-  pub(crate) fn new_with_id<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
+  fn new_with_id<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
     id: u32,
     on_message: F,
   ) -> Self {
@@ -74,7 +131,7 @@ impl Channel {
     channel
   }
 
-  pub(crate) fn from_ipc<R: Runtime>(window: Window<R>, callback: CallbackFn) -> Self {
+  pub(crate) fn from_callback_fn<R: Runtime>(window: Window<R>, callback: CallbackFn) -> Self {
     Channel::new_with_id(callback.0, move |body| {
       let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
       window
@@ -90,23 +147,12 @@ impl Channel {
     })
   }
 
-  pub(crate) fn load_from_ipc<R: Runtime>(
-    window: Window<R>,
-    value: impl AsRef<str>,
-  ) -> Option<Self> {
-    value
-      .as_ref()
-      .split_once(IPC_PAYLOAD_PREFIX)
-      .and_then(|(_prefix, id)| id.parse().ok())
-      .map(|callback_id| Self::from_ipc(window, CallbackFn(callback_id)))
-  }
-
   /// The channel identifier.
   pub fn id(&self) -> u32 {
     self.id
   }
 
-  /// Sends the given data through the  channel.
+  /// Sends the given data through the channel.
   pub fn send<T: IpcResponse>(&self, data: T) -> crate::Result<()> {
     let body = data.body()?;
     (self.on_message)(body)
@@ -121,11 +167,13 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel {
     let window = command.message.window();
     let value: String =
       Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
-    Channel::load_from_ipc(window, &value).ok_or_else(|| {
-      InvokeError::from_anyhow(anyhow::anyhow!(
+    JavaScriptChannelId::from_str(&value)
+      .map(|id| id.channel_on(window))
+      .map_err(|_| {
+        InvokeError::from_anyhow(anyhow::anyhow!(
         "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
       ))
-    })
+      })
   }
 }
 

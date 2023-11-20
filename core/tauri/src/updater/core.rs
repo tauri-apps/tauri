@@ -857,7 +857,7 @@ fn copy_files_and_run<R: Read + Seek>(
           "-ArgumentList",
         ])
         .arg("/i,")
-        .arg(msi_path)
+        .arg(&msi_path)
         .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
         .arg("Start-Process")
         .arg(current_executable);

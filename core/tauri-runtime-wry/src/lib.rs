@@ -103,7 +103,7 @@ use std::{
   path::PathBuf,
   rc::Rc,
   sync::{
-    atomic::{AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
     mpsc::{channel, Sender},
     Arc, Mutex, Weak,
   },
@@ -382,13 +382,17 @@ pub struct WindowEventWrapper(pub Option<WindowEvent>);
 impl WindowEventWrapper {
   fn parse(window: &WindowWrapper, event: &WryWindowEvent<'_>) -> Self {
     match event {
-      // TODO
       // resized event from tao doesn't include a reliable size on macOS
       // because wry replaces the NSView
       WryWindowEvent::Resized(_) => {
-        if let Some(window) = &window.inner {
+        if let Some(w) = &window.inner {
           Self(Some(WindowEvent::Resized(
-            PhysicalSizeWrapper(window.inner_size()).into(),
+            PhysicalSizeWrapper(inner_size(
+              w,
+              &window.webviews,
+              window.has_children.load(Ordering::Relaxed),
+            ))
+            .into(),
           )))
         } else {
           Self(None)
@@ -1728,6 +1732,9 @@ impl Drop for WebviewWrapper {
 pub struct WindowWrapper {
   label: String,
   inner: Option<Arc<Window>>,
+  // whether this window has child webviews
+  // or it's just a container for a single webview
+  has_children: AtomicBool,
   webviews: Vec<WebviewWrapper>,
   window_event_listeners: WindowEventListeners,
 }
@@ -2106,6 +2113,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         .get_mut(&window_id)
         .map(|w| {
           w.webviews.push(webview);
+          w.has_children.store(true, Ordering::Relaxed);
           w
         });
 
@@ -2293,11 +2301,15 @@ fn handle_user_message<T: UserEvent>(
       }
     },
     Message::Window(id, window_message) => {
-      let w = windows
-        .borrow()
-        .get(&id)
-        .map(|w| (w.inner.clone(), w.window_event_listeners.clone()));
-      if let Some((Some(window), window_event_listeners)) = w {
+      let w = windows.borrow().get(&id).map(|w| {
+        (
+          w.inner.clone(),
+          w.webviews.clone(),
+          w.has_children.load(Ordering::Relaxed),
+          w.window_event_listeners.clone(),
+        )
+      });
+      if let Some((Some(window), webviews, has_children, window_event_listeners)) = w {
         match window_message {
           WindowMessage::AddEventListener(id, listener) => {
             window_event_listeners.lock().unwrap().insert(id, listener);
@@ -2322,7 +2334,7 @@ fn handle_user_message<T: UserEvent>(
             )
             .unwrap(),
           WindowMessage::InnerSize(tx) => tx
-            .send(PhysicalSizeWrapper(window.inner_size()).into())
+            .send(PhysicalSizeWrapper(inner_size(&window, &webviews, has_children)).into())
             .unwrap(),
           WindowMessage::OuterSize(tx) => tx
             .send(PhysicalSizeWrapper(window.outer_size()).into())
@@ -2369,7 +2381,7 @@ fn handle_user_message<T: UserEvent>(
           }
           // Setters
           WindowMessage::Center => {
-            let _ = center_window(&window, window.inner_size());
+            let _ = center_window(&window, inner_size(&window, &webviews, has_children));
           }
           WindowMessage::RequestUserAttention(request_type) => {
             window.request_user_attention(request_type.map(|r| r.0));
@@ -2578,6 +2590,7 @@ fn handle_user_message<T: UserEvent>(
           window_id,
           WindowWrapper {
             label,
+            has_children: AtomicBool::new(false),
             inner: Some(w.clone()),
             window_event_listeners: Default::default(),
             webviews: Vec::new(),
@@ -2887,6 +2900,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   Ok(WindowWrapper {
     label,
+    has_children: AtomicBool::new(false),
     inner: Some(Arc::new(window)),
     webviews,
     window_event_listeners,
@@ -3199,4 +3213,31 @@ fn create_file_drop_handler(window_event_listeners: WindowEventListeners) -> Box
     // block the default OS action on file drop if we had a listener
     has_listener
   })
+}
+
+#[cfg(target_os = "macos")]
+fn inner_size(
+  window: &Window,
+  webviews: &[WebviewWrapper],
+  has_children: bool,
+) -> WryPhysicalSize<u32> {
+  if has_children && webviews.len() == 1 {
+    use wry::WebViewExtMacOS;
+    let webview = webviews.first().unwrap();
+    let view_frame = unsafe { cocoa::appkit::NSView::frame(webview.webview()) };
+    let logical: WryLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
+    return logical.to_physical(window.scale_factor());
+  }
+
+  window.inner_size()
+}
+
+#[cfg(not(target_os = "macos"))]
+#[allow(unused_variables)]
+fn inner_size(
+  window: &Window,
+  webviews: &[WebviewWrapper],
+  has_children: bool,
+) -> WryPhysicalSize<u32> {
+  window.inner_size()
 }

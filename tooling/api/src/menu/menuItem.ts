@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { MenuItemBase, newMenu } from './base'
-import { invoke } from '../primitives'
+import { invoke } from '../core'
 
 /** Options for creating a new menu item. */
 export interface MenuItemOptions {

@@ -24,7 +24,7 @@
 
       const responseContainer = document.getElementById('response')
       function runCommand(commandName, args, optional) {
-        window.__TAURI__.primitives
+        window.__TAURI__.core
           .invoke(commandName, args)
           .then((response) => {
             responseContainer.innerText += `Ok(${response})\n\n`

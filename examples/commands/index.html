@@ -15,7 +15,7 @@
       function runCommand(commandName, args, optional) {
         const id = optional ? '#response-optional' : '#response'
         const result = document.querySelector(id)
-        window.__TAURI__.primitives
+        window.__TAURI__.core
           .invoke(commandName, args)
           .then((response) => {
             const val =

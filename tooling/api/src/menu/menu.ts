@@ -16,7 +16,7 @@ import { PredefinedMenuItem } from './predefinedMenuItem'
 import { Submenu } from './submenu'
 import { type LogicalPosition, PhysicalPosition } from '../dpi'
 import { type Window } from '../window'
-import { invoke } from '../primitives'
+import { invoke } from '../core'
 import { type ItemKind, MenuItemBase, newMenu } from './base'
 
 function itemFromKind([rid, id, kind]: [number, string, ItemKind]):

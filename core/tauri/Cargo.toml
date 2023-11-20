@@ -87,11 +87,11 @@ objc = "0.2"
 window-vibrancy = "0.4"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.27"
+webview2-com = "0.28"
 window-vibrancy = "0.4"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.51"
+  version = "0.52"
   features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"android\", target_os = \"ios\"))".dependencies]

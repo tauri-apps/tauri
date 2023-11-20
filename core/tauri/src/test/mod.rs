@@ -85,7 +85,7 @@ use tauri_utils::{
   config::{CliConfig, Config, PatternKind, TauriConfig},
 };
 
-/// Hash structure f
+/// A key for an [`Ipc`] call.
 #[derive(Eq, PartialEq)]
 pub struct IpcKey {
   /// callback

@@ -51,7 +51,6 @@
     "fast-glob": "3.3.2",
     "prettier": "3.0.3",
     "rollup": "4.3.0",
-    "tslib": "2.6.2",
     "typescript": "5.2.2"
   },
   "engines": {

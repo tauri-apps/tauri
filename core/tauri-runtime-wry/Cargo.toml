@@ -21,7 +21,7 @@ raw-window-handle = "0.5"
 http = "0.2"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.27"
+webview2-com = "0.28"
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.52"

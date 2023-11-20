@@ -28,7 +28,6 @@
 
   // add your custom rules here
   "rules": {
-    "no-console": "error",
     "no-debugger": "error",
     "no-process-exit": "off",
     "security/detect-non-literal-fs-filename": "warn",

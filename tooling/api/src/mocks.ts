@@ -143,6 +143,38 @@ export function mockWindows(
 }
 
 /**
+ * Mock `convertFileSrc` function
+ *
+ *
+ * @example
+ * ```js
+ * import { mockConvertFileSrc } from "@tauri-apps/api/mocks";
+ * import { convertFileSrc } from "@tauri-apps/api/tauri";
+ *
+ * mockConvertFileSrc("windows")
+ *
+ * const url = convertFileSrc("C:\\Users\\user\\file.txt")
+ * ```
+ *
+ * @param osName The operating system to mock, can be one of linux, macos, or windows
+ * @param windowsProtocolScheme The scheme to use on Windows, can be either `http` or `https` and defaults to `https`
+ *
+ * @since 1.6.0
+ */
+export function mockConvertFileSrc(
+  osName: string,
+  windowsProtocolScheme = 'https'
+): void {
+  window.__TAURI__ = window.__TAURI__ ?? {}
+  window.__TAURI__.convertFileSrc = function (filePath, protocol = 'asset') {
+    const path = encodeURIComponent(filePath)
+    return osName === 'windows'
+      ? `${windowsProtocolScheme}://${protocol}.localhost/${path}`
+      : `${protocol}://localhost/${path}`
+  }
+}
+
+/**
  * Clears mocked functions/data injected by the other functions in this module.
  * When using a test runner that doesn't provide a fresh window object for each test, calling this function will reset tauri specific properties.
  *
@@ -170,7 +202,9 @@ export function mockWindows(
  */
 export function clearMocks(): void {
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_IPC__
+  if (window.__TAURI__?.convertFileSrc) delete window.__TAURI__.convertFileSrc
   // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_METADATA__
+  if (window.__TAURI_IPC__) delete window.__TAURI_IPC__
+  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+  if (window.__TAURI_METADATA__) delete window.__TAURI_METADATA__
 }

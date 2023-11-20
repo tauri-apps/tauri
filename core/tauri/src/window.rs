@@ -329,6 +329,12 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     )?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
+    pending.http_scheme = self
+      .manager
+      .config()
+      .tauri
+      .security
+      .dangerous_use_http_scheme;
 
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
     let pending = self
@@ -1624,7 +1630,7 @@ impl<R: Runtime> Window<R> {
         window_label,
         event,
       })
-      .or_insert_with(Default::default)
+      .or_default()
       .insert(id);
   }
 

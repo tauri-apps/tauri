@@ -9,8 +9,8 @@ use crate::{
     common::CommandExt,
     windows::util::{
       download, download_and_verify, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
-      NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
-      WEBVIEW2_X86_INSTALLER_GUID,
+      NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL,
+      WEBVIEW2_X64_OFFLINE_INSTALLER_GUID, WEBVIEW2_X86_OFFLINE_INSTALLER_GUID,
     },
   },
   Settings,
@@ -20,7 +20,7 @@ use tauri_utils::display_path;
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
-use tauri_utils::config::{NSISInstallerMode, WebviewInstallMode};
+use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{
   collections::{BTreeMap, HashMap},
@@ -243,6 +243,15 @@ fn build_nsis_app_installer(
     }
 
     data.insert(
+      "compression",
+      to_json(match &nsis.compression.unwrap_or(NsisCompression::Lzma) {
+        NsisCompression::Zlib => "zlib",
+        NsisCompression::Bzip2 => "bzip2",
+        NsisCompression::Lzma => "lzma",
+      }),
+    );
+
+    data.insert(
       "display_language_selector",
       to_json(nsis.display_language_selector && languages.len() > 1),
     );
@@ -281,23 +290,38 @@ fn build_nsis_app_installer(
     .iter()
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+  let main_binary_path = settings.binary_path(main_binary).with_extension("exe");
   data.insert(
     "main_binary_name",
     to_json(main_binary.name().replace(".exe", "")),
   );
-  data.insert(
-    "main_binary_path",
-    to_json(settings.binary_path(main_binary).with_extension("exe")),
-  );
+  data.insert("main_binary_path", to_json(&main_binary_path));
 
   let out_file = "nsis-output.exe";
   data.insert("out_file", to_json(out_file));
 
   let resources = generate_resource_data(settings)?;
-  data.insert("resources", to_json(resources));
+  let resources_dirs =
+    std::collections::HashSet::<PathBuf>::from_iter(resources.values().map(|r| r.0.to_owned()));
+
+  let mut resources_ancestors = resources_dirs
+    .iter()
+    .flat_map(|p| p.ancestors())
+    .collect::<Vec<_>>();
+  resources_ancestors.sort_unstable();
+  resources_ancestors.dedup();
+  resources_ancestors.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
+  resources_ancestors.pop(); // Last one is always ""
+
+  data.insert("resources_ancestors", to_json(resources_ancestors));
+  data.insert("resources_dirs", to_json(resources_dirs));
+  data.insert("resources", to_json(&resources));
 
   let binaries = generate_binaries_data(settings)?;
-  data.insert("binaries", to_json(binaries));
+  data.insert("binaries", to_json(&binaries));
+
+  let estimated_size = generate_estimated_size(&main_binary_path, &binaries, &resources)?;
+  data.insert("estimated_size", to_json(estimated_size));
 
   let silent_webview2_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
   | WebviewInstallMode::EmbedBootstrapper { silent }
@@ -358,9 +382,9 @@ fn build_nsis_app_installer(
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
       let guid = if arch == "x64" {
-        WEBVIEW2_X64_INSTALLER_GUID
+        WEBVIEW2_X64_OFFLINE_INSTALLER_GUID
       } else {
-        WEBVIEW2_X86_INSTALLER_GUID
+        WEBVIEW2_X86_OFFLINE_INSTALLER_GUID
       };
       let offline_installer_path = tauri_tools_path
         .join("Webview2OfflineInstaller")
@@ -543,6 +567,24 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
   Ok(binaries)
 }
 
+fn generate_estimated_size(
+  main: &Path,
+  binaries: &BinariesMap,
+  resources: &ResourcesMap,
+) -> crate::Result<String> {
+  use std::fs::metadata;
+
+  let mut size = metadata(main)?.len();
+
+  for k in binaries.keys().chain(resources.keys()) {
+    size += metadata(k)?.len();
+  }
+
+  size /= 1000;
+
+  Ok(format!("{size:#08x}"))
+}
+
 fn get_lang_data(
   lang: &str,
   custom_lang_files: Option<&HashMap<String, PathBuf>>,
@@ -557,6 +599,7 @@ fn get_lang_data(
     "bulgarian" => Some(include_str!("./templates/nsis-languages/Bulgarian.nsh")),
     "dutch" => Some(include_str!("./templates/nsis-languages/Dutch.nsh")),
     "english" => Some(include_str!("./templates/nsis-languages/English.nsh")),
+    "german" => Some(include_str!("./templates/nsis-languages/German.nsh")),
     "japanese" => Some(include_str!("./templates/nsis-languages/Japanese.nsh")),
     "korean" => Some(include_str!("./templates/nsis-languages/Korean.nsh")),
     "portuguesebr" => Some(include_str!("./templates/nsis-languages/PortugueseBR.nsh")),

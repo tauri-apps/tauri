@@ -153,7 +153,14 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   // Sign DMG if needed
   if let Some(identity) = &settings.macos().signing_identity {
-    super::sign::sign(dmg_path.clone(), identity, settings, false)?;
+    super::sign::sign(
+      vec![super::sign::SignTarget {
+        path: dmg_path.clone(),
+        is_an_executable: false,
+      }],
+      identity,
+      settings,
+    )?;
   }
 
   Ok(Bundled {

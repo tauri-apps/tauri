@@ -13,7 +13,11 @@ use std::{
 
 use serde::Serialize;
 
-const UPDATER_PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5YTBGV3JiTy9lRDZVd3NkL0RoQ1htZmExNDd3RmJaNmRMT1ZGVjczWTBKZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQWdMekUzVkE4K0tWQ1hjeGt1Vkx2QnRUR3pzQjVuV0ZpM2czWXNkRm9hVUxrVnB6TUN3K1NheHJMREhQbUVWVFZRK3NIL1VsMDBHNW5ET1EzQno0UStSb21nRW4vZlpTaXIwZFh5ZmRlL1lSN0dKcHdyOUVPclVvdzFhVkxDVnZrbHM2T1o4Tk1NWEU9Cg==";
+const UPDATER_PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dkpDN09RZm5GeVAzc2RuYlNzWVVJelJRQnNIV2JUcGVXZUplWXZXYXpqUUFBQkFBQUFBQUFBQUFBQUlBQUFBQTZrN2RnWGh5dURxSzZiL1ZQSDdNcktiaHRxczQwMXdQelRHbjRNcGVlY1BLMTBxR2dpa3I3dDE1UTVDRDE4MXR4WlQwa1BQaXdxKy9UU2J2QmVSNXhOQWFDeG1GSVllbUNpTGJQRkhhTnROR3I5RmdUZi90OGtvaGhJS1ZTcjdZU0NyYzhQWlQ5cGM9Cg==";
+// const UPDATER_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZFOUJFNDg1NTU4NUZDQUQKUldTdC9JVlZoZVNiL2tVVG1hSFRETjRIZXE0a0F6d3dSY2ViYzdrSFh2MjBGWm1jM0NoWVFqM1YK";
+
+const UPDATER_PRIVATE_KEY_NEXT: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5OUxRK2FpTzVPQWt6M2laMWNodDI5QnJEL1Y2Z3pjREprTW9TMkc1Z1BuWUFBQkFBQUFBQUFBQUFBQUlBQUFBQVFCTkRHdHZlLzRTbHIxSUNXdFY0VnZaODhLdGExa1B4R240UGdqekFRcVNDd2xkeDMvZkFZZTJEYUxqSE5BZnc2Sk5VNGdmU0Y0Nml3QU92WWRaRlFGUUtaZWNSMWxjaisyc1pZSUk0RXB1N3BrbXlSYitZMHR0MEVsOUdxZk56eEZoZ0diUXRXLzg9Cg==";
+const UPDATER_PUBLIC_KEY_NEXT: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg5Nzg5MDdEREM5MDNBRjkKUldUNU9wRGNmWkI0aWZtY0toN3lxeHRJMmJ5bjFWdit6eXB2QWtJMVhzYjdrc3VIdDQxVVFwMVQK";
 
 #[derive(Serialize)]
 struct PackageConfig {
@@ -21,8 +25,19 @@ struct PackageConfig {
 }
 
 #[derive(Serialize)]
+struct UpdaterConfig {
+  pubkey: &'static str,
+}
+
+#[derive(Serialize)]
+struct TauriConfig {
+  updater: UpdaterConfig,
+}
+
+#[derive(Serialize)]
 struct Config {
   package: PackageConfig,
+  tauri: TauriConfig,
 }
 
 #[derive(Serialize)]
@@ -57,6 +72,7 @@ fn get_cli_bin_path(cli_dir: &Path, debug: bool) -> Option<PathBuf> {
 fn build_app(
   cli_bin_path: &Path,
   cwd: &Path,
+  envs: Vec<(&str, &str)>,
   config: &Config,
   bundle_updater: bool,
   target: BundleTarget,
@@ -78,7 +94,7 @@ fn build_app(
     command.args(["--bundles", "msi", "nsis"]);
 
     command
-      .env("TAURI_PRIVATE_KEY", UPDATER_PRIVATE_KEY)
+      .envs(envs)
       .env("TAURI_KEY_PASSWORD", "")
       .args(["--bundles", "updater"]);
   } else {
@@ -197,12 +213,18 @@ fn update_app() {
 
   let mut config = Config {
     package: PackageConfig { version: "1.0.0" },
+    tauri: TauriConfig {
+      updater: UpdaterConfig {
+        pubkey: UPDATER_PUBLIC_KEY_NEXT,
+      },
+    },
   };
 
   // bundle app update
   build_app(
     &cli_bin_path,
     &manifest_dir,
+    vec![("TAURI_PRIVATE_KEY", UPDATER_PRIVATE_KEY_NEXT)],
     &config,
     true,
     Default::default(),
@@ -285,7 +307,14 @@ fn update_app() {
     config.package.version = "0.1.0";
 
     // bundle initial app version
-    build_app(&cli_bin_path, &manifest_dir, &config, false, bundle_target);
+    build_app(
+      &cli_bin_path,
+      &manifest_dir,
+      vec![("TAURI_PRIVATE_KEY", UPDATER_PRIVATE_KEY)],
+      &config,
+      false,
+      bundle_target,
+    );
 
     let mut binary_cmd = if cfg!(windows) {
       Command::new(root_dir.join("target/debug/app-updater.exe"))
@@ -318,12 +347,12 @@ fn update_app() {
           .first()
           .unwrap()
           .1
-          .join("Contents/Frameworks/test.framework/test"),
+          .join("Contents/Frameworks/test.framework/Modules"),
       )
-      .expect("test.framework/test metadata");
+      .expect("test.framework/Modules metadata");
       assert!(
         meta.file_type().is_symlink(),
-        "test.framework/test should be a symlink"
+        "test.framework/Modules should be a symlink"
       );
     }
 

@@ -878,7 +878,7 @@ fn copy_files_and_run<R: Read + Seek>(
         );
         let _ = Command::new(msiexec_path)
           .arg("/i")
-          .arg(found_path)
+          .arg(msi_path_arg)
           .args(msiexec_args)
           .arg("/promptrestart")
           .spawn();

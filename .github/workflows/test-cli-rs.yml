@@ -50,8 +50,8 @@ jobs:
         with:
           workspaces: tooling/cli
 
-      - name: build CLI
+      - name: test CLI
         uses: actions-rs/cargo@v1
         with:
-          command: build
+          command: test
           args: --manifest-path ./tooling/cli/Cargo.toml

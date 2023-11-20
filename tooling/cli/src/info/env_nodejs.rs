@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{cross_command, VersionMetadata};
-use super::{SectionItem, Status};
+use super::{cross_command, ActionResult, SectionItem, VersionMetadata};
 use colored::Colorize;
 
-pub fn items(metadata: &VersionMetadata) -> (Vec<SectionItem>, Option<String>) {
-  let yarn_version = cross_command("yarn")
+pub fn manager_version(package_manager: &str) -> Option<String> {
+  cross_command(package_manager)
     .arg("-v")
     .output()
     .map(|o| {
@@ -19,129 +18,58 @@ pub fn items(metadata: &VersionMetadata) -> (Vec<SectionItem>, Option<String>) {
       }
     })
     .ok()
-    .unwrap_or_default();
-  let yarn_version_c = yarn_version.clone();
+    .unwrap_or_default()
+}
+
+pub fn items(metadata: &VersionMetadata) -> Vec<SectionItem> {
   let node_target_ver = metadata.js_cli.node.replace(">= ", "");
 
-  (
-    vec![
-      SectionItem::new(
-        move || {
-          cross_command("node")
-            .arg("-v")
-            .output()
-            .map(|o| {
-              if o.status.success() {
-                let v = String::from_utf8_lossy(o.stdout.as_slice()).to_string();
-                let v = v
-                  .split('\n')
-                  .next()
-                  .unwrap()
-                  .strip_prefix('v')
-                  .unwrap_or_default()
-                  .trim();
-                Some((
-                  format!("node: {}{}", v, {
-                    let version = semver::Version::parse(v).unwrap();
-                    let target_version = semver::Version::parse(node_target_ver.as_str()).unwrap();
-                    if version < target_version {
-                      format!(
-                        " ({}, latest: {})",
-                        "outdated".red(),
-                        target_version.to_string().green()
-                      )
-                    } else {
-                      "".into()
-                    }
-                  }),
-                  Status::Neutral,
-                ))
+  vec![
+    SectionItem::new().action(move || {
+      cross_command("node")
+        .arg("-v")
+        .output()
+        .map(|o| {
+          if o.status.success() {
+            let v = String::from_utf8_lossy(o.stdout.as_slice()).to_string();
+            let v = v
+              .split('\n')
+              .next()
+              .unwrap()
+              .strip_prefix('v')
+              .unwrap_or_default()
+              .trim();
+            ActionResult::Description(format!("node: {}{}", v, {
+              let version = semver::Version::parse(v).unwrap();
+              let target_version = semver::Version::parse(node_target_ver.as_str()).unwrap();
+              if version < target_version {
+                format!(
+                  " ({}, latest: {})",
+                  "outdated".red(),
+                  target_version.to_string().green()
+                )
               } else {
-                None
+                "".into()
               }
-            })
-            .ok()
-            .unwrap_or_default()
-        },
-        || None,
-        false,
-      ),
-      SectionItem::new(
-        || {
-          cross_command("pnpm")
-            .arg("-v")
-            .output()
-            .map(|o| {
-              if o.status.success() {
-                let v = String::from_utf8_lossy(o.stdout.as_slice()).to_string();
-                Some((
-                  format!("pnpm: {}", v.split('\n').next().unwrap()),
-                  Status::Neutral,
-                ))
-              } else {
-                None
-              }
-            })
-            .ok()
-            .unwrap_or_default()
-        },
-        || None,
-        false,
-      ),
-      SectionItem::new(
-        || {
-          cross_command("bun")
-            .arg("-v")
-            .output()
-            .map(|o| {
-              if o.status.success() {
-                let v = String::from_utf8_lossy(o.stdout.as_slice()).to_string();
-                Some((
-                  format!("bun: {}", v.split('\n').next().unwrap()),
-                  Status::Neutral,
-                ))
-              } else {
-                None
-              }
-            })
-            .ok()
-            .unwrap_or_default()
-        },
-        || None,
-        false,
-      ),
-      SectionItem::new(
-        move || {
-          yarn_version_c
-            .as_ref()
-            .map(|v| (format!("yarn: {v}"), Status::Neutral))
-        },
-        || None,
-        false,
-      ),
-      SectionItem::new(
-        || {
-          cross_command("npm")
-            .arg("-v")
-            .output()
-            .map(|o| {
-              if o.status.success() {
-                let v = String::from_utf8_lossy(o.stdout.as_slice()).to_string();
-                Some((
-                  format!("npm: {}", v.split('\n').next().unwrap()),
-                  Status::Neutral,
-                ))
-              } else {
-                None
-              }
-            })
-            .ok()
-            .unwrap_or_default()
-        },
-        || None,
-        false,
-      ),
-    ],
-    yarn_version,
-  )
+            }))
+          } else {
+            ActionResult::None
+          }
+        })
+        .ok()
+        .unwrap_or_default()
+    }),
+    SectionItem::new().action(|| {
+      manager_version("pnpm")
+        .map(|v| format!("pnpm: {}", v))
+        .into()
+    }),
+    SectionItem::new().action(|| {
+      manager_version("yarn")
+        .map(|v| format!("yarn: {}", v))
+        .into()
+    }),
+    SectionItem::new().action(|| manager_version("npm").map(|v| format!("npm: {}", v)).into()),
+    SectionItem::new().action(|| manager_version("bun").map(|v| format!("bun: {}", v)).into()),
+  ]
 }

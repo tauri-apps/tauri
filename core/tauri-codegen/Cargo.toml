@@ -1,6 +1,6 @@
 [package]
 name = "tauri-codegen"
-version = "2.0.0-alpha.10"
+version = "2.0.0-alpha.11"
 description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -19,7 +19,7 @@ proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
-tauri-utils = { version = "2.0.0-alpha.10", path = "../tauri-utils", features = [ "build" ] }
+tauri-utils = { version = "2.0.0-alpha.11", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }

@@ -1,5 +1,27 @@
 # Changelog
 
+## \[2.0.0-alpha.18]
+
+### New Features
+
+- [`50f7ccbb`](https://www.github.com/tauri-apps/tauri/commit/50f7ccbbf3467f33cc7dd1cca53125fec6eda1c6)([#6444](https://www.github.com/tauri-apps/tauri/pull/6444)) Add suport to SVG input image for the `tauri icon` command.
+- [`25e5f91d`](https://www.github.com/tauri-apps/tauri/commit/25e5f91dae7fe2bbc1ba4317d5d829402bfd1d50)([#8200](https://www.github.com/tauri-apps/tauri/pull/8200)) Merge `src-tauri/Info.plist` and `src-tauri/Info.ios.plist` with the iOS project plist file.
+
+### Enhancements
+
+- [`01a7a983`](https://www.github.com/tauri-apps/tauri/commit/01a7a983aba2946b455a608b8a6a4b08cb25fc11)([#8128](https://www.github.com/tauri-apps/tauri/pull/8128)) Transform paths to relative to the mobile project for the IDE script runner script.
+
+### Bug Fixes
+
+- [`88dac86f`](https://www.github.com/tauri-apps/tauri/commit/88dac86f3b301d1919df6473a9e20f46b560f29b)([#8149](https://www.github.com/tauri-apps/tauri/pull/8149)) Ensure `tauri add` prints `rust_code` with plugin name in snake case.
+- [`977d0e52`](https://www.github.com/tauri-apps/tauri/commit/977d0e52f14b1ad01c86371765ef25b36572459e)([#8202](https://www.github.com/tauri-apps/tauri/pull/8202)) Fixes `android build --open` and `ios build --open` IDE failing to read CLI options.
+- [`bfbbefdb`](https://www.github.com/tauri-apps/tauri/commit/bfbbefdb9e13ed1f42f6db7fa9ceaa84db1267e9)([#8161](https://www.github.com/tauri-apps/tauri/pull/8161)) Fix invalid plugin template.
+- [`92b50a3a`](https://www.github.com/tauri-apps/tauri/commit/92b50a3a398c9d55b6992a8f5c2571e4d72bdaaf)([#8209](https://www.github.com/tauri-apps/tauri/pull/8209)) Added support to Xcode's archive. This requires regenerating the Xcode project.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.18`
+
 ## \[2.0.0-alpha.17]
 
 ### Enhancements

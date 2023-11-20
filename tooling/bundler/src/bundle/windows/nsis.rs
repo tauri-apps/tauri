@@ -429,7 +429,7 @@ fn build_nsis_app_installer(
   }
 
   write_ut16_le_with_bom(
-    &output_path.join("FileAssociation.nsh"),
+    output_path.join("FileAssociation.nsh"),
     include_str!("./templates/FileAssociation.nsh"),
   )?;
 

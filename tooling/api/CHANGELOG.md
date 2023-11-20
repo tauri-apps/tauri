@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-alpha.12]
+
+### New Features
+
+- [`f93148ea`](https://www.github.com/tauri-apps/tauri/commit/f93148eac05a1428e038bd9351a8149b2464ff4c)([#7709](https://www.github.com/tauri-apps/tauri/pull/7709)) Add `tray` and `menu` modules to create and manage tray icons and menus from Javascript.
+
+### Enhancements
+
+- [`b7add750`](https://www.github.com/tauri-apps/tauri/commit/b7add750ef9f32d959de613ab35063ff240281c2)([#8204](https://www.github.com/tauri-apps/tauri/pull/8204)) Added `position` field to the `FileDropEvent` payload.
+
 ## \[2.0.0-alpha.11]
 
 ### Bug Fixes

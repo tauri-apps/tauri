@@ -304,8 +304,6 @@ pub struct Size {
   pub height: u32,
 }
 
-
-
 /// Configuration for Apple Disk Image (.dmg) bundles.
 ///
 /// See more: https://tauri.app/v1/api/config#dmgconfig
@@ -319,20 +317,14 @@ pub struct DmgConfig {
   /// Position of volume window on screen.
   pub window_position: Option<Position>,
   /// Size of volume window.
-  #[serde(
-    default = "window_size",
-    alias = "window-size"
-  )]
+  #[serde(default = "dmg_window_size", alias = "window-size")]
   pub window_size: Size,
   /// Position of app file on window.
-  #[serde(
-    default = "app_position",
-    alias = "app-position"
-  )]
+  #[serde(default = "dmg_app_position", alias = "app-position")]
   pub app_position: Position,
   /// Position of application folder on window.
   #[serde(
-    default = "application_folder_position",
+    default = "dmg_application_folder_position",
     alias = "application-folder-position"
   )]
   pub application_folder_position: Position,
@@ -343,32 +335,26 @@ impl Default for DmgConfig {
     Self {
       background: None,
       window_position: None,
-      window_size: window_size(),
-      app_position: app_position(),
-      application_folder_position: application_folder_position(),
+      window_size: dmg_window_size(),
+      app_position: dmg_app_position(),
+      application_folder_position: dmg_application_folder_position(),
     }
   }
 }
 
-fn window_size() -> Size {
+fn dmg_window_size() -> Size {
   Size {
     width: 660,
     height: 400,
   }
 }
 
-fn app_position() -> Position {
-  Position {
-    x: 180,
-    y: 170,
-  }
+fn dmg_app_position() -> Position {
+  Position { x: 180, y: 170 }
 }
 
-fn application_folder_position() -> Position {
-  Position {
-    x: 480,
-    y: 170,
-  }
+fn dmg_application_folder_position() -> Position {
+  Position { x: 480, y: 170 }
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>

@@ -1179,13 +1179,10 @@ fn tauri_config_to_bundle_settings(
     },
     dmg: DmgSettings {
       background: config.dmg.background,
-      window_position: match config.dmg.window_position {
-        Some(window_position) => Some(Position {
+      window_position: config.dmg.window_position.map(|window_position| Position {
           x: window_position.x,
           y: window_position.y,
         }),
-        None => None,
-      },
       window_size: Size {
           width: config.dmg.window_size.width,
           height: config.dmg.window_size.height,

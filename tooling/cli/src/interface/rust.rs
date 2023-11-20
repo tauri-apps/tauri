@@ -28,8 +28,8 @@ use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use shared_child::SharedChild;
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings, PackageSettings,
+  UpdaterSettings, WindowsSettings, Position, Size
 };
 use tauri_utils::config::parse::is_configuration_file;
 
@@ -1114,6 +1114,28 @@ fn tauri_config_to_bundle_settings(
       section: config.deb.section,
       priority: config.deb.priority,
       changelog: config.deb.changelog,
+    },
+    dmg: DmgSettings {
+      background: config.dmg.background,
+      window_position: match config.dmg.window_position {
+        Some(window_position) => Some(Position {
+          x: window_position.x,
+          y: window_position.y,
+        }),
+        None => None,
+      },
+      window_size: Size {
+          width: config.dmg.window_size.width,
+          height: config.dmg.window_size.height,
+      },
+      app_position: Position {
+        x: config.dmg.app_position.x,
+        y: config.dmg.app_position.y,
+      },
+      application_folder_position: Position {
+        x: config.dmg.application_folder_position.x,
+        y: config.dmg.application_folder_position.y,
+      },
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,

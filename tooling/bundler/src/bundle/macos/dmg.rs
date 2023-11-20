@@ -96,22 +96,61 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .output()
     .expect("Failed to chmod script");
 
+  let dmg_settings = settings.dmg();
+
+  let app_position = &dmg_settings.app_position;
+  let application_folder_position = &dmg_settings.application_folder_position;
+  let window_size = &dmg_settings.window_size;
+
+  let app_position_x = app_position.x.to_string();
+  let app_position_y = app_position.y.to_string();
+  let application_folder_position_x = application_folder_position.x.to_string();
+  let application_folder_position_y = application_folder_position.y.to_string();
+  let window_size_width = window_size.width.to_string();
+  let window_size_height = window_size.height.to_string();
+
   let mut args = vec![
     "--volname",
     product_name,
     "--icon",
     &bundle_file_name,
-    "180",
-    "170",
+    &app_position_x,
+    &app_position_y,
     "--app-drop-link",
-    "480",
-    "170",
+    &application_folder_position_x,
+    &application_folder_position_y,
     "--window-size",
-    "660",
-    "400",
+    &window_size_width,
+    &window_size_height,
     "--hide-extension",
     &bundle_file_name,
   ];
+
+  let window_position = dmg_settings.window_position.as_ref().map(|position| {
+    (position.x.to_string(), position.y.to_string())
+  });
+
+  if let Some(window_position) = &window_position {
+    args.push("--window-pos");
+    args.push(&window_position.0);
+    args.push(&window_position.1);
+  }
+
+  let background_path_string = if let Some(background_path) = &dmg_settings.background {
+    Some(
+      env::current_dir()?
+        .join(background_path)
+        .to_string_lossy()
+        .to_string(),
+    )
+  } else {
+    None
+  };
+
+  if let Some(background_path_string) = &background_path_string {
+    args.push("--background");
+    args.push(background_path_string);
+  }
 
   let icns_icon_path =
     create_icns_file(&output_path, settings)?.map(|path| path.to_string_lossy().to_string());
@@ -120,15 +159,20 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     args.push(icon);
   }
 
-  #[allow(unused_assignments)]
-  let mut license_path_ref = "".to_string();
-  if let Some(license_path) = &settings.macos().license {
+  let license_path_string = if let Some(license_path) = &settings.macos().license {
+    Some(
+      env::current_dir()?
+        .join(license_path)
+        .to_string_lossy()
+        .to_string(),
+    )
+  } else {
+    None
+  };
+
+  if let Some(license_path) = &license_path_string {
     args.push("--eula");
-    license_path_ref = env::current_dir()?
-      .join(license_path)
-      .to_string_lossy()
-      .to_string();
-    args.push(&license_path_ref);
+    args.push(license_path);
   }
 
   // Issue #592 - Building MacOS dmg files on CI

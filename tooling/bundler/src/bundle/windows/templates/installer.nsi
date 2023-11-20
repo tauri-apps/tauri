@@ -533,7 +533,6 @@ Section Install
 
   ; Copy resources
   {{#each resources_dirs}}
-    ; `\\` is not a typo.
     CreateDirectory "$INSTDIR\\{{this}}"
   {{/each}}
   {{#each resources}}
@@ -623,7 +622,6 @@ Section Uninstall
   ; Delete resources
   {{#each resources}}
     Delete "$INSTDIR\\{{this.[1]}}"
-    RMDir "$INSTDIR\\{{this.[0]}}"
   {{/each}}
 
   ; Delete external binaries
@@ -634,7 +632,14 @@ Section Uninstall
   ; Delete uninstaller
   Delete "$INSTDIR\uninstall.exe"
 
-  RMDir "$INSTDIR"
+  ${If} $DeleteAppDataCheckboxState == 1
+    RMDir /R /REBOOTOK "$INSTDIR"
+  ${Else}
+    {{#each resources_ancestors}}
+    RMDir /REBOOTOK "$INSTDIR\\{{this}}"
+    {{/each}}
+    RMDir "$INSTDIR"
+  ${EndIf}
 
   ; Remove start menu shortcut
   !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder

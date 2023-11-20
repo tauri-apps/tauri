@@ -303,6 +303,17 @@ fn build_nsis_app_installer(
   let resources = generate_resource_data(settings)?;
   let resources_dirs =
     std::collections::HashSet::<PathBuf>::from_iter(resources.values().map(|r| r.0.to_owned()));
+
+  let mut resources_ancestors = resources_dirs
+    .iter()
+    .flat_map(|p| p.ancestors())
+    .collect::<Vec<_>>();
+  resources_ancestors.sort_unstable();
+  resources_ancestors.dedup();
+  resources_ancestors.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
+  resources_ancestors.pop(); // Last one is always ""
+
+  data.insert("resources_ancestors", to_json(resources_ancestors));
   data.insert("resources_dirs", to_json(resources_dirs));
   data.insert("resources", to_json(&resources));
 

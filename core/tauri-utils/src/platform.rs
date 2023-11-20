@@ -255,21 +255,3 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
 
   res
 }
-
-#[cfg(windows)]
-pub use windows_platform::{is_windows_7, windows_version};
-
-#[cfg(windows)]
-mod windows_platform {
-  /// Checks if we're running on Windows 7.
-  pub fn is_windows_7() -> bool {
-    let v = windows_version();
-    v.0 == 6 && v.1 == 1
-  }
-
-  /// Returns a tuple of (major, minor, buildnumber) for the Windows version.
-  pub fn windows_version() -> (u32, u32, u32) {
-    let v = windows_version::OsVersion::current();
-    (v.major, v.minor, v.build)
-  }
-}

@@ -43,9 +43,6 @@ log = "0.4.20"
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
 
-[target."cfg(windows)".dependencies]
-windows-version = "0.1"
-
 [features]
 build = [ "proc-macro2", "quote" ]
 compression = [ "brotli" ]

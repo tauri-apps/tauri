@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { Resource } from '../internal'
-import { Channel, invoke } from '../primitives'
+import { Channel, invoke } from '../core'
 import { CheckMenuItemOptions } from './checkMenuItem'
 import { IconMenuItemOptions } from './iconMenuItem'
 import { MenuItemOptions } from './menuItem'

@@ -13,7 +13,7 @@ use std::{
   process::Command,
 };
 
-const CORE_API_MODULES: &[&str] = &["dpi", "event", "path", "primitives", "window", "mocks"];
+const CORE_API_MODULES: &[&str] = &["dpi", "event", "path", "core", "window", "mocks"];
 const JS_EXTENSIONS: &[&str] = &["js", "jsx", "ts", "tsx", "mjs"];
 
 pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
@@ -40,7 +40,7 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
             let original = cap.get(0).unwrap().as_str();
 
             if module == "tauri" {
-              let new = "@tauri-apps/api/primitives".to_string();
+              let new = "@tauri-apps/api/core".to_string();
               log::info!("Replacing `{original}` with `{new}` on {}", path.display());
               new
             } else if CORE_API_MODULES.contains(&module) {

@@ -24,7 +24,7 @@ import {
 } from './dpi'
 import type { Event, EventName, EventCallback, UnlistenFn } from './event'
 import { TauriEvent, emit, listen, once } from './event'
-import { invoke } from './primitives'
+import { invoke } from './core'
 
 /**
  * Allows you to retrieve information about a given monitor.

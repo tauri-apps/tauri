@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { MenuItemBase, newMenu } from './base'
-import { invoke } from '../primitives'
+import { invoke } from '../core'
 
 /** A metadata for the about predefined menu item. */
 export interface AboutMetadata {

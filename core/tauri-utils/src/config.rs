@@ -348,6 +348,95 @@ fn default_release() -> String {
   "1".into()
 }
 
+/// Position coordinates struct.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Position {
+  /// X coordinate.
+  pub x: u32,
+  /// Y coordinate.
+  pub y: u32,
+}
+
+/// Size of the window.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Size {
+  /// Width of the window.
+  pub width: u32,
+  /// Height of the window.
+  pub height: u32,
+}
+
+
+
+/// Configuration for Apple Disk Image (.dmg) bundles.
+///
+/// See more: https://tauri.app/v1/api/config#dmgconfig
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DmgConfig {
+  /// Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.
+  pub background: Option<PathBuf>,
+  /// Position of volume window on screen.
+  pub window_position: Option<Position>,
+  /// Size of volume window.
+  #[serde(
+    default = "window_size",
+    alias = "window-size"
+  )]
+  pub window_size: Size,
+  /// Position of app file on window.
+  #[serde(
+    default = "app_position",
+    alias = "app-position"
+  )]
+  pub app_position: Position,
+  /// Position of application folder on window.
+  #[serde(
+    default = "application_folder_position",
+    alias = "application-folder-position"
+  )]
+  pub application_folder_position: Position,
+}
+
+impl Default for DmgConfig {
+  fn default() -> Self {
+    Self {
+      background: None,
+      window_position: None,
+      window_size: window_size(),
+      app_position: app_position(),
+      application_folder_position: application_folder_position(),
+    }
+  }
+}
+
+fn window_size() -> Size {
+  Size {
+    width: 660,
+    height: 400,
+  }
+}
+
+fn app_position() -> Position {
+  Position {
+    x: 180,
+    y: 170,
+  }
+}
+
+fn application_folder_position() -> Position {
+  Position {
+    x: 480,
+    y: 170,
+  }
+}
+
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
   D: Deserializer<'de>,
@@ -810,6 +899,9 @@ pub struct BundleConfig {
   /// Configuration for the RPM bundle.
   #[serde(default)]
   pub rpm: RpmConfig,
+  /// DMG-specific settings.
+  #[serde(default)]
+  pub dmg: DmgConfig,
   /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", default)]
   pub macos: MacConfig,
@@ -3639,6 +3731,7 @@ mod build {
       let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
       let rpm = quote!(Default::default());
+      let dmg = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
@@ -3660,6 +3753,7 @@ mod build {
         appimage,
         deb,
         rpm,
+        dmg,
         macos,
         external_bin,
         windows
@@ -4104,6 +4198,7 @@ mod test {
         appimage: Default::default(),
         deb: Default::default(),
         rpm: Default::default(),
+        dmg: Default::default(),
         macos: Default::default(),
         external_bin: None,
         windows: Default::default(),

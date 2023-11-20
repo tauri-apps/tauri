@@ -19,7 +19,7 @@ interface IPCMessage {
  * Testing setup using vitest:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
- * import { invoke } from "@tauri-apps/api/primitives"
+ * import { invoke } from "@tauri-apps/api/core"
  *
  * afterEach(() => {
  *    clearMocks()
@@ -42,7 +42,7 @@ interface IPCMessage {
  * The callback function can also return a Promise:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
- * import { invoke } from "@tauri-apps/api/primitives"
+ * import { invoke } from "@tauri-apps/api/core"
  *
  * afterEach(() => {
  *    clearMocks()
@@ -141,7 +141,7 @@ export function mockWindows(
  * @example
  * ```js
  * import { mockConvertFileSrc } from "@tauri-apps/api/mocks";
- * import { convertFileSrc } from "@tauri-apps/api/primitives";
+ * import { convertFileSrc } from "@tauri-apps/api/core";
  *
  * mockConvertFileSrc("windows")
  *

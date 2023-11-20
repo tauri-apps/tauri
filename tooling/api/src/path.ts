@@ -11,7 +11,7 @@
  * @module
  */
 
-import { invoke } from './primitives'
+import { invoke } from './core'
 
 /**
  * @since 2.0.0

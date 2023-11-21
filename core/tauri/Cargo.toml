@@ -165,6 +165,10 @@ name = "helloworld"
 path = "../../examples/helloworld/main.rs"
 
 [[example]]
+name = "multiwebview"
+path = "../../examples/multiwebview/main.rs"
+
+[[example]]
 name = "multiwindow"
 path = "../../examples/multiwindow/main.rs"
 

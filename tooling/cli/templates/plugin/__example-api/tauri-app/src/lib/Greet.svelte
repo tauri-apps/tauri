@@ -1,5 +1,5 @@
 <script>
-  import { invoke } from "@tauri-apps/api/primitives"
+  import { invoke } from "@tauri-apps/api/core"
 
   let name = "";
   let greetMsg = ""

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { invoke } from '../primitives'
+import { invoke } from '../core'
 
 /**
  * A rust-backed resource.

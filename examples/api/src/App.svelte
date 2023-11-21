@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte'
   import { writable } from 'svelte/store'
-  import { invoke } from '@tauri-apps/api/primitives'
+  import { invoke } from '@tauri-apps/api/core'
 
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'

@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-alpha.12]
+
+### Bug Fixes
+
+- [`34196e25`](https://www.github.com/tauri-apps/tauri/commit/34196e25c4ca2362bdfe1cf4598082aca71fe0a0)([#8182](https://www.github.com/tauri-apps/tauri/pull/8182)) Use original version string on WiX output file name.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.11`
+
 ## \[2.0.0-alpha.11]
 
 ### Enhancements

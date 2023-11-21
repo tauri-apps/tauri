@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "2.0.0-alpha.11",
+  "version": "2.0.0-alpha.12",
   "description": "Tauri API definitions",
   "funding": {
     "type": "opencollective",
@@ -19,6 +19,12 @@
   },
   "homepage": "https://github.com/tauri-apps/tauri#readme",
   "type": "module",
+  "types": "./types/index.d.ts",
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "exports": {
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "build": "rollup -c --configPlugin typescript",
     "npm-pack": "yarn build && cd ./dist && npm pack",
@@ -47,9 +53,6 @@
     "rollup": "4.3.0",
     "tslib": "2.6.2",
     "typescript": "5.2.2"
-  },
-  "exports": {
-    "./package.json": "./package.json"
   },
   "engines": {
     "node": ">= 18",

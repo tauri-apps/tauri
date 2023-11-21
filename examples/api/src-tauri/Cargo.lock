@@ -3460,7 +3460,7 @@ checksum = "14c39fd04924ca3a864207c66fc2cd7d22d7c016007f9ce846cbb9326331930a"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-alpha.17"
+version = "2.0.0-alpha.18"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3511,7 +3511,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-alpha.11"
+version = "2.0.0-alpha.12"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3532,7 +3532,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-alpha.10"
+version = "2.0.0-alpha.11"
 dependencies = [
  "base64",
  "brotli",
@@ -3556,7 +3556,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-alpha.10"
+version = "2.0.0-alpha.11"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -3592,7 +3592,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "1.0.0-alpha.4"
+version = "1.0.0-alpha.5"
 dependencies = [
  "gtk",
  "http",
@@ -3608,7 +3608,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "1.0.0-alpha.5"
+version = "1.0.0-alpha.6"
 dependencies = [
  "cocoa 0.24.1",
  "gtk",
@@ -3627,7 +3627,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-alpha.10"
+version = "2.0.0-alpha.11"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -3653,7 +3653,6 @@ dependencies = [
  "thiserror",
  "url",
  "walkdir",
- "windows-version",
 ]
 
 [[package]]

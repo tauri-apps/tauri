@@ -1125,6 +1125,7 @@ pub enum WebviewMessage {
   WebviewEvent(WebviewEvent),
   Navigate(Url),
   Print,
+  Close,
   SetPosition(Position),
   SetSize(Size),
   SetFocus,
@@ -1265,6 +1266,13 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Webview(self.window_id, self.webview_id, WebviewMessage::Print),
+    )
+  }
+
+  fn close(&self) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(self.window_id, self.webview_id, WebviewMessage::Close),
     )
   }
 
@@ -2516,12 +2524,13 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::Webview(window_id, webview_id, webview_message) => {
-      if let Some((Some(window), Some(webview))) = windows.borrow().get(&window_id).map(|w| {
+      let webview_handle = windows.borrow().get(&window_id).map(|w| {
         (
           w.inner.clone(),
-          w.webviews.iter().find(|w| w.id == webview_id),
+          w.webviews.iter().find(|w| w.id == webview_id).cloned(),
         )
-      }) {
+      });
+      if let Some((Some(window), Some(webview))) = webview_handle {
         match webview_message {
           WebviewMessage::EvaluateScript(script) => {
             if let Err(e) = webview.evaluate_script(&script) {
@@ -2531,6 +2540,14 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
           WebviewMessage::Print => {
             let _ = webview.print();
+          }
+          WebviewMessage::Close => {
+            windows.borrow_mut().get_mut(&window_id).map(|window| {
+              if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
+                window.webviews.remove(i);
+              }
+              window
+            });
           }
           WebviewMessage::SetSize(size) => {
             let mut bounds = webview.bounds();

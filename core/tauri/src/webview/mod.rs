@@ -704,6 +704,15 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.print().map_err(Into::into)
   }
 
+  /// Closes this webview.
+  pub fn close(&self) -> crate::Result<()> {
+    if self.window.webview_window {
+      self.window.close()
+    } else {
+      self.webview.dispatcher.close().map_err(Into::into)
+    }
+  }
+
   /// Resizes this webview.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
     if self.window.webview_window {

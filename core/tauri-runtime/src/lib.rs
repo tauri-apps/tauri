@@ -375,6 +375,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> Result<()>;
 
+  /// Closes the webview.
+  fn close(&self) -> Result<()>;
+
   /// Resizes the webview.
   fn set_size(&self, size: Size) -> Result<()>;
 

@@ -139,7 +139,7 @@ mod desktop_commands {
   //getter!(is_focused, bool);
 
   setter!(print);
-  // setter!(close);
+  setter!(webview_close, close);
   setter!(set_webview_size, set_size, Size);
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
@@ -204,12 +204,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::create_webview,
             desktop_commands::create_webview_window,
             // getters
-            // TODO
             desktop_commands::webview_position,
             desktop_commands::webview_size,
-            //desktop_commands::is_focused,
             // setters
-            // desktop_commands::close,
+            desktop_commands::webview_close,
             desktop_commands::set_webview_size,
             desktop_commands::set_webview_position,
             desktop_commands::set_webview_focus,

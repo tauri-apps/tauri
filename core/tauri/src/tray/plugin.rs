@@ -13,7 +13,7 @@ use crate::{
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
-  AppHandle, IconDto, Runtime,
+  AppHandle, IconDto, Manager, Runtime,
 };
 
 use super::TrayIcon;
@@ -47,7 +47,7 @@ fn new<R: Runtime>(
     let _ = handler.send(e);
   });
 
-  let mut resources_table = app.manager.resources_table();
+  let mut resources_table = app.resources_table();
 
   if let Some((rid, kind)) = options.menu {
     match kind {
@@ -94,7 +94,7 @@ fn set_icon<R: Runtime>(
   rid: ResourceId,
   icon: Option<IconDto>,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   tray.set_icon(icon.map(Into::into))
 }
@@ -105,7 +105,7 @@ fn set_menu<R: Runtime>(
   rid: ResourceId,
   menu: Option<(ResourceId, ItemKind)>,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   if let Some((rid, kind)) = menu {
     match kind {
@@ -131,7 +131,7 @@ fn set_tooltip<R: Runtime>(
   rid: ResourceId,
   tooltip: Option<String>,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   tray.set_tooltip(tooltip)
 }
@@ -142,14 +142,14 @@ fn set_title<R: Runtime>(
   rid: ResourceId,
   title: Option<String>,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   tray.set_title(title)
 }
 
 #[command(root = "crate")]
 fn set_visible<R: Runtime>(app: AppHandle<R>, rid: ResourceId, visible: bool) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   tray.set_visible(visible)
 }
@@ -160,7 +160,7 @@ fn set_temp_dir_path<R: Runtime>(
   rid: ResourceId,
   path: Option<PathBuf>,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   tray.set_temp_dir_path(path)
 }
@@ -171,7 +171,7 @@ fn set_icon_as_template<R: Runtime>(
   rid: ResourceId,
   as_template: bool,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   tray.set_icon_as_template(as_template)
 }
@@ -182,7 +182,7 @@ fn set_show_menu_on_left_click<R: Runtime>(
   rid: ResourceId,
   on_left: bool,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   tray.set_show_menu_on_left_click(on_left)
 }

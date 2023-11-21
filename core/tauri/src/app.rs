@@ -773,7 +773,7 @@ macro_rules! shared_app_impl {
       pub fn cleanup_before_exit(&self) {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
-        self.manager.resources_table().clear();
+        self.resources_table().clear();
       }
     }
   };

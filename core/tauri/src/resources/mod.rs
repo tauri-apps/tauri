@@ -24,7 +24,7 @@ use std::{
 /// cloned and passed around. When the last reference is dropped, the resource
 /// is automatically closed. As long as the resource exists in the resource
 /// table, the reference count is at least 1.
-pub(crate) trait Resource: Any + 'static + Send + Sync {
+pub trait Resource: Any + 'static + Send + Sync {
   /// Returns a string representation of the resource. The default implementation
   /// returns the Rust type name, but specific resource types may override this
   /// trait method.
@@ -60,9 +60,8 @@ impl dyn Resource {
 
 /// A `ResourceId` is an integer value referencing a resource. It could be
 /// considered to be the tauri equivalent of a `file descriptor` in POSIX like
-/// operating systems. Elsewhere in the code base it is commonly abbreviated
-/// to `rid`.
-pub(crate) type ResourceId = u32;
+/// operating systems.
+pub type ResourceId = u32;
 
 /// Map-like data structure storing Tauri's resources (equivalent to file
 /// descriptors).
@@ -74,9 +73,9 @@ pub(crate) type ResourceId = u32;
 /// Each resource is identified through a _resource ID (rid)_, which acts as
 /// the key in the map.
 #[derive(Default)]
-pub(crate) struct ResourceTable {
-  pub(crate) index: BTreeMap<ResourceId, Arc<dyn Resource>>,
-  pub(crate) next_rid: ResourceId,
+pub struct ResourceTable {
+  index: BTreeMap<ResourceId, Arc<dyn Resource>>,
+  next_rid: ResourceId,
 }
 
 impl ResourceTable {
@@ -86,7 +85,7 @@ impl ResourceTable {
   /// when retrieving it through `get()`.
   ///
   /// Returns a unique resource ID, which acts as a key for this resource.
-  pub(crate) fn add<T: Resource>(&mut self, resource: T) -> ResourceId {
+  pub fn add<T: Resource>(&mut self, resource: T) -> ResourceId {
     self.add_arc(Arc::new(resource))
   }
 
@@ -96,24 +95,34 @@ impl ResourceTable {
   /// when retrieving it through `get()`.
   ///
   /// Returns a unique resource ID, which acts as a key for this resource.
-  pub(crate) fn add_arc<T: Resource>(&mut self, resource: Arc<T>) -> ResourceId {
+  pub fn add_arc<T: Resource>(&mut self, resource: Arc<T>) -> ResourceId {
     let resource = resource as Arc<dyn Resource>;
     self.add_arc_dyn(resource)
   }
 
-  pub(crate) fn add_arc_dyn(&mut self, resource: Arc<dyn Resource>) -> ResourceId {
+  /// Inserts a `Arc`-wrapped resource into the resource table.
+  ///
+  /// The resource type is erased at runtime and must be statically known
+  /// when retrieving it through `get()`.
+  ///
+  /// Returns a unique resource ID, which acts as a key for this resource.
+  pub fn add_arc_dyn(&mut self, resource: Arc<dyn Resource>) -> ResourceId {
     let rid = self.next_rid;
     let removed_resource = self.index.insert(rid, resource);
-    // TODO: add replace method if needed
     assert!(removed_resource.is_none());
     self.next_rid += 1;
     rid
   }
 
+  /// Returns true if any resource with the given `rid` exists.
+  pub fn has(&self, rid: ResourceId) -> bool {
+    self.index.contains_key(&rid)
+  }
+
   /// Returns a reference counted pointer to the resource of type `T` with the
   /// given `rid`. If `rid` is not present or has a type different than `T`,
   /// this function returns [`Error::BadResourceId`].
-  pub(crate) fn get<T: Resource>(&self, rid: ResourceId) -> Result<Arc<T>, Error> {
+  pub fn get<T: Resource>(&self, rid: ResourceId) -> Result<Arc<T>, Error> {
     self
       .index
       .get(&rid)
@@ -122,13 +131,75 @@ impl ResourceTable {
       .ok_or_else(|| Error::BadResourceId(rid))
   }
 
+  /// Returns a reference counted pointer to the resource of the given `rid`.
+  /// If `rid` is not present, this function returns [`Error::BadResourceId`].
+  pub fn get_any(&self, rid: ResourceId) -> Result<Arc<dyn Resource>, Error> {
+    self
+      .index
+      .get(&rid)
+      .map(Clone::clone)
+      .ok_or_else(|| Error::BadResourceId(rid))
+  }
+
+  /// Replaces a resource with a new resource.
+  ///
+  /// Panics if the resource does not exist.
+  pub fn replace<T: Resource>(&mut self, rid: ResourceId, resource: T) {
+    let result = self
+      .index
+      .insert(rid, Arc::new(resource) as Arc<dyn Resource>);
+    assert!(result.is_some());
+  }
+
+  /// Removes a resource of type `T` from the resource table and returns it.
+  /// If a resource with the given `rid` exists but its type does not match `T`,
+  /// it is not removed from the resource table. Note that the resource's
+  /// `close()` method is *not* called.
+  ///
+  /// Also note that there might be a case where
+  /// the returned `Arc<T>` is referenced by other variables. That is, we cannot
+  /// assume that `Arc::strong_count(&returned_arc)` is always equal to 1 on success.
+  /// In particular, be really careful when you want to extract the inner value of
+  /// type `T` from `Arc<T>`.
+  pub fn take<T: Resource>(&mut self, rid: ResourceId) -> Result<Arc<T>, Error> {
+    let resource = self.get::<T>(rid)?;
+    self.index.remove(&rid);
+    Ok(resource)
+  }
+
+  /// Removes a resource from the resource table and returns it. Note that the
+  /// resource's `close()` method is *not* called.
+  ///
+  /// Also note that there might be a
+  /// case where the returned `Arc<T>` is referenced by other variables. That is,
+  /// we cannot assume that `Arc::strong_count(&returned_arc)` is always equal to 1
+  /// on success. In particular, be really careful when you want to extract the
+  /// inner value of type `T` from `Arc<T>`.
+  pub fn take_any(&mut self, rid: ResourceId) -> Result<Arc<dyn Resource>, Error> {
+    self
+      .index
+      .remove(&rid)
+      .ok_or_else(|| Error::BadResourceId(rid))
+  }
+
+  /// Returns an iterator that yields a `(id, name)` pair for every resource
+  /// that's currently in the resource table. This can be used for debugging
+  /// purposes. Note that the order in
+  /// which items appear is not specified.
+  pub fn names(&self) -> impl Iterator<Item = (ResourceId, Cow<'_, str>)> {
+    self
+      .index
+      .iter()
+      .map(|(&id, resource)| (id, resource.name()))
+  }
+
   /// Removes the resource with the given `rid` from the resource table. If the
   /// only reference to this resource existed in the resource table, this will
   /// cause the resource to be dropped. However, since resources are reference
   /// counted, therefore pending ops are not automatically cancelled. A resource
   /// may implement the `close()` method to perform clean-ups such as canceling
   /// ops.
-  pub(crate) fn close(&mut self, rid: ResourceId) -> Result<(), Error> {
+  pub fn close(&mut self, rid: ResourceId) -> Result<(), Error> {
     self
       .index
       .remove(&rid)
@@ -136,7 +207,8 @@ impl ResourceTable {
       .map(|resource| resource.close())
   }
 
-  /// Removes and frees all resources stored.
+  /// Removes and frees all resources stored. Note that the
+  /// resource's `close()` method is *not* called.
   pub(crate) fn clear(&mut self) {
     self.index.clear()
   }

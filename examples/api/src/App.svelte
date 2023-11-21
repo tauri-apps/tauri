@@ -84,7 +84,7 @@
   let consoleTextEl;
   async function onMessage(value) {
     messages.update((r) => [
-      ...r
+      ...r,
       {
         html:
           `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ` +
@@ -100,7 +100,7 @@
   // we only use it with our own input data
   async function insecureRenderHtml(html) {
     messages.update((r) => [
-      ...r
+      ...r,
       {
         html:
           `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ` +

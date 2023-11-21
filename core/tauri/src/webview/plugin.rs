@@ -13,7 +13,9 @@ use crate::{
 mod desktop_commands {
 
   use serde::Deserialize;
-  use tauri_runtime::window::dpi::{LogicalPosition, LogicalSize, Position, Size};
+  use tauri_runtime::window::dpi::{
+    LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size,
+  };
   use tauri_utils::config::{WebviewUrl, WindowConfig};
 
   use super::*;
@@ -134,8 +136,8 @@ mod desktop_commands {
   }
 
   // TODO
-  //getter!(position, PhysicalPosition<i32>);
-  //getter!(size, PhysicalSize<u32>);
+  getter!(webview_position, position, PhysicalPosition<i32>);
+  getter!(webview_size, size, PhysicalSize<u32>);
   //getter!(is_focused, bool);
 
   setter!(print);
@@ -205,8 +207,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::create_webview_window,
             // getters
             // TODO
-            //desktop_commands::position,
-            //desktop_commands::size,
+            desktop_commands::webview_position,
+            desktop_commands::webview_size,
             //desktop_commands::is_focused,
             // setters
             // desktop_commands::close,

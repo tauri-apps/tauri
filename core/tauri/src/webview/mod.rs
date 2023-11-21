@@ -12,7 +12,7 @@ use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::PageLoadEvent;
 use tauri_runtime::{
   webview::{DetachedWebview, PendingWebview, WebviewAttributes},
-  window::dpi::{Position, Size},
+  window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WebviewDispatch, WindowDispatch,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
@@ -792,6 +792,27 @@ impl<R: Runtime> Webview<R> {
       .dispatcher
       .with_webview(|w| f(PlatformWebview(*w.downcast().unwrap())))
       .map_err(Into::into)
+  }
+
+  /// Returns the webview position.
+  ///
+  /// - For child webviews, returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the parent window.
+  /// - For webview window, returns the inner position of the window.
+  pub fn position(&self) -> crate::Result<PhysicalPosition<i32>> {
+    if self.window.webview_window {
+      self.window.inner_position()
+    } else {
+      self.webview.dispatcher.position().map_err(Into::into)
+    }
+  }
+
+  /// Returns the physical size of the webviews's client area.
+  pub fn size(&self) -> crate::Result<PhysicalSize<u32>> {
+    if self.window.webview_window {
+      self.window.inner_size()
+    } else {
+      self.webview.dispatcher.size().map_err(Into::into)
+    }
   }
 }
 

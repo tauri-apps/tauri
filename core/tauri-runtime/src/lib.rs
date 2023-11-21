@@ -361,6 +361,12 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Returns the webview's current URL.
   fn url(&self) -> Result<Url>;
 
+  /// Returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the window.
+  fn position(&self) -> Result<PhysicalPosition<i32>>;
+
+  /// Returns the physical size of the webviews's client area.
+  fn size(&self) -> Result<PhysicalSize<u32>>;
+
   // SETTER
 
   /// Naviagte to the given URL.

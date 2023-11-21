@@ -1129,6 +1129,8 @@ pub enum WebviewMessage {
   SetSize(Size),
   // Getters
   Url(Sender<Url>),
+  Position(Sender<PhysicalPosition<i32>>),
+  Size(Sender<PhysicalSize<u32>>),
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   // Devtools
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -1235,6 +1237,14 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn url(&self) -> Result<Url> {
     webview_getter!(self, WebviewMessage::Url)
+  }
+
+  fn position(&self) -> Result<PhysicalPosition<i32>> {
+    webview_getter!(self, WebviewMessage::Position)
+  }
+
+  fn size(&self) -> Result<PhysicalSize<u32>> {
+    webview_getter!(self, WebviewMessage::Size)
   }
 
   // Setters
@@ -2588,6 +2598,18 @@ fn handle_user_message<T: UserEvent>(
           // Getters
           WebviewMessage::Url(tx) => {
             tx.send(webview.url()).unwrap();
+          }
+          WebviewMessage::Position(tx) => {
+            let bounds = webview.bounds();
+            let position =
+              LogicalPosition::new(bounds.x, bounds.y).to_physical(window.scale_factor());
+            tx.send(position).unwrap();
+          }
+          WebviewMessage::Size(tx) => {
+            let bounds = webview.bounds();
+            let size =
+              LogicalSize::new(bounds.width, bounds.height).to_physical(window.scale_factor());
+            tx.send(size).unwrap();
           }
         }
       }

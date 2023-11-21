@@ -11,6 +11,8 @@ use crate::{
 
 use serde::{Deserialize, Deserializer};
 use tauri_utils::{config::WindowConfig, Theme};
+#[cfg(windows)]
+use windows::Win32::Foundation::HWND;
 
 use std::{
   hash::{Hash, Hasher},

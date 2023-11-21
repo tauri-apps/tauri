@@ -655,9 +655,8 @@ mod test {
 
   fn setup_events() -> EventSetup {
     let app = mock_app();
-    let window = WindowBuilder::new(&app, "main").build().unwrap();
-    let webview = WebviewBuilder::new(&window, "main", Default::default())
-      .build()
+    let (_window, webview) = WindowBuilder::new(&app, "main")
+      .with_webview(WebviewBuilder::new("main", Default::default()))
       .unwrap();
 
     let (tx, rx) = channel();
@@ -787,10 +786,10 @@ mod test {
 
     received.clear();
     let other_webview_listen_id = "OtherWebview::listen";
-    let other_window = WindowBuilder::new(&app, "other").build().unwrap();
-    let other_webview = WebviewBuilder::new(&other_window, "other", Default::default())
-      .build()
+    let (_other_window, other_webview) = WindowBuilder::new(&app, "other")
+      .with_webview(WebviewBuilder::new("other", Default::default()))
       .unwrap();
+
     other_webview.listen(TEST_EVENT_NAME, move |evt| {
       tx.send((
         other_webview_listen_id,

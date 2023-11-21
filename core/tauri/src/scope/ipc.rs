@@ -180,9 +180,8 @@ mod tests {
     scopes: Vec<RemoteDomainAccessScope>,
   ) -> (App<MockRuntime>, Webview<MockRuntime>) {
     let app = mock_app();
-    let window = WindowBuilder::new(&app, "main").build().unwrap();
-    let webview = WebviewBuilder::new(&window, "main", Default::default())
-      .build()
+    let (_window, webview) = WindowBuilder::new(&app, "main")
+      .with_webview(WebviewBuilder::new("main", Default::default()))
       .unwrap();
 
     for scope in scopes {

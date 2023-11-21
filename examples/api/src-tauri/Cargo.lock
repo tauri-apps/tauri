@@ -3453,16 +3453,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tao-macros"
-version = "0.1.2"
-source = "git+https://github.com/tauri-apps/tao#cef17e4fbb9aa58ea472320df91519f86f05d281"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "target-lexicon"
 version = "0.12.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"

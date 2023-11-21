@@ -125,12 +125,29 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = self.context.next_window_id();
-    self.context.windows.borrow_mut().insert(
-      id,
-      Window {
-        webviews: Vec::new(),
+
+    let (webview_id, webviews) = if let Some(w) = &pending.webview {
+      (Some(self.context.next_webview_id()), vec![Webview])
+    } else {
+      (None, Vec::new())
+    };
+
+    self
+      .context
+      .windows
+      .borrow_mut()
+      .insert(id, Window { webviews });
+
+    let webview = webview_id.map(|id| DetachedWebview {
+      label: pending.label.clone(),
+      dispatcher: MockWebviewDispatcher {
+        id,
+        context: self.context.clone(),
+        url: Arc::new(Mutex::new(pending.webview.unwrap().url)),
+        last_evaluated_script: Default::default(),
       },
-    );
+    });
+
     Ok(DetachedWindow {
       id,
       label: pending.label,
@@ -138,6 +155,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
         id,
         context: self.context.clone(),
       },
+      webview,
     })
   }
 
@@ -599,12 +617,29 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = self.context.next_window_id();
-    self.context.windows.borrow_mut().insert(
-      id,
-      Window {
-        webviews: Vec::new(),
+
+    let (webview_id, webviews) = if let Some(w) = &pending.webview {
+      (Some(self.context.next_webview_id()), vec![Webview])
+    } else {
+      (None, Vec::new())
+    };
+
+    self
+      .context
+      .windows
+      .borrow_mut()
+      .insert(id, Window { webviews });
+
+    let webview = webview_id.map(|id| DetachedWebview {
+      label: pending.label.clone(),
+      dispatcher: MockWebviewDispatcher {
+        id,
+        context: self.context.clone(),
+        url: Arc::new(Mutex::new(pending.webview.unwrap().url)),
+        last_evaluated_script: Default::default(),
       },
-    );
+    });
+
     Ok(DetachedWindow {
       id: id.into(),
       label: pending.label,
@@ -612,6 +647,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
         id,
         context: self.context.clone(),
       },
+      webview,
     })
   }
 
@@ -843,12 +879,28 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     _before_webview_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     let id = self.context.next_window_id();
-    self.context.windows.borrow_mut().insert(
-      id,
-      Window {
-        webviews: Vec::new(),
+
+    let (webview_id, webviews) = if let Some(w) = &pending.webview {
+      (Some(self.context.next_webview_id()), vec![Webview])
+    } else {
+      (None, Vec::new())
+    };
+
+    self
+      .context
+      .windows
+      .borrow_mut()
+      .insert(id, Window { webviews });
+
+    let webview = webview_id.map(|id| DetachedWebview {
+      label: pending.label.clone(),
+      dispatcher: MockWebviewDispatcher {
+        id,
+        context: self.context.clone(),
+        url: Arc::new(Mutex::new(pending.webview.unwrap().url)),
+        last_evaluated_script: Default::default(),
       },
-    );
+    });
 
     Ok(DetachedWindow {
       id: id.into(),
@@ -857,6 +909,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
         id,
         context: self.context.clone(),
       },
+      webview,
     })
   }
 

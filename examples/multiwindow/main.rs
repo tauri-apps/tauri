@@ -23,11 +23,12 @@ fn main() {
       {
         builder = builder.tabbing_identifier("Rust");
       }
-      let window = builder.title("Tauri - Rust").build()?;
-
-      let _webview =
-        WebviewBuilder::new(&window, "Rust", tauri::WebviewUrl::App("index.html".into()))
-          .build()?;
+      let (_window, _webview) = builder
+        .title("Tauri - Rust")
+        .with_webview(WebviewBuilder::new(
+          "Rust",
+          tauri::WebviewUrl::App("index.html".into()),
+        ))?;
 
       Ok(())
     })

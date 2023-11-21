@@ -66,7 +66,7 @@ use tauri_utils::{
 use wry::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder};
 
 pub use tao;
-pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId};
+pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId as TaoWindowId};
 pub use wry;
 pub use wry::webview_version;
 
@@ -380,11 +380,11 @@ impl TryFrom<Icon> for TaoIcon {
 pub struct WindowEventWrapper(pub Option<WindowEvent>);
 
 impl WindowEventWrapper {
-  fn parse(webview: &Option<WindowHandle>, event: &TaoWindowEvent<'_>) -> Self {
+  fn parse(window: &WindowWrapper, event: &TaoWindowEvent<'_>) -> Self {
     match event {
       // resized event from tao doesn't include a reliable size on macOS
       // because wry replaces the NSView
-      WryWindowEvent::Resized(_) => {
+      TaoWindowEvent::Resized(_) => {
         if let Some(w) = &window.inner {
           Self(Some(WindowEvent::Resized(
             PhysicalSizeWrapper(inner_size(
@@ -2727,7 +2727,7 @@ fn handle_event_loop<T: UserEvent>(
               }
             }
           }
-          WryWindowEvent::Resized(size) => {
+          TaoWindowEvent::Resized(size) => {
             if let Some(webviews) = windows.borrow().get(&window_id).map(|w| w.webviews.clone()) {
               for webview in webviews {
                 if let Some(bounds) = &webview.bounds {
@@ -3255,12 +3255,12 @@ fn inner_size(
   window: &Window,
   webviews: &[WebviewWrapper],
   has_children: bool,
-) -> WryPhysicalSize<u32> {
+) -> TaoPhysicalSize<u32> {
   if has_children && webviews.len() == 1 {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
     let view_frame = unsafe { cocoa::appkit::NSView::frame(webview.webview()) };
-    let logical: WryLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
+    let logical: TaoLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     return logical.to_physical(window.scale_factor());
   }
 

@@ -256,9 +256,8 @@ mod tests {
   fn run_app() {
     let app = mock_app();
 
-    let w = WindowBuilder::new(&app, "main").build().unwrap();
-    let _webview = WebviewBuilder::new(&w, "main", Default::default())
-      .build()
+    let (w, _webview) = WindowBuilder::new(&app, "main")
+      .with_webview(WebviewBuilder::new("main", Default::default()))
       .unwrap();
 
     std::thread::spawn(move || {

@@ -10,19 +10,17 @@ use tauri::{
 
 #[command]
 async fn create_child_window(id: String, window: Window) {
-  let child = WindowBuilder::new(&window, &id)
+  let builder = WindowBuilder::new(&window, &id)
     .title("Child")
     .inner_size(400.0, 300.0);
 
   #[cfg(target_os = "macos")]
-  let child = child.parent_window(window.ns_window().unwrap());
+  let builder = builder.parent_window(window.ns_window().unwrap());
   #[cfg(windows)]
-  let child = child.parent_window(window.hwnd().unwrap());
+  let builder = builder.parent_window(window.hwnd().unwrap());
 
-  let child = child.build().unwrap();
-
-  let _webview = WebviewBuilder::new(&child, id, WebviewUrl::default())
-    .build()
+  let (_child, _webview) = builder
+    .with_webview(WebviewBuilder::new(id, WebviewUrl::default()))
     .unwrap();
 }
 
@@ -38,11 +36,10 @@ fn main() {
     })
     .invoke_handler(tauri::generate_handler![create_child_window])
     .setup(|app| {
-      let window = WindowBuilder::new(app, "main")
+      let (_window, _webview) = WindowBuilder::new(app, "main")
         .title("Main")
         .inner_size(600.0, 400.0)
-        .build()?;
-      let _webview = WebviewBuilder::new(&window, "main", WebviewUrl::default()).build()?;
+        .with_webview(WebviewBuilder::new("main", WebviewUrl::default()))?;
 
       Ok(())
     })

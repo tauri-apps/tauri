@@ -2165,7 +2165,7 @@ fn handle_user_message<T: UserEvent>(
                 f(Webview {
                   webview: w.webview(),
                   manager: w.manager(),
-                  view_controller: w.window().ui_view_controller() as cocoa::base::id,
+                  view_controller: window.ui_view_controller() as cocoa::base::id,
                 });
               }
               #[cfg(windows)]

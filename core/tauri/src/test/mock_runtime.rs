@@ -455,12 +455,39 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
       .map_err(|_| Error::FailedToReceiveMessage)
   }
 
+  fn position(&self) -> Result<PhysicalPosition<i32>> {
+    Ok(PhysicalPosition { x: 0, y: 0 })
+  }
+
+  fn size(&self) -> Result<PhysicalSize<u32>> {
+    Ok(PhysicalSize {
+      width: 0,
+      height: 0,
+    })
+  }
+
   fn navigate(&self, url: Url) -> Result<()> {
     *self.url.lock().unwrap() = url.to_string();
     Ok(())
   }
 
   fn print(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn close(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_size(&self, _size: Size) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_position(&self, _position: Position) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_focus(&self) -> Result<()> {
     Ok(())
   }
 }

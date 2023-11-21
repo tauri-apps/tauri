@@ -13,7 +13,7 @@ use crate::{
 mod desktop_commands {
 
   use serde::Deserialize;
-  use tauri_runtime::window::dpi::{LogicalPosition, LogicalSize};
+  use tauri_runtime::window::dpi::{LogicalPosition, LogicalSize, Position, Size};
   use tauri_utils::config::{WebviewUrl, WindowConfig};
 
   use super::*;
@@ -93,8 +93,11 @@ mod desktop_commands {
 
   macro_rules! getter {
     ($cmd: ident, $ret: ty) => {
+      getter!($cmd, $cmd, $ret)
+    };
+    ($fn: ident, $cmd: ident, $ret: ty) => {
       #[command(root = "crate")]
-      pub async fn $cmd<R: Runtime>(
+      pub async fn $fn<R: Runtime>(
         webview: Webview<R>,
         label: Option<String>,
       ) -> crate::Result<$ret> {
@@ -115,8 +118,12 @@ mod desktop_commands {
     };
 
     ($cmd: ident, $input: ty) => {
+      setter($cmd, $cmd, $input)
+    };
+
+    ($fn: ident, $cmd: ident, $input: ty) => {
       #[command(root = "crate")]
-      pub async fn $cmd<R: Runtime>(
+      pub async fn $fn<R: Runtime>(
         webview: Webview<R>,
         label: Option<String>,
         value: $input,
@@ -133,8 +140,8 @@ mod desktop_commands {
 
   setter!(print);
   // setter!(close);
-  // setter!(set_size);
-  // setter!(set_position);
+  setter!(set_webview_size, set_size, Size);
+  setter!(set_webview_position, set_position, Position);
   // setter!(set_focus, bool);
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -203,8 +210,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             //desktop_commands::is_focused,
             // setters
             // desktop_commands::close,
-            //desktop_commands::set_size,
-            //desktop_commands::set_position,
+            desktop_commands::set_webview_size,
+            desktop_commands::set_webview_position,
             //desktop_commands::set_focus,
             desktop_commands::print,
             #[cfg(any(debug_assertions, feature = "devtools"))]

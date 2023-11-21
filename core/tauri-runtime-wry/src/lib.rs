@@ -1125,6 +1125,8 @@ pub enum WebviewMessage {
   WebviewEvent(WebviewEvent),
   Navigate(Url),
   Print,
+  SetPosition(Position),
+  SetSize(Size),
   // Getters
   Url(Sender<Url>),
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
@@ -1252,6 +1254,28 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Webview(self.window_id, self.webview_id, WebviewMessage::Print),
+    )
+  }
+
+  fn set_size(&self, size: Size) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        self.window_id,
+        self.webview_id,
+        WebviewMessage::SetSize(size),
+      ),
+    )
+  }
+
+  fn set_position(&self, position: Position) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        self.window_id,
+        self.webview_id,
+        WebviewMessage::SetPosition(position),
+      ),
     )
   }
 
@@ -2474,11 +2498,12 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::Webview(window_id, webview_id, webview_message) => {
-      if let Some(webview) = windows
-        .borrow()
-        .get(&window_id)
-        .and_then(|w| w.webviews.iter().find(|w| w.id == webview_id))
-      {
+      if let Some((Some(window), Some(webview))) = windows.borrow().get(&window_id).map(|w| {
+        (
+          w.inner.clone(),
+          w.webviews.iter().find(|w| w.id == webview_id),
+        )
+      }) {
         match webview_message {
           WebviewMessage::EvaluateScript(script) => {
             if let Err(e) = webview.evaluate_script(&script) {
@@ -2488,6 +2513,20 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
           WebviewMessage::Print => {
             let _ = webview.print();
+          }
+          WebviewMessage::SetSize(size) => {
+            let mut bounds = webview.bounds();
+            let size = size.to_logical(window.scale_factor());
+            bounds.width = size.width;
+            bounds.height = size.height;
+            webview.set_bounds(bounds);
+          }
+          WebviewMessage::SetPosition(position) => {
+            let mut bounds = webview.bounds();
+            let position = position.to_logical(window.scale_factor());
+            bounds.x = position.x;
+            bounds.y = position.y;
+            webview.set_bounds(bounds);
           }
           WebviewMessage::WebviewEvent(_event) => { /* already handled */ }
           WebviewMessage::WithWebview(f) => {

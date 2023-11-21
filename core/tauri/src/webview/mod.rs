@@ -704,6 +704,32 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.print().map_err(Into::into)
   }
 
+  /// Resizes this webview.
+  pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
+    if self.window.webview_window {
+      self.window.set_size(size.into())
+    } else {
+      self
+        .webview
+        .dispatcher
+        .set_size(size.into())
+        .map_err(Into::into)
+    }
+  }
+
+  /// Sets this webviews's position.
+  pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
+    if self.window.webview_window {
+      self.window.set_position(position.into())
+    } else {
+      self
+        .webview
+        .dispatcher
+        .set_position(position.into())
+        .map_err(Into::into)
+    }
+  }
+
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
   /// The closure is executed on the main thread.

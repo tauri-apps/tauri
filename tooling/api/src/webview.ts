@@ -309,7 +309,7 @@ class Webview {
    * const position = await getCurrent().position();
    * ```
    *
-   * @returns The webview's inner position.
+   * @returns The webview's position.
    */
   async position(): Promise<PhysicalPosition> {
     return invoke<{ x: number; y: number }>('plugin:webview|position', {
@@ -323,10 +323,10 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/webview';
-   * const size = await getCurrent().innerSize();
+   * const size = await getCurrent().size();
    * ```
    *
-   * @returns The webview's inner size.
+   * @returns The webview's size.
    */
   async size(): Promise<PhysicalSize> {
     return invoke<{ width: number; height: number }>('plugin:webview|size', {
@@ -353,14 +353,14 @@ class Webview {
   }
 
   /**
-   * Resizes the webview with a new inner size.
+   * Resizes the webview.
    * @example
    * ```typescript
    * import { getCurrent, LogicalSize } from '@tauri-apps/api/webview';
    * await getCurrent().setSize(new LogicalSize(600, 500));
    * ```
    *
-   * @param size The logical or physical inner size.
+   * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
@@ -370,7 +370,7 @@ class Webview {
       )
     }
 
-    return invoke('plugin:webview|set_size', {
+    return invoke('plugin:webview|set_webview_size', {
       label: this.label,
       value: {
         type: size.type,
@@ -383,7 +383,7 @@ class Webview {
   }
 
   /**
-   * Sets the webview outer position.
+   * Sets the webview position.
    * @example
    * ```typescript
    * import { getCurrent, LogicalPosition } from '@tauri-apps/api/webview';
@@ -405,7 +405,7 @@ class Webview {
       )
     }
 
-    return invoke('plugin:webview|set_position', {
+    return invoke('plugin:webview|set_webview_position', {
       label: this.label,
       value: {
         type: position.type,

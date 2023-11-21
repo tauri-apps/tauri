@@ -369,6 +369,12 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> Result<()>;
 
+  /// Resizes the webview.
+  fn set_size(&self, size: Size) -> Result<()>;
+
+  /// Updates the webview position.
+  fn set_position(&self, position: Position) -> Result<()>;
+
   /// Executes javascript on the window this [`Dispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
 }

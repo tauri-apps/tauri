@@ -60,9 +60,8 @@ impl dyn Resource {
 
 /// A `ResourceId` is an integer value referencing a resource. It could be
 /// considered to be the tauri equivalent of a `file descriptor` in POSIX like
-/// operating systems. Elsewhere in the code base it is commonly abbreviated
-/// to `rid`.
-pub(crate) type ResourceId = u32;
+/// operating systems.
+pub type ResourceId = u32;
 
 /// Map-like data structure storing Tauri's resources (equivalent to file
 /// descriptors).
@@ -101,10 +100,15 @@ impl ResourceTable {
     self.add_arc_dyn(resource)
   }
 
+  /// Inserts a `Arc`-wrapped resource into the resource table.
+  ///
+  /// The resource type is erased at runtime and must be statically known
+  /// when retrieving it through `get()`.
+  ///
+  /// Returns a unique resource ID, which acts as a key for this resource.
   pub fn add_arc_dyn(&mut self, resource: Arc<dyn Resource>) -> ResourceId {
     let rid = self.next_rid;
     let removed_resource = self.index.insert(rid, resource);
-    // TODO: add replace method if needed
     assert!(removed_resource.is_none());
     self.next_rid += 1;
     rid

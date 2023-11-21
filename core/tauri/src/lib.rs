@@ -65,7 +65,7 @@ pub use cocoa;
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
-use resources::ResourceTable;
+pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;

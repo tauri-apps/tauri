@@ -166,14 +166,9 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
     let id = self.context.next_webview_id();
     let webview = Webview;
-    self
-      .context
-      .windows
-      .borrow_mut()
-      .get_mut(&window_id)
-      .map(|w| {
-        w.webviews.push(webview);
-      });
+    if let Some(w) = self.context.windows.borrow_mut().get_mut(&window_id) {
+      w.webviews.push(webview);
+    }
 
     Ok(DetachedWebview {
       label: pending.label,
@@ -668,7 +663,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     });
 
     Ok(DetachedWindow {
-      id: id.into(),
+      id,
       label: pending.label,
       dispatcher: MockWindowDispatcher {
         id,
@@ -684,14 +679,9 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
     let id = self.context.next_webview_id();
     let webview = Webview;
-    self
-      .context
-      .windows
-      .borrow_mut()
-      .get_mut(&self.id)
-      .map(|w| {
-        w.webviews.push(webview);
-      });
+    if let Some(w) = self.context.windows.borrow_mut().get_mut(&self.id) {
+      w.webviews.push(webview);
+    }
 
     Ok(DetachedWebview {
       label: pending.label,
@@ -930,7 +920,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     });
 
     Ok(DetachedWindow {
-      id: id.into(),
+      id,
       label: pending.label,
       dispatcher: MockWindowDispatcher {
         id,
@@ -947,14 +937,9 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   ) -> Result<DetachedWebview<T, Self>> {
     let id = self.context.next_webview_id();
     let webview = Webview;
-    self
-      .context
-      .windows
-      .borrow_mut()
-      .get_mut(&window_id)
-      .map(|w| {
-        w.webviews.push(webview);
-      });
+    if let Some(w) = self.context.windows.borrow_mut().get_mut(&window_id) {
+      w.webviews.push(webview);
+    }
 
     Ok(DetachedWebview {
       label: pending.label,

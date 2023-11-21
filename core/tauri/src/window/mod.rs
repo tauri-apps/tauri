@@ -1108,7 +1108,7 @@ impl PlatformWebview {
       target_os = "openbsd"
     )))
   )]
-  pub fn inner(&self) -> std::rc::Rc<webkit2gtk::WebView> {
+  pub fn inner(&self) -> webkit2gtk::WebView {
     self.0.clone()
   }
 
@@ -1159,7 +1159,7 @@ impl PlatformWebview {
 
   /// Returns handle for JNI execution.
   #[cfg(target_os = "android")]
-  pub fn jni_handle(&self) -> tauri_runtime_wry::wry::webview::JniHandle {
+  pub fn jni_handle(&self) -> tauri_runtime_wry::wry::JniHandle {
     self.0
   }
 }
@@ -2291,7 +2291,7 @@ impl<R: Runtime> Window<R> {
             if let serde_json::Value::Object(map) = payload {
               for v in map.values() {
                 if let serde_json::Value::String(s) = v {
-                  crate::ipc::JavaScriptChannelId::from_str(s)
+                  let _ = crate::ipc::JavaScriptChannelId::from_str(s)
                     .map(|id| id.channel_on(window.clone()));
                 }
               }

@@ -267,7 +267,7 @@ pub struct AppHandle<R: Runtime> {
 impl AppHandle<crate::Wry> {
   /// Create a new tao window using a callback. The event loop must be running at this point.
   pub fn create_tao_window<
-    F: FnOnce() -> (String, tauri_runtime_wry::WryWindowBuilder) + Send + 'static,
+    F: FnOnce() -> (String, tauri_runtime_wry::TaoWindowBuilder) + Send + 'static,
   >(
     &self,
     f: F,

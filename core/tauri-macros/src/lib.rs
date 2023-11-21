@@ -114,14 +114,14 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 /// ```ignore
 ///  let rid = 23;
 ///  let kind = ItemKind::Check;
-///  let resources_table = app.manager.resources_table();
+///  let resources_table = app.resources_table();
 ///  do_menu_item!(|i| i.set_text(text))
 /// ```
 /// which will expand into:
 /// ```ignore
 ///  let rid = 23;
 ///  let kind = ItemKind::Check;
-///  let resources_table = app.manager.resources_table();
+///  let resources_table = app.resources_table();
 ///  match kind {
 ///  ItemKind::Submenu => {
 ///    let i = resources_table.get::<Submenu<R>>(rid)?;

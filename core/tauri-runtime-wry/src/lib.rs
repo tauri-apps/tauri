@@ -3362,6 +3362,6 @@ fn inner_size(
   window: &Window,
   webviews: &[WebviewWrapper],
   has_children: bool,
-) -> WryPhysicalSize<u32> {
+) -> TaoPhysicalSize<u32> {
   window.inner_size()
 }

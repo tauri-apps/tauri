@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "2.0.0-alpha.11",
+  "version": "2.0.0-alpha.12",
   "description": "Tauri API definitions",
   "funding": {
     "type": "opencollective",
@@ -19,11 +19,17 @@
   },
   "homepage": "https://github.com/tauri-apps/tauri#readme",
   "type": "module",
+  "types": "./types/index.d.ts",
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "exports": {
+    "./package.json": "./package.json"
+  },
   "scripts": {
-    "build": "yarn rollup --config rollup.config.ts --configPlugin typescript",
+    "build": "rollup -c --configPlugin typescript",
     "npm-pack": "yarn build && cd ./dist && npm pack",
     "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
-    "check": "tsc",
+    "ts:check": "tsc -noEmit",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint:fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "format": "prettier --write . --config ../../.prettierrc --ignore-path .gitignore --ignore-path ../../.prettierignore",
@@ -32,25 +38,21 @@
   "devDependencies": {
     "@rollup/plugin-terser": "0.4.4",
     "@rollup/plugin-typescript": "11.1.5",
-    "@types/node": "20.8.10",
-    "@typescript-eslint/eslint-plugin": "6.9.1",
-    "@typescript-eslint/parser": "6.9.1",
-    "eslint": "8.52.0",
+    "@types/node": "20.9.0",
+    "@typescript-eslint/eslint-plugin": "6.10.0",
+    "@typescript-eslint/parser": "6.10.0",
+    "eslint": "8.53.0",
     "eslint-config-prettier": "9.0.0",
-    "eslint-config-standard-with-typescript": "39.1.1",
     "eslint-plugin-import": "2.29.0",
-    "eslint-plugin-n": "16.2.0",
+    "eslint-plugin-n": "16.3.0",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.1.1",
     "eslint-plugin-security": "1.7.1",
-    "fast-glob": "3.3.1",
+    "fast-glob": "3.3.2",
     "prettier": "3.0.3",
-    "rollup": "4.2.0",
+    "rollup": "4.3.0",
     "tslib": "2.6.2",
     "typescript": "5.2.2"
-  },
-  "exports": {
-    "./package.json": "./package.json"
   },
   "engines": {
     "node": ">= 18",

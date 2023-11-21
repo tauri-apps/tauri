@@ -1011,12 +1011,13 @@ impl<R: Runtime> Window<R> {
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
   pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
-    let current_menu = self.menu_lock().as_ref().map(|m| m.menu.clone());
+    let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
     // remove from the window
     #[cfg_attr(target_os = "macos", allow(unused_variables))]
-    if let Some(menu) = current_menu {
+    if let Some(menu) = &prev_menu {
       let window = self.clone();
+      let menu = menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
@@ -1034,8 +1035,6 @@ impl<R: Runtime> Window<R> {
         }
       })?;
     }
-
-    let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
     self
       .manager

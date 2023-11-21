@@ -269,7 +269,7 @@ pub struct AppHandle<R: Runtime> {
 impl AppHandle<crate::Wry> {
   /// Create a new tao window using a callback. The event loop must be running at this point.
   pub fn create_tao_window<
-    F: FnOnce() -> (String, tauri_runtime_wry::WryWindowBuilder) + Send + 'static,
+    F: FnOnce() -> (String, tauri_runtime_wry::TaoWindowBuilder) + Send + 'static,
   >(
     &self,
     f: F,
@@ -779,7 +779,8 @@ macro_rules! shared_app_impl {
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
         #[cfg(all(desktop, feature = "tray-icon"))]
-        self.manager.tray.icons.lock().unwrap().clear()
+        self.manager.tray.icons.lock().unwrap().clear();
+        self.resources_table().clear();
       }
     }
   };
@@ -795,6 +796,11 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::window::plugin::init())?;
     self.handle.plugin(crate::webview::plugin::init())?;
     self.handle.plugin(crate::app::plugin::init())?;
+    self.handle.plugin(crate::resources::plugin::init())?;
+    #[cfg(desktop)]
+    self.handle.plugin(crate::menu::plugin::init())?;
+    #[cfg(all(desktop, feature = "tray-icon"))]
+    self.handle.plugin(crate::tray::plugin::init())?;
     Ok(())
   }
 

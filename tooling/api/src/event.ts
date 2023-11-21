@@ -9,7 +9,7 @@
  * @module
  */
 
-import { invoke, transformCallback } from './primitives'
+import { invoke, transformCallback } from './core'
 
 type EventSource =
   | {
@@ -70,8 +70,7 @@ enum TauriEvent {
   WEBVIEW_CREATED = 'tauri://webview-created',
   WEBVIEW_FILE_DROP = 'tauri://file-drop',
   WEBVIEW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
-  WEBVIEW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
-  MENU = 'tauri://menu'
+  WEBVIEW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled'
 }
 
 /**

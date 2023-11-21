@@ -30,7 +30,7 @@ import type {
   EventSource
 } from './event'
 import { TauriEvent, emit, listen, once } from './event'
-import { invoke } from './primitives'
+import { invoke } from './core'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -1686,27 +1686,6 @@ class Window {
       TauriEvent.WINDOW_SCALE_FACTOR_CHANGED,
       handler
     )
-  }
-
-  /**
-   * Listen to the window menu item click. The payload is the item id.
-   *
-   * @example
-   * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
-   * const unlisten = await getCurrent().onMenuClicked(({ payload: menuId }) => {
-   *  console.log('Menu clicked: ' + menuId);
-   * });
-   *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
-   * ```
-   *
-   * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   */
-  async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
-    return this.listen<string>(TauriEvent.MENU, handler)
   }
 
   /**

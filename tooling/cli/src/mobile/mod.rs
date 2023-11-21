@@ -217,11 +217,10 @@ fn env() -> Result<Env, EnvError> {
   Ok(env)
 }
 
+pub struct OptionsHandle(Runtime, ServerHandle);
+
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
-pub fn write_options(
-  identifier: &str,
-  mut options: CliOptions,
-) -> crate::Result<(Runtime, ServerHandle)> {
+pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result<OptionsHandle> {
   options.vars.extend(env_vars());
 
   let runtime = Runtime::new().unwrap();
@@ -243,7 +242,7 @@ pub fn write_options(
     addr.to_string(),
   )?;
 
-  Ok((runtime, handle))
+  Ok(OptionsHandle(runtime, handle))
 }
 
 fn read_options(identifier: &str) -> CliOptions {

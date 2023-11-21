@@ -133,6 +133,12 @@ pub enum Error {
   /// window not found.
   #[error("window not found")]
   WindowNotFound,
+  /// The resource id is invalid.
+  #[error("The resource id {0} is invalid.")]
+  BadResourceId(crate::resources::ResourceId),
+  /// The anyhow crate error.
+  #[error(transparent)]
+  Anyhow(#[from] anyhow::Error),
   /// webview not found.
   #[error("webview not found")]
   WebviewNotFound,

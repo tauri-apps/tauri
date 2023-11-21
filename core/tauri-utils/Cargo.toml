@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.0.0-alpha.10"
+version = "2.0.0-alpha.11"
 description = "Utilities for Tauri"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -42,16 +42,6 @@ log = "0.4.20"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
-
-[target."cfg(windows)".dependencies.windows]
-version = "0.51.1"
-features = [
-  "implement",
-  "Win32_Foundation",
-  "Win32_System_Com",
-  "Win32_System_LibraryLoader",
-  "Win32_System_SystemInformation"
-]
 
 [features]
 build = [ "proc-macro2", "quote" ]

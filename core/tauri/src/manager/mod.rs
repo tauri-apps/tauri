@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 use serde::Serialize;
@@ -32,7 +32,7 @@ use crate::{
   },
   Context, Pattern, Runtime, StateManager, Window,
 };
-use crate::{event::EmitArgs, Webview};
+use crate::{event::EmitArgs, resources::ResourceTable, Webview};
 
 #[cfg(desktop)]
 mod menu;
@@ -198,6 +198,9 @@ pub struct AppManager<R: Runtime> {
 
   /// Application pattern.
   pub pattern: Arc<Pattern>,
+
+  /// Application Resources Table
+  pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -279,6 +282,7 @@ impl<R: Runtime> AppManager<R> {
       app_icon: context.app_icon,
       package_info: context.package_info,
       pattern: Arc::new(context.pattern),
+      resources_table: Arc::default(),
     }
   }
 
@@ -541,6 +545,14 @@ impl<R: Runtime> AppManager<R> {
 
   pub fn webviews(&self) -> HashMap<String, Webview<R>> {
     self.webview.webviews_lock().clone()
+  }
+
+  /// Resources table managed by the application.
+  pub(crate) fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window manager")
   }
 }
 

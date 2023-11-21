@@ -20,14 +20,19 @@ import { PhysicalPosition, PhysicalSize } from './dpi'
 import type { LogicalPosition, LogicalSize } from './dpi'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { TauriEvent, emit, listen, once } from './event'
-import { invoke } from './primitives'
+import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
 import type { WindowOptions } from './window'
 
+interface FileDropPayload {
+  paths: string[]
+  position: PhysicalPosition
+}
+
 /** The file drop event types. */
 type FileDropEvent =
-  | { type: 'hover'; paths: string[] }
-  | { type: 'drop'; paths: string[] }
+  | ({ type: 'hover' } & FileDropPayload)
+  | ({ type: 'drop' } & FileDropPayload)
   | { type: 'cancel' }
 
 /**
@@ -458,17 +463,31 @@ class Webview {
   async onFileDropEvent(
     handler: EventCallback<FileDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenFileDrop = await this.listen<string[]>(
+    const unlistenFileDrop = await this.listen<FileDropPayload>(
       TauriEvent.WEBVIEW_FILE_DROP,
       (event) => {
-        handler({ ...event, payload: { type: 'drop', paths: event.payload } })
+        handler({
+          ...event,
+          payload: {
+            type: 'drop',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
       }
     )
 
-    const unlistenFileHover = await this.listen<string[]>(
+    const unlistenFileHover = await this.listen<FileDropPayload>(
       TauriEvent.WEBVIEW_FILE_DROP_HOVER,
       (event) => {
-        handler({ ...event, payload: { type: 'hover', paths: event.payload } })
+        handler({
+          ...event,
+          payload: {
+            type: 'hover',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
       }
     )
 
@@ -485,6 +504,10 @@ class Webview {
       unlistenCancel()
     }
   }
+}
+
+function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
+  return new PhysicalPosition(m.x, m.y)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging

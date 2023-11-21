@@ -42,20 +42,20 @@ use wry::WebViewBuilderExtWindows;
 
 use tao::{
   dpi::{
-    LogicalPosition as WryLogicalPosition, LogicalSize as WryLogicalSize,
-    PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
-    Position as WryPosition, Size as WrySize,
+    LogicalPosition as TaoLogicalPosition, LogicalSize as TaoLogicalSize,
+    PhysicalPosition as TaoPhysicalPosition, PhysicalSize as TaoPhysicalSize,
+    Position as TaoPosition, Size as TaoSize,
   },
-  event::{Event, StartCause, WindowEvent as WryWindowEvent},
+  event::{Event, StartCause, WindowEvent as TaoWindowEvent},
   event_loop::{
-    ControlFlow, DeviceEventFilter as WryDeviceEventFilter, EventLoop, EventLoopBuilder,
-    EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
+    ControlFlow, DeviceEventFilter as TaoDeviceEventFilter, EventLoop, EventLoopBuilder,
+    EventLoopProxy as TaoEventLoopProxy, EventLoopWindowTarget,
   },
   monitor::MonitorHandle,
   window::{
-    CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon,
-    ProgressBarState as WryProgressBarState, ProgressState as WryProgressState, Theme as WryTheme,
-    UserAttentionType as WryUserAttentionType,
+    CursorIcon as TaoCursorIcon, Fullscreen, Icon as TaoWindowIcon,
+    ProgressBarState as TaoProgressBarState, ProgressState as TaoProgressState, Theme as TaoTheme,
+    UserAttentionType as TaoUserAttentionType,
   },
 };
 #[cfg(target_os = "macos")]
@@ -66,7 +66,7 @@ use tauri_utils::{
 use wry::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder};
 
 pub use tao;
-pub use tao::window::{Window, WindowBuilder as WryWindowBuilder, WindowId as TaoWindowId};
+pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId};
 pub use wry;
 pub use wry::webview_version;
 
@@ -87,7 +87,7 @@ use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
 #[cfg(target_os = "macos")]
 pub use tao::platform::macos::{
-  ActivationPolicy as WryActivationPolicy, EventLoopExtMacOS, WindowExtMacOS,
+  ActivationPolicy as TaoActivationPolicy, EventLoopExtMacOS, WindowExtMacOS,
 };
 #[cfg(target_os = "macos")]
 use tauri_runtime::ActivationPolicy;
@@ -110,7 +110,7 @@ use std::{
   thread::{current as current_thread, ThreadId},
 };
 
-type WebviewId = u32;
+pub type WebviewId = u32;
 type IpcHandler = dyn Fn(String) + 'static;
 type FileDropHandler = dyn Fn(WryFileDropEvent) -> bool + 'static;
 
@@ -189,7 +189,7 @@ pub(crate) fn send_user_message<T: UserEvent>(
 pub struct Context<T: UserEvent> {
   pub webview_id_map: WindowIdStore,
   main_thread_id: ThreadId,
-  pub proxy: WryEventLoopProxy<Message<T>>,
+  pub proxy: TaoEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
   plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
   next_window_id: Arc<AtomicU32>,
@@ -349,29 +349,29 @@ impl<T: UserEvent> fmt::Debug for Context<T> {
   }
 }
 
-pub struct DeviceEventFilterWrapper(pub WryDeviceEventFilter);
+pub struct DeviceEventFilterWrapper(pub TaoDeviceEventFilter);
 
 impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
   fn from(item: DeviceEventFilter) -> Self {
     match item {
-      DeviceEventFilter::Always => Self(WryDeviceEventFilter::Always),
-      DeviceEventFilter::Never => Self(WryDeviceEventFilter::Never),
-      DeviceEventFilter::Unfocused => Self(WryDeviceEventFilter::Unfocused),
+      DeviceEventFilter::Always => Self(TaoDeviceEventFilter::Always),
+      DeviceEventFilter::Never => Self(TaoDeviceEventFilter::Never),
+      DeviceEventFilter::Unfocused => Self(TaoDeviceEventFilter::Unfocused),
     }
   }
 }
 
 /// Wrapper around a [`tao::window::Icon`] that can be created from an [`Icon`].
-pub struct WryIcon(pub WryWindowIcon);
+pub struct TaoIcon(pub TaoWindowIcon);
 
 fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {
   Error::InvalidIcon(Box::new(e))
 }
 
-impl TryFrom<Icon> for WryIcon {
+impl TryFrom<Icon> for TaoIcon {
   type Error = Error;
   fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
-    WryWindowIcon::from_rgba(icon.rgba, icon.width, icon.height)
+    TaoWindowIcon::from_rgba(icon.rgba, icon.width, icon.height)
       .map(Self)
       .map_err(icon_err)
   }
@@ -380,7 +380,7 @@ impl TryFrom<Icon> for WryIcon {
 pub struct WindowEventWrapper(pub Option<WindowEvent>);
 
 impl WindowEventWrapper {
-  fn parse(window: &WindowWrapper, event: &WryWindowEvent<'_>) -> Self {
+  fn parse(webview: &Option<WindowHandle>, event: &TaoWindowEvent<'_>) -> Self {
     match event {
       // resized event from tao doesn't include a reliable size on macOS
       // because wry replaces the NSView
@@ -403,23 +403,23 @@ impl WindowEventWrapper {
   }
 }
 
-pub fn map_theme(theme: &WryTheme) -> Theme {
+pub fn map_theme(theme: &TaoTheme) -> Theme {
   match theme {
-    WryTheme::Light => Theme::Light,
-    WryTheme::Dark => Theme::Dark,
+    TaoTheme::Light => Theme::Light,
+    TaoTheme::Dark => Theme::Dark,
     _ => Theme::Light,
   }
 }
 
-impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
-  fn from(event: &WryWindowEvent<'a>) -> Self {
+impl<'a> From<&TaoWindowEvent<'a>> for WindowEventWrapper {
+  fn from(event: &TaoWindowEvent<'a>) -> Self {
     let event = match event {
-      WryWindowEvent::Resized(size) => WindowEvent::Resized(PhysicalSizeWrapper(*size).into()),
-      WryWindowEvent::Moved(position) => {
+      TaoWindowEvent::Resized(size) => WindowEvent::Resized(PhysicalSizeWrapper(*size).into()),
+      TaoWindowEvent::Moved(position) => {
         WindowEvent::Moved(PhysicalPositionWrapper(*position).into())
       }
-      WryWindowEvent::Destroyed => WindowEvent::Destroyed,
-      WryWindowEvent::ScaleFactorChanged {
+      TaoWindowEvent::Destroyed => WindowEvent::Destroyed,
+      TaoWindowEvent::ScaleFactorChanged {
         scale_factor,
         new_inner_size,
       } => WindowEvent::ScaleFactorChanged {
@@ -427,8 +427,8 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
         new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
       },
       #[cfg(any(target_os = "linux", target_os = "macos"))]
-      WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
-      WryWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
+      TaoWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
+      TaoWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
       _ => return Self(None),
     };
     Self(Some(event))
@@ -457,7 +457,7 @@ impl From<MonitorHandleWrapper> for Monitor {
   }
 }
 
-pub struct PhysicalPositionWrapper<T>(pub WryPhysicalPosition<T>);
+pub struct PhysicalPositionWrapper<T>(pub TaoPhysicalPosition<T>);
 
 impl<T> From<PhysicalPositionWrapper<T>> for PhysicalPosition<T> {
   fn from(position: PhysicalPositionWrapper<T>) -> Self {
@@ -470,25 +470,25 @@ impl<T> From<PhysicalPositionWrapper<T>> for PhysicalPosition<T> {
 
 impl<T> From<PhysicalPosition<T>> for PhysicalPositionWrapper<T> {
   fn from(position: PhysicalPosition<T>) -> Self {
-    Self(WryPhysicalPosition {
+    Self(TaoPhysicalPosition {
       x: position.x,
       y: position.y,
     })
   }
 }
 
-struct LogicalPositionWrapper<T>(WryLogicalPosition<T>);
+struct LogicalPositionWrapper<T>(TaoLogicalPosition<T>);
 
 impl<T> From<LogicalPosition<T>> for LogicalPositionWrapper<T> {
   fn from(position: LogicalPosition<T>) -> Self {
-    Self(WryLogicalPosition {
+    Self(TaoLogicalPosition {
       x: position.x,
       y: position.y,
     })
   }
 }
 
-pub struct PhysicalSizeWrapper<T>(pub WryPhysicalSize<T>);
+pub struct PhysicalSizeWrapper<T>(pub TaoPhysicalSize<T>);
 
 impl<T> From<PhysicalSizeWrapper<T>> for PhysicalSize<T> {
   fn from(size: PhysicalSizeWrapper<T>) -> Self {
@@ -501,127 +501,127 @@ impl<T> From<PhysicalSizeWrapper<T>> for PhysicalSize<T> {
 
 impl<T> From<PhysicalSize<T>> for PhysicalSizeWrapper<T> {
   fn from(size: PhysicalSize<T>) -> Self {
-    Self(WryPhysicalSize {
+    Self(TaoPhysicalSize {
       width: size.width,
       height: size.height,
     })
   }
 }
 
-struct LogicalSizeWrapper<T>(WryLogicalSize<T>);
+struct LogicalSizeWrapper<T>(TaoLogicalSize<T>);
 
 impl<T> From<LogicalSize<T>> for LogicalSizeWrapper<T> {
   fn from(size: LogicalSize<T>) -> Self {
-    Self(WryLogicalSize {
+    Self(TaoLogicalSize {
       width: size.width,
       height: size.height,
     })
   }
 }
 
-pub struct SizeWrapper(pub WrySize);
+pub struct SizeWrapper(pub TaoSize);
 
 impl From<Size> for SizeWrapper {
   fn from(size: Size) -> Self {
     match size {
-      Size::Logical(s) => Self(WrySize::Logical(LogicalSizeWrapper::from(s).0)),
-      Size::Physical(s) => Self(WrySize::Physical(PhysicalSizeWrapper::from(s).0)),
+      Size::Logical(s) => Self(TaoSize::Logical(LogicalSizeWrapper::from(s).0)),
+      Size::Physical(s) => Self(TaoSize::Physical(PhysicalSizeWrapper::from(s).0)),
     }
   }
 }
 
-pub struct PositionWrapper(pub WryPosition);
+pub struct PositionWrapper(pub TaoPosition);
 
 impl From<Position> for PositionWrapper {
   fn from(position: Position) -> Self {
     match position {
-      Position::Logical(s) => Self(WryPosition::Logical(LogicalPositionWrapper::from(s).0)),
-      Position::Physical(s) => Self(WryPosition::Physical(PhysicalPositionWrapper::from(s).0)),
+      Position::Logical(s) => Self(TaoPosition::Logical(LogicalPositionWrapper::from(s).0)),
+      Position::Physical(s) => Self(TaoPosition::Physical(PhysicalPositionWrapper::from(s).0)),
     }
   }
 }
 
 #[derive(Debug, Clone)]
-pub struct UserAttentionTypeWrapper(pub WryUserAttentionType);
+pub struct UserAttentionTypeWrapper(pub TaoUserAttentionType);
 
 impl From<UserAttentionType> for UserAttentionTypeWrapper {
   fn from(request_type: UserAttentionType) -> Self {
     let o = match request_type {
-      UserAttentionType::Critical => WryUserAttentionType::Critical,
-      UserAttentionType::Informational => WryUserAttentionType::Informational,
+      UserAttentionType::Critical => TaoUserAttentionType::Critical,
+      UserAttentionType::Informational => TaoUserAttentionType::Informational,
     };
     Self(o)
   }
 }
 
 #[derive(Debug)]
-pub struct CursorIconWrapper(pub WryCursorIcon);
+pub struct CursorIconWrapper(pub TaoCursorIcon);
 
 impl From<CursorIcon> for CursorIconWrapper {
   fn from(icon: CursorIcon) -> Self {
     use CursorIcon::*;
     let i = match icon {
-      Default => WryCursorIcon::Default,
-      Crosshair => WryCursorIcon::Crosshair,
-      Hand => WryCursorIcon::Hand,
-      Arrow => WryCursorIcon::Arrow,
-      Move => WryCursorIcon::Move,
-      Text => WryCursorIcon::Text,
-      Wait => WryCursorIcon::Wait,
-      Help => WryCursorIcon::Help,
-      Progress => WryCursorIcon::Progress,
-      NotAllowed => WryCursorIcon::NotAllowed,
-      ContextMenu => WryCursorIcon::ContextMenu,
-      Cell => WryCursorIcon::Cell,
-      VerticalText => WryCursorIcon::VerticalText,
-      Alias => WryCursorIcon::Alias,
-      Copy => WryCursorIcon::Copy,
-      NoDrop => WryCursorIcon::NoDrop,
-      Grab => WryCursorIcon::Grab,
-      Grabbing => WryCursorIcon::Grabbing,
-      AllScroll => WryCursorIcon::AllScroll,
-      ZoomIn => WryCursorIcon::ZoomIn,
-      ZoomOut => WryCursorIcon::ZoomOut,
-      EResize => WryCursorIcon::EResize,
-      NResize => WryCursorIcon::NResize,
-      NeResize => WryCursorIcon::NeResize,
-      NwResize => WryCursorIcon::NwResize,
-      SResize => WryCursorIcon::SResize,
-      SeResize => WryCursorIcon::SeResize,
-      SwResize => WryCursorIcon::SwResize,
-      WResize => WryCursorIcon::WResize,
-      EwResize => WryCursorIcon::EwResize,
-      NsResize => WryCursorIcon::NsResize,
-      NeswResize => WryCursorIcon::NeswResize,
-      NwseResize => WryCursorIcon::NwseResize,
-      ColResize => WryCursorIcon::ColResize,
-      RowResize => WryCursorIcon::RowResize,
-      _ => WryCursorIcon::Default,
+      Default => TaoCursorIcon::Default,
+      Crosshair => TaoCursorIcon::Crosshair,
+      Hand => TaoCursorIcon::Hand,
+      Arrow => TaoCursorIcon::Arrow,
+      Move => TaoCursorIcon::Move,
+      Text => TaoCursorIcon::Text,
+      Wait => TaoCursorIcon::Wait,
+      Help => TaoCursorIcon::Help,
+      Progress => TaoCursorIcon::Progress,
+      NotAllowed => TaoCursorIcon::NotAllowed,
+      ContextMenu => TaoCursorIcon::ContextMenu,
+      Cell => TaoCursorIcon::Cell,
+      VerticalText => TaoCursorIcon::VerticalText,
+      Alias => TaoCursorIcon::Alias,
+      Copy => TaoCursorIcon::Copy,
+      NoDrop => TaoCursorIcon::NoDrop,
+      Grab => TaoCursorIcon::Grab,
+      Grabbing => TaoCursorIcon::Grabbing,
+      AllScroll => TaoCursorIcon::AllScroll,
+      ZoomIn => TaoCursorIcon::ZoomIn,
+      ZoomOut => TaoCursorIcon::ZoomOut,
+      EResize => TaoCursorIcon::EResize,
+      NResize => TaoCursorIcon::NResize,
+      NeResize => TaoCursorIcon::NeResize,
+      NwResize => TaoCursorIcon::NwResize,
+      SResize => TaoCursorIcon::SResize,
+      SeResize => TaoCursorIcon::SeResize,
+      SwResize => TaoCursorIcon::SwResize,
+      WResize => TaoCursorIcon::WResize,
+      EwResize => TaoCursorIcon::EwResize,
+      NsResize => TaoCursorIcon::NsResize,
+      NeswResize => TaoCursorIcon::NeswResize,
+      NwseResize => TaoCursorIcon::NwseResize,
+      ColResize => TaoCursorIcon::ColResize,
+      RowResize => TaoCursorIcon::RowResize,
+      _ => TaoCursorIcon::Default,
     };
     Self(i)
   }
 }
 
-pub struct ProgressStateWrapper(pub WryProgressState);
+pub struct ProgressStateWrapper(pub TaoProgressState);
 
 impl From<ProgressBarStatus> for ProgressStateWrapper {
   fn from(status: ProgressBarStatus) -> Self {
     let state = match status {
-      ProgressBarStatus::None => WryProgressState::None,
-      ProgressBarStatus::Normal => WryProgressState::Normal,
-      ProgressBarStatus::Indeterminate => WryProgressState::Indeterminate,
-      ProgressBarStatus::Paused => WryProgressState::Paused,
-      ProgressBarStatus::Error => WryProgressState::Error,
+      ProgressBarStatus::None => TaoProgressState::None,
+      ProgressBarStatus::Normal => TaoProgressState::Normal,
+      ProgressBarStatus::Indeterminate => TaoProgressState::Indeterminate,
+      ProgressBarStatus::Paused => TaoProgressState::Paused,
+      ProgressBarStatus::Error => TaoProgressState::Error,
     };
     Self(state)
   }
 }
 
-pub struct ProgressBarStateWrapper(pub WryProgressBarState);
+pub struct ProgressBarStateWrapper(pub TaoProgressBarState);
 
 impl From<ProgressBarState> for ProgressBarStateWrapper {
   fn from(progress_state: ProgressBarState) -> Self {
-    Self(WryProgressBarState {
+    Self(TaoProgressBarState {
       progress: progress_state.progress,
       state: progress_state
         .status
@@ -633,7 +633,7 @@ impl From<ProgressBarState> for ProgressBarStateWrapper {
 
 #[derive(Clone, Default)]
 pub struct WindowBuilderWrapper {
-  inner: WryWindowBuilder,
+  inner: TaoWindowBuilder,
   center: bool,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
@@ -738,28 +738,28 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn position(mut self, x: f64, y: f64) -> Self {
-    self.inner = self.inner.with_position(WryLogicalPosition::new(x, y));
+    self.inner = self.inner.with_position(TaoLogicalPosition::new(x, y));
     self
   }
 
   fn inner_size(mut self, width: f64, height: f64) -> Self {
     self.inner = self
       .inner
-      .with_inner_size(WryLogicalSize::new(width, height));
+      .with_inner_size(TaoLogicalSize::new(width, height));
     self
   }
 
   fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
     self.inner = self
       .inner
-      .with_min_inner_size(WryLogicalSize::new(min_width, min_height));
+      .with_min_inner_size(TaoLogicalSize::new(min_width, min_height));
     self
   }
 
   fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.inner = self
       .inner
-      .with_max_inner_size(WryLogicalSize::new(max_width, max_height));
+      .with_max_inner_size(TaoLogicalSize::new(max_width, max_height));
     self
   }
 
@@ -913,7 +913,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn icon(mut self, icon: Icon) -> Result<Self> {
     self.inner = self
       .inner
-      .with_window_icon(Some(WryIcon::try_from(icon)?.0));
+      .with_window_icon(Some(TaoIcon::try_from(icon)?.0));
     Ok(self)
   }
 
@@ -932,8 +932,8 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn theme(mut self, theme: Option<Theme>) -> Self {
     self.inner = self.inner.with_theme(if let Some(t) = theme {
       match t {
-        Theme::Dark => Some(WryTheme::Dark),
-        _ => Some(WryTheme::Light),
+        Theme::Dark => Some(TaoTheme::Dark),
+        _ => Some(TaoTheme::Light),
       }
     } else {
       None
@@ -1107,7 +1107,7 @@ pub enum WindowMessage {
   SetPosition(Position),
   SetFullscreen(bool),
   SetFocus,
-  SetIcon(WryWindowIcon),
+  SetIcon(TaoWindowIcon),
   SetSkipTaskbar(bool),
   SetCursorGrab(bool),
   SetCursorVisible(bool),
@@ -1158,7 +1158,7 @@ pub enum Message<T: 'static> {
   CreateWindow(WindowId, CreateWindowClosure<T>),
   CreateRawWindow(
     WindowId,
-    Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
+    Box<dyn FnOnce() -> (String, TaoWindowBuilder) + Send>,
     Sender<Result<Weak<Window>>>,
   ),
   UserEvent(T),
@@ -1635,7 +1635,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       &self.context,
       Message::Window(
         self.window_id,
-        WindowMessage::SetIcon(WryIcon::try_from(icon)?.0),
+        WindowMessage::SetIcon(TaoIcon::try_from(icon)?.0),
       ),
     )
   }
@@ -1750,7 +1750,7 @@ impl fmt::Debug for WindowWrapper {
 }
 
 #[derive(Debug, Clone)]
-pub struct EventProxy<T: UserEvent>(WryEventLoopProxy<Message<T>>);
+pub struct EventProxy<T: UserEvent>(TaoEventLoopProxy<Message<T>>);
 
 #[cfg(target_os = "ios")]
 #[allow(clippy::non_send_fields_in_send_ty)]
@@ -1775,7 +1775,7 @@ pub trait Plugin<T: UserEvent> {
     &mut self,
     event: &Event<Message<T>>,
     event_loop: &EventLoopWindowTarget<Message<T>>,
-    proxy: &WryEventLoopProxy<Message<T>>,
+    proxy: &TaoEventLoopProxy<Message<T>>,
     control_flow: &mut ControlFlow,
     context: EventLoopIterationContext<'_, T>,
     web_context: &WebContextStore,
@@ -1811,7 +1811,7 @@ unsafe impl<T: UserEvent> Sync for WryHandle<T> {}
 
 impl<T: UserEvent> WryHandle<T> {
   /// Creates a new tao window using a callback, and returns its window id.
-  pub fn create_tao_window<F: FnOnce() -> (String, WryWindowBuilder) + Send + 'static>(
+  pub fn create_tao_window<F: FnOnce() -> (String, TaoWindowBuilder) + Send + 'static>(
     &self,
     f: F,
   ) -> Result<Weak<Window>> {
@@ -2154,9 +2154,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     self
       .event_loop
       .set_activation_policy(match activation_policy {
-        ActivationPolicy::Regular => WryActivationPolicy::Regular,
-        ActivationPolicy::Accessory => WryActivationPolicy::Accessory,
-        ActivationPolicy::Prohibited => WryActivationPolicy::Prohibited,
+        ActivationPolicy::Regular => TaoActivationPolicy::Regular,
+        ActivationPolicy::Accessory => TaoActivationPolicy::Accessory,
+        ActivationPolicy::Prohibited => TaoActivationPolicy::Prohibited,
         _ => unimplemented!(),
       });
   }
@@ -2695,22 +2695,22 @@ fn handle_event_loop<T: UserEvent>(
 
         match event {
           #[cfg(windows)]
-          WryWindowEvent::ThemeChanged(theme) => {
+          TaoWindowEvent::ThemeChanged(theme) => {
             if let Some(window) = windows.borrow().get(&window_id) {
               if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
                 let theme = match theme {
-                  WryTheme::Dark => wry::Theme::Dark,
-                  WryTheme::Light => wry::Theme::Light,
+                  TaoTheme::Dark => wry::Theme::Dark,
+                  TaoTheme::Light => wry::Theme::Light,
                   _ => wry::Theme::Light,
                 };
                 inner.set_theme(theme);
               }
             }
           }
-          WryWindowEvent::CloseRequested => {
+          TaoWindowEvent::CloseRequested => {
             on_close_requested(callback, window_id, windows.clone());
           }
-          WryWindowEvent::Destroyed => {
+          TaoWindowEvent::Destroyed => {
             let removed = windows.borrow_mut().remove(&window_id).is_some();
             if removed {
               let is_empty = windows.borrow().is_empty();
@@ -2811,13 +2811,13 @@ fn on_window_close(window_id: WindowId, windows: Rc<RefCell<HashMap<WindowId, Wi
   }
 }
 
-pub fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Result<()> {
+pub fn center_window(window: &Window, window_size: TaoPhysicalSize<u32>) -> Result<()> {
   if let Some(monitor) = window.current_monitor() {
     let screen_size = monitor.size();
     let monitor_pos = monitor.position();
     let x = (screen_size.width as i32 - window_size.width as i32) / 2;
     let y = (screen_size.height as i32 - window_size.height as i32) / 2;
-    window.set_outer_position(WryPhysicalPosition::new(
+    window.set_outer_position(TaoPhysicalPosition::new(
       monitor_pos.x + x,
       monitor_pos.y + y,
     ));
@@ -3068,8 +3068,8 @@ fn create_webview<T: UserEvent>(
 
     if let Some(theme) = window_theme {
       webview_builder = webview_builder.with_theme(match theme {
-        WryTheme::Dark => wry::Theme::Dark,
-        WryTheme::Light => wry::Theme::Light,
+        TaoTheme::Dark => wry::Theme::Dark,
+        TaoTheme::Light => wry::Theme::Light,
         _ => wry::Theme::Light,
       });
     }

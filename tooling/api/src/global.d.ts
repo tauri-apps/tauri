@@ -4,7 +4,7 @@
 
 /** @ignore */
 
-import type { invoke, transformCallback, convertFileSrc } from './primitives'
+import type { invoke, transformCallback, convertFileSrc } from './core'
 
 /** @ignore */
 declare global {

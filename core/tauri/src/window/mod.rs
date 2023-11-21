@@ -2291,7 +2291,7 @@ impl<R: Runtime> Window<R> {
             if let serde_json::Value::Object(map) = payload {
               for v in map.values() {
                 if let serde_json::Value::String(s) = v {
-                  crate::ipc::JavaScriptChannelId::from_str(s)
+                  let _ = crate::ipc::JavaScriptChannelId::from_str(s)
                     .map(|id| id.channel_on(window.clone()));
                 }
               }

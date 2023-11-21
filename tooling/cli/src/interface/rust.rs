@@ -22,8 +22,8 @@ use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings, Position, Size
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
+  PackageSettings, Position, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::parse::is_configuration_file;
 
@@ -1179,16 +1179,13 @@ fn tauri_config_to_bundle_settings(
     },
     dmg: DmgSettings {
       background: config.dmg.background,
-      window_position: match config.dmg.window_position {
-        Some(window_position) => Some(Position {
-          x: window_position.x,
-          y: window_position.y,
-        }),
-        None => None,
-      },
+      window_position: config.dmg.window_position.map(|window_position| Position {
+        x: window_position.x,
+        y: window_position.y,
+      }),
       window_size: Size {
-          width: config.dmg.window_size.width,
-          height: config.dmg.window_size.height,
+        width: config.dmg.window_size.width,
+        height: config.dmg.window_size.height,
       },
       app_position: Position {
         x: config.dmg.app_position.x,

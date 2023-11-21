@@ -730,6 +730,11 @@ impl<R: Runtime> Webview<R> {
     }
   }
 
+  /// Focus the webview.
+  pub fn set_focus(&self) -> crate::Result<()> {
+    self.webview.dispatcher.set_focus().map_err(Into::into)
+  }
+
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
   /// The closure is executed on the main thread.

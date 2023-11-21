@@ -110,19 +110,17 @@ mod desktop_commands {
 
   macro_rules! setter {
     ($cmd: ident) => {
+      setter!($cmd, $cmd);
+    };
+    ($fn: ident, $cmd: ident) => {
       #[command(root = "crate")]
-      pub async fn $cmd<R: Runtime>(
+      pub async fn $fn<R: Runtime>(
         webview: Webview<R>,
         label: Option<String>,
       ) -> crate::Result<()> {
         get_webview(webview, label)?.$cmd().map_err(Into::into)
       }
     };
-
-    ($cmd: ident, $input: ty) => {
-      setter($cmd, $cmd, $input)
-    };
-
     ($fn: ident, $cmd: ident, $input: ty) => {
       #[command(root = "crate")]
       pub async fn $fn<R: Runtime>(
@@ -144,7 +142,7 @@ mod desktop_commands {
   // setter!(close);
   setter!(set_webview_size, set_size, Size);
   setter!(set_webview_position, set_position, Position);
-  // setter!(set_focus, bool);
+  setter!(set_webview_focus, set_focus);
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[command(root = "crate")]
@@ -214,7 +212,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             // desktop_commands::close,
             desktop_commands::set_webview_size,
             desktop_commands::set_webview_position,
-            //desktop_commands::set_focus,
+            desktop_commands::set_webview_focus,
             desktop_commands::print,
             #[cfg(any(debug_assertions, feature = "devtools"))]
             desktop_commands::internal_toggle_devtools,

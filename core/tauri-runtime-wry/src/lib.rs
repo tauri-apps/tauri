@@ -1127,6 +1127,7 @@ pub enum WebviewMessage {
   Print,
   SetPosition(Position),
   SetSize(Size),
+  SetFocus,
   // Getters
   Url(Sender<Url>),
   Position(Sender<PhysicalPosition<i32>>),
@@ -1286,6 +1287,13 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         self.webview_id,
         WebviewMessage::SetPosition(position),
       ),
+    )
+  }
+
+  fn set_focus(&self) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(self.window_id, self.webview_id, WebviewMessage::SetFocus),
     )
   }
 
@@ -2537,6 +2545,9 @@ fn handle_user_message<T: UserEvent>(
             bounds.x = position.x;
             bounds.y = position.y;
             webview.set_bounds(bounds);
+          }
+          WebviewMessage::SetFocus => {
+            webview.focus();
           }
           WebviewMessage::WebviewEvent(_event) => { /* already handled */ }
           WebviewMessage::WithWebview(f) => {

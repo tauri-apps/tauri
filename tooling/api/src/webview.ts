@@ -329,9 +329,12 @@ class Webview {
    * @returns The webview's size.
    */
   async size(): Promise<PhysicalSize> {
-    return invoke<{ width: number; height: number }>('plugin:webview|webview_size', {
-      label: this.label
-    }).then(({ width, height }) => new PhysicalSize(width, height))
+    return invoke<{ width: number; height: number }>(
+      'plugin:webview|webview_size',
+      {
+        label: this.label
+      }
+    ).then(({ width, height }) => new PhysicalSize(width, height))
   }
 
   // Setters
@@ -428,7 +431,7 @@ class Webview {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setFocus(): Promise<void> {
-    return invoke('plugin:webview|set_focus', {
+    return invoke('plugin:webview|set_webview_focus', {
       label: this.label
     })
   }

@@ -334,7 +334,7 @@ fn new<R: Runtime>(
   handler: Channel,
 ) -> crate::Result<(ResourceId, MenuId)> {
   let options = options.unwrap_or_default();
-  let mut resources_table = app.manager.resources_table();
+  let mut resources_table = app.resources_table();
 
   let (rid, id) = match kind {
     ItemKind::Menu => {
@@ -439,7 +439,7 @@ fn append<R: Runtime>(
   kind: ItemKind,
   items: Vec<MenuItemPayloadKind>,
 ) -> crate::Result<()> {
-  let resources_table = window.manager.resources_table();
+  let resources_table = window.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
@@ -466,7 +466,7 @@ fn prepend<R: Runtime>(
   kind: ItemKind,
   items: Vec<MenuItemPayloadKind>,
 ) -> crate::Result<()> {
-  let resources_table = window.manager.resources_table();
+  let resources_table = window.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
@@ -494,7 +494,7 @@ fn insert<R: Runtime>(
   items: Vec<MenuItemPayloadKind>,
   mut position: usize,
 ) -> crate::Result<()> {
-  let resources_table = window.manager.resources_table();
+  let resources_table = window.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
@@ -523,7 +523,7 @@ fn remove<R: Runtime>(
   menu_kind: ItemKind,
   item: (ResourceId, ItemKind),
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let (rid, kind) = item;
   match menu_kind {
     ItemKind::Menu => {
@@ -561,7 +561,7 @@ fn remove_at<R: Runtime>(
   kind: ItemKind,
   position: usize,
 ) -> crate::Result<Option<(ResourceId, MenuId, ItemKind)>> {
-  let mut resources_table = app.manager.resources_table();
+  let mut resources_table = app.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
@@ -587,7 +587,7 @@ fn items<R: Runtime>(
   rid: ResourceId,
   kind: ItemKind,
 ) -> crate::Result<Vec<(ResourceId, MenuId, ItemKind)>> {
-  let mut resources_table = app.manager.resources_table();
+  let mut resources_table = app.resources_table();
   let items = match kind {
     ItemKind::Menu => resources_table.get::<Menu<R>>(rid)?.items()?,
     ItemKind::Submenu => resources_table.get::<Submenu<R>>(rid)?.items()?,
@@ -609,7 +609,7 @@ fn get<R: Runtime>(
   kind: ItemKind,
   id: MenuId,
 ) -> crate::Result<Option<(ResourceId, MenuId, ItemKind)>> {
-  let mut resources_table = app.manager.resources_table();
+  let mut resources_table = app.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
@@ -643,7 +643,7 @@ async fn popup<R: Runtime>(
     .unwrap_or(Some(current_window));
 
   if let Some(window) = window {
-    let resources_table = app.manager.resources_table();
+    let resources_table = app.resources_table();
     match kind {
       ItemKind::Menu => {
         let menu = resources_table.get::<Menu<R>>(rid)?;
@@ -662,7 +662,7 @@ async fn popup<R: Runtime>(
 
 #[command(root = "crate")]
 fn default<R: Runtime>(app: AppHandle<R>) -> crate::Result<(ResourceId, MenuId)> {
-  let mut resources_table = app.manager.resources_table();
+  let mut resources_table = app.resources_table();
   let menu = Menu::default(&app)?;
   let id = menu.id().clone();
   let rid = resources_table.add(menu);
@@ -674,7 +674,7 @@ async fn set_as_app_menu<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
 ) -> crate::Result<Option<(ResourceId, MenuId)>> {
-  let mut resources_table = app.manager.resources_table();
+  let mut resources_table = app.resources_table();
   let menu = resources_table.get::<Menu<R>>(rid)?;
   if let Some(menu) = menu.set_as_app_menu()? {
     let id = menu.id().clone();
@@ -696,7 +696,7 @@ async fn set_as_window_menu<R: Runtime>(
     .unwrap_or(Some(current_window));
 
   if let Some(window) = window {
-    let mut resources_table = app.manager.resources_table();
+    let mut resources_table = app.resources_table();
     let menu = resources_table.get::<Menu<R>>(rid)?;
     if let Some(menu) = menu.set_as_window_menu(&window)? {
       let id = menu.id().clone();
@@ -709,7 +709,7 @@ async fn set_as_window_menu<R: Runtime>(
 
 #[command(root = "crate")]
 fn text<R: Runtime>(app: AppHandle<R>, rid: ResourceId, kind: ItemKind) -> crate::Result<String> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   do_menu_item!(resources_table, rid, kind, |i| i.text())
 }
 
@@ -720,7 +720,7 @@ fn set_text<R: Runtime>(
   kind: ItemKind,
   text: String,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   do_menu_item!(resources_table, rid, kind, |i| i.set_text(text))
 }
 
@@ -730,7 +730,7 @@ fn is_enabled<R: Runtime>(
   rid: ResourceId,
   kind: ItemKind,
 ) -> crate::Result<bool> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   do_menu_item!(resources_table, rid, kind, |i| i.is_enabled(), !Predefined)
 }
 
@@ -741,7 +741,7 @@ fn set_enabled<R: Runtime>(
   kind: ItemKind,
   enabled: bool,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   do_menu_item!(
     resources_table,
     rid,
@@ -758,7 +758,7 @@ fn set_accelerator<R: Runtime>(
   kind: ItemKind,
   accelerator: Option<String>,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   do_menu_item!(
     resources_table,
     rid,
@@ -775,7 +775,7 @@ fn set_as_windows_menu_for_nsapp<R: Runtime>(
 ) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
   {
-    let resources_table = app.manager.resources_table();
+    let resources_table = app.resources_table();
     let submenu = resources_table.get::<Submenu<R>>(rid)?;
     submenu.set_as_help_menu_for_nsapp()?;
   }
@@ -789,7 +789,7 @@ fn set_as_windows_menu_for_nsapp<R: Runtime>(
 fn set_as_help_menu_for_nsapp<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
   {
-    let resources_table = app.manager.resources_table();
+    let resources_table = app.resources_table();
     let submenu = resources_table.get::<Submenu<R>>(rid)?;
     submenu.set_as_help_menu_for_nsapp()?;
   }
@@ -802,14 +802,14 @@ fn set_as_help_menu_for_nsapp<R: Runtime>(app: AppHandle<R>, rid: ResourceId) ->
 
 #[command(root = "crate")]
 fn is_checked<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<bool> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let check_item = resources_table.get::<CheckMenuItem<R>>(rid)?;
   check_item.is_checked()
 }
 
 #[command(root = "crate")]
 fn set_checked<R: Runtime>(app: AppHandle<R>, rid: ResourceId, checked: bool) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let check_item = resources_table.get::<CheckMenuItem<R>>(rid)?;
   check_item.set_checked(checked)
 }
@@ -820,7 +820,7 @@ fn set_icon<R: Runtime>(
   rid: ResourceId,
   icon: Option<Icon>,
 ) -> crate::Result<()> {
-  let resources_table = app.manager.resources_table();
+  let resources_table = app.resources_table();
   let icon_item = resources_table.get::<IconMenuItem<R>>(rid)?;
   match icon {
     Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),

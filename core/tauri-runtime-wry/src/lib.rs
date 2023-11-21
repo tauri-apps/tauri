@@ -1710,6 +1710,7 @@ pub struct WebviewWrapper {
   context_store: WebContextStore,
   // the key of the WebContext if it's not shared
   context_key: Option<PathBuf>,
+  bounds: Option<WebviewBounds>,
 }
 
 impl Deref for WebviewWrapper {
@@ -2726,6 +2727,20 @@ fn handle_event_loop<T: UserEvent>(
               }
             }
           }
+          WryWindowEvent::Resized(size) => {
+            if let Some(webviews) = windows.borrow().get(&window_id).map(|w| w.webviews.clone()) {
+              for webview in webviews {
+                if let Some(bounds) = &webview.bounds {
+                  webview.set_bounds(wry::Rect {
+                    x: (size.width as f32 * bounds.x_rate) as i32,
+                    y: (size.height as f32 * bounds.y_rate) as i32,
+                    width: (size.width as f32 * bounds.width_rate) as u32,
+                    height: (size.height as f32 * bounds.height_rate) as u32,
+                  });
+                }
+              }
+            }
+          }
           _ => {}
         }
       }
@@ -2915,6 +2930,14 @@ enum WebviewKind {
   WindowChild,
 }
 
+#[derive(Clone)]
+struct WebviewBounds {
+  x_rate: f32,
+  y_rate: f32,
+  width_rate: f32,
+  height_rate: f32,
+}
+
 fn create_webview<T: UserEvent>(
   kind: WebviewKind,
   window: &Window,
@@ -2997,7 +3020,7 @@ fn create_webview<T: UserEvent>(
     });
   }
 
-  if let Some((position, size)) = webview_attributes.bounds {
+  let webview_bounds = if let Some((position, size)) = webview_attributes.bounds {
     let size = size.to_logical(window.scale_factor());
     let position = position.to_logical(window.scale_factor());
     webview_builder = webview_builder.with_bounds(wry::Rect {
@@ -3006,7 +3029,18 @@ fn create_webview<T: UserEvent>(
       width: size.width,
       height: size.height,
     });
-  }
+
+    let window_size = window.inner_size();
+
+    Some(WebviewBounds {
+      x_rate: (position.x as f32) / window_size.width as f32,
+      y_rate: (position.y as f32) / window_size.height as f32,
+      width_rate: (size.width as f32) / window_size.width as f32,
+      height_rate: (size.height as f32) / window_size.height as f32,
+    })
+  } else {
+    None
+  };
 
   if let Some(page_load_handler) = pending.on_page_load_handler {
     webview_builder = webview_builder.with_on_page_load_handler(move |event, url| {
@@ -3172,6 +3206,7 @@ fn create_webview<T: UserEvent>(
     } else {
       web_context_key
     },
+    bounds: webview_bounds,
   })
 }
 

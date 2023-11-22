@@ -2626,7 +2626,7 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::Webview(id, webview_message) => match webview_message {
       WebviewMessage::EvaluateScript(script, tx, span) => {
-        let _guard = span.entered();
+        let _span = span.entered();
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
           windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {

@@ -94,6 +94,7 @@ png = { version = "0.17", optional = true }
 ico = { version = "0.2.0", optional = true }
 encoding_rs = "0.8.31"
 sys-locale = { version = "0.2.3", optional = true }
+tracing = "0.1"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 rfd = { version = "0.10", optional = true, features = [ "gtk3", "common-controls-v6" ] }

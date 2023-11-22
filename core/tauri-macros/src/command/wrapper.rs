@@ -161,20 +161,34 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   }
 
   // body to the command wrapper or a `compile_error!` of an error occurred while parsing it.
-  let body = syn::parse::<WrapperAttributes>(attributes)
+  let (body, attributes) = syn::parse::<WrapperAttributes>(attributes)
     .map(|mut attrs| {
       if function.sig.asyncness.is_some() {
         attrs.execution_context = ExecutionContext::Async;
       }
       attrs
     })
-    .and_then(|attrs| match attrs.execution_context {
-      ExecutionContext::Async => body_async(&function, &invoke, attrs.argument_case),
-      ExecutionContext::Blocking => body_blocking(&function, &invoke, attrs.argument_case),
+    .and_then(|attrs| {
+      let body = match attrs.execution_context {
+        ExecutionContext::Async => body_async(&function, &invoke, attrs.argument_case),
+        ExecutionContext::Blocking => body_blocking(&function, &invoke, attrs.argument_case),
+      };
+      body.map(|b| (b, Some(attrs)))
     })
-    .unwrap_or_else(syn::Error::into_compile_error);
+    .unwrap_or_else(|e| (syn::Error::into_compile_error(e), None));
 
   let Invoke { message, resolver } = invoke;
+
+  let kind = match attributes.as_ref().map(|a| &a.execution_context) {
+    Some(ExecutionContext::Async) if function.sig.asyncness.is_none() => "sync_threadpool",
+    Some(ExecutionContext::Async) => "async",
+    Some(ExecutionContext::Blocking) => "sync",
+    _ => "sync",
+  };
+
+  let loc = function.span().start();
+  let line = loc.line;
+  let col = loc.column;
 
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
@@ -192,6 +206,15 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
           let ::tauri::Invoke { message: #message, resolver: #resolver } = $invoke;
+
+          let _span = tracing::debug_span!(
+            "ipc::request::handler",
+            cmd = #message.command(),
+            kind = #kind,
+            loc.line = #line,
+            loc.col = #col,
+            is_internal = false,
+          ).entered();
 
           #body
       }};
@@ -213,11 +236,15 @@ fn body_async(function: &ItemFn, invoke: &Invoke, case: ArgumentCase) -> syn::Re
   let Invoke { message, resolver } = invoke;
   parse_args(function, message, case).map(|args| {
     quote! {
+      use tracing::Instrument;
+
+      let span = tracing::debug_span!("ipc::request::run");
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
         let kind = (&result).async_kind();
         kind.future(result).await
-      });
+      }
+      .instrument(span));
     }
   })
 }
@@ -242,6 +269,7 @@ fn body_blocking(
   });
 
   Ok(quote! {
+    let _span = tracing::debug_span!("ipc::request::run").entered();
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);

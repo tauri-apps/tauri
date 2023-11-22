@@ -593,6 +593,9 @@ impl<R: Runtime> WindowManager<R> {
   ) -> WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, #[allow(unused_mut)] mut request| {
+      let _span =
+        tracing::trace_span!("ipc::request", kind = "post-message", request = request).entered();
+
       let window = Window::new(manager.clone(), window, app_handle.clone());
 
       #[cfg(feature = "isolation")]
@@ -614,9 +617,12 @@ impl<R: Runtime> WindowManager<R> {
 
       match serde_json::from_str::<InvokePayload>(&request) {
         Ok(message) => {
+          let _span = tracing::trace_span!("ipc::request::handle", cmd = message.cmd).entered();
+
           let _ = window.on_message(message);
         }
         Err(e) => {
+          tracing::trace!("ipc::request::error {}", e);
           let error: crate::Error = e.into();
           let _ = window.eval(&format!(
             r#"console.error({})"#,
@@ -954,7 +960,7 @@ impl<R: Runtime> WindowManager<R> {
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(app, &self.inner.config.plugins)
+      .initialize_all(app, &self.inner.config.plugins)
   }
 
   pub fn prepare_window(
@@ -1144,6 +1150,7 @@ impl<R: Runtime> WindowManager<R> {
     S: Serialize + Clone,
     F: Fn(&Window<R>) -> bool,
   {
+    let _span = tracing::debug_span!("emit::run").entered();
     let emit_args = WindowEmitArgs::from(event, source_window_label, payload)?;
     assert_event_name_is_valid(event);
     self

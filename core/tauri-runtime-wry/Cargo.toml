@@ -13,12 +13,13 @@ exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.24.4", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { git = "https://github.com/crabnebula-dev/wry", branch = "feat/0.24-tracing", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.14.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.5.0", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
+tracing = "0.1"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"

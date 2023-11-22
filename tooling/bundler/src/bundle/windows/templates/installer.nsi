@@ -40,6 +40,7 @@ ${StrLoc}
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 !define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
+!define ESTIMATEDSIZE "{{estimated_size}}"
 
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
@@ -522,31 +523,25 @@ SectionEnd
   app_check_done:
 !macroend
 
-Var AppSize
 Section Install
   SetOutPath $INSTDIR
-  StrCpy $AppSize 0
 
   !insertmacro CheckIfAppIsRunning
 
   ; Copy main executable
   File "${MAINBINARYSRCPATH}"
-  ${GetSize} "$INSTDIR" "/M=${MAINBINARYNAME}.exe /S=0B" $0 $1 $2
-  IntOp $AppSize $AppSize + $0
 
   ; Copy resources
+  {{#each resources_dirs}}
+    CreateDirectory "$INSTDIR\\{{this}}"
+  {{/each}}
   {{#each resources}}
-    CreateDirectory "$INSTDIR\\{{this.[0]}}"
     File /a "/oname={{this.[1]}}" "{{@key}}"
-    ${GetSize} "$INSTDIR" "/M={{this.[1]}} /S=0B" $0 $1 $2
-    IntOp $AppSize $AppSize + $0
   {{/each}}
 
   ; Copy external binaries
   {{#each binaries}}
     File /a "/oname={{this}}" "{{@key}}"
-    ${GetSize} "$INSTDIR" "/M={{this}} /S=0B" $0 $1 $2
-    IntOp $AppSize $AppSize + $0
   {{/each}}
 
   ; Create uninstaller
@@ -570,9 +565,7 @@ Section Install
   WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
-  IntOp $AppSize $AppSize / 1000
-  IntFmt $AppSize "0x%08X" $AppSize
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "$AppSize"
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
 
   ; Create start menu shortcut (GUI)
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
@@ -629,7 +622,6 @@ Section Uninstall
   ; Delete resources
   {{#each resources}}
     Delete "$INSTDIR\\{{this.[1]}}"
-    RMDir "$INSTDIR\\{{this.[0]}}"
   {{/each}}
 
   ; Delete external binaries
@@ -640,7 +632,14 @@ Section Uninstall
   ; Delete uninstaller
   Delete "$INSTDIR\uninstall.exe"
 
-  RMDir "$INSTDIR"
+  ${If} $DeleteAppDataCheckboxState == 1
+    RMDir /R /REBOOTOK "$INSTDIR"
+  ${Else}
+    {{#each resources_ancestors}}
+    RMDir /REBOOTOK "$INSTDIR\\{{this}}"
+    {{/each}}
+    RMDir "$INSTDIR"
+  ${EndIf}
 
   ; Remove start menu shortcut
   !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder

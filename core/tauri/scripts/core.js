@@ -13,6 +13,16 @@
     })
   }
 
+  const osName = __TEMPLATE_os_name__
+  const protocolScheme = __TEMPLATE_protocol_scheme__
+
+  window.__TAURI__.convertFileSrc = function convertFileSrc(filePath, protocol = 'asset') {
+    const path = encodeURIComponent(filePath)
+    return osName === 'windows'
+      ? `${protocolScheme}://${protocol}.localhost/${path}`
+      : `${protocol}://localhost/${path}`
+  }
+
   window.__TAURI__.transformCallback = function transformCallback(
     callback,
     once

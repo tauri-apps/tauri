@@ -24,6 +24,7 @@ use std::io::{BufReader, Write};
 use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
   ffi::OsString,
+  io::BufRead,
   sync::{Arc, Mutex},
 };
 
@@ -226,17 +227,18 @@ impl CommandExt for Command {
     let stdout_lines = Arc::new(Mutex::new(Vec::new()));
     let stdout_lines_ = stdout_lines.clone();
     std::thread::spawn(move || {
-      let mut buf = Vec::new();
+      let mut line = String::new();
       let mut lines = stdout_lines_.lock().unwrap();
       loop {
-        buf.clear();
-        match tauri_utils::io::read_line(&mut stdout, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        line.clear();
+        match stdout.read_line(&mut line) {
+          Ok(0) => break,
+          Ok(_) => {
+            debug!(action = "stdout"; "{}", line.trim_end());
+            lines.extend(line.as_bytes().to_vec());
+          }
+          Err(_) => (),
         }
-        debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
-        lines.extend(buf.clone());
-        lines.push(b'\n');
       }
     });
 
@@ -244,17 +246,18 @@ impl CommandExt for Command {
     let stderr_lines = Arc::new(Mutex::new(Vec::new()));
     let stderr_lines_ = stderr_lines.clone();
     std::thread::spawn(move || {
-      let mut buf = Vec::new();
+      let mut line = String::new();
       let mut lines = stderr_lines_.lock().unwrap();
       loop {
-        buf.clear();
-        match tauri_utils::io::read_line(&mut stderr, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
+        line.clear();
+        match stderr.read_line(&mut line) {
+          Ok(0) => break,
+          Ok(_) => {
+            debug!(action = "stderr"; "{}", line.trim_end());
+            lines.extend(line.as_bytes().to_vec());
+          }
+          Err(_) => (),
         }
-        debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
-        lines.extend(buf.clone());
-        lines.push(b'\n');
       }
     });
 

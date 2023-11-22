@@ -1,23 +1,10 @@
 {
   "name": "@tauri-apps/api",
-  "version": "1.4.0",
+  "version": "1.5.1",
   "description": "Tauri API definitions",
-  "type": "module",
   "funding": {
     "type": "opencollective",
     "url": "https://opencollective.com/tauri"
-  },
-  "exports": {
-    "./package.json": "./package.json"
-  },
-  "scripts": {
-    "build": "yarn tsup && node ./scripts/after-build.cjs",
-    "npm-pack": "yarn build && cd ./dist && npm pack",
-    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
-    "lint": "eslint --ext ts \"./src/**/*.ts\"",
-    "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
-    "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path ../../.prettierignore",
-    "format:check": "prettier --check --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path ../../.prettierignore"
   },
   "repository": {
     "type": "git",
@@ -31,31 +18,45 @@
     "url": "https://github.com/tauri-apps/tauri/issues"
   },
   "homepage": "https://github.com/tauri-apps/tauri#readme",
-  "publishConfig": {
-    "access": "public"
+  "type": "module",
+  "types": "./types/index.d.ts",
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "rollup -c --configPlugin typescript",
+    "npm-pack": "yarn build && cd ./dist && npm pack",
+    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
+    "ts:check": "tsc -noEmit",
+    "lint": "eslint --ext ts \"./src/**/*.ts\"",
+    "lint:fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
+    "format": "prettier --write . --config ../../.prettierrc --ignore-path .gitignore --ignore-path ../../.prettierignore",
+    "format:check": "prettier --check . --config ../../.prettierrc --ignore-path .gitignore --ignore-path ../../.prettierignore"
+  },
+  "devDependencies": {
+    "@rollup/plugin-terser": "0.4.4",
+    "@rollup/plugin-typescript": "11.1.5",
+    "@types/node": "20.9.0",
+    "@typescript-eslint/eslint-plugin": "5.62.0",
+    "eslint-config-standard-with-typescript": "34.0.1",
+    "@typescript-eslint/parser": "5.62.0",
+    "eslint": "8.53.0",
+    "eslint-config-prettier": "8.10.0",
+    "eslint-plugin-import": "2.29.0",
+    "eslint-plugin-n": "15.7.0",
+    "eslint-plugin-node": "11.1.0",
+    "eslint-plugin-promise": "6.1.1",
+    "eslint-plugin-security": "1.7.1",
+    "fast-glob": "3.3.2",
+    "prettier": "3.0.3",
+    "rollup": "3.29.4",
+    "typescript": "5.2.2"
   },
   "engines": {
     "node": ">= 14.6.0",
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
-  },
-  "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "5.62.0",
-    "@typescript-eslint/parser": "5.62.0",
-    "eslint": "8.46.0",
-    "eslint-config-prettier": "8.10.0",
-    "eslint-config-standard-with-typescript": "34.0.1",
-    "eslint-plugin-import": "2.28.0",
-    "eslint-plugin-n": "15.7.0",
-    "eslint-plugin-node": "11.1.0",
-    "eslint-plugin-promise": "6.1.1",
-    "eslint-plugin-security": "1.7.1",
-    "prettier": "2.8.8",
-    "tsup": "6.7.0",
-    "typescript": "5.1.6"
-  },
-  "resolutions": {
-    "semver": ">=7.5.2",
-    "optionator": ">=0.9.3"
   }
 }

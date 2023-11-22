@@ -99,12 +99,17 @@ struct Ipc(Mutex<HashMap<IpcKey, Sender<std::result::Result<JsonValue, JsonValue
 
 /// An empty [`Assets`] implementation.
 pub struct NoopAsset {
+  assets: HashMap<&'static str, &'static [u8]>,
   csp_hashes: Vec<CspHash<'static>>,
 }
 
 impl Assets for NoopAsset {
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     None
+  }
+
+  fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    Box::new(self.assets.iter())
   }
 
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
@@ -115,6 +120,7 @@ impl Assets for NoopAsset {
 /// Creates a new empty [`Assets`] implementation.
 pub fn noop_assets() -> NoopAsset {
   NoopAsset {
+    assets: Default::default(),
     csp_hashes: Default::default(),
   }
 }

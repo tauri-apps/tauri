@@ -77,7 +77,7 @@ Documentation in a polyglot system is a tricky proposition. To this end, we pref
   </tbody>
 </table>
 
-For a list of more of our sponsors please visit our [website](https://tauri.app#sponsors) and [Open Collective](https://opencollective.com/tauri).
+For the complete list of sponsors please visit our [website](https://tauri.app#sponsors) and [Open Collective](https://opencollective.com/tauri).
 
 ## Organization
 

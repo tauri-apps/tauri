@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, Template};
 use std::{future::Future, sync::Arc};
+#[cfg(feature = "tracing")]
 use tracing::Instrument;
 
 use tauri_macros::default_runtime;
@@ -182,13 +183,16 @@ impl<R: Runtime> InvokeResolver<R> {
     T: Serialize,
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
-    let span = tracing::trace_span!("ipc::request::respond");
-    crate::async_runtime::spawn(
-      async move {
-        Self::return_task(self.window, task, self.callback, self.error).await;
-      }
-      .instrument(span),
-    );
+    let task = async move {
+      Self::return_task(self.window, task, self.callback, self.error).await;
+    };
+    #[cfg(feature = "tracing")]
+    {
+      let span = tracing::trace_span!("ipc::request::respond");
+      crate::async_runtime::spawn(task.instrument(span));
+    }
+    #[cfg(not(feature = "tracing"))]
+    crate::async_runtime::spawn(task);
   }
 
   /// Reply to the invoke promise with an async task which is already serialized.
@@ -196,33 +200,39 @@ impl<R: Runtime> InvokeResolver<R> {
   where
     F: Future<Output = Result<JsonValue, InvokeError>> + Send + 'static,
   {
-    let span = tracing::trace_span!("ipc::request::respond");
-    crate::async_runtime::spawn(
-      async move {
-        let response = match task.await {
-          Ok(ok) => InvokeResponse::Ok(ok),
-          Err(err) => InvokeResponse::Err(err),
-        };
-        Self::return_result(self.window, response, self.callback, self.error)
-      }
-      .instrument(span),
-    );
+    let task = async move {
+      let response = match task.await {
+        Ok(ok) => InvokeResponse::Ok(ok),
+        Err(err) => InvokeResponse::Err(err),
+      };
+      Self::return_result(self.window, response, self.callback, self.error)
+    };
+    #[cfg(feature = "tracing")]
+    {
+      let span = tracing::trace_span!("ipc::request::respond");
+      crate::async_runtime::spawn(task.instrument(span));
+    }
+    #[cfg(not(feature = "tracing"))]
+    crate::async_runtime::spawn(task);
   }
 
   /// Reply to the invoke promise with a serializable value.
   pub fn respond<T: Serialize>(self, value: Result<T, InvokeError>) {
+    #[cfg(feature = "tracing")]
     let _span = tracing::trace_span!("ipc::request::respond").entered();
     Self::return_result(self.window, value.into(), self.callback, self.error)
   }
 
   /// Resolve the invoke promise with a value.
   pub fn resolve<T: Serialize>(self, value: T) {
+    #[cfg(feature = "tracing")]
     let _span = tracing::trace_span!("ipc::request::respond").entered();
     Self::return_result(self.window, Ok(value).into(), self.callback, self.error)
   }
 
   /// Reject the invoke promise with a value.
   pub fn reject<T: Serialize>(self, value: T) {
+    #[cfg(feature = "tracing")]
     let _span = tracing::trace_span!("ipc::request::respond").entered();
     Self::return_result(
       self.window,
@@ -234,6 +244,7 @@ impl<R: Runtime> InvokeResolver<R> {
 
   /// Reject the invoke promise with an [`InvokeError`].
   pub fn invoke_error(self, error: InvokeError) {
+    #[cfg(feature = "tracing")]
     let _span = tracing::trace_span!("ipc::request::respond").entered();
     Self::return_result(self.window, error.into(), self.callback, self.error)
   }
@@ -271,6 +282,7 @@ impl<R: Runtime> InvokeResolver<R> {
     success_callback: CallbackFn,
     error_callback: CallbackFn,
   ) {
+    #[cfg(feature = "tracing")]
     let _span =
       tracing::trace_span!("ipc::request::response", response = format!("{response:?}")).entered();
     (window.invoke_responder())(window, response, success_callback, error_callback);
@@ -283,6 +295,7 @@ pub fn window_invoke_responder<R: Runtime>(
   success_callback: CallbackFn,
   error_callback: CallbackFn,
 ) {
+  #[cfg(feature = "tracing")]
   let _span = tracing::trace_span!("ipc::request::eval_response").entered();
   let callback_string =
     match format_callback_result(response.into_result(), success_callback, error_callback) {

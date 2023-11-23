@@ -469,7 +469,7 @@ impl<R: Runtime> AppHandle<R> {
   ///     Ok(())
   ///   });
   /// ```
-  #[tracing::instrument(name = "app::plugin::register", skip(plugin), fields(name = plugin.name()))]
+  #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::plugin::register", skip(plugin), fields(name = plugin.name())))]
   pub fn plugin<P: Plugin<R> + 'static>(&self, plugin: P) -> crate::Result<()> {
     let mut plugin = Box::new(plugin) as Box<dyn Plugin<R>>;
 
@@ -896,7 +896,7 @@ impl<R: Runtime> App<R> {
   /// }
   /// ```
   #[cfg(desktop)]
-  #[tracing::instrument(name = "app::run_iteration")]
+  #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::run_iteration"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
     let app_handle = self.handle();
@@ -1541,7 +1541,10 @@ impl<R: Runtime> Builder<R> {
 
   /// Builds the application.
   #[allow(clippy::type_complexity)]
-  #[tracing::instrument(name = "app::build", skip_all)]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(name = "app::build", skip_all)
+  )]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {

@@ -620,6 +620,7 @@ impl<R: Runtime> PluginStore<R> {
   /// Runs the created hook for all plugins in the store.
   pub(crate) fn created(&mut self, window: Window<R>) {
     self.store.values_mut().for_each(|plugin| {
+      #[cfg(feature = "tracing")]
       let _span = tracing::trace_span!("plugin::hooks::created", name = plugin.name()).entered();
       plugin.created(window.clone())
     })
@@ -628,6 +629,7 @@ impl<R: Runtime> PluginStore<R> {
   /// Runs the on_page_load hook for all plugins in the store.
   pub(crate) fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
     self.store.values_mut().for_each(|plugin| {
+      #[cfg(feature = "tracing")]
       let _span =
         tracing::trace_span!("plugin::hooks::on_page_load", name = plugin.name()).entered();
       plugin.on_page_load(window.clone(), payload.clone())
@@ -653,6 +655,7 @@ impl<R: Runtime> PluginStore<R> {
         .next()
         .map(|c| c.to_string())
         .unwrap_or_else(String::new);
+      #[cfg(feature = "tracing")]
       let _span = tracing::trace_span!("plugin::hooks::ipc", name = plugin.name()).entered();
       plugin.extend_api(invoke);
     } else {
@@ -661,7 +664,7 @@ impl<R: Runtime> PluginStore<R> {
   }
 }
 
-#[tracing::instrument(name = "plugin::hooks::initialize", skip(plugin), fields(name = plugin.name()))]
+#[cfg_attr(feature = "tracing", tracing::instrument(name = "plugin::hooks::initialize", skip(plugin), fields(name = plugin.name())))]
 fn initialize<R: Runtime>(
   plugin: &mut Box<dyn Plugin<R>>,
   app: &AppHandle<R>,

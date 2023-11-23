@@ -625,7 +625,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   app.emit_all("synchronized", ());
   /// }
   /// ```
-  #[tracing::instrument("app::emit::all", skip(self, payload))]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::all", skip(self, payload))
+  )]
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, None, payload, |_| true)
   }
@@ -642,7 +645,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   app.emit_filter("synchronized", (), |w| w.label().starts_with("foo-"));
   /// }
   /// ```
-  #[tracing::instrument("app::emit::filter", skip(self, payload, filter))]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::filter", skip(self, payload, filter))
+  )]
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
@@ -666,7 +672,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   }
   /// }
   /// ```
-  #[tracing::instrument("app::emit::to", skip(self, payload))]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::to", skip(self, payload))
+  )]
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
@@ -731,7 +740,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   }
   /// }
   /// ```
-  #[tracing::instrument("app::emit::rust", skip(self))]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::rust", skip(self))
+  )]
   fn trigger_global(&self, event: &str, data: Option<String>) {
     self.manager().trigger(event, None, data)
   }

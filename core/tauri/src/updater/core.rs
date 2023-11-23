@@ -19,6 +19,7 @@ use semver::Version;
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use tauri_utils::{platform::current_exe, Env};
 use time::OffsetDateTime;
+#[cfg(feature = "tracing")]
 use tracing::Instrument;
 use url::Url;
 
@@ -313,7 +314,10 @@ impl<R: Runtime> UpdateBuilder<R> {
     Ok(self)
   }
 
-  #[tracing::instrument("updater::check", skip_all, fields(arch, target), ret, err)]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("updater::check", skip_all, fields(arch, target), ret, err)
+  )]
   pub async fn build(mut self) -> Result<Update<R>> {
     let mut remote_release: Option<RemoteRelease> = None;
 
@@ -337,8 +341,11 @@ impl<R: Runtime> UpdateBuilder<R> {
       (target.to_string(), format!("{target}-{arch}"))
     };
 
-    tracing::Span::current().record("arch", arch);
-    tracing::Span::current().record("target", &target);
+    #[cfg(feature = "tracing")]
+    {
+      tracing::Span::current().record("arch", arch);
+      tracing::Span::current().record("target", &target);
+    }
 
     // Get the extract_path from the provided executable_path
     let extract_path = extract_path_from_executable(&self.app.state::<Env>(), &executable_path);
@@ -375,6 +382,7 @@ impl<R: Runtime> UpdateBuilder<R> {
         .replace("{{target}}", &target)
         .replace("{{arch}}", arch);
 
+      #[cfg(feature = "tracing")]
       tracing::debug!("checking if there is an update via {}", url);
 
       let mut request = HttpRequestBuilder::new("GET", &fixed_link)?.headers(headers.clone());
@@ -534,7 +542,7 @@ impl<R: Runtime> Update<R> {
 
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
-  #[tracing::instrument("updater::download_and_install", skip_all, fields(url = %self.download_url), ret, err)]
+  #[cfg_attr(feature = "tracing", tracing::instrument("updater::download_and_install", skip_all, fields(url = %self.download_url), ret, err))]
   pub async fn download_and_install<C: Fn(usize, Option<u64>), D: FnOnce()>(
     &self,
     pub_key: String,
@@ -548,6 +556,7 @@ impl<R: Runtime> Update<R> {
     // anything with it yet
     #[cfg(target_os = "linux")]
     if self.app.state::<Env>().appimage.is_none() {
+      #[cfg(feature = "tracing")]
       tracing::error!(
         "app is not a supported Linux package. Currently only AppImages are supported"
       );
@@ -572,11 +581,13 @@ impl<R: Runtime> Update<R> {
       req = req.timeout(timeout);
     }
 
+    #[cfg(feature = "tracing")]
     tracing::info!("Downloading update");
     let response = client.send(req).await?;
 
     // make sure it's success
     if !response.status().is_success() {
+      #[cfg(feature = "tracing")]
       tracing::error!("Failed to download update");
       return Err(Error::Network(format!(
         "Download request failed with status: {}",
@@ -593,8 +604,8 @@ impl<R: Runtime> Update<R> {
     let buffer = {
       use futures_util::StreamExt;
       let mut stream = response.bytes_stream();
-      let span = tracing::info_span!("updater::download_and_install::stream");
-      async move {
+
+      let task = async move {
         let mut buffer = Vec::new();
         while let Some(chunk) = stream.next().await {
           let chunk = chunk?;
@@ -603,9 +614,17 @@ impl<R: Runtime> Update<R> {
           buffer.extend(bytes);
         }
         Result::Ok(buffer)
+      };
+
+      #[cfg(feature = "tracing")]
+      {
+        let span = tracing::info_span!("updater::download_and_install::stream");
+        task.instrument(span).await
       }
-      .instrument(span)
-      .await
+      #[cfg(not(feature = "tracing"))]
+      {
+        task.await
+      }
     }?;
 
     on_download_finish();
@@ -620,6 +639,7 @@ impl<R: Runtime> Update<R> {
     // TODO: implement updater in mobile
     #[cfg(desktop)]
     {
+      #[cfg(feature = "tracing")]
       tracing::info_span!("updater::download_and_install::install");
       // we copy the files depending of the operating system
       // we run the setup, appimage re-install or overwrite the

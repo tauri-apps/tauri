@@ -68,6 +68,7 @@ impl WindowEmitArgs {
     source_window_label: Option<&str>,
     payload: S,
   ) -> crate::Result<Self> {
+    #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("window::emit::serialize").entered();
     Ok(WindowEmitArgs {
       event: serde_json::to_string(event)?,
@@ -322,7 +323,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   }
 
   /// Creates a new webview window.
-  #[tracing::instrument(name = "window::create")]
+  #[cfg_attr(feature = "tracing", tracing::instrument(name = "window::create"))]
   pub fn build(mut self) -> crate::Result<Window<R>> {
     let mut pending = PendingWindow::new(
       self.window_builder.clone(),
@@ -778,7 +779,10 @@ impl<R: Runtime> PartialEq for Window<R> {
 }
 
 impl<R: Runtime> Manager<R> for Window<R> {
-  #[tracing::instrument("window::emit::to", skip(self, payload))]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::emit::to", skip(self, payload))
+  )]
   fn emit_to<S: Serialize + Clone>(
     &self,
     label: &str,
@@ -790,7 +794,10 @@ impl<R: Runtime> Manager<R> for Window<R> {
       .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
   }
 
-  #[tracing::instrument("window::emit::all", skip(self, payload))]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::emit::all", skip(self, payload))
+  )]
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager()
@@ -1795,14 +1802,14 @@ impl<R: Runtime> Window<R> {
     self.emit(event, payload)
   }
 
-  #[tracing::instrument(
+  #[cfg_attr(feature = "tracing", tracing::instrument(
     "window::emit::eval",
     skip(emit_args),
     fields(
       event = emit_args.event,
       source_window = emit_args.source_window_label,
       payload = emit_args.payload
-    )
+    ))
   )]
   pub(crate) fn emit_internal(&self, emit_args: &WindowEmitArgs) -> crate::Result<()> {
     self.eval(&format!(
@@ -1830,7 +1837,10 @@ impl<R: Runtime> Window<R> {
   ///   }
   /// }
   /// ```
-  #[tracing::instrument("window::emit", skip(self, payload))]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::emit", skip(self, payload))
+  )]
   pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager
@@ -1923,7 +1933,10 @@ impl<R: Runtime> Window<R> {
   ///   }
   /// }
   /// ```
-  #[tracing::instrument("window::trigger", skip(self))]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::trigger", skip(self))
+  )]
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)

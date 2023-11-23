@@ -19,7 +19,7 @@ tauri-utils = { version = "1.5.0", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
-tracing = "0.1"
+tracing = { version = "0.1", optional = true }
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"
@@ -49,3 +49,4 @@ objc-exception = [ "wry/objc-exception" ]
 global-shortcut = [ "tauri-runtime/global-shortcut" ]
 clipboard = [ "tauri-runtime/clipboard" ]
 linux-headers = [ "wry/linux-headers", "webkit2gtk/v2_36" ]
+tracing = [ "dep:tracing" ]

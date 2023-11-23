@@ -627,6 +627,10 @@ impl<R: Runtime> WindowManager<R> {
     })
   }
 
+  pub fn asset_iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    self.inner.assets.iter()
+  }
+
   pub fn get_asset(&self, mut path: String) -> Result<Asset, Box<dyn std::error::Error>> {
     let assets = &self.inner.assets;
     if path.ends_with('/') {

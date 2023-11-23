@@ -13,8 +13,8 @@ use sha2::Digest;
 use zip::ZipArchive;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
-pub const WEBVIEW2_X86_OFFLINE_INSTALLER_GUID: &str = "2c122012-898d-4a69-9ab6-aa50bbe81031";
-pub const WEBVIEW2_X64_OFFLINE_INSTALLER_GUID: &str = "0af26c79-02f0-4f06-a12d-116bc05ca860";
+pub const WEBVIEW2_X86_OFFLINE_INSTALLER_GUID: &str = "102e2c62-f0d7-4f1c-bb31-c7f7f80d95a9";
+pub const WEBVIEW2_X64_OFFLINE_INSTALLER_GUID: &str = "e95be380-76c6-4632-b1b2-2a5d424b61aa";
 pub const NSIS_OUTPUT_FOLDER_NAME: &str = "nsis";
 pub const NSIS_UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
 pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";

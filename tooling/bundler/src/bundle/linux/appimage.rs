@@ -108,7 +108,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Command::new(&sh_file)
     .current_dir(output_path)
     .output_ok()
-    .context("error running appimage.sh")?;
+    .context("error running build_appimage.sh")?;
 
   remove_dir_all(&package_dir)?;
   Ok(vec![appimage_path])

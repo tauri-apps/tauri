@@ -4829,8 +4829,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.24.4"
-source = "git+https://github.com/crabnebula-dev/wry?branch=feat/0.24-tracing#d55032d68a72ac91b5de5cdd57cbfd6eb6d989e0"
+version = "0.24.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64a70547e8f9d85da0f5af609143f7bde3ac7457a6e1073104d9b73d6c5ac744"
 dependencies = [
  "base64 0.13.1",
  "block",
@@ -4856,7 +4857,6 @@ dependencies = [
  "soup2",
  "tao",
  "thiserror",
- "tracing",
  "url",
  "webkit2gtk",
  "webkit2gtk-sys",

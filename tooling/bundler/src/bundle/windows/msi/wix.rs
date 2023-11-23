@@ -484,7 +484,7 @@ pub fn build_wix_app_installer(
       );
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
-      let webview2_installer_path = tauri_tools_path.join(format!(
+      let webview2_installer_path = output_path.join(format!(
         "MicrosoftEdgeWebView2RuntimeInstaller{}.exe",
         arch.to_uppercase()
       ));

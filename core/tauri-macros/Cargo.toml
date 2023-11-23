@@ -16,7 +16,7 @@ readme = "README.md"
 proc-macro = true
 
 [dependencies]
-proc-macro2 = { version = "1.0.60", features = ["span-locations"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"
 syn = { version = "1", features = [ "full" ] }
 heck = "0.4"

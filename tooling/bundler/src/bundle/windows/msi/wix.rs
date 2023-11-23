@@ -11,8 +11,8 @@ use crate::bundle::{
     sign::try_sign,
     util::{
       download, download_and_verify, extract_zip, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
-      WEBVIEW2_X64_OFFLINE_INSTALLER_GUID, WEBVIEW2_X86_OFFLINE_INSTALLER_GUID,
-      WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
+      WEBVIEW2_INSTALLER_X64_URL, WEBVIEW2_INSTALLER_X86_URL, WIX_OUTPUT_FOLDER_NAME,
+      WIX_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
 };
@@ -484,31 +484,16 @@ pub fn build_wix_app_installer(
       );
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
-      let guid = if arch == "x64" {
-        WEBVIEW2_X64_OFFLINE_INSTALLER_GUID
+      let webview2_installer_path = tauri_tools_path.join(format!(
+        "MicrosoftEdgeWebView2RuntimeInstaller{}.exe",
+        arch.to_uppercase()
+      ));
+      let webiew2_installer_url = if arch == "x64" {
+        WEBVIEW2_INSTALLER_X64_URL
       } else {
-        WEBVIEW2_X86_OFFLINE_INSTALLER_GUID
+        WEBVIEW2_INSTALLER_X86_URL
       };
-      let offline_installer_path = dirs_next::cache_dir()
-        .unwrap()
-        .join("tauri")
-        .join("Webview2OfflineInstaller")
-        .join(guid)
-        .join(arch);
-      create_dir_all(&offline_installer_path)?;
-      let webview2_installer_path =
-        offline_installer_path.join("MicrosoftEdgeWebView2RuntimeInstaller.exe");
-      if !webview2_installer_path.exists() {
-        std::fs::write(
-          &webview2_installer_path,
-          download(
-            &format!("https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/{}/MicrosoftEdgeWebView2RuntimeInstaller{}.exe",
-              guid,
-              arch.to_uppercase(),
-            ),
-          )?,
-        )?;
-      }
+      std::fs::write(&webview2_installer_path, download(webiew2_installer_url)?)?;
       data.insert("webview2_installer_path", to_json(webview2_installer_path));
     }
   }

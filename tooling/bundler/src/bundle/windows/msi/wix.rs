@@ -11,7 +11,7 @@ use crate::bundle::{
     sign::try_sign,
     util::{
       download, download_and_verify, extract_zip, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
-      WEBVIEW2_INSTALLER_X64_URL, WEBVIEW2_INSTALLER_X86_URL, WIX_OUTPUT_FOLDER_NAME,
+      WEBVIEW2_OFFLINE_INSTALLER_X64_URL, WEBVIEW2_OFFLINE_INSTALLER_X86_URL, WIX_OUTPUT_FOLDER_NAME,
       WIX_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
@@ -489,9 +489,9 @@ pub fn build_wix_app_installer(
         arch.to_uppercase()
       ));
       let webiew2_installer_url = if arch == "x64" {
-        WEBVIEW2_INSTALLER_X64_URL
+        WEBVIEW2_OFFLINE_INSTALLER_X64_URL
       } else {
-        WEBVIEW2_INSTALLER_X86_URL
+        WEBVIEW2_OFFLINE_INSTALLER_X86_URL
       };
       std::fs::write(&webview2_installer_path, download(webiew2_installer_url)?)?;
       data.insert("webview2_installer_path", to_json(webview2_installer_path));

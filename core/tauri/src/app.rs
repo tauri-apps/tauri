@@ -357,6 +357,11 @@ impl<R: Runtime> AssetResolver<R> {
   pub fn get(&self, path: String) -> Option<Asset> {
     self.manager.get_asset(path).ok()
   }
+
+  /// Iterate on all assets.
+  pub fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    self.manager.asset_iter()
+  }
 }
 
 /// A handle to the currently running application.

@@ -35,7 +35,7 @@ pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
       final_url
     )
   })?;
-  let (guid, filename) = remaining_url.split_once("/").ok_or_else(|| {
+  let (guid, filename) = remaining_url.split_once('/').ok_or_else(|| {
     anyhow::anyhow!(
       "WebView2 URL format mismatch. Expected `<GUID>/<FILENAME>`, found `{}`.",
       remaining_url

@@ -13,12 +13,36 @@ use sha2::Digest;
 use zip::ZipArchive;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
-pub const WEBVIEW2_OFFLINE_INSTALLER_X86_URL: &str = "https://go.microsoft.com/fwlink/?linkid=2099617";
-pub const WEBVIEW2_OFFLINE_INSTALLER_X64_URL: &str = "https://go.microsoft.com/fwlink/?linkid=2124701";
+pub const WEBVIEW2_OFFLINE_INSTALLER_X86_URL: &str =
+  "https://go.microsoft.com/fwlink/?linkid=2099617";
+pub const WEBVIEW2_OFFLINE_INSTALLER_X64_URL: &str =
+  "https://go.microsoft.com/fwlink/?linkid=2124701";
+pub const WEBVIEW2_URL_PREFIX: &str =
+  "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/";
 pub const NSIS_OUTPUT_FOLDER_NAME: &str = "nsis";
 pub const NSIS_UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
 pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
 pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
+
+pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
+  let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
+  let response = agent.head(url).call().map_err(Box::new)?;
+  let final_url = response.get_url();
+  let remaining_url = final_url.strip_prefix(WEBVIEW2_URL_PREFIX).ok_or_else(|| {
+    anyhow::anyhow!(
+      "WebView2 URL prefix mismatch. Expected `{}`, found `{}`.",
+      WEBVIEW2_URL_PREFIX,
+      final_url
+    )
+  })?;
+  let (guid, filename) = remaining_url.split_once("/").ok_or_else(|| {
+    anyhow::anyhow!(
+      "WebView2 URL format mismatch. Expected `<GUID>/<FILENAME>`, found `{}`.",
+      remaining_url
+    )
+  })?;
+  Ok((guid.into(), filename.into()))
+}
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);

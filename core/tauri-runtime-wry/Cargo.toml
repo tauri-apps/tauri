@@ -33,7 +33,7 @@ webkit2gtk = { version = "=2.0", features = [ "v2_38" ] }
 percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
-cocoa = "0.24"
+cocoa = "0.25"
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"

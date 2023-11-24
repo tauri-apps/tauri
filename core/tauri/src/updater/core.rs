@@ -496,7 +496,6 @@ pub(crate) fn builder<R: Runtime>(app: AppHandle<R>) -> UpdateBuilder<R> {
   UpdateBuilder::new(app)
 }
 
-#[derive(Debug)]
 pub(crate) struct Update<R: Runtime> {
   /// Application handle.
   pub app: AppHandle<R>,
@@ -527,6 +526,29 @@ pub(crate) struct Update<R: Runtime> {
   timeout: Option<Duration>,
   /// Request headers
   headers: HeaderMap,
+}
+
+impl<R: Runtime> fmt::Debug for Update<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut s = f.debug_struct("Update");
+
+    s.field("current_version", &self.current_version)
+      .field("version", &self.version)
+      .field("date", &self.date)
+      .field("should_update", &self.should_update)
+      .field("body", &self.body)
+      .field("target", &self.target)
+      .field("extract_path", &self.extract_path)
+      .field("download_url", &self.download_url)
+      .field("signature", &self.signature)
+      .field("timeout", &self.timeout)
+      .field("headers", &self.headers);
+
+    #[cfg(target_os = "windows")]
+    s.field("with_elevated_task", &self.with_elevated_task);
+
+    s.finish()
+  }
 }
 
 impl<R: Runtime> Clone for Update<R> {

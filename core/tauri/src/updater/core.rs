@@ -382,41 +382,75 @@ impl<R: Runtime> UpdateBuilder<R> {
         .replace("{{target}}", &target)
         .replace("{{arch}}", arch);
 
-      #[cfg(feature = "tracing")]
-      tracing::debug!("checking if there is an update via {}", url);
+      let task = async {
+        #[cfg(feature = "tracing")]
+        tracing::debug!("checking if there is an update via {}", url);
 
-      let mut request = HttpRequestBuilder::new("GET", &fixed_link)?.headers(headers.clone());
-      if let Some(timeout) = self.timeout {
-        request = request.timeout(timeout);
-      }
-      let resp = ClientBuilder::new().build()?.send(request).await;
+        let mut request = HttpRequestBuilder::new("GET", &fixed_link)?.headers(headers.clone());
+        if let Some(timeout) = self.timeout {
+          request = request.timeout(timeout);
+        }
+        let resp = ClientBuilder::new().build()?.send(request).await;
 
-      // If we got a success, we stop the loop
-      // and we set our remote_release variable
-      if let Ok(res) = resp {
-        let status = res.status();
-        // got status code 2XX
-        if status.is_success() {
-          // if we got 204
-          if status == StatusCode::NO_CONTENT {
-            // return with `UpToDate` error
-            // we should catch on the client
-            return Err(Error::UpToDate);
-          };
-          let res = res.read().await?;
-          // Convert the remote result to our local struct
-          let built_release = serde_json::from_value(res.data).map_err(Into::into);
-          // make sure all went well and the remote data is compatible
-          // with what we need locally
-          match built_release {
-            Ok(release) => {
-              last_error = None;
-              remote_release = Some(release);
-              break;
+        // If we got a success, we stop the loop
+        // and we set our remote_release variable
+        if let Ok(res) = resp {
+          let status = res.status();
+          // got status code 2XX
+          if status.is_success() {
+            // if we got 204
+            if status == StatusCode::NO_CONTENT {
+              #[cfg(feature = "tracing")]
+              tracing::event!(tracing::Level::DEBUG, kind = "result", data = "no content");
+              // return with `UpToDate` error
+              // we should catch on the client
+              return Err(Error::UpToDate);
+            };
+            let res = res.read().await?;
+
+            // Convert the remote result to our local struct
+            let built_release: Result<RemoteRelease> =
+              serde_json::from_value(res.data).map_err(Into::into);
+
+            // make sure all went well and the remote data is compatible
+            // with what we need locally
+            match built_release {
+              Ok(release) => {
+                #[cfg(feature = "tracing")]
+                tracing::event!(
+                  tracing::Level::DEBUG,
+                  kind = "result",
+                  data = tracing::field::debug(&release)
+                );
+                last_error = None;
+                return Ok(Some(release));
+              }
+              Err(err) => {
+                #[cfg(feature = "tracing")]
+                tracing::event!(
+                  tracing::Level::ERROR,
+                  kind = "error",
+                  error = err.to_string()
+                );
+                last_error = Some(err)
+              }
             }
-            Err(err) => last_error = Some(err),
-          }
-        } // if status code is not 2XX we keep loopin' our urls
+          } // if status code is not 2XX we keep loopin' our urls
+        }
+
+        Ok(None)
+      };
+
+      #[cfg(feature = "tracing")]
+      let found_release = {
+        let span = tracing::info_span!("updater::check::fetch", url = &fixed_link,);
+        task.instrument(span).await?
+      };
+      #[cfg(not(feature = "tracing"))]
+      let found_release = task.await?;
+      if let Some(release) = found_release {
+        remote_release.replace(release);
+        break;
       }
     }
 

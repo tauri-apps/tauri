@@ -116,9 +116,9 @@ fn get_app_dir() -> Option<PathBuf> {
 }
 
 pub fn app_dir() -> &'static PathBuf {
-  &APP_DIR.get_or_init(|| {
+  APP_DIR.get_or_init(|| {
     get_app_dir().unwrap_or_else(|| get_tauri_dir().parent().unwrap().to_path_buf())
-  });
+  })
 }
 
 pub fn tauri_dir() -> PathBuf {

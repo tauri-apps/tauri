@@ -17,7 +17,7 @@ use std::{
   sync::{Arc, Mutex, OnceLock},
 };
 
-static CONFING_HANDLE: OnceLock<ConfigHandle> = OnceLock::new(Default::default());
+static CONFING_HANDLE: OnceLock<ConfigHandle> = OnceLock::new();
 
 pub const MERGE_CONFIG_EXTENSION_NAME: &str = "--config";
 
@@ -116,7 +116,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
 }
 
 fn config_handle() -> &'static ConfigHandle {
-  &CONFING_HANDLE
+  CONFING_HANDLE.get_or_init(Default::default)
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.

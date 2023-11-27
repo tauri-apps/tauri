@@ -142,16 +142,28 @@
     )
   }
 
-  // drag region
+  //-----------------------//
+  // data-tauri-drag-region
+  //-----------------------//
+  const TAURI_DRAG_REGION_ATTR = 'data-tauri-drag-region';
+  //drag on mousedown and maximize on double click on Windows and Linux
+  // while macOS macos maximization is on mouseup below
   document.addEventListener('mousedown', (e) => {
-    if (e.target.hasAttribute('data-tauri-drag-region') && e.button === 0) {
+    if (
+      // element has the magic data attribute
+      e.target.hasAttribute(TAURI_DRAG_REGION_ATTR) &&
+      // and was left mouse button
+      e.button === 0 &&
+      // and was normal click to drag or double click to maximize
+      (e.detail === 1 || e.detail === 2) &&
+      // and was on Windows or Linux or was on macOS and we drag only (macos maximization is on mouseup below)
+      (osName !== 'macos' || (osName === 'macOS' && e.detail === 1))
+    ) {
       // prevents text cursor
       e.preventDefault()
       // fix #2549: double click on drag region edge causes content to maximize without window sizing change
       // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
       e.stopImmediatePropagation()
-
-      // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
       window.__TAURI_INVOKE__('tauri', {
         __tauriModule: 'Window',
         message: {
@@ -165,6 +177,32 @@
       })
     }
   })
+  // on macOS we maximze on mouseup instead, to match the system behavior where maximization can be canceled
+  // if the mouse moves outside the data-tauri-drag-region
+  if (osName === "macos") {
+    document.addEventListener('mouseup', (e) => {
+      if (
+        // element has the magic data attribute
+        e.target.hasAttribute(TAURI_DRAG_REGION_ATTR) &&
+        // and was left mouse button
+        e.button === 0 &&
+        // and was double click
+        e.detail === 2
+      ) {
+        window.__TAURI_INVOKE__('tauri', {
+          __tauriModule: 'Window',
+          message: {
+            cmd: 'manage',
+            data: {
+              cmd: {
+                type: '__toggleMaximize'
+              }
+            }
+          }
+        })
+      }
+    })
+  }
 
   let permissionSettable = false
   let permissionValue = 'default'

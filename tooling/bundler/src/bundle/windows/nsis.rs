@@ -312,6 +312,14 @@ fn build_nsis_app_installer(
     data.insert("file_associations", to_json(file_associations));
   }
 
+  if let Some(protocols) = &settings.deep_link_protocols() {
+    let schemes = protocols
+      .iter()
+      .flat_map(|p| &p.schemes)
+      .collect::<Vec<_>>();
+    data.insert("deep_link_protocols", to_json(schemes));
+  }
+
   let silent_webview2_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
   | WebviewInstallMode::EmbedBootstrapper { silent }
   | WebviewInstallMode::OfflineInstaller { silent } =
@@ -429,7 +437,7 @@ fn build_nsis_app_installer(
   }
 
   write_ut16_le_with_bom(
-    &output_path.join("FileAssociation.nsh"),
+    output_path.join("FileAssociation.nsh"),
     include_str!("./templates/FileAssociation.nsh"),
   )?;
 

@@ -22,8 +22,8 @@ pub use tokio::{
 use std::{
   future::Future,
   pin::Pin,
-  task::{Context, Poll},
   sync::OnceLock,
+  task::{Context, Poll},
 };
 
 static RUNTIME: OnceLock<GlobalRuntime> = OnceLock::new();

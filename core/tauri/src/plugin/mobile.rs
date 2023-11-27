@@ -29,7 +29,7 @@ type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>
 #[cfg(mobile)]
 static PENDING_PLUGIN_CALLS_ID: AtomicI32 = AtomicI32::new(0);
 static PENDING_PLUGIN_CALLS: OnceLock<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
-OnceLock::new();
+  OnceLock::new();
 static CHANNELS: OnceLock<Mutex<HashMap<u32, Channel>>> = OnceLock::new();
 
 /// Possible errors when invoking a plugin.

@@ -5,7 +5,6 @@
 use anyhow::Context;
 use json_patch::merge;
 use log::error;
-use once_cell::sync::Lazy;
 use serde_json::Value as JsonValue;
 
 pub use tauri_utils::{config::*, platform::Target};
@@ -15,8 +14,10 @@ use std::{
   env::{current_dir, set_current_dir, set_var, var_os},
   ffi::OsStr,
   process::exit,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, OnceLock},
 };
+
+static CONFING_HANDLE: OnceLock<ConfigHandle> = OnceLock::new(Default::default());
 
 pub const MERGE_CONFIG_EXTENSION_NAME: &str = "--config";
 
@@ -115,7 +116,6 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
 }
 
 fn config_handle() -> &'static ConfigHandle {
-  static CONFING_HANDLE: Lazy<ConfigHandle> = Lazy::new(Default::default);
   &CONFING_HANDLE
 }
 

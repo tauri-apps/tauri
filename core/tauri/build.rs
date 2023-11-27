@@ -4,8 +4,6 @@
 
 use heck::AsShoutySnakeCase;
 
-use once_cell::sync::OnceCell;
-
 use std::env::var_os;
 use std::fs::read_dir;
 use std::fs::read_to_string;
@@ -13,10 +11,10 @@ use std::fs::write;
 use std::{
   env::var,
   path::{Path, PathBuf},
-  sync::Mutex,
+  sync::{Mutex, OnceLock},
 };
 
-static CHECKED_FEATURES: OnceCell<Mutex<Vec<String>>> = OnceCell::new();
+static CHECKED_FEATURES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 
 // checks if the given Cargo feature is enabled.
 fn has_feature(feature: &str) -> bool {

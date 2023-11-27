@@ -14,13 +14,12 @@ use crate::{
 #[cfg(mobile)]
 use std::sync::atomic::{AtomicI32, Ordering};
 
-use once_cell::sync::OnceCell;
 use serde::{de::DeserializeOwned, Serialize};
 
 use std::{
   collections::HashMap,
   fmt,
-  sync::{mpsc::channel, Mutex},
+  sync::{mpsc::channel, Mutex, OnceLock},
 };
 
 type PluginResponse = Result<serde_json::Value, serde_json::Value>;
@@ -29,9 +28,9 @@ type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>
 
 #[cfg(mobile)]
 static PENDING_PLUGIN_CALLS_ID: AtomicI32 = AtomicI32::new(0);
-static PENDING_PLUGIN_CALLS: OnceCell<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
-  OnceCell::new();
-static CHANNELS: OnceCell<Mutex<HashMap<u32, Channel>>> = OnceCell::new();
+static PENDING_PLUGIN_CALLS: OnceLock<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
+OnceLock::new();
+static CHANNELS: OnceLock<Mutex<HashMap<u32, Channel>>> = OnceLock::new();
 
 /// Possible errors when invoking a plugin.
 #[derive(Debug, thiserror::Error)]

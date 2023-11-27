@@ -1212,7 +1212,7 @@
           ]
         },
         "role": {
-          "description": "The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.",
+          "description": "The app's role with respect to the type. Maps to `CFBundleTypeRole` on macOS.",
           "default": "Editor",
           "allOf": [
             {

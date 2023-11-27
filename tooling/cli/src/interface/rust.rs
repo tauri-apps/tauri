@@ -25,15 +25,12 @@ use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings,
 };
-use tauri_utils::config::parse::is_configuration_file;
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
-use crate::{
-  helpers::{
-    app_paths::{app_dir, tauri_dir},
-    config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
-  },
-  plugin,
+use crate::helpers::{
+  app_paths::{app_dir, tauri_dir},
+  config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
 };
 use tauri_utils::{display_path, platform::Target};
 
@@ -694,6 +691,13 @@ pub struct RustAppSettings {
   target: Target,
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum DesktopDeepLinks {
+  One(DeepLinkProtocol),
+  List(Vec<DeepLinkProtocol>),
+}
+
 impl AppSettings for RustAppSettings {
   fn get_package_settings(&self) -> PackageSettings {
     self.package_settings.clone()
@@ -704,28 +708,23 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone()).map(
-      |mut settings| {
-        if let Some(plugin_config) = config
-          .plugins
-          .0
-          .get("deep-link")
-          .and_then(|c| c.get("desktop"))
-          .and_then(|c| c.as_array())
-        {
-          if !plugin_config.is_empty() {
-            let mut protocols = Vec::new();
-            for s in plugin_config {
-              if let Some(s) = s.as_str() {
-                protocols.push(s.to_string());
-              }
-            }
-            settings.deep_link_protocols = Some(protocols);
-          }
-        }
-        settings
-      },
-    )
+    let mut settings =
+      tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone())?;
+
+    if let Some(plugin_config) = config
+      .plugins
+      .0
+      .get("deep-link")
+      .and_then(|c| c.get("desktop").cloned())
+    {
+      let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config.clone())?;
+      settings.deep_link_protocols = Some(match protocols {
+        DesktopDeepLinks::One(p) => vec![p],
+        DesktopDeepLinks::List(p) => p,
+      });
+    }
+
+    Ok(settings)
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {

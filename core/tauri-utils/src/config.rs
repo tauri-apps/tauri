@@ -707,12 +707,26 @@ pub struct FileAssociation {
   pub name: Option<String>,
   /// The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.
   pub description: Option<String>,
-  /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
+  /// The app's role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]
   pub role: BundleTypeRole,
   /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
   #[serde(alias = "mime-type")]
   pub mime_type: Option<String>,
+}
+
+/// File association
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeepLinkProtocol {
+  /// URL schemes to associate with this app without `://`. For example `my-app`
+  pub schemes: Vec<String>,
+  /// The protocol name. macOS-only and maps to `CFBundleTypeName`. Defaults to `<bundle-id>.<schemes[0]>`
+  pub name: Option<String>,
+  /// The app's role for these schemes. macOS-only and maps to `CFBundleTypeRole`.
+  #[serde(default)]
+  pub role: BundleTypeRole,
 }
 
 /// The Updater configuration object.

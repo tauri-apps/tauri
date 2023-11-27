@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, FileAssociation, NSISInstallerMode, NsisCompression},
+  config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -415,7 +415,7 @@ pub struct BundleSettings {
   /// <https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary>
   pub external_bin: Option<Vec<String>>,
   /// Deep-link protocols.
-  pub deep_link_protocols: Option<Vec<String>>,
+  pub deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
   /// MacOS-specific settings.
@@ -835,12 +835,8 @@ impl Settings {
 
   /// Return the list of deep link protocols to be registered for
   /// this bundle.
-  pub fn deep_link_protocols(&self) -> Vec<String> {
-    self
-      .bundle_settings
-      .deep_link_protocols
-      .clone()
-      .unwrap_or_else(Vec::new)
+  pub fn deep_link_protocols(&self) -> &Option<Vec<DeepLinkProtocol>> {
+    &self.bundle_settings.deep_link_protocols
   }
 
   /// Returns the app's short description.

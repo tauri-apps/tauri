@@ -575,8 +575,8 @@ impl<R: Runtime> PluginStore<R> {
   /// Adds a plugin to the store.
   ///
   /// Returns `true` if a plugin with the same name is already in the store.
-  pub fn register<P: Plugin<R> + 'static>(&mut self, plugin: P) -> bool {
-    self.store.insert(plugin.name(), Box::new(plugin)).is_some()
+  pub fn register(&mut self, plugin: Box<dyn Plugin<R>>) -> bool {
+    self.store.insert(plugin.name(), plugin).is_some()
   }
 
   /// Removes the plugin with the given name from the store.
@@ -584,20 +584,26 @@ impl<R: Runtime> PluginStore<R> {
     self.store.remove(plugin).is_some()
   }
 
-  /// Initializes all plugins in the store.
+  /// Initializes the given plugin.
   pub(crate) fn initialize(
+    &self,
+    plugin: &mut Box<dyn Plugin<R>>,
+    app: &AppHandle<R>,
+    config: &PluginConfig,
+  ) -> crate::Result<()> {
+    initialize(plugin, app, config)
+  }
+
+  /// Initializes all plugins in the store.
+  pub(crate) fn initialize_all(
     &mut self,
     app: &AppHandle<R>,
     config: &PluginConfig,
   ) -> crate::Result<()> {
-    self.store.values_mut().try_for_each(|plugin| {
-      plugin
-        .initialize(
-          app,
-          config.0.get(plugin.name()).cloned().unwrap_or_default(),
-        )
-        .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
-    })
+    self
+      .store
+      .values_mut()
+      .try_for_each(|plugin| initialize(plugin, app, config))
   }
 
   /// Generates an initialization script from all plugins in the store.
@@ -613,18 +619,21 @@ impl<R: Runtime> PluginStore<R> {
 
   /// Runs the created hook for all plugins in the store.
   pub(crate) fn created(&mut self, window: Window<R>) {
-    self
-      .store
-      .values_mut()
-      .for_each(|plugin| plugin.created(window.clone()))
+    self.store.values_mut().for_each(|plugin| {
+      #[cfg(feature = "tracing")]
+      let _span = tracing::trace_span!("plugin::hooks::created", name = plugin.name()).entered();
+      plugin.created(window.clone())
+    })
   }
 
   /// Runs the on_page_load hook for all plugins in the store.
   pub(crate) fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
-    self
-      .store
-      .values_mut()
-      .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
+    self.store.values_mut().for_each(|plugin| {
+      #[cfg(feature = "tracing")]
+      let _span =
+        tracing::trace_span!("plugin::hooks::on_page_load", name = plugin.name()).entered();
+      plugin.on_page_load(window.clone(), payload.clone())
+    })
   }
 
   /// Runs the on_event hook for all plugins in the store.
@@ -646,9 +655,25 @@ impl<R: Runtime> PluginStore<R> {
         .next()
         .map(|c| c.to_string())
         .unwrap_or_else(String::new);
+      #[cfg(feature = "tracing")]
+      let _span = tracing::trace_span!("plugin::hooks::ipc", name = plugin.name()).entered();
       plugin.extend_api(invoke);
     } else {
       invoke.resolver.reject(format!("plugin {target} not found"));
     }
   }
+}
+
+#[cfg_attr(feature = "tracing", tracing::instrument(name = "plugin::hooks::initialize", skip(plugin), fields(name = plugin.name())))]
+fn initialize<R: Runtime>(
+  plugin: &mut Box<dyn Plugin<R>>,
+  app: &AppHandle<R>,
+  config: &PluginConfig,
+) -> crate::Result<()> {
+  plugin
+    .initialize(
+      app,
+      config.0.get(plugin.name()).cloned().unwrap_or_default(),
+    )
+    .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
 }

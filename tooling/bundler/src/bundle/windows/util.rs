@@ -5,7 +5,7 @@
 use std::{
   fs::{create_dir_all, File},
   io::{Cursor, Read, Write},
-  path::Path,
+  path::{Path, PathBuf},
 };
 
 use log::info;
@@ -23,6 +23,15 @@ pub const NSIS_OUTPUT_FOLDER_NAME: &str = "nsis";
 pub const NSIS_UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
 pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
 pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
+
+pub fn webview2_arch_url(arch: &str) -> crate::Result<&str> {
+  let url = if arch == "x64" {
+    WEBVIEW2_OFFLINE_INSTALLER_X64_URL
+  } else {
+    WEBVIEW2_OFFLINE_INSTALLER_X86_URL
+  };
+  Ok(url)
+}
 
 pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
   let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
@@ -42,6 +51,17 @@ pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
     )
   })?;
   Ok((guid.into(), filename.into()))
+}
+
+pub fn download_webview2(base_path: &Path, url: &str) -> crate::Result<PathBuf> {
+  let (guid, filename) = webview2_guid_path(url)?;
+  let dir_path = base_path.join(guid);
+  let file_path = dir_path.join(filename);
+  if !file_path.exists() {
+    create_dir_all(dir_path)?;
+    std::fs::write(&file_path, download(url)?)?;
+  }
+  Ok(file_path)
 }
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {

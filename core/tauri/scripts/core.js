@@ -157,7 +157,7 @@
       // and was normal click to drag or double click to maximize
       (e.detail === 1 || e.detail === 2) &&
       // and was on Windows or Linux or was on macOS and we drag only (macos maximization is on mouseup below)
-      (osName !== 'macos' || (osName === 'macOS' && e.detail === 1))
+      (osName !== 'macos' || (osName === 'macos' && e.detail === 1))
     ) {
       // prevents text cursor
       e.preventDefault()

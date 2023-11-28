@@ -115,7 +115,6 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
 
 fn config_handle() -> &'static ConfigHandle {
   static CONFIG_HANDLE: OnceLock<ConfigHandle> = OnceLock::new();
-
   CONFIG_HANDLE.get_or_init(Default::default)
 }
 

@@ -13,12 +13,13 @@ exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.24.4", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { version = "0.24.6", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.14.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.5.0", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
+tracing = { version = "0.1", optional = true }
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"
@@ -48,3 +49,4 @@ objc-exception = [ "wry/objc-exception" ]
 global-shortcut = [ "tauri-runtime/global-shortcut" ]
 clipboard = [ "tauri-runtime/clipboard" ]
 linux-headers = [ "wry/linux-headers", "webkit2gtk/v2_36" ]
+tracing = [ "dep:tracing", "wry/tracing" ]

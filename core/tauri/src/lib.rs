@@ -11,6 +11,7 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
@@ -625,6 +626,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   app.emit_all("synchronized", ());
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::all", skip(self, payload))
+  )]
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, None, payload, |_| true)
   }
@@ -641,6 +646,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   app.emit_filter("synchronized", (), |w| w.label().starts_with("foo-"));
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::filter", skip(self, payload, filter))
+  )]
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
@@ -664,6 +673,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   }
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::to", skip(self, payload))
+  )]
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
@@ -728,6 +741,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   }
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::rust", skip(self))
+  )]
   fn trigger_global(&self, event: &str, data: Option<String>) {
     self.manager().trigger(event, None, data)
   }

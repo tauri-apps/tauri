@@ -161,20 +161,50 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   }
 
   // body to the command wrapper or a `compile_error!` of an error occurred while parsing it.
-  let body = syn::parse::<WrapperAttributes>(attributes)
+  let (body, attributes) = syn::parse::<WrapperAttributes>(attributes)
     .map(|mut attrs| {
       if function.sig.asyncness.is_some() {
         attrs.execution_context = ExecutionContext::Async;
       }
       attrs
     })
-    .and_then(|attrs| match attrs.execution_context {
-      ExecutionContext::Async => body_async(&function, &invoke, attrs.argument_case),
-      ExecutionContext::Blocking => body_blocking(&function, &invoke, attrs.argument_case),
+    .and_then(|attrs| {
+      let body = match attrs.execution_context {
+        ExecutionContext::Async => body_async(&function, &invoke, attrs.argument_case),
+        ExecutionContext::Blocking => body_blocking(&function, &invoke, attrs.argument_case),
+      };
+      body.map(|b| (b, Some(attrs)))
     })
-    .unwrap_or_else(syn::Error::into_compile_error);
+    .unwrap_or_else(|e| (syn::Error::into_compile_error(e), None));
 
   let Invoke { message, resolver } = invoke;
+
+  let kind = match attributes.as_ref().map(|a| &a.execution_context) {
+    Some(ExecutionContext::Async) if function.sig.asyncness.is_none() => "sync_threadpool",
+    Some(ExecutionContext::Async) => "async",
+    Some(ExecutionContext::Blocking) => "sync",
+    _ => "sync",
+  };
+
+  let loc = function.span().start();
+  let line = loc.line;
+  let col = loc.column;
+
+  let maybe_span = if cfg!(feature = "tracing") {
+    quote!({
+      let _span = tracing::debug_span!(
+        "ipc::request::handler",
+        cmd = #message.command(),
+        kind = #kind,
+        loc.line = #line,
+        loc.col = #col,
+        is_internal = false,
+      )
+      .entered();
+    })
+  } else {
+    quote!()
+  };
 
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
@@ -192,6 +222,8 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
           let ::tauri::Invoke { message: #message, resolver: #resolver } = $invoke;
+
+          #maybe_span
 
           #body
       }};
@@ -212,6 +244,20 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 fn body_async(function: &ItemFn, invoke: &Invoke, case: ArgumentCase) -> syn::Result<TokenStream2> {
   let Invoke { message, resolver } = invoke;
   parse_args(function, message, case).map(|args| {
+    #[cfg(feature = "tracing")]
+    quote! {
+      use tracing::Instrument;
+
+      let span = tracing::debug_span!("ipc::request::run");
+      #resolver.respond_async_serialized(async move {
+        let result = $path(#(#args?),*);
+        let kind = (&result).async_kind();
+        kind.future(result).await
+      }
+      .instrument(span));
+    }
+
+    #[cfg(not(feature = "tracing"))]
     quote! {
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
@@ -241,7 +287,14 @@ fn body_blocking(
     Err(err) => return #resolver.invoke_error(err),
   });
 
+  let maybe_span = if cfg!(feature = "tracing") {
+    quote!(let _span = tracing::debug_span!("ipc::request::run").entered();)
+  } else {
+    quote!()
+  };
+
   Ok(quote! {
+    #maybe_span
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);

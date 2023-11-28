@@ -170,14 +170,13 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
     mime_type: Option<String>,
   }
 
-  let mut mime_type: Vec<&str> = Vec::new();
+  let mut mime_type: Vec<String> = Vec::new();
 
   if let Some(associations) = settings.file_associations() {
     mime_type.extend(
       associations
         .iter()
-        .filter_map(|association| association.mime_type.as_ref())
-        .map(|s| s.as_str()),
+        .filter_map(|association| association.mime_type.clone()),
     );
   }
 
@@ -186,7 +185,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
       protocols
         .iter()
         .flat_map(|protocol| &protocol.schemes)
-        .map(|s| s.as_str()),
+        .map(|s| format!("x-scheme-handler/{s}")),
     );
   }
 

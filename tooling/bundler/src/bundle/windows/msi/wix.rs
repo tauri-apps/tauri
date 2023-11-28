@@ -10,9 +10,8 @@ use crate::bundle::{
   windows::{
     sign::try_sign,
     util::{
-      download, download_and_verify, extract_zip, webview2_guid_path, HashAlgorithm,
-      WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_OFFLINE_INSTALLER_X64_URL,
-      WEBVIEW2_OFFLINE_INSTALLER_X86_URL, WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
+      download_and_verify, download_webview2, extract_zip, webview2_arch_url, HashAlgorithm,
+      WEBVIEW2_BOOTSTRAPPER_URL, WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
 };
@@ -473,34 +472,16 @@ pub fn build_wix_app_installer(
       );
     }
     WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
-      let (guid, filename) = webview2_guid_path(WEBVIEW2_BOOTSTRAPPER_URL)?;
-      let online_bootstrapper_path = output_path.join(guid);
-      let webview2_bootstrapper_path = online_bootstrapper_path.join(filename);
-      if !webview2_bootstrapper_path.exists() {
-        create_dir_all(online_bootstrapper_path)?;
-        std::fs::write(
-          &webview2_bootstrapper_path,
-          download(WEBVIEW2_BOOTSTRAPPER_URL)?,
-        )?;
-      }
+      let webview2_bootstrapper_path = download_webview2(&output_path, WEBVIEW2_BOOTSTRAPPER_URL)?;
       data.insert(
         "webview2_bootstrapper_path",
         to_json(webview2_bootstrapper_path),
       );
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
-      let webview2_installer_url = if arch == "x64" {
-        WEBVIEW2_OFFLINE_INSTALLER_X64_URL
-      } else {
-        WEBVIEW2_OFFLINE_INSTALLER_X86_URL
-      };
-      let (guid, filename) = webview2_guid_path(webview2_installer_url)?;
-      let offline_installer_path = output_path.join(arch).join(guid);
-      let webview2_installer_path = offline_installer_path.join(filename);
-      if !webview2_installer_path.exists() {
-        create_dir_all(offline_installer_path)?;
-        std::fs::write(&webview2_installer_path, download(webview2_installer_url)?)?;
-      }
+      let url = webview2_arch_url(arch)?;
+      let base_path = output_path.join(arch);
+      let webview2_installer_path = download_webview2(&base_path, url)?;
       data.insert("webview2_installer_path", to_json(webview2_installer_path));
     }
   }

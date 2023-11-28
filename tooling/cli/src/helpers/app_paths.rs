@@ -115,7 +115,6 @@ fn get_app_dir() -> Option<PathBuf> {
 
 pub fn app_dir() -> &'static PathBuf {
   static APP_DIR: OnceLock<PathBuf> = OnceLock::new();
-
   APP_DIR.get_or_init(|| {
     get_app_dir().unwrap_or_else(|| get_tauri_dir().parent().unwrap().to_path_buf())
   })

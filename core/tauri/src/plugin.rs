@@ -664,7 +664,7 @@ impl<R: Runtime> PluginStore<R> {
   }
 }
 
-#[cfg_attr(feature = "tracing", tracing::instrument(name = "plugin::hooks::initialize", skip(plugin), fields(name = plugin.name())))]
+#[cfg_attr(feature = "tracing", tracing::instrument(name = "plugin::hooks::initialize", skip(plugin, app), fields(name = plugin.name())))]
 fn initialize<R: Runtime>(
   plugin: &mut Box<dyn Plugin<R>>,
   app: &AppHandle<R>,

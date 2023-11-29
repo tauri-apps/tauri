@@ -1804,7 +1804,7 @@ impl<R: Runtime> Window<R> {
 
   #[cfg_attr(feature = "tracing", tracing::instrument(
     "window::emit::eval",
-    skip(emit_args),
+    skip(self, emit_args),
     fields(
       event = emit_args.event,
       source_window = emit_args.source_window_label,

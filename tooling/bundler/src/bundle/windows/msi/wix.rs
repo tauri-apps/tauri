@@ -10,8 +10,8 @@ use crate::bundle::{
   windows::{
     sign::try_sign,
     util::{
-      download_and_verify, download_webview2, extract_zip, webview2_arch_url, HashAlgorithm,
-      WEBVIEW2_BOOTSTRAPPER_URL, WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
+      download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
+      extract_zip, HashAlgorithm, WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
 };
@@ -472,16 +472,15 @@ pub fn build_wix_app_installer(
       );
     }
     WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
-      let webview2_bootstrapper_path = download_webview2(&output_path, WEBVIEW2_BOOTSTRAPPER_URL)?;
+      let webview2_bootstrapper_path = download_webview2_bootstrapper(&output_path)?;
       data.insert(
         "webview2_bootstrapper_path",
         to_json(webview2_bootstrapper_path),
       );
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
-      let url = webview2_arch_url(arch)?;
-      let base_path = output_path.join(arch);
-      let webview2_installer_path = download_webview2(&base_path, url)?;
+      let webview2_installer_path =
+        download_webview2_offline_installer(&output_path.join(arch), arch)?;
       data.insert("webview2_installer_path", to_json(webview2_installer_path));
     }
   }

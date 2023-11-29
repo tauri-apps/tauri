@@ -61,7 +61,7 @@ Thank you to everyone contributing to Tauri!
 
 ### Documentation
 
-Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation of Rust code and JSDoc in TypeScript / JavaScript code. We autocollect these and publish them using [starlight](https://starlight.astro.build/) and [netlify](https://netlify.com). Here is the hosting repository for the documentation site: https://github.com/tauri-apps/tauri-docs
+Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation in the Rust & JS source code as much as possible. Check out the hosting repository for the documentation site for further information: https://github.com/tauri-apps/tauri-docs
 
 ## Partners
 

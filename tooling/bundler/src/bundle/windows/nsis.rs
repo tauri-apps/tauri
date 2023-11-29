@@ -8,9 +8,9 @@ use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, download_and_verify, download_webview2, extract_zip, webview2_arch_url,
-      HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
-      WEBVIEW2_BOOTSTRAPPER_URL,
+      download, download_and_verify, download_webview2_bootstrapper,
+      download_webview2_offline_installer, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
+      NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
   Settings,
@@ -370,17 +370,15 @@ fn build_nsis_app_installer(
 
   match webview2_install_mode {
     WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
-      let webview2_bootstrapper_path =
-        download_webview2(tauri_tools_path, WEBVIEW2_BOOTSTRAPPER_URL)?;
+      let webview2_bootstrapper_path = download_webview2_bootstrapper(tauri_tools_path)?;
       data.insert(
         "webview2_bootstrapper_path",
         to_json(webview2_bootstrapper_path),
       );
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
-      let url = webview2_arch_url(arch)?;
-      let base_path = tauri_tools_path.join(arch);
-      let webview2_installer_path = download_webview2(&base_path, url)?;
+      let webview2_installer_path =
+        download_webview2_offline_installer(&tauri_tools_path.join(arch), arch)?;
       data.insert("webview2_installer_path", to_json(webview2_installer_path));
     }
     _ => {}

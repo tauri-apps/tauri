@@ -24,15 +24,6 @@ pub const NSIS_UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
 pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
 pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
-pub fn webview2_arch_url(arch: &str) -> crate::Result<&str> {
-  let url = if arch == "x64" {
-    WEBVIEW2_OFFLINE_INSTALLER_X64_URL
-  } else {
-    WEBVIEW2_OFFLINE_INSTALLER_X86_URL
-  };
-  Ok(url)
-}
-
 pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
   let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
   let response = agent.head(url).call().map_err(Box::new)?;
@@ -53,7 +44,20 @@ pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
   Ok((guid.into(), filename.into()))
 }
 
-pub fn download_webview2(base_path: &Path, url: &str) -> crate::Result<PathBuf> {
+pub fn download_webview2_bootstrapper(base_path: &Path) -> crate::Result<PathBuf> {
+  let file_path = base_path.join("MicrosoftEdgeWebview2Setup.exe");
+  if !file_path.exists() {
+    std::fs::write(&file_path, download(WEBVIEW2_BOOTSTRAPPER_URL)?)?;
+  }
+  Ok(file_path)
+}
+
+pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crate::Result<PathBuf> {
+  let url = if arch == "x64" {
+    WEBVIEW2_OFFLINE_INSTALLER_X64_URL
+  } else {
+    WEBVIEW2_OFFLINE_INSTALLER_X86_URL
+  };
   let (guid, filename) = webview2_guid_path(url)?;
   let dir_path = base_path.join(guid);
   let file_path = dir_path.join(filename);

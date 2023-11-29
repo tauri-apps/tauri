@@ -2,4 +2,4 @@
 'tauri': 'patch:bug'
 ---
 
-On macOS, `data-tauri-drag-region` will now maximize when mouse doublick is up instead of when down, to allow cancelling it by moving it outside the drag element to match macOS native behavior.
+On macOS, allow cancelling maximization when doubleclick happens on `data-tauri-drag-region` by simply keeping the left moust button pressed and then moving the mouse away of the starting position of the click, which is consistent with the native behavior of macOS. 

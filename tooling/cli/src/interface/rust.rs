@@ -228,8 +228,16 @@ impl Interface for Rust {
       self.app_settings.target_triple.clone(),
     );
 
-    let mut s = self.app_settings.target_triple.split('-');
-    let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
+    let target_triple = self.app_settings.target_triple.clone();
+    let target_components: Vec<&str> = target_triple.split('-').collect();
+
+    let (arch, _, host) = match target_components.as_slice() {
+      [arch, _, host] => (arch, _, host),
+      _ => {
+        eprintln!("Invalid Target Tuple: {}", target_triple);
+        return env;
+      }
+    };
     env.insert(
       "TAURI_ENV_ARCH",
       match arch {

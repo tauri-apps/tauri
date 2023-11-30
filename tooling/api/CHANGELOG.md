@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`50462702`](https://www.github.com/tauri-apps/tauri/commit/504627027303ef5a0e855aab2abea64c6964223b)([#8267](https://www.github.com/tauri-apps/tauri/pull/8267)) Add top-level `main`, `module` and `types` fields in `package.json` to be compliant with typescripts's `"moduleResolution": "node"`
+- [`14544e4b`](https://www.github.com/tauri-apps/tauri/commit/14544e4b87269c06c89fed3647d80f492e0a1d34)([#8219](https://www.github.com/tauri-apps/tauri/pull/8219)) Avoid crashing in `clearMocks`
+
 ## \[1.5.1]
 
 ### New Features
@@ -31,7 +38,7 @@
 
 ## \[1.3.0]
 
-- Return correct type for `event.payload ` in `onResized` and `onMoved` window event handlers.
+- Return correct type for ` event.payload  ` in `onResized` and `onMoved` window event handlers.
   - [0b46637e](https://www.github.com/tauri-apps/tauri/commit/0b46637ebaba54403afa32a1cb466f09df2db999) fix(api): construct correct object for onResized and onMoved, closes [#6507](https://www.github.com/tauri-apps/tauri/pull/6507) ([#6509](https://www.github.com/tauri-apps/tauri/pull/6509)) on 2023-04-03
 - Added the `WindowOptions::contentProtected` option and `WebviewWindow#setContentProtected` to change it at runtime.
   - [4ab5545b](https://www.github.com/tauri-apps/tauri/commit/4ab5545b7a831c549f3c65e74de487ede3ab7ce5) feat: add content protection api, closes [#5132](https://www.github.com/tauri-apps/tauri/pull/5132) ([#5513](https://www.github.com/tauri-apps/tauri/pull/5513)) on 2022-12-13

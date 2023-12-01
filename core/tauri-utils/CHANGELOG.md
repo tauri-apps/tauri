@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.3]
+
+### New Features
+
+- [`b3e53e72`](https://www.github.com/tauri-apps/tauri/commit/b3e53e7243311a2659b7569dddc20c56ac9f9d8e)([#8288](https://www.github.com/tauri-apps/tauri/pull/8288)) Added `Assets::iter` to iterate on all embedded assets.
+
 ## \[1.5.0]
 
 ### New Features

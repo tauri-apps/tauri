@@ -103,6 +103,27 @@ interface InvokeOptions {
   headers: Headers | Record<string, string>
 }
 
+interface InvokeFuncTypes extends TauriInvokeTypes {
+  [key: `plugin:${string}|remove_listener`]: (payload: {
+    event: string
+    channelId: number
+  }) => Promise<void>
+  [key: `plugin:${string}|register_listener`]: <T>(payload: {
+    event: string
+    handler: T
+  }) => Promise<void>
+}
+
+type CommandArgs<Command extends string> = Command extends keyof InvokeFuncTypes
+  ? Parameters<InvokeFuncTypes[Command]>[0] extends InvokeArgs
+    ? Parameters<InvokeFuncTypes[Command]>[0]
+    : unknown
+  : unknown
+
+type CommandReturnType<T, Command extends string> = Command extends keyof InvokeFuncTypes
+? ReturnType<InvokeFuncTypes[Command]>
+: T
+
 /**
  * Sends a message to the backend.
  * @example
@@ -118,14 +139,13 @@ interface InvokeOptions {
  *
  * @since 1.0.0
  */
-async function invoke<T>(
-  cmd: string,
-  args: InvokeArgs = {},
+async function invoke<T, Command extends string = string>(
+  cmd: Command,
+  args: CommandArgs<Command> = undefined as CommandArgs<Command>,
   options?: InvokeOptions
-): Promise<T> {
+): Promise<CommandReturnType<T, Command>> {
   return window.__TAURI_INTERNALS__.invoke(cmd, args, options)
 }
-
 /**
  * Convert a device file path to an URL that can be loaded by the webview.
  * Note that `asset:` and `http://asset.localhost` must be added to [`tauri.security.csp`](https://tauri.app/v1/api/config/#securityconfig.csp) in `tauri.conf.json`.

@@ -32,6 +32,22 @@ declare global {
       }
     }
   }
+
+  /**
+   * Invoke your custom commands.
+   * @example
+   * ```ts
+   * import { invoke } from '@tauri-apps/api/tauri';
+   * declare global {
+   *  interface TauriInvokeTypes {
+   *   myCustomCommand: (arg: { foo: string }) => Promise<{ bar: string }>
+   * };
+   * invoke('myCustomCommand', { foo: string }); // -> Promise<{ bar: string }>
+   * ```
+   */
+  export interface TauriInvokeTypes {
+
+  }
 }
 
 /** @ignore */

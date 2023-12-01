@@ -10,7 +10,7 @@ license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.5.2"
+version = "1.5.3"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -35,7 +35,7 @@ features = [
   "process-exit",
   "protocol-asset",
   "process-command-api",
-  "shell-open",
+  "shell-open"
 ]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 default-target = "x86_64-unknown-linux-gnu"
@@ -59,9 +59,9 @@ anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1"
 tauri-runtime = { version = "0.14.1", path = "../tauri-runtime" }
-tauri-macros = { version = "1.4.1", path = "../tauri-macros" }
+tauri-macros = { version = "1.4.2", path = "../tauri-macros" }
 tauri-utils = { version = "1.5.0", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.14.1", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "0.14.2", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 semver = { version = "1.0", features = [ "serde" ] }
 serde_repr = "0.1"
@@ -136,7 +136,11 @@ cargo_toml = "0.11"
 
 [features]
 default = [ "wry", "compression", "objc-exception" ]
-tracing = [ "dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry/tracing" ]
+tracing = [
+  "dep:tracing",
+  "tauri-macros/tracing",
+  "tauri-runtime-wry/tracing"
+]
 test = [ ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]

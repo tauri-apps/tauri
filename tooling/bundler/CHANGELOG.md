@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.4.6]
+
+### Bug Fixes
+
+- [`1d5aa38a`](https://www.github.com/tauri-apps/tauri/commit/1d5aa38ae418ea31f593590b6d32cf04d3bfd8c1)([#8162](https://www.github.com/tauri-apps/tauri/pull/8162)) Fixes errors on command output, occuring when the output stream contains an invalid UTF-8 character, or ends with a multi-bytes UTF-8 character.
+- [`977a39f4`](https://www.github.com/tauri-apps/tauri/commit/977a39f4f7fb5e47492b51df931643b1af4f92b0)([#8292](https://www.github.com/tauri-apps/tauri/pull/8292)) Migrate the WebView2 offline installer to use shorturl provided by Microsoft.
+- [`f26d9f08`](https://www.github.com/tauri-apps/tauri/commit/f26d9f0884f63f61b9f4d4fac15e6b251163793e)([#8263](https://www.github.com/tauri-apps/tauri/pull/8263)) Fixes an issue in the NSIS installer which caused the uninstallation to leave empty folders on the system if the `resources` feature was used.
+- [`92bc7d0e`](https://www.github.com/tauri-apps/tauri/commit/92bc7d0e16157434330a1bcf1eefda6f0f1e5f85)([#8233](https://www.github.com/tauri-apps/tauri/pull/8233)) Fixes an issue in the NSIS installer which caused the installation to take much longer than expected when many `resources` were added to the bundle.
+
 ## \[1.4.5]
 
 ### Enhancements

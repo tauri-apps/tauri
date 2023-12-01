@@ -234,7 +234,7 @@ impl Interface for Rust {
     let (arch, _, host) = match target_components.as_slice() {
       [arch, _, host] => (arch, _, host),
       _ => {
-        eprintln!("Invalid Target Tuple: {}", target_triple);
+        log::warn!("Invalid target triple: {}", target_triple);
         return env;
       }
     };

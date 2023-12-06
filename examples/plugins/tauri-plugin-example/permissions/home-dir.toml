@@ -1,0 +1,7 @@
+version = 1
+identifier = "allow-home-dir"
+description = "This allows read access to the complete $HOME folder."
+commands.allow = [ "readDirectory", "readFile" ]
+
+[[scope.allow]]
+path = "$HOME/**"

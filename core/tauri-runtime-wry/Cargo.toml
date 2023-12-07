@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "1.0.0-alpha.5"
+version = "1.0.0-alpha.6"
 description = "Wry bindings to the Tauri runtime"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -13,17 +13,18 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-wry = { version = "0.34.2", default-features = false, features = [ "tao", "file-drop", "protocol" ] }
-tauri-runtime = { version = "1.0.0-alpha.4", path = "../tauri-runtime" }
-tauri-utils = { version = "2.0.0-alpha.10", path = "../tauri-utils" }
+wry = { version = "0.35", default-features = false, features = [ "file-drop", "protocol", "os-webview" ] }
+tao = { version = "0.24", default-features = false, features = ["rwh_05"] }
+tauri-runtime = { version = "1.0.0-alpha.5", path = "../tauri-runtime" }
+tauri-utils = { version = "2.0.0-alpha.11", path = "../tauri-utils" }
 raw-window-handle = "0.5"
 http = "0.2"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.27"
+webview2-com = "0.28"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.51"
+  version = "0.52"
   features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
@@ -32,7 +33,7 @@ webkit2gtk = { version = "=2.0", features = [ "v2_38" ] }
 percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
-cocoa = "0.24"
+cocoa = "0.25"
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"

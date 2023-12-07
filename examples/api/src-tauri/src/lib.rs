@@ -2,11 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
-
 mod cmd;
 #[cfg(desktop)]
 mod tray;
@@ -49,7 +44,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       #[cfg(desktop)]
       {
         let handle = app.handle();
-        tray::create_tray(&handle)?;
+        tray::create_tray(handle)?;
         handle.plugin(tauri_plugin_cli::init())?;
       }
 
@@ -73,7 +68,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
           .content_protected(true)
-          .menu(tauri::menu::Menu::default(&app.handle())?);
+          .menu(tauri::menu::Menu::default(app.handle())?);
       }
 
       let window = window_builder.build().unwrap();

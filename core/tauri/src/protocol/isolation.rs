@@ -8,7 +8,7 @@ use tauri_utils::assets::{Assets, EmbeddedAssets};
 
 use std::sync::Arc;
 
-use crate::{manager::PROCESS_IPC_MESSAGE_FN, window::UriSchemeProtocolHandler};
+use crate::{manager::window::PROCESS_IPC_MESSAGE_FN, window::UriSchemeProtocolHandler};
 
 pub fn get(assets: Arc<EmbeddedAssets>, aes_gcm_key: [u8; 32]) -> UriSchemeProtocolHandler {
   Box::new(move |request, responder| {

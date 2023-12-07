@@ -21,7 +21,7 @@ use crate::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
     OwnedInvokeResponder,
   },
-  manager::WindowManager,
+  manager::AppManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     webview::{WebviewAttributes, WindowBuilder as _},
@@ -141,7 +141,7 @@ impl Monitor {
 /// A builder for a webview window managed by Tauri.
 #[default_runtime(crate::Wry, wry)]
 pub struct WindowBuilder<'a, R: Runtime> {
-  manager: WindowManager<R>,
+  manager: Arc<AppManager<R>>,
   runtime: RuntimeOrDispatch<'a, R>,
   app_handle: AppHandle<R>,
   label: String,
@@ -222,7 +222,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let runtime = manager.runtime();
     let app_handle = manager.app_handle().clone();
     Self {
-      manager: manager.manager().clone(),
+      manager: manager.manager_owned(),
       runtime,
       app_handle,
       label: label.into(),
@@ -265,7 +265,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
     let builder = Self {
-      manager: manager.manager().clone(),
+      manager: manager.manager_owned(),
       runtime: manager.runtime(),
       app_handle: manager.app_handle().clone(),
       label: config.label.clone(),
@@ -500,9 +500,10 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
         }));
     }
 
-    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
+    let labels = self.manager.window.labels().into_iter().collect::<Vec<_>>();
     let pending = self
       .manager
+      .window
       .prepare_window(self.app_handle.clone(), pending, &labels)?;
 
     #[cfg(desktop)]
@@ -517,6 +518,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     #[cfg(desktop)]
     let handler = self
       .manager
+      .menu
       .prepare_window_menu_creation_handler(window_menu.as_ref());
     #[cfg(not(desktop))]
     #[allow(clippy::type_complexity)]
@@ -529,7 +531,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
     }
     .map(|window| {
-      self.manager.attach_window(
+      self.manager.window.attach_window(
         self.app_handle.clone(),
         window,
         #[cfg(desktop)]
@@ -545,9 +547,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     if let Some(effects) = window_effects {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
-    self.manager.eval_script_all(format!(
+    self.manager.window.eval_script_all(format!(
       "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&self.manager.labels())?,
+      window_labels_array = serde_json::to_string(&self.manager.window.labels())?,
     ))?;
 
     self.manager.emit_filter(
@@ -1021,7 +1023,7 @@ pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
-  pub(crate) manager: WindowManager<R>,
+  pub(crate) manager: Arc<AppManager<R>>,
   pub(crate) app_handle: AppHandle<R>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<EventId>>>>,
   // The menu set for this window
@@ -1102,8 +1104,12 @@ impl<R: Runtime> Manager<R> for Window<R> {
   }
 }
 impl<R: Runtime> ManagerBase<R> for Window<R> {
-  fn manager(&self) -> &WindowManager<R> {
+  fn manager(&self) -> &AppManager<R> {
     &self.manager
+  }
+
+  fn manager_owned(&self) -> Arc<AppManager<R>> {
+    self.manager.clone()
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
@@ -1147,7 +1153,7 @@ impl PlatformWebview {
       target_os = "openbsd"
     )))
   )]
-  pub fn inner(&self) -> std::rc::Rc<webkit2gtk::WebView> {
+  pub fn inner(&self) -> webkit2gtk::WebView {
     self.0.clone()
   }
 
@@ -1198,7 +1204,7 @@ impl PlatformWebview {
 
   /// Returns handle for JNI execution.
   #[cfg(target_os = "android")]
-  pub fn jni_handle(&self) -> tauri_runtime_wry::wry::webview::JniHandle {
+  pub fn jni_handle(&self) -> tauri_runtime_wry::wry::JniHandle {
     self.0
   }
 }
@@ -1207,7 +1213,7 @@ impl PlatformWebview {
 impl<R: Runtime> Window<R> {
   /// Create a new window that is attached to the manager.
   pub(crate) fn new(
-    manager: WindowManager<R>,
+    manager: Arc<AppManager<R>>,
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
     #[cfg(desktop)] menu: Option<WindowMenu<R>>,
@@ -1368,8 +1374,8 @@ impl<R: Runtime> Window<R> {
   ) {
     self
       .manager
-      .inner
-      .window_menu_event_listeners
+      .menu
+      .event_listeners
       .lock()
       .unwrap()
       .insert(self.label().to_string(), Box::new(f));
@@ -1412,7 +1418,7 @@ impl<R: Runtime> Window<R> {
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
 
-    self.manager.insert_menu_into_stash(&menu);
+    self.manager.menu.insert_menu_into_stash(&menu);
 
     let window = self.clone();
     let menu_ = menu.clone();
@@ -1450,12 +1456,13 @@ impl<R: Runtime> Window<R> {
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
   pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
-    let current_menu = self.menu_lock().as_ref().map(|m| m.menu.clone());
+    let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
     // remove from the window
     #[cfg_attr(target_os = "macos", allow(unused_variables))]
-    if let Some(menu) = current_menu {
+    if let Some(menu) = &prev_menu {
       let window = self.clone();
+      let menu = menu.clone();
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
@@ -1473,8 +1480,6 @@ impl<R: Runtime> Window<R> {
         }
       })?;
     }
-
-    let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
     self
       .manager
@@ -2255,7 +2260,7 @@ impl<R: Runtime> Window<R> {
       }
     };
 
-    let custom_responder = self.manager.invoke_responder();
+    let custom_responder = self.manager.window.invoke_responder.clone();
 
     let resolver = InvokeResolver::new(
       self.clone(),
@@ -2326,12 +2331,13 @@ impl<R: Runtime> Window<R> {
           handled = true;
 
           fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
+            use std::str::FromStr;
+
             if let serde_json::Value::Object(map) = payload {
               for v in map.values() {
                 if let serde_json::Value::String(s) = v {
-                  if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
-                    crate::ipc::Channel::load_from_ipc(window.clone(), s);
-                  }
+                  let _ = crate::ipc::JavaScriptChannelId::from_str(s)
+                    .map(|id| id.channel_on(window.clone()));
                 }
               }
             }
@@ -2444,14 +2450,22 @@ impl<R: Runtime> Window<R> {
 
   /// Whether this window registered a listener to an event from the given window and event name.
   pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
-    self
-      .js_event_listeners
-      .lock()
-      .unwrap()
-      .contains_key(&JsEventListenerKey {
-        window_label,
-        event: event.into(),
+    let listeners = self.js_event_listeners.lock().unwrap();
+
+    if let Some(label) = window_label {
+      let event = event.to_string();
+      // window-specific event is also triggered on global events, so we check that
+      listeners.contains_key(&JsEventListenerKey {
+        window_label: Some(label),
+        event: event.clone(),
+      }) || listeners.contains_key(&JsEventListenerKey {
+        window_label: None,
+        event,
       })
+    } else {
+      // for global events, any listener is triggered
+      listeners.keys().any(|k| k.event == event)
+    }
   }
 
   /// Opens the developer tools window (Web Inspector).

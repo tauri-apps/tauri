@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{sealed::ContextMenuBase, IsMenuItem, MenuItemKind};
-use crate::{run_main_thread, AppHandle, Manager, Position, Runtime, Window};
+use crate::{resources::Resource, run_main_thread, AppHandle, Manager, Position, Runtime, Window};
 use muda::{ContextMenu, MenuId};
 
 /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
@@ -33,7 +33,7 @@ impl<R: Runtime> Clone for Submenu<R> {
 }
 
 impl<R: Runtime> super::sealed::IsMenuItemBase for Submenu<R> {
-  fn inner(&self) -> &dyn muda::IsMenuItem {
+  fn inner_muda(&self) -> &dyn muda::IsMenuItem {
     &self.inner
   }
 }
@@ -85,7 +85,9 @@ impl<R: Runtime> ContextMenuBase for Submenu<R> {
         target_os = "openbsd"
       ))]
       if let Ok(w) = window.gtk_window() {
-        self_.inner().show_context_menu_for_gtk_window(&w, position);
+        self_
+          .inner()
+          .show_context_menu_for_gtk_window(w.as_ref(), position);
       }
 
       #[cfg(windows)]
@@ -95,11 +97,11 @@ impl<R: Runtime> ContextMenuBase for Submenu<R> {
     })
   }
 
-  fn inner(&self) -> &dyn muda::ContextMenu {
+  fn inner_context(&self) -> &dyn muda::ContextMenu {
     &self.inner
   }
 
-  fn inner_owned(&self) -> Box<dyn muda::ContextMenu> {
+  fn inner_context_owned(&self) -> Box<dyn muda::ContextMenu> {
     Box::new(self.clone().inner)
   }
 }
@@ -173,8 +175,10 @@ impl<R: Runtime> Submenu<R> {
   /// Add a menu item to the end of this submenu.
   pub fn append(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
-    run_main_thread!(self, |self_: Self| self_.inner.append(kind.inner().inner()))?
-      .map_err(Into::into)
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .append(kind.inner().inner_muda()))?
+    .map_err(Into::into)
   }
 
   /// Add menu items to the end of this submenu. It calls [`Submenu::append`] in a loop internally.
@@ -190,7 +194,7 @@ impl<R: Runtime> Submenu<R> {
   pub fn prepend(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
     run_main_thread!(self, |self_: Self| {
-      self_.inner.prepend(kind.inner().inner())
+      self_.inner.prepend(kind.inner().inner_muda())
     })?
     .map_err(Into::into)
   }
@@ -204,7 +208,7 @@ impl<R: Runtime> Submenu<R> {
   pub fn insert(&self, item: &dyn IsMenuItem<R>, position: usize) -> crate::Result<()> {
     let kind = item.kind();
     run_main_thread!(self, |self_: Self| {
-      self_.inner.insert(kind.inner().inner(), position)
+      self_.inner.insert(kind.inner().inner_muda(), position)
     })?
     .map_err(Into::into)
   }
@@ -221,47 +225,41 @@ impl<R: Runtime> Submenu<R> {
   /// Remove a menu item from this submenu.
   pub fn remove(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
-    run_main_thread!(self, |self_: Self| self_.inner.remove(kind.inner().inner()))?
-      .map_err(Into::into)
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .remove(kind.inner().inner_muda()))?
+    .map_err(Into::into)
+  }
+
+  /// Remove the menu item at the specified position from this submenu and returns it.
+  pub fn remove_at(&self, position: usize) -> crate::Result<Option<MenuItemKind<R>>> {
+    run_main_thread!(self, |self_: Self| self_
+      .inner
+      .remove_at(position)
+      .map(|i| MenuItemKind::from_muda(self_.app_handle.clone(), i)))
+  }
+
+  /// Retrieves the menu item matching the given identifier.
+  pub fn get<'a, I>(&self, id: &'a I) -> Option<MenuItemKind<R>>
+  where
+    I: ?Sized,
+    MenuId: PartialEq<&'a I>,
+  {
+    self
+      .items()
+      .unwrap_or_default()
+      .into_iter()
+      .find(|i| i.id() == &id)
   }
 
   /// Returns a list of menu items that has been added to this submenu.
   pub fn items(&self) -> crate::Result<Vec<MenuItemKind<R>>> {
-    let handle = self.app_handle.clone();
     run_main_thread!(self, |self_: Self| {
       self_
         .inner
         .items()
         .into_iter()
-        .map(|i| match i {
-          muda::MenuItemKind::MenuItem(i) => super::MenuItemKind::MenuItem(super::MenuItem {
-            id: i.id().clone(),
-            inner: i,
-            app_handle: handle.clone(),
-          }),
-          muda::MenuItemKind::Submenu(i) => super::MenuItemKind::Submenu(super::Submenu {
-            id: i.id().clone(),
-            inner: i,
-            app_handle: handle.clone(),
-          }),
-          muda::MenuItemKind::Predefined(i) => {
-            super::MenuItemKind::Predefined(super::PredefinedMenuItem {
-              id: i.id().clone(),
-              inner: i,
-              app_handle: handle.clone(),
-            })
-          }
-          muda::MenuItemKind::Check(i) => super::MenuItemKind::Check(super::CheckMenuItem {
-            id: i.id().clone(),
-            inner: i,
-            app_handle: handle.clone(),
-          }),
-          muda::MenuItemKind::Icon(i) => super::MenuItemKind::Icon(super::IconMenuItem {
-            id: i.id().clone(),
-            inner: i,
-            app_handle: handle.clone(),
-          }),
-        })
+        .map(|i| MenuItemKind::from_muda(self_.app_handle.clone(), i))
         .collect::<Vec<_>>()
     })
   }
@@ -307,22 +305,11 @@ impl<R: Runtime> Submenu<R> {
   ///
   /// If no menu is set as the Help menu, macOS will automatically use any menu
   /// which has a title matching the localized word "Help".
+  #[cfg(target_os = "macos")]
   pub fn set_as_help_menu_for_nsapp(&self) -> crate::Result<()> {
-    #[cfg(target_os = "macos")]
     run_main_thread!(self, |self_: Self| self_.inner.set_as_help_menu_for_nsapp())?;
     Ok(())
   }
-
-  /// Retrieves the menu item matching the given identifier.
-  pub fn get<'a, I>(&self, id: &'a I) -> Option<MenuItemKind<R>>
-  where
-    I: ?Sized,
-    MenuId: PartialEq<&'a I>,
-  {
-    self
-      .items()
-      .unwrap_or_default()
-      .into_iter()
-      .find(|i| i.id() == &id)
-  }
 }
+
+impl<R: Runtime> Resource for Submenu<R> {}

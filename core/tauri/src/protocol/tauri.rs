@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
 
 use crate::{
-  manager::{WindowManager, PROXY_DEV_SERVER},
+  manager::{window::PROXY_DEV_SERVER, AppManager},
   window::{UriSchemeProtocolHandler, WebResourceRequestHandler},
   Runtime,
 };
 
 #[cfg(all(dev, mobile))]
-use std::{
-  collections::HashMap,
-  sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Mutex};
 
 #[cfg(all(dev, mobile))]
 #[derive(Clone)]
@@ -27,7 +24,7 @@ struct CachedResponse {
 }
 
 pub fn get<R: Runtime>(
-  #[allow(unused_variables)] manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: Arc<AppManager<R>>,
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
@@ -69,7 +66,7 @@ pub fn get<R: Runtime>(
 
 fn get_response<R: Runtime>(
   request: Request<Vec<u8>>,
-  #[allow(unused_variables)] manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: &AppManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
   #[cfg(all(dev, mobile))] (url, response_cache): (

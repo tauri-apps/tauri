@@ -10,7 +10,6 @@
 //! one you need isn't here, you could use types in [`tokio`] directly.
 //! For custom command handlers, it's recommended to use a plain `async fn` command.
 
-use once_cell::sync::OnceCell;
 pub use tokio::{
   runtime::{Handle as TokioHandle, Runtime as TokioRuntime},
   sync::{
@@ -23,10 +22,11 @@ pub use tokio::{
 use std::{
   future::Future,
   pin::Pin,
+  sync::OnceLock,
   task::{Context, Poll},
 };
 
-static RUNTIME: OnceCell<GlobalRuntime> = OnceCell::new();
+static RUNTIME: OnceLock<GlobalRuntime> = OnceLock::new();
 
 struct GlobalRuntime {
   runtime: Option<Runtime>,

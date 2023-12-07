@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use http::{
   header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
@@ -10,7 +10,7 @@ use http::{
 };
 
 use crate::{
-  manager::WindowManager,
+  manager::AppManager,
   window::{InvokeRequest, UriSchemeProtocolHandler},
   Runtime,
 };
@@ -22,12 +22,12 @@ const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
 
 #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 pub fn message_handler<R: Runtime>(
-  manager: WindowManager<R>,
+  manager: Arc<AppManager<R>>,
 ) -> crate::runtime::webview::WebviewIpcHandler<crate::EventLoopMessage, R> {
   Box::new(move |window, request| handle_ipc_message(request, &manager, &window.label))
 }
 
-pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemeProtocolHandler {
+pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeProtocolHandler {
   Box::new(move |request, responder| {
     let manager = manager.clone();
     let label = label.clone();
@@ -127,7 +127,7 @@ pub fn get<R: Runtime>(manager: WindowManager<R>, label: String) -> UriSchemePro
 }
 
 #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
-fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, label: &str) {
+fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, label: &str) {
   if let Some(window) = manager.get_window(label) {
     use serde::{Deserialize, Deserializer};
 
@@ -184,7 +184,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
         options: Option<RequestOptions>,
       }
 
-      if let crate::Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+      if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
         invoke_message.replace(
           serde_json::from_str::<IsolationMessage<'_>>(&message)
             .map_err(Into::into)
@@ -223,7 +223,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
             use serde_json::Value as JsonValue;
 
             // the channel data command is the only command that uses a custom protocol on Linux
-            if window.manager.invoke_responder().is_none()
+            if window.manager.window.invoke_responder.is_none()
               && cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
             {
               fn responder_eval<R: Runtime>(
@@ -245,7 +245,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
                   if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
                     && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
                   {
-                    let _ = Channel::from_ipc(window, callback).send(v);
+                    let _ = Channel::from_callback_fn(window, callback).send(v);
                   } else {
                     responder_eval(
                       &window,
@@ -262,7 +262,8 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
                       error,
                     );
                   } else {
-                    let _ = Channel::from_ipc(window, callback).send(InvokeBody::Raw(v.clone()));
+                    let _ =
+                      Channel::from_callback_fn(window, callback).send(InvokeBody::Raw(v.clone()));
                   }
                 }
                 InvokeResponse::Err(e) => responder_eval(
@@ -286,7 +287,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &WindowManager<R>, l
 }
 
 fn parse_invoke_request<R: Runtime>(
-  #[allow(unused_variables)] manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: &AppManager<R>,
   request: http::Request<Vec<u8>>,
 ) -> std::result::Result<InvokeRequest, String> {
   #[allow(unused_mut)]
@@ -299,7 +300,7 @@ fn parse_invoke_request<R: Runtime>(
 
   // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
   #[cfg(all(feature = "isolation", ipc_custom_protocol))]
-  if let crate::Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+  if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
     body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
       .and_then(|raw| crypto_keys.decrypt(raw))
       .map_err(|e| e.to_string())?;

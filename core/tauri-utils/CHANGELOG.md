@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.11]
+
+### Breaking Changes
+
+- [`5e84e92e`](https://www.github.com/tauri-apps/tauri/commit/5e84e92e99376f24b730f8eba002239379b593e1)([#8243](https://www.github.com/tauri-apps/tauri/pull/8243)) Changed `platform::windows_version` to return a `(u32, u32, u32)` instead of `Option<(u32, u32, u32)>`
+
 ## \[2.0.0-alpha.10]
 
 ### Enhancements

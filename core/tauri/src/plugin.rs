@@ -8,7 +8,7 @@ use crate::{
   app::UriSchemeResponder,
   error::Error,
   ipc::{Invoke, InvokeHandler},
-  manager::UriSchemeProtocol,
+  manager::window::UriSchemeProtocol,
   utils::config::PluginConfig,
   window::PageLoadPayload,
   AppHandle, RunEvent, Runtime, Window,
@@ -636,6 +636,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     for (uri_scheme, protocol) in &self.uri_scheme_protocols {
       app
         .manager
+        .window
         .register_uri_scheme_protocol(uri_scheme, protocol.clone())
     }
     Ok(())

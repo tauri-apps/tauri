@@ -1,5 +1,5 @@
 <script>
-  import { invoke } from '@tauri-apps/api/primitives'
+  import { invoke } from '@tauri-apps/api/core'
   import { getName, getVersion, getTauriVersion } from '@tauri-apps/api/app'
 
   let version = '1.0.0'

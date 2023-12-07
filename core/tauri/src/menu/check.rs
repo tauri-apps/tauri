@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::MenuId, run_main_thread, AppHandle, Manager, Runtime};
+use crate::{menu::MenuId, resources::Resource, run_main_thread, AppHandle, Manager, Runtime};
 
-/// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
+/// A menu item inside a [`Menu`] or [`Submenu`]
+/// and usually contains a text and a check mark or a similar toggle
+/// that corresponds to a checked and unchecked states.
 ///
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
@@ -31,7 +33,7 @@ unsafe impl<R: Runtime> Sync for CheckMenuItem<R> {}
 unsafe impl<R: Runtime> Send for CheckMenuItem<R> {}
 
 impl<R: Runtime> super::sealed::IsMenuItemBase for CheckMenuItem<R> {
-  fn inner(&self) -> &dyn muda::IsMenuItem {
+  fn inner_muda(&self) -> &dyn muda::IsMenuItem {
     &self.inner
   }
 }
@@ -146,3 +148,5 @@ impl<R: Runtime> CheckMenuItem<R> {
     run_main_thread!(self, |self_: Self| self_.inner.set_checked(checked))
   }
 }
+
+impl<R: Runtime> Resource for CheckMenuItem<R> {}

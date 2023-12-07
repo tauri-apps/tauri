@@ -24,7 +24,7 @@ import {
 } from './dpi'
 import type { Event, EventName, EventCallback, UnlistenFn } from './event'
 import { TauriEvent, emit, listen, once } from './event'
-import { invoke } from './primitives'
+import { invoke } from './core'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -57,10 +57,15 @@ interface ScaleFactorChanged {
   size: PhysicalSize
 }
 
+interface FileDropPayload {
+  paths: string[]
+  position: PhysicalPosition
+}
+
 /** The file drop event types. */
 type FileDropEvent =
-  | { type: 'hover'; paths: string[] }
-  | { type: 'drop'; paths: string[] }
+  | ({ type: 'hover' } & FileDropPayload)
+  | ({ type: 'drop' } & FileDropPayload)
   | { type: 'cancel' }
 
 /**
@@ -1682,27 +1687,6 @@ class Window {
   }
 
   /**
-   * Listen to the window menu item click. The payload is the item id.
-   *
-   * @example
-   * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
-   * const unlisten = await getCurrent().onMenuClicked(({ payload: menuId }) => {
-   *  console.log('Menu clicked: ' + menuId);
-   * });
-   *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
-   * ```
-   *
-   * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   */
-  async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
-    return this.listen<string>(TauriEvent.MENU, handler)
-  }
-
-  /**
    * Listen to a file drop event.
    * The listener is triggered when the user hovers the selected files on the window,
    * drops the files or cancels the operation.
@@ -1730,17 +1714,31 @@ class Window {
   async onFileDropEvent(
     handler: EventCallback<FileDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenFileDrop = await this.listen<string[]>(
+    const unlistenFileDrop = await this.listen<FileDropPayload>(
       TauriEvent.WINDOW_FILE_DROP,
       (event) => {
-        handler({ ...event, payload: { type: 'drop', paths: event.payload } })
+        handler({
+          ...event,
+          payload: {
+            type: 'drop',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
       }
     )
 
-    const unlistenFileHover = await this.listen<string[]>(
+    const unlistenFileHover = await this.listen<FileDropPayload>(
       TauriEvent.WINDOW_FILE_DROP_HOVER,
       (event) => {
-        handler({ ...event, payload: { type: 'hover', paths: event.payload } })
+        handler({
+          ...event,
+          payload: {
+            type: 'hover',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
       }
     )
 
@@ -2182,6 +2180,7 @@ export type {
   Theme,
   TitleBarStyle,
   ScaleFactorChanged,
+  FileDropPayload,
   FileDropEvent,
   WindowOptions,
   Color

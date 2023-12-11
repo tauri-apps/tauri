@@ -1,3 +1,4 @@
+[default]
 description = "Default permissions granted"
 permissions = ["allow-home-read-only"]
 

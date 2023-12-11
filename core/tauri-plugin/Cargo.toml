@@ -10,13 +10,13 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [features]
-build = ["dep:anyhow", "dep:cargo_metadata"]
-runtime = ["dep:tauri"]
+build = ["dep:anyhow", "dep:cargo_metadata", "dep:thiserror"]
 
 [dependencies]
 anyhow = { version = "1", optional = true }
+thiserror = { version = "1", optional = true }
 cargo_metadata = { version = "0.18", optional = true }
-tauri = { version = "2.0.0-alpha.18", default-features = false, path = "../tauri", optional = true }
+tauri = { version = "2.0.0-alpha.18", default-features = false, path = "../tauri" }
 
 [package.metadata.docs.rs]
 features = ["build", "runtime"]

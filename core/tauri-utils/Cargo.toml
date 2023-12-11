@@ -30,7 +30,7 @@ getrandom = { version = "0.2", optional = true, features = [ "std" ] }
 serialize-to-javascript = { version = "=0.1.1", optional = true }
 ctor = "0.2"
 json5 = { version = "0.4", optional = true }
-toml = { version = "0.8", optional = true }
+toml = { version = "0.8", default-features = true }
 json-patch = "1.2"
 glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
@@ -50,5 +50,5 @@ schema = [ "schemars" ]
 isolation = [ "aes-gcm", "getrandom", "serialize-to-javascript" ]
 process-relaunch-dangerous-allow-symlink-macos = [ ]
 config-json5 = [ "json5" ]
-config-toml = [ "toml" ]
+config-toml = []
 resources = [ "glob", "walkdir" ]

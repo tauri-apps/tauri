@@ -24,6 +24,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use log::warn;
 
+pub mod acl;
 pub mod assets;
 pub mod config;
 pub mod html;

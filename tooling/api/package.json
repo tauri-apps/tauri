@@ -28,7 +28,7 @@
   "scripts": {
     "build": "rollup -c --configPlugin typescript",
     "npm-pack": "yarn build && cd ./dist && npm pack",
-    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag latest",
+    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
     "ts:check": "tsc -noEmit",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint:fix": "eslint --fix --ext ts \"./src/**/*.ts\"",

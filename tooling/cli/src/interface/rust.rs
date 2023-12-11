@@ -230,14 +230,14 @@ impl Interface for Rust {
 
     let target_triple = self.app_settings.target_triple;
     let target_components: Vec<&str> = target_triple.split('-').collect();
-
-    let (arch, _, host) = match target_components.as_slice() {
-      [arch, _, host] => (arch, _, host),
+    let (arch, host) = match target_components.as_slice() {
+      [arch, _, host] => (arch, host),
       _ => {
         log::warn!("Invalid target triple: {}", target_triple);
         return env;
       }
     };
+    
     env.insert(
       "TAURI_ENV_ARCH",
       match arch {

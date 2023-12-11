@@ -2,7 +2,7 @@
 'tauri-cli': 'patch:enhance'
 ---
 
-Added the following env vars to the `tauri signer sign` command to allow you to use in CI.
+Read the following env vars when using the `tauri signer sign` command to make it easier to use in CI.
 
 - `TAURI_PRIVATE_KEY`
 - `TAURI_PRIVATE_KEY_PASSWORD`

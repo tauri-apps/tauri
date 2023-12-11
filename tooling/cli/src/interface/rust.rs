@@ -228,7 +228,7 @@ impl Interface for Rust {
       self.app_settings.target_triple.clone(),
     );
 
-    let target_triple = self.app_settings.target_triple;
+    let target_triple = &self.app_settings.target_triple;
     let target_components: Vec<&str> = target_triple.split('-').collect();
     let (arch, host) = match target_components.as_slice() {
       [arch, _, host] => (*arch, *host),

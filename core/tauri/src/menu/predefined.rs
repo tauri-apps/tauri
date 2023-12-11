@@ -212,7 +212,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   ///
   /// - **Linux:** Unsupported.
   pub fn close_window<M: Manager<R>>(manager: &M, text: Option<&str>) -> Self {
-    let inner = muda::PredefinedMenuItem::show_all(text);
+    let inner = muda::PredefinedMenuItem::close_window(text);
     Self {
       id: inner.id().clone(),
       inner,

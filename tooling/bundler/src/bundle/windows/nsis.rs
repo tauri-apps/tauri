@@ -457,6 +457,8 @@ fn build_nsis_app_installer(
       _ => "-V4",
     })
     .arg(installer_nsi_path)
+    .env_remove("NSISDIR")
+    .env_remove("NSISCONFDIR")
     .current_dir(output_path)
     .piped()
     .context("error running makensis.exe")?;

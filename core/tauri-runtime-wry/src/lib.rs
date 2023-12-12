@@ -278,7 +278,8 @@ pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "clipboard")]
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
-  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  // Clippy may complain but changing this to an Rc will cause frequent app crashes.
+  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "system-tray"))]
   system_tray_manager: SystemTrayManager,
   #[cfg(feature = "tracing")]
@@ -1988,7 +1989,9 @@ impl<T: UserEvent> Wry<T> {
     #[cfg(feature = "clipboard")]
     let clipboard_manager = Arc::new(Mutex::new(Clipboard::new()));
 
-    let windows = Rc::new(RefCell::new(HashMap::default()));
+    // Clippy may complain but changing this to an Rc will cause frequent app crashes.
+    #[allow(clippy::arc_with_non_send_sync)]
+    let windows = Arc::new(RefCell::new(HashMap::default()));
     let webview_id_map = WebviewIdStore::default();
 
     #[cfg(all(desktop, feature = "system-tray"))]
@@ -2367,7 +2370,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
-  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   pub global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -2381,7 +2384,7 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
 }
 
 struct UserMessageContext {
-  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   webview_id_map: WebviewIdStore,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
@@ -3101,7 +3104,7 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
-  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 ) {
   let (tx, rx) = channel();
   let windows_ref = windows.borrow();
@@ -3129,7 +3132,7 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WebviewId, windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
+fn on_window_close(window_id: WebviewId, windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
   if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }

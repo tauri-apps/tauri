@@ -4092,7 +4092,6 @@ dependencies = [
  "minisign",
  "notify",
  "notify-debouncer-mini",
- "once_cell",
  "os_info",
  "os_pipe",
  "plist",

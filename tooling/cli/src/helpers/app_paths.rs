@@ -7,10 +7,10 @@ use std::{
   env::current_dir,
   ffi::OsStr,
   path::{Path, PathBuf},
+  sync::OnceLock,
 };
 
 use ignore::WalkBuilder;
-use once_cell::sync::Lazy;
 
 use tauri_utils::{
   config::parse::{folder_has_configuration_file, is_configuration_file, ConfigFormat},
@@ -114,9 +114,10 @@ fn get_app_dir() -> Option<PathBuf> {
 }
 
 pub fn app_dir() -> &'static PathBuf {
-  static APP_DIR: Lazy<PathBuf> =
-    Lazy::new(|| get_app_dir().unwrap_or_else(|| get_tauri_dir().parent().unwrap().to_path_buf()));
-  &APP_DIR
+  static APP_DIR: OnceLock<PathBuf> = OnceLock::new();
+  APP_DIR.get_or_init(|| {
+    get_app_dir().unwrap_or_else(|| get_tauri_dir().parent().unwrap().to_path_buf())
+  })
 }
 
 pub fn tauri_dir() -> PathBuf {

@@ -59,7 +59,7 @@
 
 mod mock_runtime;
 pub use mock_runtime::*;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 
 use std::{
   borrow::Cow,
@@ -68,7 +68,7 @@ use std::{
 };
 
 use crate::{
-  ipc::{CallbackFn, InvokeResponse},
+  ipc::{CallbackFn, InvokeBody, InvokeError, InvokeResponse},
   window::InvokeRequest,
   App, Builder, Context, Pattern, Window,
 };
@@ -243,6 +243,69 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
   );
 
   rx.recv().unwrap();
+}
+
+/// Executes the given IPC message and get the return value.
+///
+/// # Examples
+///
+/// ```rust
+/// use tauri::test::{mock_builder, mock_context, noop_assets};
+///
+/// #[tauri::command]
+/// fn ping() -> &'static str {
+///     "pong"
+/// }
+///
+/// fn create_app<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::App<R> {
+///     builder
+///         .invoke_handler(tauri::generate_handler![ping])
+///         .build(mock_context(noop_assets()))
+///         .expect("failed to build app")
+/// }
+///
+/// fn main() {
+///     let app = create_app(mock_builder());
+///     let window = tauri::WindowBuilder::new(&app, "main", Default::default())
+///         .build()
+///         .unwrap();
+///
+///     // run the `ping` command and assert it returns `pong`
+///     let res = tauri::test::get_ipc_response::<String>(
+///         &window,
+///         tauri::window::InvokeRequest {
+///             cmd: "ping".into(),
+///             callback: tauri::ipc::CallbackFn(0),
+///             error: tauri::ipc::CallbackFn(1),
+///             body: tauri::ipc::InvokeBody::default(),
+///             headers: Default::default(),
+///         },
+///     );
+///     assert!(res.is_ok());
+///     assert_eq!(res.unwrap(), String::from("pong"));
+/// }
+///```
+pub fn get_ipc_response<T>(
+  window: &Window<MockRuntime>,
+  request: InvokeRequest,
+) -> Result<T, String>
+where
+  T: DeserializeOwned + Debug,
+{
+  let (tx, rx) = std::sync::mpsc::sync_channel(1);
+  window.clone().on_message(
+    request,
+    Box::new(move |_window, _cmd, response, _callback, _error| {
+      tx.send(response).unwrap();
+    }),
+  );
+
+  let res = rx.recv().expect("Failed to receive result from command");
+  match res {
+    InvokeResponse::Ok(InvokeBody::Json(v)) => Ok(serde_json::from_value(v).unwrap()),
+    InvokeResponse::Ok(InvokeBody::Raw(v)) => Err("Raw response not handled".into()),
+    InvokeResponse::Err(InvokeError(v)) => Err(v.to_string()),
+  }
 }
 
 #[cfg(test)]

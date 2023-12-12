@@ -11,47 +11,38 @@
 //! # Examples
 //!
 //! ```rust
-//! #[tauri::command]
-//! fn my_cmd() {}
+//! use tauri::test::{mock_builder, mock_context, noop_assets};
 //!
-//! fn create_app<R: tauri::Runtime>(mut builder: tauri::Builder<R>) -> tauri::App<R> {
-//!   builder
-//!     .setup(|app| {
-//!       // do something
-//!       Ok(())
-//!     })
-//!     .invoke_handler(tauri::generate_handler![my_cmd])
-//!     // remove the string argument on your app
-//!     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-//!     .expect("failed to build app")
+//! #[tauri::command]
+//! fn ping() -> &'static str {
+//!     "pong"
+//! }
+//!
+//! fn create_app<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::App<R> {
+//!     builder
+//!         .invoke_handler(tauri::generate_handler![ping])
+//!         // remove the string argument to use your app's config file
+//!         .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!         .expect("failed to build app")
 //! }
 //!
 //! fn main() {
-//!   // let app = create_app(tauri::Builder::default());
-//!   // app.run(|_handle, _event| {});
-//! }
+//!     let app = create_app(mock_builder());
+//!     let window = tauri::WindowBuilder::new(&app, "main", Default::default())
+//!         .build()
+//!         .unwrap();
 //!
-//! //#[cfg(test)]
-//! mod tests {
-//!   use tauri::Manager;
-//!   //#[cfg(test)]
-//!   fn something() {
-//!     let app = super::create_app(tauri::test::mock_builder());
-//!     let window = app.get_window("main").unwrap();
-//!     // do something with the app and window
-//!     // in this case we'll run the my_cmd command with no arguments
-//!     tauri::test::assert_ipc_response(
-//!       &window,
-//!       tauri::window::InvokeRequest {
-//!         cmd: "my_cmd".into(),
-//!         callback: tauri::ipc::CallbackFn(0),
-//!         error: tauri::ipc::CallbackFn(1),
-//!         body: serde_json::Value::Null.into(),
-//!         headers: Default::default(),
-//!       },
-//!       Ok(())
+//!     // run the `ping` command and assert it returns `pong`
+//!     let res = tauri::test::get_ipc_response::<String>(
+//!         &window,
+//!         tauri::window::InvokeRequest {
+//!             cmd: "ping".into(),
+//!             callback: tauri::ipc::CallbackFn(0),
+//!             error: tauri::ipc::CallbackFn(1),
+//!             body: tauri::ipc::InvokeBody::default(),
+//!             headers: Default::default(),
+//!         },
 //!     );
-//!   }
 //! }
 //! ```
 
@@ -175,48 +166,39 @@ pub fn mock_app() -> App<MockRuntime> {
 /// # Examples
 ///
 /// ```rust
+/// use tauri::test::{mock_builder, mock_context, noop_assets};
+///
 /// #[tauri::command]
 /// fn ping() -> &'static str {
-///   "pong"
+///     "pong"
 /// }
 ///
-/// fn create_app<R: tauri::Runtime>(mut builder: tauri::Builder<R>) -> tauri::App<R> {
-///   builder
-///     .invoke_handler(tauri::generate_handler![ping])
-///     // remove the string argument on your app
-///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-///     .expect("failed to build app")
+/// fn create_app<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::App<R> {
+///     builder
+///         .invoke_handler(tauri::generate_handler![ping])
+///         // remove the string argument to use your app's config file
+///         .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///         .expect("failed to build app")
 /// }
 ///
 /// fn main() {
-///   // let app = create_app(tauri::Builder::default());
-///   // app.run(|_handle, _event| {});}
-/// }
-///
-/// //#[cfg(test)]
-/// mod tests {
-///   use tauri::Manager;
-///
-///   //#[cfg(test)]
-///   fn something() {
-///     let app = super::create_app(tauri::test::mock_builder());
-///     let window = app.get_window("main").unwrap();
+///     let app = create_app(mock_builder());
+///     let window = tauri::WindowBuilder::new(&app, "main", Default::default())
+///         .build()
+///         .unwrap();
 ///
 ///     // run the `ping` command and assert it returns `pong`
 ///     tauri::test::assert_ipc_response(
-///       &window,
-///       tauri::window::InvokeRequest {
-///         cmd: "ping".into(),
-///         callback: tauri::ipc::CallbackFn(0),
-///         error: tauri::ipc::CallbackFn(1),
-///         body: serde_json::Value::Null.into(),
-///         headers: Default::default(),
-///       },
-///       // the expected response is a success with the "pong" payload
-///       // we could also use Err("error message") here to ensure the command failed
+///         &window,
+///         tauri::window::InvokeRequest {
+///             cmd: "ping".into(),
+///             callback: tauri::ipc::CallbackFn(0),
+///             error: tauri::ipc::CallbackFn(1),
+///             body: tauri::ipc::InvokeBody::default(),
+///             headers: Default::default(),
+///         },
 ///       Ok("pong")
 ///     );
-///   }
 /// }
 /// ```
 pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
@@ -260,7 +242,8 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
 /// fn create_app<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::App<R> {
 ///     builder
 ///         .invoke_handler(tauri::generate_handler![ping])
-///         .build(mock_context(noop_assets()))
+///         // remove the string argument to use your app's config file
+///         .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
 ///         .expect("failed to build app")
 /// }
 ///

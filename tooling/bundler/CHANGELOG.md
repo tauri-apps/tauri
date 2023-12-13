@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.4.7]
+
+### Bug Fixes
+
+- [`777ddf43`](https://www.github.com/tauri-apps/tauri/commit/777ddf434a966966dc8918322c1ec9ee3f822ee2)([#8376](https://www.github.com/tauri-apps/tauri/pull/8376)) Unset `NSISDIR` and `NSISCONFDIR` when running `makensis.exe` so it doesn't conflict with NSIS installed by the user.
+- [`5ff9d459`](https://www.github.com/tauri-apps/tauri/commit/5ff9d4592a6dd8fc93165012ef367d78ea06e4ce)([#8390](https://www.github.com/tauri-apps/tauri/pull/8390)) NSIS perUser installers will now only check if the app is running on the current user.
+
 ## \[1.4.6]
 
 ### Bug Fixes

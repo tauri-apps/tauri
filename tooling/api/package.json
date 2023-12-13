@@ -19,10 +19,17 @@
   },
   "homepage": "https://github.com/tauri-apps/tauri#readme",
   "type": "module",
-  "types": "./types/index.d.ts",
   "main": "./index.cjs",
   "module": "./index.js",
   "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.cjs"
+    },
+    "./*": {
+      "import": "./*.js",
+      "require": "./*.cjs"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.8]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.8`
+
 ## \[1.5.7]
 
 ### Bug Fixes

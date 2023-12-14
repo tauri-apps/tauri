@@ -33,7 +33,7 @@
 //!         .unwrap();
 //!
 //!     // run the `ping` command and assert it returns `pong`
-//!     let res = tauri::test::get_ipc_response::<String>(
+//!     let res = tauri::test::get_ipc_response(
 //!         &window,
 //!         tauri::window::InvokeRequest {
 //!             cmd: "ping".into(),
@@ -42,7 +42,7 @@
 //!             body: tauri::ipc::InvokeBody::default(),
 //!             headers: Default::default(),
 //!         },
-//!     );
+//!     ).map(|b| b.deserialize::<String>().unwrap());
 //! }
 //! ```
 
@@ -50,7 +50,7 @@
 
 mod mock_runtime;
 pub use mock_runtime::*;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
 
 use std::{borrow::Cow, fmt::Debug};
 
@@ -189,7 +189,8 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
   request: InvokeRequest,
   expected: Result<T, T>,
 ) {
-  let response = get_ipc_response::<serde_json::Value>(window, request);
+  let response =
+    get_ipc_response(window, request).map(|b| b.deserialize::<serde_json::Value>().unwrap());
   assert_eq!(
     response,
     expected
@@ -225,7 +226,7 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
 ///         .unwrap();
 ///
 ///     // run the `ping` command and assert it returns `pong`
-///     let res = tauri::test::get_ipc_response::<String>(
+///     let res = tauri::test::get_ipc_response(
 ///         &window,
 ///         tauri::window::InvokeRequest {
 ///             cmd: "ping".into(),
@@ -236,16 +237,13 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
 ///         },
 ///     );
 ///     assert!(res.is_ok());
-///     assert_eq!(res.unwrap(), String::from("pong"));
+///     assert_eq!(res.unwrap().deserialize::<String>().unwrap(), String::from("pong"));
 /// }
 ///```
-pub fn get_ipc_response<T>(
+pub fn get_ipc_response(
   window: &Window<MockRuntime>,
   request: InvokeRequest,
-) -> Result<T, serde_json::Value>
-where
-  T: DeserializeOwned + Debug,
-{
+) -> Result<InvokeBody, serde_json::Value> {
   let (tx, rx) = std::sync::mpsc::sync_channel(1);
   window.clone().on_message(
     request,
@@ -256,73 +254,8 @@ where
 
   let res = rx.recv().expect("Failed to receive result from command");
   match res {
-    InvokeResponse::Ok(InvokeBody::Json(v)) => Ok(serde_json::from_value(v).unwrap()),
-    InvokeResponse::Ok(InvokeBody::Raw(v)) => Ok(serde_json::from_slice(&v).unwrap()),
+    InvokeResponse::Ok(b) => Ok(b),
     InvokeResponse::Err(InvokeError(v)) => Err(v),
-  }
-}
-
-/// Executes the given IPC message and get the return value as a raw buffer.
-///
-/// # Examples
-///
-/// ```rust
-/// use tauri::ipc::Response;
-/// use tauri::test::{get_ipc_response_raw, mock_builder, mock_context, noop_assets};
-///
-/// #[tauri::command]
-/// fn ping() -> Response {
-///     Response::new("pong".as_bytes().to_vec())
-/// }
-///
-/// fn create_app<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::App<R> {
-///     builder
-///         .invoke_handler(tauri::generate_handler![ping])
-///         // remove the string argument on your app
-///         .build(mock_context(noop_assets()))
-///         .expect("failed to build app")
-/// }
-///
-/// fn main() {
-///     let app = create_app(mock_builder());
-///     let window = tauri::WindowBuilder::new(&app, "main", Default::default())
-///         .build()
-///         .unwrap();
-///
-///     // run the `ping` command and assert it returns `pong`
-///     let res = get_ipc_response_raw(
-///         &window,
-///         tauri::window::InvokeRequest {
-///             cmd: "ping".into(),
-///             callback: tauri::ipc::CallbackFn(0),
-///             error: tauri::ipc::CallbackFn(1),
-///             body: tauri::ipc::InvokeBody::default(),
-///             headers: Default::default(),
-///         },
-///     );
-///     assert!(res.is_ok());
-///     assert_eq!(res.unwrap(), "pong".as_bytes().to_vec());
-/// }
-///```
-pub fn get_ipc_response_raw(
-  window: &Window<MockRuntime>,
-  request: InvokeRequest,
-) -> Result<Vec<u8>, String> {
-  let (tx, rx) = std::sync::mpsc::sync_channel(1);
-  window.clone().on_message(
-    request,
-    Box::new(move |_window, _cmd, response, _callback, _error| {
-      tx.send(response).unwrap();
-    }),
-  );
-
-  let res = rx.recv().expect("Failed to receive result from command");
-  match res {
-    InvokeResponse::Ok(InvokeBody::Json(v)) => {
-      Ok(serde_json::to_string(&v).unwrap().as_bytes().to_vec())
-    }
-    InvokeResponse::Ok(InvokeBody::Raw(v)) => Ok(v),
-    InvokeResponse::Err(InvokeError(v)) => Err(v.to_string()),
   }
 }
 

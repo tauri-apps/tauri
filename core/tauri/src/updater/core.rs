@@ -836,35 +836,35 @@ fn copy_files_and_run<R: Read + Seek>(
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // we need to wrap the installer path in quotes for Start-Process
-      let mut installer_arg = std::ffi::OsString::new();
-      installer_arg.push("\"");
-      installer_arg.push(&found_path);
-      installer_arg.push("\"");
+      let mut installer_path = std::ffi::OsString::new();
+      installer_path.push("\"");
+      installer_path.push(&found_path);
+      installer_path.push("\"");
+
+      let installer_args = [
+        config.tauri.updater.windows.install_mode.nsis_args(),
+        config
+          .tauri
+          .updater
+          .windows
+          .installer_args
+          .iter()
+          .map(AsRef::as_ref)
+          .collect::<Vec<_>>()
+          .as_slice(),
+      ]
+      .concat();
 
       // Run the EXE
-      Command::new(powershell_path)
+      let mut cmd = Command::new(powershell_path);
+      cmd
         .args(["-NoProfile", "-WindowStyle", "Hidden"])
         .args(["Start-Process"])
-        .arg(installer_arg)
-        .arg("-ArgumentList")
-        .arg(
-          [
-            config.tauri.updater.windows.install_mode.nsis_args(),
-            config
-              .tauri
-              .updater
-              .windows
-              .installer_args
-              .iter()
-              .map(AsRef::as_ref)
-              .collect::<Vec<_>>()
-              .as_slice(),
-          ]
-          .concat()
-          .join(", "),
-        )
-        .spawn()
-        .expect("installer failed to start");
+        .arg(installer_path);
+      if !installer_args.is_empty() {
+        cmd.arg("-ArgumentList").arg(installer_args.join(", "));
+      }
+      cmd.spawn().expect("installer failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -913,21 +913,24 @@ fn copy_files_and_run<R: Read + Seek>(
       current_exe_arg.push(current_exe()?);
       current_exe_arg.push("\"");
 
-      let mut msi_path_arg = std::ffi::OsString::new();
-      msi_path_arg.push("\"\"\"");
-      msi_path_arg.push(&found_path);
-      msi_path_arg.push("\"\"\"");
+      let mut msi_path = std::ffi::OsString::new();
+      msi_path.push("\"\"\"");
+      msi_path.push(&found_path);
+      msi_path.push("\"\"\"");
 
-      let mut msiexec_args = config
-        .tauri
-        .updater
-        .windows
-        .install_mode
-        .msiexec_args()
-        .iter()
-        .map(|p| p.to_string())
-        .collect::<Vec<String>>();
-      msiexec_args.extend(config.tauri.updater.windows.installer_args.clone());
+      let installer_args = [
+        config.tauri.updater.windows.install_mode.msiexec_args(),
+        config
+          .tauri
+          .updater
+          .windows
+          .installer_args
+          .iter()
+          .map(AsRef::as_ref)
+          .collect::<Vec<_>>()
+          .as_slice(),
+      ]
+      .concat();
 
       // run the installer and relaunch the application
       let powershell_install_res = Command::new(powershell_path)
@@ -936,12 +939,12 @@ fn copy_files_and_run<R: Read + Seek>(
           "Start-Process",
           "-Wait",
           "-FilePath",
-          "$env:SYSTEMROOT\\System32\\msiexec.exe",
+          "$Env:SYSTEMROOT\\System32\\msiexec.exe",
           "-ArgumentList",
         ])
         .arg("/i,")
-        .arg(&msi_path_arg)
-        .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
+        .arg(&msi_path)
+        .arg(format!(", {}, /promptrestart;", installer_args.join(", ")))
         .arg("Start-Process")
         .arg(current_exe_arg)
         .spawn();
@@ -954,8 +957,8 @@ fn copy_files_and_run<R: Read + Seek>(
         );
         let _ = Command::new(msiexec_path)
           .arg("/i")
-          .arg(msi_path_arg)
-          .args(msiexec_args)
+          .arg(msi_path)
+          .args(installer_args)
           .arg("/promptrestart")
           .spawn();
       }

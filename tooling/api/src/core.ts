@@ -166,7 +166,7 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  * The resource lives in the main process and does not exist
  * in the Javascript world, and thus will not be cleaned up automatiacally
  * except on application exit. If you want to clean it up early, call {@linkcode Resource.close}
- * 
+ *
  * @example
  * ```typescript
  * import { Resource, invoke } from '@tauri-apps/api/core';

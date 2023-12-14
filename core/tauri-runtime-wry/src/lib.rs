@@ -2662,7 +2662,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   #[cfg(windows)]
   let window_theme = window_builder.inner.window.preferred_theme;
-  #[cfg(windows)]
+
   let proxy = context.proxy.clone();
 
   #[cfg(target_os = "macos")]

@@ -87,11 +87,11 @@ use tauri_utils::{
 
 /// A key for an [`Ipc`] call.
 #[derive(Eq, PartialEq)]
-pub struct IpcKey {
+struct IpcKey {
   /// callback
-  pub callback: CallbackFn,
+  callback: CallbackFn,
   /// error callback
-  pub error: CallbackFn,
+  error: CallbackFn,
 }
 
 impl Hash for IpcKey {
@@ -102,23 +102,7 @@ impl Hash for IpcKey {
 }
 
 /// Structure to retrieve result of a Tauri command
-pub struct Ipc(Mutex<HashMap<IpcKey, Sender<std::result::Result<JsonValue, JsonValue>>>>);
-
-impl Ipc {
-  /// Insert an `Ipc` which will be used by the Tauri backend to send back the result of a Tauri
-  /// command
-  pub fn insert_ipc(&self, key: IpcKey, tx: Sender<std::result::Result<JsonValue, JsonValue>>) {
-    self.0.lock().unwrap().insert(key, tx);
-  }
-
-  /// Remove an `Ipc` from the hashmap
-  pub fn remove_ipc(
-    &self,
-    key: &IpcKey,
-  ) -> Option<Sender<std::result::Result<JsonValue, JsonValue>>> {
-    self.0.lock().unwrap().remove(key)
-  }
-}
+struct Ipc(Mutex<HashMap<IpcKey, Sender<std::result::Result<JsonValue, JsonValue>>>>);
 
 /// An empty [`Assets`] implementation.
 pub struct NoopAsset {
@@ -210,7 +194,8 @@ pub fn mock_builder() -> Builder<MockRuntime> {
   builder.invoke_responder = Arc::new(|window, response, callback, error| {
     let window_ = window.clone();
     let ipc = window_.state::<Ipc>();
-    if let Some(tx) = ipc.remove_ipc(&IpcKey { callback, error }) {
+    let mut ipc_ = ipc.0.lock().unwrap();
+    if let Some(tx) = ipc_.remove(&IpcKey { callback, error }) {
       tx.send(response.into_result()).unwrap();
     } else {
       window_invoke_responder(window, response, callback, error)
@@ -271,15 +256,8 @@ pub fn assert_ipc_response<T: Serialize + Debug>(
   payload: InvokePayload,
   expected: Result<T, T>,
 ) {
-  let callback = payload.callback;
-  let error = payload.error;
-  let ipc = window.state::<Ipc>();
-  let (tx, rx) = channel();
-  ipc.0.lock().unwrap().insert(IpcKey { callback, error }, tx);
-  window.clone().on_message(payload).unwrap();
-
   assert_eq!(
-    rx.recv().unwrap(),
+    get_ipc_response(window, payload),
     expected
       .map(|e| serde_json::to_value(e).unwrap())
       .map_err(|e| serde_json::to_value(e).unwrap())

@@ -20,6 +20,7 @@ uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
 tracing = { version = "0.1", optional = true }
+arboard = { version = "3", optional = true }
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"
@@ -47,6 +48,6 @@ macos-private-api = [
 ]
 objc-exception = [ "wry/objc-exception" ]
 global-shortcut = [ "tauri-runtime/global-shortcut" ]
-clipboard = [ "tauri-runtime/clipboard" ]
+clipboard = [ "tauri-runtime/clipboard", "arboard" ]
 linux-headers = [ "wry/linux-headers", "webkit2gtk/v2_36" ]
 tracing = [ "dep:tracing", "wry/tracing" ]

@@ -7,14 +7,7 @@ import typescript from '@rollup/plugin-typescript'
 import terser from '@rollup/plugin-terser'
 import fg from 'fast-glob'
 import { basename, join } from 'path'
-import {
-  writeFileSync,
-  copyFileSync,
-  opendirSync,
-  rmSync,
-  Dir,
-  readFileSync
-} from 'fs'
+import { copyFileSync, opendirSync, rmSync, Dir } from 'fs'
 import { fileURLToPath } from 'url'
 
 // cleanup dist dir
@@ -45,7 +38,7 @@ export default defineConfig([
     plugins: [
       typescript({
         declaration: true,
-        declarationDir: './dist/types',
+        declarationDir: './dist',
         rootDir: 'src'
       }),
       makeFlatPackageInDist()
@@ -75,40 +68,10 @@ function makeFlatPackageInDist(): Plugin {
   return {
     name: 'makeFlatPackageInDist',
     writeBundle() {
-      // append our api modules to `exports` in `package.json` then write it to `./dist`
-      const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-      const mods = modules.map((p) => basename(p).split('.')[0])
-
-      const outputPkg = {
-        ...pkg,
-        devDependencies: {},
-        exports: Object.assign(
-          {},
-          ...mods.map((mod) => {
-            const exports: Record<
-              string,
-              { types: string; import: string; require: string }
-            > = {}
-            const key = mod === 'index' ? '.' : `./${mod}`
-            exports[key] = {
-              types: `./types/${mod}.d.ts`,
-              import: `./${mod}.js`,
-              require: `./${mod}.cjs`
-            }
-            return exports
-          }),
-          // if for some reason in the future we manually add something in the `exports` field
-          // this will ensure it doesn't get overwritten by the logic above
-          { ...(pkg.exports || {}) }
-        )
-      }
-      writeFileSync(
-        'dist/package.json',
-        JSON.stringify(outputPkg, undefined, 2)
-      )
-
       // copy necessary files like `CHANGELOG.md` , `README.md` and Licenses to `./dist`
-      fg.sync('(LICENSE*|*.md)').forEach((f) => copyFileSync(f, `dist/${f}`))
+      fg.sync('(LICENSE*|*.md|package.json)').forEach((f) =>
+        copyFileSync(f, `dist/${f}`)
+      )
     }
   }
 }

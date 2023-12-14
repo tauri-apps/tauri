@@ -52,14 +52,10 @@ mod mock_runtime;
 pub use mock_runtime::*;
 use serde::{de::DeserializeOwned, Serialize};
 
-use std::{
-  borrow::Cow,
-  fmt::Debug,
-  hash::{Hash, Hasher},
-};
+use std::{borrow::Cow, fmt::Debug};
 
 use crate::{
-  ipc::{CallbackFn, InvokeBody, InvokeError, InvokeResponse},
+  ipc::{InvokeBody, InvokeError, InvokeResponse},
   window::InvokeRequest,
   App, Builder, Context, Pattern, Window,
 };
@@ -67,19 +63,6 @@ use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{Config, PatternKind, TauriConfig},
 };
-
-#[derive(Eq, PartialEq)]
-struct IpcKey {
-  callback: CallbackFn,
-  error: CallbackFn,
-}
-
-impl Hash for IpcKey {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.callback.0.hash(state);
-    self.error.0.hash(state);
-  }
-}
 
 /// An empty [`Assets`] implementation.
 pub struct NoopAsset {
@@ -206,25 +189,13 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
   request: InvokeRequest,
   expected: Result<T, T>,
 ) {
-  let (tx, rx) = std::sync::mpsc::sync_channel(1);
-  window.clone().on_message(
-    request,
-    Box::new(move |_window, _cmd, response, _callback, _error| {
-      assert_eq!(
-        match response {
-          InvokeResponse::Ok(b) => Ok(b.into_json()),
-          InvokeResponse::Err(e) => Err(e.0),
-        },
-        expected
-          .map(|e| serde_json::to_value(e).unwrap())
-          .map_err(|e| serde_json::to_value(e).unwrap())
-      );
-
-      tx.send(()).unwrap();
-    }),
+  let response = get_ipc_response::<serde_json::Value>(window, request);
+  assert_eq!(
+    response,
+    expected
+      .map(|e| serde_json::to_value(e).unwrap())
+      .map_err(|e| serde_json::to_value(e).unwrap())
   );
-
-  rx.recv().unwrap();
 }
 
 /// Executes the given IPC message and get the return value.
@@ -271,7 +242,7 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
 pub fn get_ipc_response<T>(
   window: &Window<MockRuntime>,
   request: InvokeRequest,
-) -> Result<T, String>
+) -> Result<T, serde_json::Value>
 where
   T: DeserializeOwned + Debug,
 {
@@ -286,12 +257,12 @@ where
   let res = rx.recv().expect("Failed to receive result from command");
   match res {
     InvokeResponse::Ok(InvokeBody::Json(v)) => Ok(serde_json::from_value(v).unwrap()),
-    InvokeResponse::Ok(InvokeBody::Raw(v)) => Err("Raw response not handled".into()),
-    InvokeResponse::Err(InvokeError(v)) => Err(v.to_string()),
+    InvokeResponse::Ok(InvokeBody::Raw(v)) => Ok(serde_json::from_slice(&v).unwrap()),
+    InvokeResponse::Err(InvokeError(v)) => Err(v),
   }
 }
 
-/// Executes the given IPC message and get the return value.
+/// Executes the given IPC message and get the return value as a raw buffer.
 ///
 /// # Examples
 ///
@@ -347,7 +318,9 @@ pub fn get_ipc_response_raw(
 
   let res = rx.recv().expect("Failed to receive result from command");
   match res {
-    InvokeResponse::Ok(InvokeBody::Json(v)) => Err("Json response not handled".into()),
+    InvokeResponse::Ok(InvokeBody::Json(v)) => {
+      Ok(serde_json::to_string(&v).unwrap().as_bytes().to_vec())
+    }
     InvokeResponse::Ok(InvokeBody::Raw(v)) => Ok(v),
     InvokeResponse::Err(InvokeError(v)) => Err(v.to_string()),
   }

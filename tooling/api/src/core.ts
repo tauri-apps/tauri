@@ -166,6 +166,21 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  * The resource lives in the main process and does not exist
  * in the Javascript world, and thus will not be cleaned up automatiacally
  * except on application exit. If you want to clean it up early, call {@linkcode Resource.close}
+ * 
+ * @example
+ * ```typescript
+ * import { Resource, invoke } from '@tauri-apps/api/core';
+ * export class DatabaseHandle extends Resource {
+ *   static async open(path: string): Promise<DatabaseHandle> {
+ *     const rid: number = await invoke('open_db', { path });
+ *     return new DatabaseHandle(rid);
+ *   }
+ *
+ *   async execute(sql: string): Promise<void> {
+ *     await invoke('execute_sql', { rid: this.rid, sql });
+ *   }
+ * }
+ * ```
  */
 export class Resource {
   readonly #rid: number

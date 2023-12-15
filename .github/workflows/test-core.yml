@@ -123,7 +123,6 @@ jobs:
           cargo update -p async-process --precise 1.7.0
           cargo update -p is-terminal --precise 0.4.7
           cargo update -p tar --precise 0.4.39
-          cargo update -p rustix:0.38.28 --precise 0.37.27
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

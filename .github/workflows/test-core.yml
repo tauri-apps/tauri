@@ -119,7 +119,7 @@ jobs:
           cargo update -p globset --precise 0.4.13
           cargo update -p crossbeam-channel --precise 0.5.8
           cargo update -p crossbeam-utils --precise 0.8.16
-          cargo update -p image --precise 0.24.6
+          cargo update -p image --precise 0.24.4
           cargo update -p async-process --precise 1.7.0
           cargo update -p is-terminal --precise 0.4.7
           cargo update -p tar --precise 0.4.39

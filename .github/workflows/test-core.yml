@@ -120,6 +120,7 @@ jobs:
           cargo update -p crossbeam-channel --precise 0.5.8
           cargo update -p crossbeam-utils --precise 0.8.16
           cargo update -p image --precise 0.24.6
+          cargo update -p rustix@0.38.28 --precise 0.37.27
           cargo update -p tar --precise 0.4.39
           cargo update -p async-process --precise 1.7.0
 

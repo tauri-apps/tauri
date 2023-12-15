@@ -117,6 +117,7 @@ jobs:
           cargo update -p ignore --precise 0.4.18
           cargo update -p regex --precise 1.9.6
           cargo update -p globset --precise 0.4.13
+          cargo update -p crossbeam-channel --precise 0.5.8
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

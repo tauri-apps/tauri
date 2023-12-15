@@ -121,6 +121,7 @@ jobs:
           cargo update -p crossbeam-utils --precise 0.8.16
           cargo update -p image --precise 0.24.6
           cargo update -p tar --precise 0.4.39
+          cargo update -p async-process --precise 1.7.0
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

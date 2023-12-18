@@ -1,7 +1,11 @@
 use std::collections::BTreeMap;
 
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+
 /// A valid ACL number.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq)]
+#[serde(untagged)]
 pub enum Number {
   /// Represents an [`i64`].
   Int(i64),
@@ -25,7 +29,8 @@ impl From<f64> for Number {
 }
 
 /// All supported ACL values.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialOrd, PartialEq)]
+#[serde(untagged)]
 pub enum Value {
   /// Represents a [`bool`].
   Bool(bool),
@@ -41,6 +46,15 @@ pub enum Value {
 
   /// Represents a map of [`String`] keys to [`Value`]s.
   Map(BTreeMap<String, Value>),
+}
+
+impl Value {
+  /// TODO: implement [`serde::Deserializer`] directly to avoid serializing then deserializing
+  pub fn deserialize<T: DeserializeOwned>(&self) -> Option<T> {
+    toml::to_string(self)
+      .ok()
+      .and_then(|s| toml::from_str(&s).ok())
+  }
 }
 
 impl From<bool> for Value {

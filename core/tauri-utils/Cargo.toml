@@ -30,7 +30,7 @@ getrandom = { version = "0.2", optional = true, features = [ "std" ] }
 serialize-to-javascript = { version = "=0.1.1", optional = true }
 ctor = "0.2"
 json5 = { version = "0.4", optional = true }
-toml = { version = "0.8", default-features = true }
+toml = { version = "0.8", features = ["parse"] }
 json-patch = "1.2"
 glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
@@ -39,6 +39,7 @@ semver = "1"
 infer = "0.15"
 dunce = "1"
 log = "0.4.20"
+matchit = "0.7"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"

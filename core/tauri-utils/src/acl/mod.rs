@@ -1,10 +1,13 @@
+use serde::{Deserialize, Serialize};
 use std::num::NonZeroU64;
 
 pub use self::{identifier::*, value::*};
 
-mod identifier;
+pub mod capability;
+pub mod identifier;
 pub mod plugin;
-mod value;
+pub mod resolved;
+pub mod value;
 
 /// Allowed and denied commands inside a permission.
 ///
@@ -40,6 +43,11 @@ pub struct InlinedPermission {
 
   /// Allowed or denied scoped when using this permission.
   scopes: Scopes,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PermissionId {
+  inner: String,
 }
 
 /// A permission.

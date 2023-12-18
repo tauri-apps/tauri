@@ -46,7 +46,7 @@ fn get_response(
 
   if !scope.is_allowed(&path) {
     debug_eprintln!("asset protocol not configured to allow the path: {}", path);
-    return resp.body(Vec::new().into()).map_err(Into::into);
+    return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
   let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {

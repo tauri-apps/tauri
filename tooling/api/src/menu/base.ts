@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { Resource } from '../internal'
-import { Channel, invoke } from '../core'
+import { Channel, invoke, Resource } from '../core'
 import { CheckMenuItemOptions } from './checkMenuItem'
 import { IconMenuItemOptions } from './iconMenuItem'
 import { MenuItemOptions } from './menuItem'

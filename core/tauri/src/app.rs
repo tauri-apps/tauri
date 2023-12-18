@@ -63,7 +63,7 @@ pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEve
 #[cfg(all(desktop, feature = "tray-icon"))]
 pub(crate) type GlobalTrayIconEventListener<T> =
   Box<dyn Fn(&T, crate::tray::TrayIconEvent) + Send + Sync>;
-pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(Window<R>, WindowEvent) + Send + Sync>;
+pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(&Window<R>, &WindowEvent) + Send + Sync>;
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
@@ -1295,7 +1295,7 @@ impl<R: Runtime> Builder<R> {
   ///   });
   /// ```
   #[must_use]
-  pub fn on_window_event<F: Fn(Window<R>, WindowEvent) + Send + Sync + 'static>(
+  pub fn on_window_event<F: Fn(&Window<R>, &WindowEvent) + Send + Sync + 'static>(
     mut self,
     handler: F,
   ) -> Self {

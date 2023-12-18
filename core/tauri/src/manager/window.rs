@@ -573,7 +573,7 @@ impl<R: Runtime> WindowManager<R> {
     window.on_window_event(move |event| {
       let _ = on_window_event(&window_, &manager, event);
       for handler in window_event_listeners.iter() {
-        handler(window_.clone(), event.clone());
+        handler(&window_, event);
       }
     });
 

@@ -197,10 +197,7 @@ pub use self::utils::TitleBarStyle;
 
 pub use self::event::{Event, EventId};
 pub use {
-  self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
-    WindowEvent,
-  },
+  self::app::{App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WindowEvent},
   self::manager::Asset,
   self::runtime::{
     webview::WebviewAttributes,

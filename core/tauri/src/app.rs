@@ -63,7 +63,7 @@ pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEve
 #[cfg(all(desktop, feature = "tray-icon"))]
 pub(crate) type GlobalTrayIconEventListener<T> =
   Box<dyn Fn(&T, crate::tray::TrayIconEvent) + Send + Sync>;
-pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
+pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(Window<R>, WindowEvent) + Send + Sync>;
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
@@ -216,26 +216,6 @@ impl From<EventLoopMessage> for RunEvent {
       #[cfg(all(desktop, feature = "tray-icon"))]
       EventLoopMessage::TrayIconEvent(e) => Self::TrayIconEvent(e),
     }
-  }
-}
-
-/// A window event that was triggered on the specified window.
-#[default_runtime(crate::Wry, wry)]
-#[derive(Debug)]
-pub struct GlobalWindowEvent<R: Runtime> {
-  pub(crate) event: WindowEvent,
-  pub(crate) window: Window<R>,
-}
-
-impl<R: Runtime> GlobalWindowEvent<R> {
-  /// The event payload.
-  pub fn event(&self) -> &WindowEvent {
-    &self.event
-  }
-
-  /// The window that the event belongs to.
-  pub fn window(&self) -> &Window<R> {
-    &self.window
   }
 }
 
@@ -1304,18 +1284,18 @@ impl<R: Runtime> Builder<R> {
   /// # Examples
   /// ```
   /// tauri::Builder::default()
-  ///   .on_window_event(|event| match event.event() {
+  ///   .on_window_event(|window, event| match event {
   ///     tauri::WindowEvent::Focused(focused) => {
   ///       // hide window whenever it loses focus
   ///       if !focused {
-  ///         event.window().hide().unwrap();
+  ///         window.hide().unwrap();
   ///       }
   ///     }
   ///     _ => {}
   ///   });
   /// ```
   #[must_use]
-  pub fn on_window_event<F: Fn(GlobalWindowEvent<R>) + Send + Sync + 'static>(
+  pub fn on_window_event<F: Fn(Window<R>, WindowEvent) + Send + Sync + 'static>(
     mut self,
     handler: F,
   ) -> Self {

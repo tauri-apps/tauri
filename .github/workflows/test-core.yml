@@ -99,7 +99,6 @@ jobs:
           cargo update -p cargo_toml:0.15.3 --precise 0.15.2
           cargo update -p zbus --precise 3.13.0
           cargo update -p zbus_names --precise 2.5.0
-          cargo update -p is-terminal --precise 0.4.7
           cargo update -p colored --precise 2.0.2
           cargo update -p tempfile --precise 3.6.0
           cargo update -p serde_with:3.4.0 --precise 3.0.0
@@ -118,6 +117,12 @@ jobs:
           cargo update -p ignore --precise 0.4.18
           cargo update -p regex --precise 1.9.6
           cargo update -p globset --precise 0.4.13
+          cargo update -p crossbeam-channel --precise 0.5.8
+          cargo update -p crossbeam-utils --precise 0.8.16
+          cargo update -p image --precise 0.24.4
+          cargo update -p async-process --precise 1.7.0
+          cargo update -p is-terminal --precise 0.4.7
+          cargo update -p tar --precise 0.4.39
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

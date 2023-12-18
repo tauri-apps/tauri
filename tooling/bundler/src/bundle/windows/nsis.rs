@@ -9,8 +9,8 @@ use crate::{
     common::CommandExt,
     windows::util::{
       download, download_and_verify, download_webview2_bootstrapper,
-      download_webview2_offline_installer, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
-      NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+      download_webview2_offline_installer, extract_zip, verify_path_hash, HashAlgorithm,
+      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
   Settings,
@@ -28,8 +28,6 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-
-use super::util::verify_path_hash;
 
 // URLS for the NSIS toolchain.
 #[cfg(target_os = "windows")]

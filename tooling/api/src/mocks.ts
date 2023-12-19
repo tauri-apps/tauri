@@ -196,10 +196,13 @@ export function clearMocks(): void {
     return
   }
 
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_INTERNALS__.convertFileSrc
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_INTERNALS__.ipc
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_INTERNALS__.metadata
+  if (window.__TAURI_INTERNALS__?.convertFileSrc)
+    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+    delete window.__TAURI_INTERNALS__.convertFileSrc
+  if (window.__TAURI_INTERNALS__?.ipc)
+    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+    delete window.__TAURI_INTERNALS__.ipc
+  if (window.__TAURI_INTERNALS__?.metadata)
+    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+    delete window.__TAURI_INTERNALS__.metadata
 }

@@ -43,6 +43,8 @@ impl EmitArgs {
     source_window_label: Option<&str>,
     payload: S,
   ) -> crate::Result<Self> {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("window::emit::serialize").entered();
     Ok(EmitArgs {
       event_name: event.into(),
       event: serde_json::to_string(event)?,

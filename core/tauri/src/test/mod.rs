@@ -27,6 +27,8 @@
 //! }
 //!
 //! fn main() {
+//!     // Use `tauri::Builder::default()` to use the default runtime rather than the `MockRuntime`;
+//!     // let app = create_app(tauri::Builder::default());
 //!     let app = create_app(mock_builder());
 //!     let window = tauri::WindowBuilder::new(&app, "main", Default::default())
 //!         .build()
@@ -52,7 +54,7 @@ mod mock_runtime;
 pub use mock_runtime::*;
 use serde::Serialize;
 
-use std::{borrow::Cow, fmt::Debug};
+use std::{borrow::Cow, collections::HashMap, fmt::Debug};
 
 use crate::{
   ipc::{InvokeBody, InvokeError, InvokeResponse},
@@ -66,12 +68,17 @@ use tauri_utils::{
 
 /// An empty [`Assets`] implementation.
 pub struct NoopAsset {
+  assets: HashMap<&'static str, &'static [u8]>,
   csp_hashes: Vec<CspHash<'static>>,
 }
 
 impl Assets for NoopAsset {
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     None
+  }
+
+  fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    Box::new(self.assets.iter())
   }
 
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
@@ -82,6 +89,7 @@ impl Assets for NoopAsset {
 /// Creates a new empty [`Assets`] implementation.
 pub fn noop_assets() -> NoopAsset {
   NoopAsset {
+    assets: Default::default(),
     csp_hashes: Default::default(),
   }
 }

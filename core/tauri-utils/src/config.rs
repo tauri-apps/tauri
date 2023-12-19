@@ -2200,7 +2200,7 @@ mod build {
     } else if num.is_f64() {
       // guaranteed f64
       let num = num.as_f64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
+      quote! { #prefix::Number(::serde_json::Number::from_f64(#num).unwrap(/* safe to unwrap, guaranteed f64 */)) }
     } else {
       // invalid number
       quote! { #prefix::Null }

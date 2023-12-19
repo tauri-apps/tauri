@@ -70,6 +70,7 @@ infer = { version = "0.15", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.3.0", optional = true }
 http-range = { version = "0.1.5", optional = true }
+tracing = { version = "0.1", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.11", default-features = false, features = [ "serde" ] }
@@ -130,6 +131,11 @@ default = [
   "muda/common-controls-v6"
 ]
 tray-icon = [ "dep:tray-icon" ]
+tracing = [
+  "dep:tracing",
+  "tauri-macros/tracing",
+  "tauri-runtime-wry/tracing"
+]
 test = [ ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]

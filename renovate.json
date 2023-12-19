@@ -22,7 +22,8 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "rebaseConflictedPrs": false
+      "rebaseConflictedPrs": false,
+      "ignoreDeps": ["cargo_toml", "toml"]
     },
     {
       "enabled": true,
@@ -33,7 +34,8 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "rebaseConflictedPrs": false
+      "rebaseConflictedPrs": false,
+      "ignoreDeps": ["cargo_toml"]
     },
     {
       "enabled": true,
@@ -78,7 +80,8 @@
         "enabled": true
       },
       "rebaseConflictedPrs": false,
-      "matchManagers": ["cargo"]
+      "matchManagers": ["cargo"],
+      "ignoreDeps": ["minisign"]
     },
     {
       "enabled": true,

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-alpha.6]
+
+### Dependencies
+
+- [\`\`](https://www.github.com/tauri-apps/tauri/commit/undefined) Update dependencies.
+
 ## \[1.0.0-alpha.5]
 
 ### Dependencies

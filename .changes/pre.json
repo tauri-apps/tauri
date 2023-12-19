@@ -249,6 +249,7 @@
     ".changes/rfd101.md",
     ".changes/run-event-opened.md",
     ".changes/run-mobile-plugin.md",
+    ".changes/runtime-bump-deps.md",
     ".changes/runtime-create-window-handler.md",
     ".changes/runtime-custom-protocol-async.md",
     ".changes/runtime-defaultvbox.md",
@@ -322,6 +323,7 @@
     ".changes/with-webview.md",
     ".changes/wry-0.32.md",
     ".changes/wry-0.34.md",
+    ".changes/wry-0.35.md",
     ".changes/wry-navigate-method.md",
     ".changes/wry26.md",
     ".changes/xcode-archive.md"

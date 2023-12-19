@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "1.0.0-alpha.5"
+version = "1.0.0-alpha.6"
 description = "Runtime for Tauri applications"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"

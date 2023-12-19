@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-alpha.7]
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@1.0.0-alpha.6`
+- [\`\`](https://www.github.com/tauri-apps/tauri/commit/undefined) Update to wry v0.35.
+
 ## \[1.0.0-alpha.6]
 
 ### Dependencies

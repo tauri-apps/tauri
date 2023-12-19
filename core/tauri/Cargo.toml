@@ -49,10 +49,10 @@ uuid = { version = "1", features = [ "v4" ], optional = true }
 url = { version = "2.4" }
 anyhow = "1.0"
 thiserror = "1.0"
-tauri-runtime = { version = "1.0.0-alpha.5", path = "../tauri-runtime" }
+tauri-runtime = { version = "1.0.0-alpha.6", path = "../tauri-runtime" }
 tauri-macros = { version = "2.0.0-alpha.11", path = "../tauri-macros" }
 tauri-utils = { version = "2.0.0-alpha.11", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "1.0.0-alpha.6", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "1.0.0-alpha.7", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"

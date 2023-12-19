@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.12]
+
+### New Features
+
+- [\`\`](https://www.github.com/tauri-apps/tauri/commit/undefined) Add bundle DMG configuration options.
+
 ## \[2.0.0-alpha.11]
 
 ### Breaking Changes

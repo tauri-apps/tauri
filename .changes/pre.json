@@ -85,6 +85,7 @@
     ".changes/dev-proxy-response-cache.md",
     ".changes/dev-proxy.md",
     ".changes/devicectl.md",
+    ".changes/dmg-settings.md",
     ".changes/dnd-position.md",
     ".changes/downgrade-min-sdk-version.md",
     ".changes/dynamic-wry-plugin.md",

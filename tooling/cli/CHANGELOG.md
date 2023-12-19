@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-alpha.19]
+
+### Enhancements
+
+- [`803c3a79`](https://www.github.com/tauri-apps/tauri/commit/803c3a794d96c1f0b3361ca98f56e8bcf5038ede)([#8327](https://www.github.com/tauri-apps/tauri/pull/8327)) Read the following env vars when using the `tauri signer sign` command to make it easier to use in CI.
+
+  - `TAURI_PRIVATE_KEY`
+  - `TAURI_PRIVATE_KEY_PASSWORD`
+  - `TAURI_PRIVATE_KEY_PATH`
+
 ## \[2.0.0-alpha.18]
 
 ### New Features

@@ -79,55 +79,54 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 ) -> crate::Result<()> {
   let path: PathBuf = pattern.as_ref().components().collect();
   list.insert(f(&path.to_string_lossy())?);
-  #[cfg(any(windows, target_os = "android"))]
-  {
-    let mut path = path;
-    let mut checked_path = None;
 
-    // attempt to canonicalize parents in case we have a path like `/data/user/0/appid/**`
-    // where `**` obviously does not exist but we need to canonicalize the parent
-    //
-    // example: given the `/data/user/0/appid/assets/*` path,
-    // it's a glob pattern so it won't exist (canonicalize() fails);
-    //
-    // the second iteration needs to check `/data/user/0/appid/assets` and save the `*` component to append later.
-    //
-    // if it also does not exist, a third iteration is required to check `/data/user/0/appid`
-    // with `assets/*` as the cached value (`checked_path` variable)
-    // on Android that gets canonicalized to `/data/data/appid` so the final value will be `/data/data/appid/assets/*`
-    // which is the value we want to check when we execute the `is_allowed` function
-    let canonicalized = loop {
-      if let Ok(path) = path.canonicalize() {
-        break Some(if let Some(p) = checked_path {
-          path.join(p)
-        } else {
-          path
-        });
-      }
+  let mut path = path;
+  let mut checked_path = None;
 
-      // get the last component of the path as an OsStr
-      let last = path.iter().next_back().map(PathBuf::from);
-      if let Some(mut p) = last {
-        // remove the last component of the path
-        // so the next iteration checks its parent
-        path.pop();
-        // append the already checked path to the last component
-        if let Some(checked_path) = &checked_path {
-          p.push(checked_path);
-        }
-        // replace the checked path with the current value
-        checked_path.replace(p);
+  // attempt to canonicalize parents in case we have a path like `/data/user/0/appid/**`
+  // where `**` obviously does not exist but we need to canonicalize the parent
+  //
+  // example: given the `/data/user/0/appid/assets/*` path,
+  // it's a glob pattern so it won't exist (canonicalize() fails);
+  //
+  // the second iteration needs to check `/data/user/0/appid/assets` and save the `*` component to append later.
+  //
+  // if it also does not exist, a third iteration is required to check `/data/user/0/appid`
+  // with `assets/*` as the cached value (`checked_path` variable)
+  // on Android that gets canonicalized to `/data/data/appid` so the final value will be `/data/data/appid/assets/*`
+  // which is the value we want to check when we execute the `is_allowed` function
+  let canonicalized = loop {
+    if let Ok(path) = path.canonicalize() {
+      break Some(if let Some(p) = checked_path {
+        path.join(p)
       } else {
-        break None;
-      }
-    };
-
-    if let Some(p) = canonicalized {
-      list.insert(f(&p.to_string_lossy())?);
-    } else if cfg!(windows) {
-      list.insert(f(&format!("\\\\?\\{}", path.display()))?);
+        path
+      });
     }
+
+    // get the last component of the path as an OsStr
+    let last = path.iter().next_back().map(PathBuf::from);
+    if let Some(mut p) = last {
+      // remove the last component of the path
+      // so the next iteration checks its parent
+      path.pop();
+      // append the already checked path to the last component
+      if let Some(checked_path) = &checked_path {
+        p.push(checked_path);
+      }
+      // replace the checked path with the current value
+      checked_path.replace(p);
+    } else {
+      break None;
+    }
+  };
+
+  if let Some(p) = canonicalized {
+    list.insert(f(&p.to_string_lossy())?);
+  } else if cfg!(windows) {
+    list.insert(f(&format!("\\\\?\\{}", path.display()))?);
   }
+
   Ok(())
 }
 

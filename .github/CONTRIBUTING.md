@@ -22,7 +22,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 - Issues with no clear repro steps will not be triaged. If an issue labeled "need repro" receives no further input from the issue author for more than 5 days, it will be closed.
 
-- If your issue is resolved but still open, don’t hesitate to close it. In case you found a solution by yourself, it could be helpful to explain how you fixed it.
+- If your issue is resolved but still open, don't hesitate to close it. In case you found a solution by yourself, it could be helpful to explain how you fixed it.
 
 - Most importantly, we beg your patience: the team must balance your request against many other responsibilities — fixing other bugs, answering other questions, new features, new documentation, etc. The issue list is not paid support and we cannot make guarantees about how fast your issue can be resolved.
 
@@ -78,7 +78,7 @@ The code for Tauri Core is located in `[Tauri repo root]/core/tauri`, and the Ru
 You can build the Rust documentation locally running the following script:
 
 ```bash
-$ RUSTDOCFLAGS="--cfg doc_cfg" cargo +nightly doc --all-features --open
+$ RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features --open
 ```
 
 ### Developing the JS API

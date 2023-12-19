@@ -26,7 +26,7 @@ fn main() {
 
   // current data
   let current_data_buffer = BufReader::new(
-    File::open(&utils::target_dir().join("bench.json")).expect("Unable to read current data file"),
+    File::open(utils::target_dir().join("bench.json")).expect("Unable to read current data file"),
   );
   let current_data: utils::BenchResult =
     serde_json::from_reader(current_data_buffer).expect("Unable to read current data buffer");
@@ -52,7 +52,7 @@ fn main() {
     tauri_data
       .to_str()
       .expect("Something wrong with tauri_data"),
-    &serde_json::to_value(&all_data).expect("Unable to build final json (all)"),
+    &serde_json::to_value(all_data).expect("Unable to build final json (all)"),
   )
   .unwrap_or_else(|_| panic!("Unable to write {:?}", tauri_data));
 
@@ -60,7 +60,7 @@ fn main() {
     tauri_recent
       .to_str()
       .expect("Something wrong with tauri_recent"),
-    &serde_json::to_value(&recent).expect("Unable to build final json (recent)"),
+    &serde_json::to_value(recent).expect("Unable to build final json (recent)"),
   )
   .unwrap_or_else(|_| panic!("Unable to write {:?}", tauri_recent));
 }

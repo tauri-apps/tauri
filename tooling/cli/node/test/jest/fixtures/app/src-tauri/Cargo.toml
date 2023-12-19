@@ -8,7 +8,7 @@ authors = [ "Tauri Programme within The Commons Conservancy" ]
 license = ""
 repository = ""
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 
 [package.metadata.bundle]
 identifier = "com.tauri.dev"
@@ -24,7 +24,7 @@ icon = [
 tauri-build = { path = "../../../../../../../../core/tauri-build", features = [] }
 
 [dependencies]
-serde_json = "1.0.97"
+serde_json = "1.0.108"
 serde = "1.0"
 serde_derive = "1.0"
 tauri = { path = "../../../../../../../../core/tauri", features = ["api-all"] }

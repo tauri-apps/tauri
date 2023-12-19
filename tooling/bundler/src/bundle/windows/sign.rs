@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::bundle::common::CommandExt;
-use bitness::{self, Bitness};
+use crate::{
+  bundle::{common::CommandExt, windows::util},
+  Settings,
+};
 use log::{debug, info};
 use std::{
   path::{Path, PathBuf},
@@ -69,11 +71,7 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   kit_bin_paths.push(kits_root_10_bin_path);
 
   // Choose which version of SignTool to use based on OS bitness
-  let arch_dir = match bitness::os_bitness().expect("failed to get os bitness") {
-    Bitness::X86_32 => "x86",
-    Bitness::X86_64 => "x64",
-    _ => return Err(crate::Error::UnsupportedBitness),
-  };
+  let arch_dir = util::os_bitness().ok_or(crate::Error::UnsupportedBitness)?;
 
   /* Iterate through all bin paths, checking for existence of a SignTool executable. */
   for kit_bin_path in &kit_bin_paths {
@@ -90,18 +88,25 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   Err(crate::Error::SignToolNotFound)
 }
 
-pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
-  // Convert path to string reference, as we need to pass it as a command-line parameter to signtool
-  let path_str = path.as_ref().to_str().unwrap();
-
-  info!(action = "Signing"; "{} with identity \"{}\"", path_str, params.certificate_thumbprint);
-
+/// Check if binary is already signed.
+/// Used to skip sidecar binaries that are already signed.
+pub fn verify(path: &Path) -> crate::Result<bool> {
   // Construct SignTool command
   let signtool = locate_signtool()?;
 
-  debug!("Running signtool {:?}", signtool);
+  let mut cmd = Command::new(&signtool);
+  cmd.arg("verify");
+  cmd.arg("/pa");
+  cmd.arg(path);
 
-  let mut cmd = Command::new(signtool);
+  Ok(cmd.status()?.success())
+}
+
+pub fn sign_command(path: &str, params: &SignParams) -> crate::Result<(Command, PathBuf)> {
+  // Construct SignTool command
+  let signtool = locate_signtool()?;
+
+  let mut cmd = Command::new(&signtool);
   cmd.arg("sign");
   cmd.args(["/fd", &params.digest_algorithm]);
   cmd.args(["/sha1", &params.certificate_thumbprint]);
@@ -116,7 +121,18 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
     }
   }
 
-  cmd.arg(path_str);
+  cmd.arg(path);
+
+  Ok((cmd, signtool))
+}
+
+pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
+  let path_str = path.as_ref().to_str().unwrap();
+
+  info!(action = "Signing"; "{} with identity \"{}\"", path_str, params.certificate_thumbprint);
+
+  let (mut cmd, signtool) = sign_command(path_str, params)?;
+  debug!("Running signtool {:?}", signtool);
 
   // Execute SignTool command
   let output = cmd.output_ok()?;
@@ -124,5 +140,41 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
   info!("{:?}", stdout);
 
+  Ok(())
+}
+
+impl Settings {
+  pub(crate) fn can_sign(&self) -> bool {
+    self.windows().certificate_thumbprint.is_some()
+  }
+  pub(crate) fn sign_params(&self) -> SignParams {
+    SignParams {
+      product_name: self.product_name().into(),
+      digest_algorithm: self
+        .windows()
+        .digest_algorithm
+        .as_ref()
+        .map(|algorithm| algorithm.to_string())
+        .unwrap_or_else(|| "sha256".to_string()),
+      certificate_thumbprint: self
+        .windows()
+        .certificate_thumbprint
+        .clone()
+        .unwrap_or_default(),
+      timestamp_url: self
+        .windows()
+        .timestamp_url
+        .as_ref()
+        .map(|url| url.to_string()),
+      tsp: self.windows().tsp,
+    }
+  }
+}
+
+pub fn try_sign(file_path: &std::path::PathBuf, settings: &Settings) -> crate::Result<()> {
+  if settings.can_sign() {
+    info!(action = "Signing"; "{}", tauri_utils::display_path(file_path));
+    sign(file_path, &settings.sign_params())?;
+  }
   Ok(())
 }

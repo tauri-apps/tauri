@@ -1,5 +1,69 @@
 # Changelog
 
+## \[1.0.0-alpha.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.12`
+- Upgraded to `tauri-runtime@1.0.0-alpha.7`
+
+## \[1.0.0-alpha.7]
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@1.0.0-alpha.6`
+- [\`\`](https://www.github.com/tauri-apps/tauri/commit/undefined) Update to wry v0.35.
+
+## \[1.0.0-alpha.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.11`
+- Upgraded to `tauri-runtime@1.0.0-alpha.5`
+
+## \[1.0.0-alpha.5]
+
+### New Features
+
+- [`74d2464d`](https://www.github.com/tauri-apps/tauri/commit/74d2464d0e490fae341ad73bdf2964cf215fe6c5)([#8116](https://www.github.com/tauri-apps/tauri/pull/8116)) Added `on_page_load` hook for `PendingWindow`.
+
+### Enhancements
+
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.10`
+- Upgraded to `tauri-runtime@1.0.0-alpha.4`
+- [`9580df1d`](https://www.github.com/tauri-apps/tauri/commit/9580df1d7b027befb9e5f025ea2cbaf2dcc82c8e)([#8084](https://www.github.com/tauri-apps/tauri/pull/8084)) Upgrade `gtk` to 0.18.
+- [`c7c2507d`](https://www.github.com/tauri-apps/tauri/commit/c7c2507da16a9beb71bf06745fe7ac1325ab7c2a)([#8035](https://www.github.com/tauri-apps/tauri/pull/8035)) Update `windows` to version `0.51` and `webview2-com` to version `0.27`
+- [`9580df1d`](https://www.github.com/tauri-apps/tauri/commit/9580df1d7b027befb9e5f025ea2cbaf2dcc82c8e)([#8084](https://www.github.com/tauri-apps/tauri/pull/8084)) Updated to wry@0.34, removing the `dox` feature flag.
+
+## \[1.0.0-alpha.4]
+
+### New Features
+
+- [`c085adda`](https://www.github.com/tauri-apps/tauri/commit/c085addab58ba851398373c6fd13f9cb026d71e8)([#8009](https://www.github.com/tauri-apps/tauri/pull/8009)) Added `set_progress_bar` to `Window`.
+- [`c1ec0f15`](https://www.github.com/tauri-apps/tauri/commit/c1ec0f155118527361dd5645d920becbc8afd569)([#7933](https://www.github.com/tauri-apps/tauri/pull/7933)) Added `Window::set_always_on_bottom` and the `always_on_bottom` option when creating a window.
+- [`880266a7`](https://www.github.com/tauri-apps/tauri/commit/880266a7f697e1fe58d685de3bb6836ce5251e92)([#8031](https://www.github.com/tauri-apps/tauri/pull/8031)) Bump the MSRV to 1.70.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@1.0.0-alpha.3`
+- Upgraded to `tauri-utils@2.0.0-alpha.9`
+
+### Breaking Changes
+
+- [`8b166e9b`](https://www.github.com/tauri-apps/tauri/commit/8b166e9bf82e69ddb3200a3a825614980bd8d433)([#7949](https://www.github.com/tauri-apps/tauri/pull/7949)) Check if automation is enabled with the `TAURI_WEBVIEW_AUTOMATION` environment variable instead of `TAURI_AUTOMATION`.
+- [`2558fab8`](https://www.github.com/tauri-apps/tauri/commit/2558fab861006936296e8511e43ccd69a38f61b0)([#7939](https://www.github.com/tauri-apps/tauri/pull/7939)) Changed `WebviewId` to be an alias for `u32` instead of `u64`
+
+## \[1.0.0-alpha.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.8`
+- Upgraded to `tauri-runtime@1.0.0-alpha.2`
+
 ## \[1.0.0-alpha.2]
 
 ### Bug Fixes
@@ -95,6 +159,27 @@
 
 - Support `with_webview` for Android platform alowing execution of JNI code in context.
   - [8ea87e9c](https://www.github.com/tauri-apps/tauri/commit/8ea87e9c9ca8ba4c7017c8281f78aacd08f45785) feat(android): with_webview access for jni execution ([#5148](https://www.github.com/tauri-apps/tauri/pull/5148)) on 2022-09-08
+
+## \[0.14.2]
+
+### Enhancements
+
+- [`5e05236b`](https://www.github.com/tauri-apps/tauri/commit/5e05236b4987346697c7caae0567d3c50714c198)([#8289](https://www.github.com/tauri-apps/tauri/pull/8289)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
+
+## \[0.14.1]
+
+### Enhancements
+
+- [`9aa34ada`](https://www.github.com/tauri-apps/tauri/commit/9aa34ada5769dbefa7dfe5f7a6288b3d20b294e4)([#7645](https://www.github.com/tauri-apps/tauri/pull/7645)) Add setting to switch to `http://<scheme>.localhost/` for custom protocols on Windows.
+
+### Bug Fixes
+
+- [`4bf1e85e`](https://www.github.com/tauri-apps/tauri/commit/4bf1e85e6bf85a7ec92d50c8465bc0588a6399d8)([#7722](https://www.github.com/tauri-apps/tauri/pull/7722)) Properly respect the `focused` option when creating the webview.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
+- Upgraded to `tauri-runtime@0.14.1`
 
 ## \[0.14.0]
 

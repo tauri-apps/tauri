@@ -35,9 +35,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -54,17 +52,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions-rs/toolchain@v1
+      - name: install Rust stable and rustfmt
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --manifest-path ./tooling/bundler/Cargo.toml --all -- --check
+      - name: Run cargo fmt
+        run: cargo fmt --manifest-path ./tooling/bundler/Cargo.toml --all -- --check
 
   clippy:
     runs-on: ubuntu-latest
@@ -72,22 +66,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install minimal stable with clippy and rustfmt
-        uses: actions-rs/toolchain@v1
+      - name: install Rust stable and clippy
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          default: true
-          components: rustfmt, clippy
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: tooling/bundler
 
       - name: clippy check
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./tooling/bundler/Cargo.toml --all-targets -- -D warnings
-          name: bundler
+        run: cargo clippy --manifest-path ./tooling/bundler/Cargo.toml --all-targets -- -D warnings

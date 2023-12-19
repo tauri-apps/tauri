@@ -8,7 +8,7 @@
 //! attribute macro along the way and used by [`crate::generate_handler`] macro.
 
 use crate::{
-  ipc::{InvokeBody, InvokeError, InvokeId, InvokeMessage},
+  ipc::{InvokeBody, InvokeError, InvokeMessage},
   Runtime,
 };
 use serde::{
@@ -18,9 +18,6 @@ use serde::{
 
 /// Represents a custom command.
 pub struct CommandItem<'a, R: Runtime> {
-  /// The identifier of the command call.
-  pub invoke_id: &'a InvokeId,
-
   /// The name of the command, e.g. `handler` on `#[command] fn handler(value: u64)`
   pub name: &'static str,
 
@@ -58,12 +55,8 @@ impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
   fn from_command(command: CommandItem<'de, R>) -> Result<D, InvokeError> {
     let name = command.name;
     let arg = command.key;
-    let _span = tracing::trace_span!(
-      "ipc::request::deserialize_arg",
-      id = command.invoke_id.0,
-      arg = arg
-    )
-    .entered();
+    #[cfg(feature = "tracing")]
+    let _span = tracing::trace_span!("ipc::request::deserialize_arg", arg = arg).entered();
     Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e).into())
   }
 }
@@ -187,7 +180,7 @@ pub mod private {
   };
   use futures_util::{FutureExt, TryFutureExt};
   use std::future::Future;
-
+  #[cfg(feature = "tracing")]
   pub use tracing;
 
   // ===== impl IpcResponse =====

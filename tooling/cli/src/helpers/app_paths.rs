@@ -7,10 +7,10 @@ use std::{
   env::current_dir,
   ffi::OsStr,
   path::{Path, PathBuf},
+  sync::OnceLock,
 };
 
 use ignore::WalkBuilder;
-use once_cell::sync::Lazy;
 
 use tauri_utils::{
   config::parse::{folder_has_configuration_file, is_configuration_file, ConfigFormat},
@@ -41,10 +41,10 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
     .require_git(false)
     .ignore(false)
     .max_depth(Some(
-      std::env::var("TAURI_PATH_DEPTH")
+      std::env::var("TAURI_CLI_CONFIG_DEPTH")
         .map(|d| {
           d.parse()
-            .expect("`TAURI_PATH_DEPTH` environment variable must be a positive integer")
+            .expect("`TAURI_CLI_CONFIG_DEPTH` environment variable must be a positive integer")
         })
         .unwrap_or(3),
     ))
@@ -68,10 +68,21 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
 fn get_tauri_dir() -> PathBuf {
   let cwd = current_dir().expect("failed to read cwd");
 
-  if cwd.join("src-tauri/tauri.conf.json").exists()
-    || cwd.join("src-tauri/tauri.conf.json5").exists()
+  if cwd.join(ConfigFormat::Json.into_file_name()).exists()
+    || cwd.join(ConfigFormat::Json5.into_file_name()).exists()
+    || cwd.join(ConfigFormat::Toml.into_file_name()).exists()
   {
-    return cwd.join("src-tauri/");
+    return cwd;
+  }
+
+  let src_tauri = cwd.join("src-tauri");
+  if src_tauri.join(ConfigFormat::Json.into_file_name()).exists()
+    || src_tauri
+      .join(ConfigFormat::Json5.into_file_name())
+      .exists()
+    || src_tauri.join(ConfigFormat::Toml.into_file_name()).exists()
+  {
+    return src_tauri;
   }
 
   lookup(&cwd, |path| folder_has_configuration_file(Target::Linux, path) || is_configuration_file(Target::Linux, path))
@@ -86,7 +97,13 @@ fn get_tauri_dir() -> PathBuf {
 }
 
 fn get_app_dir() -> Option<PathBuf> {
-  lookup(&current_dir().expect("failed to read cwd"), |path| {
+  let cwd = current_dir().expect("failed to read cwd");
+
+  if cwd.join("package.json").exists() {
+    return Some(cwd);
+  }
+
+  lookup(&cwd, |path| {
     if let Some(file_name) = path.file_name() {
       file_name == OsStr::new("package.json")
     } else {
@@ -97,9 +114,10 @@ fn get_app_dir() -> Option<PathBuf> {
 }
 
 pub fn app_dir() -> &'static PathBuf {
-  static APP_DIR: Lazy<PathBuf> =
-    Lazy::new(|| get_app_dir().unwrap_or_else(|| get_tauri_dir().parent().unwrap().to_path_buf()));
-  &APP_DIR
+  static APP_DIR: OnceLock<PathBuf> = OnceLock::new();
+  APP_DIR.get_or_init(|| {
+    get_app_dir().unwrap_or_else(|| get_tauri_dir().parent().unwrap().to_path_buf())
+  })
 }
 
 pub fn tauri_dir() -> PathBuf {

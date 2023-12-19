@@ -8,6 +8,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Bundle
 import android.webkit.WebView
 import androidx.core.app.ActivityCompat
 import app.tauri.FsUtils
@@ -16,11 +17,29 @@ import app.tauri.PermissionHelper
 import app.tauri.PermissionState
 import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.json.JSONException
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
+
+@InvokeArg
+internal class RegisterListenerArgs {
+  lateinit var event: String
+  lateinit var handler: Channel
+}
+
+@InvokeArg
+internal class RemoveListenerArgs {
+  lateinit var event: String
+  var channelId: Long = 0
+}
+
+@InvokeArg internal class RequestPermissionsArgs {
+  var permissions: List<String>? = null
+}
 
 abstract class Plugin(private val activity: Activity) {
   var handle: PluginHandle? = null
@@ -28,14 +47,29 @@ abstract class Plugin(private val activity: Activity) {
 
   open fun load(webView: WebView) {}
 
-  fun getConfig(): JSObject {
-    return handle!!.config
+  fun jsonMapper(): ObjectMapper {
+    return handle!!.jsonMapper
+  }
+
+  fun<T> getConfig(cls: Class<T>): T {
+    return jsonMapper().readValue(handle!!.config, cls)
   }
 
   /**
    * Handle a new intent being received by the application
    */
   open fun onNewIntent(intent: Intent) {}
+
+
+  /**
+   * This event is called just before another activity comes into the foreground.
+   */
+  open fun onPause() {}
+
+  /**
+   * This event is called when the user returns to the activity. It is also called on cold starts.
+   */
+  open fun onResume() {}
 
   /**
    * Start activity for result with the provided Intent and resolve calling the provided callback method name.
@@ -88,20 +122,25 @@ abstract class Plugin(private val activity: Activity) {
     }
   }
 
+  fun triggerObject(event: String, payload: Any) {
+    val eventListeners = listeners[event]
+    if (!eventListeners.isNullOrEmpty()) {
+      val listeners = CopyOnWriteArrayList(eventListeners)
+      for (channel in listeners) {
+        channel.sendObject(payload)
+      }
+    }
+  }
+
   @Command
   open fun registerListener(invoke: Invoke) {
-    val event = invoke.getString("event")
-    val channel = invoke.getChannel("handler")
+    val args = invoke.parseArgs(RegisterListenerArgs::class.java)
 
-    if (event == null || channel == null) {
-      invoke.reject("`event` or `handler` not provided")
+    val eventListeners = listeners[args.event]
+    if (eventListeners.isNullOrEmpty()) {
+      listeners[args.event] = mutableListOf(args.handler)
     } else {
-      val eventListeners = listeners[event]
-      if (eventListeners.isNullOrEmpty()) {
-        listeners[event] = mutableListOf(channel)
-      } else {
-        eventListeners.add(channel)
-      }
+      eventListeners.add(args.handler)
     }
 
     invoke.resolve()
@@ -109,18 +148,13 @@ abstract class Plugin(private val activity: Activity) {
 
   @Command
   open fun removeListener(invoke: Invoke) {
-    val event = invoke.getString("event")
-    val channelId = invoke.getLong("channelId")
+    val args = invoke.parseArgs(RemoveListenerArgs::class.java)
 
-    if (event == null || channelId == null) {
-      invoke.reject("`event` or `channelId` not provided")
-    } else {
-      val eventListeners = listeners[event]
-      if (!eventListeners.isNullOrEmpty()) {
-        val c = eventListeners.find { c -> c.id == channelId }
-        if (c != null) {
-          eventListeners.remove(c)
-        }
+    val eventListeners = listeners[args.event]
+    if (!eventListeners.isNullOrEmpty()) {
+      val c = eventListeners.find { c -> c.id == args.channelId }
+      if (c != null) {
+        eventListeners.remove(c)
       }
     }
 
@@ -165,26 +199,32 @@ abstract class Plugin(private val activity: Activity) {
       var permAliases: Array<String>? = null
       val autoGrantPerms: MutableSet<String> = HashSet()
 
-      // If call was made with a list of specific permission aliases to request, save them
-      // to be requested
-      val providedPerms: JSArray = invoke.getArray("permissions", JSArray())
-      var providedPermsList: List<String?>? = null
-      try {
-        providedPermsList = providedPerms.toList()
-      } catch (ignore: JSONException) {
-        // do nothing
-      }
+      val args = invoke.parseArgs(RequestPermissionsArgs::class.java)
 
-      // If call was made without any custom permissions, request all from plugin annotation
-      val aliasSet: MutableSet<String> = HashSet()
-      if (providedPermsList.isNullOrEmpty()) {
+      args.permissions?.let {
+        val aliasSet: MutableSet<String> = HashSet()
+
+        for (perm in annotation.permissions) {
+          if (it.contains(perm.alias)) {
+            aliasSet.add(perm.alias)
+          }
+        }
+        if (aliasSet.isEmpty()) {
+          invoke.reject("No valid permission alias was requested of this plugin.")
+          return
+        } else {
+          permAliases = aliasSet.toTypedArray()
+        }
+      } ?: run {
+        val aliasSet: MutableSet<String> = HashSet()
+
         for (perm in annotation.permissions) {
           // If a permission is defined with no permission strings, separate it for auto-granting.
           // Otherwise, the alias is added to the list to be requested.
           if (perm.strings.isEmpty() || perm.strings.size == 1 && perm.strings[0]
               .isEmpty()
           ) {
-            if (!perm.alias.isEmpty()) {
+            if (perm.alias.isNotEmpty()) {
               autoGrantPerms.add(perm.alias)
             }
           } else {
@@ -192,31 +232,23 @@ abstract class Plugin(private val activity: Activity) {
           }
         }
         permAliases = aliasSet.toTypedArray()
-      } else {
-        for (perm in annotation.permissions) {
-          if (providedPermsList.contains(perm.alias)) {
-            aliasSet.add(perm.alias)
-          }
-        }
-        if (aliasSet.isEmpty()) {
-          invoke.reject("No valid permission alias was requested of this plugin.")
-        } else {
-          permAliases = aliasSet.toTypedArray()
-        }
       }
-      if (!permAliases.isNullOrEmpty()) {
+
+      permAliases?.let {
         // request permissions using provided aliases or all defined on the plugin
-        requestPermissionForAliases(permAliases, invoke, "checkPermissions")
-      } else if (autoGrantPerms.isNotEmpty()) {
-        // if the plugin only has auto-grant permissions, return all as GRANTED
-        val permissionsResults = JSObject()
-        for (perm in autoGrantPerms) {
-          permissionsResults.put(perm, PermissionState.GRANTED.toString())
+        requestPermissionForAliases(it, invoke, "checkPermissions")
+      } ?: run {
+        if (autoGrantPerms.isNotEmpty()) {
+          // if the plugin only has auto-grant permissions, return all as GRANTED
+          val permissionsResults = JSObject()
+          for (perm in autoGrantPerms) {
+            permissionsResults.put(perm, PermissionState.GRANTED.toString())
+          }
+          invoke.resolve(permissionsResults)
+        } else {
+          // no permissions are defined on the plugin, resolve undefined
+          invoke.resolve()
         }
-        invoke.resolve(permissionsResults)
-      } else {
-        // no permissions are defined on the plugin, resolve undefined
-        invoke.resolve()
       }
     }
   }
@@ -288,15 +320,15 @@ abstract class Plugin(private val activity: Activity) {
    * [PermissionCallback] annotation.
    *
    * @param alias an alias defined on the plugin
-   * @param invoke  the invoke involved in originating the request
+   * @param invoke the invoke involved in originating the request
    * @param callbackName the name of the callback to run when the permission request is complete
    */
   protected fun requestPermissionForAlias(
     alias: String,
-    call: Invoke,
+    invoke: Invoke,
     callbackName: String
   ) {
-    requestPermissionForAliases(arrayOf(alias), call, callbackName)
+    requestPermissionForAliases(arrayOf(alias), invoke, callbackName)
   }
 
   /**

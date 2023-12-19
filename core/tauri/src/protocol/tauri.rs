@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
 
 use crate::{
-  manager::{WindowManager, PROXY_DEV_SERVER},
+  manager::{window::PROXY_DEV_SERVER, AppManager},
   window::{UriSchemeProtocolHandler, WebResourceRequestHandler},
   Runtime,
 };
 
 #[cfg(all(dev, mobile))]
-use std::{
-  collections::HashMap,
-  sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Mutex};
 
 #[cfg(all(dev, mobile))]
 #[derive(Clone)]
@@ -27,7 +24,7 @@ struct CachedResponse {
 }
 
 pub fn get<R: Runtime>(
-  manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: Arc<AppManager<R>>,
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
@@ -60,6 +57,7 @@ pub fn get<R: Runtime>(
         HttpResponse::builder()
           .status(StatusCode::BAD_REQUEST)
           .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+          .header("Access-Control-Allow-Origin", &window_origin)
           .body(e.to_string().as_bytes().to_vec())
           .unwrap(),
       ),
@@ -69,7 +67,7 @@ pub fn get<R: Runtime>(
 
 fn get_response<R: Runtime>(
   request: Request<Vec<u8>>,
-  manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: &AppManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
   #[cfg(all(dev, mobile))] (url, response_cache): (

@@ -96,55 +96,90 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .output()
     .expect("Failed to chmod script");
 
-  let mut args = vec![
+  let dmg_settings = settings.dmg();
+
+  let app_position = &dmg_settings.app_position;
+  let application_folder_position = &dmg_settings.application_folder_position;
+  let window_size = &dmg_settings.window_size;
+
+  let app_position_x = app_position.x.to_string();
+  let app_position_y = app_position.y.to_string();
+  let application_folder_position_x = application_folder_position.x.to_string();
+  let application_folder_position_y = application_folder_position.y.to_string();
+  let window_size_width = window_size.width.to_string();
+  let window_size_height = window_size.height.to_string();
+
+  let mut bundle_dmg_cmd = Command::new(&bundle_script_path);
+
+  bundle_dmg_cmd.args([
     "--volname",
     product_name,
     "--icon",
     &bundle_file_name,
-    "180",
-    "170",
+    &app_position_x,
+    &app_position_y,
     "--app-drop-link",
-    "480",
-    "170",
+    &application_folder_position_x,
+    &application_folder_position_y,
     "--window-size",
-    "660",
-    "400",
+    &window_size_width,
+    &window_size_height,
     "--hide-extension",
     &bundle_file_name,
-  ];
+  ]);
 
-  let icns_icon_path =
-    create_icns_file(&output_path, settings)?.map(|path| path.to_string_lossy().to_string());
-  if let Some(icon) = &icns_icon_path {
-    args.push("--volicon");
-    args.push(icon);
+  let window_position = dmg_settings
+    .window_position
+    .as_ref()
+    .map(|position| (position.x.to_string(), position.y.to_string()));
+
+  if let Some(window_position) = &window_position {
+    bundle_dmg_cmd.arg("--window-pos");
+    bundle_dmg_cmd.arg(&window_position.0);
+    bundle_dmg_cmd.arg(&window_position.1);
   }
 
-  #[allow(unused_assignments)]
-  let mut license_path_ref = "".to_string();
-  if let Some(license_path) = &settings.macos().license {
-    args.push("--eula");
-    license_path_ref = env::current_dir()?
-      .join(license_path)
-      .to_string_lossy()
-      .to_string();
-    args.push(&license_path_ref);
+  let background_path = if let Some(background_path) = &dmg_settings.background {
+    Some(env::current_dir()?.join(background_path))
+  } else {
+    None
+  };
+
+  if let Some(background_path) = &background_path {
+    bundle_dmg_cmd.arg("--background");
+    bundle_dmg_cmd.arg(background_path);
+  }
+
+  let icns_icon_path = create_icns_file(&output_path, settings)?;
+  if let Some(icon) = &icns_icon_path {
+    bundle_dmg_cmd.arg("--volicon");
+    bundle_dmg_cmd.arg(icon);
+  }
+
+  let license_path = if let Some(license_path) = &settings.macos().license {
+    Some(env::current_dir()?.join(license_path))
+  } else {
+    None
+  };
+
+  if let Some(license_path) = &license_path {
+    bundle_dmg_cmd.arg("--eula");
+    bundle_dmg_cmd.arg(license_path);
   }
 
   // Issue #592 - Building MacOS dmg files on CI
   // https://github.com/tauri-apps/tauri/issues/592
   if let Some(value) = env::var_os("CI") {
     if value == "true" {
-      args.push("--skip-jenkins");
+      bundle_dmg_cmd.arg("--skip-jenkins");
     }
   }
 
   info!(action = "Running"; "bundle_dmg.sh");
 
   // execute the bundle script
-  Command::new(&bundle_script_path)
+  bundle_dmg_cmd
     .current_dir(bundle_dir.clone())
-    .args(args)
     .args(vec![dmg_name.as_str(), bundle_file_name.as_str()])
     .output_ok()
     .context("error running bundle_dmg.sh")?;
@@ -153,7 +188,14 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   // Sign DMG if needed
   if let Some(identity) = &settings.macos().signing_identity {
-    super::sign::sign(dmg_path.clone(), identity, settings, false)?;
+    super::sign::sign(
+      vec![super::sign::SignTarget {
+        path: dmg_path.clone(),
+        is_an_executable: false,
+      }],
+      identity,
+      settings,
+    )?;
   }
 
   Ok(Bundled {

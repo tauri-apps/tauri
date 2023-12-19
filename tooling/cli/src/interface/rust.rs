@@ -23,7 +23,7 @@ use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
-  PackageSettings, Position, Size, RpmSettings, UpdaterSettings, WindowsSettings,
+  PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::parse::is_configuration_file;
 

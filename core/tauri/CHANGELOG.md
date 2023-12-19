@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-alpha.19]
+
+### New Features
+
+- [`b59f2f54`](https://www.github.com/tauri-apps/tauri/commit/b59f2f54e7c1e01e33baf710d50c046401edb9d8)([#8432](https://www.github.com/tauri-apps/tauri/pull/8432)) Expose `scope::fs::Scope::new`.
+- [`bf095df5`](https://www.github.com/tauri-apps/tauri/commit/bf095df55aa27fb22c9240ddf8d673cfe0a4a2db)([#8276](https://www.github.com/tauri-apps/tauri/pull/8276)) Exposed `Manager::resources_table` to access the resources table used by tauri, which could be used by plugins or app authors to store their resources and retrieve it later using an id and can be used to create Rust-backed resources in JS.
+
+### Enhancements
+
+- [`5848b4e8`](https://www.github.com/tauri-apps/tauri/commit/5848b4e8e9fde1e0d895238cafdb57ed20be4c07)([#8386](https://www.github.com/tauri-apps/tauri/pull/8386)) Fixed the deserialisation of a `Channel` in iOS.
+- [`11a1529d`](https://www.github.com/tauri-apps/tauri/commit/11a1529d6ace47e731f5d69bf421e7f59f0d7567)([#8419](https://www.github.com/tauri-apps/tauri/pull/8419)) Include CORS header on custom protocol response errors to ensure frontend can read the error message.
+- [`db127777`](https://www.github.com/tauri-apps/tauri/commit/db127777423e467758781d58c1121cbe94844161)([#8380](https://www.github.com/tauri-apps/tauri/pull/8380)) Added `test::get_ipc_response`.
+
+### Bug Fixes
+
+- [`effe5871`](https://www.github.com/tauri-apps/tauri/commit/effe5871aff1267a73ecbba1693304941a691932)([#8420](https://www.github.com/tauri-apps/tauri/pull/8420)) Fixes file scope checks on Android.
+- [`f98ce5aa`](https://www.github.com/tauri-apps/tauri/commit/f98ce5aa475d1b3f8606e773579e77f41309feb0)([#8328](https://www.github.com/tauri-apps/tauri/pull/8328)) Fix incorrect menu item for `PredefinedMenuItem::close_window`
+
 ## \[2.0.0-alpha.18]
 
 ### Bug Fixes

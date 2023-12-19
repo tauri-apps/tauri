@@ -1,8 +1,8 @@
 {
   "cli.js": {
-    "version": "2.0.0-alpha.18",
+    "version": "2.0.0-alpha.19",
     "node": ">= 10.0.0"
   },
-  "tauri": "2.0.0-alpha.18",
+  "tauri": "2.0.0-alpha.19",
   "tauri-build": "2.0.0-alpha.12"
 }

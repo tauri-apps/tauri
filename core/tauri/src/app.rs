@@ -1568,7 +1568,7 @@ impl<R: Runtime> Builder<R> {
     app.manage(Scopes {
       ipc: scope::ipc::Scope::new(app.config()),
       #[cfg(feature = "protocol-asset")]
-      asset_protocol: scope::fs::Scope::for_fs_api(
+      asset_protocol: scope::fs::Scope::new(
         &app,
         &app.config().tauri.security.asset_protocol.scope,
       )?,

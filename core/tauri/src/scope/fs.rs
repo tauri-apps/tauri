@@ -91,11 +91,10 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 }
 
 impl Scope {
-  /// Creates a new scope from a `FsAllowlistScope` configuration.
-  #[allow(unused)]
-  pub(crate) fn for_fs_api<R: crate::Runtime, M: crate::Manager<R>>(
+  /// Creates a new scope from a [`FsScope`] configuration.
+  pub fn new<R: crate::Runtime, M: crate::Manager<R>>(
     manager: &M,
-    scope: &tauri_utils::config::FsScope,
+    scope: &FsScope,
   ) -> crate::Result<Self> {
     let mut allowed_patterns = HashSet::new();
     for path in scope.allowed_paths() {

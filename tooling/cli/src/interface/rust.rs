@@ -22,7 +22,6 @@ use anyhow::Context;
 use glob::glob;
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use itertools::Itertools;
 use log::{debug, error, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;

@@ -434,14 +434,14 @@ impl Rust {
     };
 
     let watch_folders = watch_folders
-      .iter()
+      .into_iter()
       .flat_map(|p| {
-        match expand_member_path(p) {
+        match expand_member_path(&p) {
           Ok(p) => p,
           Err(err) => {
             // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
             error!("Error watching {}: {}", p.display(), err.to_string());
-            vec![p.to_owned()]
+            vec![p]
           }
         }
       })

@@ -268,14 +268,25 @@ pub enum ActiveTracingSpan {
   },
 }
 
+#[derive(Debug)]
+pub struct WindowsStore(RefCell<HashMap<WebviewId, WindowWrapper>>);
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for WindowsStore {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for WindowsStore {}
+
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   pub global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
-  // Clippy may complain but changing this to an Rc will cause frequent app crashes.
-  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  // changing this to an Rc will cause frequent app crashes.
+  pub windows: Arc<WindowsStore>,
   #[cfg(all(desktop, feature = "system-tray"))]
   system_tray_manager: SystemTrayManager,
   #[cfg(feature = "tracing")]
@@ -1974,9 +1985,7 @@ impl<T: UserEvent> Wry<T> {
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = Rc::new(Mutex::new(WryShortcutManager::new(&event_loop)));
 
-    // Clippy may complain but changing this to an Rc will cause frequent app crashes.
-    #[allow(clippy::arc_with_non_send_sync)]
-    let windows = Arc::new(RefCell::new(HashMap::default()));
+    let windows = Arc::new(WindowsStore(RefCell::new(HashMap::default())));
     let webview_id_map = WebviewIdStore::default();
 
     #[cfg(all(desktop, feature = "system-tray"))]
@@ -2107,6 +2116,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .context
       .main_thread
       .windows
+      .0
       .borrow_mut()
       .insert(window_id, webview);
 
@@ -2340,7 +2350,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
-  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Arc<WindowsStore>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   pub global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -2352,7 +2362,7 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
 }
 
 struct UserMessageContext {
-  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Arc<WindowsStore>,
   webview_id_map: WebviewIdStore,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
@@ -2387,7 +2397,12 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::Window(id, window_message) => {
       if let WindowMessage::UpdateMenuItem(item_id, update) = window_message {
-        if let Some(menu_items) = windows.borrow_mut().get_mut(&id).map(|w| &mut w.menu_items) {
+        if let Some(menu_items) = windows
+          .0
+          .borrow_mut()
+          .get_mut(&id)
+          .map(|w| &mut w.menu_items)
+        {
           if let Some(menu_items) = menu_items.as_mut() {
             let item = menu_items.get_mut(&item_id).expect("menu item not found");
             match update {
@@ -2402,7 +2417,7 @@ fn handle_user_message<T: UserEvent>(
           }
         }
       } else {
-        let w = windows.borrow().get(&id).map(|w| {
+        let w = windows.0.borrow().get(&id).map(|w| {
           (
             w.inner.clone(),
             w.window_event_listeners.clone(),
@@ -2625,7 +2640,7 @@ fn handle_user_message<T: UserEvent>(
       WebviewMessage::EvaluateScript(script, tx, span) => {
         let _span = span.entered();
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
-          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
+          windows.0.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           if let Err(e) = webview.evaluate_script(&script) {
             debug_eprintln!("{}", e);
@@ -2636,7 +2651,7 @@ fn handle_user_message<T: UserEvent>(
       #[cfg(not(feature = "tracing"))]
       WebviewMessage::EvaluateScript(script) => {
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
-          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
+          windows.0.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           if let Err(e) = webview.evaluate_script(&script) {
             debug_eprintln!("{}", e);
@@ -2645,7 +2660,7 @@ fn handle_user_message<T: UserEvent>(
       }
       WebviewMessage::Print => {
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
-          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
+          windows.0.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           let _ = webview.print();
         }
@@ -2654,7 +2669,7 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
-        windows.borrow_mut().insert(window_id, webview);
+        windows.0.borrow_mut().insert(window_id, webview);
       }
       Err(e) => {
         debug_eprintln!("{}", e);
@@ -2667,7 +2682,7 @@ fn handle_user_message<T: UserEvent>(
 
         let w = Arc::new(window);
 
-        windows.borrow_mut().insert(
+        windows.0.borrow_mut().insert(
           window_id,
           WindowWrapper {
             label,
@@ -2776,7 +2791,7 @@ fn handle_user_message<T: UserEvent>(
   }
 
   let it = RunIteration {
-    window_count: windows.borrow().len(),
+    window_count: windows.0.borrow().len(),
   };
   it
 }
@@ -2864,6 +2879,7 @@ fn handle_event_loop<T: UserEvent>(
           *webview_id_map.0.lock().unwrap().values().next().unwrap()
         };
         windows
+          .0
           .borrow()
           .get(&window_id)
           .unwrap()
@@ -2949,7 +2965,7 @@ fn handle_event_loop<T: UserEvent>(
     }
     Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {
       if let Some(event) = WindowEventWrapper::from(&event).0 {
-        let windows = windows.borrow();
+        let windows = windows.0.borrow();
         let window = windows.get(&id);
         if let Some(window) = window {
           callback(RunEvent::WindowEvent {
@@ -2970,7 +2986,7 @@ fn handle_event_loop<T: UserEvent>(
     } => {
       if let Some(window_id) = webview_id_map.get(&window_id) {
         {
-          let windows_ref = windows.borrow();
+          let windows_ref = windows.0.borrow();
           if let Some(window) = windows_ref.get(&window_id) {
             if let Some(event) = WindowEventWrapper::parse(&window.inner, &event).0 {
               let label = window.label.clone();
@@ -2994,7 +3010,7 @@ fn handle_event_loop<T: UserEvent>(
         match event {
           #[cfg(windows)]
           WryWindowEvent::ThemeChanged(theme) => {
-            if let Some(window) = windows.borrow().get(&window_id) {
+            if let Some(window) = windows.0.borrow().get(&window_id) {
               if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
                 let theme = match theme {
                   WryTheme::Dark => wry::webview::Theme::Dark,
@@ -3009,9 +3025,9 @@ fn handle_event_loop<T: UserEvent>(
             on_close_requested(callback, window_id, windows.clone());
           }
           WryWindowEvent::Destroyed => {
-            let removed = windows.borrow_mut().remove(&window_id).is_some();
+            let removed = windows.0.borrow_mut().remove(&window_id).is_some();
             if removed {
-              let is_empty = windows.borrow().is_empty();
+              let is_empty = windows.0.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
                 callback(RunEvent::ExitRequested { tx });
@@ -3054,7 +3070,7 @@ fn handle_event_loop<T: UserEvent>(
   }
 
   let it = RunIteration {
-    window_count: windows.borrow().len(),
+    window_count: windows.0.borrow().len(),
   };
   it
 }
@@ -3062,10 +3078,10 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
-  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Arc<WindowsStore>,
 ) {
   let (tx, rx) = channel();
-  let windows_ref = windows.borrow();
+  let windows_ref = windows.0.borrow();
   if let Some(w) = windows_ref.get(&window_id) {
     let label = w.label.clone();
     let window_event_listeners = w.window_event_listeners.clone();
@@ -3090,8 +3106,8 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WebviewId, windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
-  if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
+fn on_window_close(window_id: WebviewId, windows: Arc<WindowsStore>) {
+  if let Some(window_wrapper) = windows.0.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }
 }

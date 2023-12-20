@@ -249,16 +249,8 @@ impl Interface for Rust {
         a => a.into(),
       },
     );
-    env.insert(
-      "TAURI_ENV_PLATFORM",
-      match (host, host_env) {
-        // keeps compatibility with old `std::env::consts::OS` implementation
-        ("darwin", _) => "macos".into(),
-        ("ios", Some("sim")) => "ios".into(),
-        ("androideabi", _) => "android".into(),
-        (h, _) => h.into(),
-      },
-    );
+
+    env.insert("TAURI_ENV_PLATFORM", host.into());
 
     env.insert(
       "TAURI_ENV_FAMILY",

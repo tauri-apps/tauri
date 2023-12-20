@@ -3448,6 +3448,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "env_logger",
+ "glob",
  "handlebars",
  "heck",
  "html5ever",

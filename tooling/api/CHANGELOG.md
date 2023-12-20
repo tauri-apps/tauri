@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.3]
+
+### Bug Fixes
+
+- [`1c582a94`](https://www.github.com/tauri-apps/tauri/commit/1c582a942e345a066b65620e4db9f688ec142bb9)([#8392](https://www.github.com/tauri-apps/tauri/pull/8392)) Fix a regression where typescript could not find types when using `"moduleResolution": "node"`
+
 ## \[1.5.2]
 
 ### Bug Fixes

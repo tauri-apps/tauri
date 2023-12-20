@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.5.9]
+
+### Bug Fixes
+
+- [`0a2175ea`](https://www.github.com/tauri-apps/tauri/commit/0a2175eabb736b2a4cd01ab682e08be0b5ebb2b9)([#8439](https://www.github.com/tauri-apps/tauri/pull/8439)) Expand glob patterns in workspace member paths so the CLI would watch all matching pathhs.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.9`
+
 ## \[1.5.8]
 
 ### Dependencies

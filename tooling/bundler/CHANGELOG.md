@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.4.8]
+
+### Enhancements
+
+- [`b44e9c0f`](https://www.github.com/tauri-apps/tauri/commit/b44e9c0fcbb3f6994e38b8ef1ae18515db18ba7d)([#8431](https://www.github.com/tauri-apps/tauri/pull/8431)) Check if required files/tools for bundling are outdated or mis-hashed and redownload them.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+
 ## \[1.4.7]
 
 ### Bug Fixes

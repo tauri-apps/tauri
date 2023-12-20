@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`9b230de7`](https://www.github.com/tauri-apps/tauri/commit/9b230de7bc6690c2733f5324d50b999af1f7a6ef)([#8407](https://www.github.com/tauri-apps/tauri/pull/8407)) Fix compile error when parsing config that includes float values.
+
 ## \[1.5.3]
 
 ### New Features

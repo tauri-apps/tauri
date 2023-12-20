@@ -4,15 +4,14 @@
 
 use std::{borrow::Cow, sync::Arc};
 
-use http::{
-  header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
-  HeaderValue, Method, StatusCode,
-};
-
 use crate::{
   manager::AppManager,
   window::{InvokeRequest, UriSchemeProtocolHandler},
   Runtime,
+};
+use http::{
+  header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
+  HeaderValue, Method, StatusCode,
 };
 
 use super::{CallbackFn, InvokeBody, InvokeResponse};
@@ -30,7 +29,12 @@ pub fn message_handler<R: Runtime>(
 pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeProtocolHandler {
   Box::new(move |request, responder| {
     #[cfg(feature = "tracing")]
-    let _span = tracing::trace_span!("ipc::request", kind = "custom-protocol").entered();
+    let _span = tracing::trace_span!(
+      "ipc::request",
+      kind = "custom-protocol",
+      request = tracing::field::Empty
+    )
+    .entered();
 
     let manager = manager.clone();
     let label = label.clone();
@@ -48,29 +52,55 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
           match parse_invoke_request(&manager, request) {
             Ok(request) => {
               #[cfg(feature = "tracing")]
+              tracing::Span::current().record("request", tracing::field::debug(&request.body));
+              #[cfg(feature = "tracing")]
               let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
 
               window.on_message(
                 request,
                 Box::new(move |_window, _cmd, response, _callback, _error| {
                   #[cfg(feature = "tracing")]
-                  let _span = tracing::trace_span!(
+                  let _respond_span = tracing::trace_span!(
                     parent: &request_span,
-                    "ipc::request::respond",
-                    response = format!("{:?}", response)
+                    "ipc::request::respond"
                   )
                   .entered();
 
                   let (mut response, mime_type) = match response {
-                    InvokeResponse::Ok(InvokeBody::Json(v)) => (
-                      http::Response::new(serde_json::to_vec(&v).unwrap().into()),
-                      mime::APPLICATION_JSON,
-                    ),
-                    InvokeResponse::Ok(InvokeBody::Raw(v)) => (
-                      http::Response::new(v.into()),
-                      mime::APPLICATION_OCTET_STREAM,
-                    ),
+                    InvokeResponse::Ok(InvokeBody::Json(v)) => {
+                      #[cfg(feature = "tracing")]
+                      let _response_span = tracing::trace_span!(
+                        "ipc::request::response",
+                        response = tracing::field::debug(&v)
+                      )
+                      .entered();
+
+                      (
+                        http::Response::new(serde_json::to_vec(&v).unwrap().into()),
+                        mime::APPLICATION_JSON,
+                      )
+                    }
+                    InvokeResponse::Ok(InvokeBody::Raw(v)) => {
+                      #[cfg(feature = "tracing")]
+                      let _response_span = tracing::trace_span!(
+                        "ipc::request::response",
+                        response = tracing::field::debug(&v)
+                      )
+                      .entered();
+
+                      (
+                        http::Response::new(v.into()),
+                        mime::APPLICATION_OCTET_STREAM,
+                      )
+                    }
                     InvokeResponse::Err(e) => {
+                      #[cfg(feature = "tracing")]
+                      let _response_span = tracing::trace_span!(
+                        "ipc::request::response",
+                        response = tracing::field::debug(&e)
+                      )
+                      .entered();
+
                       let mut response =
                         http::Response::new(serde_json::to_vec(&e.0).unwrap().into());
                       *response.status_mut() = StatusCode::BAD_REQUEST;
@@ -82,13 +112,6 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
                     CONTENT_TYPE,
                     HeaderValue::from_str(mime_type.essence_str()).unwrap(),
                   );
-
-                  #[cfg(feature = "tracing")]
-                  let _span = tracing::trace_span!(
-                    "ipc::request::response",
-                    response = format!("{:?}", response)
-                  )
-                  .entered();
 
                   respond(response);
                 }),
@@ -151,7 +174,8 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
 fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, label: &str) {
   if let Some(window) = manager.get_window(label) {
     #[cfg(feature = "tracing")]
-    let _span = tracing::trace_span!("ipc::request", kind = "post-message").entered();
+    let _span =
+      tracing::trace_span!("ipc::request", kind = "post-message", request = message).entered();
 
     use serde::{Deserialize, Deserializer};
 
@@ -243,7 +267,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
         };
 
         #[cfg(feature = "tracing")]
-        let _span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd).entered();
+        let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
 
         window.on_message(
           request,
@@ -257,9 +281,9 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
             use serde_json::Value as JsonValue;
 
             #[cfg(feature = "tracing")]
-            let _span = tracing::trace_span!(
-              "ipc::request::respond",
-              response = format!("{:?}", response)
+            let _respond_span = tracing::trace_span!(
+              parent: &request_span,
+              "ipc::request::respond"
             )
             .entered();
 
@@ -280,6 +304,13 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
 
                 let _ = window.eval(&eval_js);
               }
+
+              #[cfg(feature = "tracing")]
+              let _response_span = tracing::trace_span!(
+                "ipc::request::response",
+                response = tracing::field::debug(&response)
+              )
+              .entered();
 
               match &response {
                 InvokeResponse::Ok(InvokeBody::Json(v)) => {

@@ -230,8 +230,11 @@ impl Interface for Rust {
 
     let target_triple = &self.app_settings.target_triple;
     let target_components: Vec<&str> = target_triple.split('-').collect();
-    let (arch, host) = match target_components.as_slice() {
-      [arch, _, host] => (*arch, *host),
+    let (arch, host, host_env) = match target_components.as_slice() {
+      // 3 components like aarch64-apple-darwin
+      [arch, _, host] => (*arch, *host, None),
+      // 4 components like x86_64-pc-windows-msvc and aarch64-apple-ios-sim
+      [arch, _, host, host_env] => (*arch, *host, Some(*host_env)),
       _ => {
         log::warn!("Invalid target triple: {}", target_triple);
         return env;
@@ -248,12 +251,12 @@ impl Interface for Rust {
     );
     env.insert(
       "TAURI_ENV_PLATFORM",
-      match host {
+      match (host, host_env) {
         // keeps compatibility with old `std::env::consts::OS` implementation
-        "darwin" => "macos".into(),
-        "ios-sim" => "ios".into(),
-        "androideabi" => "android".into(),
-        h => h.into(),
+        ("darwin", _) => "macos".into(),
+        ("ios", Some("sim")) => "ios".into(),
+        ("androideabi", _) => "android".into(),
+        (h, _) => h.into(),
       },
     );
 

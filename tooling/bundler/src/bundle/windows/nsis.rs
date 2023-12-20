@@ -9,7 +9,7 @@ use crate::{
     common::CommandExt,
     windows::util::{
       download, download_and_verify, download_webview2_bootstrapper,
-      download_webview2_offline_installer, extract_zip, verify_path_hash, HashAlgorithm,
+      download_webview2_offline_installer, extract_zip, verify_file_hash, HashAlgorithm,
       NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
@@ -86,7 +86,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     let mismatched = NSIS_REQUIRED_FILES_HASH
       .iter()
       .filter(|(p, _, hash, hash_algorithm)| {
-        verify_path_hash(nsis_toolset_path.join(p), hash, *hash_algorithm).is_err()
+        verify_file_hash(nsis_toolset_path.join(p), hash, *hash_algorithm).is_err()
       })
       .collect::<Vec<_>>();
 

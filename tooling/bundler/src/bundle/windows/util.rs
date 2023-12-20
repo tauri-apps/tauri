@@ -123,7 +123,7 @@ fn verify_data_with_hasher(data: &[u8], hash: &str, mut hasher: impl Digest) -> 
   }
 }
 
-pub fn verify_path_hash<P: AsRef<Path>>(
+pub fn verify_file_hash<P: AsRef<Path>>(
   path: P,
   hash: &str,
   hash_algorithm: HashAlgorithm,

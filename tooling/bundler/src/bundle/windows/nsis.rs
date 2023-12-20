@@ -9,8 +9,8 @@ use crate::{
     common::CommandExt,
     windows::util::{
       download, download_and_verify, download_webview2_bootstrapper,
-      download_webview2_offline_installer, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
-      NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+      download_webview2_offline_installer, extract_zip, verify_file_hash, HashAlgorithm,
+      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
   Settings,
@@ -36,7 +36,7 @@ const NSIS_URL: &str =
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
-const NSIS_TAURI_UTILS: &str =
+const NSIS_TAURI_UTILS_URL: &str =
   "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.2/nsis_tauri_utils.dll";
 const NSIS_TAURI_UTILS_SHA1: &str = "16DF1D1A5B4D5DF3859447279C55BE36D4109DFB";
 
@@ -60,6 +60,13 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Plugins/x86-unicode/nsis_tauri_utils.dll",
 ];
 
+const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
+  "Plugins/x86-unicode/nsis_tauri_utils.dll",
+  NSIS_TAURI_UTILS_URL,
+  NSIS_TAURI_UTILS_SHA1,
+  HashAlgorithm::Sha1,
+)];
+
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
@@ -75,6 +82,21 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     warn!("NSIS directory is missing some files. Recreating it.");
     std::fs::remove_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
+  } else {
+    let mismatched = NSIS_REQUIRED_FILES_HASH
+      .iter()
+      .filter(|(p, _, hash, hash_algorithm)| {
+        verify_file_hash(nsis_toolset_path.join(p), hash, *hash_algorithm).is_err()
+      })
+      .collect::<Vec<_>>();
+
+    if !mismatched.is_empty() {
+      warn!("NSIS directory contains mis-hashed files. Redownloading them.");
+      for (path, url, hash, hash_algorithim) in mismatched {
+        let data = download_and_verify(url, hash, *hash_algorithim)?;
+        write(nsis_toolset_path.join(path), data)?;
+      }
+    }
   }
 
   build_nsis_app_installer(settings, &nsis_toolset_path, &tauri_tools_path, updater)
@@ -107,7 +129,11 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     nsis_plugins.join("x86-unicode").join("ApplicationID.dll"),
   )?;
 
-  let data = download_and_verify(NSIS_TAURI_UTILS, NSIS_TAURI_UTILS_SHA1, HashAlgorithm::Sha1)?;
+  let data = download_and_verify(
+    NSIS_TAURI_UTILS_URL,
+    NSIS_TAURI_UTILS_SHA1,
+    HashAlgorithm::Sha1,
+  )?;
   write(
     nsis_plugins
       .join("x86-unicode")

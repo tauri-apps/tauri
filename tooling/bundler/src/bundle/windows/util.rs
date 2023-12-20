@@ -78,6 +78,7 @@ pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   Ok(bytes)
 }
 
+#[derive(Clone, Copy)]
 pub enum HashAlgorithm {
   #[cfg(target_os = "windows")]
   Sha256,
@@ -92,23 +93,25 @@ pub fn download_and_verify(
 ) -> crate::Result<Vec<u8>> {
   let data = download(url)?;
   info!("validating hash");
+  verify_hash(&data, hash, hash_algorithm)?;
+  Ok(data)
+}
 
+pub fn verify_hash(data: &[u8], hash: &str, hash_algorithm: HashAlgorithm) -> crate::Result<()> {
   match hash_algorithm {
     #[cfg(target_os = "windows")]
     HashAlgorithm::Sha256 => {
       let hasher = sha2::Sha256::new();
-      verify(&data, hash, hasher)?;
+      verify_data_with_hasher(data, hash, hasher)
     }
     HashAlgorithm::Sha1 => {
       let hasher = sha1::Sha1::new();
-      verify(&data, hash, hasher)?;
+      verify_data_with_hasher(data, hash, hasher)
     }
   }
-
-  Ok(data)
 }
 
-fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<()> {
+fn verify_data_with_hasher(data: &[u8], hash: &str, mut hasher: impl Digest) -> crate::Result<()> {
   hasher.update(data);
 
   let url_hash = hasher.finalize().to_vec();
@@ -118,6 +121,15 @@ fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<
   } else {
     Err(crate::Error::HashError)
   }
+}
+
+pub fn verify_file_hash<P: AsRef<Path>>(
+  path: P,
+  hash: &str,
+  hash_algorithm: HashAlgorithm,
+) -> crate::Result<()> {
+  let data = std::fs::read(path)?;
+  verify_hash(&data, hash, hash_algorithm)
 }
 
 /// Extracts the zips from memory into a useable path.

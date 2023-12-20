@@ -230,7 +230,7 @@ impl Interface for Rust {
 
     let target_triple = &self.app_settings.target_triple;
     let target_components: Vec<&str> = target_triple.split('-').collect();
-    let (arch, host, host_env) = match target_components.as_slice() {
+    let (arch, host, _host_env) = match target_components.as_slice() {
       // 3 components like aarch64-apple-darwin
       [arch, _, host] => (*arch, *host, None),
       // 4 components like x86_64-pc-windows-msvc and aarch64-apple-ios-sim

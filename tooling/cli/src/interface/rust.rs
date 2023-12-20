@@ -338,7 +338,7 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
 // Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
 fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   let Some(path) = path.to_str() else {
-    return Ok(Vec::new());
+    return Err(anyhow::anyhow!("path is not UTF-8 compatible"));
   };
   let res = glob(path).with_context(|| format!("could not parse pattern `{}`", &path))?;
   let res = res

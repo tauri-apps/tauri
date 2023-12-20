@@ -435,7 +435,7 @@ impl<R: Runtime> AppManager<R> {
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(app, &self.config.plugins)
+      .initialize_all(app, &self.config.plugins)
   }
 
   pub fn config(&self) -> &Config {

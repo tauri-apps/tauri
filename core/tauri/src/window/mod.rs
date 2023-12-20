@@ -262,6 +262,10 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   }
 
   /// Creates this window with a webview with it.
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(name = "webview::create", skip_all)
+  )]
   pub fn with_webview(self, webview: WebviewBuilder<R>) -> crate::Result<(Window<R>, Webview<R>)> {
     let window_labels = self
       .manager
@@ -750,6 +754,10 @@ impl<R: Runtime> PartialEq for Window<R> {
 }
 
 impl<R: Runtime> Manager<R> for Window<R> {
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::emit", skip(self, payload))
+  )]
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     // store the webviews before emit_filter() to prevent a deadlock
     let webviews = self.webviews();
@@ -780,6 +788,10 @@ impl<R: Runtime> Manager<R> for Window<R> {
     )
   }
 
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::emit::filter", skip(self, payload, filter))
+  )]
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
   where
     S: Serialize + Clone,

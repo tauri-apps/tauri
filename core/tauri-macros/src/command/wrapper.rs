@@ -214,6 +214,32 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
   let root = attrs.root;
 
+  let kind = match attrs.execution_context {
+    ExecutionContext::Async if function.sig.asyncness.is_none() => "sync_threadpool",
+    ExecutionContext::Async => "async",
+    ExecutionContext::Blocking => "sync",
+  };
+
+  let loc = function.span().start();
+  let line = loc.line;
+  let col = loc.column;
+
+  let maybe_span = if cfg!(feature = "tracing") {
+    quote!({
+      let _span = tracing::debug_span!(
+        "ipc::request::handler",
+        cmd = #message.command(),
+        kind = #kind,
+        loc.line = #line,
+        loc.col = #col,
+        is_internal = false,
+      )
+      .entered();
+    })
+  } else {
+    quote!()
+  };
+
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
     #async_command_check
@@ -230,6 +256,8 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
           let #root::ipc::Invoke { message: #message, resolver: #resolver } = $invoke;
+
+          #maybe_span
 
           #body
       }};
@@ -254,6 +282,21 @@ fn body_async(
 ) -> syn::Result<TokenStream2> {
   let Invoke { message, resolver } = invoke;
   parse_args(function, message, attributes).map(|args| {
+    #[cfg(feature = "tracing")]
+    quote! {
+      use tracing::Instrument;
+
+      let span = tracing::debug_span!("ipc::request::run");
+      #resolver.respond_async_serialized(async move {
+        let result = $path(#(#args?),*);
+        let kind = (&result).async_kind();
+        kind.future(result).await
+      }
+      .instrument(span));
+      return true;
+    }
+
+    #[cfg(not(feature = "tracing"))]
     quote! {
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
@@ -284,7 +327,14 @@ fn body_blocking(
     Err(err) => { #resolver.invoke_error(err); return true },
   });
 
+  let maybe_span = if cfg!(feature = "tracing") {
+    quote!(let _span = tracing::debug_span!("ipc::request::run").entered();)
+  } else {
+    quote!()
+  };
+
   Ok(quote! {
+    #maybe_span
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);

@@ -58,7 +58,7 @@ pub struct Options {
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
   pub config: Option<String>,
-  /// Command line arguments passed to the runner
+  /// Command line arguments passed to the runner. Use `--` to explicitly mark the start of the arguments.
   pub args: Vec<String>,
   /// Skip prompting for values
   #[clap(long)]

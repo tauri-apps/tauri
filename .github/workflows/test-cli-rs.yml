@@ -66,5 +66,5 @@ jobs:
         with:
           workspaces: tooling/cli
 
-      - name: build CLI
-        run: cargo build --manifest-path ./tooling/cli/Cargo.toml ${{ matrix.platform.args }}
+      - name: test CLI
+        run: cargo test --manifest-path ./tooling/cli/Cargo.toml ${{ matrix.platform.args }}

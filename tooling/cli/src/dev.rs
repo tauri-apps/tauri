@@ -16,7 +16,6 @@ use crate::{
 use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
 use log::{error, info, warn};
-use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
 use tauri_utils::platform::Target;
 
@@ -26,12 +25,12 @@ use std::{
   process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
+    Arc, Mutex, OnceLock,
   },
 };
 
-static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
-static KILL_BEFORE_DEV_FLAG: OnceCell<AtomicBool> = OnceCell::new();
+static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
+static KILL_BEFORE_DEV_FLAG: OnceLock<AtomicBool> = OnceLock::new();
 
 #[cfg(unix)]
 const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
@@ -64,7 +63,9 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
-  /// Command line arguments passed to the runner. Arguments after `--` are passed to the application.
+  /// Command line arguments passed to the runner.
+  /// Use `--` to explicitly mark the start of the arguments. Arguments after a second `--` are passed to the application
+  /// e.g. `tauri dev -- [runnerArgs] -- [appArgs]`.
   pub args: Vec<String>,
   /// Skip waiting for the frontend dev server to start before building the tauri application.
   #[clap(long, env = "TAURI_CLI_NO_DEV_SERVER_WAIT")]
@@ -107,7 +108,7 @@ fn command_internal(mut options: Options) -> Result<()> {
 }
 
 pub fn local_ip_address(force: bool) -> &'static IpAddr {
-  static LOCAL_IP: OnceCell<IpAddr> = OnceCell::new();
+  static LOCAL_IP: OnceLock<IpAddr> = OnceLock::new();
   LOCAL_IP.get_or_init(|| {
     let prompt_for_ip = || {
       let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()

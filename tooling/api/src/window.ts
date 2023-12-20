@@ -1972,6 +1972,8 @@ interface WindowOptions {
    * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
    */
   url?: string
+  /** The proxy URL for the WebView for all network requests. */
+  proxyUrl?: string
   /** Show window in the center of the screen.. */
   center?: boolean
   /** The initial vertical position. Only applies if `y` is also set. */

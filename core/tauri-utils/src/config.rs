@@ -1056,6 +1056,9 @@ pub struct WindowConfig {
   /// The window webview URL.
   #[serde(default)]
   pub url: WindowUrl,
+  /// The proxy URL for the WebView for all network requests.
+  #[serde(default = "default_proxy")]
+  pub proxy_url: Option<Url>,
   /// The user agent for the webview
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
@@ -1214,6 +1217,7 @@ impl Default for WindowConfig {
     Self {
       label: default_window_label(),
       url: WindowUrl::default(),
+      proxy_url: default_proxy(),
       user_agent: None,
       file_drop_enabled: true,
       center: false,
@@ -1252,6 +1256,10 @@ impl Default for WindowConfig {
       incognito: false,
     }
   }
+}
+
+fn default_proxy() -> Option<Url> {
+  None
 }
 
 fn default_window_label() -> String {
@@ -2424,6 +2432,7 @@ mod build {
       let minimizable = self.minimizable;
       let closable = self.closable;
       let title = str_lit(&self.title);
+      let proxy_url = opt_str_lit(self.proxy_url.as_ref());
       let fullscreen = self.fullscreen;
       let focus = self.focus;
       let transparent = self.transparent;
@@ -2466,6 +2475,7 @@ mod build {
         minimizable,
         closable,
         title,
+        proxy_url,
         fullscreen,
         focus,
         transparent,

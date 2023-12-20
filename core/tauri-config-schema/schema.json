@@ -348,6 +348,14 @@
             }
           ]
         },
+        "proxyUrl": {
+          "description": "The proxy URL for the WebView for all network requests.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
         "userAgent": {
           "description": "The user agent for the webview",
           "type": [

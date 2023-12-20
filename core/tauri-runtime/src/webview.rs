@@ -13,6 +13,7 @@ use tauri_utils::{
   Theme,
 };
 
+use url::Url;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
@@ -22,6 +23,7 @@ use std::{fmt, path::PathBuf};
 #[derive(Debug, Clone)]
 pub struct WebviewAttributes {
   pub url: WindowUrl,
+  pub proxy: Option<Url>,
   pub user_agent: Option<String>,
   pub initialization_scripts: Vec<String>,
   pub data_directory: Option<PathBuf>,
@@ -50,6 +52,9 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(effects) = &config.window_effects {
       builder = builder.window_effects(effects.clone());
     }
+    if let Some(url) = &config.proxy_url {
+      builder = builder.proxy_url(url.to_owned());
+    }
     builder
   }
 }
@@ -67,6 +72,7 @@ impl WebviewAttributes {
       additional_browser_args: None,
       window_effects: None,
       incognito: false,
+      proxy: None,
     }
   }
 
@@ -133,6 +139,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn incognito(mut self, incognito: bool) -> Self {
     self.incognito = incognito;
+    self
+  }
+
+  /// Enable proxy for the WebView
+  #[must_use]
+  pub fn proxy_url(mut self, url: Url) -> Self {
+    self.proxy = Some(url);
     self
   }
 }

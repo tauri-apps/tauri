@@ -1032,6 +1032,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self.webview_attributes.incognito = incognito;
     self
   }
+
+  /// Enable proxy for the WebView
+  #[must_use]
+  pub fn proxy_url(mut self, url: Url) -> Self {
+    self.webview_attributes.proxy = Some(url);
+    self
+  }
 }
 
 /// Key for a JS event listener.

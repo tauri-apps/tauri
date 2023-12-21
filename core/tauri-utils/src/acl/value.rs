@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -50,10 +51,10 @@ pub enum Value {
 
 impl Value {
   /// TODO: implement [`serde::Deserializer`] directly to avoid serializing then deserializing
-  pub fn deserialize<T: DeserializeOwned>(&self) -> Option<T> {
-    toml::to_string(self)
+  pub fn deserialize<T: DeserializeOwned + Debug>(&self) -> Option<T> {
+    dbg!(toml::to_string(self))
       .ok()
-      .and_then(|s| toml::from_str(&s).ok())
+      .and_then(|s| dbg!(toml::from_str(&s).ok()))
   }
 }
 

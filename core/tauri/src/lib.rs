@@ -109,6 +109,9 @@ pub use http;
 #[cfg(feature = "wry")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
+#[cfg(feature = "wry")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
+pub type WryHandle = tauri_runtime_wry::WryHandle<EventLoopMessage>;
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
@@ -274,8 +277,10 @@ pub enum EventLoopMessage {
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
+pub trait RuntimeHandle: runtime::RuntimeHandle<EventLoopMessage> {}
 
 impl<W: runtime::Runtime<EventLoopMessage>> Runtime for W {}
+impl<R: runtime::RuntimeHandle<EventLoopMessage>> RuntimeHandle for R {}
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///

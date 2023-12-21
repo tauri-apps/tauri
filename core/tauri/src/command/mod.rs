@@ -55,9 +55,8 @@ pub trait CommandArg<'de, R: Runtime>: Sized {
 /// Automatically implement [`CommandArg`] for any type that can be deserialized.
 impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
   fn from_command(command: CommandItem<'de, R>) -> Result<D, InvokeError> {
-    let name = command.name;
-    let arg = command.key;
-    Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e).into())
+    let CommandItem { name, key, .. } = command;
+    Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, key, e).into())
   }
 }
 

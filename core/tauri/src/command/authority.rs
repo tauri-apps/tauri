@@ -1,17 +1,21 @@
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::fmt::Debug;
+use std::marker::PhantomData;
+use std::sync::{Arc, Mutex, RwLock};
 
 use serde::de::DeserializeOwned;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use state::TypeMap;
 
+use serde_json::Value;
 use tauri_macros::default_runtime;
-use tauri_utils::acl::Value;
 
 use crate::command;
-use crate::command::{CommandArg, CommandItem};
 use crate::ipc::InvokeMessage;
-use crate::Runtime;
+use crate::{Runtime, RuntimeHandle};
+
+/// Alias for `Result<T, tauri::command::Error>`.
+pub type Result<T> = ::std::result::Result<T, Error>;
 
 pub struct Caps;
 
@@ -20,19 +24,32 @@ pub struct RuntimeAuthority {
   cmds: (),
 }
 
-pub enum CommandError {}
-pub trait IntoCommandResponse {}
+#[derive(Debug)]
+pub enum Error {
+  NotFound,
+}
 
+pub trait IntoCommandResponse {
+  fn into_command_response(self) -> CommandResponse;
+}
+
+#[derive(Debug, Default)]
 pub struct RuntimeAuthorityScope {
   raw: BTreeMap<String, Value>,
   cache: TypeMap![Send + Sync],
 }
 
 impl RuntimeAuthorityScope {
-  pub fn get_typed<T: Scoped + 'static>(&self, key: &str) -> Option<&T> {
+  pub fn get_typed<T: Scoped + Debug + 'static>(&self, key: &str) -> Option<&T> {
     match self.cache.try_get() {
       cached @ Some(_) => cached,
-      None => match self.raw.get(key).and_then(Value::deserialize::<T>) {
+      //None => match dbg!(self.raw.get(key).and_then(Value::deserialize::<T>)) {
+      None => match self
+        .raw
+        .get(key)
+        .and_then(|r| dbg!(serde_json::from_value::<T>(dbg!(r.clone()))).ok())
+        //.and_then(|r| dbg!(serde_json::from_str::<T>(&r)).ok())
+      {
         None => None,
         Some(value) => {
           let _ = self.cache.set(value);
@@ -58,16 +75,19 @@ macro_rules! test {
   () => {{
     struct Cmd;
 
-    impl<R: Runtime> StrictCommand<R> for Cmd {
-      const ID: &'static str = "test";
-
+    impl<R: RuntimeHandle> StrictCommand<R> for Cmd {
       type Scope = WeakScope;
+      type Response = CommandResponse;
+
+      fn name(&self) -> &'static str {
+        "test"
+      }
 
       fn handle(
         &self,
         _scope: &Self::Scope,
         request: CommandRequest<R>,
-      ) -> Result<(), CommandError> {
+      ) -> Result<Self::Response, Error> {
         let arg1 = CommandArg::from_command(CommandItem {
           name: "test",
           key: "string",
@@ -77,7 +97,7 @@ macro_rules! test {
 
         test(arg1);
 
-        Ok(())
+        Ok(CommandResponse)
       }
     }
 
@@ -94,68 +114,118 @@ impl Scoped for WeakScope {}
 
 impl Scoped for () {}
 
-#[default_runtime(crate::Wry, wry)]
-struct CommandRequest<R: Runtime> {
-  scope: Arc<RuntimeAuthorityScope>,
-  msg: InvokeMessage<R>,
+impl<'a> TryFrom<&'a RuntimeAuthorityScope> for &'a WeakScope {
+  type Error = Error;
+
+  fn try_from(value: &'a RuntimeAuthorityScope) -> ::std::result::Result<Self, Self::Error> {
+    value.get_typed("weak-scope").ok_or(Error::NotFound)
+  }
 }
 
-struct CommandResponse;
+#[default_runtime(crate::WryHandle, wry)]
+struct CommandRequest<R: RuntimeHandle> {
+  scope: Arc<RuntimeAuthorityScope>,
+  //msg: InvokeMessage<R>,
+  _m: PhantomData<R>,
+}
+
+struct CommandResponse(String);
+
+impl<S> IntoCommandResponse for S
+where
+  S: Serialize,
+{
+  fn into_command_response(self: S) -> CommandResponse {
+    CommandResponse(serde_json::to_string(&self).unwrap())
+  }
+}
 
 static_assertions::assert_obj_safe!(Command);
-#[default_runtime(crate::Wry, wry)]
-trait Command<R: Runtime> {
+#[default_runtime(crate::WryHandle, wry)]
+trait Command<R: RuntimeHandle> {
   fn name(&self) -> &'static str;
 
-  fn handle(&self, request: CommandRequest<R>) -> Result<(), CommandError>;
+  fn handler(&self) -> fn(CommandRequest<R>) -> Result<CommandResponse>;
+
+  //fn handle(&self, request: CommandRequest<R>) -> Result<CommandResponse>;
 }
 
-#[default_runtime(crate::Wry, wry)]
-trait StrictCommand<R: Runtime> {
-  const ID: &'static str;
+#[default_runtime(crate::WryHandle, wry)]
+trait StrictCommand<R: RuntimeHandle> {
+  type Scope: Scoped + Debug + 'static;
+  type Response: IntoCommandResponse;
 
-  type Scope: Scoped + 'static;
+  fn name() -> &'static str;
 
-  fn handle(&self, scope: &Self::Scope, request: CommandRequest<R>) -> Result<(), CommandError>;
+  fn handle(scope: &Self::Scope, request: CommandRequest<R>) -> Result<Self::Response>;
+}
+
+fn strict_handler<R: RuntimeHandle, T: StrictCommand<R>>(
+  request: CommandRequest<R>,
+) -> Result<CommandResponse> {
+  let scopes = dbg!(request.scope.clone());
+  let scope = dbg!(scopes.get_typed::<T::Scope>(T::name())).unwrap();
+  T::handle(scope, request).map(IntoCommandResponse::into_command_response)
 }
 
 impl<T, R> Command<R> for T
 where
-  R: Runtime,
+  R: RuntimeHandle,
   T: StrictCommand<R>,
 {
   fn name(&self) -> &'static str {
-    T::ID
+    T::name()
   }
 
-  fn handle(&self, request: CommandRequest<R>) -> Result<(), CommandError> {
-    let scopes = request.scope.clone();
-    let scope = scopes.get_typed::<T::Scope>(T::ID).unwrap();
-    self.handle(scope, request)
+  fn handler(&self) -> fn(CommandRequest<R>) -> Result<CommandResponse> {
+    strict_handler::<R, T>
   }
 }
 
-/*
-/// Represents any item that can be turned into a command.
-pub trait CommandHandler {
-  fn handle(&self, invoke: InvokeMessage);
-}*/
+struct Echo;
 
-struct MyCommand {
-  inner: Arc<Mutex<String>>,
-}
+impl Scoped for String {}
 
-impl<R: Runtime> StrictCommand<R> for MyCommand {
-  const ID: &'static str = "my_command";
-  type Scope = ();
+impl<R: RuntimeHandle> StrictCommand<R> for Echo {
+  type Scope = String;
+  type Response = String;
 
-  fn handle(&self, _scope: &Self::Scope, request: CommandRequest<R>) -> Result<(), CommandError> {
-    self.inner.lock().unwrap();
+  fn name() -> &'static str {
+    "echo"
+  }
 
-    Ok(())
+  fn handle(scope: &Self::Scope, request: CommandRequest<R>) -> Result<Self::Response> {
+    assert_eq!(scope, "ECHO");
+    Ok("THIS IS AN ECHO".into())
   }
 }
 
-fn asdf() {
-  let _: &[Box<dyn Command<crate::Wry> + Send + Sync>] = &[command!(test)];
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::EventLoopMessage;
+  use tauri_runtime_wry::WryHandle;
+
+  #[tokio::test]
+  async fn echo() {
+    let cmd: Box<dyn Command<crate::WryHandle> + Send + Sync> = Box::new(Echo);
+    let request: CommandRequest<crate::WryHandle> = CommandRequest {
+      scope: Arc::new(RuntimeAuthorityScope {
+        raw: [(cmd.name().into(), Value::String("ECHO".into()))].into(),
+        cache: Default::default(),
+      }),
+      _m: PhantomData::default(),
+    };
+    let handler = dbg!(cmd.handler());
+
+    assert_eq!(cmd.name(), "echo");
+    crate::async_runtime::spawn(async move {
+      assert_eq!(
+        handler(request).unwrap().0,
+        String::from("\"THIS IS AN ECHO\"")
+      );
+    })
+    .await
+    .unwrap();
+  }
 }

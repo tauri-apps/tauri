@@ -29,7 +29,7 @@ pub fn message_handler<R: Runtime>(
 pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeProtocolHandler {
   Box::new(move |request, responder| {
     #[cfg(feature = "tracing")]
-    let _span = tracing::trace_span!(
+    let span = tracing::trace_span!(
       "ipc::request",
       kind = "custom-protocol",
       request = tracing::field::Empty
@@ -52,7 +52,13 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
           match parse_invoke_request(&manager, request) {
             Ok(request) => {
               #[cfg(feature = "tracing")]
-              tracing::Span::current().record("request", tracing::field::debug(&request.body));
+              span.record(
+                "request",
+                match &request.body {
+                  InvokeBody::Json(j) => serde_json::to_string(j).unwrap(),
+                  InvokeBody::Raw(b) => serde_json::to_string(b).unwrap(),
+                },
+              );
               #[cfg(feature = "tracing")]
               let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
 
@@ -66,47 +72,33 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
                   )
                   .entered();
 
+                  #[cfg(feature = "tracing")]
+                  let response_span = tracing::trace_span!(
+                    "ipc::request::response",
+                    response = serde_json::to_string(&response).unwrap(),
+                    mime_type = tracing::field::Empty
+                  )
+                  .entered();
+
                   let (mut response, mime_type) = match response {
-                    InvokeResponse::Ok(InvokeBody::Json(v)) => {
-                      #[cfg(feature = "tracing")]
-                      let _response_span = tracing::trace_span!(
-                        "ipc::request::response",
-                        response = tracing::field::debug(&v)
-                      )
-                      .entered();
-
-                      (
-                        http::Response::new(serde_json::to_vec(&v).unwrap().into()),
-                        mime::APPLICATION_JSON,
-                      )
-                    }
-                    InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                      #[cfg(feature = "tracing")]
-                      let _response_span = tracing::trace_span!(
-                        "ipc::request::response",
-                        response = tracing::field::debug(&v)
-                      )
-                      .entered();
-
-                      (
-                        http::Response::new(v.into()),
-                        mime::APPLICATION_OCTET_STREAM,
-                      )
-                    }
+                    InvokeResponse::Ok(InvokeBody::Json(v)) => (
+                      http::Response::new(serde_json::to_vec(&v).unwrap().into()),
+                      mime::APPLICATION_JSON,
+                    ),
+                    InvokeResponse::Ok(InvokeBody::Raw(v)) => (
+                      http::Response::new(v.into()),
+                      mime::APPLICATION_OCTET_STREAM,
+                    ),
                     InvokeResponse::Err(e) => {
-                      #[cfg(feature = "tracing")]
-                      let _response_span = tracing::trace_span!(
-                        "ipc::request::response",
-                        response = tracing::field::debug(&e)
-                      )
-                      .entered();
-
                       let mut response =
                         http::Response::new(serde_json::to_vec(&e.0).unwrap().into());
                       *response.status_mut() = StatusCode::BAD_REQUEST;
                       (response, mime::TEXT_PLAIN)
                     }
                   };
+
+                  #[cfg(feature = "tracing")]
+                  response_span.record("mime_type", mime_type.essence_str());
 
                   response.headers_mut().insert(
                     CONTENT_TYPE,
@@ -308,7 +300,13 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
               #[cfg(feature = "tracing")]
               let _response_span = tracing::trace_span!(
                 "ipc::request::response",
-                response = tracing::field::debug(&response)
+                response = serde_json::to_string(&response).unwrap(),
+                mime_type = match &response {
+                  InvokeResponse::Ok(InvokeBody::Json(_)) => mime::APPLICATION_JSON,
+                  InvokeResponse::Ok(InvokeBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
+                  InvokeResponse::Err(_) => mime::TEXT_PLAIN,
+                }
+                .essence_str()
               )
               .entered();
 

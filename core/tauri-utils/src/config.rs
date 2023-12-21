@@ -331,6 +331,9 @@ pub struct MacConfig {
   pub provider_short_name: Option<String>,
   /// Path to the entitlements file.
   pub entitlements: Option<String>,
+  /// MacOS library files that need to be bundled with the app.
+  pub libraries: Option<HashMap<String, String>>,
+
 }
 
 impl Default for MacConfig {
@@ -343,6 +346,7 @@ impl Default for MacConfig {
       signing_identity: None,
       provider_short_name: None,
       entitlements: None,
+      libraries: None,
     }
   }
 }

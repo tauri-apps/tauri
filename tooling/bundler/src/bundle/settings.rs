@@ -219,6 +219,8 @@ pub struct MacOsSettings {
   pub entitlements: Option<String>,
   /// Path to the Info.plist file for the bundle.
   pub info_plist_path: Option<PathBuf>,
+  /// MacOS library files that need to be bundled with the app.
+  pub libraries: Option<HashMap<String, String>>,
 }
 
 /// Configuration for a target language for the WiX build.

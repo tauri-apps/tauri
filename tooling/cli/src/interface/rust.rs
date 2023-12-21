@@ -1116,6 +1116,7 @@ fn tauri_config_to_bundle_settings(
           None
         }
       },
+      libraries: config.macos.libraries,
     },
     windows: WindowsSettings {
       timestamp_url: config.windows.timestamp_url,

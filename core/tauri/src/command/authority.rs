@@ -1,6 +1,9 @@
+use std::any::Any;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
+use std::future::{Future, Ready};
 use std::marker::PhantomData;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 
 use serde::de::DeserializeOwned;
@@ -16,6 +19,9 @@ use crate::{Runtime, RuntimeHandle};
 
 /// Alias for `Result<T, tauri::command::Error>`.
 pub type Result<T> = ::std::result::Result<T, Error>;
+
+#[default_runtime(crate::WryHandle, wry)]
+pub type CommandHandle<R> = fn(Box<dyn Send + Sync>, CommandRequest<R>) -> Result<CommandResponse>;
 
 pub struct Caps;
 
@@ -200,22 +206,129 @@ impl<R: RuntimeHandle> StrictCommand<R> for Echo {
   }
 }
 
+pub type VCmdState = Arc<dyn Any + Send + Sync>;
+
+#[default_runtime(crate::WryHandle, wry)]
+pub type VCmdHandle<R> = fn(Option<VCmdState>, CommandRequest<R>) -> VCmdFuture;
+
+#[default_runtime(crate::WryHandle, wry)]
+pub type VCmdSetup<R> = fn(&VCmd<R>);
+
+pub type VCmdFuture = Pin<Box<dyn Future<Output = Result<CommandResponse>> + Send>>;
+
+/*#[default_runtime(crate::WryHandle, wry)]
+pub struct VCmdHandler<R: RuntimeHandle> {
+  state: Option<VCmdState>,
+  setup: Option<fn(Option<&VCmdState>) -> Ready<()>>,
+  handle: VCmdHandle<R>,
+}
+
+impl<R: RuntimeHandle> VCmdHandler<R> {
+  pub async fn handle(self, request: CommandRequest<R>) -> Result<CommandResponse> {
+    if let Some(setup) = self.setup {
+      setup(self.state.as_ref()).await
+    }
+
+    (self.handle)(self.state, request).await
+  }
+}*/
+
+#[default_runtime(crate::WryHandle, wry)]
+pub struct VCmd<R: RuntimeHandle> {
+  pub name: &'static str,
+  pub state: Option<VCmdState>,
+  pub setup: Option<fn(Option<&VCmdState>) -> Ready<()>>,
+  pub handle: VCmdHandle<R>,
+}
+
+impl<R> Clone for VCmd<R>
+where
+  R: RuntimeHandle,
+{
+  #[inline(always)]
+  fn clone(&self) -> Self {
+    Self {
+      name: self.name,
+      state: self.state.clone(),
+      setup: self.setup,
+      handle: self.handle,
+    }
+  }
+}
+
+impl<R: RuntimeHandle> VCmd<R> {
+  #[inline(always)]
+  fn setup(&self) -> Self {
+    VCmd {
+      name: self.name,
+      state: self.state.clone(),
+      setup: self.setup,
+      handle: self.handle,
+    }
+  }
+
+  pub async fn handle(self, request: CommandRequest<R>) -> Result<CommandResponse> {
+    if let Some(setup) = self.setup {
+      setup(self.state.as_ref()).await
+    }
+
+    (self.handle)(self.state, request).await
+  }
+}
+
+#[default_runtime(crate::WryHandle, wry)]
+pub struct VCmds<R: RuntimeHandle>(BTreeMap<&'static str, VCmd<R>>);
+
+impl<R: RuntimeHandle, T: Into<BTreeMap<&'static str, VCmd<R>>>> From<T> for VCmds<R> {
+  fn from(value: T) -> Self {
+    Self(value.into())
+  }
+}
+
+fn echo<R: RuntimeHandle>() -> VCmd<R> {
+  VCmd {
+    name: "echo",
+    state: None,
+    setup: None,
+    handle: |_, _r| Box::pin(async move { Ok(CommandResponse("THIS IS AN ECHO".into())) }),
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::EventLoopMessage;
-  use tauri_runtime_wry::WryHandle;
+
+  fn req(scope: impl Into<BTreeMap<String, Value>>) -> CommandRequest<crate::WryHandle> {
+    CommandRequest {
+      scope: Arc::new(RuntimeAuthorityScope {
+        raw: scope.into(),
+        cache: Default::default(),
+      }),
+      _m: PhantomData::default(),
+    }
+  }
+
+  #[tokio::test]
+  async fn echo_vcmd() {
+    let request = req([]);
+    let echo = super::echo();
+    //let cmds = VCmds::from([(echo.name, echo)]);
+
+    let handler = echo.clone();
+    crate::async_runtime::spawn(async move {
+      assert_eq!(
+        handler.handle(request).await.unwrap().0,
+        String::from("THIS IS AN ECHO")
+      );
+    })
+    .await
+    .unwrap();
+  }
 
   #[tokio::test]
   async fn echo() {
     let cmd: Box<dyn Command<crate::WryHandle> + Send + Sync> = Box::new(Echo);
-    let request: CommandRequest<crate::WryHandle> = CommandRequest {
-      scope: Arc::new(RuntimeAuthorityScope {
-        raw: [(cmd.name().into(), Value::String("ECHO".into()))].into(),
-        cache: Default::default(),
-      }),
-      _m: PhantomData::default(),
-    };
+    let request = req([(cmd.name().into(), Value::String("ECHO".into()))]);
     let handler = dbg!(cmd.handler());
 
     assert_eq!(cmd.name(), "echo");

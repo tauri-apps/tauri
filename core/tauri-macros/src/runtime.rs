@@ -5,12 +5,16 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
-use syn::{parse_quote, DeriveInput, GenericParam, Ident, ItemTrait, Token, Type, TypeParam};
+use syn::{
+  parse_quote, DeriveInput, Error, GenericParam, Ident, ItemFn, ItemTrait, ItemType, Token, Type,
+  TypeParam,
+};
 
 #[derive(Clone)]
 pub(crate) enum Input {
   Derive(DeriveInput),
   Trait(ItemTrait),
+  Type(ItemType),
 }
 
 impl Parse for Input {
@@ -18,7 +22,14 @@ impl Parse for Input {
     input
       .parse::<DeriveInput>()
       .map(Self::Derive)
-      .or_else(|_| input.parse::<ItemTrait>().map(Self::Trait))
+      .or_else(|_| input.parse().map(Self::Trait))
+      .or_else(|_| input.parse().map(Self::Type))
+      .map_err(|_| {
+        Error::new(
+          input.span(),
+          "default_runtime only supports `struct`, `enum`, `type`, or `trait` definitions",
+        )
+      })
   }
 }
 
@@ -27,6 +38,7 @@ impl Input {
     match self {
       Input::Derive(d) => d.generics.params.last_mut(),
       Input::Trait(t) => t.generics.params.last_mut(),
+      Input::Type(t) => t.generics.params.last_mut(),
     }
   }
 }
@@ -36,6 +48,7 @@ impl ToTokens for Input {
     match self {
       Input::Derive(d) => d.to_tokens(tokens),
       Input::Trait(t) => t.to_tokens(tokens),
+      Input::Type(t) => t.to_tokens(tokens),
     }
   }
 }

@@ -105,6 +105,10 @@ pub enum Error {
   #[cfg(target_os = "macos")]
   #[error(transparent)]
   Plist(#[from] plist::Error),
+  /// Rpm error.
+  #[cfg(target_os = "linux")]
+  #[error("{0}")]
+  RpmError(#[from] rpm::Error),
 }
 
 /// Convenient type alias of Result type.

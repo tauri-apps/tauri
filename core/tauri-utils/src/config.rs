@@ -78,6 +78,8 @@ impl Default for WindowUrl {
 pub enum BundleType {
   /// The debian bundle (.deb).
   Deb,
+  /// The RPM bundle (.rpm).
+  Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
   /// The Microsoft Installer bundle (.msi).
@@ -99,6 +101,7 @@ impl Display for BundleType {
       "{}",
       match self {
         Self::Deb => "deb",
+        Self::Rpm => "rpm",
         Self::AppImage => "appimage",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
@@ -127,6 +130,7 @@ impl<'de> Deserialize<'de> for BundleType {
     let s = String::deserialize(deserializer)?;
     match s.to_lowercase().as_str() {
       "deb" => Ok(Self::Deb),
+      "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
@@ -280,6 +284,49 @@ pub struct DebConfig {
   ///
   /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
   pub desktop_template: Option<PathBuf>,
+}
+
+/// Configuration for RPM bundles.
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RpmConfig {
+  /// The package's license identifier. If not set, defaults to the license from
+  /// the Cargo.toml file.
+  pub license: Option<String>,
+  /// The list of RPM dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The RPM release tag.
+  #[serde(default = "default_release")]
+  pub release: String,
+  /// The RPM epoch.
+  #[serde(default)]
+  pub epoch: u32,
+  /// The files to include on the package.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
+}
+
+impl Default for RpmConfig {
+  fn default() -> Self {
+    Self {
+      license: None,
+      depends: None,
+      release: default_release(),
+      epoch: 0,
+      files: Default::default(),
+      desktop_template: None,
+    }
+  }
+}
+
+fn default_release() -> String {
+  "1".into()
 }
 
 /// Position coordinates struct.
@@ -885,7 +932,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
@@ -925,6 +972,9 @@ pub struct BundleConfig {
   /// Configuration for the Debian bundle.
   #[serde(default)]
   pub deb: DebConfig,
+  /// Configuration for the RPM bundle.
+  #[serde(default)]
+  pub rpm: RpmConfig,
   /// DMG-specific settings.
   #[serde(default)]
   pub dmg: DmgConfig,
@@ -2518,6 +2568,7 @@ mod build {
       let long_description = quote!(None);
       let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
+      let rpm = quote!(Default::default());
       let dmg = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
@@ -2542,6 +2593,7 @@ mod build {
         long_description,
         appimage,
         deb,
+        rpm,
         dmg,
         macos,
         external_bin,
@@ -2851,6 +2903,7 @@ mod test {
         long_description: None,
         appimage: Default::default(),
         deb: Default::default(),
+        rpm: Default::default(),
         dmg: Default::default(),
         macos: Default::default(),
         external_bin: None,

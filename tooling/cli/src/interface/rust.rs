@@ -23,7 +23,7 @@ use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
-  PackageSettings, Position, Size, UpdaterSettings, WindowsSettings,
+  PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::parse::is_configuration_file;
 
@@ -650,6 +650,8 @@ pub struct CargoPackageSettings {
   pub homepage: Option<MaybeWorkspace<String>>,
   /// the package's authors.
   pub authors: Option<MaybeWorkspace<Vec<String>>>,
+  /// the package's license.
+  pub license: Option<String>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -704,7 +706,15 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone())
+    let arch64bits =
+      self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
+
+    tauri_config_to_bundle_settings(
+      &self.manifest,
+      features,
+      config.tauri.bundle.clone(),
+      arch64bits,
+    )
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
@@ -936,6 +946,7 @@ impl RustAppSettings {
           })
           .unwrap()
       }),
+      license: cargo_package_settings.license.clone(),
       default_run: cargo_package_settings.default_run.clone(),
     };
 
@@ -1049,6 +1060,7 @@ fn tauri_config_to_bundle_settings(
   manifest: &Manifest,
   features: &[String],
   config: crate::helpers::config::BundleConfig,
+  arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
 
@@ -1069,11 +1081,15 @@ fn tauri_config_to_bundle_settings(
     .resources
     .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
-  let mut depends = config.deb.depends.unwrap_or_default();
+  let mut depends_deb = config.deb.depends.unwrap_or_default();
+  #[allow(unused_mut)]
+  let mut depends_rpm = config.rpm.depends.unwrap_or_default();
 
   // set env vars used by the bundler and inject dependencies
   #[cfg(target_os = "linux")]
   {
+    let mut libs: Vec<String> = Vec::new();
+
     if enabled_features.contains(&"tray-icon".into())
       || enabled_features.contains(&"tauri/tray-icon".into())
     {
@@ -1102,19 +1118,30 @@ fn tauri_config_to_bundle_settings(
         .unwrap_or_else(|_| pkgconfig_utils::get_appindicator_library_path());
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
-          depends.push("libayatana-appindicator3-1".into());
+          depends_deb.push("libayatana-appindicator3-1".into());
         }
         pkgconfig_utils::TrayKind::Libappindicator => {
-          depends.push("libappindicator3-1".into());
+          depends_deb.push("libappindicator3-1".into());
+          libs.push("libappindicator3.so.1".into());
         }
       }
 
       std::env::set_var("TAURI_TRAY_LIBRARY_PATH", path);
     }
 
-    // provides `libwebkit2gtk-4.1.so.37` and all `4.0` versions have the -37 package name
-    depends.push("libwebkit2gtk-4.1-0".to_string());
-    depends.push("libgtk-3-0".to_string());
+    depends_deb.push("libwebkit2gtk-4.1-0".to_string());
+    depends_deb.push("libgtk-3-0".to_string());
+
+    libs.push("libwebkit2gtk-4.1.so.0".into());
+    libs.push("libgtk-3.so.0".into());
+
+    for lib in libs {
+      let mut requires = lib;
+      if arch64bits {
+        requires.push_str("()(64bit)");
+      }
+      depends_rpm.push(requires);
+    }
   }
 
   #[cfg(windows)]
@@ -1172,13 +1199,25 @@ fn tauri_config_to_bundle_settings(
     long_description: config.long_description,
     external_bin: config.external_bin,
     deb: DebianSettings {
-      depends: if depends.is_empty() {
+      depends: if depends_deb.is_empty() {
         None
       } else {
-        Some(depends)
+        Some(depends_deb)
       },
       files: config.deb.files,
       desktop_template: config.deb.desktop_template,
+    },
+    rpm: RpmSettings {
+      license: config.rpm.license,
+      depends: if depends_rpm.is_empty() {
+        None
+      } else {
+        Some(depends_rpm)
+      },
+      release: config.rpm.release,
+      epoch: config.rpm.epoch,
+      files: config.rpm.files,
+      desktop_template: config.rpm.desktop_template,
     },
     dmg: DmgSettings {
       background: config.dmg.background,

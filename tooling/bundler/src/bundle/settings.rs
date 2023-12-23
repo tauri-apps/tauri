@@ -44,6 +44,7 @@ impl From<BundleType> for PackageType {
   fn from(bundle: BundleType) -> Self {
     match bundle {
       BundleType::Deb => Self::Deb,
+      BundleType::Rpm => Self::Rpm,
       BundleType::AppImage => Self::AppImage,
       BundleType::Msi => Self::WindowsMsi,
       BundleType::Nsis => Self::Nsis,
@@ -148,6 +149,8 @@ pub struct PackageSettings {
   pub homepage: Option<String>,
   /// the package's authors.
   pub authors: Option<Vec<String>>,
+  /// the package's license.
+  pub license: Option<String>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -171,6 +174,31 @@ pub struct DebianSettings {
   pub depends: Option<Vec<String>>,
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  ///
+  /// Default file contents:
+  /// ```text
+  #[doc = include_str!("./linux/templates/main.desktop")]
+  /// ```
+  pub desktop_template: Option<PathBuf>,
+}
+
+/// The RPM bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct RpmSettings {
+  /// The name of the package's license.
+  pub license: Option<String>,
+  /// The list of RPM dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The RPM release tag.
+  pub release: String,
+  /// The RPM epoch.
+  pub epoch: u32,
+  /// List of custom files to add to the RPM package.
+  /// Maps the path on the RPM package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
@@ -449,6 +477,8 @@ pub struct BundleSettings {
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// Rpm-specific settings.
+  pub rpm: RpmSettings,
   /// DMG-specific settings.
   pub dmg: DmgSettings,
   /// MacOS-specific settings.
@@ -714,7 +744,7 @@ impl Settings {
     let mut platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
-      "linux" => vec![PackageType::Deb, PackageType::AppImage],
+      "linux" => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
       "windows" => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(
@@ -851,6 +881,11 @@ impl Settings {
     }
   }
 
+  /// Returns the package's license.
+  pub fn license(&self) -> Option<&str> {
+    self.package.license.as_deref()
+  }
+
   /// Returns the package's homepage URL, defaulting to "" if not defined.
   pub fn homepage_url(&self) -> &str {
     self.package.homepage.as_deref().unwrap_or("")
@@ -883,6 +918,11 @@ impl Settings {
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+
+  /// Returns the RPM settings.
+  pub fn rpm(&self) -> &RpmSettings {
+    &self.bundle_settings.rpm
   }
 
   /// Returns the DMG settings.

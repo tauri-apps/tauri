@@ -57,6 +57,11 @@
           "macOS": {
             "minimumSystemVersion": "10.13"
           },
+          "rpm": {
+            "epoch": 0,
+            "files": {},
+            "release": "1"
+          },
           "targets": "all",
           "updater": {
             "active": false,
@@ -204,6 +209,11 @@
             "identifier": "",
             "macOS": {
               "minimumSystemVersion": "10.13"
+            },
+            "rpm": {
+              "epoch": 0,
+              "files": {},
+              "release": "1"
             },
             "targets": "all",
             "updater": {
@@ -933,7 +943,7 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
@@ -1028,6 +1038,19 @@
           "allOf": [
             {
               "$ref": "#/definitions/DebConfig"
+            }
+          ]
+        },
+        "rpm": {
+          "description": "Configuration for the RPM bundle.",
+          "default": {
+            "epoch": 0,
+            "files": {},
+            "release": "1"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/RpmConfig"
             }
           ]
         },
@@ -1168,6 +1191,13 @@
           "type": "string",
           "enum": [
             "deb"
+          ]
+        },
+        {
+          "description": "The RPM bundle (.rpm).",
+          "type": "string",
+          "enum": [
+            "rpm"
           ]
         },
         {
@@ -1349,6 +1379,57 @@
           "items": {
             "type": "string"
           }
+        },
+        "files": {
+          "description": "The files to include on the package.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "desktopTemplate": {
+          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "RpmConfig": {
+      "description": "Configuration for RPM bundles.",
+      "type": "object",
+      "properties": {
+        "license": {
+          "description": "The package's license identifier. If not set, defaults to the license from the Cargo.toml file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "depends": {
+          "description": "The list of RPM dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "release": {
+          "description": "The RPM release tag.",
+          "default": "1",
+          "type": "string"
+        },
+        "epoch": {
+          "description": "The RPM epoch.",
+          "default": 0,
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
         },
         "files": {
           "description": "The files to include on the package.",

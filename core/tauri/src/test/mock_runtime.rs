@@ -386,6 +386,11 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  #[cfg(windows)]
+  fn drag_and_drop(mut self, enabled: bool) -> Self {
+    self
+  }
+
   #[cfg(target_os = "macos")]
   fn title_bar_style(self, style: TitleBarStyle) -> Self {
     self

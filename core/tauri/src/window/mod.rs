@@ -638,6 +638,14 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Enables or disables drag and drop support.
+  #[cfg(windows)]
+  #[must_use]
+  pub fn drag_and_drop(mut self, enabled: bool) -> Self {
+    self.window_builder = self.window_builder.drag_and_drop(enabled);
+    self
+  }
+
   /// Sets the [`TitleBarStyle`].
   #[cfg(target_os = "macos")]
   #[must_use]

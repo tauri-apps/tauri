@@ -360,6 +360,11 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn owner_window(self, owner: HWND) -> Self;
 
+  /// Enables or disables drag and drop support.
+  #[cfg(windows)]
+  #[must_use]
+  fn drag_and_drop(self, enabled: bool) -> Self;
+
   /// Hide the titlebar. Titlebar buttons will still be visible.
   #[cfg(target_os = "macos")]
   #[must_use]

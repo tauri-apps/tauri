@@ -895,6 +895,12 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg(windows)]
+  fn drag_and_drop(mut self, enabled: bool) -> Self {
+    self.inner = self.inner.with_drag_and_drop(enabled);
+    self
+  }
+
   #[cfg(target_os = "macos")]
   fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
     match style {
@@ -2872,13 +2878,13 @@ fn handle_event_loop<T: UserEvent>(
           #[cfg(windows)]
           TaoWindowEvent::ThemeChanged(theme) => {
             if let Some(window) = windows.borrow().get(&window_id) {
-              if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
+              for webview in &window.webviews {
                 let theme = match theme {
                   TaoTheme::Dark => wry::Theme::Dark,
                   TaoTheme::Light => wry::Theme::Light,
                   _ => wry::Theme::Light,
                 };
-                inner.set_theme(theme);
+                webview.set_theme(theme);
               }
             }
           }
@@ -3028,18 +3034,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     tracing::debug_span!(parent: &window_draw_span, "wry::window::create").entered();
 
   let window_event_listeners = WindowEventListeners::default();
-
-  #[cfg(windows)]
-  {
-    window_builder.inner = window_builder
-      .inner
-      .with_drag_and_drop(webview_attributes.file_drop_handler_enabled);
-  }
-
-  #[cfg(windows)]
-  let window_theme = window_builder.inner.window.preferred_theme;
-  #[cfg(windows)]
-  let proxy = context.proxy.clone();
 
   #[cfg(target_os = "macos")]
   {
@@ -3269,13 +3263,11 @@ fn create_webview<T: UserEvent>(
       webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
     }
 
-    if let Some(theme) = window_theme {
-      webview_builder = webview_builder.with_theme(match theme {
-        TaoTheme::Dark => wry::Theme::Dark,
-        TaoTheme::Light => wry::Theme::Light,
-        _ => wry::Theme::Light,
-      });
-    }
+    webview_builder = webview_builder.with_theme(match window.theme() {
+      TaoTheme::Dark => wry::Theme::Dark,
+      TaoTheme::Light => wry::Theme::Light,
+      _ => wry::Theme::Light,
+    });
   }
 
   #[cfg(windows)]
@@ -3370,6 +3362,7 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   {
     let controller = webview.controller();
+    let proxy = context.proxy.clone();
     let proxy_ = proxy.clone();
     let mut token = EventRegistrationToken::default();
     unsafe {
@@ -3377,6 +3370,7 @@ fn create_webview<T: UserEvent>(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy.send_event(Message::Webview(
             window_id,
+            id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
           ));
           Ok(())
@@ -3390,6 +3384,7 @@ fn create_webview<T: UserEvent>(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy_.send_event(Message::Webview(
             window_id,
+            id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
           ));
           Ok(())

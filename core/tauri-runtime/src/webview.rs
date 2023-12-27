@@ -182,6 +182,7 @@ pub struct WebviewAttributes {
   pub incognito: bool,
   pub transparent: bool,
   pub bounds: Option<(Position, Size)>,
+  pub auto_resize: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -225,6 +226,7 @@ impl WebviewAttributes {
       incognito: false,
       transparent: false,
       bounds: None,
+      auto_resize: false,
     }
   }
 
@@ -299,6 +301,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.transparent = transparent;
+    self
+  }
+
+  /// Sets the webview to automatically grow and shrink its size and position when the parent window resizes.
+  #[must_use]
+  pub fn auto_resize(mut self) -> Self {
+    self.auto_resize = true;
     self
   }
 }

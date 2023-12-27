@@ -16,7 +16,7 @@ fn main() {
         .build()?;
 
       let _webview1 = window.add_child(
-        tauri::WebviewBuilder::new("main1", WebviewUrl::App(Default::default())),
+        tauri::WebviewBuilder::new("main1", WebviewUrl::App(Default::default())).auto_resize(),
         LogicalPosition::new(0., 0.),
         LogicalSize::new(width / 2., height / 2.),
       )?;
@@ -24,7 +24,8 @@ fn main() {
         tauri::WebviewBuilder::new(
           "main2",
           WebviewUrl::External("https://github.com/tauri-apps/tauri".parse().unwrap()),
-        ),
+        )
+        .auto_resize(),
         LogicalPosition::new(width / 2., 0.),
         LogicalSize::new(width / 2., height / 2.),
       )?;
@@ -32,7 +33,8 @@ fn main() {
         tauri::WebviewBuilder::new(
           "main3",
           WebviewUrl::External("https://tauri.app".parse().unwrap()),
-        ),
+        )
+        .auto_resize(),
         LogicalPosition::new(0., height / 2.),
         LogicalSize::new(width / 2., height / 2.),
       )?;
@@ -40,7 +42,8 @@ fn main() {
         tauri::WebviewBuilder::new(
           "main4",
           WebviewUrl::External("https://twitter.com/TauriApps".parse().unwrap()),
-        ),
+        )
+        .auto_resize(),
         LogicalPosition::new(width / 2., height / 2.),
         LogicalSize::new(width / 2., height / 2.),
       )?;

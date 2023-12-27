@@ -3231,12 +3231,16 @@ fn create_webview<T: UserEvent>(
 
     let window_size = window.inner_size();
 
-    Some(WebviewBounds {
-      x_rate: (position.x as f32) / window_size.width as f32,
-      y_rate: (position.y as f32) / window_size.height as f32,
-      width_rate: (size.width as f32) / window_size.width as f32,
-      height_rate: (size.height as f32) / window_size.height as f32,
-    })
+    if webview_attributes.auto_resize {
+      Some(WebviewBounds {
+        x_rate: (position.x as f32) / window_size.width as f32,
+        y_rate: (position.y as f32) / window_size.height as f32,
+        width_rate: (size.width as f32) / window_size.width as f32,
+        height_rate: (size.height as f32) / window_size.height as f32,
+      })
+    } else {
+      None
+    }
   } else {
     None
   };

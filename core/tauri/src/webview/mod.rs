@@ -615,6 +615,25 @@ impl<R: Runtime> WebviewBuilder<R> {
     self.webview_attributes.incognito = incognito;
     self
   }
+
+  /// Enable or disable transparency for the WebView.
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
+  )]
+  #[must_use]
+  pub fn transparent(mut self, transparent: bool) -> Self {
+    self.webview_attributes.transparent = transparent;
+    self
+  }
+
+  /// Sets the webview to automatically grow and shrink its size and position when the parent window resizes.
+  #[must_use]
+  pub fn auto_resize(mut self) -> Self {
+    self.webview_attributes.auto_resize = true;
+    self
+  }
 }
 
 /// Webview.

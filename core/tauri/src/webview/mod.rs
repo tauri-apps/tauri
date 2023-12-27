@@ -768,6 +768,35 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.set_focus().map_err(Into::into)
   }
 
+  /// Returns the webview position.
+  ///
+  /// - For child webviews, returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the parent window.
+  /// - For webview window, returns the inner position of the window.
+  pub fn position(&self) -> crate::Result<PhysicalPosition<i32>> {
+    if self.window.webview_window {
+      self.window.inner_position()
+    } else {
+      self.webview.dispatcher.position().map_err(Into::into)
+    }
+  }
+
+  /// Returns the physical size of the webviews's client area.
+  pub fn size(&self) -> crate::Result<PhysicalSize<u32>> {
+    if self.window.webview_window {
+      self.window.inner_size()
+    } else {
+      self.webview.dispatcher.size().map_err(Into::into)
+    }
+  }
+}
+
+/// Webview APIs.
+impl<R: Runtime> Webview<R> {
+  /// The window that is hosting this webview.
+  pub fn window(&self) -> &Window<R> {
+    &self.window
+  }
+
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
   /// The closure is executed on the main thread.
@@ -830,35 +859,6 @@ impl<R: Runtime> Webview<R> {
       .dispatcher
       .with_webview(|w| f(PlatformWebview(*w.downcast().unwrap())))
       .map_err(Into::into)
-  }
-
-  /// Returns the webview position.
-  ///
-  /// - For child webviews, returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the parent window.
-  /// - For webview window, returns the inner position of the window.
-  pub fn position(&self) -> crate::Result<PhysicalPosition<i32>> {
-    if self.window.webview_window {
-      self.window.inner_position()
-    } else {
-      self.webview.dispatcher.position().map_err(Into::into)
-    }
-  }
-
-  /// Returns the physical size of the webviews's client area.
-  pub fn size(&self) -> crate::Result<PhysicalSize<u32>> {
-    if self.window.webview_window {
-      self.window.inner_size()
-    } else {
-      self.webview.dispatcher.size().map_err(Into::into)
-    }
-  }
-}
-
-/// Webview APIs.
-impl<R: Runtime> Webview<R> {
-  /// The window that is hosting this webview.
-  pub fn window(&self) -> &Window<R> {
-    &self.window
   }
 
   /// Returns the current url of the webview.

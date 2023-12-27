@@ -66,6 +66,7 @@ regex = "1"
 heck = "0.4"
 ar = "0.9.0"
 md5 = "0.7.0"
+rpm = "0.13.1"
 
 [lib]
 name = "tauri_bundler"

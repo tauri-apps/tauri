@@ -1797,7 +1797,7 @@ pub struct WebviewWrapper {
   context_store: WebContextStore,
   // the key of the WebContext if it's not shared
   context_key: Option<PathBuf>,
-  bounds: Option<WebviewBounds>,
+  bounds: Option<Arc<Mutex<WebviewBounds>>>,
 }
 
 impl Deref for WebviewWrapper {
@@ -2617,6 +2617,14 @@ fn handle_user_message<T: UserEvent>(
             let size = size.to_logical(window.scale_factor());
             bounds.width = size.width;
             bounds.height = size.height;
+
+            if let Some(b) = &webview.bounds {
+              let window_size = window.inner_size();
+              let mut bounds = b.lock().unwrap();
+              bounds.width_rate = size.width as f32 / window_size.width as f32;
+              bounds.height_rate = size.height as f32 / window_size.height as f32;
+            }
+
             webview.set_bounds(bounds);
           }
           WebviewMessage::SetPosition(position) => {
@@ -2624,6 +2632,14 @@ fn handle_user_message<T: UserEvent>(
             let position = position.to_logical(window.scale_factor());
             bounds.x = position.x;
             bounds.y = position.y;
+
+            if let Some(b) = &webview.bounds {
+              let window_size = window.inner_size();
+              let mut bounds = b.lock().unwrap();
+              bounds.width_rate = position.x as f32 / window_size.width as f32;
+              bounds.height_rate = position.y as f32 / window_size.height as f32;
+            }
+
             webview.set_bounds(bounds);
           }
           WebviewMessage::SetFocus => {
@@ -2890,11 +2906,12 @@ fn handle_event_loop<T: UserEvent>(
             if let Some(webviews) = windows.borrow().get(&window_id).map(|w| w.webviews.clone()) {
               for webview in webviews {
                 if let Some(bounds) = &webview.bounds {
+                  let b = bounds.lock().unwrap();
                   webview.set_bounds(wry::Rect {
-                    x: (size.width as f32 * bounds.x_rate) as i32,
-                    y: (size.height as f32 * bounds.y_rate) as i32,
-                    width: (size.width as f32 * bounds.width_rate) as u32,
-                    height: (size.height as f32 * bounds.height_rate) as u32,
+                    x: (size.width as f32 * b.x_rate) as i32,
+                    y: (size.height as f32 * b.y_rate) as i32,
+                    width: (size.width as f32 * b.width_rate) as u32,
+                    height: (size.height as f32 * b.height_rate) as u32,
                   });
                 }
               }
@@ -3388,7 +3405,7 @@ fn create_webview<T: UserEvent>(
     } else {
       web_context_key
     },
-    bounds: webview_bounds,
+    bounds: webview_bounds.map(|b| Arc::new(Mutex::new(b))),
   })
 }
 

@@ -3353,7 +3353,7 @@ fn create_webview<T: UserEvent>(
   {
     if let Some(on_webview_created) = on_webview_created {
       webview_builder = webview_builder.on_webview_created(move |ctx| {
-        on_webview_created(tauri_runtime::window::CreationContext {
+        on_webview_created(tauri_runtime::webview::CreationContext {
           env: ctx.env,
           activity: ctx.activity,
           webview: ctx.webview,

@@ -12,8 +12,12 @@ use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::PageLoadEvent;
 use tauri_runtime::{
   webview::{DetachedWebview, PendingWebview, WebviewAttributes},
+  WebviewDispatch,
+};
+#[cfg(desktop)]
+use tauri_runtime::{
   window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  WebviewDispatch, WindowDispatch,
+  WindowDispatch,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
@@ -454,6 +458,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   }
 
   /// Creates a new webview on the given window.
+  #[cfg(desktop)]
   pub(crate) fn build(
     self,
     window: Window<R>,
@@ -975,13 +980,14 @@ impl<R: Runtime> Webview<R> {
         if !handled {
           handled = true;
 
-          fn load_channels<R: Runtime>(payload: &serde_json::Value, window: &Window<R>) {
+          fn load_channels<R: Runtime>(payload: &serde_json::Value, webview: &Webview<R>) {
+            use std::str::FromStr;
+
             if let serde_json::Value::Object(map) = payload {
               for v in map.values() {
                 if let serde_json::Value::String(s) = v {
-                  if s.starts_with(crate::ipc::channel::IPC_PAYLOAD_PREFIX) {
-                    crate::ipc::Channel::load_from_ipc(window.clone(), s);
-                  }
+                  let _ = crate::ipc::JavaScriptChannelId::from_str(s)
+                    .map(|id| id.channel_on(webview.clone()));
                 }
               }
             }
@@ -989,7 +995,7 @@ impl<R: Runtime> Webview<R> {
 
           let payload = message.payload.into_json();
           // initialize channels
-          load_channels(&payload, &message.window);
+          load_channels(&payload, &message.webview);
 
           let resolver_ = resolver.clone();
           if let Err(e) = crate::plugin::mobile::run_command(

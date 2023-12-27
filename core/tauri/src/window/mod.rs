@@ -49,7 +49,7 @@ use tauri_macros::default_runtime;
 use std::{
   fmt,
   hash::{Hash, Hasher},
-  sync::{Arc, Mutex},
+  sync::Arc,
 };
 
 /// Monitor descriptor.
@@ -703,7 +703,7 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   // The menu set for this window
   #[cfg(desktop)]
-  pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
+  pub(crate) menu: Arc<std::sync::Mutex<Option<WindowMenu<R>>>>,
   /// Whether this window is a Webview window (hosts only a single webview) or a container for multiple webviews
   pub(crate) webview_window: bool,
 }
@@ -848,7 +848,7 @@ impl<R: Runtime> Window<R> {
       manager,
       app_handle,
       #[cfg(desktop)]
-      menu: Arc::new(Mutex::new(menu)),
+      menu: Arc::new(std::sync::Mutex::new(menu)),
       webview_window,
     }
   }
@@ -861,6 +861,8 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Adds a new webview as a child of this window.
+  #[cfg(desktop)]
+  #[cfg_attr(docsrs, doc(cfg(desktop)))]
   pub fn add_child<P: Into<Position>, S: Into<Size>>(
     &self,
     webview_builder: WebviewBuilder<R>,

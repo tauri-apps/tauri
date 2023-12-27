@@ -176,6 +176,8 @@ pub use error::Error;
 pub use regex;
 pub use tauri_macros::{command, generate_handler};
 
+pub use url::Url;
+
 pub mod api;
 pub(crate) mod app;
 pub mod async_runtime;

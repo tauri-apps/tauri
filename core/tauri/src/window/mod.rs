@@ -64,8 +64,7 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
-pub(crate) type DownloadStartedHandler = dyn Fn(String, &mut PathBuf) -> bool + Send;
-pub(crate) type DownloadCompletedHandler = dyn Fn(String, Option<PathBuf>, bool) + Send;
+pub(crate) type DownloadHandler<R> = dyn Fn(Window<R>, DownloadEvent<'_>) -> bool + Send + Sync;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
@@ -92,6 +91,38 @@ impl<'a> PageLoadPayload<'a> {
   pub fn event(&self) -> PageLoadEvent {
     self.event
   }
+}
+
+/// Download event for the [`WindowBuilder#method.on_download`] hook.
+#[non_exhaustive]
+pub enum DownloadEvent<'a> {
+  /// Download requested.
+  Requested {
+    /// The url being downloaded.
+    url: Url,
+    /// Represents where the file will be downloaded to.
+    /// Can be used to set the download location by assigning a new path to it.
+    /// The assigned path _must_ be absolute.
+    destination: &'a mut PathBuf,
+  },
+  /// Download finished.
+  Finished {
+    /// The URL of the original download request.
+    url: Url,
+    /// Potentially representing the filesystem path the file was downloaded to.
+    ///
+    /// A value of `None` being passed instead of a `PathBuf` does not necessarily indicate that the download
+    /// did not succeed, and may instead indicate some other failure - always check the third parameter if you need to
+    /// know if the download succeeded.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: The second parameter indicating the path the file was saved to is always empty, due to API
+    /// limitations.
+    path: Option<PathBuf>,
+    /// Indicates if the download succeeded or not.
+    success: bool,
+  },
 }
 
 /// Monitor descriptor.
@@ -151,8 +182,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   navigation_handler: Option<Box<NavigationHandler>>,
-  download_started: Option<Box<DownloadStartedHandler>>,
-  download_completed: Option<Box<DownloadCompletedHandler>>,
+  download_handler: Option<Arc<DownloadHandler<R>>>,
   on_page_load_handler: Option<Box<OnPageLoad<R>>>,
   #[cfg(desktop)]
   on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
@@ -232,8 +262,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
-      download_started: None,
-      download_completed: None,
+      download_handler: None,
       on_page_load_handler: None,
       #[cfg(desktop)]
       on_menu_event: None,
@@ -273,8 +302,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
         config,
       ),
-      download_started: None,
-      download_completed: None,
+      download_handler: None,
       web_resource_request_handler: None,
       #[cfg(desktop)]
       menu: None,
@@ -361,38 +389,44 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Set a download started handler to manage incoming downloads.
+  /// Set a download event handler to be notified when a download is requested or finished.
   ///
-  /// The closure takes two parameters - the first is a `String` representing the url being downloaded from and and the
-  /// second is a mutable `PathBuf` reference that (possibly) represents where the file will be downloaded to. The latter
-  /// parameter can be used to set the download location by assigning a new path to it - the assigned path _must_ be
-  /// absolute. The closure returns a `bool` to allow or deny the download.
-  pub fn on_download_started<F: Fn(String, &mut PathBuf) -> bool + Send + 'static>(
+  /// Returning `false` prevents the download from happening on a [`DownloadEvent::Requested`] event.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   window::{DownloadEvent, WindowBuilder},
+  /// };
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
+  ///       .on_download(|window, event| {
+  ///         match event {
+  ///           DownloadEvent::Requested { url, destination } => {
+  ///             println!("downloading {}", url);
+  ///             *destination = "/home/tauri/target/path".into();
+  ///           }
+  ///           DownloadEvent::Finished { url, path, success } => {
+  ///             println!("downloaded {} to {:?}, success: {}", url, path, success);
+  ///           }
+  ///           _ => (),
+  ///         }
+  ///         // let the download start
+  ///         true
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_download<F: Fn(Window<R>, DownloadEvent<'_>) -> bool + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
-    self.download_started.replace(Box::new(f));
-    self
-  }
-
-  /// Sets a download completion handler to manage downloads that have finished.
-  ///
-  /// The closure is fired when the download completes, whether it was successful or not.
-  /// The closure takes a `String` representing the URL of the original download request, an `Option<PathBuf>`
-  /// potentially representing the filesystem path the file was downloaded to, and a `bool` indicating if the download
-  /// succeeded. A value of `None` being passed instead of a `PathBuf` does not necessarily indicate that the download
-  /// did not succeed, and may instead indicate some other failure - always check the third parameter if you need to
-  /// know if the download succeeded.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **macOS**: The second parameter indicating the path the file was saved to is always empty, due to API
-  /// limitations.
-  pub fn on_download_completed<F: Fn(String, Option<PathBuf>, bool) + Send + 'static>(
-    mut self,
-    f: F,
-  ) -> Self {
-    self.download_completed.replace(Box::new(f));
+    self.download_handler.replace(Arc::new(f));
     self
   }
 
@@ -404,18 +438,16 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///
   /// ```rust,no_run
   /// use tauri::{
-  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   utils::config::WindowUrl,
   ///   window::{PageLoadEvent, WindowBuilder},
   /// };
-  /// use http::header::HeaderValue;
-  /// use std::collections::HashMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
   ///       .on_page_load(|window, payload| {
   ///         match payload.event() {
   ///           PageLoadEvent::Started => {
-  ///             println!("{} finished loading", payload.url());
+  ///             println!("{} started loading", payload.url());
   ///           }
   ///           PageLoadEvent::Finished => {
   ///             println!("{} finished loading", payload.url());
@@ -485,9 +517,29 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       self.label.clone(),
     )?;
     pending.navigation_handler = self.navigation_handler.take();
-    pending.download_started_handler = self.download_started.take();
-    pending.download_completed_handler = self.download_completed.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
+
+    if let Some(download_handler) = self.download_handler.take() {
+      let label = pending.label.clone();
+      let manager = self.app_handle.manager.clone();
+      pending.download_handler.replace(Arc::new(move |event| {
+        if let Some(w) = manager.get_window(&label) {
+          download_handler(
+            w,
+            match event {
+              tauri_runtime::window::DownloadEvent::Requested { url, destination } => {
+                DownloadEvent::Requested { url, destination }
+              }
+              tauri_runtime::window::DownloadEvent::Finished { url, path, success } => {
+                DownloadEvent::Finished { url, path, success }
+              }
+            },
+          )
+        } else {
+          false
+        }
+      }));
+    }
 
     if let Some(on_page_load_handler) = self.on_page_load_handler.take() {
       let label = pending.label.clone();

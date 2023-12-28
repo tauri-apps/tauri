@@ -17,7 +17,8 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WindowEvent,
+    CursorIcon, DetachedWindow, DownloadEvent, FileDropEvent, PendingWindow, RawWindow,
+    WindowEvent,
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
   RunEvent, RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
@@ -2850,12 +2851,23 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     });
   }
 
-  if let Some(download_started) = pending.download_started_handler {
-    webview_builder = webview_builder.with_download_started_handler(download_started)
-  }
-
-  if let Some(download_completed) = pending.download_completed_handler {
-    webview_builder = webview_builder.with_download_completed_handler(download_completed);
+  if let Some(download_handler) = pending.download_handler {
+    let download_handler_ = download_handler.clone();
+    webview_builder = webview_builder.with_download_started_handler(move |url, path| {
+      if let Ok(url) = url.parse() {
+        download_handler_(DownloadEvent::Requested {
+          url,
+          destination: path,
+        })
+      } else {
+        false
+      }
+    });
+    webview_builder = webview_builder.with_download_completed_handler(move |url, path, success| {
+      if let Ok(url) = url.parse() {
+        download_handler(DownloadEvent::Finished { url, path, success });
+      }
+    });
   }
 
   if let Some(page_load_handler) = pending.on_page_load_handler {

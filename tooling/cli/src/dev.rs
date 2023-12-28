@@ -16,7 +16,6 @@ use crate::{
 use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
 use log::{error, info, warn};
-use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
 use tauri_utils::platform::Target;
 
@@ -26,20 +25,25 @@ use std::{
   process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
+    Arc, Mutex, OnceLock,
   },
 };
 
-static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
-static KILL_BEFORE_DEV_FLAG: OnceCell<AtomicBool> = OnceCell::new();
+static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
+static KILL_BEFORE_DEV_FLAG: OnceLock<AtomicBool> = OnceLock::new();
 
 #[cfg(unix)]
 const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
 
-pub const TAURI_DEV_WATCHER_GITIGNORE: &[u8] = include_bytes!("../tauri-dev-watcher.gitignore");
+pub const TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE: &[u8] =
+  include_bytes!("../tauri-dev-watcher.gitignore");
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Tauri dev", trailing_var_arg(true))]
+#[clap(
+  about = "Run your app in development mode",
+  long_about = "Run your app in development mode with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer.",
+  trailing_var_arg(true)
+)]
 pub struct Options {
   /// Binary to use to run the application
   #[clap(short, long)]
@@ -59,21 +63,26 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
-  /// Command line arguments passed to the runner. Arguments after `--` are passed to the application.
+  /// Command line arguments passed to the runner.
+  /// Use `--` to explicitly mark the start of the arguments. Arguments after a second `--` are passed to the application
+  /// e.g. `tauri dev -- [runnerArgs] -- [appArgs]`.
   pub args: Vec<String>,
-  /// Disable the file watcher
+  /// Skip waiting for the frontend dev server to start before building the tauri application.
+  #[clap(long, env = "TAURI_CLI_NO_DEV_SERVER_WAIT")]
+  pub no_dev_server_wait: bool,
+  /// Disable the file watcher.
   #[clap(long)]
   pub no_watch: bool,
-  /// Disable the dev server for static files.
-  #[clap(long)]
-  pub no_dev_server: bool,
-  /// Specify port for the dev server for static files. Defaults to 1430
-  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
-  #[clap(long)]
-  pub port: Option<u16>,
   /// Force prompting for an IP to use to connect to the dev server on mobile.
   #[clap(long)]
   pub force_ip_prompt: bool,
+
+  /// Disable the built-in dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
+  /// Specify port for the built-in dev server for static files. Defaults to 1430.
+  #[clap(long, env = "TAURI_CLI_PORT")]
+  pub port: Option<u16>,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -99,7 +108,7 @@ fn command_internal(mut options: Options) -> Result<()> {
 }
 
 pub fn local_ip_address(force: bool) -> &'static IpAddr {
-  static LOCAL_IP: OnceCell<IpAddr> = OnceCell::new();
+  static LOCAL_IP: OnceLock<IpAddr> = OnceLock::new();
   LOCAL_IP.get_or_init(|| {
     let prompt_for_ip = || {
       let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()
@@ -318,10 +327,6 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
         let server_url = format!("http://{server_url}");
         dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 
-        // TODO: in v2, use an env var to pass the url to the app context
-        // or better separate the config passed from the cli internally and
-        // config passed by the user in `--config` into to separate env vars
-        // and the context merges, the user first, then the internal cli config
         if let Some(c) = &options.config {
           let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
           c.build.dev_path = dev_path.clone();
@@ -329,13 +334,13 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
         } else {
           options.config = Some(format!(r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#))
         }
+
+        reload_config(options.config.as_deref())?;
       }
     }
-
-    reload_config(options.config.as_deref())?;
   }
 
-  if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
+  if !options.no_dev_server_wait {
     if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {
       let host = dev_server_url
         .host()
@@ -423,28 +428,8 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
       && (exit_on_panic || matches!(reason, ExitReason::NormalExit)))
   {
     kill_before_dev_process();
-    #[cfg(not(debug_assertions))]
-    let _ = check_for_updates();
     exit(code.unwrap_or(0));
   }
-}
-
-#[cfg(not(debug_assertions))]
-fn check_for_updates() -> Result<()> {
-  if std::env::var_os("TAURI_SKIP_UPDATE_CHECK") != Some("true".into()) {
-    let current_version = crate::info::cli_current_version()?;
-    let current = semver::Version::parse(&current_version)?;
-
-    let upstream_version = crate::info::cli_upstream_version()?;
-    let upstream = semver::Version::parse(&upstream_version)?;
-    if current < upstream {
-      println!(
-        "🚀 A new version of Tauri CLI is available! [{}]",
-        upstream.to_string()
-      );
-    };
-  }
-  Ok(())
 }
 
 pub fn kill_before_dev_process() {

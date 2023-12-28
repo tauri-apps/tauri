@@ -10,6 +10,7 @@ on:
     - cron: '0 0 * * *'
   push:
     paths:
+      - '.github/workflows/audit.yml'
       - '**/Cargo.lock'
       - '**/Cargo.toml'
       - '**/package.json'
@@ -25,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: rust audit
-        uses: actions-rs/audit-check@v1
+        uses: rustsec/audit-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -33,6 +34,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: yarn audit
+      - name: audit workspace
+        run: yarn audit
+      - name: audit @tauri-apps/api
+        working-directory: tooling/api
+        run: yarn audit
+      - name: audit @tauri-apps/cli
         working-directory: tooling/cli/node
         run: yarn audit

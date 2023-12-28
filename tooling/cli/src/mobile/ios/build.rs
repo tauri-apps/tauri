@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_assets,
-  log_finished, open_and_wait, MobileTarget,
+  log_finished, merge_plist, open_and_wait, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -20,7 +20,7 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use tauri_mobile::{
+use cargo_mobile2::{
   apple::{config::Config as AppleConfig, target::Target},
   env::Env,
   opts::{NoiseLevel, Profile},
@@ -30,7 +30,10 @@ use tauri_mobile::{
 use std::{env::set_current_dir, fs};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "iOS build")]
+#[clap(
+  about = "Build your app in release mode for iOS and generate IPAs",
+  long_about = "Build your app in release mode for iOS and generate IPAs. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`."
+)]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]
@@ -91,16 +94,28 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
   inject_assets(&config)?;
+
+  let info_plist_path = config
+    .project_dir()
+    .join(config.scheme())
+    .join("Info.plist");
+  merge_plist(
+    &[
+      tauri_path.join("Info.plist"),
+      tauri_path.join("Info.ios.plist"),
+    ],
+    &info_plist_path,
+  )?;
 
   let mut env = env()?;
   configure_cargo(&app, None)?;
 
   let open = options.open;
-  run_build(options, tauri_config, &config, &mut env, noise_level)?;
+  let _handle = run_build(options, tauri_config, &config, &mut env, noise_level)?;
 
   if open {
     open_and_wait(&config, &env);
@@ -115,7 +130,7 @@ fn run_build(
   config: &AppleConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
-) -> Result<()> {
+) -> Result<OptionsHandle> {
   let profile = if options.debug {
     Profile::Debug
   } else {
@@ -148,7 +163,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  let _handle = write_options(
+  let handle = write_options(
     &tauri_config
       .lock()
       .unwrap()
@@ -196,5 +211,5 @@ fn run_build(
 
   log_finished(out_files, "IPA");
 
-  Ok(())
+  Ok(handle)
 }

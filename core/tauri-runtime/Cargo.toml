@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "1.0.0-alpha.1"
+version = "1.0.0-alpha.7"
 description = "Runtime for Tauri applications"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -14,30 +14,32 @@ rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [ "--cfg", "doc_cfg" ]
+rustc-args = [ "--cfg", "docsrs" ]
+rustdoc-args = [ "--cfg", "docsrs" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
-  "x86_64-apple-darwin"
+  "x86_64-apple-darwin",
+  "x86_64-linux-android",
+  "x86_64-apple-ios"
 ]
 
 [dependencies]
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "2.0.0-alpha.7", path = "../tauri-utils" }
-uuid = { version = "1", features = [ "v4" ] }
+tauri-utils = { version = "2.0.0-alpha.12", path = "../tauri-utils" }
 http = "0.2.4"
 raw-window-handle = "0.5"
 url = { version = "2" }
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.48"
+version = "0.52"
 features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.16", features = [ "v3_24" ] }
+gtk = { version = "0.18", features = [ "v3_24" ] }
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"

@@ -2,21 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
-
 mod cmd;
 #[cfg(desktop)]
 mod tray;
 
 use serde::Serialize;
-use tauri::{ipc::Channel, window::WindowBuilder, App, AppHandle, RunEvent, Runtime, WindowUrl};
+use tauri::{
+  ipc::Channel,
+  window::{PageLoadEvent, WindowBuilder},
+  App, AppHandle, Manager, RunEvent, Runtime, WindowUrl,
+};
 use tauri_plugin_sample::{PingRequest, SampleExt};
-
-#[cfg(desktop)]
-use tauri::Manager;
 
 pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
 pub type OnEvent = Box<dyn FnMut(&AppHandle, RunEvent)>;
@@ -43,17 +39,12 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 ) {
   #[allow(unused_mut)]
   let mut builder = builder
-    .plugin(
-      tauri_plugin_log::Builder::default()
-        .level(log::LevelFilter::Info)
-        .build(),
-    )
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
       #[cfg(desktop)]
       {
         let handle = app.handle();
-        tray::create_tray(&handle)?;
+        tray::create_tray(handle)?;
         handle.plugin(tauri_plugin_cli::init())?;
       }
 
@@ -77,7 +68,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
           .content_protected(true)
-          .menu(tauri::menu::Menu::default(&app.handle())?);
+          .menu(tauri::menu::Menu::default(app.handle())?);
       }
 
       let window = window_builder.build().unwrap();
@@ -127,18 +118,20 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       Ok(())
     })
-    .on_page_load(|window, _| {
-      let window_ = window.clone();
-      window.listen("js-event", move |event| {
-        println!("got js-event with message '{:?}'", event.payload());
-        let reply = Reply {
-          data: "something else".to_string(),
-        };
+    .on_page_load(|window, payload| {
+      if payload.event() == PageLoadEvent::Finished {
+        let window_ = window.clone();
+        window.listen("js-event", move |event| {
+          println!("got js-event with message '{:?}'", event.payload());
+          let reply = Reply {
+            data: "something else".to_string(),
+          };
 
-        window_
-          .emit("rust-event", Some(reply))
-          .expect("failed to emit");
-      });
+          window_
+            .emit("rust-event", Some(reply))
+            .expect("failed to emit");
+        });
+      }
     });
 
   #[allow(unused_mut)]

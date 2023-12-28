@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use super::NativeIcon;
-use crate::{menu::MenuId, run_main_thread, AppHandle, Icon, Manager, Runtime};
+use crate::{
+  menu::MenuId, resources::Resource, run_main_thread, AppHandle, Icon, Manager, Runtime,
+};
 
-/// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
+/// A menu item inside a [`Menu`] or [`Submenu`]
+/// and usually contains an icon and a text.
 ///
 /// [`Menu`]: super::Menu
 /// [`Submenu`]: super::Submenu
@@ -32,7 +35,7 @@ unsafe impl<R: Runtime> Sync for IconMenuItem<R> {}
 unsafe impl<R: Runtime> Send for IconMenuItem<R> {}
 
 impl<R: Runtime> super::sealed::IsMenuItemBase for IconMenuItem<R> {
-  fn inner(&self) -> &dyn muda::IsMenuItem {
+  fn inner_muda(&self) -> &dyn muda::IsMenuItem {
     &self.inner
   }
 }
@@ -205,7 +208,7 @@ impl<R: Runtime> IconMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux**: Unsupported.
-  pub fn set_native_icon(&mut self, _icon: Option<NativeIcon>) -> crate::Result<()> {
+  pub fn set_native_icon(&self, _icon: Option<NativeIcon>) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
     return run_main_thread!(self, |self_: Self| self_
       .inner
@@ -214,3 +217,5 @@ impl<R: Runtime> IconMenuItem<R> {
     Ok(())
   }
 }
+
+impl<R: Runtime> Resource for IconMenuItem<R> {}

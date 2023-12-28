@@ -2,56 +2,62 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{Event, EventHandler};
+use crate::{Runtime, Window};
+
+use super::{EmitArgs, Event, EventId};
 
 use std::{
   boxed::Box,
   cell::Cell,
   collections::HashMap,
-  sync::{Arc, Mutex},
+  sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc, Mutex,
+  },
 };
-use uuid::Uuid;
 
 /// What to do with the pending handler when resolving it?
-enum Pending {
-  Unlisten(EventHandler),
-  Listen(EventHandler, String, Handler),
-  Trigger(String, Option<String>, Option<String>),
+enum Pending<R: Runtime> {
+  Unlisten(EventId),
+  Listen(EventId, String, Handler<R>),
+  Emit(EmitArgs),
 }
 
 /// Stored in [`Listeners`] to be called upon when the event that stored it is triggered.
-struct Handler {
-  window: Option<String>,
+struct Handler<R: Runtime> {
+  window: Option<Window<R>>,
   callback: Box<dyn Fn(Event) + Send>,
 }
 
 /// Holds event handlers and pending event handlers, along with the salts associating them.
-struct InnerListeners {
-  handlers: Mutex<HashMap<String, HashMap<EventHandler, Handler>>>,
-  pending: Mutex<Vec<Pending>>,
-  function_name: Uuid,
-  listeners_object_name: Uuid,
+struct InnerListeners<R: Runtime> {
+  handlers: Mutex<HashMap<String, HashMap<EventId, Handler<R>>>>,
+  pending: Mutex<Vec<Pending<R>>>,
+  function_name: &'static str,
+  listeners_object_name: &'static str,
+  next_event_id: Arc<AtomicU32>,
 }
 
 /// A self-contained event manager.
-pub struct Listeners {
-  inner: Arc<InnerListeners>,
+pub struct Listeners<R: Runtime> {
+  inner: Arc<InnerListeners<R>>,
 }
 
-impl Default for Listeners {
+impl<R: Runtime> Default for Listeners<R> {
   fn default() -> Self {
     Self {
       inner: Arc::new(InnerListeners {
         handlers: Mutex::default(),
         pending: Mutex::default(),
-        function_name: Uuid::new_v4(),
-        listeners_object_name: Uuid::new_v4(),
+        function_name: "__internal_unstable_listeners_function_id__",
+        listeners_object_name: "__internal_unstable_listeners_object_id__",
+        next_event_id: Default::default(),
       }),
     }
   }
 }
 
-impl Clone for Listeners {
+impl<R: Runtime> Clone for Listeners<R> {
   fn clone(&self) -> Self {
     Self {
       inner: self.inner.clone(),
@@ -59,19 +65,23 @@ impl Clone for Listeners {
   }
 }
 
-impl Listeners {
-  /// Randomly generated function name to represent the JavaScript event function.
-  pub(crate) fn function_name(&self) -> String {
-    self.inner.function_name.to_string()
+impl<R: Runtime> Listeners<R> {
+  pub(crate) fn next_event_id(&self) -> EventId {
+    self.inner.next_event_id.fetch_add(1, Ordering::Relaxed)
   }
 
-  /// Randomly generated listener object name to represent the JavaScript event listener object.
-  pub(crate) fn listeners_object_name(&self) -> String {
-    self.inner.listeners_object_name.to_string()
+  /// Function name to represent the JavaScript event function.
+  pub(crate) fn function_name(&self) -> &str {
+    self.inner.function_name
+  }
+
+  /// Listener object name to represent the JavaScript event listener object.
+  pub(crate) fn listeners_object_name(&self) -> &str {
+    self.inner.listeners_object_name
   }
 
   /// Insert a pending event action to the queue.
-  fn insert_pending(&self, action: Pending) {
+  fn insert_pending(&self, action: Pending<R>) {
     self
       .inner
       .pending
@@ -81,7 +91,7 @@ impl Listeners {
   }
 
   /// Finish all pending event actions.
-  fn flush_pending(&self) {
+  fn flush_pending(&self) -> crate::Result<()> {
     let pending = {
       let mut lock = self
         .inner
@@ -94,13 +104,17 @@ impl Listeners {
     for action in pending {
       match action {
         Pending::Unlisten(id) => self.unlisten(id),
-        Pending::Listen(id, event, handler) => self.listen_(id, event, handler),
-        Pending::Trigger(ref event, window, payload) => self.trigger(event, window, payload),
+        Pending::Listen(id, event, handler) => self.listen_with_id(id, event, handler),
+        Pending::Emit(args) => {
+          self.emit(&args)?;
+        }
       }
     }
+
+    Ok(())
   }
 
-  fn listen_(&self, id: EventHandler, event: String, handler: Handler) {
+  fn listen_with_id(&self, id: EventId, event: String, handler: Handler<R>) {
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::Listen(id, event, handler)),
       Ok(mut lock) => {
@@ -109,31 +123,31 @@ impl Listeners {
     }
   }
 
-  /// Adds an event listener for JS events.
+  /// Adds an event listener.
   pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<String>,
+    window: Option<Window<R>>,
     handler: F,
-  ) -> EventHandler {
-    let id = EventHandler(Uuid::new_v4());
+  ) -> EventId {
+    let id = self.next_event_id();
     let handler = Handler {
       window,
       callback: Box::new(handler),
     };
 
-    self.listen_(id, event, handler);
+    self.listen_with_id(id, event, handler);
 
     id
   }
 
-  /// Listen to a JS event and immediately unlisten.
+  /// Listen to an event and immediately unlisten.
   pub(crate) fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<String>,
+    window: Option<Window<R>>,
     handler: F,
-  ) -> EventHandler {
+  ) {
     let self_ = self.clone();
     let handler = Cell::new(Some(handler));
 
@@ -143,32 +157,55 @@ impl Listeners {
         .take()
         .expect("attempted to call handler more than once");
       handler(event)
-    })
+    });
   }
 
   /// Removes an event listener.
-  pub(crate) fn unlisten(&self, handler_id: EventHandler) {
+  pub(crate) fn unlisten(&self, id: EventId) {
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::Unlisten(handler_id)),
+      Err(_) => self.insert_pending(Pending::Unlisten(id)),
       Ok(mut lock) => lock.values_mut().for_each(|handler| {
-        handler.remove(&handler_id);
+        handler.remove(&id);
       }),
     }
   }
 
-  /// Triggers the given global event with its payload.
-  pub(crate) fn trigger(&self, event: &str, window: Option<String>, payload: Option<String>) {
+  /// Emits the given event with its payload based on a filter.
+  pub(crate) fn emit_filter<F>(&self, emit_args: &EmitArgs, filter: Option<F>) -> crate::Result<()>
+  where
+    F: Fn(&Window<R>) -> bool,
+  {
     let mut maybe_pending = false;
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::Trigger(event.to_owned(), window, payload)),
+      Err(_) => self.insert_pending(Pending::Emit(emit_args.clone())),
       Ok(lock) => {
-        if let Some(handlers) = lock.get(event) {
-          for (&id, handler) in handlers {
-            if handler.window.is_none() || window == handler.window {
+        if let Some(handlers) = lock.get(&emit_args.event_name) {
+          let handlers = if let Some(filter) = filter {
+            handlers
+              .iter()
+              .filter(|h| {
+                h.1
+                  .window
+                  .as_ref()
+                  .map(|w| {
+                    // clippy sees this as redundant closure but
+                    // fixing it will result in a compiler error
+                    #[allow(clippy::redundant_closure)]
+                    filter(w)
+                  })
+                  .unwrap_or(false)
+              })
+              .collect::<Vec<_>>()
+          } else {
+            handlers.iter().collect::<Vec<_>>()
+          };
+
+          if !handlers.is_empty() {
+            for (&id, handler) in handlers {
               maybe_pending = true;
               (handler.callback)(self::Event {
                 id,
-                data: payload.clone(),
+                data: emit_args.payload.clone(),
               })
             }
           }
@@ -177,14 +214,22 @@ impl Listeners {
     }
 
     if maybe_pending {
-      self.flush_pending();
+      self.flush_pending()?;
     }
+
+    Ok(())
+  }
+
+  /// Emits the given event with its payload.
+  pub(crate) fn emit(&self, emit_args: &EmitArgs) -> crate::Result<()> {
+    self.emit_filter(emit_args, None::<&dyn Fn(&Window<R>) -> bool>)
   }
 }
 
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::test::MockRuntime;
   use proptest::prelude::*;
 
   // dummy event handler function
@@ -198,7 +243,7 @@ mod test {
     // check to see if listen() is properly passing keys into the LISTENERS map
     #[test]
     fn listeners_check_key(e in "[a-z]+") {
-      let listeners: Listeners = Default::default();
+      let listeners: Listeners<MockRuntime> = Default::default();
       // clone e as the key
       let key = e.clone();
       // pass e and an dummy func into listen
@@ -214,7 +259,7 @@ mod test {
     // check to see if listen inputs a handler function properly into the LISTENERS map.
     #[test]
     fn listeners_check_fn(e in "[a-z]+") {
-       let listeners: Listeners = Default::default();
+       let listeners: Listeners<MockRuntime> = Default::default();
        // clone e as the key
        let key = e.clone();
        // pass e and an dummy func into listen
@@ -240,11 +285,11 @@ mod test {
     // check to see if on_event properly grabs the stored function from listen.
     #[test]
     fn check_on_event(key in "[a-z]+", d in "[a-z]+") {
-      let listeners: Listeners = Default::default();
-      // call listen with e and the event_fn dummy func
+      let listeners: Listeners<MockRuntime> = Default::default();
+      // call listen with key and the event_fn dummy func
       listeners.listen(key.clone(), None, event_fn);
-      // call on event with e and d.
-      listeners.trigger(&key, None, Some(d));
+      // call on event with key and d.
+      listeners.emit(&EmitArgs { event_name: key.clone(), event: serde_json::to_string(&key).unwrap(), source_window_label: "null".into(), payload: serde_json::to_string(&d).unwrap() })?;
 
       // lock the mutex
       let l = listeners.inner.handlers.lock().unwrap();

@@ -25,7 +25,7 @@ pub(crate) mod channel;
 pub(crate) mod format_callback;
 pub(crate) mod protocol;
 
-pub use channel::Channel;
+pub use channel::{Channel, JavaScriptChannelId};
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;

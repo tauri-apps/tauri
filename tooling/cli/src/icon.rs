@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  helpers::{app_paths::tauri_dir, config::get as get_tauri_config},
-  Result,
-};
+use crate::{helpers::app_paths::tauri_dir, Result};
 
 use std::{
   collections::HashMap,
@@ -26,8 +23,9 @@ use image::{
   imageops::FilterType,
   open, ColorType, DynamicImage, ImageBuffer, ImageEncoder, Rgba,
 };
+use resvg::usvg::{fontdb, TreeParsing, TreeTextToPath};
+use resvg::{tiny_skia, usvg};
 use serde::Deserialize;
-use tauri_utils::platform::Target;
 
 #[derive(Debug, Deserialize)]
 struct IcnsEntry {
@@ -43,10 +41,9 @@ struct PngEntry {
 }
 
 #[derive(Debug, Parser)]
-#[clap(about = "Generates various icons for all major platforms")]
+#[clap(about = "Generate various icons for all major platforms")]
 pub struct Options {
-  // TODO: Confirm 1240px
-  /// Path to the source icon (png, 1240x1240px with transparency).
+  /// Path to the source icon (squared PNG or SVG file with transparency).
   #[clap(default_value = "./app-icon.png")]
   input: PathBuf,
   /// Output directory.
@@ -61,6 +58,43 @@ pub struct Options {
   /// The background color of the iOS icon - string as defined in the W3C's CSS Color Module Level 4 <https://www.w3.org/TR/css-color-4/>.
   #[clap(long, default_value = "#fff")]
   ios_color: String,
+}
+
+enum Source {
+  Svg(resvg::Tree),
+  DynamicImage(DynamicImage),
+}
+
+impl Source {
+  fn width(&self) -> u32 {
+    match self {
+      Self::Svg(svg) => svg.size.width() as u32,
+      Self::DynamicImage(i) => i.width(),
+    }
+  }
+
+  fn height(&self) -> u32 {
+    match self {
+      Self::Svg(svg) => svg.size.height() as u32,
+      Self::DynamicImage(i) => i.height(),
+    }
+  }
+
+  fn resize_exact(&self, size: u32) -> Result<DynamicImage> {
+    match self {
+      Self::Svg(svg) => {
+        let mut pixmap = tiny_skia::Pixmap::new(size, size).unwrap();
+        let scale = size as f32 / svg.size.height();
+        svg.render(
+          tiny_skia::Transform::from_scale(scale, scale),
+          &mut pixmap.as_mut(),
+        );
+        let img_buffer = ImageBuffer::from_raw(size, size, pixmap.take()).unwrap();
+        Ok(DynamicImage::ImageRgba8(img_buffer))
+      }
+      Self::DynamicImage(i) => Ok(i.resize_exact(size, size, FilterType::Lanczos3)),
+    }
+  }
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -80,11 +114,37 @@ pub fn command(options: Options) -> Result<()> {
 
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
-  let source = open(input)
-    .context("Can't read and decode source image")?
-    .into_rgba8();
+  let source = if let Some(extension) = input.extension() {
+    if extension == "svg" {
+      let rtree = {
+        let opt = usvg::Options {
+          // Get file's absolute directory.
+          resources_dir: std::fs::canonicalize(&input)
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf())),
+          ..Default::default()
+        };
 
-  let source = DynamicImage::ImageRgba8(source);
+        let mut fontdb = fontdb::Database::new();
+        fontdb.load_system_fonts();
+
+        let svg_data = std::fs::read(&input).unwrap();
+        let mut tree = usvg::Tree::from_data(&svg_data, &opt).unwrap();
+        tree.convert_text(&fontdb);
+        resvg::Tree::from_usvg(&tree)
+      };
+
+      Source::Svg(rtree)
+    } else {
+      Source::DynamicImage(DynamicImage::ImageRgba8(
+        open(&input)
+          .context("Can't read and decode source image")?
+          .into_rgba8(),
+      ))
+    }
+  } else {
+    panic!("Error loading image");
+  };
 
   if source.height() != source.width() {
     panic!("Source image must be square");
@@ -111,29 +171,29 @@ pub fn command(options: Options) -> Result<()> {
       .collect::<Vec<PngEntry>>()
     {
       log::info!(action = "PNG"; "Creating {}", target.name);
-      resize_and_save_png(&source, target.size, &target.out_path)?;
+      resize_and_save_png(&source, target.size, &target.out_path, None)?;
     }
   }
 
   Ok(())
 }
 
-fn appx(source: &DynamicImage, out_dir: &Path) -> Result<()> {
+fn appx(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "Appx"; "Creating StoreLogo.png");
-  resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"))?;
+  resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"), None)?;
 
   for size in [30, 44, 71, 89, 107, 142, 150, 284, 310] {
     let file_name = format!("Square{size}x{size}Logo.png");
     log::info!(action = "Appx"; "Creating {}", file_name);
 
-    resize_and_save_png(source, size, &out_dir.join(&file_name))?;
+    resize_and_save_png(source, size, &out_dir.join(&file_name), None)?;
   }
 
   Ok(())
 }
 
 // Main target: macOS
-fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
+fn icns(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICNS"; "Creating icon.icns");
   let entries: HashMap<String, IcnsEntry> =
     serde_json::from_slice(include_bytes!("helpers/icns.json")).unwrap();
@@ -144,7 +204,7 @@ fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
     let size = entry.size;
     let mut buf = Vec::new();
 
-    let image = source.resize_exact(size, size, FilterType::Lanczos3);
+    let image = source.resize_exact(size)?;
 
     write_png(image.as_bytes(), &mut buf, size)?;
 
@@ -167,12 +227,12 @@ fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .ico file with layers for the most common sizes.
 // Main target: Windows
-fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
+fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICO"; "Creating icon.ico");
   let mut frames = Vec::new();
 
   for size in [32, 16, 24, 48, 64, 256] {
-    let image = source.resize_exact(size, size, FilterType::Lanczos3);
+    let image = source.resize_exact(size)?;
 
     // Only the 256px layer can be compressed according to the ico specs.
     if size == 256 {
@@ -201,7 +261,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
-fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
+fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
   fn desktop_entries(out_dir: &Path) -> Vec<PngEntry> {
     let mut entries = Vec::new();
 
@@ -361,22 +421,10 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
 
   let mut entries = desktop_entries(out_dir);
 
-  // Android
-  let (config, _metadata) = {
-    let tauri_config = get_tauri_config(Target::current(), None)?;
-
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    crate::mobile::android::get_config(
-      &crate::mobile::get_app(tauri_config_),
-      tauri_config_,
-      &Default::default(),
-    )
-  };
-  let android_out = out_dir.parent().unwrap().join(format!(
-    "gen/android/{}/app/src/main/res/",
-    config.app().name_snake()
-  ));
+  let android_out = out_dir
+    .parent()
+    .unwrap()
+    .join("gen/android/app/src/main/res/");
   let out = if android_out.exists() {
     android_out
   } else {
@@ -400,27 +448,32 @@ fn png(source: &DynamicImage, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()>
 
   for entry in entries {
     log::info!(action = "PNG"; "Creating {}", entry.name);
-    resize_and_save_png(source, entry.size, &entry.out_path)?;
+    resize_and_save_png(source, entry.size, &entry.out_path, None)?;
   }
-
-  let source_rgba8 = source.as_rgba8().expect("unexpected image type");
-  let mut img = ImageBuffer::from_fn(source_rgba8.width(), source_rgba8.height(), |_, _| {
-    ios_color
-  });
-  image::imageops::overlay(&mut img, source_rgba8, 0, 0);
-  let image = DynamicImage::ImageRgba8(img);
 
   for entry in ios_entries(&out)? {
     log::info!(action = "iOS"; "Creating {}", entry.name);
-    resize_and_save_png(&image, entry.size, &entry.out_path)?;
+    resize_and_save_png(source, entry.size, &entry.out_path, Some(ios_color))?;
   }
 
   Ok(())
 }
 
 // Resize image and save it to disk.
-fn resize_and_save_png(source: &DynamicImage, size: u32, file_path: &Path) -> Result<()> {
-  let image = source.resize_exact(size, size, FilterType::Lanczos3);
+fn resize_and_save_png(
+  source: &Source,
+  size: u32,
+  file_path: &Path,
+  bg_color: Option<Rgba<u8>>,
+) -> Result<()> {
+  let mut image = source.resize_exact(size)?;
+
+  if let Some(bg_color) = bg_color {
+    let mut bg_img = ImageBuffer::from_fn(size, size, |_, _| bg_color);
+    image::imageops::overlay(&mut bg_img, &image, 0, 0);
+    image = bg_img.into();
+  }
+
   let mut out_file = BufWriter::new(File::create(file_path)?);
   write_png(image.as_bytes(), &mut out_file, size)?;
   Ok(out_file.flush()?)

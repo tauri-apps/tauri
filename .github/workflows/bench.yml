@@ -10,11 +10,14 @@ on:
       - dev
       - 1.x
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/bench.yml'
 
 env:
   RUST_BACKTRACE: 1
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
-  LC_ALL: en_US.UTF-8 # This prevents strace from changing it's number format to use commas.
+  LC_ALL: en_US.UTF-8 # This prevents strace from changing its number format to use commas.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,23 +30,22 @@ jobs:
       matrix:
         rust: [nightly]
         platform:
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-20.04 }
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
 
     runs-on: ${{ matrix.platform.os }}
 
     steps:
       - uses: actions/checkout@v4
-      - name: install ${{ matrix.rust }}
-        uses: actions-rs/toolchain@v1
+
+      - name: install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          override: true
-          default: true
           components: rust-src
-          target: ${{ matrix.platform.target }}
+          targets: ${{ matrix.platform.target }}
 
       - name: setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
           architecture: x64
@@ -52,9 +54,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev xvfb
-          wget https://github.com/sharkdp/hyperfine/releases/download/v1.11.0/hyperfine_1.11.0_amd64.deb
-          sudo dpkg -i hyperfine_1.11.0_amd64.deb
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            xvfb \
+            at-spi2-core
+          wget https://github.com/sharkdp/hyperfine/releases/download/v1.18.0/hyperfine_1.18.0_amd64.deb
+          sudo dpkg -i hyperfine_1.18.0_amd64.deb
           pip install memory_profiler
 
       - uses: Swatinem/rust-cache@v2

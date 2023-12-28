@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fmt, hash::Hash};
-use uuid::Uuid;
-
-mod commands;
 mod listener;
+pub(crate) mod plugin;
 pub(crate) use listener::Listeners;
-
-use crate::{
-  plugin::{Builder, TauriPlugin},
-  Runtime,
-};
+use serde::Serialize;
 
 /// Checks if an event name is valid.
 pub fn is_event_name_valid(event: &str) -> bool {
@@ -28,68 +21,64 @@ pub fn assert_event_name_is_valid(event: &str) {
   );
 }
 
-/// Represents an event handler.
-#[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EventHandler(Uuid);
+/// Unique id of an event.
+pub type EventId = u32;
 
-impl fmt::Display for EventHandler {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    self.0.fmt(f)
+/// Serialized emit arguments.
+#[derive(Clone)]
+pub struct EmitArgs {
+  /// Raw event name.
+  pub event_name: String,
+  /// Serialized event name.
+  pub event: String,
+  /// Serialized source window label ("null" for global events)
+  pub source_window_label: String,
+  /// Serialized payload.
+  pub payload: String,
+}
+
+impl EmitArgs {
+  pub fn from<S: Serialize>(
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+  ) -> crate::Result<Self> {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("window::emit::serialize").entered();
+    Ok(EmitArgs {
+      event_name: event.into(),
+      event: serde_json::to_string(event)?,
+      source_window_label: serde_json::to_string(&source_window_label)?,
+      payload: serde_json::to_string(&payload)?,
+    })
   }
 }
 
-/// An event that was triggered.
+/// An event that was emitted.
 #[derive(Debug, Clone)]
 pub struct Event {
-  id: EventHandler,
-  data: Option<String>,
+  id: EventId,
+  data: String,
 }
 
 impl Event {
-  /// The [`EventHandler`] that was triggered.
-  pub fn id(&self) -> EventHandler {
+  /// The [`EventId`] of the handler that was triggered.
+  pub fn id(&self) -> EventId {
     self.id
   }
 
   /// The event payload.
-  pub fn payload(&self) -> Option<&str> {
-    self.data.as_deref()
+  pub fn payload(&self) -> &str {
+    &self.data
   }
 }
 
-/// Initializes the event plugin.
-pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
-  Builder::new("event")
-    .invoke_handler(crate::generate_handler![
-      commands::listen,
-      commands::unlisten,
-      commands::emit,
-    ])
-    .build()
-}
-
-pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: usize) -> String {
-  format!(
-    "
-      (function () {{
-        const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
-        if (listeners) {{
-          const index = window['{listeners_object_name}']['{event_name}'].findIndex(e => e.id === {event_id})
-          if (index > -1) {{
-            window['{listeners_object_name}']['{event_name}'].splice(index, 1)
-          }}
-        }}
-      }})()
-    ",
-  )
-}
-
 pub fn listen_js(
-  listeners_object_name: String,
-  event: String,
-  event_id: usize,
-  window_label: Option<String>,
-  handler: String,
+  listeners_object_name: &str,
+  event: &str,
+  event_id: EventId,
+  window_label: Option<&str>,
+  handler: &str,
 ) -> String {
   format!(
     "
@@ -111,10 +100,56 @@ pub fn listen_js(
   ",
     listeners = listeners_object_name,
     window_label = if let Some(l) = window_label {
-      crate::runtime::window::assert_label_is_valid(&l);
+      crate::runtime::window::assert_label_is_valid(l);
       format!("'{l}'")
     } else {
       "null".to_owned()
     },
+  )
+}
+
+pub fn emit_js(event_emit_function_name: &str, emit_args: &EmitArgs) -> crate::Result<String> {
+  Ok(format!(
+    "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
+    event_emit_function_name,
+    emit_args.event,
+    emit_args.source_window_label,
+    emit_args.payload
+  ))
+}
+
+pub fn unlisten_js(listeners_object_name: &str, event_name: &str, event_id: EventId) -> String {
+  format!(
+    "
+      (function () {{
+        const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
+        if (listeners) {{
+          const index = window['{listeners_object_name}']['{event_name}'].findIndex(e => e.id === {event_id})
+          if (index > -1) {{
+            window['{listeners_object_name}']['{event_name}'].splice(index, 1)
+          }}
+        }}
+      }})()
+    ",
+  )
+}
+
+pub fn event_initialization_script(function: &str, listeners: &str) -> String {
+  format!(
+    "
+    Object.defineProperty(window, '{function}', {{
+      value: function (eventData) {{
+        const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
+
+        for (let i = listeners.length - 1; i >= 0; i--) {{
+          const listener = listeners[i]
+          if (listener.windowLabel === null || eventData.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
+            eventData.id = listener.id
+            listener.handler(eventData)
+          }}
+        }}
+      }}
+    }});
+  "
   )
 }

@@ -40,13 +40,13 @@ fn map_core_assets(
     if path.extension() == Some(OsStr::new("html")) {
       #[allow(clippy::collapsible_if)]
       if csp {
-        let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
+        let document = parse_html(String::from_utf8_lossy(input).into_owned());
 
         if target == Target::Linux {
-          ::tauri_utils::html::inject_csp_token(&mut document);
+          ::tauri_utils::html::inject_csp_token(&document);
         }
 
-        inject_nonce_token(&mut document, &dangerous_disable_asset_csp_modification);
+        inject_nonce_token(&document, &dangerous_disable_asset_csp_modification);
 
         if dangerous_disable_asset_csp_modification.can_modify("script-src") {
           if let Ok(inline_script_elements) = document.select("script:not(empty)") {
@@ -97,14 +97,13 @@ fn map_isolation(
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
   move |_key, path, input, _csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
-      let mut isolation_html =
-        tauri_utils::html::parse(String::from_utf8_lossy(input).into_owned());
+      let isolation_html = tauri_utils::html::parse(String::from_utf8_lossy(input).into_owned());
 
       // this is appended, so no need to reverse order it
-      tauri_utils::html::inject_codegen_isolation_script(&mut isolation_html);
+      tauri_utils::html::inject_codegen_isolation_script(&isolation_html);
 
       // temporary workaround for windows not loading assets
-      tauri_utils::html::inline_isolation(&mut isolation_html, &dir);
+      tauri_utils::html::inline_isolation(&isolation_html, &dir);
 
       *input = isolation_html.to_string().as_bytes().to_vec()
     }
@@ -123,7 +122,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } = data;
 
   let target = std::env::var("TARGET")
-    .or_else(|_| std::env::var("TAURI_TARGET_TRIPLE"))
+    .or_else(|_| std::env::var("TAURI_ENV_TARGET_TRIPLE"))
     .as_deref()
     .map(Target::from_triple)
     .unwrap_or_else(|_| Target::current());
@@ -321,14 +320,11 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       }
     }
 
-    let out_path = out_dir.join("Info.plist");
     info_plist
-      .to_file_xml(&out_path)
+      .to_file_xml(out_dir.join("Info.plist"))
       .expect("failed to write Info.plist");
-
-    let info_plist_path = out_path.display().to_string();
     quote!({
-      tauri::embed_plist::embed_info_plist!(#info_plist_path);
+      tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));
     })
   } else {
     quote!(())
@@ -381,7 +377,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
       #config,
-      ::std::sync::Arc::new(#assets),
+      ::std::boxed::Box::new(#assets),
       #default_window_icon,
       #app_icon,
       #package_info,
@@ -413,15 +409,19 @@ fn ico_icon<P: AsRef<Path>>(
   let width = entry.width();
   let height = entry.height();
 
-  let out_path = out_dir.join(path.file_name().unwrap());
+  let icon_file_name = path.file_name().unwrap();
+  let out_path = out_dir.join(icon_file_name);
   write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
     path: path.to_owned(),
     error,
   })?;
 
-  let out_path = out_path.display().to_string();
-
-  let icon = quote!(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height });
+  let icon_file_name = icon_file_name.to_str().unwrap();
+  let icon = quote!(#root::Icon::Rgba {
+    rgba: include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)).to_vec(),
+    width: #width,
+    height: #height
+  });
   Ok(icon)
 }
 
@@ -437,10 +437,9 @@ fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, Embe
     error,
   })?;
 
-  let out_path = out_path.display().to_string();
-
+  let icon_path = path.file_name().unwrap().to_str().unwrap().to_string();
   let icon = quote!(::std::option::Option::Some(
-    include_bytes!(#out_path).to_vec()
+    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_path)).to_vec()
   ));
   Ok(icon)
 }
@@ -472,15 +471,19 @@ fn png_icon<P: AsRef<Path>>(
   let width = reader.info().width;
   let height = reader.info().height;
 
-  let out_path = out_dir.join(path.file_name().unwrap());
+  let icon_file_name = path.file_name().unwrap();
+  let out_path = out_dir.join(icon_file_name);
   write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
     path: path.to_owned(),
     error,
   })?;
 
-  let out_path = out_path.display().to_string();
-
-  let icon = quote!(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height });
+  let icon_file_name = icon_file_name.to_str().unwrap();
+  let icon = quote!(#root::Icon::Rgba {
+    rgba: include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)).to_vec(),
+    width: #width,
+    height: #height,
+  });
   Ok(icon)
 }
 

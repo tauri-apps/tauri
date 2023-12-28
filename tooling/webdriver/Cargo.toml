@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-driver"
-version = "0.1.2"
+version = "0.1.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -11,7 +11,7 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Webdriver server for Tauri applications"
 readme = "README.md"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.60"
 
 [dependencies]
 anyhow = "1"

@@ -10,9 +10,27 @@ use syn::{
   ext::IdentExt,
   parse::{Parse, ParseStream},
   parse_macro_input,
+  punctuated::Punctuated,
   spanned::Spanned,
-  FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
+  Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
 };
+
+enum WrapperAttributeKind {
+  Meta(Meta),
+  Async,
+}
+
+impl Parse for WrapperAttributeKind {
+  fn parse(input: ParseStream) -> syn::Result<Self> {
+    match input.parse::<Meta>() {
+      Ok(m) => Ok(Self::Meta(m)),
+      Err(e) => match input.parse::<Token![async]>() {
+        Ok(_) => Ok(Self::Async),
+        Err(_) => Err(e),
+      },
+    }
+  }
+}
 
 struct WrapperAttributes {
   root: TokenStream2,
@@ -28,12 +46,19 @@ impl Parse for WrapperAttributes {
       argument_case: ArgumentCase::Camel,
     };
 
-    loop {
-      match input.parse::<Meta>() {
-        Ok(Meta::List(_)) => {}
-        Ok(Meta::NameValue(v)) => {
+    let attrs = Punctuated::<WrapperAttributeKind, Token![,]>::parse_terminated(input)?;
+    for attr in attrs {
+      match attr {
+        WrapperAttributeKind::Meta(Meta::List(_)) => {
+          return Err(syn::Error::new(input.span(), "unexpected list input"));
+        }
+        WrapperAttributeKind::Meta(Meta::NameValue(v)) => {
           if v.path.is_ident("rename_all") {
-            if let Lit::Str(s) = v.lit {
+            if let Expr::Lit(ExprLit {
+              lit: Lit::Str(s),
+              attrs: _,
+            }) = v.value
+            {
               wrapper_attributes.argument_case = match s.value().as_str() {
                 "snake_case" => ArgumentCase::Snake,
                 "camelCase" => ArgumentCase::Camel,
@@ -46,7 +71,11 @@ impl Parse for WrapperAttributes {
               };
             }
           } else if v.path.is_ident("root") {
-            if let Lit::Str(s) = v.lit {
+            if let Expr::Lit(ExprLit {
+              lit: Lit::Str(s),
+              attrs: _,
+            }) = v.value
+            {
               let lit = s.value();
 
               wrapper_attributes.root = if lit == "crate" {
@@ -58,21 +87,15 @@ impl Parse for WrapperAttributes {
             }
           }
         }
-        Ok(Meta::Path(p)) => {
-          if p.is_ident("async") {
-            wrapper_attributes.execution_context = ExecutionContext::Async;
-          } else {
-            return Err(syn::Error::new(p.span(), "expected `async`"));
-          }
+        WrapperAttributeKind::Meta(Meta::Path(_)) => {
+          return Err(syn::Error::new(
+            input.span(),
+            "unexpected input, expected one of `rename_all`, `root`, `async`",
+          ));
         }
-        Err(_e) => {
-          break;
+        WrapperAttributeKind::Async => {
+          wrapper_attributes.execution_context = ExecutionContext::Async;
         }
-      }
-
-      let lookahead = input.lookahead1();
-      if lookahead.peek(Token![,]) {
-        input.parse::<Token![,]>()?;
       }
     }
 
@@ -101,9 +124,14 @@ struct Invoke {
 
 /// Create a new [`Wrapper`] from the function and the generated code parsed from the function.
 pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
+  let mut attrs = parse_macro_input!(attributes as WrapperAttributes);
   let function = parse_macro_input!(item as ItemFn);
   let wrapper = super::format_command_wrapper(&function.sig.ident);
   let visibility = &function.vis;
+
+  if function.sig.asyncness.is_some() {
+    attrs.execution_context = ExecutionContext::Async;
+  }
 
   // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`
   let maybe_macro_export = match &function.vis {
@@ -173,28 +201,44 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     }
   }
 
-  // body to the command wrapper or a `compile_error!` of an error occurred while parsing it.
-  let (body, attributes) = syn::parse::<WrapperAttributes>(attributes)
-    .map(|mut attrs| {
-      if function.sig.asyncness.is_some() {
-        attrs.execution_context = ExecutionContext::Async;
-      }
-      attrs
-    })
-    .and_then(|attrs| {
-      let body = match attrs.execution_context {
-        ExecutionContext::Async => body_async(&function, &invoke, &attrs),
-        ExecutionContext::Blocking => body_blocking(&function, &invoke, &attrs),
-      };
-      body.map(|b| (b, Some(attrs)))
-    })
-    .unwrap_or_else(|e| (syn::Error::into_compile_error(e), None));
+  let body = match attrs.execution_context {
+    ExecutionContext::Async => {
+      body_async(&function, &invoke, &attrs).unwrap_or_else(syn::Error::into_compile_error)
+    }
+    ExecutionContext::Blocking => {
+      body_blocking(&function, &invoke, &attrs).unwrap_or_else(syn::Error::into_compile_error)
+    }
+  };
 
   let Invoke { message, resolver } = invoke;
 
-  let root = attributes
-    .map(|a| a.root)
-    .unwrap_or_else(|| quote!(::tauri));
+  let root = attrs.root;
+
+  let kind = match attrs.execution_context {
+    ExecutionContext::Async if function.sig.asyncness.is_none() => "sync_threadpool",
+    ExecutionContext::Async => "async",
+    ExecutionContext::Blocking => "sync",
+  };
+
+  let loc = function.span().start();
+  let line = loc.line;
+  let col = loc.column;
+
+  let maybe_span = if cfg!(feature = "tracing") {
+    quote!({
+      let _span = tracing::debug_span!(
+        "ipc::request::handler",
+        cmd = #message.command(),
+        kind = #kind,
+        loc.line = #line,
+        loc.col = #col,
+        is_internal = false,
+      )
+      .entered();
+    })
+  } else {
+    quote!()
+  };
 
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
@@ -212,6 +256,8 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
           let #root::ipc::Invoke { message: #message, resolver: #resolver } = $invoke;
+
+          #maybe_span
 
           #body
       }};
@@ -236,6 +282,21 @@ fn body_async(
 ) -> syn::Result<TokenStream2> {
   let Invoke { message, resolver } = invoke;
   parse_args(function, message, attributes).map(|args| {
+    #[cfg(feature = "tracing")]
+    quote! {
+      use tracing::Instrument;
+
+      let span = tracing::debug_span!("ipc::request::run");
+      #resolver.respond_async_serialized(async move {
+        let result = $path(#(#args?),*);
+        let kind = (&result).async_kind();
+        kind.future(result).await
+      }
+      .instrument(span));
+      return true;
+    }
+
+    #[cfg(not(feature = "tracing"))]
     quote! {
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
@@ -266,7 +327,14 @@ fn body_blocking(
     Err(err) => { #resolver.invoke_error(err); return true },
   });
 
+  let maybe_span = if cfg!(feature = "tracing") {
+    quote!(let _span = tracing::debug_span!("ipc::request::run").entered();)
+  } else {
+    quote!()
+  };
+
   Ok(quote! {
+    #maybe_span
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);

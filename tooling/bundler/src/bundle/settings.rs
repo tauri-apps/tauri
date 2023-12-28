@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, FileAssociation, NSISInstallerMode},
+  config::{BundleType, FileAssociation, NSISInstallerMode, NsisCompression},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -44,6 +44,7 @@ impl From<BundleType> for PackageType {
   fn from(bundle: BundleType) -> Self {
     match bundle {
       BundleType::Deb => Self::Deb,
+      BundleType::Rpm => Self::Rpm,
       BundleType::AppImage => Self::AppImage,
       BundleType::Msi => Self::WindowsMsi,
       BundleType::Nsis => Self::Nsis,
@@ -93,6 +94,26 @@ impl PackageType {
   pub fn all() -> &'static [PackageType] {
     ALL_PACKAGE_TYPES
   }
+
+  /// Gets a number representing priority which used to sort package types
+  /// in an order that guarantees that if a certain package type
+  /// depends on another (like Dmg depending on MacOsBundle), the dependency
+  /// will be built first
+  ///
+  /// The lower the number, the higher the priority
+  pub fn priority(&self) -> u32 {
+    match self {
+      PackageType::MacOsBundle => 0,
+      PackageType::IosBundle => 0,
+      PackageType::WindowsMsi => 0,
+      PackageType::Nsis => 0,
+      PackageType::Deb => 0,
+      PackageType::Rpm => 0,
+      PackageType::AppImage => 0,
+      PackageType::Dmg => 1,
+      PackageType::Updater => 2,
+    }
+  }
 }
 
 const ALL_PACKAGE_TYPES: &[PackageType] = &[
@@ -128,6 +149,8 @@ pub struct PackageSettings {
   pub homepage: Option<String>,
   /// the package's authors.
   pub authors: Option<Vec<String>>,
+  /// the package's license.
+  pub license: Option<String>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -161,6 +184,64 @@ pub struct DebianSettings {
   #[doc = include_str!("./linux/templates/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
+}
+
+/// The RPM bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct RpmSettings {
+  /// The name of the package's license.
+  pub license: Option<String>,
+  /// The list of RPM dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The RPM release tag.
+  pub release: String,
+  /// The RPM epoch.
+  pub epoch: u32,
+  /// List of custom files to add to the RPM package.
+  /// Maps the path on the RPM package to the path of the file to include (relative to the current working directory).
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  ///
+  /// Default file contents:
+  /// ```text
+  #[doc = include_str!("./linux/templates/main.desktop")]
+  /// ```
+  pub desktop_template: Option<PathBuf>,
+}
+
+/// Position coordinates struct.
+#[derive(Clone, Debug, Default)]
+pub struct Position {
+  /// X coordinate.
+  pub x: u32,
+  /// Y coordinate.
+  pub y: u32,
+}
+
+/// Size of the window.
+#[derive(Clone, Debug, Default)]
+pub struct Size {
+  /// Width of the window.
+  pub width: u32,
+  /// Height of the window.
+  pub height: u32,
+}
+
+/// The DMG bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct DmgSettings {
+  /// Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.
+  pub background: Option<PathBuf>,
+  /// Position of volume window on screen.
+  pub window_position: Option<Position>,
+  /// Size of volume window.
+  pub window_size: Size,
+  /// Position of app file on window.
+  pub app_position: Position,
+  /// Position of application folder on window.
+  pub application_folder_position: Position,
 }
 
 /// The macOS bundle settings.
@@ -292,6 +373,8 @@ pub struct NsisSettings {
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
+  /// Set compression algorithm used to compress files in the installer.
+  pub compression: Option<NsisCompression>,
 }
 
 /// The Windows bundle settings.
@@ -361,6 +444,12 @@ pub struct BundleSettings {
   ///
   /// supports glob patterns.
   pub resources: Option<Vec<String>>,
+  /// The app's resources to bundle. Takes precedence over `Self::resources` when specified.
+  ///
+  /// Maps each resource path to its target directory in the bundle resources directory.
+  ///
+  /// Supports glob patterns.
+  pub resources_map: Option<HashMap<String, String>>,
   /// the app's copyright.
   pub copyright: Option<String>,
   /// the app's category.
@@ -391,6 +480,10 @@ pub struct BundleSettings {
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// Rpm-specific settings.
+  pub rpm: RpmSettings,
+  /// DMG-specific settings.
+  pub dmg: DmgSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
   /// Updater configuration.
@@ -654,7 +747,7 @@ impl Settings {
     let mut platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
-      "linux" => vec![PackageType::Deb, PackageType::AppImage],
+      "linux" => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
       "windows" => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(
@@ -712,9 +805,14 @@ impl Settings {
   /// Returns an iterator over the resource files to be included in this
   /// bundle.
   pub fn resource_files(&self) -> ResourcePaths<'_> {
-    match self.bundle_settings.resources {
-      Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
-      None => ResourcePaths::new(&[], true),
+    match (
+      &self.bundle_settings.resources,
+      &self.bundle_settings.resources_map,
+    ) {
+      (Some(paths), None) => ResourcePaths::new(paths.as_slice(), true),
+      (None, Some(map)) => ResourcePaths::from_map(map, true),
+      (Some(_), Some(_)) => panic!("cannot use both `resources` and `resources_map`"),
+      (None, None) => ResourcePaths::new(&[], true),
     }
   }
 
@@ -728,7 +826,11 @@ impl Settings {
   }
 
   /// Copies external binaries to a path.
-  pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
+  ///
+  /// Returns the list of destination paths.
+  pub fn copy_binaries(&self, path: &Path) -> crate::Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+
     for src in self.external_binaries() {
       let src = src?;
       let dest = path.join(
@@ -738,17 +840,18 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      common::copy_file(&src, dest)?;
+      common::copy_file(&src, &dest)?;
+      paths.push(dest);
     }
-    Ok(())
+    Ok(paths)
   }
 
   /// Copies resources to a path.
   pub fn copy_resources(&self, path: &Path) -> crate::Result<()> {
-    for src in self.resource_files() {
-      let src = src?;
-      let dest = path.join(tauri_utils::resources::resource_relpath(&src));
-      common::copy_file(&src, dest)?;
+    for resource in self.resource_files().iter() {
+      let resource = resource?;
+      let dest = path.join(resource.target());
+      common::copy_file(resource.path(), dest)?;
     }
     Ok(())
   }
@@ -779,6 +882,11 @@ impl Settings {
     } else {
       Some(names.join(", "))
     }
+  }
+
+  /// Returns the package's license.
+  pub fn license(&self) -> Option<&str> {
+    self.package.license.as_deref()
   }
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.
@@ -813,6 +921,16 @@ impl Settings {
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+
+  /// Returns the RPM settings.
+  pub fn rpm(&self) -> &RpmSettings {
+    &self.bundle_settings.rpm
+  }
+
+  /// Returns the DMG settings.
+  pub fn dmg(&self) -> &DmgSettings {
+    &self.bundle_settings.dmg
   }
 
   /// Returns the MacOS settings.

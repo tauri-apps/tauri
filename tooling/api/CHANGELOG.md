@@ -1,5 +1,64 @@
 # Changelog
 
+## \[2.0.0-alpha.13]
+
+### New Features
+
+- [`428ea652`](https://www.github.com/tauri-apps/tauri/commit/428ea6524c70545be33aac96d7c22b21f25caa4c)([#8370](https://www.github.com/tauri-apps/tauri/pull/8370)) Exposed `Resource` class which should be extended for Rust-backed resources created through `tauri::Manager::resources_table`.
+
+### Bug Fixes
+
+- [`ef21b681`](https://www.github.com/tauri-apps/tauri/commit/ef21b681e237a80592c9118b9c023c1d57231bac)([#8391](https://www.github.com/tauri-apps/tauri/pull/8391)) Fix a regression where typescript could not find types when using `"moduleResolution": "node"`
+- [`46451aee`](https://www.github.com/tauri-apps/tauri/commit/46451aee1318f63a6cd861a12b63929b38c64eb6)([#8268](https://www.github.com/tauri-apps/tauri/pull/8268)) Add top-level `main`, `module` and `types` fields in `package.json` to be compliant with typescripts's `"moduleResolution": "node"`
+
+### Breaking Changes
+
+- [`c2ad4d28`](https://www.github.com/tauri-apps/tauri/commit/c2ad4d28c481b2d7ed643458db56210cd44a2e0c)([#8273](https://www.github.com/tauri-apps/tauri/pull/8273)) Changed former `tauri` module from `primitives` to `core`.
+
+## \[2.0.0-alpha.12]
+
+### New Features
+
+- [`f93148ea`](https://www.github.com/tauri-apps/tauri/commit/f93148eac05a1428e038bd9351a8149b2464ff4c)([#7709](https://www.github.com/tauri-apps/tauri/pull/7709)) Add `tray` and `menu` modules to create and manage tray icons and menus from Javascript.
+
+### Enhancements
+
+- [`b7add750`](https://www.github.com/tauri-apps/tauri/commit/b7add750ef9f32d959de613ab35063ff240281c2)([#8204](https://www.github.com/tauri-apps/tauri/pull/8204)) Added `position` field to the `FileDropEvent` payload.
+
+## \[2.0.0-alpha.11]
+
+### Bug Fixes
+
+- [`822bf15d`](https://www.github.com/tauri-apps/tauri/commit/822bf15d6b258556b689ca55ac2ac224897e913a)([#8130](https://www.github.com/tauri-apps/tauri/pull/8130)) Fix tslib missing in the distributed api package.
+
+## \[2.0.0-alpha.10]
+
+### Enhancements
+
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+
+### Bug Fixes
+
+- [`287066b2`](https://www.github.com/tauri-apps/tauri/commit/287066b279f503dd09bfd43d5da37d1f471451fb)([#8071](https://www.github.com/tauri-apps/tauri/pull/8071)) No longer crashing in tests without mocks when `clearMocks` is defined in `afterEach` hook.
+
+## \[2.0.0-alpha.9]
+
+### New Features
+
+- [`c1ec0f15`](https://www.github.com/tauri-apps/tauri/commit/c1ec0f155118527361dd5645d920becbc8afd569)([#7933](https://www.github.com/tauri-apps/tauri/pull/7933)) Added `setAlwaysOnBottom` function on `Window` and the `alwaysOnBottom` option when creating a window.
+- [`fb10b879`](https://www.github.com/tauri-apps/tauri/commit/fb10b87970a43320ef4d14564f45e7579b774eaf)([#8039](https://www.github.com/tauri-apps/tauri/pull/8039)) Add the `app` module back.
+- [`ed32257d`](https://www.github.com/tauri-apps/tauri/commit/ed32257d044f90b5eb15053efd1667125def2d2b)([#7794](https://www.github.com/tauri-apps/tauri/pull/7794)) On Windows, add `Effect.Tabbed`,`Effect.TabbedDark` and `Effect.TabbedLight` effects.
+- [`c9a9246c`](https://www.github.com/tauri-apps/tauri/commit/c9a9246c37bdf190661355c8ee406dac6c427344)([#8007](https://www.github.com/tauri-apps/tauri/pull/8007)) Add the `window` module back.
+- [`c085adda`](https://www.github.com/tauri-apps/tauri/commit/c085addab58ba851398373c6fd13f9cb026d71e8)([#8009](https://www.github.com/tauri-apps/tauri/pull/8009)) Added the `setProgressBar` API on the `Window` class.
+
+### What's Changed
+
+- [`5c0eeb40`](https://www.github.com/tauri-apps/tauri/commit/5c0eeb40c1003583290ff3aebfa02e2b5f5b9c41)([#7638](https://www.github.com/tauri-apps/tauri/pull/7638)) Updated minimum Node.js version to 18.
+
+### Breaking Changes
+
+- [`a63e71f9`](https://www.github.com/tauri-apps/tauri/commit/a63e71f9799e9bbc82521d2f17b5238fbf690e89)([#7942](https://www.github.com/tauri-apps/tauri/pull/7942)) Changed `tauri` module to `primitives` and removed the undocumented `invoke` export from the root module.
+
 ## \[2.0.0-alpha.8]
 
 ### Breaking Changes
@@ -69,6 +128,33 @@
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
 
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`50462702`](https://www.github.com/tauri-apps/tauri/commit/504627027303ef5a0e855aab2abea64c6964223b)([#8267](https://www.github.com/tauri-apps/tauri/pull/8267)) Add top-level `main`, `module` and `types` fields in `package.json` to be compliant with typescripts's `"moduleResolution": "node"`
+- [`14544e4b`](https://www.github.com/tauri-apps/tauri/commit/14544e4b87269c06c89fed3647d80f492e0a1d34)([#8219](https://www.github.com/tauri-apps/tauri/pull/8219)) Avoid crashing in `clearMocks`
+
+## \[1.5.1]
+
+### New Features
+
+- [`2b0212af`](https://www.github.com/tauri-apps/tauri/commit/2b0212af49c386e52bb2357381813d6d435ec4af)([#7961](https://www.github.com/tauri-apps/tauri/pull/7961)) Add `mockConvertFileSrc` in `mocks` module, to mock `convertFileSrc` function.
+
+## \[1.5.0]
+
+### New Features
+
+- [`6c408b73`](https://www.github.com/tauri-apps/tauri/commit/6c408b736c7aa2a0a91f0a40d45a2b7a7dedfe78)([#7269](https://www.github.com/tauri-apps/tauri/pull/7269)) Add option to specify notification sound.
+
+### Enhancements
+
+- [`58d6b899`](https://www.github.com/tauri-apps/tauri/commit/58d6b899e21d37bb42810890d289deb57f2273bd)([#7636](https://www.github.com/tauri-apps/tauri/pull/7636)) Add `append` option to `FsOptions` in the `fs` JS module, used in `writeTextFile` and `writeBinaryFile`, to be able to append to existing files instead of overwriting it.
+
+### Bug Fixes
+
+- [`2eab1505`](https://www.github.com/tauri-apps/tauri/commit/2eab1505632ff71431d4c31c49b5afc78fa5b9dd)([#7394](https://www.github.com/tauri-apps/tauri/pull/7394)) Fix `Body.form` static not reading and sending entries of type `Blob` (including subclasses such as `File`)
+
 ## \[1.4.0]
 
 ### New Features
@@ -80,7 +166,7 @@
 
 ## \[1.3.0]
 
-- Return correct type for ` event.payload  ` in `onResized` and `onMoved` window event handlers.
+- Return correct type for `event.payload` in `onResized` and `onMoved` window event handlers.
   - [0b46637e](https://www.github.com/tauri-apps/tauri/commit/0b46637ebaba54403afa32a1cb466f09df2db999) fix(api): construct correct object for onResized and onMoved, closes [#6507](https://www.github.com/tauri-apps/tauri/pull/6507) ([#6509](https://www.github.com/tauri-apps/tauri/pull/6509)) on 2023-04-03
 - Added the `WindowOptions::contentProtected` option and `WebviewWindow#setContentProtected` to change it at runtime.
   - [4ab5545b](https://www.github.com/tauri-apps/tauri/commit/4ab5545b7a831c549f3c65e74de487ede3ab7ce5) feat: add content protection api, closes [#5132](https://www.github.com/tauri-apps/tauri/pull/5132) ([#5513](https://www.github.com/tauri-apps/tauri/pull/5513)) on 2022-12-13
@@ -217,65 +303,84 @@
 ## \[1.0.0-rc.0]
 
 - Add `fileDropEnabled` property to `WindowOptions` so you can now disable it when creating windows from js.
+
   - [1bfc32a3](https://www.github.com/tauri-apps/tauri/commit/1bfc32a3b2f31b962ce8a5c611b60cb008360923) fix(api.js): add `fileDropEnabled` to `WindowOptions`, closes [#2968](https://www.github.com/tauri-apps/tauri/pull/2968) ([#2989](https://www.github.com/tauri-apps/tauri/pull/2989)) on 2021-12-09
 
 - Add `logDir` function to the `path` module to access the suggested log directory.
   Add `BaseDirectory.Log` to the `fs` module.
+
   - [acbb3ae7](https://www.github.com/tauri-apps/tauri/commit/acbb3ae7bb0165846b9456aea103269f027fc548) feat: add Log directory ([#2736](https://www.github.com/tauri-apps/tauri/pull/2736)) on 2021-10-16
   - [62c7a8ad](https://www.github.com/tauri-apps/tauri/commit/62c7a8ad30fd3031b8679960590e5ef3eef8e4da) chore(covector): prepare for `rc` release ([#3376](https://www.github.com/tauri-apps/tauri/pull/3376)) on 2022-02-10
 
 - Expose `ask`, `message` and `confirm` APIs on the dialog module.
+
   - [e98c1af4](https://www.github.com/tauri-apps/tauri/commit/e98c1af44279a5ff6c8a6f0a506ecc219c9f77af) feat(core): expose message dialog APIs, fix window.confirm, implement HasRawWindowHandle for Window, closes [#2535](https://www.github.com/tauri-apps/tauri/pull/2535) ([#2700](https://www.github.com/tauri-apps/tauri/pull/2700)) on 2021-10-02
 
 - Event `emit` now automatically serialize non-string types.
+
   - [06000996](https://www.github.com/tauri-apps/tauri/commit/060009969627890fa9018e2f1105bad13299394c) feat(api): support unknown types for event emit payload, closes [#2929](https://www.github.com/tauri-apps/tauri/pull/2929) ([#2964](https://www.github.com/tauri-apps/tauri/pull/2964)) on 2022-01-07
 
 - Fix `http.fetch` throwing error if the response is successful but the body is empty.
+
   - [50c63900](https://www.github.com/tauri-apps/tauri/commit/50c63900c7313064037e2ceb798a6432fcd1bcda) fix(api.js): fix `http.fetch` throwing error if response body is empty, closes [#2831](https://www.github.com/tauri-apps/tauri/pull/2831) ([#3008](https://www.github.com/tauri-apps/tauri/pull/3008)) on 2021-12-09
 
 - Add `title` option to file open/save dialogs.
+
   - [e1d6a6e6](https://www.github.com/tauri-apps/tauri/commit/e1d6a6e6445637723e2331ca799a662e720e15a8) Create api-file-dialog-title.md ([#3235](https://www.github.com/tauri-apps/tauri/pull/3235)) on 2022-01-16
   - [62c7a8ad](https://www.github.com/tauri-apps/tauri/commit/62c7a8ad30fd3031b8679960590e5ef3eef8e4da) chore(covector): prepare for `rc` release ([#3376](https://www.github.com/tauri-apps/tauri/pull/3376)) on 2022-02-10
 
 - Fix `os.platform` returning `macos` and `windows` instead of `darwin` and `win32`.
+
   - [3924c3d8](https://www.github.com/tauri-apps/tauri/commit/3924c3d85365df30b376a1ec6c2d933460d66af0) fix(api.js): fix `os.platform` return on macos and windows, closes [#2698](https://www.github.com/tauri-apps/tauri/pull/2698) ([#2699](https://www.github.com/tauri-apps/tauri/pull/2699)) on 2021-10-02
 
 - The `formatCallback` helper function now returns a number instead of a string.
+
   - [a48b8b18](https://www.github.com/tauri-apps/tauri/commit/a48b8b18d428bcc404d489daa690bbefe1f57311) feat(core): validate callbacks and event names \[TRI-038] \[TRI-020] ([#21](https://www.github.com/tauri-apps/tauri/pull/21)) on 2022-01-09
 
 - Added `rawHeaders` to `http > Response`.
+
   - [b7a2345b](https://www.github.com/tauri-apps/tauri/commit/b7a2345b06ca0306988b4ba3d3deadd449e65af9) feat(core): add raw headers to HTTP API, closes [#2695](https://www.github.com/tauri-apps/tauri/pull/2695) ([#3053](https://www.github.com/tauri-apps/tauri/pull/3053)) on 2022-01-07
 
 - Removed the `currentDir` API from the `path` module.
+
   - [a08509c6](https://www.github.com/tauri-apps/tauri/commit/a08509c641f43695e25944a2dd47697b18cd83e2) fix(api): remove `currentDir` API from the `path` module on 2022-02-04
 
 - Remove `.ts` files on the published package.
+
   - [0f321ac0](https://www.github.com/tauri-apps/tauri/commit/0f321ac08d56412edd5bc9d166201fbc95d887d8) fix(api): do not ship TS files, closes [#2598](https://www.github.com/tauri-apps/tauri/pull/2598) ([#2645](https://www.github.com/tauri-apps/tauri/pull/2645)) on 2021-09-23
 
 - **Breaking change:** Replaces all usages of `number[]` with `Uint8Array` to be closer aligned with the wider JS ecosystem.
+
   - [9b19a805](https://www.github.com/tauri-apps/tauri/commit/9b19a805aa8efa64b22f2dfef193a144b8e0cee3) fix(api.js) Replace `number[]`with `Uint8Array`. fixes [#3306](https://www.github.com/tauri-apps/tauri/pull/3306) ([#3305](https://www.github.com/tauri-apps/tauri/pull/3305)) on 2022-02-05
 
 - `WindowManager` methods `innerPosition` `outerPosition` now correctly return instance of `PhysicalPosition`.
   `WindowManager` methods `innerSize` `outerSize` now correctly return instance of `PhysicalSize`.
+
   - [cc8b1468](https://www.github.com/tauri-apps/tauri/commit/cc8b1468c821df53ceb771061c919409a9c80978) Fix(api): Window size and position returning wrong class (fix: [#2599](https://www.github.com/tauri-apps/tauri/pull/2599)) ([#2621](https://www.github.com/tauri-apps/tauri/pull/2621)) on 2021-09-22
 
 - Change the `event` field of the `Event` interface to type `EventName` instead of `string`.
+
   - [b5d9bcb4](https://www.github.com/tauri-apps/tauri/commit/b5d9bcb402380abc86ae1fa1a77c629af2275f9d) Consistent event name usage ([#3228](https://www.github.com/tauri-apps/tauri/pull/3228)) on 2022-01-15
   - [62c7a8ad](https://www.github.com/tauri-apps/tauri/commit/62c7a8ad30fd3031b8679960590e5ef3eef8e4da) chore(covector): prepare for `rc` release ([#3376](https://www.github.com/tauri-apps/tauri/pull/3376)) on 2022-02-10
 
 - Now `resolve()`, `join()` and `normalize()` from the `path` module, won't throw errors if the path doesn't exist, which matches NodeJS behavior.
+
   - [fe381a0b](https://www.github.com/tauri-apps/tauri/commit/fe381a0bde86ebf4014007f6e21af4c1a9e58cef) fix: `join` no longer cares if path doesn't exist, closes [#2499](https://www.github.com/tauri-apps/tauri/pull/2499) ([#2548](https://www.github.com/tauri-apps/tauri/pull/2548)) on 2021-09-21
 
 - Fixes the dialog `defaultPath` usage on Linux.
+
   - [2212bd5d](https://www.github.com/tauri-apps/tauri/commit/2212bd5d75146f5a2df27cc2157a057642f626da) fix: dialog default path on Linux, closes [#3091](https://www.github.com/tauri-apps/tauri/pull/3091) ([#3123](https://www.github.com/tauri-apps/tauri/pull/3123)) on 2021-12-27
 
 - Fixes `window.label` property returning null instead of the actual label.
+
   - [f5109e0c](https://www.github.com/tauri-apps/tauri/commit/f5109e0c962e3d25404995194968bade1be33b16) fix(api): window label null instead of actual value, closes [#3295](https://www.github.com/tauri-apps/tauri/pull/3295) ([#3332](https://www.github.com/tauri-apps/tauri/pull/3332)) on 2022-02-04
 
 - Remove the `BaseDirectory::Current` enum variant for security reasons.
+
   - [696dca58](https://www.github.com/tauri-apps/tauri/commit/696dca58a9f8ee127a1cf857eb848e09f5845d18) refactor(core): remove `BaseDirectory::Current` variant on 2022-01-26
 
 - Change `WindowLabel` type to `string`.
+
   - [f68603ae](https://www.github.com/tauri-apps/tauri/commit/f68603aee4e16500dff9e385b217f5dd8b1b39e8) chore(docs): simplify event system documentation on 2021-09-27
 
 - When building Universal macOS Binaries through the virtual target `universal-apple-darwin`:
@@ -344,7 +449,7 @@
 ## \[1.0.0-beta.3]
 
 - Export `Response` and `ResponseType` as value instead of type.
-  - [394b6e05](https://www.github.com/tauri-apps/tauri/commit/394b6e0572e7a0a92e103e462a7f603f7d569319) fix(api): http  `ResponseType` export type error ([#2065](https://www.github.com/tauri-apps/tauri/pull/2065)) on 2021-06-24
+  - [394b6e05](https://www.github.com/tauri-apps/tauri/commit/394b6e0572e7a0a92e103e462a7f603f7d569319) fix(api): http `ResponseType` export type error ([#2065](https://www.github.com/tauri-apps/tauri/pull/2065)) on 2021-06-24
 
 ## \[1.0.0-beta.2]
 

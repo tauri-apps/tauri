@@ -78,6 +78,8 @@ impl Default for WindowUrl {
 pub enum BundleType {
   /// The debian bundle (.deb).
   Deb,
+  /// The RPM bundle (.rpm).
+  Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
   /// The Microsoft Installer bundle (.msi).
@@ -99,6 +101,7 @@ impl Display for BundleType {
       "{}",
       match self {
         Self::Deb => "deb",
+        Self::Rpm => "rpm",
         Self::AppImage => "appimage",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
@@ -127,6 +130,7 @@ impl<'de> Deserialize<'de> for BundleType {
     let s = String::deserialize(deserializer)?;
     match s.to_lowercase().as_str() {
       "deb" => Ok(Self::Deb),
+      "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
@@ -252,7 +256,7 @@ impl BundleTarget {
 
 /// Configuration for AppImage bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#appimageconfig
+/// See more: <https://tauri.app/v1/api/config#appimageconfig>
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -265,7 +269,7 @@ pub struct AppImageConfig {
 
 /// Configuration for Debian (.deb) bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#debconfig
+/// See more: <https://tauri.app/v1/api/config#debconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -282,6 +286,124 @@ pub struct DebConfig {
   pub desktop_template: Option<PathBuf>,
 }
 
+/// Configuration for RPM bundles.
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RpmConfig {
+  /// The package's license identifier. If not set, defaults to the license from
+  /// the Cargo.toml file.
+  pub license: Option<String>,
+  /// The list of RPM dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The RPM release tag.
+  #[serde(default = "default_release")]
+  pub release: String,
+  /// The RPM epoch.
+  #[serde(default)]
+  pub epoch: u32,
+  /// The files to include on the package.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
+}
+
+impl Default for RpmConfig {
+  fn default() -> Self {
+    Self {
+      license: None,
+      depends: None,
+      release: default_release(),
+      epoch: 0,
+      files: Default::default(),
+      desktop_template: None,
+    }
+  }
+}
+
+fn default_release() -> String {
+  "1".into()
+}
+
+/// Position coordinates struct.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Position {
+  /// X coordinate.
+  pub x: u32,
+  /// Y coordinate.
+  pub y: u32,
+}
+
+/// Size of the window.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Size {
+  /// Width of the window.
+  pub width: u32,
+  /// Height of the window.
+  pub height: u32,
+}
+
+/// Configuration for Apple Disk Image (.dmg) bundles.
+///
+/// See more: https://tauri.app/v1/api/config#dmgconfig
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DmgConfig {
+  /// Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.
+  pub background: Option<PathBuf>,
+  /// Position of volume window on screen.
+  pub window_position: Option<Position>,
+  /// Size of volume window.
+  #[serde(default = "dmg_window_size", alias = "window-size")]
+  pub window_size: Size,
+  /// Position of app file on window.
+  #[serde(default = "dmg_app_position", alias = "app-position")]
+  pub app_position: Position,
+  /// Position of application folder on window.
+  #[serde(
+    default = "dmg_application_folder_position",
+    alias = "application-folder-position"
+  )]
+  pub application_folder_position: Position,
+}
+
+impl Default for DmgConfig {
+  fn default() -> Self {
+    Self {
+      background: None,
+      window_position: None,
+      window_size: dmg_window_size(),
+      app_position: dmg_app_position(),
+      application_folder_position: dmg_application_folder_position(),
+    }
+  }
+}
+
+fn dmg_window_size() -> Size {
+  Size {
+    width: 660,
+    height: 400,
+  }
+}
+
+fn dmg_app_position() -> Position {
+  Position { x: 180, y: 170 }
+}
+
+fn dmg_application_folder_position() -> Position {
+  Position { x: 480, y: 170 }
+}
+
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
   D: Deserializer<'de>,
@@ -295,7 +417,7 @@ where
 
 /// Configuration for the macOS bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#macconfig
+/// See more: <https://tauri.app/v1/api/config#macconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -357,7 +479,7 @@ fn minimum_system_version() -> Option<String> {
 
 /// Configuration for a target language for the WiX build.
 ///
-/// See more: https://tauri.app/v1/api/config#wixlanguageconfig
+/// See more: <https://tauri.app/v1/api/config#wixlanguageconfig>
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -388,7 +510,7 @@ impl Default for WixLanguage {
 
 /// Configuration for the MSI bundle using WiX.
 ///
-/// See more: https://tauri.app/v1/api/config#wixconfig
+/// See more: <https://tauri.app/v1/api/config#wixconfig>
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -442,6 +564,21 @@ pub struct WixConfig {
   pub dialog_image_path: Option<PathBuf>,
 }
 
+/// Compression algorithms used in the NSIS installer.
+///
+/// See <https://nsis.sourceforge.io/Reference/SetCompressor>
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum NsisCompression {
+  /// ZLIB uses the deflate algorithm, it is a quick and simple method. With the default compression level it uses about 300 KB of memory.
+  Zlib,
+  /// BZIP2 usually gives better compression ratios than ZLIB, but it is a bit slower and uses more memory. With the default compression level it uses about 4 MB of memory.
+  Bzip2,
+  /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
+  Lzma,
+}
+
 /// Configuration for the Installer bundle using NSIS.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -484,6 +621,10 @@ pub struct NsisConfig {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   #[serde(default, alias = "display-language-selector")]
   pub display_language_selector: bool,
+  /// Set the compression algorithm used to compress files in the installer.
+  ///
+  /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
+  pub compression: Option<NsisCompression>,
 }
 
 /// Install Modes for the NSIS installer.
@@ -569,7 +710,7 @@ impl Default for WebviewInstallMode {
 
 /// Windows bundler configuration.
 ///
-/// See more: https://tauri.app/v1/api/config#windowsconfig
+/// See more: <https://tauri.app/v1/api/config#windowsconfig>
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -688,7 +829,7 @@ impl<'d> serde::Deserialize<'d> for AssociationExt {
 pub struct FileAssociation {
   /// File extensions to associate with this app. e.g. 'png'
   pub ext: Vec<AssociationExt>,
-  /// The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]
+  /// The name. Maps to `CFBundleTypeName` on macOS. Default to `ext[0]`
   pub name: Option<String>,
   /// The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.
   pub description: Option<String>,
@@ -702,7 +843,7 @@ pub struct FileAssociation {
 
 /// The Updater configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#updaterconfig
+/// See more: <https://tauri.app/v1/api/config#updaterconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -759,9 +900,34 @@ impl Default for UpdaterConfig {
   }
 }
 
+/// Definition for bundle resources.
+/// Can be either a list of paths to include or a map of source to target paths.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
+pub enum BundleResources {
+  /// A list of paths to include.
+  List(Vec<String>),
+  /// A map of source to target paths.
+  Map(HashMap<String, String>),
+}
+
+impl BundleResources {
+  /// Adds a path to the resource collection.
+  pub fn push(&mut self, path: impl Into<String>) {
+    match self {
+      Self::List(l) => l.push(path.into()),
+      Self::Map(l) => {
+        let path = path.into();
+        l.insert(path.clone(), path);
+      }
+    }
+  }
+}
+
 /// Configuration for tauri-bundler.
 ///
-/// See more: https://tauri.app/v1/api/config#bundleconfig
+/// See more: <https://tauri.app/v1/api/config#bundleconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -770,7 +936,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
@@ -788,7 +954,7 @@ pub struct BundleConfig {
   /// App resources to bundle.
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
-  pub resources: Option<Vec<String>>,
+  pub resources: Option<BundleResources>,
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
   /// The application kind.
@@ -810,6 +976,12 @@ pub struct BundleConfig {
   /// Configuration for the Debian bundle.
   #[serde(default)]
   pub deb: DebConfig,
+  /// Configuration for the RPM bundle.
+  #[serde(default)]
+  pub rpm: RpmConfig,
+  /// DMG-specific settings.
+  #[serde(default)]
+  pub dmg: DmgConfig,
   /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", default)]
   pub macos: MacConfig,
@@ -846,6 +1018,12 @@ pub struct BundleConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
+impl From<Color> for (u8, u8, u8, u8) {
+  fn from(value: Color) -> Self {
+    (value.0, value.1, value.2, value.3)
+  }
+}
+
 /// The window effects configuration object
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
@@ -866,7 +1044,7 @@ pub struct WindowEffectsConfig {
 
 /// The window configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#windowconfig
+/// See more: <https://tauri.app/v1/api/config#windowconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -963,6 +1141,9 @@ pub struct WindowConfig {
   /// Whether the window should have borders and bars.
   #[serde(default = "default_true")]
   pub decorations: bool,
+  /// Whether the window should always be below other windows.
+  #[serde(default, alias = "always-on-bottom")]
+  pub always_on_bottom: bool,
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
@@ -1015,7 +1196,7 @@ pub struct WindowConfig {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891>
   /// - **Linux**: Unsupported
   #[serde(default, alias = "window-effects")]
   pub window_effects: Option<WindowEffectsConfig>,
@@ -1055,6 +1236,7 @@ impl Default for WindowConfig {
       maximized: false,
       visible: true,
       decorations: true,
+      always_on_bottom: false,
       always_on_top: false,
       visible_on_all_workspaces: false,
       content_protected: false,
@@ -1243,6 +1425,7 @@ pub struct RemoteDomainAccessScope {
   /// The list of window labels this scope applies to.
   pub windows: Vec<String>,
   /// The list of plugins that are allowed in this scope.
+  /// The names should be without the `tauri-plugin-` prefix, for example `"store"` for `tauri-plugin-store`.
   #[serde(default)]
   pub plugins: Vec<String>,
 }
@@ -1310,7 +1493,7 @@ impl FsScope {
 
 /// Config for the asset custom protocol.
 ///
-/// See more: https://tauri.app/v1/api/config#assetprotocolconfig
+/// See more: <https://tauri.app/v1/api/config#assetprotocolconfig>
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1325,7 +1508,7 @@ pub struct AssetProtocolConfig {
 
 /// Security configuration.
 ///
-/// See more: https://tauri.app/v1/api/config#securityconfig
+/// See more: <https://tauri.app/v1/api/config#securityconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1402,7 +1585,7 @@ impl Default for PatternKind {
 
 /// The Tauri configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#tauriconfig
+/// See more: <https://tauri.app/v1/api/config#tauriconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1543,7 +1726,7 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
 
 /// The updater configuration for Windows.
 ///
-/// See more: https://tauri.app/v1/api/config#updaterwindowsconfig
+/// See more: <https://tauri.app/v1/api/config#updaterwindowsconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1556,12 +1739,14 @@ pub struct UpdaterWindowsConfig {
 
 /// Configuration for application tray icon.
 ///
-/// See more: https://tauri.app/v1/api/config#trayiconconfig
+/// See more: <https://tauri.app/v1/api/config#trayiconconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TrayIconConfig {
+  /// Set an id for this tray icon so you can reference it later, defaults to `main`.
+  pub id: Option<String>,
   /// Path to the default icon to use for the tray icon.
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
@@ -1584,7 +1769,7 @@ pub struct TrayIconConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
   /// The development team. This value is required for iOS development because code signing is enforced.
-  /// The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
+  /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
 }
@@ -1671,7 +1856,7 @@ pub enum HookCommand {
 
 /// The Build configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#buildconfig
+/// See more: <https://tauri.app/v1/api/config#buildconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1703,17 +1888,17 @@ pub struct BuildConfig {
   pub dist_dir: AppUrl,
   /// A shell command to run before `tauri dev` kicks in.
   ///
-  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-dev-command")]
   pub before_dev_command: Option<BeforeDevCommand>,
   /// A shell command to run before `tauri build` kicks in.
   ///
-  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-build-command")]
   pub before_build_command: Option<HookCommand>,
   /// A shell command to run before the bundling phase in `tauri build` kicks in.
   ///
-  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-bundle-command")]
   pub before_bundle_command: Option<HookCommand>,
   /// Features passed to `cargo` commands.
@@ -1806,7 +1991,7 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 
 /// The package configuration.
 ///
-/// See more: https://tauri.app/v1/api/config#packageconfig
+/// See more: <https://tauri.app/v1/api/config#packageconfig>
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1930,7 +2115,7 @@ pub struct Config {
 
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#pluginconfig
+/// See more: <https://tauri.app/v1/api/config#pluginconfig>
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
@@ -2069,7 +2254,7 @@ mod build {
     } else if num.is_f64() {
       // guaranteed f64
       let num = num.as_f64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
+      quote! { #prefix::Number(::serde_json::Number::from_f64(#num).unwrap(/* safe to unwrap, guaranteed f64 */)) }
     } else {
       // invalid number
       quote! { #prefix::Null }
@@ -2199,6 +2384,9 @@ mod build {
         WindowEffect::MicaLight => quote! { #prefix::MicaLight},
         WindowEffect::Blur => quote! { #prefix::Blur},
         WindowEffect::Acrylic => quote! { #prefix::Acrylic},
+        WindowEffect::Tabbed => quote! { #prefix::Tabbed },
+        WindowEffect::TabbedDark => quote! { #prefix::TabbedDark },
+        WindowEffect::TabbedLight => quote! { #prefix::TabbedLight },
       })
     }
   }
@@ -2242,6 +2430,7 @@ mod build {
       let maximized = self.maximized;
       let visible = self.visible;
       let decorations = self.decorations;
+      let always_on_bottom = self.always_on_bottom;
       let always_on_top = self.always_on_top;
       let visible_on_all_workspaces = self.visible_on_all_workspaces;
       let content_protected = self.content_protected;
@@ -2283,6 +2472,7 @@ mod build {
         maximized,
         visible,
         decorations,
+        always_on_bottom,
         always_on_top,
         visible_on_all_workspaces,
         content_protected,
@@ -2382,6 +2572,8 @@ mod build {
       let long_description = quote!(None);
       let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
+      let rpm = quote!(Default::default());
+      let dmg = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
@@ -2405,6 +2597,8 @@ mod build {
         long_description,
         appimage,
         deb,
+        rpm,
+        dmg,
         macos,
         external_bin,
         windows,
@@ -2574,6 +2768,7 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
       let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
@@ -2582,6 +2777,7 @@ mod build {
       literal_struct!(
         tokens,
         TrayIconConfig,
+        id,
         icon_path,
         icon_as_template,
         menu_on_left_click,
@@ -2711,6 +2907,8 @@ mod test {
         long_description: None,
         appimage: Default::default(),
         deb: Default::default(),
+        rpm: Default::default(),
+        dmg: Default::default(),
         macos: Default::default(),
         external_bin: None,
         windows: Default::default(),

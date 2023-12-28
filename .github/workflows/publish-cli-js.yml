@@ -91,7 +91,7 @@ jobs:
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         if: ${{ !matrix.settings.docker }}
@@ -101,14 +101,11 @@ jobs:
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'
           architecture: ${{ matrix.settings.architecture }}
-      - name: Install
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         if: ${{ !matrix.settings.docker }}
         with:
-          profile: minimal
-          override: true
-          toolchain: stable
-          target: ${{ matrix.settings.target }}
+          targets: ${{ matrix.settings.target }}
       - uses: Swatinem/rust-cache@v1
         with:
           key: ${{ matrix.settings.target }}
@@ -144,7 +141,7 @@ jobs:
   #    runs-on: macos-10.15
   #    name: Build FreeBSD
   #    steps:
-  #      - uses: actions/checkout@v3
+  #      - uses: actions/checkout@v4
   #      - name: Build
   #        id: build
   #        uses: vmactions/freebsd-vm@v0.1.6
@@ -207,7 +204,7 @@ jobs:
           - '18'
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         with:
@@ -240,7 +237,7 @@ jobs:
           - '18'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         with:
@@ -279,7 +276,7 @@ jobs:
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         with:
@@ -297,14 +294,10 @@ jobs:
       - name: List packages
         run: ls -R .
         shell: bash
-      - name: Install system dependencies
-        run: |
-          apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl gtk+3.0-dev
       - name: Setup and run tests
         run: |
           yarn tauri --help
           ls -la
-      # TODO: fix this test: https://github.com/tauri-apps/tauri/runs/5145729140?check_suite_focus=true#step:9:704
       #- name: Setup and run tests
       #  run: |
       #    rustup install stable
@@ -329,7 +322,7 @@ jobs:
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
         working-directory: ${{ github.workspace }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: List packages
         run: ls -R .
         shell: bash
@@ -375,7 +368,7 @@ jobs:
       - test-linux-x64-musl-binding
       #- test-linux-arm-bindings
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         with:

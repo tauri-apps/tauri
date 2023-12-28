@@ -14,17 +14,17 @@
     <div id="response"></div>
 
     <script>
-      var WebviewWindow = window.__TAURI__.window.WebviewWindow
-      var thisTauriWindow = window.__TAURI__.window.getCurrent()
-      var windowLabel = thisTauriWindow.label
-      var windowLabelContainer = document.getElementById('window-label')
+      const WebviewWindow = window.__TAURI__.window.WebviewWindow
+      const thisTauriWindow = window.__TAURI__.window.getCurrent()
+      const windowLabel = thisTauriWindow.label
+      const windowLabelContainer = document.getElementById('window-label')
       windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
 
-      var container = document.getElementById('container')
+      const container = document.getElementById('container')
 
-      var responseContainer = document.getElementById('response')
+      const responseContainer = document.getElementById('response')
       function runCommand(commandName, args, optional) {
-        window.__TAURI__
+        window.__TAURI__.core
           .invoke(commandName, args)
           .then((response) => {
             responseContainer.innerText += `Ok(${response})\n\n`
@@ -37,9 +37,9 @@
         responseContainer.innerText += 'Got window-created event\n\n'
       })
 
-      var createWindowButton = document.createElement('button')
-      var windowId = Math.random().toString().replace('.', '')
-      var windowNumber = 1
+      const createWindowButton = document.createElement('button')
+      const windowId = Math.random().toString().replace('.', '')
+      const windowNumber = 1
       createWindowButton.innerHTML = 'Create child window ' + windowNumber
       createWindowButton.addEventListener('click', function () {
         runCommand('create_child_window', {

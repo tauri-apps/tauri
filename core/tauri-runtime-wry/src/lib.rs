@@ -2738,15 +2738,13 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   if webview_attributes.file_drop_handler_enabled {
     let proxy = proxy.clone();
-    let window_event_listeners = window_event_listeners.clone();
     webview_builder = webview_builder.with_file_drop_handler(move |event| {
       let event: FileDropEvent = FileDropEventWrapper(event).into();
       let _ = proxy.send_event(Message::Webview(
         window_id,
         WebviewMessage::WebviewEvent(WebviewEvent::FileDrop(event)),
       ));
-      let has_listeners = !window_event_listeners.lock().unwrap().is_empty();
-      has_listeners
+      true
     });
   }
 

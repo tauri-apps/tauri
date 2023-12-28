@@ -215,18 +215,32 @@ mod desktop_commands {
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+
   let mut init_script = String::new();
   // window.print works on Linux/Windows; need to use the API on macOS
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   {
     init_script.push_str(include_str!("./scripts/print.js"));
   }
-  init_script.push_str(include_str!("./scripts/drag.js"));
+
+  #[derive(Template)]
+  #[default_template("./scripts/drag.js")]
+  struct Drag<'a> {
+    os_name: &'a str,
+  }
+
+  init_script.push_str(
+    &Drag {
+      os_name: std::env::consts::OS,
+    }
+    .render_default(&Default::default())
+    .unwrap()
+    .into_string(),
+  );
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
-    use serialize_to_javascript::{default_template, DefaultTemplate, Template};
-
     #[derive(Template)]
     #[default_template("./scripts/toggle-devtools.js")]
     struct Devtools<'a> {

@@ -32,6 +32,7 @@
       },
       "macOS": {
         "frameworks": [],
+        "files": {},
         "exceptionDomain": "",
         "signingIdentity": null,
         "providerShortName": null,

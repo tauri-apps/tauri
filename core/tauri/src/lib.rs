@@ -13,6 +13,7 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
 //! - **linux-ipc-protocol**: Use custom protocol for faster IPC on Linux. Requires webkit2gtk v2.40 or above.
@@ -197,10 +198,7 @@ pub use self::utils::TitleBarStyle;
 
 pub use self::event::{Event, EventId};
 pub use {
-  self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, RunEvent,
-    WindowEvent,
-  },
+  self::app::{App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WindowEvent},
   self::manager::Asset,
   self::runtime::{
     webview::WebviewAttributes,
@@ -642,6 +640,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   app.emit("synchronized", ());
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit", skip(self, payload))
+  )]
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit(event, None, payload)
   }
@@ -663,6 +665,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   }
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::to", skip(self, payload))
+  )]
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
@@ -686,6 +692,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   }
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::filter", skip(self, payload, filter))
+  )]
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,

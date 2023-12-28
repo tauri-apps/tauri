@@ -164,11 +164,14 @@ impl CommandExt for Command {
       let mut lines = stdout_lines_.lock().unwrap();
       loop {
         line.clear();
-        if let Ok(0) = stdout.read_line(&mut line) {
-          break;
+        match stdout.read_line(&mut line) {
+          Ok(0) => break,
+          Ok(_) => {
+            debug!(action = "stdout"; "{}", line.trim_end());
+            lines.extend(line.as_bytes().to_vec());
+          }
+          Err(_) => (),
         }
-        debug!(action = "stdout"; "{}", &line[0..line.len() - 1]);
-        lines.extend(line.as_bytes().to_vec());
       }
     });
 
@@ -180,11 +183,14 @@ impl CommandExt for Command {
       let mut lines = stderr_lines_.lock().unwrap();
       loop {
         line.clear();
-        if let Ok(0) = stderr.read_line(&mut line) {
-          break;
+        match stderr.read_line(&mut line) {
+          Ok(0) => break,
+          Ok(_) => {
+            debug!(action = "stderr"; "{}", line.trim_end());
+            lines.extend(line.as_bytes().to_vec());
+          }
+          Err(_) => (),
         }
-        debug!(action = "stderr"; "{}", &line[0..line.len() - 1]);
-        lines.extend(line.as_bytes().to_vec());
       }
     });
 

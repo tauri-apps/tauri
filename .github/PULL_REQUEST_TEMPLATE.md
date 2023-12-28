@@ -1,30 +1,21 @@
 <!--
-Update "[ ]" to "[x]" to check a box
+Before submitting a PR, please read https://github.com/tauri-apps/tauri/blob/dev/.github/CONTRIBUTING.md#pull-request-guidelines
 
-Please make sure to read the Pull Request Guidelines: https://github.com/tauri-apps/tauri/blob/dev/.github/CONTRIBUTING.md#pull-request-guidelines
+1. Give the PR a descriptive title.
+
+  Examples of good title:
+    - fix(windows): fix race condition in event loop
+    - docs: update docstrings
+    - feat: add `Window::set_fullscreen`
+
+  Examples of bad title:
+    - fix #7123
+    - update docs
+    - fix bugs
+
+2. If there is a related issue, reference it in the PR text, e.g. closes #123.
+3. If this change requires a new version, then add a change file in `.changes` directory with the appropriate bump, see https://github.com/tauri-apps/tauri/blob/dev/.changes/readme.md
+4. Ensure that all your commits are signed https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits
+5. Ensure `cargo test` and `cargo clippy` passes.
+6. Propose your changes as a draft PR if your work is still in progress.
 -->
-
-### What kind of change does this PR introduce?
-<!-- Check at least one. If you are introducing a new binding, you must reference an issue where this binding has been proposed, discussed and approved by the maintainers. -->
-
-- [ ] Bugfix
-- [ ] Feature
-- [ ] Docs
-- [ ] New Binding issue #___
-- [ ] Code style update
-- [ ] Refactor
-- [ ] Build-related changes
-- [ ] Other, please describe:
-
-### Does this PR introduce a breaking change?
-<!-- If yes, please describe the impact and migration path for existing applications in an attached issue. -->
-
-- [ ] Yes, and the changes were approved in issue #___
-- [ ] No
-
-### Checklist
-- [ ] When resolving issues, they are referenced in the PR's title (e.g `fix: remove a typo, closes #___, #___`)
-- [ ] A change file is added if any packages will require a version bump due to this PR per [the instructions in the readme](https://github.com/tauri-apps/tauri/blob/dev/.changes/readme.md).
-- [ ] I have added a convincing reason for adding this feature, if necessary
-
-### Other information

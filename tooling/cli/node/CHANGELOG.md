@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.0.0-alpha.20]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.20`
+
+## \[2.0.0-alpha.19]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.19`
+
 ## \[2.0.0-alpha.18]
 
 ### New Features
@@ -275,6 +287,34 @@
   - [a9c8e565](https://www.github.com/tauri-apps/tauri/commit/a9c8e565c6495961940877df7090f307be16b554) feat: add `android open` and `ios open` commands ([#4946](https://www.github.com/tauri-apps/tauri/pull/4946)) on 2022-08-15
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.8]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.8`
+
+## \[1.5.7]
+
+### Bug Fixes
+
+- [`1d5aa38a`](https://www.github.com/tauri-apps/tauri/commit/1d5aa38ae418ea31f593590b6d32cf04d3bfd8c1)([#8162](https://www.github.com/tauri-apps/tauri/pull/8162)) Fixes errors on command output, occuring when the output stream contains an invalid UTF-8 character, or ends with a multi-bytes UTF-8 character.
+- [`f26d9f08`](https://www.github.com/tauri-apps/tauri/commit/f26d9f0884f63f61b9f4d4fac15e6b251163793e)([#8263](https://www.github.com/tauri-apps/tauri/pull/8263)) Fixes an issue in the NSIS installer which caused the uninstallation to leave empty folders on the system if the `resources` feature was used.
+- [`92bc7d0e`](https://www.github.com/tauri-apps/tauri/commit/92bc7d0e16157434330a1bcf1eefda6f0f1e5f85)([#8233](https://www.github.com/tauri-apps/tauri/pull/8233)) Fixes an issue in the NSIS installer which caused the installation to take much longer than expected when many `resources` were added to the bundle.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.7`
+
+## \[1.5.6]
+
+### Bug Fixes
+
+- [`5264e41d`](https://www.github.com/tauri-apps/tauri/commit/5264e41db3763e4c2eb0c3c21bd423fb7bece3e2)([#8082](https://www.github.com/tauri-apps/tauri/pull/8082)) Downgraded `rust-minisign` to `0.7.3` to fix signing updater bundles with empty passwords.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.6`
 
 ## \[1.5.5]
 

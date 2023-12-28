@@ -1132,10 +1132,10 @@ unocss@^0.39.3:
     "@unocss/transformer-variant-group" "0.39.3"
     "@unocss/vite" "0.39.3"
 
-vite@^4.4.9:
-  version "4.4.9"
-  resolved "https://registry.yarnpkg.com/vite/-/vite-4.4.9.tgz#1402423f1a2f8d66fd8d15e351127c7236d29d3d"
-  integrity sha512-2mbUn2LlUmNASWwSCNSJ/EG2HuSRTnVNaydp6vMCm5VIqJsjMfbIWtbH2kDuwUVW5mMUKKZvGPX/rqeqVvv1XA==
+vite@^4.4.12:
+  version "4.4.12"
+  resolved "https://registry.yarnpkg.com/vite/-/vite-4.4.12.tgz#e9c355d5a0d8a47afa46cb4bad10820da333da5c"
+  integrity sha512-KtPlUbWfxzGVul8Nut8Gw2Qe8sBzWY+8QVc5SL8iRFnpnrcoCaNlzO40c1R6hPmcdTwIPEDkq0Y9+27a5tVbdQ==
   dependencies:
     esbuild "^0.18.10"
     postcss "^8.4.27"

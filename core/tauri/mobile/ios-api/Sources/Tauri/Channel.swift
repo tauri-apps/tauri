@@ -9,7 +9,7 @@ let channelDataKey = CodingUserInfoKey(rawValue: "sendChannelData")!
 
 public class Channel: Decodable {
   public let id: UInt64
-  let handler: (String) -> Void
+  let handler: (UInt64, String) -> Void
 
   public required init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
@@ -30,7 +30,7 @@ public class Channel: Decodable {
       )
     }
 
-    guard let handler = decoder.userInfo[channelDataKey] as? (String) -> Void else {
+    guard let handler = decoder.userInfo[channelDataKey] as? (UInt64, String) -> Void else {
       throw DecodingError.dataCorruptedError(
         in: container,
         debugDescription: "missing userInfo for Channel handler. This is a Tauri issue"
@@ -54,12 +54,12 @@ public class Channel: Decodable {
   }
 
   public func send(_ data: JsonValue) {
-    handler(serialize(data))
+    handler(id, serialize(data))
   }
 
   public func send<T: Encodable>(_ data: T) throws {
     let json = try JSONEncoder().encode(data)
-    handler(String(decoding: json, as: UTF8.self))
+    handler(id, String(decoding: json, as: UTF8.self))
   }
 
 }

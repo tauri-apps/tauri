@@ -31,7 +31,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // generate deb_folder structure
   let (_, icons) = debian::generate_data(settings, &package_dir)?;
-  let icons: Vec<debian::DebIcon> = icons.into_iter().collect();
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {
@@ -108,7 +107,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Command::new(&sh_file)
     .current_dir(output_path)
     .output_ok()
-    .context("error running appimage.sh")?;
+    .context("error running build_appimage.sh")?;
 
   remove_dir_all(&package_dir)?;
   Ok(vec![appimage_path])

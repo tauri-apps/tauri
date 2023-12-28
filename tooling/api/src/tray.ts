@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Menu, Submenu } from './menu'
-import { Resource } from './internal'
-import { Channel, invoke } from './core'
+import { Channel, invoke, Resource } from './core'
 
 /**
  * Describes a tray event emitted when a tray icon is clicked

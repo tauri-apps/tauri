@@ -28,8 +28,7 @@ use crate::{
   ipc::{InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
   window::PageLoadPayload,
-  AppHandle, EventLoopMessage, GlobalWindowEvent, Icon, Manager, Runtime, Scopes, Window,
-  WindowEvent,
+  AppHandle, EventLoopMessage, Icon, Manager, Runtime, Scopes, Window, WindowEvent,
 };
 
 use super::AppManager;
@@ -574,10 +573,7 @@ impl<R: Runtime> WindowManager<R> {
     window.on_window_event(move |event| {
       let _ = on_window_event(&window_, &manager, event);
       for handler in window_event_listeners.iter() {
-        handler(GlobalWindowEvent {
-          window: window_.clone(),
-          event: event.clone(),
-        });
+        handler(&window_, event);
       }
     });
 

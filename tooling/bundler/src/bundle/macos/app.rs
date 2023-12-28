@@ -39,7 +39,14 @@ use std::{
   process::Command,
 };
 
-const NESTED_CODE_FOLDER: [&str; 5] = ["MacOS", "Frameworks", "Plugins", "Helpers", "XPCServices"];
+const NESTED_CODE_FOLDER: [&str; 6] = [
+  "MacOS",
+  "Frameworks",
+  "Plugins",
+  "Helpers",
+  "XPCServices",
+  "Libraries",
+];
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.

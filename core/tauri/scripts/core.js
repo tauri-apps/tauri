@@ -147,7 +147,7 @@
   //
   // drag on mousedown and maximize on double click on Windows and Linux
   // while macOS macos maximization should be on mouseup and if the mouse
-  // moves after the double click, it should be cancelled
+  // moves after the double click, it should be cancelled (see https://github.com/tauri-apps/tauri/issues/8306)
   //-----------------------//
   const TAURI_DRAG_REGION_ATTR = 'data-tauri-drag-region';
   let x = 0, y = 0;

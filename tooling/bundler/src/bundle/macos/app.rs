@@ -106,6 +106,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     is_an_executable: true,
   }));
 
+  copy_custom_files_to_bundle(&bundle_directory, settings)?;
+
   if let Some(identity) = &settings.macos().signing_identity {
     // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
     // https://developer.apple.com/forums/thread/701514
@@ -163,6 +165,25 @@ fn copy_binaries_to_bundle(
     paths.push(dest_path);
   }
   Ok(paths)
+}
+
+/// Copies user-defined files to the app under Contents.
+fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+  for (contents_path, path) in settings.macos().files.iter() {
+    let contents_path = if contents_path.is_absolute() {
+      contents_path.strip_prefix("/").unwrap()
+    } else {
+      contents_path
+    };
+    if path.is_file() {
+      common::copy_file(path, bundle_directory.join(contents_path))
+        .with_context(|| format!("Failed to copy file {:?} to {:?}", path, contents_path))?;
+    } else {
+      common::copy_dir(path, &bundle_directory.join(contents_path))
+        .with_context(|| format!("Failed to copy directory {:?} to {:?}", path, contents_path))?;
+    }
+  }
+  Ok(())
 }
 
 // Creates the Info.plist file.

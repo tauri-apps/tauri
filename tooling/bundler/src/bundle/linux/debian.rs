@@ -216,14 +216,7 @@ fn copy_custom_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> 
     if path.is_file() {
       common::copy_file(path, data_dir.join(deb_path))?;
     } else {
-      let out_dir = data_dir.join(deb_path);
-      for entry in walkdir::WalkDir::new(path) {
-        let entry_path = entry?.into_path();
-        if entry_path.is_file() {
-          let without_prefix = entry_path.strip_prefix(path).unwrap();
-          common::copy_file(&entry_path, out_dir.join(without_prefix))?;
-        }
-      }
+      common::copy_dir(path, &data_dir.join(deb_path))?;
     }
   }
   Ok(())

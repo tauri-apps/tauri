@@ -258,6 +258,9 @@ pub struct MacOsSettings {
   ///
   /// - embedding the correct rpath in your binary (e.g. by running `install_name_tool -add_rpath "@executable_path/../Frameworks" path/to/binary` after compiling)
   pub frameworks: Option<Vec<String>>,
+  /// List of custom files to add to the application bundle.
+  /// Maps the path in the Contents directory in the app to the path of the file to include (relative to the current working directory).
+  pub files: HashMap<PathBuf, PathBuf>,
   /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   pub minimum_system_version: Option<String>,

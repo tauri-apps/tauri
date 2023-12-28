@@ -19,6 +19,7 @@ use std::{
 };
 
 use anyhow::Context;
+use glob::glob;
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use log::{debug, error, info};
@@ -334,6 +335,18 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
+// Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
+fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
+  let Some(path) = path.to_str() else {
+    return Err(anyhow::anyhow!("path is not UTF-8 compatible"));
+  };
+  let res = glob(path).with_context(|| format!("could not parse pattern `{}`", &path))?;
+  let res = res
+    .map(|p| p.with_context(|| format!("unable to match path to pattern `{}`", &path)))
+    .collect::<Result<Vec<_>, _>>()?;
+  Ok(res)
+}
+
 impl Rust {
   fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
@@ -420,7 +433,21 @@ impl Rust {
         .unwrap_or_else(|| vec![tauri_path])
     };
 
+    let watch_folders = watch_folders
+      .into_iter()
+      .flat_map(|p| {
+        match expand_member_path(&p) {
+          Ok(p) => p,
+          Err(err) => {
+            // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
+            error!("Error watching {}: {}", p.display(), err.to_string());
+            vec![p]
+          }
+        }
+      })
+      .collect::<Vec<_>>();
     let watch_folders = watch_folders.iter().map(Path::new).collect::<Vec<_>>();
+
     let common_ancestor = common_path::common_path_all(watch_folders.clone()).unwrap();
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 

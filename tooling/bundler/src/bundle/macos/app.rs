@@ -125,15 +125,8 @@ fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> 
       common::copy_file(path, bundle_directory.join(contents_path))
         .with_context(|| format!("Failed to copy file {:?} to {:?}", path, contents_path))?;
     } else {
-      let out_dir = bundle_directory.join(contents_path);
-      for entry in walkdir::WalkDir::new(path) {
-        let entry_path = entry?.into_path();
-        if entry_path.is_file() {
-          let without_prefix = entry_path.strip_prefix(path).unwrap();
-          common::copy_file(&entry_path, out_dir.join(without_prefix))
-            .with_context(|| format!("Failed to copy file {:?} to {:?}", entry_path, out_dir.join(without_prefix)))?;
-        }
-      }
+      common::copy_dir(path, &bundle_directory.join(contents_path))
+        .with_context(|| format!("Failed to copy directory {:?} to {:?}", path, contents_path))?;
     }
   }
   Ok(())

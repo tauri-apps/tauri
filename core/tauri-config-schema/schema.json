@@ -41,6 +41,7 @@
           "icon": [],
           "identifier": "",
           "macOS": {
+            "files": {},
             "minimumSystemVersion": "10.13"
           },
           "targets": "all",
@@ -175,6 +176,7 @@
             "icon": [],
             "identifier": "",
             "macOS": {
+              "files": {},
               "minimumSystemVersion": "10.13"
             },
             "targets": "all",
@@ -979,6 +981,7 @@
         "macOS": {
           "description": "Configuration for the macOS bundles.",
           "default": {
+            "files": {},
             "minimumSystemVersion": "10.13"
           },
           "allOf": [
@@ -1287,7 +1290,7 @@
           }
         },
         "files": {
-          "description": "The files to include in the application relative to the contents directory.",
+          "description": "The files to include in the application relative to the Contents directory.",
           "default": {},
           "type": "object",
           "additionalProperties": {

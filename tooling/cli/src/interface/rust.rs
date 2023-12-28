@@ -241,7 +241,7 @@ impl Interface for Rust {
       }
     };
 
-    env.insert("TAURI_ENV_ARCH", arch);
+    env.insert("TAURI_ENV_ARCH", arch.into());
     env.insert("TAURI_ENV_PLATFORM", host.into());
     env.insert(
       "TAURI_ENV_FAMILY",

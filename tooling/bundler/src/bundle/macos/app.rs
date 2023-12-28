@@ -325,8 +325,8 @@ fn copy_frameworks_to_bundle(
   Ok(paths)
 }
 
-/// Recursively add framework's sign path.
-/// If the framework has multuple versions, it will sign "Current" version by default.
+/// Recursively add framework's sign paths.
+/// If the framework has multiple versions, it will sign "Current" version by default.
 fn add_framework_sign_path(
   framework_root: &Path,
   dest_path: &Path,

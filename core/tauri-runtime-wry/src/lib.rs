@@ -17,7 +17,8 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WindowEvent,
+    CursorIcon, DetachedWindow, DownloadEvent, FileDropEvent, PendingWindow, RawWindow,
+    WindowEvent,
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
   RunEvent, RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
@@ -2719,8 +2720,6 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     label,
     ipc_handler,
     url,
-    #[cfg(target_os = "android")]
-    on_webview_created,
     ..
   } = pending;
 
@@ -2852,6 +2851,25 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     });
   }
 
+  if let Some(download_handler) = pending.download_handler {
+    let download_handler_ = download_handler.clone();
+    webview_builder = webview_builder.with_download_started_handler(move |url, path| {
+      if let Ok(url) = url.parse() {
+        download_handler_(DownloadEvent::Requested {
+          url,
+          destination: path,
+        })
+      } else {
+        false
+      }
+    });
+    webview_builder = webview_builder.with_download_completed_handler(move |url, path, success| {
+      if let Ok(url) = url.parse() {
+        download_handler(DownloadEvent::Finished { url, path, success });
+      }
+    });
+  }
+
   if let Some(page_load_handler) = pending.on_page_load_handler {
     webview_builder = webview_builder.with_on_page_load_handler(move |event, url| {
       let _ = Url::parse(&url).map(|url| {
@@ -2954,7 +2972,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   #[cfg(target_os = "android")]
   {
-    if let Some(on_webview_created) = on_webview_created {
+    if let Some(on_webview_created) = pending.on_webview_created {
       webview_builder = webview_builder.on_webview_created(move |ctx| {
         on_webview_created(tauri_runtime::window::CreationContext {
           env: ctx.env,

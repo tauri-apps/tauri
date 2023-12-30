@@ -1071,7 +1071,7 @@
             "null"
           ],
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/ExternalBin"
           }
         },
         "windows": {
@@ -1531,6 +1531,28 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExternalBin": {
+      "description": "File association",
+      "type": "object",
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "ext": {
+          "description": "Extensions to associate with this file. e.g. 'dll'",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "The absolute or relative—paths to binaries to embed with the application.",
+          "type": "string"
         }
       },
       "additionalProperties": false

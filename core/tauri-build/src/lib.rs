@@ -457,9 +457,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .parent()
     .unwrap();
 
-  if let Some(paths) = &config.tauri.bundle.external_bin {
+  if let Some(bins) = &config.tauri.bundle.external_bin {
     copy_binaries(
-      ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
+      ResourcePaths::new(external_binaries(bins, &target_triple).as_slice(), true),
       &target_triple,
       target_dir,
       manifest.package.as_ref().map(|p| &p.name),

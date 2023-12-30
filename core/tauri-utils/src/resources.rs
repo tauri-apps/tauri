@@ -7,6 +7,8 @@ use std::{
   path::{Component, Path, PathBuf},
 };
 
+use crate::config::ExternalBin;
+
 /// Given a path (absolute or relative) to a resource file, returns the
 /// relative path from the bundle resources directory where that resource
 /// should be stored.
@@ -25,17 +27,21 @@ pub fn resource_relpath(path: &Path) -> PathBuf {
 }
 
 /// Parses the external binaries to bundle, adding the target triple suffix to each of them.
-pub fn external_binaries(external_binaries: &[String], target_triple: &str) -> Vec<String> {
+pub fn external_binaries(external_binaries: &[ExternalBin], target_triple: &str) -> Vec<String> {
   let mut paths = Vec::new();
-  for curr_path in external_binaries {
+  for bin in external_binaries {
     paths.push(format!(
       "{}-{}{}",
-      curr_path,
+      bin.path,
       target_triple,
-      if target_triple.contains("windows") {
-        ".exe"
+      if let Some(ref ext) = bin.ext {
+        ext.as_str()
       } else {
-        ""
+        if target_triple.contains("windows") {
+          ".exe"
+        } else {
+          ""
+        }
       }
     ));
   }

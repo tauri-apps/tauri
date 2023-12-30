@@ -8,7 +8,7 @@ use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{BundleType, FileAssociation, NSISInstallerMode, NsisCompression},
-  resources::{external_binaries, ResourcePaths},
+  resources::ResourcePaths,
 };
 
 use std::{
@@ -620,14 +620,7 @@ impl SettingsBuilder {
         .project_out_directory
         .expect("out directory is required"),
       binaries: self.binaries,
-      bundle_settings: BundleSettings {
-        external_bin: self
-          .bundle_settings
-          .external_bin
-          .as_ref()
-          .map(|bins| external_binaries(bins, &target)),
-        ..self.bundle_settings
-      },
+      bundle_settings: self.bundle_settings,
       target,
     })
   }

@@ -790,6 +790,32 @@ pub struct FileAssociation {
   pub mime_type: Option<String>,
 }
 
+/// File association
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExternalBin {
+  /// Extensions to associate with this file. e.g. 'dll'
+  #[serde(default)]
+  pub ext: Option<String>,
+  /// The absolute or relative—paths to binaries to embed with the application.
+  pub path: String,
+}
+
+/// `ExternalBin` can be specified either as a string containing a path to the execuable file,
+/// or an object with the path and extention specified.
+impl FromStr for ExternalBin {
+  // This implementation of `from_str` can never fail
+  type Err = std::io::Error;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+      Ok(ExternalBin {
+          ext: None,
+          path: s.to_string(),
+      })
+  }
+}
+
 /// The Updater configuration object.
 ///
 /// See more: <https://tauri.app/v1/api/config#updaterconfig>
@@ -943,7 +969,7 @@ pub struct BundleConfig {
   ///
   /// so don't forget to provide binaries for all targeted platforms.
   #[serde(alias = "external-bin")]
-  pub external_bin: Option<Vec<String>>,
+  pub external_bin: Option<Vec<ExternalBin>>,
   /// Configuration for the Windows bundle.
   #[serde(default)]
   pub windows: WindowsConfig,
@@ -2520,7 +2546,7 @@ mod build {
       let deb = quote!(Default::default());
       let dmg = quote!(Default::default());
       let macos = quote!(Default::default());
-      let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
+      let external_bin = quote!(None);
       let windows = &self.windows;
       let ios = quote!(Default::default());
       let android = quote!(Default::default());

@@ -33,6 +33,7 @@ use crate::helpers::{
   config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
 };
 use tauri_utils::{display_path, platform::Target};
+use tauri_utils::resources::external_binaries;
 
 mod cargo_config;
 mod desktop;
@@ -709,7 +710,7 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone())
+    tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone(), self.target_triple.as_str())
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
@@ -1054,6 +1055,7 @@ fn tauri_config_to_bundle_settings(
   manifest: &Manifest,
   features: &[String],
   config: crate::helpers::config::BundleConfig,
+  target_triple: &str,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
 
@@ -1175,7 +1177,9 @@ fn tauri_config_to_bundle_settings(
     file_associations: config.file_associations,
     short_description: config.short_description,
     long_description: config.long_description,
-    external_bin: config.external_bin,
+    external_bin: config.external_bin
+      .as_ref()
+      .map(|bins| external_binaries(bins, target_triple)),
     deb: DebianSettings {
       depends: if depends.is_empty() {
         None

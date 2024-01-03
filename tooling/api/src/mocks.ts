@@ -9,6 +9,10 @@ interface IPCMessage {
   [key: string]: unknown
 }
 
+function mockInternals() {
+  window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
+}
+
 /**
  * Intercepts all IPC requests with the given mock handler.
  *
@@ -65,6 +69,7 @@ interface IPCMessage {
 export function mockIPC(
   cb: (cmd: string, payload: Record<string, unknown>) => unknown
 ): void {
+  mockInternals()
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   window.__TAURI_INTERNALS__.ipc = async ({
     cmd,
@@ -128,6 +133,7 @@ export function mockWindows(
   current: string,
   ...additionalWindows: string[]
 ): void {
+  mockInternals()
   window.__TAURI_INTERNALS__.metadata = {
     windows: [current, ...additionalWindows].map((label) => ({ label })),
     currentWindow: { label: current }
@@ -153,7 +159,7 @@ export function mockWindows(
  * @since 1.6.0
  */
 export function mockConvertFileSrc(osName: string): void {
-  window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
+  mockInternals()
   window.__TAURI_INTERNALS__.convertFileSrc = function (
     filePath,
     protocol = 'asset'

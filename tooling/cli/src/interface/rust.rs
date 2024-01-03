@@ -347,38 +347,35 @@ fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   Ok(res)
 }
 
-fn get_watch_folders(tauri_path: &Path, workspace_path: &Path) -> crate::Result<Vec<PathBuf>> {
+fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
+  let tauri_path = tauri_dir();
+  let workspace_path = get_workspace_dir()?;
+
   // We always want to watch the main tauri folder.
   let mut watch_folders = vec![tauri_path.to_path_buf()];
 
   // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
-  let cargo_settings = CargoSettings::load(workspace_path)?;
-  if let Some(folders_iter) = cargo_settings.workspace.as_ref().map(|w| {
-    w.members
-      .clone()
-      .unwrap_or_default()
-      .into_iter()
-      .flat_map(|p| {
-        let p = workspace_path.join(p);
-        match expand_member_path(&p) {
-          // Sometimes expand_member_path returns an empty vec, for example if the path contains `[]` as in `C:/[abc]/project/`.
-          // Cargo won't complain unless theres a workspace.members config with glob patterns so we should support it too.
-          Ok(expanded_paths) => {
-            if expanded_paths.is_empty() {
-              vec![p]
-            } else {
-              expanded_paths
-            }
-          }
-          Err(err) => {
-            // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
-            error!("Error watching {}: {}", p.display(), err.to_string());
-            vec![p]
+  let cargo_settings = CargoSettings::load(&workspace_path)?;
+  if let Some(members) = cargo_settings.workspace.and_then(|w| w.members) {
+    for p in members {
+      let p = workspace_path.join(p);
+      match expand_member_path(&p) {
+        // Sometimes expand_member_path returns an empty vec, for example if the path contains `[]` as in `C:/[abc]/project/`.
+        // Cargo won't complain unless theres a workspace.members config with glob patterns so we should support it too.
+        Ok(expanded_paths) => {
+          if expanded_paths.is_empty() {
+            watch_folders.push(p);
+          } else {
+            watch_folders.extend(expanded_paths);
           }
         }
-      })
-  }) {
-    watch_folders.extend(folders_iter);
+        Err(err) => {
+          // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
+          error!("Error watching {}: {}", p.display(), err.to_string());
+          watch_folders.push(p);
+        }
+      };
+    }
   }
 
   Ok(watch_folders)
@@ -449,14 +446,10 @@ impl Rust {
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
     let app_path = app_dir();
-    let tauri_path = tauri_dir();
-    let workspace_path = get_workspace_dir()?;
 
-    let watch_folders = get_watch_folders(&tauri_path, &workspace_path)?;
+    let watch_folders = get_watch_folders()?;
 
-    let watch_folders = watch_folders.iter().map(Path::new).collect::<Vec<_>>();
-
-    let common_ancestor = common_path::common_path_all(watch_folders.clone())
+    let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
       .expect("watch_folders should not be empty");
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
@@ -467,9 +460,9 @@ impl Rust {
     })
     .unwrap();
     for path in watch_folders {
-      if !ignore_matcher.is_ignore(path, true) {
-        info!("Watching {} for changes...", display_path(path));
-        lookup(path, |file_type, p| {
+      if !ignore_matcher.is_ignore(&path, true) {
+        info!("Watching {} for changes...", display_path(&path));
+        lookup(&path, |file_type, p| {
           if p != path {
             debug!("Watching {} for changes...", display_path(&p));
             let _ = watcher.watcher().watch(

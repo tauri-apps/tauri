@@ -347,6 +347,43 @@ fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   Ok(res)
 }
 
+fn get_watch_folders(tauri_path: &Path, workspace_path: &Path) -> crate::Result<Vec<PathBuf>> {
+  // We always want to watch the main tauri folder.
+  let mut watch_folders = vec![tauri_path.to_path_buf()];
+
+  // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
+  let cargo_settings = CargoSettings::load(workspace_path)?;
+  if let Some(folders_iter) = cargo_settings.workspace.as_ref().map(|w| {
+    w.members
+      .clone()
+      .unwrap_or_default()
+      .into_iter()
+      .flat_map(|p| {
+        let p = workspace_path.join(p);
+        match expand_member_path(&p) {
+          // Sometimes expand_member_path returns an empty vec, for example if the path contains `[]` as in `C:/[abc]/project/`.
+          // Cargo won't complain unless theres a workspace.members config with glob patterns so we should support it too.
+          Ok(expanded_paths) => {
+            if expanded_paths.is_empty() {
+              vec![p]
+            } else {
+              expanded_paths
+            }
+          }
+          Err(err) => {
+            // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
+            error!("Error watching {}: {}", p.display(), err.to_string());
+            vec![p]
+          }
+        }
+      })
+  }) {
+    watch_folders.extend(folders_iter);
+  }
+
+  Ok(watch_folders)
+}
+
 impl Rust {
   fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
@@ -415,38 +452,7 @@ impl Rust {
     let tauri_path = tauri_dir();
     let workspace_path = get_workspace_dir()?;
 
-    // We always want to watch the main tauri folder.
-    let mut watch_folders = vec![tauri_path];
-
-    // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
-    let cargo_settings = CargoSettings::load(&workspace_path)?;
-    if let Some(folders_iter) = cargo_settings.workspace.as_ref().map(|w| {
-      w.members
-        .clone()
-        .unwrap_or_default()
-        .into_iter()
-        .flat_map(|p| {
-          let p = workspace_path.join(p);
-          match expand_member_path(&p) {
-            // Sometimes expand_member_path returns an empty vec, for example if the path contains `[]` as in `C:/[abc]/project/`.
-            // Cargo won't complain unless theres a workspace.members config with glob patterns so we should support it too.
-            Ok(expanded_paths) => {
-              if expanded_paths.is_empty() {
-                vec![p]
-              } else {
-                expanded_paths
-              }
-            }
-            Err(err) => {
-              // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
-              error!("Error watching {}: {}", p.display(), err.to_string());
-              vec![p]
-            }
-          }
-        })
-    }) {
-      watch_folders.extend(folders_iter);
-    }
+    let watch_folders = get_watch_folders(&tauri_path, &workspace_path)?;
 
     let watch_folders = watch_folders.iter().map(Path::new).collect::<Vec<_>>();
 

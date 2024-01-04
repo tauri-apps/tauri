@@ -216,43 +216,43 @@ mod desktop_commands {
 
   #[derive(Debug)]
   enum HitTestResult {
-    CLIENT,
-    LEFT,
-    RIGHT,
-    TOP,
-    BOTTOM,
-    TOPLEFT,
-    TOPRIGHT,
-    BOTTOMLEFT,
-    BOTTOMRIGHT,
-    NOWHERE,
+    Client,
+    Left,
+    Right,
+    Top,
+    Bottom,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    NoWhere,
   }
 
   impl HitTestResult {
     fn drag_resize_window<R: Runtime>(&self, window: &Window<R>) {
       let _ = window.start_resize_dragging(match self {
-        HitTestResult::LEFT => ResizeDirection::West,
-        HitTestResult::RIGHT => ResizeDirection::East,
-        HitTestResult::TOP => ResizeDirection::North,
-        HitTestResult::BOTTOM => ResizeDirection::South,
-        HitTestResult::TOPLEFT => ResizeDirection::NorthWest,
-        HitTestResult::TOPRIGHT => ResizeDirection::NorthEast,
-        HitTestResult::BOTTOMLEFT => ResizeDirection::SouthWest,
-        HitTestResult::BOTTOMRIGHT => ResizeDirection::SouthEast,
+        HitTestResult::Left => ResizeDirection::West,
+        HitTestResult::Right => ResizeDirection::East,
+        HitTestResult::Top => ResizeDirection::North,
+        HitTestResult::Bottom => ResizeDirection::South,
+        HitTestResult::TopLeft => ResizeDirection::NorthWest,
+        HitTestResult::TopRight => ResizeDirection::NorthEast,
+        HitTestResult::BottomLeft => ResizeDirection::SouthWest,
+        HitTestResult::BottomRight => ResizeDirection::SouthEast,
         _ => unreachable!(),
       });
     }
 
     fn change_cursor<R: Runtime>(&self, window: &Window<R>) {
       let _ = window.set_cursor_icon(match self {
-        HitTestResult::LEFT => CursorIcon::WResize,
-        HitTestResult::RIGHT => CursorIcon::EResize,
-        HitTestResult::TOP => CursorIcon::NResize,
-        HitTestResult::BOTTOM => CursorIcon::SResize,
-        HitTestResult::TOPLEFT => CursorIcon::NwResize,
-        HitTestResult::TOPRIGHT => CursorIcon::NeResize,
-        HitTestResult::BOTTOMLEFT => CursorIcon::SwResize,
-        HitTestResult::BOTTOMRIGHT => CursorIcon::SeResize,
+        HitTestResult::Left => CursorIcon::WResize,
+        HitTestResult::Right => CursorIcon::EResize,
+        HitTestResult::Top => CursorIcon::NResize,
+        HitTestResult::Bottom => CursorIcon::SResize,
+        HitTestResult::TopLeft => CursorIcon::NwResize,
+        HitTestResult::TopRight => CursorIcon::NeResize,
+        HitTestResult::BottomLeft => CursorIcon::SwResize,
+        HitTestResult::BottomRight => CursorIcon::SeResize,
         _ => CursorIcon::Default,
       });
     }
@@ -286,16 +286,16 @@ mod desktop_commands {
           | (BOTTOM * (if y >= (bottom - inset) { 1 } else { 0 }));
 
     match result {
-      CLIENT => HitTestResult::CLIENT,
-      LEFT => HitTestResult::LEFT,
-      RIGHT => HitTestResult::RIGHT,
-      TOP => HitTestResult::TOP,
-      BOTTOM => HitTestResult::BOTTOM,
-      TOPLEFT => HitTestResult::TOPLEFT,
-      TOPRIGHT => HitTestResult::TOPRIGHT,
-      BOTTOMLEFT => HitTestResult::BOTTOMLEFT,
-      BOTTOMRIGHT => HitTestResult::BOTTOMRIGHT,
-      _ => HitTestResult::NOWHERE,
+      CLIENT => HitTestResult::Client,
+      LEFT => HitTestResult::Left,
+      RIGHT => HitTestResult::Right,
+      TOP => HitTestResult::Top,
+      BOTTOM => HitTestResult::Bottom,
+      TOPLEFT => HitTestResult::TopLeft,
+      TOPRIGHT => HitTestResult::TopRight,
+      BOTTOMLEFT => HitTestResult::BottomLeft,
+      BOTTOMRIGHT => HitTestResult::BottomRight,
+      _ => HitTestResult::NoWhere,
     }
   }
 
@@ -309,7 +309,7 @@ mod desktop_commands {
   pub async fn on_mousedown<R: Runtime>(window: Window<R>, x: i32, y: i32) -> crate::Result<()> {
     let res = hit_test(window.inner_size()?, x, y, window.scale_factor()?);
     match res {
-      HitTestResult::CLIENT | HitTestResult::NOWHERE => {}
+      HitTestResult::Client | HitTestResult::NoWhere => {}
       _ => res.drag_resize_window(&window),
     };
     Ok(())

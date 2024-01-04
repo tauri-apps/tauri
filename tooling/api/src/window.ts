@@ -45,6 +45,16 @@ export interface Monitor {
 type Theme = 'light' | 'dark'
 type TitleBarStyle = 'visible' | 'transparent' | 'overlay'
 
+type ResizeDirection =
+  | 'East'
+  | 'North'
+  | 'NorthEast'
+  | 'NorthWest'
+  | 'South'
+  | 'SouthEast'
+  | 'SouthWest'
+  | 'West'
+
 /**
  * The payload for the `scaleChange` event.
  *
@@ -1504,6 +1514,23 @@ class Window {
   async startDragging(): Promise<void> {
     return invoke('plugin:window|start_dragging', {
       label: this.label
+    })
+  }
+
+  /**
+   * Starts resize-dragging the window.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().startResizeDragging();
+   * ```
+   *
+   * @return A promise indicating the success or failure of the operation.
+   */
+  async startResizeDragging(direction: ResizeDirection): Promise<void> {
+    return invoke('plugin:window|start_resize_dragging', {
+      label: this.label,
+      direction
     })
   }
 

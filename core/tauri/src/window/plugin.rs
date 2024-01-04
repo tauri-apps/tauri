@@ -156,6 +156,7 @@ mod desktop_commands {
   setter!(set_cursor_position, Position);
   setter!(set_ignore_cursor_events, bool);
   setter!(start_dragging);
+  setter!(start_resize_dragging, ResizeDirection);
   setter!(set_progress_bar, ProgressBarState);
   setter!(print);
 
@@ -437,6 +438,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_cursor_position,
             desktop_commands::set_ignore_cursor_events,
             desktop_commands::start_dragging,
+            desktop_commands::start_resize_dragging,
             desktop_commands::set_progress_bar,
             desktop_commands::print,
             desktop_commands::set_icon,

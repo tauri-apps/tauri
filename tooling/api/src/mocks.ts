@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-interface IPCMessage {
-  cmd: string
-  callback: number
-  error: number
-  [key: string]: unknown
+import { InvokeArgs, InvokeOptions } from './core'
+
+function mockInternals() {
+  window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
 }
 
 /**
@@ -63,24 +62,41 @@ interface IPCMessage {
  * @since 1.0.0
  */
 export function mockIPC(
-  cb: (cmd: string, payload: Record<string, unknown>) => unknown
+  cb: <T>(cmd: string, payload?: InvokeArgs) => Promise<T>
 ): void {
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  window.__TAURI_INTERNALS__.ipc = async ({
-    cmd,
-    callback,
-    error,
-    payload
-  }: IPCMessage) => {
-    try {
-      // @ts-expect-error The function key is dynamic and therefore not typed
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      window[`_${callback}`](await cb(cmd, payload))
-    } catch (err) {
-      // @ts-expect-error The function key is dynamic and therefore not typed
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      window[`_${error}`](err)
-    }
+  mockInternals()
+
+  window.__TAURI_INTERNALS__.transformCallback = function transformCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    callback?: (response: any) => void,
+    once = false
+  ) {
+    const identifier = window.crypto.getRandomValues(new Uint32Array(1))[0]
+    const prop = `_${identifier}`
+
+    Object.defineProperty(window, prop, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      value: (result: any) => {
+        if (once) {
+          Reflect.deleteProperty(window, prop)
+        }
+
+        return callback && callback(result)
+      },
+      writable: false,
+      configurable: true
+    })
+
+    return identifier
+  }
+
+  window.__TAURI_INTERNALS__.invoke = function <T>(
+    cmd: string,
+    args?: InvokeArgs,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    options?: InvokeOptions
+  ): Promise<T> {
+    return cb(cmd, args)
   }
 }
 
@@ -128,6 +144,7 @@ export function mockWindows(
   current: string,
   ...additionalWindows: string[]
 ): void {
+  mockInternals()
   window.__TAURI_INTERNALS__.metadata = {
     windows: [current, ...additionalWindows].map((label) => ({ label })),
     currentWindow: { label: current }
@@ -153,7 +170,7 @@ export function mockWindows(
  * @since 1.6.0
  */
 export function mockConvertFileSrc(osName: string): void {
-  window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
+  mockInternals()
   window.__TAURI_INTERNALS__.convertFileSrc = function (
     filePath,
     protocol = 'asset'
@@ -196,10 +213,13 @@ export function clearMocks(): void {
     return
   }
 
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_INTERNALS__.convertFileSrc
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_INTERNALS__.ipc
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_INTERNALS__.metadata
+  if (window.__TAURI_INTERNALS__?.convertFileSrc)
+    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+    delete window.__TAURI_INTERNALS__.convertFileSrc
+  if (window.__TAURI_INTERNALS__?.invoke)
+    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+    delete window.__TAURI_INTERNALS__.invoke
+  if (window.__TAURI_INTERNALS__?.metadata)
+    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+    delete window.__TAURI_INTERNALS__.metadata
 }

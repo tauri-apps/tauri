@@ -19,7 +19,7 @@ use std::{
   hash::{Hash, Hasher},
   marker::PhantomData,
   path::PathBuf,
-  sync::mpsc::Sender,
+  sync::{mpsc::Sender, Arc},
 };
 
 use self::dpi::PhysicalPosition;
@@ -35,6 +35,30 @@ type WebResourceRequestHandler =
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
 type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
+
+type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
+
+/// Download event.
+pub enum DownloadEvent<'a> {
+  /// Download requested.
+  Requested {
+    /// The url being downloaded.
+    url: Url,
+    /// Represents where the file will be downloaded to.
+    /// Can be used to set the download location by assigning a new path to it.
+    /// The assigned path _must_ be absolute.
+    destination: &'a mut PathBuf,
+  },
+  /// Download finished.
+  Finished {
+    /// The URL of the original download request.
+    url: Url,
+    /// Potentially representing the filesystem path the file was downloaded to.
+    path: Option<PathBuf>,
+    /// Indicates if the download succeeded or not.
+    success: bool,
+  },
+}
 
 /// Kind of event for the page load handler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -240,6 +264,8 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<NavigationHandler>>,
 
+  pub download_handler: Option<Arc<DownloadHandler>>,
+
   /// The resolved URL to load on the webview.
   pub url: String,
 
@@ -284,6 +310,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         label,
         ipc_handler: None,
         navigation_handler: None,
+        download_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
@@ -313,6 +340,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         label,
         ipc_handler: None,
         navigation_handler: None,
+        download_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,

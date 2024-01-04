@@ -17,7 +17,8 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WindowEvent,
+    CursorIcon, DetachedWindow, DownloadEvent, FileDropEvent, PendingWindow, RawWindow,
+    WindowEvent,
   },
   DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
   RunEvent, RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
@@ -104,7 +105,6 @@ use std::{
 
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(String) + 'static;
-type FileDropHandler = dyn Fn(WryFileDropEvent) -> bool + 'static;
 
 mod webview;
 pub use webview::Webview;
@@ -239,21 +239,39 @@ impl<T: UserEvent> Context<T> {
   }
 }
 
-#[derive(Clone)]
+#[cfg(feature = "tracing")]
+#[derive(Debug, Clone, Default)]
+pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
+
+#[cfg(feature = "tracing")]
+impl ActiveTraceSpanStore {
+  pub fn remove_window_draw(&self, window_id: WindowId) {
+    let mut store = self.0.borrow_mut();
+    if let Some(index) = store
+      .iter()
+      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id, span: _ } if id == &window_id))
+    {
+      store.remove(index);
+    }
+  }
+}
+
+#[cfg(feature = "tracing")]
+#[derive(Debug)]
+pub enum ActiveTracingSpan {
+  WindowDraw {
+    id: WindowId,
+    span: tracing::span::EnteredSpan,
+  },
+}
+
+#[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
   pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
-}
-
-impl<T: UserEvent> std::fmt::Debug for DispatcherMainThreadContext<T> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("DispatcherMainThreadContext")
-      .field("window_target", &self.window_target)
-      .field("web_context", &self.web_context)
-      .field("windows", &self.windows)
-      .finish()
-  }
+  #[cfg(feature = "tracing")]
+  pub active_tracing_spans: ActiveTraceSpanStore,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -355,10 +373,11 @@ impl<'a> From<&TaoWindowEvent<'a>> for WindowEventWrapper {
   }
 }
 
-impl From<&WebviewEvent> for WindowEventWrapper {
-  fn from(event: &WebviewEvent) -> Self {
+impl From<WebviewEvent> for WindowEventWrapper {
+  fn from(event: WebviewEvent) -> Self {
     let event = match event {
-      WebviewEvent::Focused(focused) => WindowEvent::Focused(*focused),
+      WebviewEvent::Focused(focused) => WindowEvent::Focused(focused),
+      WebviewEvent::FileDrop(event) => WindowEvent::FileDrop(event),
     };
     Self(Some(event))
   }
@@ -1051,7 +1070,10 @@ pub enum WindowMessage {
 
 #[derive(Debug, Clone)]
 pub enum WebviewMessage {
+  #[cfg(not(feature = "tracing"))]
   EvaluateScript(String),
+  #[cfg(feature = "tracing")]
+  EvaluateScript(String, Sender<()>, tracing::Span),
   #[allow(dead_code)]
   WebviewEvent(WebviewEvent),
   Print,
@@ -1060,6 +1082,7 @@ pub enum WebviewMessage {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum WebviewEvent {
+  FileDrop(FileDropEvent),
   Focused(bool),
 }
 
@@ -1560,6 +1583,21 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  #[cfg(feature = "tracing")]
+  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    // use a channel so the EvaluateScript task uses the current span as parent
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
+      Message::Webview(
+        self.window_id,
+        WebviewMessage::EvaluateScript(script.into(), tx, tracing::Span::current()),
+      )
+    )
+  }
+
+  #[cfg(not(feature = "tracing"))]
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1867,6 +1905,8 @@ impl<T: UserEvent> Wry<T> {
         window_target: event_loop.deref().clone(),
         web_context,
         windows,
+        #[cfg(feature = "tracing")]
+        active_tracing_spans: Default::default(),
       },
       plugins: Default::default(),
       next_window_id: Default::default(),
@@ -2009,6 +2049,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let web_context = &self.context.main_thread.web_context;
     let plugins = self.context.plugins.clone();
 
+    #[cfg(feature = "tracing")]
+    let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
+
     let mut iteration = RunIteration::default();
 
     let proxy = self.event_loop.create_proxy();
@@ -2031,6 +2074,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               callback: &mut callback,
               webview_id_map: webview_id_map.clone(),
               windows: windows.clone(),
+              #[cfg(feature = "tracing")]
+              active_tracing_spans: active_tracing_spans.clone(),
             },
             web_context,
           );
@@ -2047,6 +2092,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             callback: &mut callback,
             windows: windows.clone(),
             webview_id_map: webview_id_map.clone(),
+            #[cfg(feature = "tracing")]
+            active_tracing_spans: active_tracing_spans.clone(),
           },
           web_context,
         );
@@ -2061,6 +2108,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let web_context = self.context.main_thread.web_context;
     let plugins = self.context.plugins.clone();
 
+    #[cfg(feature = "tracing")]
+    let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
     let proxy = self.event_loop.create_proxy();
 
     self.event_loop.run(move |event, event_loop, control_flow| {
@@ -2074,6 +2123,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             callback: &mut callback,
             webview_id_map: webview_id_map.clone(),
             windows: windows.clone(),
+            #[cfg(feature = "tracing")]
+            active_tracing_spans: active_tracing_spans.clone(),
           },
           &web_context,
         );
@@ -2089,6 +2140,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           callback: &mut callback,
           webview_id_map: webview_id_map.clone(),
           windows: windows.clone(),
+          #[cfg(feature = "tracing")]
+          active_tracing_spans: active_tracing_spans.clone(),
         },
         &web_context,
       );
@@ -2100,6 +2153,8 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
   pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  #[cfg(feature = "tracing")]
+  pub active_tracing_spans: ActiveTraceSpanStore,
 }
 
 struct UserMessageContext {
@@ -2374,6 +2429,19 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::Webview(id, webview_message) => match webview_message {
+      #[cfg(feature = "tracing")]
+      WebviewMessage::EvaluateScript(script, tx, span) => {
+        let _span = span.entered();
+        if let Some(WindowHandle::Webview { inner: webview, .. }) =
+          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
+        {
+          if let Err(e) = webview.evaluate_script(&script) {
+            debug_eprintln!("{}", e);
+          }
+        }
+        tx.send(()).unwrap();
+      }
+      #[cfg(not(feature = "tracing"))]
       WebviewMessage::EvaluateScript(script) => {
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
           windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
@@ -2441,6 +2509,8 @@ fn handle_event_loop<T: UserEvent>(
     callback,
     webview_id_map,
     windows,
+    #[cfg(feature = "tracing")]
+    active_tracing_spans,
   } = context;
   if *control_flow != ControlFlow::Exit {
     *control_flow = ControlFlow::Wait;
@@ -2463,8 +2533,13 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Exit);
     }
 
+    #[cfg(feature = "tracing")]
+    Event::RedrawRequested(id) => {
+      active_tracing_spans.remove_window_draw(id);
+    }
+
     Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {
-      if let Some(event) = WindowEventWrapper::from(&event).0 {
+      if let Some(event) = WindowEventWrapper::from(event).0 {
         let windows = windows.borrow();
         let window = windows.get(&id);
         if let Some(window) = window {
@@ -2645,10 +2720,16 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     label,
     ipc_handler,
     url,
-    #[cfg(target_os = "android")]
-    on_webview_created,
     ..
   } = pending;
+
+  #[cfg(feature = "tracing")]
+  let _webview_create_span = tracing::debug_span!("wry::webview::create").entered();
+  #[cfg(feature = "tracing")]
+  let window_draw_span = tracing::debug_span!("wry::window::draw").entered();
+  #[cfg(feature = "tracing")]
+  let window_create_span =
+    tracing::debug_span!(parent: &window_draw_span, "wry::window::create").entered();
 
   let window_event_listeners = WindowEventListeners::default();
 
@@ -2661,7 +2742,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   #[cfg(windows)]
   let window_theme = window_builder.inner.window.preferred_theme;
-  #[cfg(windows)]
+
   let proxy = context.proxy.clone();
 
   #[cfg(target_os = "macos")]
@@ -2677,6 +2758,21 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let is_window_transparent = window_builder.inner.window.transparent;
   let focused = window_builder.inner.window.focused;
   let window = window_builder.inner.build(event_loop).unwrap();
+
+  #[cfg(feature = "tracing")]
+  {
+    drop(window_create_span);
+
+    context
+      .main_thread
+      .active_tracing_spans
+      .0
+      .borrow_mut()
+      .push(ActiveTracingSpan::WindowDraw {
+        id: window.id(),
+        span: window_draw_span,
+      });
+  }
 
   context.webview_id_map.insert(window.id(), window_id);
 
@@ -2734,15 +2830,43 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+
   if webview_attributes.file_drop_handler_enabled {
-    webview_builder = webview_builder
-      .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
+    let proxy = proxy.clone();
+    webview_builder = webview_builder.with_file_drop_handler(move |event| {
+      let event: FileDropEvent = FileDropEventWrapper(event).into();
+      let _ = proxy.send_event(Message::Webview(
+        window_id,
+        WebviewMessage::WebviewEvent(WebviewEvent::FileDrop(event)),
+      ));
+      true
+    });
   }
+
   if let Some(navigation_handler) = pending.navigation_handler {
     webview_builder = webview_builder.with_navigation_handler(move |url| {
       Url::parse(&url)
         .map(|url| navigation_handler(&url))
         .unwrap_or(true)
+    });
+  }
+
+  if let Some(download_handler) = pending.download_handler {
+    let download_handler_ = download_handler.clone();
+    webview_builder = webview_builder.with_download_started_handler(move |url, path| {
+      if let Ok(url) = url.parse() {
+        download_handler_(DownloadEvent::Requested {
+          url,
+          destination: path,
+        })
+      } else {
+        false
+      }
+    });
+    webview_builder = webview_builder.with_download_completed_handler(move |url, path, success| {
+      if let Ok(url) = url.parse() {
+        download_handler(DownloadEvent::Finished { url, path, success });
+      }
     });
   }
 
@@ -2848,7 +2972,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   #[cfg(target_os = "android")]
   {
-    if let Some(on_webview_created) = on_webview_created {
+    if let Some(on_webview_created) = pending.on_webview_created {
       webview_builder = webview_builder.on_webview_created(move |ctx| {
         on_webview_created(tauri_runtime::window::CreationContext {
           env: ctx.env,
@@ -2931,21 +3055,5 @@ fn create_ipc_handler<T: UserEvent>(
       },
       request,
     );
-  })
-}
-
-/// Create a wry file drop handler.
-fn create_file_drop_handler(window_event_listeners: WindowEventListeners) -> Box<FileDropHandler> {
-  Box::new(move |event| {
-    let event: FileDropEvent = FileDropEventWrapper(event).into();
-    let window_event = WindowEvent::FileDrop(event);
-    let listeners_map = window_event_listeners.lock().unwrap();
-    let has_listener = !listeners_map.is_empty();
-    let handlers = listeners_map.values();
-    for listener in handlers {
-      listener(&window_event);
-    }
-    // block the default OS action on file drop if we had a listener
-    has_listener
   })
 }

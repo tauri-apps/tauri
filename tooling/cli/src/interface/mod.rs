@@ -13,7 +13,7 @@ use std::{
 use crate::helpers::config::Config;
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
-pub use rust::{manifest, MobileOptions, Options, Rust as AppInterface};
+pub use rust::{MobileOptions, Options, Rust as AppInterface};
 
 pub trait DevProcess {
   fn kill(&self) -> std::io::Result<()>;

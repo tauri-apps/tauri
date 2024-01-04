@@ -57,6 +57,7 @@ pub fn get<R: Runtime>(
         HttpResponse::builder()
           .status(StatusCode::BAD_REQUEST)
           .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+          .header("Access-Control-Allow-Origin", &window_origin)
           .body(e.to_string().as_bytes().to_vec())
           .unwrap(),
       ),

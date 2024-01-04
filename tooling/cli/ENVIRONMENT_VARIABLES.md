@@ -1,5 +1,3 @@
-<!-- TODO: v2 rename all vars with consistency and grouping -->
-
 ### Tauri's Environment Variables
 
 This is a documentation of all environment variables used by tauri core crates and tauri CLI.
@@ -35,15 +33,16 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_WEBVIEW_AUTOMATION` — Enables webview automation (Linux Only).
 - `TAURI_ANDROID_PROJECT_PATH` — Path of the tauri android project, usually will be `<project>/src-tauri/gen/android`.
 - `TAURI_IOS_PROJECT_PATH` — Path of the tauri iOS project, usually will be `<project>/src-tauri/gen/ios`.
+- `RPM_SIGN_KEY` — The private GPG key used to sign the RPM bundle, exported to its ASCII-armored format.
+- `RPM_SIGN_KEY_PASSPHRASE` — The GPG key passphrase for `RPM_SIGN_KEY`, if needed.
 
 ### Tauri CLI Hook Commands
 
 These environment variables are set for each hook command (`beforeDevCommand`, `beforeBuildCommand`, ...etc) which could be useful to conditionally build your frontend or execute a specific action.
 
-- `TAURI_ENV_ARCH` — Target arch, `x86_64`, `aarch64`...etc.
-- `TAURI_ENV_PLATFORM` — Target platform, `windows`, `macos`, `linux`...etc.
-- `TAURI_ENV_FAMILY` — Target platform family `unix` or `windows`.
-- `TAURI_ENV_PLATFORM_TYPE` — Target platform type `Linux`, `Windows_NT` or `Darwin`
-- `TAURI_ENV_PLATFORM_VERSION` — Build platform version
-- `TAURI_ENV_DEBUG` — `true` for `dev` command, `false` for `build` command.
+- `TAURI_ENV_DEBUG` — `true` for `dev` command or `build --debug`, `false` otherwise.
 - `TAURI_ENV_TARGET_TRIPLE` — Target triple the CLI is building.
+- `TAURI_ENV_ARCH` — Target arch, `x86_64`, `aarch64`...etc.
+- `TAURI_ENV_PLATFORM` — Target platform, `windows`, `darwin`, `linux`...etc.
+- `TAURI_ENV_PLATFORM_VERSION` — Build platform version
+- `TAURI_ENV_FAMILY` — Target platform family `unix` or `windows`.

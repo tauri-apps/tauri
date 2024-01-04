@@ -16,8 +16,6 @@ use serde::{
   Deserialize, Deserializer,
 };
 
-pub mod authority;
-
 /// Represents a custom command.
 pub struct CommandItem<'a, R: Runtime> {
   /// The name of the command, e.g. `handler` on `#[command] fn handler(value: u64)`
@@ -55,8 +53,11 @@ pub trait CommandArg<'de, R: Runtime>: Sized {
 /// Automatically implement [`CommandArg`] for any type that can be deserialized.
 impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
   fn from_command(command: CommandItem<'de, R>) -> Result<D, InvokeError> {
-    let CommandItem { name, key, .. } = command;
-    Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, key, e).into())
+    let name = command.name;
+    let arg = command.key;
+    #[cfg(feature = "tracing")]
+    let _span = tracing::trace_span!("ipc::request::deserialize_arg", arg = arg).entered();
+    Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e).into())
   }
 }
 
@@ -179,6 +180,8 @@ pub mod private {
   };
   use futures_util::{FutureExt, TryFutureExt};
   use std::future::Future;
+  #[cfg(feature = "tracing")]
+  pub use tracing;
 
   // ===== impl IpcResponse =====
 

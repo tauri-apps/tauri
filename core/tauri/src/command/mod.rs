@@ -16,6 +16,8 @@ use serde::{
   Deserialize, Deserializer,
 };
 
+mod authority;
+
 /// Represents a custom command.
 pub struct CommandItem<'a, R: Runtime> {
   /// The name of the command, e.g. `handler` on `#[command] fn handler(value: u64)`

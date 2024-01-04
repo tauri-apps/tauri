@@ -1,10 +1,10 @@
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::future::{Future, Ready};
+use std::future::{ready, Future};
 use std::marker::PhantomData;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,6 @@ use serde_json::Value;
 use tauri_macros::default_runtime;
 
 use crate::command;
-use crate::ipc::InvokeMessage;
 use crate::{Runtime, RuntimeHandle};
 
 /// Alias for `Result<T, tauri::command::Error>`.
@@ -33,6 +32,9 @@ pub struct RuntimeAuthority {
 #[derive(Debug)]
 pub enum Error {
   NotFound,
+  StateEmpty,
+  StateType,
+  Scope,
 }
 
 pub trait IntoCommandResponse {
@@ -132,10 +134,11 @@ impl<'a> TryFrom<&'a RuntimeAuthorityScope> for &'a WeakScope {
 struct CommandRequest<R: RuntimeHandle> {
   scope: Arc<RuntimeAuthorityScope>,
   //msg: InvokeMessage<R>,
+  msg: String,
   _m: PhantomData<R>,
 }
 
-struct CommandResponse(String);
+pub struct CommandResponse(String);
 
 impl<S> IntoCommandResponse for S
 where
@@ -206,73 +209,79 @@ impl<R: RuntimeHandle> StrictCommand<R> for Echo {
   }
 }
 
-pub type VCmdState = Arc<dyn Any + Send + Sync>;
+pub type VCmdState = Arc<dyn Any + Send + Sync + 'static>;
 
 #[default_runtime(crate::WryHandle, wry)]
 pub type VCmdHandle<R> = fn(Option<VCmdState>, CommandRequest<R>) -> VCmdFuture;
 
-#[default_runtime(crate::WryHandle, wry)]
-pub type VCmdSetup<R> = fn(&VCmd<R>);
-
 pub type VCmdFuture = Pin<Box<dyn Future<Output = Result<CommandResponse>> + Send>>;
 
-/*#[default_runtime(crate::WryHandle, wry)]
-pub struct VCmdHandler<R: RuntimeHandle> {
+#[default_runtime(crate::WryHandle, wry)]
+struct CommandInner<R: RuntimeHandle> {
+  name: &'static str,
   state: Option<VCmdState>,
-  setup: Option<fn(Option<&VCmdState>) -> Ready<()>>,
   handle: VCmdHandle<R>,
 }
 
-impl<R: RuntimeHandle> VCmdHandler<R> {
-  pub async fn handle(self, request: CommandRequest<R>) -> Result<CommandResponse> {
-    if let Some(setup) = self.setup {
-      setup(self.state.as_ref()).await
-    }
-
-    (self.handle)(self.state, request).await
-  }
-}*/
-
-#[default_runtime(crate::WryHandle, wry)]
-pub struct VCmd<R: RuntimeHandle> {
-  pub name: &'static str,
-  pub state: Option<VCmdState>,
-  pub setup: Option<fn(Option<&VCmdState>) -> Ready<()>>,
-  pub handle: VCmdHandle<R>,
-}
-
-impl<R> Clone for VCmd<R>
-where
-  R: RuntimeHandle,
-{
+impl<R: RuntimeHandle> Clone for CommandInner<R> {
   #[inline(always)]
   fn clone(&self) -> Self {
     Self {
       name: self.name,
       state: self.state.clone(),
-      setup: self.setup,
       handle: self.handle,
     }
   }
 }
 
+#[default_runtime(crate::WryHandle, wry)]
+pub struct VCmd<R: RuntimeHandle> {
+  inner: CommandInner<R>,
+}
+
 impl<R: RuntimeHandle> VCmd<R> {
-  #[inline(always)]
-  fn setup(&self) -> Self {
-    VCmd {
-      name: self.name,
-      state: self.state.clone(),
-      setup: self.setup,
-      handle: self.handle,
+  #[inline]
+  pub fn new(name: &'static str, handle: VCmdHandle<R>) -> Self {
+    Self {
+      inner: CommandInner {
+        name,
+        handle,
+        state: None,
+      },
     }
   }
 
-  pub async fn handle(self, request: CommandRequest<R>) -> Result<CommandResponse> {
-    if let Some(setup) = self.setup {
-      setup(self.state.as_ref()).await
+  #[inline]
+  pub fn with_state<T>(name: &'static str, handle: VCmdHandle<R>, state: Arc<T>) -> Self
+  where
+    T: Any + Send + Sync,
+  {
+    Self {
+      inner: CommandInner {
+        name,
+        handle,
+        state: Some(state),
+      },
     }
+  }
 
-    (self.handle)(self.state, request).await
+  #[inline]
+  pub fn handler(&self) -> VCmdHandler<R> {
+    VCmdHandler {
+      inner: self.inner.clone(),
+    }
+  }
+}
+
+#[default_runtime(crate::WryHandle, wry)]
+pub struct VCmdHandler<R: RuntimeHandle> {
+  inner: CommandInner<R>,
+}
+
+impl<R: RuntimeHandle> VCmdHandler<R> {
+  #[inline(always)]
+  pub fn handle(self, request: CommandRequest<R>) -> VCmdFuture {
+    (self.inner.handle)(self.inner.state, request)
   }
 }
 
@@ -285,12 +294,121 @@ impl<R: RuntimeHandle, T: Into<BTreeMap<&'static str, VCmd<R>>>> From<T> for VCm
   }
 }
 
+#[default_runtime(crate::WryHandle, wry)]
+pub trait IntoCommand<R: RuntimeHandle>: Sized {
+  fn into_command(self) -> VCmd<R>;
+}
+
+pub trait IntoCommandResult {
+  fn into_command_result(self) -> Result<CommandResponse>;
+}
+
+impl<T> IntoCommandResult for Result<T>
+where
+  T: IntoCommandResponse,
+{
+  #[inline(always)]
+  fn into_command_result(self) -> Result<CommandResponse> {
+    self.map(IntoCommandResponse::into_command_response)
+  }
+}
+
+#[default_runtime(crate::WryHandle, wry)]
+pub trait FunctionalCommand<R: RuntimeHandle> {
+  type Scope: Scoped + Debug + 'static;
+
+  fn nname() -> &'static str;
+
+  fn handle(scope: &Self::Scope, request: CommandRequest<R>) -> VCmdFuture;
+
+  fn into_command(self) -> VCmd<R>
+  where
+    Self: Sized,
+  {
+    fn handle<T, R>(_state: Option<VCmdState>, request: CommandRequest<R>) -> VCmdFuture
+    where
+      T: FunctionalCommand<R>,
+      R: RuntimeHandle,
+    {
+      let scopes = request.scope.clone();
+      let scope = scopes.get_typed::<T::Scope>(T::nname()).unwrap();
+      T::handle(scope, request)
+    }
+
+    VCmd::new(Self::nname(), handle::<Self, R>)
+  }
+}
+
+#[default_runtime(crate::WryHandle, wry)]
+pub trait StatefulCommand<R: RuntimeHandle> {
+  type Scope: Scoped + Debug + 'static;
+
+  fn nname() -> &'static str;
+
+  fn handle(self: Arc<Self>, scope: &Self::Scope, request: CommandRequest<R>) -> VCmdFuture;
+
+  fn into_command(self) -> VCmd<R>
+  where
+    Self: Send + Sync + Sized + 'static,
+  {
+    fn handle<T, R>(state: Option<VCmdState>, request: CommandRequest<R>) -> VCmdFuture
+    where
+      T: StatefulCommand<R> + Send + Sync + 'static,
+      R: RuntimeHandle,
+    {
+      Box::pin(async move {
+        let scopes = request.scope.clone();
+        let scope = scopes
+          .get_typed::<T::Scope>(T::nname())
+          .ok_or(Error::Scope)?;
+
+        let state = state
+          .ok_or(Error::StateEmpty)?
+          .downcast()
+          .map_err(|_| Error::StateType)?;
+
+        T::handle(state, scope, request).await
+      })
+    }
+
+    VCmd::with_state(Self::nname(), handle::<Self, R>, Arc::new(self))
+  }
+}
+
 fn echo<R: RuntimeHandle>() -> VCmd<R> {
-  VCmd {
-    name: "echo",
-    state: None,
-    setup: None,
-    handle: |_, _r| Box::pin(async move { Ok(CommandResponse("THIS IS AN ECHO".into())) }),
+  VCmd::new("echo", |_, _r| {
+    Box::pin(async move { Ok(CommandResponse("THIS IS AN ECHO".into())) })
+  })
+}
+
+struct E;
+
+impl<R: RuntimeHandle> FunctionalCommand<R> for E {
+  type Scope = String;
+
+  fn nname() -> &'static str {
+    "echo"
+  }
+
+  fn handle(scope: &Self::Scope, request: CommandRequest<R>) -> VCmdFuture {
+    Box::pin(ready(Ok(CommandResponse(request.msg))))
+  }
+}
+
+struct PE(String);
+
+impl<R: RuntimeHandle> StatefulCommand<R> for PE {
+  type Scope = String;
+
+  fn nname() -> &'static str {
+    "echo_prefix"
+  }
+
+  fn handle(self: Arc<Self>, _: &Self::Scope, request: CommandRequest<R>) -> VCmdFuture {
+    Box::pin(ready(Ok(CommandResponse(format!(
+      "{}: {}",
+      self.0, request.msg
+    )))))
   }
 }
 
@@ -304,7 +422,8 @@ mod tests {
         raw: scope.into(),
         cache: Default::default(),
       }),
-      _m: PhantomData::default(),
+      msg: "invoke message".into(),
+      _m: PhantomData,
     }
   }
 
@@ -314,11 +433,43 @@ mod tests {
     let echo = super::echo();
     //let cmds = VCmds::from([(echo.name, echo)]);
 
-    let handler = echo.clone();
+    let handler = echo.handler();
     crate::async_runtime::spawn(async move {
       assert_eq!(
         handler.handle(request).await.unwrap().0,
         String::from("THIS IS AN ECHO")
+      );
+    })
+    .await
+    .unwrap();
+  }
+
+  #[tokio::test]
+  async fn echo_functional() {
+    let echo = E;
+    let request = req([("echo".into(), Value::String("ECHO".into()))]);
+    let cmd = echo.into_command();
+    let handler = cmd.handler();
+    crate::async_runtime::spawn(async move {
+      assert_eq!(
+        handler.handle(request).await.unwrap().0,
+        String::from("invoke message")
+      );
+    })
+    .await
+    .unwrap();
+  }
+
+  #[tokio::test]
+  async fn echo_stateful() {
+    let echo = PE("prefix".into());
+    let request = req([("echo_prefix".into(), Value::String("ECHO".into()))]);
+    let cmd = echo.into_command();
+    let handler = cmd.handler();
+    crate::async_runtime::spawn(async move {
+      assert_eq!(
+        handler.handle(request).await.unwrap().0,
+        String::from("prefix: invoke message")
       );
     })
     .await

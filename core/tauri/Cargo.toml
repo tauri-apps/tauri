@@ -72,6 +72,7 @@ ico = { version = "0.3.0", optional = true }
 http-range = { version = "0.1.5", optional = true }
 static_assertions = "1.1.0"
 toml = "0.8.8"
+async-trait = "0.1.74"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.11", default-features = false, features = [ "serde" ] }

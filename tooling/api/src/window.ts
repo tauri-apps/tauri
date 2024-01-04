@@ -1530,7 +1530,7 @@ class Window {
   async startResizeDragging(direction: ResizeDirection): Promise<void> {
     return invoke('plugin:window|start_resize_dragging', {
       label: this.label,
-      direction
+      value: direction
     })
   }
 

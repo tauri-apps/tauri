@@ -372,6 +372,7 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       header.set_metadata(&stat);
       header.set_uid(0);
       header.set_gid(0);
+      header.set_mode(0o755);
       tar_builder.append_data(&mut header, dest_path, &mut io::empty())?;
     } else {
       let mut src_file = fs::File::open(src_path)?;
@@ -380,6 +381,7 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       header.set_metadata(&stat);
       header.set_uid(0);
       header.set_gid(0);
+      header.set_mode(0o644);
       tar_builder.append_data(&mut header, dest_path, &mut src_file)?;
     }
   }

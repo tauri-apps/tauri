@@ -12,6 +12,7 @@ use crate::{
 #[cfg(desktop)]
 mod desktop_commands {
   use serde::Deserialize;
+  use tauri_runtime::ResizeDirection;
   use tauri_utils::ProgressBarState;
 
   use super::*;
@@ -211,6 +212,107 @@ mod desktop_commands {
     }
     Ok(())
   }
+
+  #[derive(Debug)]
+  enum HitTestResult {
+    CLIENT,
+    LEFT,
+    RIGHT,
+    TOP,
+    BOTTOM,
+    TOPLEFT,
+    TOPRIGHT,
+    BOTTOMLEFT,
+    BOTTOMRIGHT,
+    NOWHERE,
+  }
+
+  impl HitTestResult {
+    fn drag_resize_window<R: Runtime>(&self, window: &Window<R>) {
+      let _ = window.start_resize_dragging(match self {
+        HitTestResult::LEFT => ResizeDirection::West,
+        HitTestResult::RIGHT => ResizeDirection::East,
+        HitTestResult::TOP => ResizeDirection::North,
+        HitTestResult::BOTTOM => ResizeDirection::South,
+        HitTestResult::TOPLEFT => ResizeDirection::NorthWest,
+        HitTestResult::TOPRIGHT => ResizeDirection::NorthEast,
+        HitTestResult::BOTTOMLEFT => ResizeDirection::SouthWest,
+        HitTestResult::BOTTOMRIGHT => ResizeDirection::SouthEast,
+        _ => unreachable!(),
+      });
+    }
+
+    fn change_cursor<R: Runtime>(&self, window: &Window<R>) {
+      let _ = window.set_cursor_icon(match self {
+        HitTestResult::LEFT => CursorIcon::WResize,
+        HitTestResult::RIGHT => CursorIcon::EResize,
+        HitTestResult::TOP => CursorIcon::NResize,
+        HitTestResult::BOTTOM => CursorIcon::SResize,
+        HitTestResult::TOPLEFT => CursorIcon::NwResize,
+        HitTestResult::TOPRIGHT => CursorIcon::NeResize,
+        HitTestResult::BOTTOMLEFT => CursorIcon::SwResize,
+        HitTestResult::BOTTOMRIGHT => CursorIcon::SeResize,
+        _ => CursorIcon::Default,
+      });
+    }
+  }
+
+  fn hit_test(window_size: PhysicalSize<u32>, x: i32, y: i32, scale: f64) -> HitTestResult {
+    const BORDERLESS_RESIZE_INSET: f64 = 5.0;
+
+    const CLIENT: isize = 0b0000;
+    const LEFT: isize = 0b0001;
+    const RIGHT: isize = 0b0010;
+    const TOP: isize = 0b0100;
+    const BOTTOM: isize = 0b1000;
+    const TOPLEFT: isize = TOP | LEFT;
+    const TOPRIGHT: isize = TOP | RIGHT;
+    const BOTTOMLEFT: isize = BOTTOM | LEFT;
+    const BOTTOMRIGHT: isize = BOTTOM | RIGHT;
+
+    let top = 0;
+    let left = 0;
+    let bottom = top + window_size.height as i32;
+    let right = left + window_size.width as i32;
+
+    let inset = (BORDERLESS_RESIZE_INSET * scale) as i32;
+
+    #[rustfmt::skip]
+        let result =
+            (LEFT * (if x < (left + inset) { 1 } else { 0 }))
+          | (RIGHT * (if x >= (right - inset) { 1 } else { 0 }))
+          | (TOP * (if y < (top + inset) { 1 } else { 0 }))
+          | (BOTTOM * (if y >= (bottom - inset) { 1 } else { 0 }));
+
+    match result {
+      CLIENT => HitTestResult::CLIENT,
+      LEFT => HitTestResult::LEFT,
+      RIGHT => HitTestResult::RIGHT,
+      TOP => HitTestResult::TOP,
+      BOTTOM => HitTestResult::BOTTOM,
+      TOPLEFT => HitTestResult::TOPLEFT,
+      TOPRIGHT => HitTestResult::TOPRIGHT,
+      BOTTOMLEFT => HitTestResult::BOTTOMLEFT,
+      BOTTOMRIGHT => HitTestResult::BOTTOMRIGHT,
+      _ => HitTestResult::NOWHERE,
+    }
+  }
+
+  #[command(root = "crate")]
+  pub async fn on_mousemove<R: Runtime>(window: Window<R>, x: i32, y: i32) -> crate::Result<()> {
+    hit_test(window.inner_size()?, x, y, window.scale_factor()?).change_cursor(&window);
+    Ok(())
+  }
+
+  #[command(root = "crate")]
+  pub async fn on_mousedown<R: Runtime>(window: Window<R>, x: i32, y: i32) -> crate::Result<()> {
+    let res = hit_test(window.inner_size()?, x, y, window.scale_factor()?);
+    match res {
+      HitTestResult::CLIENT | HitTestResult::NOWHERE => {}
+      _ => res.drag_resize_window(&window),
+    };
+    Ok(())
+  }
 }
 
 /// Initializes the plugin.
@@ -232,6 +334,21 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
   init_script.push_str(
     &Drag {
+      os_name: std::env::consts::OS,
+    }
+    .render_default(&Default::default())
+    .unwrap()
+    .into_string(),
+  );
+
+  #[derive(Template)]
+  #[default_template("./scripts/undecorated-resizing.js")]
+  struct UndecoratedResizingJavascript<'a> {
+    os_name: &'a str,
+  }
+
+  init_script.push_str(
+    &UndecoratedResizingJavascript {
       os_name: std::env::consts::OS,
     }
     .render_default(&Default::default())
@@ -327,6 +444,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::internal_toggle_maximize,
             #[cfg(any(debug_assertions, feature = "devtools"))]
             desktop_commands::internal_toggle_devtools,
+            desktop_commands::on_mousemove,
+            desktop_commands::on_mousedown,
           ]);
         handler(invoke)
       }

@@ -1065,6 +1065,7 @@ pub enum WindowMessage {
   SetIgnoreCursorEvents(bool),
   SetProgressBar(ProgressBarState),
   DragWindow,
+  ResizeDragWindow(tauri_runtime::ResizeDirection),
   RequestRedraw,
 }
 
@@ -1580,6 +1581,13 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::DragWindow),
+    )
+  }
+
+  fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::ResizeDragWindow(direction)),
     )
   }
 
@@ -2418,6 +2426,18 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::DragWindow => {
             let _ = window.drag_window();
+          }
+          WindowMessage::ResizeDragWindow(direction) => {
+            let _ = window.drag_resize_window(match direction {
+              tauri_runtime::ResizeDirection::East => tao::window::ResizeDirection::East,
+              tauri_runtime::ResizeDirection::North => tao::window::ResizeDirection::North,
+              tauri_runtime::ResizeDirection::NorthEast => tao::window::ResizeDirection::NorthEast,
+              tauri_runtime::ResizeDirection::NorthWest => tao::window::ResizeDirection::NorthWest,
+              tauri_runtime::ResizeDirection::South => tao::window::ResizeDirection::South,
+              tauri_runtime::ResizeDirection::SouthEast => tao::window::ResizeDirection::SouthEast,
+              tauri_runtime::ResizeDirection::SouthWest => tao::window::ResizeDirection::SouthWest,
+              tauri_runtime::ResizeDirection::West => tao::window::ResizeDirection::West,
+            });
           }
           WindowMessage::RequestRedraw => {
             window.request_redraw();

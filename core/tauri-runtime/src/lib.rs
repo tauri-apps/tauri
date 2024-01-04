@@ -69,6 +69,19 @@ impl Default for DeviceEventFilter {
   }
 }
 
+/// Defines the orientation that a window resize will be performed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum ResizeDirection {
+  East,
+  North,
+  NorthEast,
+  NorthWest,
+  South,
+  SouthEast,
+  SouthWest,
+  West,
+}
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -589,6 +602,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Starts dragging the window.
   fn start_dragging(&self) -> Result<()>;
+
+  /// Starts resize-dragging the window.
+  fn start_resize_dragging(&self, direction: ResizeDirection) -> Result<()>;
 
   /// Executes javascript on the window this [`Dispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;

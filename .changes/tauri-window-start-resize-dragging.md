@@ -1,5 +1,5 @@
 ---
-'tauri': 'patch :feat'
+'tauri': 'patch:feat'
 'tauri-runtime': 'patch'
 'tauri-runtime-wry': 'patch'
 ---

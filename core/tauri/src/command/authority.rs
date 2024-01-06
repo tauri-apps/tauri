@@ -149,7 +149,6 @@ where
   }
 }
 
-static_assertions::assert_obj_safe!(Command);
 #[default_runtime(crate::WryHandle, wry)]
 trait Command<R: RuntimeHandle> {
   fn name(&self) -> &'static str;
@@ -158,6 +157,9 @@ trait Command<R: RuntimeHandle> {
 
   //fn handle(&self, request: CommandRequest<R>) -> Result<CommandResponse>;
 }
+
+#[cfg(feature = "wry")]
+static_assertions::assert_obj_safe!(Command<crate::WryHandle>);
 
 #[default_runtime(crate::WryHandle, wry)]
 trait StrictCommand<R: RuntimeHandle> {

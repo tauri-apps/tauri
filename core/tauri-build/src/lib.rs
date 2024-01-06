@@ -369,7 +369,7 @@ impl Attributes {
 /// If any of the build time helpers fail, they will [`std::panic!`] with the related error message.
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
-  if let Err(error) = try_build(Attributes::default()) {
+   if let Err(error) = try_build(Attributes::default()) {
     let error = format!("{error:#}");
     println!("{error}");
     if error.starts_with("unknown field") {
@@ -448,6 +448,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
 
   let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+
+  println!("cargo:rustc-env=OUT_DIR={}", out_dir.to_str().unwrap());
+
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
   let target_dir = out_dir
     .parent()

@@ -369,7 +369,7 @@ impl Attributes {
 /// If any of the build time helpers fail, they will [`std::panic!`] with the related error message.
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
-   if let Err(error) = try_build(Attributes::default()) {
+  if let Err(error) = try_build(Attributes::default()) {
     let error = format!("{error:#}");
     println!("{error}");
     if error.starts_with("unknown field") {

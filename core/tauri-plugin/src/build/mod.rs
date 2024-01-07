@@ -1,6 +1,7 @@
 use cargo_metadata::{Metadata, MetadataCommand};
-use tauri::utils::acl::{Permission, PermissionSet};
 use thiserror::Error;
+
+pub mod acl;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -21,13 +22,31 @@ pub enum Error {
   #[error("CARGO_MANIFEST_DIR could not canonicalize")]
   Manifest(std::io::Error),
 
-  #[error("failed to grab Cargo manifest: {0}")]
+  #[error("failed to read file: {0}")]
+  ReadFile(std::io::Error),
+
+  #[error("failed to write file: {0}")]
+  WriteFile(std::io::Error),
+
+  #[error("failed to execute: {0}")]
   Metadata(#[from] cargo_metadata::Error),
+
+  #[error("failed to run glob: {0}")]
+  Glob(#[from] glob::PatternError),
+
+  #[error("failed to parse TOML: {0}")]
+  Toml(#[from] toml::de::Error),
+
+  #[error("failed to parse JSON: {0}")]
+  Json(#[from] serde_json::Error),
+
+  #[error("unknown permission format {0}")]
+  UnknownPermissionFormat(String),
 }
 
 /// [`try_build`] but will exit automatically if an error is found.
-pub fn build() {
-  if let Err(error) = try_build() {
+pub fn build(permissions_path_pattern: &str) {
+  if let Err(error) = try_build(permissions_path_pattern) {
     println!("{}: {}", env!("CARGO_PKG_NAME"), error);
     std::process::exit(1);
   }
@@ -39,7 +58,7 @@ pub fn build() {
 ///
 /// Errors will occur if environmental variables expected to be set inside of [build scripts]
 /// are not found, or if the crate violates Tauri plugin conventions.
-pub fn try_build() -> Result<(), Error> {
+pub fn try_build(permissions_path_pattern: &str) -> Result<(), Error> {
   // convention: plugin names should not use underscores
   let name = build_var("CARGO_PKG_NAME")?;
   if name.contains('_') {
@@ -48,6 +67,8 @@ pub fn try_build() -> Result<(), Error> {
 
   // requirement: links MUST be set and MUST match the name
   let _links = build_var("CARGO_MANIFEST_LINKS")?;
+
+  acl::define_permissions(permissions_path_pattern)?;
 
   let metadata = find_metadata()?;
   println!("{metadata:#?}");
@@ -71,12 +92,3 @@ fn find_metadata() -> Result<Metadata, Error> {
         .map_err(Error::Metadata)
     })
 }
-
-#[derive(Debug)]
-struct PluginPermissions {
-  default: Permission,
-  sets: Option<Vec<PermissionSet>>,
-  permissions: Option<Vec<Permission>>,
-}
-
-impl PluginPermissions {}

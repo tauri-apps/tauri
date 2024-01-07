@@ -442,6 +442,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   allowlist::check(&config, &mut manifest)?;
+  tauri_plugin::acl::read_permissions().context("failed to read plugin permissions")?;
 
   let target_triple = std::env::var("TARGET").unwrap();
 

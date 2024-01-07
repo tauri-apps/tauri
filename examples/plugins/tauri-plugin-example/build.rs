@@ -1,3 +1,3 @@
 fn main() {
-  tauri_plugin::build()
+  tauri_plugin::build("./permissions/**/*.toml")
 }

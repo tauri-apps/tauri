@@ -1,3 +1,4 @@
+use serde::{Deserialize, Deserializer};
 use std::num::NonZeroU8;
 use thiserror::Error;
 
@@ -163,6 +164,15 @@ impl TryFrom<String> for Identifier {
       inner: value,
       separator: seperator,
     })
+  }
+}
+
+impl<'de> Deserialize<'de> for Identifier {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    Self::try_from(String::deserialize(deserializer)?).map_err(serde::de::Error::custom)
   }
 }
 

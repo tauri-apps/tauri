@@ -49,6 +49,10 @@ pub fn define_permissions(pattern: &str) -> Result<(), Error> {
     .flatten()
     .collect::<Vec<PathBuf>>();
 
+  for path in &permission_files {
+    println!("cargo:rerun-if-changed={}", path.display());
+  }
+
   let permission_files_path = std::env::temp_dir().join(format!(
     "{}-permission-files",
     std::env::var("CARGO_PKG_NAME").unwrap()

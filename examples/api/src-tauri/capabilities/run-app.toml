@@ -1,0 +1,4 @@
+identifier = "run-app"
+description = "app capability"
+windows = ["main"]
+permissions = ["sample:allow-ping"]

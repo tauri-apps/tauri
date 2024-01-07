@@ -61,12 +61,6 @@ pub struct InlinedPermission {
   pub scopes: Scopes,
 }
 
-/// Identifier of a permission
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PermissionId {
-  inner: String,
-}
-
 /// A permission.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Permission {

@@ -3513,6 +3513,7 @@ dependencies = [
  "anyhow",
  "cargo_toml",
  "dirs-next",
+ "glob",
  "heck",
  "json-patch",
  "plist",
@@ -3525,6 +3526,7 @@ dependencies = [
  "tauri-plugin",
  "tauri-utils",
  "tauri-winres",
+ "toml 0.8.2",
  "walkdir",
 ]
 

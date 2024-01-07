@@ -42,6 +42,7 @@ mod static_vcruntime;
 pub use codegen::context::CodegenContext;
 
 const ACL_FILE_NAME: &str = "acl.json";
+const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 
 fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   let from = from.as_ref();
@@ -336,6 +337,7 @@ impl WindowsAttributes {
 pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,
+  capabilities_path_pattern: Option<&'static str>,
 }
 
 impl Attributes {
@@ -348,6 +350,13 @@ impl Attributes {
   #[must_use]
   pub fn windows_attributes(mut self, windows_attributes: WindowsAttributes) -> Self {
     self.windows_attributes = windows_attributes;
+    self
+  }
+
+  /// Set the glob pattern to be used to find the capabilities.
+  #[must_use]
+  pub fn capabilities_path_pattern(mut self, pattern: &'static str) -> Self {
+    self.capabilities_path_pattern.replace(pattern);
     self
   }
 }
@@ -449,6 +458,54 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   allowlist::check(&config, &mut manifest)?;
   let acl = acl::process()?;
   std::fs::write(out_dir.join(ACL_FILE_NAME), serde_json::to_string(&acl)?)?;
+  let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
+    acl::parse_capabilities(pattern)?
+  } else {
+    acl::parse_capabilities("./capabilities/**/*")?
+  };
+
+  for capability in capabilities.values() {
+    for permission in &capability.permissions {
+      if let Some((plugin_name, permission_name)) = permission.get().split_once(':') {
+        let permission_exists = acl
+          .get(plugin_name)
+          .map(|manifest| {
+            if permission_name == "default" {
+              manifest.default_permission.is_some()
+            } else {
+              manifest.permissions.contains_key(permission_name)
+                || manifest.permission_sets.contains_key(permission_name)
+            }
+          })
+          .unwrap_or(false);
+
+        if !permission_exists {
+          let mut available_permissions = Vec::new();
+          for (plugin, manifest) in &acl {
+            if manifest.default_permission.is_some() {
+              available_permissions.push(format!("{plugin}:default"));
+            }
+            for p in manifest.permissions.keys() {
+              available_permissions.push(format!("{plugin}:{p}"));
+            }
+            for p in manifest.permission_sets.keys() {
+              available_permissions.push(format!("{plugin}:{p}"));
+            }
+          }
+
+          anyhow::bail!(
+            "Permission {} not found, expected one of {}",
+            permission.get(),
+            available_permissions.join(", ")
+          );
+        }
+      }
+    }
+  }
+  std::fs::write(
+    out_dir.join(CAPABILITIES_FILE_NAME),
+    serde_json::to_string(&capabilities)?,
+  )?;
 
   let target_triple = std::env::var("TARGET").unwrap();
 

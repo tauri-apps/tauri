@@ -1,13 +1,7 @@
 //! End-user abstraction for selecting permissions a window has access to.
 
-use crate::acl::PermissionId;
+use crate::acl::Identifier;
 use serde::{Deserialize, Serialize};
-
-/// Identifier of a capability.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CapabilityId {
-  inner: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 
@@ -24,28 +18,24 @@ pub struct CapabilitySet {
 /// Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Capability {
-  identifier: CapabilityId,
-  description: String,
+  pub identifier: String,
   #[serde(default)]
-  context: CapabilityContext,
-  windows: Vec<String>,
-  permissions: Vec<PermissionId>,
+  pub description: String,
+  #[serde(default)]
+  pub context: CapabilityContext,
+  pub windows: Vec<String>,
+  pub permissions: Vec<Identifier>,
 }
 
 /// Context of the capability.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub enum CapabilityContext {
   /// Capability refers to local URL usage.
+  #[default]
   Local,
   /// Capability refers to remote usage.
   Remote {
     /// Remote domain this capability refers to.
     dangerous_remote: Vec<String>,
   },
-}
-
-impl Default for CapabilityContext {
-  fn default() -> Self {
-    Self::Local
-  }
 }

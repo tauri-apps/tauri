@@ -1,9 +1,48 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use tauri_utils::acl::{plugin::Manifest, InlinedPermission, Permission, PermissionSet};
+use serde::Deserialize;
+use tauri_utils::acl::{
+  capability::Capability, plugin::Manifest, InlinedPermission, Permission, PermissionSet,
+};
 
-pub fn process() -> Result<HashMap<String, Manifest>> {
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum CapabilityFile {
+  Capability(Capability),
+  List { capabilities: Vec<Capability> },
+}
+
+pub fn parse_capabilities(capabilities_path_pattern: &str) -> Result<HashMap<String, Capability>> {
+  let mut capabilities_map = HashMap::new();
+
+  for path in glob::glob(capabilities_path_pattern)?.flatten() {
+    println!("cargo:rerun-if-changed={}", path.display());
+
+    let capability_file = std::fs::read_to_string(&path)?;
+    let ext = path.extension().unwrap().to_string_lossy().to_string();
+    let capability: CapabilityFile = match ext.as_str() {
+      "toml" => toml::from_str(&capability_file)?,
+      "json" => serde_json::from_str(&capability_file)?,
+      _ => return Err(anyhow::anyhow!("unknown capability format")),
+    };
+
+    match capability {
+      CapabilityFile::Capability(capability) => {
+        capabilities_map.insert(capability.identifier.clone(), capability);
+      }
+      CapabilityFile::List { capabilities } => {
+        for capability in capabilities {
+          capabilities_map.insert(capability.identifier.clone(), capability);
+        }
+      }
+    }
+  }
+
+  Ok(capabilities_map)
+}
+
+pub(crate) fn process() -> Result<HashMap<String, Manifest>> {
   let permission_map =
     tauri_plugin::acl::read_permissions().context("failed to read plugin permissions")?;
 

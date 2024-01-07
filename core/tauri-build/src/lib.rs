@@ -27,6 +27,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
+mod acl;
 mod allowlist;
 #[cfg(feature = "codegen")]
 mod codegen;
@@ -39,6 +40,8 @@ mod static_vcruntime;
 #[cfg(feature = "codegen")]
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
+
+const ACL_FILE_NAME: &str = "acl.json";
 
 fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   let from = from.as_ref();
@@ -441,14 +444,16 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
   }
 
+  let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+
   allowlist::check(&config, &mut manifest)?;
-  tauri_plugin::acl::read_permissions().context("failed to read plugin permissions")?;
+  let acl = acl::process()?;
+  std::fs::write(out_dir.join(ACL_FILE_NAME), serde_json::to_string(&acl)?)?;
 
   let target_triple = std::env::var("TARGET").unwrap();
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
 
-  let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
   let target_dir = out_dir
     .parent()

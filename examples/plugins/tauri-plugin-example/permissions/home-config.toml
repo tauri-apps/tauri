@@ -1,3 +1,4 @@
+[[permission]]
 version = 1
 identifier = "deny-home-dir-config"
 description = "This denies read access to the complete $HOME folder."

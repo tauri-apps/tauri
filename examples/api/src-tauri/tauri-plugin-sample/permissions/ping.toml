@@ -1,0 +1,5 @@
+[[permission]]
+version = 1
+identifier = "allow-ping"
+description = "This allows using the ping command."
+commands.allow = ["ping"]

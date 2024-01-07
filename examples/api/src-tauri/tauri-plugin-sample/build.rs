@@ -13,4 +13,6 @@ fn main() {
     println!("{error:#}");
     exit(1);
   }
+
+  tauri_plugin::build("./permissions/**/*.toml");
 }

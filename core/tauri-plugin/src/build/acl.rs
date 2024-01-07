@@ -1,15 +1,15 @@
-use std::{collections::HashMap, env::vars_os, path::PathBuf};
+use std::{collections::HashMap, env::vars_os, num::NonZeroU64, path::PathBuf};
 
 use super::Error;
 use serde::Deserialize;
-use tauri_utils::acl::{Identifier, Permission};
+use tauri_utils::acl::{Commands, Permission, Scopes};
 
 const PERMISSION_FILES_PATH_KEY: &str = "PERMISSION_FILES_PATH";
 
 #[derive(Debug, Deserialize)]
 pub struct PermissionSet {
   /// A unique identifier for the permission.
-  pub identifier: Identifier,
+  pub identifier: String,
 
   /// Human-readable description of what the permission does.
   pub description: String,
@@ -19,8 +19,25 @@ pub struct PermissionSet {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct DefaultPermission {
+  /// The version of the permission.
+  pub version: Option<NonZeroU64>,
+
+  /// Human-readable description of what the permission does.
+  pub description: Option<String>,
+
+  /// Allowed or denied commands when using this permission.
+  #[serde(default)]
+  pub commands: Commands,
+
+  /// Allowed or denied scoped when using this permission.
+  #[serde(default)]
+  pub scopes: Scopes,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct PermissionFile {
-  pub default: Option<Permission>,
+  pub default: Option<DefaultPermission>,
   pub set: Option<Vec<PermissionSet>>,
   pub permission: Option<Vec<Permission>>,
 }
@@ -55,7 +72,7 @@ pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error>
   for (key, value) in vars_os() {
     let key = key.to_string_lossy();
 
-    if let Some(plugin_crate_name) = key
+    if let Some(plugin_crate_name_var) = key
       .strip_prefix("DEP_")
       .and_then(|v| v.strip_suffix(&format!("_{PERMISSION_FILES_PATH_KEY}")))
     {
@@ -64,7 +81,14 @@ pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error>
       let permissions: Vec<PathBuf> = serde_json::from_str(&permissions_str)?;
       let permissions = parse_permissions(permissions)?;
 
-      permissions_map.insert(plugin_crate_name.to_lowercase(), permissions);
+      let plugin_crate_name = plugin_crate_name_var.to_lowercase().replace('_', "-");
+      permissions_map.insert(
+        plugin_crate_name
+          .strip_prefix("tauri-plugin-")
+          .map(|n| n.to_string())
+          .unwrap_or(plugin_crate_name),
+        permissions,
+      );
     }
   }
 

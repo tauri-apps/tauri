@@ -4,15 +4,19 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 #[cfg(desktop)]
 use crate::{
+  menu::{ContextMenu, Menu},
   runtime::{
     window::{
-      dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+      dpi::{Position, Size},
       CursorIcon,
     },
     UserAttentionType,
   },
-  window::Monitor,
   Icon,
+};
+use crate::{
+  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
+  window::Monitor,
 };
 use serde::Serialize;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
@@ -22,7 +26,6 @@ use crate::{
   command::{CommandArg, CommandItem},
   ipc::{InvokeError, OwnedInvokeResponder},
   manager::{webview::WebviewLabelDef, AppManager},
-  menu::{ContextMenu, Menu},
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::PageLoadPayload,
   AppHandle, Event, EventId, Manager, Runtime, Webview, WebviewBuilder, Window, WindowBuilder,

@@ -36,6 +36,9 @@ use crate::{
   WindowEvent,
 };
 
+#[cfg(windows)]
+use windows::Win32::Foundation::HWND;
+
 /// A builder for [`WebviewWindow`], a window that hosts a single webview.
 pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
   window_builder: WindowBuilder<'a, R, M>,
@@ -580,10 +583,10 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
-  /// Sets the [`TitleBarStyle`].
+  /// Sets the [`crate::TitleBarStyle`].
   #[cfg(target_os = "macos")]
   #[must_use]
-  pub fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+  pub fn title_bar_style(mut self, style: crate::TitleBarStyle) -> Self {
     self.window_builder = self.window_builder.title_bar_style(style);
     self
   }

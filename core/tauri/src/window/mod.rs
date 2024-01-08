@@ -12,8 +12,6 @@ use tauri_runtime::{
 };
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
-#[cfg(target_os = "macos")]
-use crate::TitleBarStyle;
 use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
@@ -649,10 +647,10 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
-  /// Sets the [`TitleBarStyle`].
+  /// Sets the [`crate::TitleBarStyle`].
   #[cfg(target_os = "macos")]
   #[must_use]
-  pub fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+  pub fn title_bar_style(mut self, style: crate::TitleBarStyle) -> Self {
     self.window_builder = self.window_builder.title_bar_style(style);
     self
   }

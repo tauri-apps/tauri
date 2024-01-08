@@ -9,8 +9,7 @@ mod tray;
 use serde::Serialize;
 use tauri::{
   ipc::Channel,
-  webview::{PageLoadEvent, WebviewBuilder},
-  window::WindowBuilder,
+  webview::{PageLoadEvent, WebviewWindowBuilder},
   App, AppHandle, Manager, RunEvent, Runtime, WebviewUrl,
 };
 use tauri_plugin_sample::{PingRequest, SampleExt};
@@ -61,7 +60,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
-      let mut window_builder = WindowBuilder::new(app, "main");
+      let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
       #[cfg(desktop)]
       {
         window_builder = window_builder
@@ -72,8 +71,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .menu(tauri::menu::Menu::default(app.handle())?);
       }
 
-      let (_window, webview) =
-        window_builder.with_webview(WebviewBuilder::new("main", WebviewUrl::default()))?;
+      let webview = window_builder.build()?;
 
       #[cfg(debug_assertions)]
       webview.open_devtools();

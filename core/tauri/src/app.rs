@@ -14,9 +14,8 @@ use crate::{
   },
   plugin::{Plugin, PluginStore},
   runtime::{
-    webview::WebviewAttributes,
-    window::{WindowBuilder as _, WindowEvent as RuntimeWindowEvent},
-    ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
+    window::WindowEvent as RuntimeWindowEvent, ExitRequestedEventAction,
+    RunEvent as RuntimeRunEvent,
   },
   scope,
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -24,7 +23,7 @@ use crate::{
   utils::{assets::Assets, Env},
   webview::PageLoadPayload,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
-  StateManager, Theme, Webview, WebviewBuilder, Window, WindowBuilder,
+  StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
 #[cfg(desktop)]
@@ -37,12 +36,11 @@ use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
-  webview::PendingWebview,
   window::{
     dpi::{PhysicalPosition, PhysicalSize},
     FileDropEvent,
   },
-  RuntimeInitArgs, WindowDispatch,
+  RuntimeInitArgs,
 };
 use tauri_utils::PackageInfo;
 
@@ -400,18 +398,12 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   }
 }
 
-struct PendingWebviewWindow<R: Runtime> {
-  window_builder: <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
-  webview: PendingWebview<EventLoopMessage, R>,
-}
-
 /// The instance of the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 #[default_runtime(crate::Wry, wry)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
-  pending: Option<Vec<PendingWebviewWindow<R>>>,
   setup: Option<SetupHook<R>>,
   manager: Arc<AppManager<R>>,
   handle: AppHandle<R>,
@@ -954,9 +946,6 @@ pub struct Builder<R: Runtime> {
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
-  /// windows and webviews to create when starting up.
-  pending: Vec<PendingWebviewWindow<R>>,
-
   /// All passed plugins
   plugins: PluginStore<R>,
 
@@ -1011,7 +1000,6 @@ impl<R: Runtime> Builder<R> {
       .unwrap()
       .into_string(),
       on_page_load: None,
-      pending: Default::default(),
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
@@ -1439,7 +1427,7 @@ impl<R: Runtime> Builder<R> {
     feature = "tracing",
     tracing::instrument(name = "app::build", skip_all)
   )]
-  pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
+  pub fn build<A: Assets>(self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {
       self.menu = Some(Box::new(|app_handle| {
@@ -1459,22 +1447,6 @@ impl<R: Runtime> Builder<R> {
       HashMap::new(),
       (self.invoke_responder, self.invoke_initialization_script),
     ));
-
-    // set up all the windows defined in the config
-    for config in manager.config().tauri.windows.clone() {
-      let label = config.label.clone();
-      let webview_attributes = WebviewAttributes::from(&config);
-
-      let window_builder =
-        <<R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder>::with_config(
-          config,
-        );
-
-      self.pending.push(PendingWebviewWindow {
-        window_builder,
-        webview: PendingWebview::new(webview_attributes, label)?,
-      });
-    }
 
     let runtime_args = RuntimeInitArgs {
       #[cfg(windows)]
@@ -1532,7 +1504,6 @@ impl<R: Runtime> Builder<R> {
     #[allow(unused_mut)]
     let mut app = App {
       runtime: Some(runtime),
-      pending: Some(self.pending),
       setup: Some(self.setup),
       manager: manager.clone(),
       handle: AppHandle {
@@ -1676,41 +1647,24 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
 }
 
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
-  let pending = app.pending.take();
-  if let Some(pending) = pending {
-    let app_handle = app.handle();
+  let window_labels = app
+    .config()
+    .tauri
+    .windows
+    .iter()
+    .map(|p| p.label.clone())
+    .collect::<Vec<_>>();
+  let webview_labels = window_labels
+    .iter()
+    .map(|label| WebviewLabelDef {
+      window_label: label.clone(),
+      label: label.clone(),
+    })
+    .collect::<Vec<_>>();
 
-    let window_labels = pending
-      .iter()
-      .map(|p| p.webview.label.clone())
-      .collect::<Vec<_>>();
-    let webview_labels = pending
-      .iter()
-      .map(|p| WebviewLabelDef {
-        window_label: p.webview.label.clone(),
-        label: p.webview.label.clone(),
-      })
-      .collect::<Vec<_>>();
-
-    for PendingWebviewWindow {
-      window_builder,
-      webview,
-    } in pending
-    {
-      let mut builder = WindowBuilder::new(app_handle, &webview.label);
-      builder.window_builder = window_builder;
-      builder.with_webview_internal(
-        WebviewBuilder {
-          label: webview.label,
-          webview_attributes: webview.webview_attributes,
-          web_resource_request_handler: None,
-          navigation_handler: None,
-          on_page_load_handler: None,
-        },
-        &window_labels,
-        &webview_labels,
-      )?;
-    }
+  for window_config in app.config().tauri.windows.clone() {
+    WebviewWindowBuilder::from_config(app.handle(), window_config)
+      .build_internal(&window_labels, &webview_labels)?;
   }
 
   if let Some(setup) = app.setup.take() {

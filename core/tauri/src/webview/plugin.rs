@@ -21,7 +21,7 @@ mod desktop_commands {
   use super::*;
   use crate::{
     command, utils::config::WindowEffectsConfig, AppHandle, Manager, Webview, WebviewBuilder,
-    WindowBuilder,
+    WebviewWindowBuilder,
   };
 
   #[derive(Debug, PartialEq, Clone, Deserialize)]
@@ -49,8 +49,7 @@ mod desktop_commands {
     app: AppHandle<R>,
     options: WindowConfig,
   ) -> crate::Result<()> {
-    WindowBuilder::from_config(&app, options.clone())
-      .with_webview(WebviewBuilder::from_config(options))?;
+    WebviewWindowBuilder::from_config(&app, options).build()?;
     Ok(())
   }
 

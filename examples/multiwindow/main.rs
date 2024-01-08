@@ -4,7 +4,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{webview::PageLoadEvent, WebviewBuilder, WindowBuilder};
+use tauri::{webview::PageLoadEvent, WebviewWindowBuilder};
 
 fn main() {
   tauri::Builder::default()
@@ -18,17 +18,13 @@ fn main() {
     })
     .setup(|app| {
       #[allow(unused_mut)]
-      let mut builder = WindowBuilder::new(app, "Rust");
+      let mut builder =
+        WebviewWindowBuilder::new(app, "Rust", tauri::WebviewUrl::App("index.html".into()));
       #[cfg(target_os = "macos")]
       {
         builder = builder.tabbing_identifier("Rust");
       }
-      let (_window, _webview) = builder
-        .title("Tauri - Rust")
-        .with_webview(WebviewBuilder::new(
-          "Rust",
-          tauri::WebviewUrl::App("index.html".into()),
-        ))?;
+      let _webview = builder.title("Tauri - Rust").build()?;
 
       Ok(())
     })

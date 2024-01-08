@@ -171,17 +171,17 @@ mod tests {
     ipc::CallbackFn,
     test::{assert_ipc_response, mock_app, MockRuntime},
     webview::InvokeRequest,
-    App, Manager, Webview, WebviewBuilder, WindowBuilder,
+    App, Manager, WebviewWindow, WebviewWindowBuilder,
   };
 
   const PLUGIN_NAME: &str = "test";
 
   fn test_context(
     scopes: Vec<RemoteDomainAccessScope>,
-  ) -> (App<MockRuntime>, Webview<MockRuntime>) {
+  ) -> (App<MockRuntime>, WebviewWindow<MockRuntime>) {
     let app = mock_app();
-    let (_window, webview) = WindowBuilder::new(&app, "main")
-      .with_webview(WebviewBuilder::new("main", Default::default()))
+    let webview = WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
       .unwrap();
 
     for scope in scopes {
@@ -296,7 +296,7 @@ mod tests {
     webview.navigate("https://sub.tauri.app".parse().unwrap());
     assert_ipc_response(&webview, path_is_absolute_request(), Ok(true));
 
-    webview.webview.label = "test".into();
+    webview.webview.webview.label = "test".into();
     webview.navigate("https://dev.tauri.app".parse().unwrap());
     assert_ipc_response(
       &webview,

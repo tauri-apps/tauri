@@ -605,7 +605,7 @@ mod test {
     generate_context,
     plugin::PluginStore,
     test::{mock_app, MockRuntime},
-    App, Manager, StateManager, Webview, WebviewBuilder, WindowBuilder, Wry,
+    App, Manager, StateManager, WebviewWindow, WebviewWindowBuilder, Wry,
   };
 
   use super::AppManager;
@@ -648,15 +648,15 @@ mod test {
 
   struct EventSetup {
     app: App<MockRuntime>,
-    webview: Webview<MockRuntime>,
+    webview: WebviewWindow<MockRuntime>,
     tx: Sender<(&'static str, String)>,
     rx: Receiver<(&'static str, String)>,
   }
 
   fn setup_events() -> EventSetup {
     let app = mock_app();
-    let (_window, webview) = WindowBuilder::new(&app, "main")
-      .with_webview(WebviewBuilder::new("main", Default::default()))
+    let webview = WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
       .unwrap();
 
     let (tx, rx) = channel();
@@ -786,8 +786,8 @@ mod test {
 
     received.clear();
     let other_webview_listen_id = "OtherWebview::listen";
-    let (_other_window, other_webview) = WindowBuilder::new(&app, "other")
-      .with_webview(WebviewBuilder::new("other", Default::default()))
+    let other_webview = WebviewWindowBuilder::new(&app, "other", Default::default())
+      .build()
       .unwrap();
 
     other_webview.listen(TEST_EVENT_NAME, move |evt| {

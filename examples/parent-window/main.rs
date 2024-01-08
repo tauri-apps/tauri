@@ -4,13 +4,11 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{
-  command, webview::PageLoadEvent, window::WindowBuilder, WebviewBuilder, WebviewUrl, Window,
-};
+use tauri::{command, webview::PageLoadEvent, WebviewUrl, WebviewWindowBuilder, Window};
 
 #[command]
 async fn create_child_window(id: String, window: Window) {
-  let builder = WindowBuilder::new(&window, &id)
+  let builder = WebviewWindowBuilder::new(&window, &id, WebviewUrl::default())
     .title("Child")
     .inner_size(400.0, 300.0);
 
@@ -19,9 +17,7 @@ async fn create_child_window(id: String, window: Window) {
   #[cfg(windows)]
   let builder = builder.parent_window(window.hwnd().unwrap());
 
-  let (_child, _webview) = builder
-    .with_webview(WebviewBuilder::new(id, WebviewUrl::default()))
-    .unwrap();
+  let _webview = builder.build().unwrap();
 }
 
 fn main() {
@@ -36,10 +32,10 @@ fn main() {
     })
     .invoke_handler(tauri::generate_handler![create_child_window])
     .setup(|app| {
-      let (_window, _webview) = WindowBuilder::new(app, "main")
+      let _webview = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("Main")
         .inner_size(600.0, 400.0)
-        .with_webview(WebviewBuilder::new("main", WebviewUrl::default()))?;
+        .build()?;
 
       Ok(())
     })

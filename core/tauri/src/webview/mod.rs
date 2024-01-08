@@ -5,6 +5,9 @@
 //! The Tauri webview types and functions.
 
 pub(crate) mod plugin;
+mod webview_window;
+
+pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 
 use http::HeaderMap;
 use serde::Serialize;
@@ -236,8 +239,9 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// ```
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let webview = tauri::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
-  ///     let window = tauri::WindowBuilder::new(app, "label").with_webview(webview)?;
+  ///     let window = tauri::WindowBuilder::new(app, "label").build()?;
+  ///     let webview_builder = tauri::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
+  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
   ///     Ok(())
   ///   });
   /// ```
@@ -249,8 +253,9 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///   .setup(|app| {
   ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
-  ///       let webview = tauri::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
-  ///       let window = tauri::WindowBuilder::new(&handle, "label").with_webview(webview).unwrap();
+  ///       let window = tauri::WindowBuilder::new(&handle, "label").build().unwrap();
+  ///       let webview_builder = tauri::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
+  ///       window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
   ///     });
   ///     Ok(())
   ///   });
@@ -261,8 +266,9 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// ```
   /// #[tauri::command]
   /// async fn create_window(app: tauri::AppHandle) {
-  ///   let webview = tauri::WebviewBuilder::new("label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()));
-  ///   let window = tauri::WindowBuilder::new(&app, "label").with_webview(webview).unwrap();
+  ///   let window = tauri::WindowBuilder::new(&app, "label").build().unwrap();
+  ///   let webview_builder = tauri::WebviewBuilder::new("label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()));
+  ///   window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
   /// }
   /// ```
   ///
@@ -329,7 +335,9 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// use std::collections::HashMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let webview = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+  ///     let window = tauri::WindowBuilder::new(app, "label").build()?;
+  ///
+  ///     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
   ///       .on_web_resource_request(|request, response| {
   ///         if request.uri().scheme_str() == Some("tauri") {
   ///           // if we have a CSP header, Tauri is loading an HTML file
@@ -344,7 +352,9 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///           }
   ///         }
   ///       });
-  ///     let (window, webview) = WindowBuilder::new(app, "core").with_webview(webview)?;
+  ///
+  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+  ///
   ///     Ok(())
   ///   });
   /// ```
@@ -372,12 +382,15 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// use std::collections::HashMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let webview = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+  ///     let window = tauri::WindowBuilder::new(app, "label").build()?;
+  ///
+  ///     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
   ///       .on_navigation(|url| {
   ///         // allow the production URL or localhost on dev
   ///         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
   ///       });
-  ///     let (window, webview) = WindowBuilder::new(app, "core").with_webview(webview)?;
+  ///
+  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
   ///     Ok(())
   ///   });
   /// ```
@@ -402,8 +415,9 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// use std::collections::HashMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let webview = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
-  ///       .on_page_load(|window, payload| {
+  ///     let window = tauri::WindowBuilder::new(app, "label").build()?;
+  ///     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+  ///       .on_page_load(|webview, payload| {
   ///         match payload.event() {
   ///           PageLoadEvent::Started => {
   ///             println!("{} finished loading", payload.url());
@@ -413,7 +427,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///           }
   ///         }
   ///       });
-  ///     let (window, webview) = WindowBuilder::new(app, "core").with_webview(webview)?;
+  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
   ///     Ok(())
   ///   });
   /// ```
@@ -544,9 +558,10 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// fn main() {
   ///   tauri::Builder::default()
   ///     .setup(|app| {
-  ///       let webview = tauri::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
+  ///       let window = tauri::WindowBuilder::new(app, "label").build()?;
+  ///       let webview_builder = tauri::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
   ///         .initialization_script(INIT_SCRIPT);
-  ///       let (window, webview) = tauri::WindowBuilder::new(app, "label").with_webview(webview)?;
+  ///       let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
   ///       Ok(())
   ///     });
   /// }

@@ -216,7 +216,7 @@ pub use {
     config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
   },
-  self::webview::{Webview, WebviewBuilder},
+  self::webview::{Webview, WebviewBuilder, WebviewWindow, WebviewWindowBuilder},
   self::window::{Monitor, Window, WindowBuilder},
   scope::*,
 };
@@ -713,6 +713,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
   }
+
   /// Fetch the focused window. Returns `None` if there is not any focused window.
   fn get_focused_window(&self) -> Option<Window<R>> {
     self.manager().get_focused_window()
@@ -731,6 +732,33 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Fetch all managed webviews.
   fn webviews(&self) -> HashMap<String, Webview<R>> {
     self.manager().webviews()
+  }
+
+  /// Fetch a single webview window from the manager.
+  fn get_webview_window(&self, label: &str) -> Option<WebviewWindow<R>> {
+    self.manager().get_webview(label).and_then(|webview| {
+      if webview.window().webview_window {
+        Some(WebviewWindow { webview })
+      } else {
+        None
+      }
+    })
+  }
+
+  /// Fetch all managed webview windows.
+  fn webview_windows(&self) -> HashMap<String, WebviewWindow<R>> {
+    self
+      .manager()
+      .webviews()
+      .into_iter()
+      .filter_map(|(label, webview)| {
+        if webview.window().webview_window {
+          Some((label, WebviewWindow { webview }))
+        } else {
+          None
+        }
+      })
+      .collect::<HashMap<_, _>>()
   }
 
   /// Add `state` to the state managed by the application.

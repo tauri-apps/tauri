@@ -66,13 +66,11 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         }
       }
       "new-window" => {
-        let (_window, _webview) = tauri::WindowBuilder::new(app, "new")
-          .title("Tauri")
-          .with_webview(tauri::WebviewBuilder::new(
-            "new",
-            WebviewUrl::App("index.html".into()),
-          ))
-          .unwrap();
+        let _webview =
+          tauri::WebviewWindowBuilder::new(app, "new", WebviewUrl::App("index.html".into()))
+            .title("Tauri")
+            .build()
+            .unwrap();
       }
       #[cfg(target_os = "macos")]
       "set-title" => {

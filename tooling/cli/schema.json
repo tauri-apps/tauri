@@ -55,6 +55,7 @@
           "icon": [],
           "identifier": "",
           "macOS": {
+            "files": {},
             "minimumSystemVersion": "10.13"
           },
           "rpm": {
@@ -208,6 +209,7 @@
             "icon": [],
             "identifier": "",
             "macOS": {
+              "files": {},
               "minimumSystemVersion": "10.13"
             },
             "rpm": {
@@ -1079,6 +1081,7 @@
         "macOS": {
           "description": "Configuration for the macOS bundles.",
           "default": {
+            "files": {},
             "minimumSystemVersion": "10.13"
           },
           "allOf": [
@@ -1567,6 +1570,14 @@
             "null"
           ],
           "items": {
+            "type": "string"
+          }
+        },
+        "files": {
+          "description": "The files to include in the application relative to the Contents directory.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
             "type": "string"
           }
         },

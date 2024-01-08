@@ -20,6 +20,7 @@ use std::{
   collections::HashMap,
   hash::{Hash, Hasher},
   path::PathBuf,
+  sync::Arc,
 };
 
 type UriSchemeProtocol = dyn Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
@@ -33,6 +34,30 @@ type WebResourceRequestHandler =
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
 type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
+
+type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
+
+/// Download event.
+pub enum DownloadEvent<'a> {
+  /// Download requested.
+  Requested {
+    /// The url being downloaded.
+    url: Url,
+    /// Represents where the file will be downloaded to.
+    /// Can be used to set the download location by assigning a new path to it.
+    /// The assigned path _must_ be absolute.
+    destination: &'a mut PathBuf,
+  },
+  /// Download finished.
+  Finished {
+    /// The URL of the original download request.
+    url: Url,
+    /// Potentially representing the filesystem path the file was downloaded to.
+    path: Option<PathBuf>,
+    /// Indicates if the download succeeded or not.
+    success: bool,
+  },
+}
 
 #[cfg(target_os = "android")]
 pub struct CreationContext<'a, 'b> {
@@ -77,6 +102,8 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 
   pub on_page_load_handler: Option<Box<OnPageLoadHandler>>,
+
+  pub download_handler: Option<Arc<DownloadHandler>>,
 }
 
 impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
@@ -100,6 +127,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
         on_webview_created: None,
         web_resource_request_handler: None,
         on_page_load_handler: None,
+        download_handler: None,
       })
     }
   }

@@ -14,7 +14,7 @@
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
   monitor::Monitor,
-  webview::{DetachedWebview, PendingWebview, WebviewIpcHandler},
+  webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WindowBuilder,
@@ -112,7 +112,6 @@ use std::{
 
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(String) + 'static;
-type FileDropHandler = dyn Fn(WryFileDropEvent) -> bool + 'static;
 
 mod webview;
 pub use webview::Webview;
@@ -453,10 +452,11 @@ impl<'a> From<&TaoWindowEvent<'a>> for WindowEventWrapper {
   }
 }
 
-impl From<&WebviewEvent> for WindowEventWrapper {
-  fn from(event: &WebviewEvent) -> Self {
+impl From<WebviewEvent> for WindowEventWrapper {
+  fn from(event: WebviewEvent) -> Self {
     let event = match event {
-      WebviewEvent::Focused(focused) => WindowEvent::Focused(*focused),
+      WebviewEvent::Focused(focused) => WindowEvent::Focused(focused),
+      WebviewEvent::FileDrop(event) => WindowEvent::FileDrop(event),
     };
     Self(Some(event))
   }
@@ -1173,6 +1173,7 @@ pub enum WebviewMessage {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum WebviewEvent {
+  FileDrop(FileDropEvent),
   Focused(bool),
 }
 
@@ -2830,7 +2831,7 @@ fn handle_event_loop<T: UserEvent>(
       _webview_id,
       WebviewMessage::WebviewEvent(event),
     )) => {
-      if let Some(event) = WindowEventWrapper::from(&event).0 {
+      if let Some(event) = WindowEventWrapper::from(event).0 {
         let windows = windows.borrow();
         let window = windows.get(&window_id);
         if let Some(window) = window {
@@ -3022,7 +3023,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     mut window_builder,
     label,
     webview,
-    ..
   } = pending;
 
   #[cfg(feature = "tracing")]
@@ -3146,13 +3146,8 @@ fn create_webview<T: UserEvent>(
     label,
     ipc_handler,
     url,
-    #[cfg(target_os = "android")]
-    on_webview_created,
     ..
   } = pending;
-
-  // TODO remove this
-  let window_event_listeners = WindowEventListeners::default();
 
   let builder = match kind {
     #[cfg(not(any(
@@ -3201,10 +3196,20 @@ fn create_webview<T: UserEvent>(
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+
   if webview_attributes.file_drop_handler_enabled {
-    webview_builder = webview_builder
-      .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
+    let proxy = context.proxy.clone();
+    webview_builder = webview_builder.with_file_drop_handler(move |event| {
+      let event: FileDropEvent = FileDropEventWrapper(event).into();
+      let _ = proxy.send_event(Message::Webview(
+        window_id,
+        id,
+        WebviewMessage::WebviewEvent(WebviewEvent::FileDrop(event)),
+      ));
+      true
+    });
   }
+
   if let Some(navigation_handler) = pending.navigation_handler {
     webview_builder = webview_builder.with_navigation_handler(move |url| {
       Url::parse(&url)
@@ -3238,6 +3243,25 @@ fn create_webview<T: UserEvent>(
   } else {
     None
   };
+
+  if let Some(download_handler) = pending.download_handler {
+    let download_handler_ = download_handler.clone();
+    webview_builder = webview_builder.with_download_started_handler(move |url, path| {
+      if let Ok(url) = url.parse() {
+        download_handler_(DownloadEvent::Requested {
+          url,
+          destination: path,
+        })
+      } else {
+        false
+      }
+    });
+    webview_builder = webview_builder.with_download_completed_handler(move |url, path, success| {
+      if let Ok(url) = url.parse() {
+        download_handler(DownloadEvent::Finished { url, path, success });
+      }
+    });
+  }
 
   if let Some(page_load_handler) = pending.on_page_load_handler {
     webview_builder = webview_builder.with_on_page_load_handler(move |event, url| {
@@ -3343,7 +3367,7 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(target_os = "android")]
   {
-    if let Some(on_webview_created) = on_webview_created {
+    if let Some(on_webview_created) = pending.on_webview_created {
       webview_builder = webview_builder.on_webview_created(move |ctx| {
         on_webview_created(tauri_runtime::webview::CreationContext {
           env: ctx.env,
@@ -3429,22 +3453,6 @@ fn create_ipc_handler<T: UserEvent>(
       },
       request,
     );
-  })
-}
-
-/// Create a wry file drop handler.
-fn create_file_drop_handler(window_event_listeners: WindowEventListeners) -> Box<FileDropHandler> {
-  Box::new(move |event| {
-    let event: FileDropEvent = FileDropEventWrapper(event).into();
-    let window_event = WindowEvent::FileDrop(event);
-    let listeners_map = window_event_listeners.lock().unwrap();
-    let has_listener = !listeners_map.is_empty();
-    let handlers = listeners_map.values();
-    for listener in handlers {
-      listener(&window_event);
-    }
-    // block the default OS action on file drop if we had a listener
-    has_listener
   })
 }
 

@@ -55,6 +55,8 @@ pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
 
+pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
+
 pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> String {
   format!("Scope not defined for window `{label}` and URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
 }
@@ -70,6 +72,38 @@ pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
 #[derive(Clone, Serialize)]
 struct CreatedEvent {
   label: String,
+}
+
+/// Download event for the [`WebviewBuilder#method.on_download`] hook.
+#[non_exhaustive]
+pub enum DownloadEvent<'a> {
+  /// Download requested.
+  Requested {
+    /// The url being downloaded.
+    url: Url,
+    /// Represents where the file will be downloaded to.
+    /// Can be used to set the download location by assigning a new path to it.
+    /// The assigned path _must_ be absolute.
+    destination: &'a mut PathBuf,
+  },
+  /// Download finished.
+  Finished {
+    /// The URL of the original download request.
+    url: Url,
+    /// Potentially representing the filesystem path the file was downloaded to.
+    ///
+    /// A value of `None` being passed instead of a `PathBuf` does not necessarily indicate that the download
+    /// did not succeed, and may instead indicate some other failure - always check the third parameter if you need to
+    /// know if the download succeeded.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: The second parameter indicating the path the file was saved to is always empty, due to API
+    /// limitations.
+    path: Option<PathBuf>,
+    /// Indicates if the download succeeded or not.
+    success: bool,
+  },
 }
 
 /// The payload for the [`WindowBuilder::on_page_load`] hook.
@@ -222,6 +256,7 @@ pub struct WebviewBuilder<R: Runtime> {
   pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
   pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
+  pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
 }
 
 impl<R: Runtime> WebviewBuilder<R> {
@@ -280,6 +315,7 @@ impl<R: Runtime> WebviewBuilder<R> {
       web_resource_request_handler: None,
       navigation_handler: None,
       on_page_load_handler: None,
+      download_handler: None,
     }
   }
 
@@ -313,6 +349,7 @@ impl<R: Runtime> WebviewBuilder<R> {
       web_resource_request_handler: None,
       navigation_handler: None,
       on_page_load_handler: None,
+      download_handler: None,
     }
   }
 
@@ -399,6 +436,50 @@ impl<R: Runtime> WebviewBuilder<R> {
     self
   }
 
+  /// Set a download event handler to be notified when a download is requested or finished.
+  ///
+  /// Returning `false` prevents the download from happening on a [`DownloadEvent::Requested`] event.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  ///   window::WindowBuilder,
+  ///   webview::{DownloadEvent, WebviewBuilder},
+  /// };
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = WindowBuilder::new(app, "label").build()?;
+  ///     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+  ///       .on_download(|webview, event| {
+  ///         match event {
+  ///           DownloadEvent::Requested { url, destination } => {
+  ///             println!("downloading {}", url);
+  ///             *destination = "/home/tauri/target/path".into();
+  ///           }
+  ///           DownloadEvent::Finished { url, path, success } => {
+  ///             println!("downloaded {} to {:?}, success: {}", url, path, success);
+  ///           }
+  ///           _ => (),
+  ///         }
+  ///         // let the download start
+  ///         true
+  ///       });
+  ///
+  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_download<F: Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.download_handler.replace(Arc::new(f));
+    self
+  }
+
   /// Defines a closure to be executed when a page load event is triggered.
   /// The event can be either [`PageLoadEvent::Started`] if the page has started loading
   /// or [`PageLoadEvent::Finished`] when the page finishes loading.
@@ -449,6 +530,28 @@ impl<R: Runtime> WebviewBuilder<R> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
+
+    if let Some(download_handler) = self.download_handler.take() {
+      let label = pending.label.clone();
+      let manager = manager.manager_owned();
+      pending.download_handler.replace(Arc::new(move |event| {
+        if let Some(w) = manager.get_webview(&label) {
+          download_handler(
+            w,
+            match event {
+              tauri_runtime::webview::DownloadEvent::Requested { url, destination } => {
+                DownloadEvent::Requested { url, destination }
+              }
+              tauri_runtime::webview::DownloadEvent::Finished { url, path, success } => {
+                DownloadEvent::Finished { url, path, success }
+              }
+            },
+          )
+        } else {
+          false
+        }
+      }));
+    }
 
     if let Some(on_page_load_handler) = self.on_page_load_handler.take() {
       let label = pending.label.clone();

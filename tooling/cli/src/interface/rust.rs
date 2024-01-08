@@ -241,17 +241,8 @@ impl Interface for Rust {
       }
     };
 
-    env.insert(
-      "TAURI_ENV_ARCH",
-      match arch {
-        // keeps compatibility with old `std::env::consts::ARCH` implementation
-        "i686" | "i586" => "x86".into(),
-        a => a.into(),
-      },
-    );
-
+    env.insert("TAURI_ENV_ARCH", arch.into());
     env.insert("TAURI_ENV_PLATFORM", host.into());
-
     env.insert(
       "TAURI_ENV_FAMILY",
       match host {
@@ -259,13 +250,6 @@ impl Interface for Rust {
         _ => "unix".into(),
       },
     );
-
-    match host {
-      "linux" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Linux".into()),
-      "windows" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Windows_NT".into()),
-      "darwin" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Darwin".into()),
-      _ => None,
-    };
 
     env
   }
@@ -1240,6 +1224,7 @@ fn tauri_config_to_bundle_settings(
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
+      files: config.macos.files,
       minimum_system_version: config.macos.minimum_system_version,
       license: config.macos.license,
       exception_domain: config.macos.exception_domain,

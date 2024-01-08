@@ -1,5 +1,5 @@
 ---
-'tauri': 'patch:bug'
+'tauri-bundler': 'patch:bug'
 ---
 
 

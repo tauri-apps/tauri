@@ -1422,12 +1422,12 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Builds the application.
-  #[allow(clippy::type_complexity)]
+  #[allow(clippy::type_complexity, unused_mut)]
   #[cfg_attr(
     feature = "tracing",
     tracing::instrument(name = "app::build", skip_all)
   )]
-  pub fn build<A: Assets>(self, context: Context<A>) -> crate::Result<App<R>> {
+  pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {
       self.menu = Some(Box::new(|app_handle| {

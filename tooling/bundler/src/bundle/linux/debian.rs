@@ -33,6 +33,7 @@ use libflate::gzip;
 use log::info;
 use serde::Serialize;
 use walkdir::WalkDir;
+use tar::HeaderMode;
 
 use std::{
   collections::BTreeSet,
@@ -374,31 +375,16 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       continue;
     }
     let dest_path = src_path.strip_prefix(src_dir)?;
+    
+    let stat = fs::metadata(src_path)?;
+    let mut header = tar::Header::new_gnu();
+    header.set_metadata_in_mode(&stat, HeaderMode::Deterministic);
+    header.set_mtime(stat.mtime() as u64);
+    
     if entry.file_type().is_dir() {
-      let stat = fs::metadata(src_path)?;
-      let mut header = tar::Header::new_gnu();
-      header.set_metadata(&stat);
-      header.set_uid(0);
-      header.set_gid(0);
-      header.set_mode(0o755);
       tar_builder.append_data(&mut header, dest_path, &mut io::empty())?;
     } else {
       let mut src_file = fs::File::open(src_path)?;
-      let stat = src_file.metadata()?;
-      let mut header = tar::Header::new_gnu();
-      header.set_metadata(&stat);
-      header.set_uid(0);
-      header.set_gid(0);
-
-      // It extracts the MSB in octal permissions.
-      let user_permission = (stat.mode()%512) / 64;
-      // Check if file is executable, and set permissions accordingly.
-      if user_permission % 2 == 1{
-        header.set_mode(0o755);
-      } else {
-        header.set_mode(0o644);
-      }
-
       tar_builder.append_data(&mut header, dest_path, &mut src_file)?;
     }
   }

@@ -1103,6 +1103,7 @@ fn tauri_config_to_bundle_settings(
       desktop_template: config.deb.desktop_template,
       section: config.deb.section,
       priority: config.deb.priority,
+      changelog: config.deb.changelog,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,

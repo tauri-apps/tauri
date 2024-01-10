@@ -190,6 +190,9 @@ pub struct DebianSettings {
   /// Change the priority of the Debian Package. By default, it is set to optional.
   /// Recognized Priorities as of now are :  required, important, standard, optional, extra
   pub priority: Option<String>,
+  /// Path to the Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See 
+  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  pub changelog: Option<PathBuf>,
 }
 
 /// The macOS bundle settings.

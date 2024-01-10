@@ -1334,6 +1334,13 @@
             "string",
             "null"
           ]
+        },
+        "changelog": {
+          "description": "Path to the Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

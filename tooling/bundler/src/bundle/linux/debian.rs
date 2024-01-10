@@ -210,6 +210,14 @@ fn generate_control_file(
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
   let authors = settings.authors_comma_separated().unwrap_or_default();
   writeln!(file, "Maintainer: {}", authors)?;
+  if let Some(section) = &settings.deb().section {
+    writeln!(file, "Section: {}", section)?;
+  }
+  if let Some(priority) = &settings.deb().priority {
+    writeln!(file, "Priority: {}", priority)?;
+  } else {
+    writeln!(file, "Priority: optional")?;
+  }
   if !settings.homepage_url().is_empty() {
     writeln!(file, "Homepage: {}", settings.homepage_url())?;
   }
@@ -234,7 +242,6 @@ fn generate_control_file(
       writeln!(file, " {}", line)?;
     }
   }
-  writeln!(file, "Priority: optional")?;
   file.flush()?;
   Ok(())
 }
@@ -384,9 +391,9 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       header.set_gid(0);
 
       // It extracts the MSB in octal permissions.
-      let user_permission = (stat.mode()%512)/64;
+      let user_permission = (stat.mode()%512) / 64;
       // Check if file is executable, and set permissions accordingly.
-      if user_permission%2 == 1{
+      if user_permission % 2 == 1{
         header.set_mode(0o755);
       } else {
         header.set_mode(0o644);

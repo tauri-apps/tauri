@@ -185,6 +185,11 @@ pub struct DebianSettings {
   #[doc = include_str!("./linux/templates/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
+  /// Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+  pub section: Option<String>,
+  /// Change the priority of the Debian Package. By default, it is set to optional.
+  /// Recognized Priorities as of now are :  required, important, standard, optional, extra
+  pub priority: Option<String>,
 }
 
 /// The macOS bundle settings.

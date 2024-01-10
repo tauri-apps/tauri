@@ -157,7 +157,7 @@ updater = [
   "dialog-ask",
   "fs-extract-api"
 ]
-http-api = [ "reqwest", "bytes" ]
+http-api = [ "reqwest", "bytes", "indexmap" ]
 http-multipart = [ "reqwest/multipart" ]
 os-api = [ "sys-locale" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
@@ -229,7 +229,7 @@ fs-rename-file = [ ]
 fs-write-file = [ ]
 global-shortcut-all = [ "global-shortcut" ]
 http-all = [ "http-request" ]
-http-request = [ "http-api", "dep:indexmap" ]
+http-request = [ "http-api" ]
 notification-all = [ "notification", "dialog-ask" ]
 os-all = [ "os_info", "os-api" ]
 path-all = [ ]

@@ -2361,20 +2361,22 @@ impl<R: Runtime> Window<R> {
     if !is_local && scope.is_none() {
       invoke.resolver.reject(scope_not_found_error_message);
     } else if request.cmd.starts_with("plugin:") {
-      if !manager.runtime_authority.is_allowed(
-        &request.cmd,
-        &invoke.message.window.window.label,
-        if is_local {
-          ExecutionContext::Local
-        } else {
-          ExecutionContext::Remote {
-            domain: current_url
-              .domain()
-              .map(|d| d.to_string())
-              .unwrap_or_default(),
-          }
-        },
-      ) {
+      if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+        && !manager.runtime_authority.is_allowed(
+          &request.cmd,
+          &invoke.message.window.window.label,
+          if is_local {
+            ExecutionContext::Local
+          } else {
+            ExecutionContext::Remote {
+              domain: current_url
+                .domain()
+                .map(|d| d.to_string())
+                .unwrap_or_default(),
+            }
+          },
+        )
+      {
         invoke.resolver.reject("NOT ALLOWED");
         return;
       }

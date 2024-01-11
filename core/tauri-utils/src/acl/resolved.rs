@@ -10,6 +10,7 @@ use super::{ExecutionContext, Value};
 pub type ScopeKey = usize;
 
 /// A resolved command permission.
+#[derive(Debug)]
 pub struct ResolvedCommand {
   /// The list of window label patterns that is allowed to run this command.
   pub windows: Vec<String>,

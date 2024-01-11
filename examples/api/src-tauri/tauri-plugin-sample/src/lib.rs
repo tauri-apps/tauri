@@ -35,6 +35,20 @@ impl<R: Runtime, T: Manager<R>> crate::SampleExt<R> for T {
   }
 }
 
+#[tauri::command]
+fn ping<R: tauri::Runtime>(
+  app: tauri::AppHandle<R>,
+  value: Option<String>,
+) -> std::result::Result<PingResponse, String> {
+  app
+    .sample()
+    .ping(PingRequest {
+      value,
+      on_event: tauri::ipc::Channel::new(|_| Ok(())),
+    })
+    .map_err(|e| e.to_string())
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("sample")
     .setup(|app, api| {
@@ -46,6 +60,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
       Ok(())
     })
+    .invoke_handler(tauri::generate_handler![ping])
     .on_navigation(|window, url| {
       println!("navigation {} {url}", window.label());
       true

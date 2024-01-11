@@ -18,12 +18,19 @@ pub struct CapabilitySet {
 /// Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Capability {
+  /// Identifier of the capability.
   pub identifier: String,
+  /// Description of the capability.
   #[serde(default)]
   pub description: String,
+  /// Execution context of the capability.
+  ///
+  /// At runtime, Tauri filters the IPC command together with the context to determine wheter it is allowed or not and its scope.
   #[serde(default)]
   pub context: CapabilityContext,
+  /// List of windows that uses this capability. Can be a glob pattern.
   pub windows: Vec<String>,
+  /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   pub permissions: Vec<Identifier>,
 }
 

@@ -4884,7 +4884,6 @@ dependencies = [
  "json5",
  "kuchikiki",
  "log",
- "matchit",
  "memchr",
  "phf 0.11.2",
  "schemars",

@@ -1,34 +1,51 @@
+//! Resolved ACL for runtime usage.
+
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
 use super::{capability::CapabilityContext, Value};
 
+/// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
 pub type ScopeKey = usize;
 
+/// A resolved command permission.
 pub struct ResolvedCommand {
+  /// The list of window label patterns that is allowed to run this command.
   pub windows: Vec<String>,
+  /// The reference of the scope that is associated with this command. See [`Resolved#structfield.scopes`].
   pub scope: ScopeKey,
 }
 
+/// A resolved scope. Contains all scopes defined for a single command.
 pub struct ResolvedScope<T>
 where
   T: Serialize,
   for<'de> T: Deserialize<'de>,
 {
+  /// Allows something on the command.
   pub allow: Vec<T>,
+  /// Denies something on the command.
   pub deny: Vec<T>,
 }
 
+/// A command key for the map of allowed and denied commands.
+/// Takes into consideration the command name and the execution context.
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct CommandKey {
+  /// The full command name.
   pub name: String,
+  /// The context of the command.
   pub context: CapabilityContext,
 }
 
+/// Resolved access control list.
 pub struct Resolved {
+  /// The commands that are allowed. Map each command with its context to a [`ResolvedCommand`].
   pub allowed_commands: BTreeMap<CommandKey, ResolvedCommand>,
+  /// The commands that are denied. Map each command with its context to a [`ResolvedCommand`].
   pub denied_commands: BTreeMap<CommandKey, ResolvedCommand>,
+  /// The store of scopes referenced by a [`ResolvedCommand`].
   pub scopes: BTreeMap<ScopeKey, ResolvedScope<Value>>,
 }
 
@@ -64,7 +81,7 @@ mod build {
         }
         Self::Remote { dangerous_remote } => {
           let dangerous_remote = vec_lit(dangerous_remote, str_lit);
-          quote! { #prefix::Remote { dangerous_remote } }
+          quote! { #prefix::Remote { dangerous_remote: #dangerous_remote } }
         }
       });
     }

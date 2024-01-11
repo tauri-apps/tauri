@@ -1,3 +1,6 @@
+//! A [`Value`] that is used instead of [`toml::Value`] or [`serde_json::Value`]
+//! to support both formats.
+
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 

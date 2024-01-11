@@ -1,3 +1,5 @@
+//! Plugin ACL types.
+
 use std::collections::HashMap;
 
 use super::{Permission, PermissionSet};

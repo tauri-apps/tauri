@@ -42,7 +42,7 @@ pub fn parse_capabilities(capabilities_path_pattern: &str) -> Result<HashMap<Str
   Ok(capabilities_map)
 }
 
-pub(crate) fn process() -> Result<HashMap<String, Manifest>> {
+pub(crate) fn get_plugin_manifests() -> Result<HashMap<String, Manifest>> {
   let permission_map =
     tauri_plugin::acl::read_permissions().context("failed to read plugin permissions")?;
 
@@ -98,4 +98,50 @@ pub(crate) fn process() -> Result<HashMap<String, Manifest>> {
   }
 
   Ok(processed)
+}
+
+pub(crate) fn validate_capabilities(
+  plugin_manifests: &HashMap<String, Manifest>,
+  capabilities: &HashMap<String, Capability>,
+) -> Result<()> {
+  for capability in capabilities.values() {
+    for permission in &capability.permissions {
+      if let Some((plugin_name, permission_name)) = permission.get().split_once(':') {
+        let permission_exists = plugin_manifests
+          .get(plugin_name)
+          .map(|manifest| {
+            if permission_name == "default" {
+              manifest.default_permission.is_some()
+            } else {
+              manifest.permissions.contains_key(permission_name)
+                || manifest.permission_sets.contains_key(permission_name)
+            }
+          })
+          .unwrap_or(false);
+
+        if !permission_exists {
+          let mut available_permissions = Vec::new();
+          for (plugin, manifest) in plugin_manifests {
+            if manifest.default_permission.is_some() {
+              available_permissions.push(format!("{plugin}:default"));
+            }
+            for p in manifest.permissions.keys() {
+              available_permissions.push(format!("{plugin}:{p}"));
+            }
+            for p in manifest.permission_sets.keys() {
+              available_permissions.push(format!("{plugin}:{p}"));
+            }
+          }
+
+          anyhow::bail!(
+            "Permission {} not found, expected one of {}",
+            permission.get(),
+            available_permissions.join(", ")
+          );
+        }
+      }
+    }
+  }
+
+  Ok(())
 }

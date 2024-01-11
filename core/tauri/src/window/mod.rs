@@ -1036,7 +1036,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Set a proxy URL for the WebView for all network requests.
   #[must_use]
   pub fn proxy_url(mut self, url: Url) -> Self {
-    self.webview_attributes.proxy = Some(url);
+    self.webview_attributes.proxy_url = Some(url);
     self
   }
 }

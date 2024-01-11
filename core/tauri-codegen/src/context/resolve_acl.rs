@@ -8,10 +8,10 @@ use std::{
 };
 
 use tauri_utils::acl::{
-  capability::Capability,
+  capability::{Capability, CapabilityContext},
   plugin::Manifest,
   resolved::{CommandKey, Resolved, ResolvedCommand, ResolvedScope},
-  Permission,
+  ExecutionContext, Permission,
 };
 
 #[derive(Debug, Default)]
@@ -130,15 +130,29 @@ fn resolve_command(
   capability: &Capability,
   scope_id: usize,
 ) {
-  let resolved = commands
-    .entry(CommandKey {
-      name: command,
-      context: capability.context.clone(),
-    })
-    .or_insert_with(ResolvedCommandTemp::default);
+  let contexts = match &capability.context {
+    CapabilityContext::Local => {
+      vec![ExecutionContext::Local]
+    }
+    CapabilityContext::Remote { dangerous_remote } => dangerous_remote
+      .iter()
+      .map(|domain| ExecutionContext::Remote {
+        domain: domain.to_string(),
+      })
+      .collect(),
+  };
 
-  resolved.windows.extend(capability.windows.clone());
-  resolved.scope.push(scope_id);
+  for context in contexts {
+    let resolved = commands
+      .entry(CommandKey {
+        name: command.clone(),
+        context,
+      })
+      .or_default();
+
+    resolved.windows.extend(capability.windows.clone());
+    resolved.scope.push(scope_id);
+  }
 }
 
 fn get_permissions<'a>(

@@ -8,6 +8,7 @@ pub(crate) mod plugin;
 
 use http::HeaderMap;
 pub use tauri_runtime::window::PageLoadEvent;
+use tauri_utils::acl::ExecutionContext;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -2360,6 +2361,24 @@ impl<R: Runtime> Window<R> {
     if !is_local && scope.is_none() {
       invoke.resolver.reject(scope_not_found_error_message);
     } else if request.cmd.starts_with("plugin:") {
+      if !manager.runtime_authority.is_allowed(
+        &request.cmd,
+        &invoke.message.window.window.label,
+        if is_local {
+          ExecutionContext::Local
+        } else {
+          ExecutionContext::Remote {
+            domain: current_url
+              .domain()
+              .map(|d| d.to_string())
+              .unwrap_or_default(),
+          }
+        },
+      ) {
+        invoke.resolver.reject("NOT ALLOWED");
+        return;
+      }
+
       let command = invoke.message.command.replace("plugin:", "");
       let mut tokens = command.split('|');
       // safe to unwrap: split always has a least one item

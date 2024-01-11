@@ -98,3 +98,52 @@ impl From<toml::Value> for Value {
     }
   }
 }
+
+#[cfg(feature = "build")]
+mod build {
+  use std::convert::identity;
+
+  use crate::tokens::*;
+
+  use super::*;
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
+
+  impl ToTokens for Number {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::acl:::Number };
+
+      tokens.append_all(match self {
+        Self::Int(i) => {
+          quote! { #prefix::Int(#i) }
+        }
+        Self::Float(f) => {
+          quote! { #prefix::Float (#f) }
+        }
+      });
+    }
+  }
+
+  impl ToTokens for Value {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::acl::Value };
+
+      tokens.append_all(match self {
+        Value::Bool(bool) => quote! { #prefix::Bool(#bool) },
+        Value::Number(number) => quote! { #prefix::Number(#number) },
+        Value::String(str) => {
+          let s = str_lit(str);
+          quote! { #prefix::String(#s) }
+        }
+        Value::List(vec) => {
+          let items = vec_lit(vec, identity);
+          quote! { #prefix::Array(#items) }
+        }
+        Value::Map(map) => {
+          let map = map_lit(quote! { ::tauri::acl::Map }, map, str_lit, identity);
+          quote! { #prefix::Map(#map) }
+        }
+      });
+    }
+  }
+}

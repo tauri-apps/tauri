@@ -87,3 +87,40 @@ pub struct PermissionSet {
   /// All permissions this set contains.
   pub permissions: Vec<String>,
 }
+
+/// Execution context of an IPC call.
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub enum ExecutionContext {
+  /// A local URL is used (the Tauri app URL).
+  Local,
+  /// Remote URL is tring to use the IPC.
+  Remote {
+    /// The domain trying to access the IPC.
+    domain: String,
+  },
+}
+
+#[cfg(feature = "build")]
+mod build {
+  use crate::tokens::*;
+
+  use super::*;
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
+
+  impl ToTokens for ExecutionContext {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::acl::ExecutionContext };
+
+      tokens.append_all(match self {
+        Self::Local => {
+          quote! { #prefix::Local }
+        }
+        Self::Remote { domain } => {
+          let domain = str_lit(domain);
+          quote! { #prefix::Remote { domain: #domain } }
+        }
+      });
+    }
+  }
+}

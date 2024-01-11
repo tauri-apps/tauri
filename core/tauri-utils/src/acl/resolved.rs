@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{capability::CapabilityContext, Value};
+use super::{ExecutionContext, Value};
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
 pub type ScopeKey = usize;
@@ -36,7 +36,7 @@ pub struct CommandKey {
   /// The full command name.
   pub name: String,
   /// The context of the command.
-  pub context: CapabilityContext,
+  pub context: ExecutionContext,
 }
 
 /// Resolved access control list.
@@ -56,7 +56,7 @@ mod build {
   use std::convert::identity;
 
   use super::*;
-  use crate::{acl::Number, tokens::*};
+  use crate::tokens::*;
 
   /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
   ///
@@ -69,22 +69,6 @@ mod build {
         }
       })
     };
-  }
-
-  impl ToTokens for CapabilityContext {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::acl::capability::CapabilityContext };
-
-      tokens.append_all(match self {
-        Self::Local => {
-          quote! { #prefix::Local }
-        }
-        Self::Remote { dangerous_remote } => {
-          let dangerous_remote = vec_lit(dangerous_remote, str_lit);
-          quote! { #prefix::Remote { dangerous_remote: #dangerous_remote } }
-        }
-      });
-    }
   }
 
   impl ToTokens for CommandKey {
@@ -100,44 +84,6 @@ mod build {
       let windows = vec_lit(&self.windows, str_lit);
       let scope = self.scope;
       literal_struct!(tokens, ResolvedCommand, windows, scope)
-    }
-  }
-
-  impl ToTokens for Number {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::acl:::Number };
-
-      tokens.append_all(match self {
-        Self::Int(i) => {
-          quote! { #prefix::Int(i) }
-        }
-        Self::Float(f) => {
-          quote! { #prefix::Float (f) }
-        }
-      });
-    }
-  }
-
-  impl ToTokens for Value {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::acl::Value };
-
-      tokens.append_all(match self {
-        Value::Bool(bool) => quote! { #prefix::Bool(#bool) },
-        Value::Number(number) => quote! { #prefix::Number(#number) },
-        Value::String(str) => {
-          let s = str_lit(str);
-          quote! { #prefix::String(#s) }
-        }
-        Value::List(vec) => {
-          let items = vec_lit(vec, identity);
-          quote! { #prefix::Array(#items) }
-        }
-        Value::Map(map) => {
-          let map = map_lit(quote! { ::tauri::acl::Map }, map, str_lit, identity);
-          quote! { #prefix::Map(#map) }
-        }
-      });
     }
   }
 

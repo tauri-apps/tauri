@@ -18,6 +18,8 @@ use serde::{
 
 mod authority;
 
+pub use authority::RuntimeAuthority;
+
 /// Represents a custom command.
 pub struct CommandItem<'a, R: Runtime> {
   /// The name of the command, e.g. `handler` on `#[command] fn handler(value: u64)`

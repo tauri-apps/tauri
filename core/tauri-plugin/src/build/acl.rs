@@ -45,8 +45,7 @@ pub struct PermissionFile {
 pub fn define_permissions(pattern: &str) -> Result<(), Error> {
   let permission_files = glob::glob(pattern)?
     .flatten()
-    .map(|p| p.canonicalize())
-    .flatten()
+    .flat_map(|p| p.canonicalize())
     .collect::<Vec<PathBuf>>();
 
   for path in &permission_files {

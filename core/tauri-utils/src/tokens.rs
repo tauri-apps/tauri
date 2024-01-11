@@ -1,3 +1,5 @@
+//! Utilities to implement [`ToTokens`] for a type.
+
 use std::path::Path;
 
 use proc_macro2::TokenStream;

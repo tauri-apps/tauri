@@ -187,6 +187,7 @@ use std::{
   fmt::{self, Debug},
   sync::MutexGuard,
 };
+use utils::acl::resolved::Resolved;
 
 #[cfg(feature = "wry")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
@@ -417,6 +418,7 @@ pub struct Context<A: Assets> {
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
+  pub(crate) resolved_acl: Resolved,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
@@ -517,6 +519,7 @@ impl<A: Assets> Context<A> {
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
+    resolved_acl: Resolved,
   ) -> Self {
     Self {
       config,
@@ -528,6 +531,7 @@ impl<A: Assets> Context<A> {
       package_info,
       _info_plist: info_plist,
       pattern,
+      resolved_acl,
     }
   }
 

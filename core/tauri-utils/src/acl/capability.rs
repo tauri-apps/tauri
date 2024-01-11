@@ -28,7 +28,7 @@ pub struct Capability {
 }
 
 /// Context of the capability.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum CapabilityContext {
   /// Capability refers to local URL usage.
   #[default]

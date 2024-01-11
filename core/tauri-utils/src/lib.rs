@@ -34,6 +34,8 @@ pub mod platform;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]
 pub mod resources;
+#[cfg(feature = "build")]
+pub mod tokens;
 
 /// Application pattern.
 pub mod pattern;

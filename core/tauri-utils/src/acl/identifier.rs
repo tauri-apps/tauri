@@ -168,10 +168,10 @@ impl TryFrom<String> for Identifier {
 
     match prev {
       // empty base
-      ValidByte::Separator => return Err(Self::Error::TrailingHyphen),
+      ValidByte::Separator => return Err(Self::Error::PrefixWithoutBase),
 
       // trailing hyphen
-      ValidByte::Byte(b'-') => return Err(Self::Error::PrefixWithoutBase),
+      ValidByte::Byte(b'-') => return Err(Self::Error::TrailingHyphen),
 
       _ => (),
     }

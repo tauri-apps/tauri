@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use super::{Permission, PermissionSet};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Plugin manifest.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Manifest {
   /// Default permission.
   pub default_permission: Option<Permission>,

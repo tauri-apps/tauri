@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::collections::hash_map::DefaultHasher;
+use std::collections::{BTreeMap, HashMap};
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
@@ -10,6 +13,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 
+use tauri_utils::acl::capability::Capability;
+use tauri_utils::acl::plugin::Manifest;
+use tauri_utils::acl::resolved::{CommandKey, Resolved, ResolvedCommand, ResolvedScope};
 use tauri_utils::assets::AssetKey;
 use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
 use tauri_utils::html::{
@@ -18,6 +24,9 @@ use tauri_utils::html::{
 use tauri_utils::platform::Target;
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
+
+const ACL_FILE_NAME: &str = "acl.json";
+const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
 pub struct ContextData {
@@ -373,6 +382,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   };
 
+  let resolved_act = get_resolved_acl(&out_dir).expect("failed to resolve ACL");
+
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
@@ -383,10 +394,170 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #package_info,
       #info_plist,
       #pattern,
+      #resolved_act
     );
     #with_tray_icon_code
     context
   }))
+}
+
+fn get_resolved_acl(out_dir: &Path) -> Result<Resolved, Box<dyn std::error::Error>> {
+  let acl_file = std::fs::read_to_string(out_dir.join(ACL_FILE_NAME))?;
+  let acl: HashMap<String, Manifest> = serde_json::from_str(&acl_file)?;
+
+  let capabilities_file = std::fs::read_to_string(out_dir.join(CAPABILITIES_FILE_NAME))?;
+  let capabilities: HashMap<String, Capability> = serde_json::from_str(&capabilities_file)?;
+
+  #[derive(Debug, Default)]
+  struct ResolvedCommandTemp {
+    pub windows: Vec<String>,
+    pub scope: Vec<usize>,
+    pub resolved_scope_key: usize,
+  }
+
+  let mut allowed_commands = HashMap::new();
+  let mut denied_commands = HashMap::new();
+
+  let mut current_scope_id = 0;
+  let mut scopes = HashMap::new();
+
+  // resolve commands
+  for capability in capabilities.values() {
+    for permission_id in &capability.permissions {
+      let permission_name = permission_id.get_base();
+
+      if let Some(plugin_name) = permission_id.get_prefix() {
+        let manifest = acl.get(plugin_name).ok_or_else(|| {
+          format!(
+            "unknown plugin {plugin_name}, expected one of {:?}",
+            acl.keys().cloned().collect::<Vec<_>>().join(", ")
+          )
+        })?;
+
+        let permissions = if permission_name == "default" {
+          vec![manifest
+            .default_permission
+            .as_ref()
+            .ok_or_else(|| format!("plugin {plugin_name} has no default permission"))?]
+        } else if let Some(set) = manifest.permission_sets.get(permission_name) {
+          let mut resolved = Vec::new();
+          for p in &set.permissions {
+            resolved.push(
+              manifest
+                .permissions
+                .get(p)
+                .ok_or_else(|| format!("permission {p} in set {permission_name} not found"))?,
+            );
+          }
+          resolved
+        } else if let Some(permission) = manifest.permissions.get(permission_name) {
+          vec![permission]
+        } else {
+          return Err(
+            format!("unknown permission {permission_name} for plugin {plugin_name}").into(),
+          );
+        };
+
+        fn resolve_command(
+          commands: &mut HashMap<CommandKey, ResolvedCommandTemp>,
+          command: String,
+          capability: &Capability,
+          scope_id: usize,
+        ) {
+          let resolved = commands
+            .entry(CommandKey {
+              name: command,
+              context: capability.context.clone(),
+            })
+            .or_insert_with(|| ResolvedCommandTemp::default());
+
+          resolved.windows.extend(capability.windows.clone());
+          resolved.scope.push(scope_id);
+        }
+
+        for permission in permissions {
+          current_scope_id += 1;
+          scopes.insert(current_scope_id, permission.inner.scopes.clone());
+
+          for allowed_command in &permission.inner.commands.allow {
+            resolve_command(
+              &mut allowed_commands,
+              format!("plugin:{plugin_name}|{allowed_command}"),
+              &capability,
+              current_scope_id,
+            );
+          }
+
+          for denied_command in &permission.inner.commands.deny {
+            resolve_command(
+              &mut denied_commands,
+              format!("plugin:{plugin_name}|{denied_command}"),
+              &capability,
+              current_scope_id,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  // resolve scopes
+  let mut resolved_scopes = BTreeMap::new();
+
+  for allowed in allowed_commands.values_mut() {
+    allowed.scope.sort();
+
+    let mut hasher = DefaultHasher::new();
+    allowed.scope.hash(&mut hasher);
+    let hash = hasher.finish() as usize;
+
+    allowed.resolved_scope_key = hash;
+
+    let resolved_scope = ResolvedScope {
+      allow: allowed
+        .scope
+        .iter()
+        .flat_map(|s| scopes.get(s).unwrap().allow.clone())
+        .collect(),
+      deny: allowed
+        .scope
+        .iter()
+        .flat_map(|s| scopes.get(s).unwrap().deny.clone())
+        .collect(),
+    };
+
+    resolved_scopes.insert(hash, resolved_scope);
+  }
+
+  let resolved = Resolved {
+    allowed_commands: allowed_commands
+      .into_iter()
+      .map(|(key, cmd)| {
+        (
+          key,
+          ResolvedCommand {
+            windows: cmd.windows,
+            scope: cmd.resolved_scope_key,
+          },
+        )
+      })
+      .collect(),
+    denied_commands: denied_commands
+      .into_iter()
+      .map(|(key, cmd)| {
+        (
+          key,
+          ResolvedCommand {
+            windows: cmd.windows,
+            scope: cmd.resolved_scope_key,
+          },
+        )
+      })
+      .collect(),
+    scopes: resolved_scopes,
+  };
+
+  Ok(resolved)
 }
 
 fn ico_icon<P: AsRef<Path>>(

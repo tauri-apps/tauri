@@ -28,7 +28,7 @@ pub struct Commands {
 /// It can be of any serde serializable type and is used for allowing or preventing certain actions inside a Tauri command.
 ///
 /// The scope is passed to the command and handled/enforced by the command itself.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Scopes {
   /// Data that defines what is allowed by the scope.
   pub allow: Option<Value>,

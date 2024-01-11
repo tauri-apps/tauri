@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::MudaIconMenuItem;
-use super::NativeIcon;
-use super::{run_item_main_thread, run_main_thread};
+use super::{MudaIconMenuItem, NativeIcon};
 use crate::{menu::MenuId, resources::Resource, AppHandle, Icon, Manager, Runtime};
+use crate::{run_item_main_thread, run_main_thread};
 
 /// A menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains an icon and a text.

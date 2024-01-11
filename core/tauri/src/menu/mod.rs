@@ -667,43 +667,6 @@ pub(crate) fn into_position(p: crate::Position) -> muda::Position {
   }
 }
 
-#[allow(unused)]
-macro_rules! run_item_main_thread {
-  ($self:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-    let (tx, rx) = channel();
-    let self_ = $self.clone();
-    let task = move || {
-      let f = $ex;
-      let _ = tx.send(f(self_));
-    };
-    $self
-      .app_handle
-      .run_on_main_thread(Box::new(task))
-      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
-  }};
-}
-
-#[allow(unused)]
-pub(crate) use run_item_main_thread;
-
-#[allow(unused)]
-macro_rules! run_main_thread {
-  ($handle:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-    let (tx, rx) = channel();
-    let task = move || {
-      let _ = tx.send($ex);
-    };
-    $handle
-      .run_on_main_thread(Box::new(task))
-      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
-  }};
-}
-
-#[allow(unused)]
-pub(crate) use run_main_thread;
-
 macro_rules! gen_wrappers {
   ($($type:ident),*) => {
     $(

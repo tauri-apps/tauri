@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use super::sealed::ContextMenuBase;
-use super::{run_item_main_thread, run_main_thread, MudaMenu};
+use super::MudaMenu;
 use super::{AboutMetadata, IsMenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use crate::resources::Resource;
 use crate::Window;
+use crate::{run_item_main_thread, run_main_thread};
 use crate::{AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
 use muda::MenuId;

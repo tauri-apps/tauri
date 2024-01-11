@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{run_item_main_thread, run_main_thread, MudaSubmenu};
+use super::MudaSubmenu;
 use super::{sealed::ContextMenuBase, IsMenuItem, MenuItemKind};
 use crate::{resources::Resource, AppHandle, Manager, Position, Runtime, Window};
+use crate::{run_item_main_thread, run_main_thread};
 use muda::{ContextMenu, MenuId};
 
 /// A type that is a submenu inside a [`Menu`] or [`Submenu`]

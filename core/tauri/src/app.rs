@@ -1249,9 +1249,9 @@ impl<R: Runtime> Builder<R> {
   ///       "File",
   ///       true,
   ///       &[
-  ///         &PredefinedMenuItem::close_window(handle, None),
+  ///         &PredefinedMenuItem::close_window(handle, None)?,
   ///         #[cfg(target_os = "macos")]
-  ///         &MenuItem::new(handle, "Hello", true, None),
+  ///         &MenuItem::new(handle, "Hello", true, None)?,
   ///       ],
   ///     )?
   ///   ]));

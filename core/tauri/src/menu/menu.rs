@@ -174,7 +174,7 @@ impl<R: Runtime> Menu<R> {
         &PredefinedMenuItem::minimize(app_handle, None)?,
         &PredefinedMenuItem::maximize(app_handle, None)?,
         #[cfg(target_os = "macos")]
-        &PredefinedMenuItem::separator(app_handle),
+        &PredefinedMenuItem::separator(app_handle)?,
         &PredefinedMenuItem::close_window(app_handle, None)?,
       ],
     )?;
@@ -203,7 +203,7 @@ impl<R: Runtime> Menu<R> {
             &PredefinedMenuItem::separator(app_handle)?,
             &PredefinedMenuItem::services(app_handle, None)?,
             &PredefinedMenuItem::separator(app_handle)?,
-            &PredefinedMenuItem::hide(app_handle, None),
+            &PredefinedMenuItem::hide(app_handle, None)?,
             &PredefinedMenuItem::hide_others(app_handle, None)?,
             &PredefinedMenuItem::separator(app_handle)?,
             &PredefinedMenuItem::quit(app_handle, None)?,

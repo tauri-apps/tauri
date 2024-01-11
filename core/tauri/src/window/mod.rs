@@ -480,7 +480,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
   ///     let menu = Menu::with_items(handle, &[
   ///       &Submenu::with_items(handle, "File", true, &[
   ///         &save_menu_item,
@@ -1410,7 +1410,7 @@ impl<R: Runtime> Window<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
   ///     let menu = Menu::with_items(handle, &[
   ///       &Submenu::with_items(handle, "File", true, &[
   ///         &save_menu_item,

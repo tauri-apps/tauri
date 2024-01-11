@@ -32,6 +32,7 @@ use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use libflate::gzip;
 use log::info;
 use serde::Serialize;
+use tar::HeaderMode;
 use walkdir::WalkDir;
 
 use std::{
@@ -39,6 +40,7 @@ use std::{
   ffi::OsStr,
   fs::{self, read_to_string, File},
   io::{self, Write},
+  os::unix::fs::MetadataExt,
   path::{Path, PathBuf},
 };
 
@@ -366,20 +368,15 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       continue;
     }
     let dest_path = src_path.strip_prefix(src_dir)?;
+    let stat = fs::metadata(src_path)?;
+    let mut header = tar::Header::new_gnu();
+    header.set_metadata_in_mode(&stat, HeaderMode::Deterministic);
+    header.set_mtime(stat.mtime() as u64);
+
     if entry.file_type().is_dir() {
-      let stat = fs::metadata(src_path)?;
-      let mut header = tar::Header::new_gnu();
-      header.set_metadata(&stat);
-      header.set_uid(0);
-      header.set_gid(0);
       tar_builder.append_data(&mut header, dest_path, &mut io::empty())?;
     } else {
       let mut src_file = fs::File::open(src_path)?;
-      let stat = src_file.metadata()?;
-      let mut header = tar::Header::new_gnu();
-      header.set_metadata(&stat);
-      header.set_uid(0);
-      header.set_gid(0);
       tar_builder.append_data(&mut header, dest_path, &mut src_file)?;
     }
   }

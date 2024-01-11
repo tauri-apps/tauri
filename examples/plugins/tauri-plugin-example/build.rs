@@ -1,3 +1,5 @@
+const COMMANDS: &[&str] = &[];
+
 fn main() {
-  tauri_plugin::build("./permissions/**/*.toml")
+  tauri_plugin::Builder::new(COMMANDS).build()
 }

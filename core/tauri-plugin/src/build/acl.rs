@@ -42,7 +42,7 @@ pub struct PermissionFile {
   pub permission: Option<Vec<Permission>>,
 }
 
-pub fn define_permissions(pattern: &str) -> Result<(), Error> {
+pub(crate) fn define_permissions(pattern: &str) -> Result<(), Error> {
   let permission_files = glob::glob(pattern)?
     .flatten()
     .flat_map(|p| p.canonicalize())

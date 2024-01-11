@@ -23,7 +23,7 @@ use std::{fmt, path::PathBuf};
 #[derive(Debug, Clone)]
 pub struct WebviewAttributes {
   pub url: WindowUrl,
-  pub proxy: Option<Url>,
+  pub proxy_url: Option<Url>,
   pub user_agent: Option<String>,
   pub initialization_scripts: Vec<String>,
   pub data_directory: Option<PathBuf>,
@@ -72,7 +72,7 @@ impl WebviewAttributes {
       additional_browser_args: None,
       window_effects: None,
       incognito: false,
-      proxy: None,
+      proxy_url: None,
     }
   }
 
@@ -145,7 +145,7 @@ impl WebviewAttributes {
   /// Enable proxy for the WebView
   #[must_use]
   pub fn proxy_url(mut self, url: Url) -> Self {
-    self.proxy = Some(url);
+    self.proxy_url = Some(url);
     self
   }
 }

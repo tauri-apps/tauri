@@ -13,10 +13,9 @@
 
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::parse_macro_input;
 
 mod command;
-mod command2;
 mod menu;
 mod mobile;
 mod runtime;
@@ -33,11 +32,6 @@ mod context;
 #[proc_macro_attribute]
 pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
   command::wrapper(attributes, item)
-}
-
-#[proc_macro_attribute]
-pub fn command2(attributes: TokenStream, item: TokenStream) -> TokenStream {
-  command2::wrapper(attributes, item)
 }
 
 #[proc_macro_attribute]

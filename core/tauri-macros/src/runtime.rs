@@ -6,8 +6,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::{
-  parse_quote, DeriveInput, Error, GenericParam, Ident, ItemFn, ItemTrait, ItemType, Token, Type,
-  TypeParam,
+  parse_quote, DeriveInput, Error, GenericParam, Ident, ItemTrait, ItemType, Token, Type, TypeParam,
 };
 
 #[derive(Clone)]

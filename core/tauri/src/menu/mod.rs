@@ -455,27 +455,27 @@ impl<R: Runtime> MenuItemKind<R> {
     match i {
       muda::MenuItemKind::MenuItem(i) => Self::MenuItem(MenuItem {
         id: i.id().clone(),
-        inner: i,
+        inner: i.into(),
         app_handle,
       }),
       muda::MenuItemKind::Submenu(i) => Self::Submenu(Submenu {
         id: i.id().clone(),
-        inner: i,
+        inner: i.into(),
         app_handle,
       }),
       muda::MenuItemKind::Predefined(i) => Self::Predefined(PredefinedMenuItem {
         id: i.id().clone(),
-        inner: i,
+        inner: i.into(),
         app_handle,
       }),
       muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem {
         id: i.id().clone(),
-        inner: i,
+        inner: i.into(),
         app_handle,
       }),
       muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem {
         id: i.id().clone(),
-        inner: i,
+        inner: i.into(),
         app_handle,
       }),
     }
@@ -666,3 +666,87 @@ pub(crate) fn into_position(p: crate::Position) -> muda::Position {
     crate::Position::Logical(p) => muda::Position::Logical(into_logical_position(p)),
   }
 }
+
+#[allow(unused)]
+macro_rules! run_item_main_thread {
+  ($self:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+    let self_ = $self.clone();
+    let task = move || {
+      let f = $ex;
+      let _ = tx.send(f(self_));
+    };
+    $self
+      .app_handle
+      .run_on_main_thread(Box::new(task))
+      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
+  }};
+}
+
+#[allow(unused)]
+pub(crate) use run_item_main_thread;
+
+#[allow(unused)]
+macro_rules! run_main_thread {
+  ($handle:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+    let task = move || {
+      let _ = tx.send($ex);
+    };
+    $handle
+      .run_on_main_thread(Box::new(task))
+      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
+  }};
+}
+
+#[allow(unused)]
+pub(crate) use run_main_thread;
+
+macro_rules! gen_wrappers {
+  ($($type:ident),*) => {
+    $(
+      paste::paste!{
+        #[derive(Clone, Default)]
+        pub(crate) struct [<Muda $type>](Option<muda::$type>);
+
+        /// # Safety
+        ///
+        /// We make sure it always runs on the main thread.
+        unsafe impl Send for [<Muda $type>] {}
+
+        impl [<Muda $type>] {
+          fn new(m: muda::$type) -> Self {
+            Self(Some(m))
+          }
+
+          fn take(&mut self) -> Self {
+            Self(self.0.take())
+          }
+        }
+
+        impl AsRef<muda::$type> for [<Muda $type>] {
+          fn as_ref(&self) -> &muda::$type {
+            self.0.as_ref().unwrap()
+          }
+        }
+
+        impl From<muda::$type> for [<Muda $type>] {
+          fn from(v: muda::$type) -> Self {
+            Self::new(v)
+          }
+        }
+    }
+  )*
+  };
+}
+
+gen_wrappers!(
+  Menu,
+  MenuItem,
+  Submenu,
+  PredefinedMenuItem,
+  CheckMenuItem,
+  IconMenuItem
+);

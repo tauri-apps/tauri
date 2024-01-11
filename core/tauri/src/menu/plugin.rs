@@ -127,7 +127,7 @@ struct CheckMenuItemPayload {
 }
 
 impl CheckMenuItemPayload {
-  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> CheckMenuItem<R> {
+  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> crate::Result<CheckMenuItem<R>> {
     let mut builder = if let Some(id) = self.id {
       CheckMenuItemBuilder::with_id(id, self.text)
     } else {
@@ -140,7 +140,7 @@ impl CheckMenuItemPayload {
       builder = builder.enabled(enabled);
     }
 
-    let item = builder.checked(self.checked).build(window);
+    let item = builder.checked(self.checked).build(window)?;
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(window.clone());
@@ -152,7 +152,7 @@ impl CheckMenuItemPayload {
         .insert(item.id().clone(), handler);
     }
 
-    item
+    Ok(item)
   }
 }
 
@@ -175,7 +175,7 @@ struct IconMenuItemPayload {
 }
 
 impl IconMenuItemPayload {
-  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> IconMenuItem<R> {
+  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> crate::Result<IconMenuItem<R>> {
     let mut builder = if let Some(id) = self.id {
       IconMenuItemBuilder::with_id(id, self.text)
     } else {
@@ -192,7 +192,7 @@ impl IconMenuItemPayload {
       Icon::Icon(icon) => builder.icon(icon.into()),
     };
 
-    let item = builder.build(window);
+    let item = builder.build(window)?;
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(window.clone());
@@ -204,7 +204,7 @@ impl IconMenuItemPayload {
         .insert(item.id().clone(), handler);
     }
 
-    item
+    Ok(item)
   }
 }
 
@@ -218,7 +218,7 @@ struct MenuItemPayload {
 }
 
 impl MenuItemPayload {
-  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> MenuItem<R> {
+  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> crate::Result<MenuItem<R>> {
     let mut builder = if let Some(id) = self.id {
       MenuItemBuilder::with_id(id, self.text)
     } else {
@@ -231,7 +231,7 @@ impl MenuItemPayload {
       builder = builder.enabled(enabled);
     }
 
-    let item = builder.build(window);
+    let item = builder.build(window)?;
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(window.clone());
@@ -243,7 +243,7 @@ impl MenuItemPayload {
         .insert(item.id().clone(), handler);
     }
 
-    item
+    Ok(item)
   }
 }
 
@@ -254,7 +254,7 @@ struct PredefinedMenuItemPayload {
 }
 
 impl PredefinedMenuItemPayload {
-  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> PredefinedMenuItem<R> {
+  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> crate::Result<PredefinedMenuItem<R>> {
     match self.item {
       Predefined::Separator => PredefinedMenuItem::separator(window),
       Predefined::Copy => PredefinedMenuItem::copy(window, self.text.as_deref()),
@@ -302,10 +302,10 @@ impl MenuItemPayloadKind {
         do_menu_item!(resources_table, rid, kind, |i| f(&*i))
       }
       Self::Submenu(i) => f(&i.create_item(window, resources_table)?),
-      Self::Predefined(i) => f(&i.create_item(window)),
-      Self::Check(i) => f(&i.create_item(window)),
-      Self::Icon(i) => f(&i.create_item(window)),
-      Self::MenuItem(i) => f(&i.create_item(window)),
+      Self::Predefined(i) => f(&i.create_item(window)?),
+      Self::Check(i) => f(&i.create_item(window)?),
+      Self::Icon(i) => f(&i.create_item(window)?),
+      Self::MenuItem(i) => f(&i.create_item(window)?),
     }
   }
 }
@@ -377,7 +377,7 @@ fn new<R: Runtime>(
         enabled: options.enabled,
         accelerator: options.accelerator,
       }
-      .create_item(&window);
+      .create_item(&window)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -388,7 +388,7 @@ fn new<R: Runtime>(
         item: options.predefined_item.unwrap(),
         text: options.text,
       }
-      .create_item(&window);
+      .create_item(&window)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -404,7 +404,7 @@ fn new<R: Runtime>(
         enabled: options.enabled,
         accelerator: options.accelerator,
       }
-      .create_item(&window);
+      .create_item(&window)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -420,7 +420,7 @@ fn new<R: Runtime>(
         enabled: options.enabled,
         accelerator: options.accelerator,
       }
-      .create_item(&window);
+      .create_item(&window)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)

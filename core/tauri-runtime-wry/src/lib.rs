@@ -2908,7 +2908,7 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }
 
-  if let Some(proxy_urlproxy_url) = webview_attributes.proxy_url{
+  if let Some(proxy_urlproxy_url) = webview_attributes.proxy_url {
     let config = parse_proxy_url(&proxy_url)?;
 
     webview_builder = webview_builder.with_proxy_config(config);

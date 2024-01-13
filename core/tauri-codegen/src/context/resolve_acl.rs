@@ -41,7 +41,7 @@ pub fn resolve(
 
         for permission in permissions {
           current_scope_id += 1;
-          scopes.insert(current_scope_id, permission.inner.scopes.clone());
+          scopes.insert(current_scope_id, permission.inner.scope.clone());
 
           for allowed_command in &permission.inner.commands.allow {
             resolve_command(
@@ -118,7 +118,7 @@ pub fn resolve(
         )
       })
       .collect(),
-    scopes: resolved_scopes,
+    scope: resolved_scopes,
   };
 
   Ok(resolved)

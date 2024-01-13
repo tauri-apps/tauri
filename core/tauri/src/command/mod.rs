@@ -18,7 +18,8 @@ use serde::{
 
 mod authority;
 
-pub use authority::RuntimeAuthority;
+pub use authority::{AccessScope, RuntimeAuthority};
+use tauri_utils::acl::resolved::ResolvedCommand;
 
 /// Represents a custom command.
 pub struct CommandItem<'a, R: Runtime> {
@@ -30,6 +31,9 @@ pub struct CommandItem<'a, R: Runtime> {
 
   /// The [`InvokeMessage`] that was passed to this command.
   pub message: &'a InvokeMessage<R>,
+
+  /// The resolved ACL for this command.
+  pub acl: &'a Option<ResolvedCommand>,
 }
 
 /// Trait implemented by command arguments to derive a value from a [`CommandItem`].

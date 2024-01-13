@@ -62,7 +62,7 @@ pub(crate) fn get_plugin_manifests() -> Result<HashMap<String, Manifest>> {
             version: default.version,
             description: default.description,
             commands: default.commands,
-            scopes: default.scopes,
+            scope: default.scope,
           },
         });
       }

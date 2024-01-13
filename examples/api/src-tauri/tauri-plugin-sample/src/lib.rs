@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use serde::Deserialize;
+use std::path::PathBuf;
 use tauri::{
   plugin::{Builder, TauriPlugin},
   Manager, Runtime,
@@ -35,11 +37,19 @@ impl<R: Runtime, T: Manager<R>> crate::SampleExt<R> for T {
   }
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct PingScope {
+  path: PathBuf,
+}
+
 #[tauri::command]
 fn ping<R: tauri::Runtime>(
   app: tauri::AppHandle<R>,
   value: Option<String>,
+  scope: tauri::command::AccessScope<PingScope>,
 ) -> std::result::Result<PingResponse, String> {
+  println!("{:?}", scope);
   app
     .sample()
     .ping(PingRequest {

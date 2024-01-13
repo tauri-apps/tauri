@@ -2353,30 +2353,34 @@ impl<R: Runtime> Window<R> {
       request.headers,
     );
 
+    let resolved_acl = manager
+      .runtime_authority
+      .resolve_access(
+        &request.cmd,
+        &message.window.window.label,
+        if is_local {
+          ExecutionContext::Local
+        } else {
+          ExecutionContext::Remote {
+            domain: current_url
+              .domain()
+              .map(|d| d.to_string())
+              .unwrap_or_default(),
+          }
+        },
+      )
+      .cloned();
+
     let mut invoke = Invoke {
       message,
       resolver: resolver.clone(),
+      acl: resolved_acl,
     };
 
     if !is_local && scope.is_none() {
       invoke.resolver.reject(scope_not_found_error_message);
     } else if request.cmd.starts_with("plugin:") {
-      if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
-        && !manager.runtime_authority.is_allowed(
-          &request.cmd,
-          &invoke.message.window.window.label,
-          if is_local {
-            ExecutionContext::Local
-          } else {
-            ExecutionContext::Remote {
-              domain: current_url
-                .domain()
-                .map(|d| d.to_string())
-                .unwrap_or_default(),
-            }
-          },
-        )
-      {
+      if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND && invoke.acl.is_none() {
         invoke.resolver.reject("NOT ALLOWED");
         return;
       }

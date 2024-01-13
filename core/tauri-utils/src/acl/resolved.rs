@@ -2,15 +2,13 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
-
 use super::{ExecutionContext, Value};
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
 pub type ScopeKey = usize;
 
 /// A resolved command permission.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResolvedCommand {
   /// The list of window label patterns that is allowed to run this command.
   pub windows: Vec<String>,
@@ -18,16 +16,13 @@ pub struct ResolvedCommand {
   pub scope: ScopeKey,
 }
 
-/// A resolved scope. Contains all scopes defined for a single command.
-pub struct ResolvedScope<T>
-where
-  T: Serialize,
-  for<'de> T: Deserialize<'de>,
-{
+/// A resolved scope. Merges all scopes defined for a single command.
+#[derive(Debug)]
+pub struct ResolvedScope {
   /// Allows something on the command.
-  pub allow: Vec<T>,
+  pub allow: Vec<Value>,
   /// Denies something on the command.
-  pub deny: Vec<T>,
+  pub deny: Vec<Value>,
 }
 
 /// A command key for the map of allowed and denied commands.
@@ -47,7 +42,7 @@ pub struct Resolved {
   /// The commands that are denied. Map each command with its context to a [`ResolvedCommand`].
   pub denied_commands: BTreeMap<CommandKey, ResolvedCommand>,
   /// The store of scopes referenced by a [`ResolvedCommand`].
-  pub scopes: BTreeMap<ScopeKey, ResolvedScope<Value>>,
+  pub scope: BTreeMap<ScopeKey, ResolvedScope>,
 }
 
 #[cfg(feature = "build")]
@@ -88,7 +83,7 @@ mod build {
     }
   }
 
-  impl ToTokens for ResolvedScope<Value> {
+  impl ToTokens for ResolvedScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let allow = vec_lit(&self.allow, identity);
       let deny = vec_lit(&self.deny, identity);
@@ -112,14 +107,14 @@ mod build {
         identity,
       );
 
-      let scopes = map_lit(
+      let scope = map_lit(
         quote! { ::std::collections::BTreeMap },
-        &self.scopes,
+        &self.scope,
         identity,
         identity,
       );
 
-      literal_struct!(tokens, Resolved, allowed_commands, denied_commands, scopes)
+      literal_struct!(tokens, Resolved, allowed_commands, denied_commands, scope)
     }
   }
 }

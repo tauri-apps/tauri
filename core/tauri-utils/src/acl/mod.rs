@@ -64,7 +64,7 @@ pub struct InlinedPermission {
 
   /// Allowed or denied scoped when using this permission.
   #[serde(default)]
-  pub scopes: Scopes,
+  pub scope: Scopes,
 }
 
 /// A permission.

@@ -120,6 +120,7 @@ enum ArgumentCase {
 struct Invoke {
   message: Ident,
   resolver: Ident,
+  acl: Ident,
 }
 
 /// Create a new [`Wrapper`] from the function and the generated code parsed from the function.
@@ -142,6 +143,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   let invoke = Invoke {
     message: format_ident!("__tauri_message__"),
     resolver: format_ident!("__tauri_resolver__"),
+    acl: format_ident!("__tauri_acl__"),
   };
 
   // Tauri currently doesn't support async commands that take a reference as input and don't return
@@ -210,7 +212,11 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     }
   };
 
-  let Invoke { message, resolver } = invoke;
+  let Invoke {
+    message,
+    resolver,
+    acl,
+  } = invoke;
 
   let root = attrs.root;
 
@@ -255,7 +261,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           use #root::command::private::*;
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
-          let #root::ipc::Invoke { message: #message, resolver: #resolver } = $invoke;
+          let #root::ipc::Invoke { message: #message, resolver: #resolver, acl: #acl } = $invoke;
 
           #maybe_span
 
@@ -280,8 +286,12 @@ fn body_async(
   invoke: &Invoke,
   attributes: &WrapperAttributes,
 ) -> syn::Result<TokenStream2> {
-  let Invoke { message, resolver } = invoke;
-  parse_args(function, message, attributes).map(|args| {
+  let Invoke {
+    message,
+    resolver,
+    acl,
+  } = invoke;
+  parse_args(function, message, acl, attributes).map(|args| {
     #[cfg(feature = "tracing")]
     quote! {
       use tracing::Instrument;
@@ -318,8 +328,12 @@ fn body_blocking(
   invoke: &Invoke,
   attributes: &WrapperAttributes,
 ) -> syn::Result<TokenStream2> {
-  let Invoke { message, resolver } = invoke;
-  let args = parse_args(function, message, attributes)?;
+  let Invoke {
+    message,
+    resolver,
+    acl,
+  } = invoke;
+  let args = parse_args(function, message, acl, attributes)?;
 
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
@@ -346,13 +360,14 @@ fn body_blocking(
 fn parse_args(
   function: &ItemFn,
   message: &Ident,
+  acl: &Ident,
   attributes: &WrapperAttributes,
 ) -> syn::Result<Vec<TokenStream2>> {
   function
     .sig
     .inputs
     .iter()
-    .map(|arg| parse_arg(&function.sig.ident, arg, message, attributes))
+    .map(|arg| parse_arg(&function.sig.ident, arg, message, acl, attributes))
     .collect()
 }
 
@@ -361,6 +376,7 @@ fn parse_arg(
   command: &Ident,
   arg: &FnArg,
   message: &Ident,
+  acl: &Ident,
   attributes: &WrapperAttributes,
 ) -> syn::Result<TokenStream2> {
   // we have no use for self arguments
@@ -412,6 +428,7 @@ fn parse_arg(
       name: stringify!(#command),
       key: #key,
       message: &#message,
+      acl: &#acl,
     }
   )))
 }

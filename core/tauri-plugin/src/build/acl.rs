@@ -32,7 +32,7 @@ pub struct DefaultPermission {
 
   /// Allowed or denied scoped when using this permission.
   #[serde(default)]
-  pub scopes: Scopes,
+  pub scope: Scopes,
 }
 
 #[derive(Debug, Deserialize)]

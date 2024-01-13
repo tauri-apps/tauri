@@ -55,9 +55,9 @@ pub enum Value {
 impl Value {
   /// TODO: implement [`serde::Deserializer`] directly to avoid serializing then deserializing
   pub fn deserialize<T: DeserializeOwned + Debug>(&self) -> Option<T> {
-    dbg!(toml::to_string(self))
+    dbg!(serde_json::to_string(self))
       .ok()
-      .and_then(|s| dbg!(toml::from_str(&s).ok()))
+      .and_then(|s| dbg!(serde_json::from_str(&s).ok()))
   }
 }
 
@@ -111,7 +111,7 @@ mod build {
 
   impl ToTokens for Number {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::acl:::Number };
+      let prefix = quote! { ::tauri::utils::acl::Number };
 
       tokens.append_all(match self {
         Self::Int(i) => {
@@ -126,7 +126,7 @@ mod build {
 
   impl ToTokens for Value {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::acl::Value };
+      let prefix = quote! { ::tauri::utils::acl::Value };
 
       tokens.append_all(match self {
         Value::Bool(bool) => quote! { #prefix::Bool(#bool) },
@@ -137,10 +137,15 @@ mod build {
         }
         Value::List(vec) => {
           let items = vec_lit(vec, identity);
-          quote! { #prefix::Array(#items) }
+          quote! { #prefix::List(#items) }
         }
         Value::Map(map) => {
-          let map = map_lit(quote! { ::tauri::acl::Map }, map, str_lit, identity);
+          let map = map_lit(
+            quote! { ::std::collections::BTreeMap },
+            map,
+            str_lit,
+            identity,
+          );
           quote! { #prefix::Map(#map) }
         }
       });

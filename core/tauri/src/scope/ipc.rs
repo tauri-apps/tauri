@@ -166,18 +166,53 @@ impl Scope {
 
 #[cfg(test)]
 mod tests {
+  use tauri_utils::acl::{
+    resolved::{CommandKey, ResolvedCommand},
+    ExecutionContext,
+  };
+
   use super::RemoteDomainAccessScope;
   use crate::{
     ipc::CallbackFn,
-    test::{assert_ipc_response, mock_app, MockRuntime},
+    test::{assert_ipc_response, mock_builder, mock_context, noop_assets, MockRuntime},
     window::InvokeRequest,
     App, Manager, Window, WindowBuilder,
   };
 
   const PLUGIN_NAME: &str = "test";
 
-  fn test_context(scopes: Vec<RemoteDomainAccessScope>) -> (App<MockRuntime>, Window<MockRuntime>) {
-    let app = mock_app();
+  fn test_context(
+    request: &InvokeRequest,
+    scopes: Vec<RemoteDomainAccessScope>,
+  ) -> (App<MockRuntime>, Window<MockRuntime>) {
+    let mut ctx = mock_context(noop_assets());
+
+    ctx.resolved_acl.allowed_commands.insert(
+      CommandKey {
+        name: request.cmd.clone(),
+        context: ExecutionContext::Local,
+      },
+      ResolvedCommand {
+        windows: vec!["main".into()],
+        scope: 0,
+      },
+    );
+    for scope in &scopes {
+      ctx.resolved_acl.allowed_commands.insert(
+        CommandKey {
+          name: request.cmd.clone(),
+          context: ExecutionContext::Remote {
+            domain: scope.domain.clone(),
+          },
+        },
+        ResolvedCommand {
+          windows: vec!["main".into()],
+          scope: 0,
+        },
+      );
+    }
+
+    let app = mock_builder().build(ctx).unwrap();
     let window = WindowBuilder::new(&app, "main", Default::default())
       .build()
       .unwrap();
@@ -223,14 +258,18 @@ mod tests {
 
   #[test]
   fn scope_not_defined() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
-      .add_window("other")
-      .add_plugin("path")]);
+    let request = path_is_absolute_request();
+    let (_app, mut window) = test_context(
+      &request,
+      vec![RemoteDomainAccessScope::new("app.tauri.app")
+        .add_window("other")
+        .add_plugin("path")],
+    );
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_request(),
+      request,
       Err(crate::window::ipc_scope_not_found_error_message(
         "main",
         "https://tauri.app/",
@@ -240,28 +279,37 @@ mod tests {
 
   #[test]
   fn scope_not_defined_for_window() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
-      .add_window("second")
-      .add_plugin("path")]);
+    let request = path_is_absolute_request();
+    let (_app, mut window) = test_context(
+      &request,
+      vec![RemoteDomainAccessScope::new("tauri.app")
+        .add_window("second")
+        .add_plugin("path")],
+    );
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_request(),
+      request,
       Err(crate::window::ipc_scope_window_error_message("main")),
     );
   }
 
   #[test]
   fn scope_not_defined_for_url() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("github.com")
-      .add_window("main")
-      .add_plugin("path")]);
+    let request = path_is_absolute_request();
+
+    let (_app, mut window) = test_context(
+      &request,
+      vec![RemoteDomainAccessScope::new("github.com")
+        .add_window("main")
+        .add_plugin("path")],
+    );
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_request(),
+      request,
       Err(crate::window::ipc_scope_domain_error_message(
         "https://tauri.app/",
       )),
@@ -270,14 +318,17 @@ mod tests {
 
   #[test]
   fn subdomain_is_not_allowed() {
-    let (_app, mut window) = test_context(vec![
-      RemoteDomainAccessScope::new("tauri.app")
-        .add_window("main")
-        .add_plugin("path"),
-      RemoteDomainAccessScope::new("sub.tauri.app")
-        .add_window("main")
-        .add_plugin("path"),
-    ]);
+    let (_app, mut window) = test_context(
+      &path_is_absolute_request(),
+      vec![
+        RemoteDomainAccessScope::new("tauri.app")
+          .add_window("main")
+          .add_plugin("path"),
+        RemoteDomainAccessScope::new("sub.tauri.app")
+          .add_window("main")
+          .add_plugin("path"),
+      ],
+    );
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
@@ -308,52 +359,64 @@ mod tests {
 
   #[test]
   fn subpath_is_allowed() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
-      .add_window("main")
-      .add_plugin("path")]);
+    let request = path_is_absolute_request();
+    let (_app, mut window) = test_context(
+      &request,
+      vec![RemoteDomainAccessScope::new("tauri.app")
+        .add_window("main")
+        .add_plugin("path")],
+    );
 
     window.navigate("https://tauri.app/inner/path".parse().unwrap());
-    assert_ipc_response(&window, path_is_absolute_request(), Ok(true));
+    assert_ipc_response(&window, request, Ok(true));
   }
 
   #[test]
   fn tauri_api_not_allowed() {
-    let (_app, mut window) = test_context(vec![
-      RemoteDomainAccessScope::new("tauri.app").add_window("main")
-    ]);
+    let request = path_is_absolute_request();
+    let (_app, mut window) = test_context(
+      &request,
+      vec![RemoteDomainAccessScope::new("tauri.app").add_window("main")],
+    );
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      path_is_absolute_request(),
+      request,
       Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }
 
   #[test]
   fn plugin_allowed() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
-      .add_window("main")
-      .add_plugin(PLUGIN_NAME)]);
+    let request = plugin_test_request();
+    let (_app, mut window) = test_context(
+      &request,
+      vec![RemoteDomainAccessScope::new("tauri.app")
+        .add_window("main")
+        .add_plugin(PLUGIN_NAME)],
+    );
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      plugin_test_request(),
+      request,
       Err(format!("plugin {PLUGIN_NAME} not found")),
     );
   }
 
   #[test]
   fn plugin_not_allowed() {
-    let (_app, mut window) = test_context(vec![
-      RemoteDomainAccessScope::new("tauri.app").add_window("main")
-    ]);
+    let request = plugin_test_request();
+    let (_app, mut window) = test_context(
+      &request,
+      vec![RemoteDomainAccessScope::new("tauri.app").add_window("main")],
+    );
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      plugin_test_request(),
+      request,
       Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }

@@ -381,15 +381,23 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   };
 
-  let acl_file = std::fs::read_to_string(out_dir.join(PLUGIN_MANIFESTS_FILE_NAME))
-    .expect("failed to read plugin manifest map");
-  let acl: HashMap<String, Manifest> =
-    serde_json::from_str(&acl_file).expect("failed to parse plugin manifest map");
+  let acl_file_path = out_dir.join(PLUGIN_MANIFESTS_FILE_NAME);
+  let acl: HashMap<String, Manifest> = if acl_file_path.exists() {
+    let acl_file =
+      std::fs::read_to_string(acl_file_path).expect("failed to read plugin manifest map");
+    serde_json::from_str(&acl_file).expect("failed to parse plugin manifest map")
+  } else {
+    Default::default()
+  };
 
-  let capabilities_file = std::fs::read_to_string(out_dir.join(CAPABILITIES_FILE_NAME))
-    .expect("failed to read capabilities");
-  let capabilities: HashMap<String, Capability> =
-    serde_json::from_str(&capabilities_file).expect("failed to parse capabilities");
+  let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
+  let capabilities: HashMap<String, Capability> = if capabilities_file_path.exists() {
+    let capabilities_file =
+      std::fs::read_to_string(capabilities_file_path).expect("failed to read capabilities");
+    serde_json::from_str(&capabilities_file).expect("failed to parse capabilities")
+  } else {
+    Default::default()
+  };
 
   let resolved_act = resolve_acl::resolve(acl, capabilities).expect("failed to resolve ACL");
 

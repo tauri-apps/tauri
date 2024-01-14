@@ -1,4 +1,4 @@
 identifier = "run-app"
 description = "app capability"
 windows = ["main"]
-permissions = ["sample:allow-ping-scoped"]
+permissions = ["sample:allow-ping-scoped", "sample:global-scope"]

@@ -22,12 +22,19 @@ pub struct RuntimeAuthority {
 
 impl RuntimeAuthority {
   pub(crate) fn new(acl: Resolved) -> Self {
+    let command_cache = acl
+      .command_scope
+      .keys()
+      .map(|key| (*key, <TypeMap![Send + Sync]>::new()))
+      .collect();
     Self {
       allowed_commands: acl.allowed_commands,
       denied_commands: acl.denied_commands,
       scope_manager: ScopeManager {
-        raw: acl.scope,
-        cache: <TypeMap![Send + Sync]>::new(),
+        command_scope: acl.command_scope,
+        global_scope: acl.global_scope,
+        command_cache,
+        global_scope_cache: Default::default(),
       },
     }
   }
@@ -55,18 +62,16 @@ impl RuntimeAuthority {
 }
 
 #[derive(Debug)]
-struct CommandScope<T: Debug + DeserializeOwned + Send + Sync + 'static> {
+struct ScopeValue<T: Debug + DeserializeOwned + Send + Sync + 'static> {
   allow: Vec<T>,
   deny: Vec<T>,
 }
 
 /// Access scope for a command that can be retrieved directly in the command function.
 #[derive(Debug)]
-pub struct AccessScope<'a, T: Debug + DeserializeOwned + Send + Sync + 'static>(
-  &'a CommandScope<T>,
-);
+pub struct CommandScope<'a, T: Debug + DeserializeOwned + Send + Sync + 'static>(&'a ScopeValue<T>);
 
-impl<'a, T: Debug + DeserializeOwned + Send + Sync + 'static> AccessScope<'a, T> {
+impl<'a, T: Debug + DeserializeOwned + Send + Sync + 'static> CommandScope<'a, T> {
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<T> {
     &self.0.allow
@@ -79,9 +84,9 @@ impl<'a, T: Debug + DeserializeOwned + Send + Sync + 'static> AccessScope<'a, T>
 }
 
 impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> CommandArg<'a, R>
-  for AccessScope<'a, T>
+  for CommandScope<'a, T>
 {
-  /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`Scope`].
+  /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`CommandScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     command
       .acl
@@ -93,27 +98,85 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
           .manager
           .runtime_authority
           .scope_manager
-          .get_typed(&resolved.scope)
-          .map(AccessScope)
+          .get_command_scope_typed(&resolved.scope)
+          .map(CommandScope)
       })
       .ok_or_else(|| InvokeError::from_anyhow(anyhow::anyhow!("scope not found")))
   }
 }
 
-#[derive(Debug, Default)]
+/// Global access scope that can be retrieved directly in the command function.
+#[derive(Debug)]
+pub struct GlobalScope<'a, T: Debug + DeserializeOwned + Send + Sync + 'static>(&'a ScopeValue<T>);
+
+impl<'a, T: Debug + DeserializeOwned + Send + Sync + 'static> GlobalScope<'a, T> {
+  /// What this access scope allows.
+  pub fn allows(&self) -> &Vec<T> {
+    &self.0.allow
+  }
+
+  /// What this access scope denies.
+  pub fn denies(&self) -> &Vec<T> {
+    &self.0.deny
+  }
+}
+
+impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> CommandArg<'a, R>
+  for GlobalScope<'a, T>
+{
+  /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`GlobalScope`].
+  fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
+    let scope = command
+      .message
+      .window
+      .manager
+      .runtime_authority
+      .scope_manager
+      .get_global_scope_typed();
+    Ok(GlobalScope(scope))
+  }
+}
+
+#[derive(Debug)]
 pub struct ScopeManager {
-  raw: BTreeMap<ScopeKey, ResolvedScope>,
-  cache: TypeMap![Send + Sync],
+  command_scope: BTreeMap<ScopeKey, ResolvedScope>,
+  global_scope: ResolvedScope,
+  command_cache: BTreeMap<ScopeKey, TypeMap![Send + Sync]>,
+  global_scope_cache: TypeMap![Send + Sync],
 }
 
 impl ScopeManager {
-  fn get_typed<T: Send + Sync + DeserializeOwned + Debug + 'static>(
+  fn get_global_scope_typed<T: Send + Sync + DeserializeOwned + Debug + 'static>(
+    &self,
+  ) -> &ScopeValue<T> {
+    match self.global_scope_cache.try_get() {
+      Some(cached) => cached,
+      None => {
+        let mut allow: Vec<T> = Vec::new();
+        let mut deny: Vec<T> = Vec::new();
+
+        for allowed in &self.global_scope.allow {
+          allow.push(allowed.deserialize().unwrap());
+        }
+        for denied in &self.global_scope.deny {
+          deny.push(denied.deserialize().unwrap());
+        }
+
+        let scope = ScopeValue { allow, deny };
+        let _ = self.global_scope_cache.set(scope);
+        self.global_scope_cache.get()
+      }
+    }
+  }
+
+  fn get_command_scope_typed<T: Send + Sync + DeserializeOwned + Debug + 'static>(
     &self,
     key: &ScopeKey,
-  ) -> Option<&CommandScope<T>> {
-    match self.cache.try_get() {
+  ) -> Option<&ScopeValue<T>> {
+    let cache = self.command_cache.get(key).unwrap();
+    match cache.try_get() {
       cached @ Some(_) => cached,
-      None => match self.raw.get(key).map(|r| {
+      None => match self.command_scope.get(key).map(|r| {
         let mut allow: Vec<T> = Vec::new();
         let mut deny: Vec<T> = Vec::new();
 
@@ -124,12 +187,12 @@ impl ScopeManager {
           deny.push(denied.deserialize().unwrap());
         }
 
-        CommandScope { allow, deny }
+        ScopeValue { allow, deny }
       }) {
         None => None,
         Some(value) => {
-          let _ = self.cache.set(value);
-          self.cache.try_get()
+          let _ = cache.set(value);
+          cache.try_get()
         }
       },
     }

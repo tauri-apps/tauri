@@ -18,7 +18,7 @@ use serde::{
 
 mod authority;
 
-pub use authority::{AccessScope, RuntimeAuthority};
+pub use authority::{CommandScope, GlobalScope, RuntimeAuthority};
 use tauri_utils::acl::resolved::ResolvedCommand;
 
 /// Represents a custom command.

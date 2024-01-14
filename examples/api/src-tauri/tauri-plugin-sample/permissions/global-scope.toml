@@ -1,0 +1,5 @@
+[[permission]]
+identifier = "global-scope"
+description = "This sets a global scope."
+[permission.scope.allow]
+path = "global"

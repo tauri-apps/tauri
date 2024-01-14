@@ -17,7 +17,7 @@ pub struct ResolvedCommand {
 }
 
 /// A resolved scope. Merges all scopes defined for a single command.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ResolvedScope {
   /// Allows something on the command.
   pub allow: Vec<Value>,
@@ -42,7 +42,9 @@ pub struct Resolved {
   /// The commands that are denied. Map each command with its context to a [`ResolvedCommand`].
   pub denied_commands: BTreeMap<CommandKey, ResolvedCommand>,
   /// The store of scopes referenced by a [`ResolvedCommand`].
-  pub scope: BTreeMap<ScopeKey, ResolvedScope>,
+  pub command_scope: BTreeMap<ScopeKey, ResolvedScope>,
+  /// The global scope.
+  pub global_scope: ResolvedScope,
 }
 
 #[cfg(feature = "build")]
@@ -107,14 +109,23 @@ mod build {
         identity,
       );
 
-      let scope = map_lit(
+      let command_scope = map_lit(
         quote! { ::std::collections::BTreeMap },
-        &self.scope,
+        &self.command_scope,
         identity,
         identity,
       );
 
-      literal_struct!(tokens, Resolved, allowed_commands, denied_commands, scope)
+      let global_scope = &self.global_scope;
+
+      literal_struct!(
+        tokens,
+        Resolved,
+        allowed_commands,
+        denied_commands,
+        command_scope,
+        global_scope
+      )
     }
   }
 }

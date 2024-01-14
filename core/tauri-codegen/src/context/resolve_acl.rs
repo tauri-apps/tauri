@@ -29,7 +29,8 @@ pub fn resolve(
   let mut denied_commands = HashMap::new();
 
   let mut current_scope_id = 0;
-  let mut scopes = HashMap::new();
+  let mut command_scopes = HashMap::new();
+  let mut global_scope = Vec::new();
 
   // resolve commands
   for capability in capabilities.values() {
@@ -40,25 +41,31 @@ pub fn resolve(
         let permissions = get_permissions(plugin_name, permission_name, &acl)?;
 
         for permission in permissions {
-          current_scope_id += 1;
-          scopes.insert(current_scope_id, permission.inner.scope.clone());
+          if permission.inner.commands.allow.is_empty() && permission.inner.commands.deny.is_empty()
+          {
+            // global scope
+            global_scope.push(permission.inner.scope.clone());
+          } else {
+            current_scope_id += 1;
+            command_scopes.insert(current_scope_id, permission.inner.scope.clone());
 
-          for allowed_command in &permission.inner.commands.allow {
-            resolve_command(
-              &mut allowed_commands,
-              format!("plugin:{plugin_name}|{allowed_command}"),
-              capability,
-              current_scope_id,
-            );
-          }
+            for allowed_command in &permission.inner.commands.allow {
+              resolve_command(
+                &mut allowed_commands,
+                format!("plugin:{plugin_name}|{allowed_command}"),
+                capability,
+                current_scope_id,
+              );
+            }
 
-          for denied_command in &permission.inner.commands.deny {
-            resolve_command(
-              &mut denied_commands,
-              format!("plugin:{plugin_name}|{denied_command}"),
-              capability,
-              current_scope_id,
-            );
+            for denied_command in &permission.inner.commands.deny {
+              resolve_command(
+                &mut denied_commands,
+                format!("plugin:{plugin_name}|{denied_command}"),
+                capability,
+                current_scope_id,
+              );
+            }
           }
         }
       }
@@ -81,17 +88,28 @@ pub fn resolve(
       allow: allowed
         .scope
         .iter()
-        .flat_map(|s| scopes.get(s).unwrap().allow.clone())
+        .flat_map(|s| command_scopes.get(s).unwrap().allow.clone())
         .collect(),
       deny: allowed
         .scope
         .iter()
-        .flat_map(|s| scopes.get(s).unwrap().deny.clone())
+        .flat_map(|s| command_scopes.get(s).unwrap().deny.clone())
         .collect(),
     };
 
     resolved_scopes.insert(hash, resolved_scope);
   }
+
+  let global_scope = ResolvedScope {
+    allow: global_scope
+      .iter_mut()
+      .flat_map(|s| s.allow.take())
+      .collect(),
+    deny: global_scope
+      .iter_mut()
+      .flat_map(|s| s.deny.take())
+      .collect(),
+  };
 
   let resolved = Resolved {
     allowed_commands: allowed_commands
@@ -118,7 +136,8 @@ pub fn resolve(
         )
       })
       .collect(),
-    scope: resolved_scopes,
+    command_scope: resolved_scopes,
+    global_scope,
   };
 
   Ok(resolved)

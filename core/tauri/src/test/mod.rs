@@ -129,7 +129,8 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     resolved_acl: Resolved {
       allowed_commands: Default::default(),
       denied_commands: Default::default(),
-      scope: Default::default(),
+      command_scope: Default::default(),
+      global_scope: Default::default(),
     },
   }
 }

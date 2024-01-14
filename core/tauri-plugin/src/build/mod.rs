@@ -25,9 +25,6 @@ pub enum Error {
   )]
   LinksName,
 
-  #[error("CARGO_MANIFEST_DIR could not canonicalize")]
-  Manifest(std::io::Error),
-
   #[error("failed to read file: {0}")]
   ReadFile(std::io::Error),
 
@@ -137,13 +134,11 @@ fn build_var(key: &str) -> Result<String, Error> {
 }
 
 fn find_metadata() -> Result<Metadata, Error> {
-  build_var("CARGO_MANIFEST_DIR")
-    .and_then(|p| std::fs::canonicalize(p).map_err(Error::Manifest))
-    .and_then(|dir| {
-      MetadataCommand::new()
-        .current_dir(dir)
-        .no_deps()
-        .exec()
-        .map_err(Error::Metadata)
-    })
+  build_var("CARGO_MANIFEST_DIR").and_then(|dir| {
+    MetadataCommand::new()
+      .current_dir(dir)
+      .no_deps()
+      .exec()
+      .map_err(Error::Metadata)
+  })
 }

@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 //! A [`Value`] that is used instead of [`toml::Value`] or [`serde_json::Value`]
 //! to support both formats.
 

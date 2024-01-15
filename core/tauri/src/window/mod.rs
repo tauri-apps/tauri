@@ -250,7 +250,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
     let runtime = manager.runtime();
-    let app_handle = manager.app_handle().clone();
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
     Self {
       manager: manager.manager_owned(),
       runtime,

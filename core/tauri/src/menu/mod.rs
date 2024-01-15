@@ -6,8 +6,6 @@
 
 //! Menu types and utilities.
 
-// TODO(muda-migration): figure out js events
-
 mod builders;
 mod check;
 mod icon;
@@ -17,14 +15,11 @@ mod normal;
 pub(crate) mod plugin;
 mod predefined;
 mod submenu;
+use std::sync::Arc;
+
 pub use builders::*;
-pub use check::CheckMenuItem;
-pub use icon::IconMenuItem;
-pub use menu::{Menu, HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
-pub use normal::MenuItem;
-pub use predefined::PredefinedMenuItem;
+pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
-pub use submenu::Submenu;
 
 use crate::{AppHandle, Icon, Runtime};
 pub use muda::MenuId;
@@ -48,6 +43,108 @@ impl From<muda::MenuEvent> for MenuEvent {
     Self { id: value.id }
   }
 }
+
+macro_rules! gen_wrappers {
+  (
+    $(
+      $(#[$attr:meta])*
+      $type:ident($inner:ident$(, $kind:ident)?)
+    ),*
+  ) => {
+    $(
+      pub(crate) struct $inner<R: $crate::Runtime> {
+        id: $crate::menu::MenuId,
+        inner: ::std::option::Option<::muda::$type>,
+        app_handle: $crate::AppHandle<R>,
+      }
+
+
+      /// # Safety
+      ///
+      /// We make sure it always runs on the main thread.
+      unsafe impl<R: $crate::Runtime> Sync for $inner<R> {}
+      unsafe impl<R: $crate::Runtime> Send for $inner<R> {}
+
+      impl<R: Runtime> $crate::Resource for $type<R> {}
+
+      impl<R: $crate::Runtime> Clone for $inner<R> {
+        fn clone(&self) -> Self {
+          Self {
+            id: self.id.clone(),
+            inner: self.inner.clone(),
+            app_handle: self.app_handle.clone(),
+          }
+        }
+      }
+
+      impl<R: Runtime> Drop for $inner<R> {
+        fn drop(&mut self) {
+          struct SafeSend<T>(T);
+          unsafe impl<T> Send for SafeSend<T> {}
+
+          let inner = self.inner.take();
+          let inner = SafeSend(inner);
+          let _ = self.app_handle.run_on_main_thread(move || {
+            drop(inner);
+          });
+        }
+      }
+
+      impl<R: Runtime> AsRef<::muda::$type> for $inner<R> {
+        fn as_ref(&self) -> &::muda::$type {
+          self.inner.as_ref().unwrap()
+        }
+      }
+
+
+      $(#[$attr])*
+      pub struct $type<R: $crate::Runtime>(::std::sync::Arc<$inner<R>>);
+
+      impl<R: $crate::Runtime> Clone for $type<R> {
+        fn clone(&self) -> Self {
+          Self(self.0.clone())
+        }
+      }
+
+      $(
+        impl<R: $crate::Runtime> $crate::menu::sealed::IsMenuItemBase for $type<R> {
+          fn inner_muda(&self) -> &dyn muda::IsMenuItem {
+            (*self.0).as_ref()
+          }
+        }
+
+        impl<R: $crate::Runtime> $crate::menu::IsMenuItem<R> for $type<R> {
+          fn kind(&self) -> MenuItemKind<R> {
+            MenuItemKind::$kind(self.clone())
+          }
+
+          fn id(&self) -> &MenuId {
+            &self.0.id
+          }
+        }
+      )*
+    )*
+  };
+}
+
+gen_wrappers!(
+  /// A type that is either a menu bar on the window
+  /// on Windows and Linux or as a global menu in the menubar on macOS.
+  Menu(MenuInner),
+  /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
+  MenuItem(MenuItemInner, MenuItem),
+  /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
+  Submenu(SubmenuInner, Submenu),
+  /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
+  PredefinedMenuItem(PredefinedMenuItemInner, Predefined),
+  /// A menu item inside a [`Menu`] or [`Submenu`]
+  /// and usually contains a text and a check mark or a similar toggle
+  /// that corresponds to a checked and unchecked states.
+  CheckMenuItem(CheckMenuItemInner, Check),
+  /// A menu item inside a [`Menu`] or [`Submenu`]
+  /// and usually contains an icon and a text.
+  IconMenuItem(IconMenuItemInner, Icon)
+);
 
 /// Application metadata for the [`PredefinedMenuItem::about`].
 #[derive(Debug, Clone, Default)]
@@ -453,31 +550,33 @@ impl<R: Runtime> MenuItemKind<R> {
 
   pub(crate) fn from_muda(app_handle: AppHandle<R>, i: muda::MenuItemKind) -> Self {
     match i {
-      muda::MenuItemKind::MenuItem(i) => Self::MenuItem(MenuItem {
+      muda::MenuItemKind::MenuItem(i) => Self::MenuItem(MenuItem(Arc::new(MenuItemInner {
         id: i.id().clone(),
         inner: i.into(),
         app_handle,
-      }),
-      muda::MenuItemKind::Submenu(i) => Self::Submenu(Submenu {
+      }))),
+      muda::MenuItemKind::Submenu(i) => Self::Submenu(Submenu(Arc::new(SubmenuInner {
         id: i.id().clone(),
         inner: i.into(),
         app_handle,
-      }),
-      muda::MenuItemKind::Predefined(i) => Self::Predefined(PredefinedMenuItem {
+      }))),
+      muda::MenuItemKind::Predefined(i) => {
+        Self::Predefined(PredefinedMenuItem(Arc::new(PredefinedMenuItemInner {
+          id: i.id().clone(),
+          inner: i.into(),
+          app_handle,
+        })))
+      }
+      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem(Arc::new(CheckMenuItemInner {
         id: i.id().clone(),
         inner: i.into(),
         app_handle,
-      }),
-      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem {
+      }))),
+      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem(Arc::new(IconMenuItemInner {
         id: i.id().clone(),
         inner: i.into(),
         app_handle,
-      }),
-      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem {
-        id: i.id().clone(),
-        inner: i.into(),
-        app_handle,
-      }),
+      }))),
     }
   }
 
@@ -666,50 +765,3 @@ pub(crate) fn into_position(p: crate::Position) -> muda::Position {
     crate::Position::Logical(p) => muda::Position::Logical(into_logical_position(p)),
   }
 }
-
-macro_rules! gen_wrappers {
-  ($($type:ident),*) => {
-    $(
-      paste::paste!{
-        #[derive(Clone, Default)]
-        pub(crate) struct [<Muda $type>](Option<muda::$type>);
-
-        /// # Safety
-        ///
-        /// We make sure it always runs on the main thread.
-        unsafe impl Send for [<Muda $type>] {}
-
-        impl [<Muda $type>] {
-          fn new(m: muda::$type) -> Self {
-            Self(Some(m))
-          }
-
-          fn take(&mut self) -> Self {
-            Self(self.0.take())
-          }
-        }
-
-        impl AsRef<muda::$type> for [<Muda $type>] {
-          fn as_ref(&self) -> &muda::$type {
-            self.0.as_ref().unwrap()
-          }
-        }
-
-        impl From<muda::$type> for [<Muda $type>] {
-          fn from(v: muda::$type) -> Self {
-            Self::new(v)
-          }
-        }
-    }
-  )*
-  };
-}
-
-gen_wrappers!(
-  Menu,
-  MenuItem,
-  Submenu,
-  PredefinedMenuItem,
-  CheckMenuItem,
-  IconMenuItem
-);

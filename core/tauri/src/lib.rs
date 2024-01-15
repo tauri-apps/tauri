@@ -935,8 +935,8 @@ macro_rules! run_item_main_thread {
       let _ = tx.send(f(self_));
     };
     $self
-      .app_handle
-      .run_on_main_thread(Box::new(task))
+      .app_handle()
+      .run_on_main_thread(task)
       .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
   }};
 }
@@ -950,10 +950,10 @@ macro_rules! run_main_thread {
     use std::sync::mpsc::channel;
     let (tx, rx) = channel();
     let task = move || {
-      let _ = tx.send($ex);
+      let _ = tx.send($ex());
     };
     $handle
-      .run_on_main_thread(Box::new(task))
+      .run_on_main_thread(task)
       .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
   }};
 }

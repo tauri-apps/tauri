@@ -19,6 +19,7 @@ pub mod value;
 ///
 /// If two commands clash inside of `allow` and `deny`, it should be denied by default.
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Commands {
   /// Allowed command.
   #[serde(default)]
@@ -35,6 +36,7 @@ pub struct Commands {
 ///
 /// The scope is passed to the command and handled/enforced by the command itself.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Scopes {
   /// Data that defines what is allowed by the scope.
   pub allow: Option<Value>,
@@ -48,6 +50,7 @@ pub struct Scopes {
 ///
 /// If the scope is defined it can be used to fine grain control the access of individual or multiple commands.
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Permission {
   /// The version of the permission.
   pub version: Option<NonZeroU64>,
@@ -69,6 +72,7 @@ pub struct Permission {
 
 /// A set of direct permissions grouped together under a new name.
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PermissionSet {
   /// A unique identifier for the permission.
   pub identifier: String,

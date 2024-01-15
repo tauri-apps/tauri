@@ -1,3 +1,5 @@
+"$schema" = ".schema.json"
+
 [default]
 description = "Default permissions granted"
 permissions = ["allow-home-read-only"]
@@ -5,14 +7,9 @@ permissions = ["allow-home-read-only"]
 [[set]]
 identifier = "allow-full-homefolder-access"
 description = "This allows read and write access to the complete $HOME folder."
-permissions = [
-    "allow-home-read-only",
-    "allow-home-write-only"
-]
+permissions = ["allow-home-read-only", "allow-home-write-only"]
 
 [[set]]
 identifier = "deny-homefolder-config-access"
 description = "This denies access to the $HOME/.config folder."
-permissions = [
-    "deny-home-dir-config"
-]
+permissions = ["deny-home-dir-config"]

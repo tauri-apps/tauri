@@ -67,31 +67,30 @@ pub(crate) fn get_plugin_manifests() -> Result<HashMap<String, Manifest>> {
         });
       }
 
-      if let Some(permissions) = permission_file.permission {
-        manifest.permissions.extend(
-          permissions
-            .into_iter()
-            .map(|p| (p.identifier.clone(), p))
-            .collect::<HashMap<_, _>>(),
-        );
-      }
-      if let Some(sets) = permission_file.set {
-        manifest.permission_sets.extend(
-          sets
-            .into_iter()
-            .map(|set| {
-              (
-                set.identifier.clone(),
-                PermissionSet {
-                  identifier: set.identifier,
-                  description: set.description,
-                  permissions: set.permissions,
-                },
-              )
-            })
-            .collect::<HashMap<_, _>>(),
-        );
-      }
+      manifest.permissions.extend(
+        permission_file
+          .permission
+          .into_iter()
+          .map(|p| (p.identifier.clone(), p))
+          .collect::<HashMap<_, _>>(),
+      );
+
+      manifest.permission_sets.extend(
+        permission_file
+          .set
+          .into_iter()
+          .map(|set| {
+            (
+              set.identifier.clone(),
+              PermissionSet {
+                identifier: set.identifier,
+                description: set.description,
+                permissions: set.permissions,
+              },
+            )
+          })
+          .collect::<HashMap<_, _>>(),
+      );
     }
 
     processed.insert(plugin_name, manifest);

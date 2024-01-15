@@ -10,18 +10,29 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [features]
-build = ["dep:serde", "dep:cargo_metadata", "dep:thiserror", "dep:serde_json", "dep:glob", "dep:toml"]
+build = [
+  "dep:serde",
+  "dep:cargo_metadata",
+  "dep:thiserror",
+  "dep:serde_json",
+  "dep:glob",
+  "dep:toml",
+  "dep:schemars",
+]
 
 [dependencies]
 serde = { version = "1", optional = true }
 thiserror = { version = "1", optional = true }
 cargo_metadata = { version = "0.18", optional = true }
-tauri-utils = { version = "2.0.0-alpha.12", default-features = false, path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-alpha.12", default-features = false, path = "../tauri-utils", features = [
+  "schema",
+] }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 toml = { version = "0.8", optional = true }
+schemars = { version = "0.8", optional = true }
 
 [package.metadata.docs.rs]
 features = ["build", "runtime"]
-rustc-args = [ "--cfg", "docsrs" ]
-rustdoc-args = [ "--cfg", "docsrs" ]
+rustc-args = ["--cfg", "docsrs"]
+rustdoc-args = ["--cfg", "docsrs"]

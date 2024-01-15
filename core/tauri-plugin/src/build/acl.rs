@@ -2,15 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{collections::HashMap, env::vars_os, num::NonZeroU64, path::PathBuf};
+use std::{
+  collections::HashMap,
+  env::vars_os,
+  fs::File,
+  io::{BufWriter, Write},
+  num::NonZeroU64,
+  path::PathBuf,
+};
 
 use super::Error;
 use serde::Deserialize;
 use tauri_utils::acl::{Commands, Permission, Scopes};
 
 const PERMISSION_FILES_PATH_KEY: &str = "PERMISSION_FILES_PATH";
+const PERMISSION_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
+pub(crate) const PERMISSION_SCHEMA_FILE_NAME: &str = ".schema.json";
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct PermissionSet {
   /// A unique identifier for the permission.
   pub identifier: String,
@@ -22,7 +31,10 @@ pub struct PermissionSet {
   pub permissions: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+/// The default permission of the plugin.
+///
+/// Works similarly to a permission with the "default" identifier.
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct DefaultPermission {
   /// The version of the permission.
   pub version: Option<NonZeroU64>,
@@ -39,17 +51,33 @@ pub struct DefaultPermission {
   pub scope: Scopes,
 }
 
-#[derive(Debug, Deserialize)]
+/// Permission file that can define a default permission, a set of permissions or a list of inlined permissions.
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct PermissionFile {
   pub default: Option<DefaultPermission>,
-  pub set: Option<Vec<PermissionSet>>,
-  pub permission: Option<Vec<Permission>>,
+  #[serde(default)]
+  pub set: Vec<PermissionSet>,
+  #[serde(default)]
+  pub permission: Vec<Permission>,
 }
 
 pub(crate) fn define_permissions(pattern: &str) -> Result<(), Error> {
   let permission_files = glob::glob(pattern)?
     .flatten()
     .flat_map(|p| p.canonicalize())
+    // filter extension
+    .filter(|p| {
+      p.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| PERMISSION_FILE_EXTENSIONS.contains(&e))
+        .unwrap_or_default()
+    })
+    // filter schema file
+    .filter(|p| {
+      p.file_name()
+        .map(|name| name != PERMISSION_SCHEMA_FILE_NAME)
+        .unwrap_or(true)
+    })
     .collect::<Vec<PathBuf>>();
 
   for path in &permission_files {
@@ -70,6 +98,16 @@ pub(crate) fn define_permissions(pattern: &str) -> Result<(), Error> {
     permission_files_path.display()
   );
 
+  Ok(())
+}
+
+pub(crate) fn generate_schema() -> Result<(), Error> {
+  let schema = schemars::schema_for!(PermissionFile);
+  let schema_str = serde_json::to_string_pretty(&schema).unwrap();
+  let out_path = PathBuf::from("permissions").join(PERMISSION_SCHEMA_FILE_NAME);
+
+  let mut schema_file = BufWriter::new(File::create(out_path).map_err(Error::CreateFile)?);
+  write!(schema_file, "{schema_str}").map_err(Error::WriteFile)?;
   Ok(())
 }
 

@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// A valid ACL number.
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum Number {
   /// Represents an [`i64`].
@@ -38,6 +39,7 @@ impl From<f64> for Number {
 
 /// All supported ACL values.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialOrd, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum Value {
   /// Represents a [`bool`].

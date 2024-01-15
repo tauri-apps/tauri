@@ -1,3 +1,5 @@
+"$schema" = ".schema.json"
+
 [[permission]]
 identifier = "allow-ping-scoped"
 description = "This enables the ping command with a test scope."

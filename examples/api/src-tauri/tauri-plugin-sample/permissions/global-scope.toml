@@ -1,3 +1,5 @@
+"$schema" = ".schema.json"
+
 [[permission]]
 identifier = "global-scope"
 description = "This sets a global scope."

@@ -2,7 +2,7 @@
 
 [[permission]]
 identifier = "allow-ping-scoped"
-description = "This enables the ping command with a test scope."
+description = "Enables the ping command with a test scope."
 commands.allow = ["ping"]
 [permission.scope.allow]
 path = "x"

@@ -4,10 +4,10 @@
 
 [[permission]]
 identifier = "allow-ping"
-description = "This enables the ping command without any pre-configured scope."
+description = "Enables the ping command without any pre-configured scope."
 commands.allow = ["ping"]
 
 [[permission]]
 identifier = "deny-ping"
-description = "This denies the ping command without any pre-configured scope."
+description = "Denies the ping command without any pre-configured scope."
 commands.deny = ["ping"]

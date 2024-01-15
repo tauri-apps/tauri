@@ -18,6 +18,7 @@ const MAX_LEN_IDENTIFIER: usize = MAX_LEN_PREFIX + 1 + MAX_LEN_BASE;
 
 /// Plugin identifier.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Identifier {
   inner: String,
   separator: Option<NonZeroU8>,

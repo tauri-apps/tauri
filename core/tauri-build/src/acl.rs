@@ -2,11 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  fs::File,
+  io::{BufWriter, Write},
+  path::PathBuf,
+};
 
 use anyhow::{Context, Result};
+use schemars::{
+  gen::SchemaGenerator,
+  schema::{InstanceType, Metadata, RootSchema, Schema, SchemaObject, SubschemaValidation},
+};
 use serde::Deserialize;
 use tauri_utils::acl::{capability::Capability, plugin::Manifest, Permission, PermissionSet};
+
+const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
+const CAPABILITIES_SCHEMA_FILE_NAME: &str = ".schema.json";
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -15,10 +27,104 @@ enum CapabilityFile {
   List { capabilities: Vec<Capability> },
 }
 
+fn capabilities_schema(plugin_manifests: &HashMap<String, Manifest>) -> RootSchema {
+  let mut schema = SchemaGenerator::default().into_root_schema_for::<Capability>();
+
+  let mut permission_schemas = Vec::new();
+  for (plugin, manifest) in plugin_manifests {
+    for (set_id, set) in &manifest.permission_sets {
+      permission_schemas.push(Schema::Object(SchemaObject {
+        metadata: Some(Box::new(Metadata {
+          description: Some(format!("{plugin}:{set_id} -> {}", set.description)),
+          ..Default::default()
+        })),
+        instance_type: Some(InstanceType::String.into()),
+        enum_values: Some(vec![serde_json::Value::String(format!(
+          "{plugin}:{set_id}"
+        ))]),
+        ..Default::default()
+      }));
+    }
+
+    if let Some(default) = &manifest.default_permission {
+      permission_schemas.push(Schema::Object(SchemaObject {
+        metadata: Some(Box::new(Metadata {
+          description: default
+            .description
+            .as_ref()
+            .map(|d| format!("{plugin}:default -> {d}")),
+          ..Default::default()
+        })),
+        instance_type: Some(InstanceType::String.into()),
+        enum_values: Some(vec![serde_json::Value::String(format!("{plugin}:default"))]),
+        ..Default::default()
+      }));
+    }
+
+    for (permission_id, permission) in &manifest.permissions {
+      permission_schemas.push(Schema::Object(SchemaObject {
+        metadata: Some(Box::new(Metadata {
+          description: permission
+            .description
+            .as_ref()
+            .map(|d| format!("{plugin}:{permission_id} -> {d}")),
+          ..Default::default()
+        })),
+        instance_type: Some(InstanceType::String.into()),
+        enum_values: Some(vec![serde_json::Value::String(format!(
+          "{plugin}:{permission_id}"
+        ))]),
+        ..Default::default()
+      }));
+    }
+  }
+
+  if let Some(Schema::Object(obj)) = schema.definitions.get_mut("Identifier") {
+    obj.object = None;
+    obj.instance_type = None;
+    obj.metadata.as_mut().map(|metadata| {
+      metadata
+        .description
+        .replace("Permission identifier".to_string());
+      metadata
+    });
+    obj.subschemas.replace(Box::new(SubschemaValidation {
+      one_of: Some(permission_schemas),
+      ..Default::default()
+    }));
+  }
+
+  schema
+}
+
+pub(crate) fn generate_schema(plugin_manifests: &HashMap<String, Manifest>) -> Result<()> {
+  let schema = capabilities_schema(plugin_manifests);
+  let schema_str = serde_json::to_string_pretty(&schema).unwrap();
+  let out_path = PathBuf::from("capabilities").join(CAPABILITIES_SCHEMA_FILE_NAME);
+
+  let mut schema_file = BufWriter::new(File::create(out_path)?);
+  write!(schema_file, "{schema_str}")?;
+  Ok(())
+}
+
 pub fn parse_capabilities(capabilities_path_pattern: &str) -> Result<HashMap<String, Capability>> {
   let mut capabilities_map = HashMap::new();
 
-  for path in glob::glob(capabilities_path_pattern)?.flatten() {
+  for path in glob::glob(capabilities_path_pattern)?
+    .flatten() // filter extension
+    .filter(|p| {
+      p.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| CAPABILITY_FILE_EXTENSIONS.contains(&e))
+        .unwrap_or_default()
+    })
+    // filter schema file
+    .filter(|p| {
+      p.file_name()
+        .map(|name| name != CAPABILITIES_SCHEMA_FILE_NAME)
+        .unwrap_or(true)
+    })
+  {
     println!("cargo:rerun-if-changed={}", path.display());
 
     let capability_file = std::fs::read_to_string(&path)?;

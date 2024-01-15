@@ -466,6 +466,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   } else {
     acl::parse_capabilities("./capabilities/**/*")?
   };
+  acl::generate_schema(&plugin_manifests)?;
 
   acl::validate_capabilities(&plugin_manifests, &capabilities)?;
 

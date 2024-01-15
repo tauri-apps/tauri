@@ -3554,6 +3554,7 @@ dependencies = [
  "json-patch",
  "plist",
  "quote",
+ "schemars",
  "semver",
  "serde",
  "serde_json",

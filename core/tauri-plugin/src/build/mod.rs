@@ -125,12 +125,12 @@ fn autogenerate_command_permissions(path: &Path, commands: &[&str]) {
 
 [[permission]]
 identifier = "allow-{slugified_command}"
-description = "This enables the {command} command without any pre-configured scope."
+description = "Enables the {command} command without any pre-configured scope."
 commands.allow = ["{command}"]
 
 [[permission]]
 identifier = "deny-{slugified_command}"
-description = "This denies the {command} command without any pre-configured scope."
+description = "Denies the {command} command without any pre-configured scope."
 commands.deny = ["{command}"]
 "###,
       command = command,

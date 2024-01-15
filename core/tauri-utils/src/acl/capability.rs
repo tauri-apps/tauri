@@ -21,6 +21,7 @@ pub struct CapabilitySet {
 /// This can be done to create trust groups and reduce impact of vulnerabilities in certain plugins or windows.
 /// Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Capability {
   /// Identifier of the capability.
   pub identifier: String,
@@ -40,6 +41,7 @@ pub struct Capability {
 
 /// Context of the capability.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum CapabilityContext {
   /// Capability refers to local URL usage.
   #[default]

@@ -11,8 +11,8 @@ use std::{
 
 use anyhow::{Context, Result};
 use schemars::{
-  gen::SchemaGenerator,
   schema::{InstanceType, Metadata, RootSchema, Schema, SchemaObject, SubschemaValidation},
+  schema_for,
 };
 use serde::Deserialize;
 use tauri_utils::acl::{capability::Capability, plugin::Manifest, Permission, PermissionSet};
@@ -20,7 +20,7 @@ use tauri_utils::acl::{capability::Capability, plugin::Manifest, Permission, Per
 const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
 const CAPABILITIES_SCHEMA_FILE_NAME: &str = ".schema.json";
 
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 enum CapabilityFile {
   Capability(Capability),
@@ -28,7 +28,7 @@ enum CapabilityFile {
 }
 
 fn capabilities_schema(plugin_manifests: &HashMap<String, Manifest>) -> RootSchema {
-  let mut schema = SchemaGenerator::default().into_root_schema_for::<Capability>();
+  let mut schema = schema_for!(CapabilityFile);
 
   let mut permission_schemas = Vec::new();
   for (plugin, manifest) in plugin_manifests {

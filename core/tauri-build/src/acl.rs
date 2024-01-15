@@ -30,52 +30,41 @@ enum CapabilityFile {
 fn capabilities_schema(plugin_manifests: &HashMap<String, Manifest>) -> RootSchema {
   let mut schema = schema_for!(CapabilityFile);
 
+  fn schema_from(plugin: &str, id: &str, description: Option<&str>) -> Schema {
+    Schema::Object(SchemaObject {
+      metadata: Some(Box::new(Metadata {
+        description: description
+          .as_ref()
+          .map(|d| format!("{plugin}:{id} -> {d}")),
+        ..Default::default()
+      })),
+      instance_type: Some(InstanceType::String.into()),
+      enum_values: Some(vec![serde_json::Value::String(format!("{plugin}:{id}"))]),
+      ..Default::default()
+    })
+  }
+
   let mut permission_schemas = Vec::new();
+
   for (plugin, manifest) in plugin_manifests {
     for (set_id, set) in &manifest.permission_sets {
-      permission_schemas.push(Schema::Object(SchemaObject {
-        metadata: Some(Box::new(Metadata {
-          description: Some(format!("{plugin}:{set_id} -> {}", set.description)),
-          ..Default::default()
-        })),
-        instance_type: Some(InstanceType::String.into()),
-        enum_values: Some(vec![serde_json::Value::String(format!(
-          "{plugin}:{set_id}"
-        ))]),
-        ..Default::default()
-      }));
+      permission_schemas.push(schema_from(plugin, set_id, Some(&set.description)));
     }
 
     if let Some(default) = &manifest.default_permission {
-      permission_schemas.push(Schema::Object(SchemaObject {
-        metadata: Some(Box::new(Metadata {
-          description: default
-            .description
-            .as_ref()
-            .map(|d| format!("{plugin}:default -> {d}")),
-          ..Default::default()
-        })),
-        instance_type: Some(InstanceType::String.into()),
-        enum_values: Some(vec![serde_json::Value::String(format!("{plugin}:default"))]),
-        ..Default::default()
-      }));
+      permission_schemas.push(schema_from(
+        plugin,
+        "default",
+        default.description.as_deref(),
+      ));
     }
 
     for (permission_id, permission) in &manifest.permissions {
-      permission_schemas.push(Schema::Object(SchemaObject {
-        metadata: Some(Box::new(Metadata {
-          description: permission
-            .description
-            .as_ref()
-            .map(|d| format!("{plugin}:{permission_id} -> {d}")),
-          ..Default::default()
-        })),
-        instance_type: Some(InstanceType::String.into()),
-        enum_values: Some(vec![serde_json::Value::String(format!(
-          "{plugin}:{permission_id}"
-        ))]),
-        ..Default::default()
-      }));
+      permission_schemas.push(schema_from(
+        plugin,
+        permission_id,
+        permission.description.as_deref(),
+      ));
     }
   }
 

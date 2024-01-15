@@ -51,8 +51,8 @@ impl<'a> Builder<'a> {
       autogenerate_command_permissions(commands_dir, self.commands);
     }
 
-    acl::build::define_permissions("./permissions/**/*.*")?;
-    acl::build::generate_schema()?;
+    let permissions = acl::build::define_permissions("./permissions/**/*.*")?;
+    acl::build::generate_schema(&permissions)?;
 
     let metadata = find_metadata()?;
     println!("{metadata:#?}");

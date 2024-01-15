@@ -3560,7 +3560,6 @@ dependencies = [
  "serde_json",
  "swift-rs",
  "tauri-codegen",
- "tauri-plugin",
  "tauri-utils",
  "tauri-winres",
  "toml 0.8.2",
@@ -3612,8 +3611,8 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "tauri",
  "tauri-utils",
- "thiserror",
  "toml 0.8.2",
 ]
 
@@ -3683,6 +3682,7 @@ version = "2.0.0-alpha.12"
 dependencies = [
  "aes-gcm",
  "brotli",
+ "cargo_metadata",
  "ctor",
  "dunce",
  "getrandom 0.2.10",

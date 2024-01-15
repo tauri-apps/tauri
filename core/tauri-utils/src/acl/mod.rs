@@ -6,14 +6,74 @@
 
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroU64;
+use thiserror::Error;
 
 pub use self::{identifier::*, value::*};
 
+#[cfg(feature = "build")]
+pub mod build;
 pub mod capability;
 pub mod identifier;
 pub mod plugin;
 pub mod resolved;
 pub mod value;
+
+/// Possible errors while processing ACL files.
+#[derive(Debug, Error)]
+pub enum Error {
+  /// Could not find an environmental variable that is set inside of build scripts.
+  ///
+  /// Whatever generated this should be called inside of a build script.
+  #[error("expected build script env var {0}, but it was not found - ensure this is called in a build script")]
+  BuildVar(String),
+
+  /// Plugin name doesn't follow Tauri standards
+  #[error("plugin names cannot contain underscores")]
+  CrateName,
+
+  /// The links field in the manifest **MUST** be set and match the name of the crate.
+  #[error("package.links field in the Cargo manifest is not set, it should be set to the same as package.name")]
+  LinksMissing,
+
+  /// The links field in the manifest **MUST** match the name of the crate.
+  #[error(
+    "package.links field in the Cargo manifest MUST be set to the same value as package.name"
+  )]
+  LinksName,
+
+  /// IO error while reading a file
+  #[error("failed to read file: {0}")]
+  ReadFile(std::io::Error),
+
+  /// IO error while writing a file
+  #[error("failed to write file: {0}")]
+  WriteFile(std::io::Error),
+
+  /// IO error while creating a file
+  #[error("failed to create file: {0}")]
+  CreateFile(std::io::Error),
+
+  /// [`cargo_metadata`] was not able to complete successfully
+  #[cfg(feature = "build")]
+  #[error("failed to execute: {0}")]
+  Metadata(#[from] ::cargo_metadata::Error),
+
+  /// Invalid glob
+  #[error("failed to run glob: {0}")]
+  Glob(#[from] glob::PatternError),
+
+  /// Invalid TOML encountered
+  #[error("failed to parse TOML: {0}")]
+  Toml(#[from] toml::de::Error),
+
+  /// Invalid JSON encountered
+  #[error("failed to parse JSON: {0}")]
+  Json(#[from] serde_json::Error),
+
+  /// Invalid permissions file format
+  #[error("unknown permission format {0}")]
+  UnknownPermissionFormat(String),
+}
 
 /// Allowed and denied commands inside a permission.
 ///
@@ -97,7 +157,7 @@ pub enum ExecutionContext {
 }
 
 #[cfg(feature = "build")]
-mod build {
+mod build_ {
   use crate::tokens::*;
 
   use super::*;

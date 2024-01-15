@@ -152,7 +152,7 @@ pub fn parse_capabilities(capabilities_path_pattern: &str) -> Result<HashMap<Str
 
 pub(crate) fn get_plugin_manifests() -> Result<HashMap<String, Manifest>> {
   let permission_map =
-    tauri_plugin::acl::read_permissions().context("failed to read plugin permissions")?;
+    tauri_utils::acl::build::read_permissions().context("failed to read plugin permissions")?;
 
   let mut processed = HashMap::new();
   for (plugin_name, permission_files) in permission_map {

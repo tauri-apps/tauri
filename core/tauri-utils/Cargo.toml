@@ -39,12 +39,13 @@ semver = "1"
 infer = "0.15"
 dunce = "1"
 log = "0.4.20"
+cargo_metadata = { version = "0.18", optional = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
 
 [features]
-build = [ "proc-macro2", "quote" ]
+build = [ "proc-macro2", "quote", "cargo_metadata"]
 compression = [ "brotli" ]
 schema = [ "schemars" ]
 isolation = [ "aes-gcm", "getrandom", "serialize-to-javascript" ]

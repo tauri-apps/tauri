@@ -30,7 +30,6 @@ anyhow = "1"
 quote = { version = "1", optional = true }
 tauri-codegen = { version = "2.0.0-alpha.12", path = "../tauri-codegen", optional = true }
 tauri-utils = { version = "2.0.0-alpha.12", path = "../tauri-utils", features = [ "build", "resources" ] }
-tauri-plugin = { version = "0.1.0", path = "../tauri-plugin", features = [ "build" ] }
 cargo_toml = "0.17"
 serde = "1"
 serde_json = "1"

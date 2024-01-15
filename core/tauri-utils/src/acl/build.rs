@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! ACL items that are only useful inside of build script/codegen context.
+
 use std::{
   collections::HashMap,
   env::vars_os,
@@ -11,14 +13,20 @@ use std::{
   path::PathBuf,
 };
 
-use super::Error;
+use crate::acl::Error;
+use crate::acl::{Commands, Permission, Scopes};
 use serde::Deserialize;
-use tauri_utils::acl::{Commands, Permission, Scopes};
 
-const PERMISSION_FILES_PATH_KEY: &str = "PERMISSION_FILES_PATH";
-const PERMISSION_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
-pub(crate) const PERMISSION_SCHEMA_FILE_NAME: &str = ".schema.json";
+/// Cargo cfg key for permissions file paths
+pub const PERMISSION_FILES_PATH_KEY: &str = "PERMISSION_FILES_PATH";
 
+/// Allowed permission file extensions
+pub const PERMISSION_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
+
+/// Known filename of a permission schema
+pub const PERMISSION_SCHEMA_FILE_NAME: &str = ".schema.json";
+
+/// A set of permissions or other permission sets.
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct PermissionSet {
   /// A unique identifier for the permission.
@@ -54,14 +62,20 @@ pub struct DefaultPermission {
 /// Permission file that can define a default permission, a set of permissions or a list of inlined permissions.
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct PermissionFile {
+  /// The default permission set for the plugin
   pub default: Option<DefaultPermission>,
+
+  /// A list of permissions sets defined
   #[serde(default)]
   pub set: Vec<PermissionSet>,
+
+  /// A list of inlined permissions
   #[serde(default)]
   pub permission: Vec<Permission>,
 }
 
-pub(crate) fn define_permissions(pattern: &str) -> Result<(), Error> {
+/// Write the permissions to a temporary directory and pass it to the immediate consuming crate.
+pub fn define_permissions(pattern: &str) -> Result<(), Error> {
   let permission_files = glob::glob(pattern)?
     .flatten()
     .flat_map(|p| p.canonicalize())
@@ -101,7 +115,8 @@ pub(crate) fn define_permissions(pattern: &str) -> Result<(), Error> {
   Ok(())
 }
 
-pub(crate) fn generate_schema() -> Result<(), Error> {
+/// Generate and write a schema based on the format of a [`PermissionFile`].
+pub fn generate_schema() -> Result<(), Error> {
   let schema = schemars::schema_for!(PermissionFile);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
   let out_path = PathBuf::from("permissions").join(PERMISSION_SCHEMA_FILE_NAME);
@@ -111,6 +126,7 @@ pub(crate) fn generate_schema() -> Result<(), Error> {
   Ok(())
 }
 
+/// Read all permissions listed from the defined cargo cfg key value.
 pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error> {
   let mut permissions_map = HashMap::new();
 

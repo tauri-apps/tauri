@@ -9,50 +9,7 @@ use std::{
 };
 
 use cargo_metadata::{Metadata, MetadataCommand};
-use thiserror::Error;
-
-pub mod acl;
-
-#[derive(Debug, Error)]
-pub enum Error {
-  #[error("expected build script env var {0}, but it was not found - ensure this is called in a build script")]
-  BuildVar(String),
-
-  #[error("plugin names cannot contain underscores")]
-  CrateName,
-
-  #[error("package.links field in the Cargo manifest is not set, it should be set to the same as package.name")]
-  LinksMissing,
-
-  #[error(
-    "package.links field in the Cargo manifest MUST be set to the same value as package.name"
-  )]
-  LinksName,
-
-  #[error("failed to read file: {0}")]
-  ReadFile(std::io::Error),
-
-  #[error("failed to write file: {0}")]
-  WriteFile(std::io::Error),
-
-  #[error("failed to create file: {0}")]
-  CreateFile(std::io::Error),
-
-  #[error("failed to execute: {0}")]
-  Metadata(#[from] cargo_metadata::Error),
-
-  #[error("failed to run glob: {0}")]
-  Glob(#[from] glob::PatternError),
-
-  #[error("failed to parse TOML: {0}")]
-  Toml(#[from] toml::de::Error),
-
-  #[error("failed to parse JSON: {0}")]
-  Json(#[from] serde_json::Error),
-
-  #[error("unknown permission format {0}")]
-  UnknownPermissionFormat(String),
-}
+use tauri_utils::acl::{self, Error};
 
 pub struct Builder<'a> {
   commands: &'a [&'static str],
@@ -94,8 +51,8 @@ impl<'a> Builder<'a> {
       autogenerate_command_permissions(commands_dir, self.commands);
     }
 
-    acl::define_permissions("./permissions/**/*.*")?;
-    acl::generate_schema()?;
+    acl::build::define_permissions("./permissions/**/*.*")?;
+    acl::build::generate_schema()?;
 
     let metadata = find_metadata()?;
     println!("{metadata:#?}");
@@ -114,7 +71,7 @@ fn autogenerate_command_permissions(path: &Path, commands: &[&str]) {
   let schema_path = (1..components_len)
     .map(|_| "..")
     .collect::<PathBuf>()
-    .join(acl::PERMISSION_SCHEMA_FILE_NAME);
+    .join(acl::build::PERMISSION_SCHEMA_FILE_NAME);
 
   for command in commands {
     let slugified_command = command.replace('_', "-");

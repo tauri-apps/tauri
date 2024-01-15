@@ -297,8 +297,12 @@ mod test {
 
     // fs scope
     assert_eq!(
-      migrated["plugins"]["fs"]["scope"],
-      original["tauri"]["allowlist"]["fs"]["scope"]
+      migrated["plugins"]["fs"]["scope"]["allow"],
+      original["tauri"]["allowlist"]["fs"]["scope"]["allow"]
+    );
+    assert_eq!(
+      migrated["plugins"]["fs"]["scope"]["deny"],
+      original["tauri"]["allowlist"]["fs"]["scope"]["deny"]
     );
 
     // shell scope
@@ -323,8 +327,12 @@ mod test {
       original["tauri"]["allowlist"]["protocol"]["asset"]
     );
     assert_eq!(
-      migrated["tauri"]["security"]["assetProtocol"]["scope"],
-      original["tauri"]["allowlist"]["protocol"]["assetScope"]
+      migrated["tauri"]["security"]["assetProtocol"]["scope"]["allow"],
+      original["tauri"]["allowlist"]["protocol"]["assetScope"]["allow"]
+    );
+    assert_eq!(
+      migrated["tauri"]["security"]["assetProtocol"]["scope"]["deny"],
+      original["tauri"]["allowlist"]["protocol"]["assetScope"]["deny"]
     );
 
     // security CSP

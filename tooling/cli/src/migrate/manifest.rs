@@ -37,6 +37,8 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
 }
 
 fn migrate_manifest(manifest: &mut Document) -> Result<()> {
+  let version = dependency_version();
+
   let dependencies = manifest
     .as_table_mut()
     .entry("dependencies")
@@ -44,8 +46,16 @@ fn migrate_manifest(manifest: &mut Document) -> Result<()> {
     .as_table_mut()
     .expect("manifest dependencies isn't a table");
 
-  let version = dependency_version();
-  migrate_dependency(dependencies, "tauri", version, &features_to_remove());
+  migrate_dependency(dependencies, "tauri", &version, &features_to_remove());
+
+  let build_dependencies = manifest
+    .as_table_mut()
+    .entry("build-dependencies")
+    .or_insert(Item::Table(Table::new()))
+    .as_table_mut()
+    .expect("manifest build-dependencies isn't a table");
+
+  migrate_dependency(build_dependencies, "tauri-build", &version, &[]);
 
   let lib = manifest
     .as_table_mut()
@@ -116,7 +126,7 @@ fn dependency_version() -> String {
   }
 }
 
-fn migrate_dependency(dependencies: &mut Table, name: &str, version: String, remove: &[&str]) {
+fn migrate_dependency(dependencies: &mut Table, name: &str, version: &str, remove: &[&str]) {
   let item = dependencies.entry(name).or_insert(Item::None);
 
   // do not rewrite if dependency uses workspace inheritance
@@ -138,7 +148,7 @@ fn migrate_dependency(dependencies: &mut Table, name: &str, version: String, rem
   }
 }
 
-fn migrate_dependency_table<D: TableLike>(dep: &mut D, version: String, remove: &[&str]) {
+fn migrate_dependency_table<D: TableLike>(dep: &mut D, version: &str, remove: &[&str]) {
   *dep.entry("version").or_insert(Item::None) = Item::Value(version.into());
   let manifest_features = dep.entry("features").or_insert(Item::None);
   if let Some(features_array) = manifest_features.as_array_mut() {

@@ -31,7 +31,7 @@ npm create tauri-app@latest
 
 The list of Tauri's features includes, but is not limited to:
 
-- Built-in app bundler to create app bundles in formats like `.app`, `.dmg`, `.deb`, `.AppImage` and Windows installers like `.exe` (via NSIS) and `.msi` (via WiX).
+- Built-in app bundler to create app bundles in formats like `.app`, `.dmg`, `.deb`, `.rpm`, `.AppImage` and Windows installers like `.exe` (via NSIS) and `.msi` (via WiX).
 - Built-in self updater (desktop only)
 - System tray icons
 - Native notifications

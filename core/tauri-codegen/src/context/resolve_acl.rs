@@ -41,15 +41,14 @@ pub fn resolve(
         let permissions = get_permissions(plugin_name, permission_name, &acl)?;
 
         for permission in permissions {
-          if permission.inner.commands.allow.is_empty() && permission.inner.commands.deny.is_empty()
-          {
+          if permission.commands.allow.is_empty() && permission.commands.deny.is_empty() {
             // global scope
-            global_scope.push(permission.inner.scope.clone());
+            global_scope.push(permission.scope.clone());
           } else {
             current_scope_id += 1;
-            command_scopes.insert(current_scope_id, permission.inner.scope.clone());
+            command_scopes.insert(current_scope_id, permission.scope.clone());
 
-            for allowed_command in &permission.inner.commands.allow {
+            for allowed_command in &permission.commands.allow {
               resolve_command(
                 &mut allowed_commands,
                 format!("plugin:{plugin_name}|{allowed_command}"),
@@ -58,7 +57,7 @@ pub fn resolve(
               );
             }
 
-            for denied_command in &permission.inner.commands.deny {
+            for denied_command in &permission.commands.deny {
               resolve_command(
                 &mut denied_commands,
                 format!("plugin:{plugin_name}|{denied_command}"),

@@ -48,7 +48,7 @@ pub struct Scopes {
 ///
 /// If the scope is defined it can be used to fine grain control the access of individual or multiple commands.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct InlinedPermission {
+pub struct Permission {
   /// The version of the permission.
   pub version: Option<NonZeroU64>,
 
@@ -65,14 +65,6 @@ pub struct InlinedPermission {
   /// Allowed or denied scoped when using this permission.
   #[serde(default)]
   pub scope: Scopes,
-}
-
-/// A permission.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Permission {
-  /// Permission data.
-  #[serde(flatten)]
-  pub inner: InlinedPermission,
 }
 
 /// A set of direct permissions grouped together under a new name.

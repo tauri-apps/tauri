@@ -6,9 +6,7 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use tauri_utils::acl::{
-  capability::Capability, plugin::Manifest, InlinedPermission, Permission, PermissionSet,
-};
+use tauri_utils::acl::{capability::Capability, plugin::Manifest, Permission, PermissionSet};
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -61,13 +59,11 @@ pub(crate) fn get_plugin_manifests() -> Result<HashMap<String, Manifest>> {
     for permission_file in permission_files {
       if let Some(default) = permission_file.default {
         manifest.default_permission.replace(Permission {
-          inner: InlinedPermission {
-            identifier: "default".into(),
-            version: default.version,
-            description: default.description,
-            commands: default.commands,
-            scope: default.scope,
-          },
+          identifier: "default".into(),
+          version: default.version,
+          description: default.description,
+          commands: default.commands,
+          scope: default.scope,
         });
       }
 
@@ -75,7 +71,7 @@ pub(crate) fn get_plugin_manifests() -> Result<HashMap<String, Manifest>> {
         manifest.permissions.extend(
           permissions
             .into_iter()
-            .map(|p| (p.inner.identifier.clone(), p))
+            .map(|p| (p.identifier.clone(), p))
             .collect::<HashMap<_, _>>(),
         );
       }

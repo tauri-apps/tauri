@@ -950,7 +950,8 @@ macro_rules! run_main_thread {
     use std::sync::mpsc::channel;
     let (tx, rx) = channel();
     let task = move || {
-      let _ = tx.send($ex());
+      let f = $ex;
+      let _ = tx.send(f());
     };
     $handle
       .run_on_main_thread(task)

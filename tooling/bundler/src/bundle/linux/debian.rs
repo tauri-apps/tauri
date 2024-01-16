@@ -43,10 +43,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use flate2::{
-  write::GzEncoder,
-  Compression,
-};
+use flate2::{write::GzEncoder, Compression};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct DebIcon {

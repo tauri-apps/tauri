@@ -23,10 +23,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use flate2::{
-  write::GzEncoder,
-  Compression,
-};
+use flate2::{write::GzEncoder, Compression};
 
 use anyhow::Context;
 use log::info;

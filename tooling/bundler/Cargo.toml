@@ -32,7 +32,7 @@ tempfile = "3.8.1"
 log = { version = "0.4.20", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 os_pipe = "1"
-ureq = { version = "2.9.1", default-features = false }
+ureq = { version = "2.9.1", default-features = false, features = [ "socks-proxy" ] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"

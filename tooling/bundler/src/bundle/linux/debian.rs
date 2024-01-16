@@ -135,7 +135,8 @@ pub fn generate_data(
   let icons =
     generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).with_context(|| "Failed to create desktop file")?;
-  generate_changelog_file(settings, &data_dir).with_context(|| "Failed to create changelog.gz file")?;
+  generate_changelog_file(settings, &data_dir)
+    .with_context(|| "Failed to create changelog.gz file")?;
 
   Ok((data_dir, icons))
 }
@@ -146,8 +147,7 @@ fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Resul
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;
     let bin_name = settings.main_binary_name();
-    let dest_path = data_dir
-      .join(format!("usr/share/doc/{}/changelog.gz", bin_name));
+    let dest_path = data_dir.join(format!("usr/share/doc/{}/changelog.gz", bin_name));
 
     let changelog_file = common::create_file(&dest_path)?;
     let mut gzip_encoder = GzEncoder::new(changelog_file, Compression::new(9));

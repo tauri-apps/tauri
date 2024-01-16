@@ -11,7 +11,7 @@ use tauri_utils::acl::{
   capability::{Capability, CapabilityContext},
   plugin::Manifest,
   resolved::{CommandKey, Resolved, ResolvedCommand, ResolvedScope},
-  ExecutionContext, Permission,
+  ExecutionContext, Permission, PermissionSet,
 };
 
 #[derive(Debug, Default)]
@@ -173,6 +173,29 @@ fn resolve_command(
   }
 }
 
+// get the permissions from a permission set
+fn get_permission_set_permissions<'a>(
+  manifest: &'a Manifest,
+  set: &'a PermissionSet,
+) -> Result<Vec<&'a Permission>, String> {
+  let mut permissions = Vec::new();
+
+  for p in &set.permissions {
+    if let Some(permission) = manifest.permissions.get(p) {
+      permissions.push(permission);
+    } else if let Some(permission_set) = manifest.permission_sets.get(p) {
+      permissions.extend(get_permission_set_permissions(manifest, permission_set)?);
+    } else {
+      return Err(format!(
+        "permission {p} not found from set {}",
+        set.identifier
+      ));
+    }
+  }
+
+  Ok(permissions)
+}
+
 fn get_permissions<'a>(
   plugin_name: &'a str,
   permission_name: &'a str,
@@ -190,16 +213,7 @@ fn get_permissions<'a>(
       || format!("plugin {plugin_name} has no default permission"),
     )?])
   } else if let Some(set) = manifest.permission_sets.get(permission_name) {
-    let mut resolved = Vec::new();
-    for p in &set.permissions {
-      resolved.push(
-        manifest
-          .permissions
-          .get(p)
-          .ok_or_else(|| format!("permission {p} in set {permission_name} not found"))?,
-      );
-    }
-    Ok(resolved)
+    get_permission_set_permissions(manifest, set)
   } else if let Some(permission) = manifest.permissions.get(permission_name) {
     Ok(vec![permission])
   } else {

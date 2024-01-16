@@ -1,6 +1,5 @@
 ---
 source: core/tests/acl/src/lib.rs
-assertion_line: 49
 expression: resolved
 ---
 Resolved {
@@ -14,7 +13,7 @@ Resolved {
             windows: [
                 "main",
             ],
-            scope: 7912899488978770657,
+            scope: None,
         },
         CommandKey {
             name: "plugin:fs|read_file",
@@ -25,20 +24,11 @@ Resolved {
             windows: [
                 "main",
             ],
-            scope: 18088007599891946824,
+            scope: None,
         },
     },
     denied_commands: {},
-    command_scope: {
-        7912899488978770657: ResolvedScope {
-            allow: [],
-            deny: [],
-        },
-        18088007599891946824: ResolvedScope {
-            allow: [],
-            deny: [],
-        },
-    },
+    command_scope: {},
     global_scope: ResolvedScope {
         allow: [
             Map(

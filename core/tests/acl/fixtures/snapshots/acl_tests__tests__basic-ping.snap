@@ -1,6 +1,5 @@
 ---
 source: core/tests/acl/src/lib.rs
-assertion_line: 49
 expression: resolved
 ---
 Resolved {
@@ -12,16 +11,11 @@ Resolved {
             windows: [
                 "main",
             ],
-            scope: 7912899488978770657,
+            scope: None,
         },
     },
     denied_commands: {},
-    command_scope: {
-        7912899488978770657: ResolvedScope {
-            allow: [],
-            deny: [],
-        },
-    },
+    command_scope: {},
     global_scope: ResolvedScope {
         allow: [],
         deny: [],

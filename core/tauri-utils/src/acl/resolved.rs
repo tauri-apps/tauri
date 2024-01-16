@@ -24,7 +24,7 @@ pub struct ResolvedCommand {
   /// The list of window label patterns that is allowed to run this command.
   pub windows: Vec<String>,
   /// The reference of the scope that is associated with this command. See [`Resolved#structfield.scopes`].
-  pub scope: ScopeKey,
+  pub scope: Option<ScopeKey>,
 }
 
 /// A resolved scope. Merges all scopes defined for a single command.
@@ -85,15 +85,24 @@ impl Resolved {
               // global scope
               global_scope.push(permission.scope.clone());
             } else {
-              current_scope_id += 1;
-              command_scopes.insert(current_scope_id, permission.scope.clone());
+              let has_scope = permission.scope.allow.is_some() || permission.scope.deny.is_some();
+              if has_scope {
+                current_scope_id += 1;
+                command_scopes.insert(current_scope_id, permission.scope.clone());
+              }
+
+              let scope_id = if has_scope {
+                Some(current_scope_id)
+              } else {
+                None
+              };
 
               for allowed_command in &permission.commands.allow {
                 resolve_command(
                   &mut allowed_commands,
                   format!("plugin:{plugin_name}|{allowed_command}"),
                   capability,
-                  current_scope_id,
+                  scope_id,
                 );
               }
 
@@ -102,7 +111,7 @@ impl Resolved {
                   &mut denied_commands,
                   format!("plugin:{plugin_name}|{denied_command}"),
                   capability,
-                  current_scope_id,
+                  scope_id,
                 );
               }
             }
@@ -115,28 +124,30 @@ impl Resolved {
     let mut resolved_scopes = BTreeMap::new();
 
     for allowed in allowed_commands.values_mut() {
-      allowed.scope.sort();
+      if !allowed.scope.is_empty() {
+        allowed.scope.sort();
 
-      let mut hasher = DefaultHasher::new();
-      allowed.scope.hash(&mut hasher);
-      let hash = hasher.finish() as usize;
+        let mut hasher = DefaultHasher::new();
+        allowed.scope.hash(&mut hasher);
+        let hash = hasher.finish() as usize;
 
-      allowed.resolved_scope_key = hash;
+        allowed.resolved_scope_key.replace(hash);
 
-      let resolved_scope = ResolvedScope {
-        allow: allowed
-          .scope
-          .iter()
-          .flat_map(|s| command_scopes.get(s).unwrap().allow.clone())
-          .collect(),
-        deny: allowed
-          .scope
-          .iter()
-          .flat_map(|s| command_scopes.get(s).unwrap().deny.clone())
-          .collect(),
-      };
+        let resolved_scope = ResolvedScope {
+          allow: allowed
+            .scope
+            .iter()
+            .flat_map(|s| command_scopes.get(s).unwrap().allow.clone())
+            .collect(),
+          deny: allowed
+            .scope
+            .iter()
+            .flat_map(|s| command_scopes.get(s).unwrap().deny.clone())
+            .collect(),
+        };
 
-      resolved_scopes.insert(hash, resolved_scope);
+        resolved_scopes.insert(hash, resolved_scope);
+      }
     }
 
     let global_scope = ResolvedScope {
@@ -187,14 +198,14 @@ impl Resolved {
 struct ResolvedCommandTemp {
   pub windows: Vec<String>,
   pub scope: Vec<usize>,
-  pub resolved_scope_key: usize,
+  pub resolved_scope_key: Option<usize>,
 }
 
 fn resolve_command(
   commands: &mut BTreeMap<CommandKey, ResolvedCommandTemp>,
   command: String,
   capability: &Capability,
-  scope_id: usize,
+  scope_id: Option<usize>,
 ) {
   let contexts = match &capability.context {
     CapabilityContext::Local => {
@@ -217,7 +228,9 @@ fn resolve_command(
       .or_default();
 
     resolved.windows.extend(capability.windows.clone());
-    resolved.scope.push(scope_id);
+    if let Some(id) = scope_id {
+      resolved.scope.push(id);
+    }
   }
 }
 

@@ -95,14 +95,15 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
     command
       .acl
       .as_ref()
-      .and_then(|resolved| {
+      .and_then(|resolved| resolved.scope)
+      .and_then(|scope_id| {
         command
           .message
           .window
           .manager
           .runtime_authority
           .scope_manager
-          .get_command_scope_typed(&resolved.scope)
+          .get_command_scope_typed(&scope_id)
           .map(CommandScope)
       })
       .ok_or_else(|| InvokeError::from_anyhow(anyhow::anyhow!("scope not found")))

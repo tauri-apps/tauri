@@ -194,7 +194,7 @@ mod tests {
       },
       ResolvedCommand {
         windows: vec!["main".into()],
-        scope: 0,
+        scope: None,
       },
     );
     for scope in &scopes {
@@ -207,7 +207,7 @@ mod tests {
         },
         ResolvedCommand {
           windows: vec!["main".into()],
-          scope: 0,
+          scope: None,
         },
       );
     }

@@ -42,13 +42,14 @@ pub struct Capability {
 /// Context of the capability.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum CapabilityContext {
   /// Capability refers to local URL usage.
   #[default]
   Local,
   /// Capability refers to remote usage.
   Remote {
-    /// Remote domain this capability refers to.
-    dangerous_remote: Vec<String>,
+    /// Remote domains this capability refers to.
+    domains: Vec<String>,
   },
 }

@@ -1,0 +1,54 @@
+---
+source: core/tests/acl/src/lib.rs
+assertion_line: 49
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        CommandKey {
+            name: "plugin:fs|read_dir",
+            context: Remote {
+                domain: "tauri.app",
+            },
+        }: ResolvedCommand {
+            windows: [
+                "main",
+            ],
+            scope: 7912899488978770657,
+        },
+        CommandKey {
+            name: "plugin:fs|read_file",
+            context: Remote {
+                domain: "tauri.app",
+            },
+        }: ResolvedCommand {
+            windows: [
+                "main",
+            ],
+            scope: 18088007599891946824,
+        },
+    },
+    denied_commands: {},
+    command_scope: {
+        7912899488978770657: ResolvedScope {
+            allow: [],
+            deny: [],
+        },
+        18088007599891946824: ResolvedScope {
+            allow: [],
+            deny: [],
+        },
+    },
+    global_scope: ResolvedScope {
+        allow: [
+            Map(
+                {
+                    "path": String(
+                        "$APP",
+                    ),
+                },
+            ),
+        ],
+        deny: [],
+    },
+}

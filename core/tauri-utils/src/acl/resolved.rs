@@ -200,7 +200,7 @@ fn resolve_command(
     CapabilityContext::Local => {
       vec![ExecutionContext::Local]
     }
-    CapabilityContext::Remote { dangerous_remote } => dangerous_remote
+    CapabilityContext::Remote { domains } => domains
       .iter()
       .map(|domain| ExecutionContext::Remote {
         domain: domain.to_string(),

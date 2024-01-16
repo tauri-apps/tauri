@@ -29,7 +29,6 @@ use anyhow::Context;
 use handlebars::Handlebars;
 use heck::AsKebabCase;
 use image::{self, codecs::png::PngDecoder, ImageDecoder};
-use libflate::gzip;
 use log::info;
 use serde::Serialize;
 use tar::HeaderMode;
@@ -43,6 +42,8 @@ use std::{
   os::unix::fs::MetadataExt,
   path::{Path, PathBuf},
 };
+
+use flate2::{write::GzEncoder, Compression};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct DebIcon {
@@ -391,9 +392,9 @@ fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
   let src_dir = src_dir.as_ref();
   let dest_path = src_dir.with_extension("tar.gz");
   let dest_file = common::create_file(&dest_path)?;
-  let gzip_encoder = gzip::Encoder::new(dest_file)?;
+  let gzip_encoder = GzEncoder::new(dest_file, Compression::default());
   let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
-  let mut dest_file = gzip_encoder.finish().into_result()?;
+  let mut dest_file = gzip_encoder.finish()?;
   dest_file.flush()?;
   Ok(dest_path)
 }

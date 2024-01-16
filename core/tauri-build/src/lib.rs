@@ -18,6 +18,7 @@ use cargo_toml::Manifest;
 use heck::AsShoutySnakeCase;
 
 use tauri_utils::{
+  acl::build::parse_capabilities,
   config::{BundleResources, Config, WebviewInstallMode},
   resources::{external_binaries, ResourcePaths},
 };
@@ -462,9 +463,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     serde_json::to_string(&plugin_manifests)?,
   )?;
   let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
-    acl::parse_capabilities(pattern)?
+    parse_capabilities(pattern)?
   } else {
-    acl::parse_capabilities("./capabilities/**/*")?
+    parse_capabilities("./capabilities/**/*")?
   };
   acl::generate_schema(&plugin_manifests)?;
 

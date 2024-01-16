@@ -5,7 +5,7 @@
 //! ACL items that are only useful inside of build script/codegen context.
 
 use std::{
-  collections::HashMap,
+  collections::{BTreeMap, HashMap},
   env::vars_os,
   fs::File,
   io::{BufWriter, Write},
@@ -21,6 +21,8 @@ use schemars::{
 };
 use serde::Deserialize;
 
+use super::capability::Capability;
+
 /// Cargo cfg key for permissions file paths
 pub const PERMISSION_FILES_PATH_KEY: &str = "PERMISSION_FILES_PATH";
 
@@ -29,6 +31,12 @@ pub const PERMISSION_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
 
 /// Known filename of a permission schema
 pub const PERMISSION_SCHEMA_FILE_NAME: &str = ".schema.json";
+
+/// Allowed capability file extensions
+const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
+
+/// Known filename of a capability schema
+const CAPABILITIES_SCHEMA_FILE_NAME: &str = ".schema.json";
 
 /// A set of permissions or other permission sets.
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -81,6 +89,19 @@ pub struct PermissionFile {
   pub permission: Vec<Permission>,
 }
 
+/// Capability formats accepted in a capability file.
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum CapabilityFile {
+  /// A single capability.
+  Capability(Capability),
+  /// A list of capabilities.
+  List {
+    /// The list of capabilities.
+    capabilities: Vec<Capability>,
+  },
+}
+
 /// Write the permissions to a temporary directory and pass it to the immediate consuming crate.
 pub fn define_permissions(pattern: &str) -> Result<Vec<PermissionFile>, Error> {
   let permission_files = glob::glob(pattern)?
@@ -120,6 +141,52 @@ pub fn define_permissions(pattern: &str) -> Result<Vec<PermissionFile>, Error> {
   );
 
   parse_permissions(permission_files)
+}
+
+/// Parses all capability files with the given glob pattern.
+pub fn parse_capabilities(
+  capabilities_path_pattern: &str,
+) -> Result<BTreeMap<String, Capability>, Error> {
+  let mut capabilities_map = BTreeMap::new();
+
+  for path in glob::glob(capabilities_path_pattern)?
+    .flatten() // filter extension
+    .filter(|p| {
+      p.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| CAPABILITY_FILE_EXTENSIONS.contains(&e))
+        .unwrap_or_default()
+    })
+    // filter schema file
+    .filter(|p| {
+      p.file_name()
+        .map(|name| name != CAPABILITIES_SCHEMA_FILE_NAME)
+        .unwrap_or(true)
+    })
+  {
+    println!("cargo:rerun-if-changed={}", path.display());
+
+    let capability_file = std::fs::read_to_string(&path).map_err(Error::ReadFile)?;
+    let ext = path.extension().unwrap().to_string_lossy().to_string();
+    let capability: CapabilityFile = match ext.as_str() {
+      "toml" => toml::from_str(&capability_file)?,
+      "json" => serde_json::from_str(&capability_file)?,
+      _ => return Err(Error::UnknownCapabilityFormat(ext)),
+    };
+
+    match capability {
+      CapabilityFile::Capability(capability) => {
+        capabilities_map.insert(capability.identifier.clone(), capability);
+      }
+      CapabilityFile::List { capabilities } => {
+        for capability in capabilities {
+          capabilities_map.insert(capability.identifier.clone(), capability);
+        }
+      }
+    }
+  }
+
+  Ok(capabilities_map)
 }
 
 fn permissions_schema(permissions: &[PermissionFile]) -> RootSchema {

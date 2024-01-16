@@ -17,7 +17,7 @@ members = [
 
   # examples that should be tested by default
   "examples/plugins/*"
-]
+, "core/tests/acl"]
 
 exclude = [
   # examples that can be compiled with the tauri CLI

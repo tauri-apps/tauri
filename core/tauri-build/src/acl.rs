@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::HashMap,
+  collections::BTreeMap,
   fs::File,
   io::{BufWriter, Write},
   path::PathBuf,
@@ -14,20 +14,11 @@ use schemars::{
   schema::{InstanceType, Metadata, RootSchema, Schema, SchemaObject, SubschemaValidation},
   schema_for,
 };
-use serde::Deserialize;
-use tauri_utils::acl::{capability::Capability, plugin::Manifest, Permission, PermissionSet};
+use tauri_utils::acl::{build::CapabilityFile, capability::Capability, plugin::Manifest};
 
-const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
 const CAPABILITIES_SCHEMA_FILE_NAME: &str = ".schema.json";
 
-#[derive(Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-enum CapabilityFile {
-  Capability(Capability),
-  List { capabilities: Vec<Capability> },
-}
-
-fn capabilities_schema(plugin_manifests: &HashMap<String, Manifest>) -> RootSchema {
+fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSchema {
   let mut schema = schema_for!(CapabilityFile);
 
   fn schema_from(plugin: &str, id: &str, description: Option<&str>) -> Schema {
@@ -86,7 +77,7 @@ fn capabilities_schema(plugin_manifests: &HashMap<String, Manifest>) -> RootSche
   schema
 }
 
-pub(crate) fn generate_schema(plugin_manifests: &HashMap<String, Manifest>) -> Result<()> {
+pub fn generate_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> Result<()> {
   let schema = capabilities_schema(plugin_manifests);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
   let out_path = PathBuf::from("capabilities").join(CAPABILITIES_SCHEMA_FILE_NAME);
@@ -96,107 +87,21 @@ pub(crate) fn generate_schema(plugin_manifests: &HashMap<String, Manifest>) -> R
   Ok(())
 }
 
-pub fn parse_capabilities(capabilities_path_pattern: &str) -> Result<HashMap<String, Capability>> {
-  let mut capabilities_map = HashMap::new();
-
-  for path in glob::glob(capabilities_path_pattern)?
-    .flatten() // filter extension
-    .filter(|p| {
-      p.extension()
-        .and_then(|e| e.to_str())
-        .map(|e| CAPABILITY_FILE_EXTENSIONS.contains(&e))
-        .unwrap_or_default()
-    })
-    // filter schema file
-    .filter(|p| {
-      p.file_name()
-        .map(|name| name != CAPABILITIES_SCHEMA_FILE_NAME)
-        .unwrap_or(true)
-    })
-  {
-    println!("cargo:rerun-if-changed={}", path.display());
-
-    let capability_file = std::fs::read_to_string(&path)?;
-    let ext = path.extension().unwrap().to_string_lossy().to_string();
-    let capability: CapabilityFile = match ext.as_str() {
-      "toml" => toml::from_str(&capability_file)?,
-      "json" => serde_json::from_str(&capability_file)?,
-      _ => return Err(anyhow::anyhow!("unknown capability format")),
-    };
-
-    match capability {
-      CapabilityFile::Capability(capability) => {
-        capabilities_map.insert(capability.identifier.clone(), capability);
-      }
-      CapabilityFile::List { capabilities } => {
-        for capability in capabilities {
-          capabilities_map.insert(capability.identifier.clone(), capability);
-        }
-      }
-    }
-  }
-
-  Ok(capabilities_map)
-}
-
-pub(crate) fn get_plugin_manifests() -> Result<HashMap<String, Manifest>> {
+pub fn get_plugin_manifests() -> Result<BTreeMap<String, Manifest>> {
   let permission_map =
     tauri_utils::acl::build::read_permissions().context("failed to read plugin permissions")?;
 
-  let mut processed = HashMap::new();
+  let mut processed = BTreeMap::new();
   for (plugin_name, permission_files) in permission_map {
-    let mut manifest = Manifest {
-      default_permission: None,
-      permissions: HashMap::new(),
-      permission_sets: HashMap::new(),
-    };
-
-    for permission_file in permission_files {
-      if let Some(default) = permission_file.default {
-        manifest.default_permission.replace(Permission {
-          identifier: "default".into(),
-          version: default.version,
-          description: default.description,
-          commands: default.commands,
-          scope: default.scope,
-        });
-      }
-
-      manifest.permissions.extend(
-        permission_file
-          .permission
-          .into_iter()
-          .map(|p| (p.identifier.clone(), p))
-          .collect::<HashMap<_, _>>(),
-      );
-
-      manifest.permission_sets.extend(
-        permission_file
-          .set
-          .into_iter()
-          .map(|set| {
-            (
-              set.identifier.clone(),
-              PermissionSet {
-                identifier: set.identifier,
-                description: set.description,
-                permissions: set.permissions,
-              },
-            )
-          })
-          .collect::<HashMap<_, _>>(),
-      );
-    }
-
-    processed.insert(plugin_name, manifest);
+    processed.insert(plugin_name, Manifest::from_files(permission_files));
   }
 
   Ok(processed)
 }
 
-pub(crate) fn validate_capabilities(
-  plugin_manifests: &HashMap<String, Manifest>,
-  capabilities: &HashMap<String, Capability>,
+pub fn validate_capabilities(
+  plugin_manifests: &BTreeMap<String, Manifest>,
+  capabilities: &BTreeMap<String, Capability>,
 ) -> Result<()> {
   for capability in capabilities.values() {
     for permission in &capability.permissions {

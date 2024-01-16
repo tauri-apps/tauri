@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
@@ -13,6 +13,7 @@ use sha2::{Digest, Sha256};
 
 use tauri_utils::acl::capability::Capability;
 use tauri_utils::acl::plugin::Manifest;
+use tauri_utils::acl::resolved::Resolved;
 use tauri_utils::assets::AssetKey;
 use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
 use tauri_utils::html::{
@@ -21,8 +22,6 @@ use tauri_utils::html::{
 use tauri_utils::platform::Target;
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
-
-mod resolve_acl;
 
 const PLUGIN_MANIFESTS_FILE_NAME: &str = "plugin-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
@@ -382,7 +381,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   let acl_file_path = out_dir.join(PLUGIN_MANIFESTS_FILE_NAME);
-  let acl: HashMap<String, Manifest> = if acl_file_path.exists() {
+  let acl: BTreeMap<String, Manifest> = if acl_file_path.exists() {
     let acl_file =
       std::fs::read_to_string(acl_file_path).expect("failed to read plugin manifest map");
     serde_json::from_str(&acl_file).expect("failed to parse plugin manifest map")
@@ -391,7 +390,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
-  let capabilities: HashMap<String, Capability> = if capabilities_file_path.exists() {
+  let capabilities: BTreeMap<String, Capability> = if capabilities_file_path.exists() {
     let capabilities_file =
       std::fs::read_to_string(capabilities_file_path).expect("failed to read capabilities");
     serde_json::from_str(&capabilities_file).expect("failed to parse capabilities")
@@ -399,7 +398,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     Default::default()
   };
 
-  let resolved_act = resolve_acl::resolve(acl, capabilities).expect("failed to resolve ACL");
+  let resolved_act = Resolved::resolve(acl, capabilities).expect("failed to resolve ACL");
 
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]

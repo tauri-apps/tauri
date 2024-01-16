@@ -73,6 +73,45 @@ pub enum Error {
   /// Invalid permissions file format
   #[error("unknown permission format {0}")]
   UnknownPermissionFormat(String),
+
+  /// Invalid capabilities file format
+  #[error("unknown capability format {0}")]
+  UnknownCapabilityFormat(String),
+
+  /// Permission referenced in set not found.
+  #[error("permission {permission} not found from set {set}")]
+  SetPermissionNotFound {
+    /// Permission identifier.
+    permission: String,
+    /// Set identifier.
+    set: String,
+  },
+
+  /// Plugin has no default permission.
+  #[error("plugin {plugin} has no default permission")]
+  MissingDefaultPermission {
+    /// Plugin name.
+    plugin: String,
+  },
+
+  /// Unknown plugin.
+  #[error("unknown plugin {plugin}, expected one of {available}")]
+  UnknownPlugin {
+    /// Plugin name.
+    plugin: String,
+    /// Available plugins.
+    available: String,
+  },
+
+  /// Unknown permission.
+  #[error("unknown permission {permission} for plugin {plugin}")]
+  UnknownPermission {
+    /// Plugin name.
+    plugin: String,
+
+    /// Permission identifier.
+    permission: String,
+  },
 }
 
 /// Allowed and denied commands inside a permission.

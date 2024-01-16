@@ -150,7 +150,7 @@ fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Resul
       .join(format!("usr/share/doc/{}/changelog.gz", bin_name));
 
     let changelog_file = common::create_file(&dest_path)?;
-    let gzip_encoder = GzEncoder::new(dest_file, Compression::new(9));
+    let mut gzip_encoder = GzEncoder::new(changelog_file, Compression::new(9));
     io::copy(&mut src_file, &mut gzip_encoder)?;
 
     let mut changelog_file = gzip_encoder.finish()?;

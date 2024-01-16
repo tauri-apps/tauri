@@ -63,7 +63,7 @@ tauri-utils = { version = "2.0.0-alpha.12", path = "../../core/tauri-utils", fea
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
 jsonschema = "0.17"
-handlebars = "4.4"
+handlebars = "5.0"
 include_dir = "0.7"
 minisign = "=0.7.5"
 base64 = "0.21.5"

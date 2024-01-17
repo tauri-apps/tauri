@@ -135,8 +135,28 @@ pub fn generate_data(
   let icons =
     generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).with_context(|| "Failed to create desktop file")?;
+  generate_changelog_file(settings, &data_dir)
+    .with_context(|| "Failed to create changelog.gz file")?;
 
   Ok((data_dir, icons))
+}
+
+/// Generate the Changelog file by compressing, to be stored at /usr/share/doc/package-name/changelog.gz. See
+/// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+  if let Some(changelog_src_path) = &settings.deb().changelog {
+    let mut src_file = File::open(changelog_src_path)?;
+    let bin_name = settings.main_binary_name();
+    let dest_path = data_dir.join(format!("usr/share/doc/{}/changelog.gz", bin_name));
+
+    let changelog_file = common::create_file(&dest_path)?;
+    let mut gzip_encoder = GzEncoder::new(changelog_file, Compression::new(9));
+    io::copy(&mut src_file, &mut gzip_encoder)?;
+
+    let mut changelog_file = gzip_encoder.finish()?;
+    changelog_file.flush()?;
+  }
+  Ok(())
 }
 
 /// Generate the application desktop file and store it under the `data_dir`.
@@ -212,6 +232,14 @@ fn generate_control_file(
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
   let authors = settings.authors_comma_separated().unwrap_or_default();
   writeln!(file, "Maintainer: {}", authors)?;
+  if let Some(section) = &settings.deb().section {
+    writeln!(file, "Section: {}", section)?;
+  }
+  if let Some(priority) = &settings.deb().priority {
+    writeln!(file, "Priority: {}", priority)?;
+  } else {
+    writeln!(file, "Priority: optional")?;
+  }
   if !settings.homepage_url().is_empty() {
     writeln!(file, "Homepage: {}", settings.homepage_url())?;
   }
@@ -236,7 +264,6 @@ fn generate_control_file(
       writeln!(file, " {}", line)?;
     }
   }
-  writeln!(file, "Priority: optional")?;
   file.flush()?;
   Ok(())
 }

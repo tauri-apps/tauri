@@ -218,8 +218,11 @@ pub fn generate_schema<P: AsRef<Path>>(
   let schema = permissions_schema(permissions);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
 
+  let out_dir = out_dir.as_ref();
+  create_dir_all(&out_dir).expect("unable to create schema output directory");
+
   let mut schema_file = BufWriter::new(
-    File::create(out_dir.as_ref().join(PERMISSION_SCHEMA_FILE_NAME)).map_err(Error::CreateFile)?,
+    File::create(out_dir.join(PERMISSION_SCHEMA_FILE_NAME)).map_err(Error::CreateFile)?,
   );
   write!(schema_file, "{schema_str}").map_err(Error::WriteFile)?;
   Ok(())

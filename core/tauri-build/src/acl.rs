@@ -4,7 +4,7 @@
 
 use std::{
   collections::BTreeMap,
-  fs::File,
+  fs::{create_dir_all, File},
   io::{BufWriter, Write},
   path::PathBuf,
 };
@@ -80,9 +80,10 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
 pub fn generate_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> Result<()> {
   let schema = capabilities_schema(plugin_manifests);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
-  let out_path = PathBuf::from("capabilities").join(CAPABILITIES_SCHEMA_FILE_NAME);
+  let out_dir = PathBuf::from("capabilities");
+  create_dir_all(&out_dir).context("unable to create schema output directory")?;
 
-  let mut schema_file = BufWriter::new(File::create(out_path)?);
+  let mut schema_file = BufWriter::new(File::create(out_dir.join(CAPABILITIES_SCHEMA_FILE_NAME))?);
   write!(schema_file, "{schema_str}")?;
   Ok(())
 }

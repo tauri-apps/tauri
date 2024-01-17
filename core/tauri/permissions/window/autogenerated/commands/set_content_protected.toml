@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-set-content-protected"
+description = "Enables the set_content_protected command without any pre-configured scope."
+commands.allow = ["set_content_protected"]
+
+[[permission]]
+identifier = "deny-set-content-protected"
+description = "Denies the set_content_protected command without any pre-configured scope."
+commands.deny = ["set_content_protected"]

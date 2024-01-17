@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-is-absolute"
+description = "Enables the is_absolute command without any pre-configured scope."
+commands.allow = ["is_absolute"]
+
+[[permission]]
+identifier = "deny-is-absolute"
+description = "Denies the is_absolute command without any pre-configured scope."
+commands.deny = ["is_absolute"]

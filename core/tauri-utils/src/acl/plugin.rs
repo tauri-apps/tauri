@@ -6,10 +6,10 @@
 
 use std::{collections::HashMap, num::NonZeroU64};
 
-use super::{Commands, Permission, PermissionSet, Scopes};
+use super::{Permission, PermissionSet};
 use serde::{Deserialize, Serialize};
 
-/// The default permission of the plugin.
+/// The default permission set of the plugin.
 ///
 /// Works similarly to a permission with the "default" identifier.
 #[derive(Debug, Deserialize)]
@@ -21,13 +21,8 @@ pub struct DefaultPermission {
   /// Human-readable description of what the permission does.
   pub description: Option<String>,
 
-  /// Allowed or denied commands when using this permission.
-  #[serde(default)]
-  pub commands: Commands,
-
-  /// Allowed or denied scoped when using this permission.
-  #[serde(default)]
-  pub scope: Scopes,
+  /// All permissions this set contains.
+  pub permissions: Vec<String>,
 }
 
 /// Permission file that can define a default permission, a set of permissions or a list of inlined permissions.
@@ -50,10 +45,10 @@ pub struct PermissionFile {
 }
 
 /// Plugin manifest.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
   /// Default permission.
-  pub default_permission: Option<Permission>,
+  pub default_permission: Option<PermissionSet>,
   /// Plugin permissions.
   pub permissions: HashMap<String, Permission>,
   /// Plugin permission sets.
@@ -71,12 +66,12 @@ impl Manifest {
 
     for permission_file in permission_files {
       if let Some(default) = permission_file.default {
-        manifest.default_permission.replace(Permission {
+        manifest.default_permission.replace(PermissionSet {
           identifier: "default".into(),
-          version: default.version,
-          description: default.description,
-          commands: default.commands,
-          scope: default.scope,
+          description: default
+            .description
+            .unwrap_or_else(|| "Default plugin permissions.".to_string()),
+          permissions: default.permissions,
         });
       }
 

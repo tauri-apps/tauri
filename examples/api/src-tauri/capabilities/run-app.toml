@@ -2,4 +2,14 @@
 identifier = "run-app"
 description = "app capability"
 windows = ["main"]
-permissions = ["sample:allow-ping-scoped", "sample:global-scope"]
+permissions = [
+  "path:default",
+  "event:default",
+  "window:default",
+  "app:default",
+  "resources:default",
+  "menu:default",
+  "tray:default",
+  "sample:allow-ping-scoped",
+  "sample:global-scope",
+]

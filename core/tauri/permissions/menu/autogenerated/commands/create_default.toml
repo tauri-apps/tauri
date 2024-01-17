@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-create-default"
+description = "Enables the create_default command without any pre-configured scope."
+commands.allow = ["create_default"]
+
+[[permission]]
+identifier = "deny-create-default"
+description = "Denies the create_default command without any pre-configured scope."
+commands.deny = ["create_default"]

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-request-user-attention"
+description = "Enables the request_user_attention command without any pre-configured scope."
+commands.allow = ["request_user_attention"]
+
+[[permission]]
+identifier = "deny-request-user-attention"
+description = "Denies the request_user_attention command without any pre-configured scope."
+commands.deny = ["request_user_attention"]

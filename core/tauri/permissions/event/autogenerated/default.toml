@@ -1,0 +1,5 @@
+# Automatically generated - DO NOT EDIT!
+
+[default]
+description = "Default permissions for the plugin."
+permissions = ["allow-listen", "allow-unlisten", "allow-emit"]

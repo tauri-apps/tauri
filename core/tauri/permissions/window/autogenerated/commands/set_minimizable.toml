@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-set-minimizable"
+description = "Enables the set_minimizable command without any pre-configured scope."
+commands.allow = ["set_minimizable"]
+
+[[permission]]
+identifier = "deny-set-minimizable"
+description = "Denies the set_minimizable command without any pre-configured scope."
+commands.deny = ["set_minimizable"]

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-primary-monitor"
+description = "Enables the primary_monitor command without any pre-configured scope."
+commands.allow = ["primary_monitor"]
+
+[[permission]]
+identifier = "deny-primary-monitor"
+description = "Denies the primary_monitor command without any pre-configured scope."
+commands.deny = ["primary_monitor"]

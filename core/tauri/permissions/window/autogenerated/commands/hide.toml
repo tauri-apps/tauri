@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-hide"
+description = "Enables the hide command without any pre-configured scope."
+commands.allow = ["hide"]
+
+[[permission]]
+identifier = "deny-hide"
+description = "Denies the hide command without any pre-configured scope."
+commands.deny = ["hide"]

@@ -46,7 +46,7 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
       permission_schemas.push(schema_from(
         plugin,
         "default",
-        default.description.as_deref(),
+        Some(default.description.as_ref()),
       ));
     }
 

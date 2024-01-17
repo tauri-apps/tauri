@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-set-decorations"
+description = "Enables the set_decorations command without any pre-configured scope."
+commands.allow = ["set_decorations"]
+
+[[permission]]
+identifier = "deny-set-decorations"
+description = "Denies the set_decorations command without any pre-configured scope."
+commands.deny = ["set_decorations"]

@@ -948,7 +948,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ))]
   pub fn transient_for(mut self, parent: &Window) -> crate::Result<Self> {
     self.window_builder = self.window_builder.transient_for(&parent.gtk_window()?);
-    self
+    Ok(self)
   }
 
   /// Sets the window to be created transient for parent.

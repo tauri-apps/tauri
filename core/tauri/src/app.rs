@@ -1573,7 +1573,7 @@ impl<R: Runtime> Builder<R> {
 
     app.manage(Scopes {
       #[cfg(feature = "protocol-asset")]
-      asset_protocol: scope::fs::Scope::new(
+      asset_protocol: crate::scope::fs::Scope::new(
         &app,
         &app.config().tauri.security.asset_protocol.scope,
       )?,

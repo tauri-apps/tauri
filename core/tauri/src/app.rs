@@ -48,7 +48,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc, Weak},
+  sync::{mpsc::Sender, Arc},
 };
 
 use crate::runtime::RuntimeHandle;
@@ -256,7 +256,7 @@ impl AppHandle<crate::Wry> {
   >(
     &self,
     f: F,
-  ) -> crate::Result<Weak<tauri_runtime_wry::Window>> {
+  ) -> crate::Result<std::sync::Weak<tauri_runtime_wry::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
 
@@ -983,10 +983,8 @@ struct InvokeInitializationScript<'a> {
   fetch_channel_data_command: &'a str,
   use_custom_protocol: bool,
 }
-
-impl<R: Runtime> Builder<R> {
-  /// Creates a new App builder.
-  pub fn new() -> Self {
+impl<R: Runtime> Default for Builder<R> {
+  fn default() -> Self {
     Self {
       #[cfg(any(windows, target_os = "linux"))]
       runtime_any_thread: false,
@@ -1014,7 +1012,16 @@ impl<R: Runtime> Builder<R> {
       device_event_filter: Default::default(),
     }
   }
+}
 
+impl<R: Runtime> Builder<R> {
+  /// Creates a new App builder.
+  pub fn new() -> Self {
+    Self::default()
+  }
+}
+
+impl<R: Runtime> Builder<R> {
   /// Builds a new Tauri application running on any thread, bypassing the main thread requirement.
   ///
   /// ## Platform-specific
@@ -1828,14 +1835,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
   }
 }
 
-/// Make `Wry` the default `Runtime` for `Builder`
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-impl Default for Builder<crate::Wry> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
+
 
 #[cfg(test)]
 mod tests {

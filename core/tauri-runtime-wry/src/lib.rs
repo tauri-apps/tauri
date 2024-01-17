@@ -799,20 +799,32 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(windows)]
-  fn parent_window(mut self, parent: HWND) -> Self {
+  fn owner(mut self, owner: HWND) -> Self {
+    self.inner = self.inner.with_owner_window(owner.0);
+    self
+  }
+
+  #[cfg(windows)]
+  fn parent(mut self, parent: HWND) -> Self {
     self.inner = self.inner.with_parent_window(parent.0);
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
+  fn parent(mut self, parent: *mut std::ffi::c_void) -> Self {
     self.inner = self.inner.with_parent_window(parent);
     self
   }
 
-  #[cfg(windows)]
-  fn owner_window(mut self, owner: HWND) -> Self {
-    self.inner = self.inner.with_owner_window(owner.0);
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self.inner = self.inner.with_transient_for(parent);
     self
   }
 

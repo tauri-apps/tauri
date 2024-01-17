@@ -12,16 +12,13 @@ use tauri::{
 
 #[command]
 async fn create_child_window(id: String, window: Window) {
-  let child = WindowBuilder::new(&window, id, WindowUrl::default())
+  let _child = WindowBuilder::new(&window, id, WindowUrl::default())
     .title("Child")
-    .inner_size(400.0, 300.0);
-
-  #[cfg(target_os = "macos")]
-  let child = child.parent_window(window.ns_window().unwrap());
-  #[cfg(windows)]
-  let child = child.parent_window(window.hwnd().unwrap());
-
-  child.build().unwrap();
+    .inner_size(400.0, 300.0)
+    .parent(&window)
+    .unwrap()
+    .build()
+    .unwrap();
 }
 
 fn main() {

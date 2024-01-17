@@ -849,22 +849,39 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
   /// Sets a parent to the window to be created.
   ///
-  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  /// ## Platform-specific
   ///
-  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
-  #[cfg(windows)]
+  /// - **Windows**: This sets the passed parent as an owner window to the window to be created.
+  ///   From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows):
+  ///     - An owned window is always above its owner in the z-order.
+  ///     - The system automatically destroys an owned window when its owner is destroyed.
+  ///     - An owned window is hidden when its owner is minimized.
+  /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
   #[must_use]
-  pub fn parent_window(mut self, parent: HWND) -> Self {
-    self.window_builder = self.window_builder.parent_window(parent);
-    self
-  }
+  pub fn parent(mut self, parent: &Window<R>) -> crate::Result<Self> {
+    #[cfg(windows)]
+    {
+      self.window_builder = self.window_builder.owner(parent.hwnd()?);
+    }
 
-  /// Sets a parent to the window to be created.
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  pub fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
-    self.window_builder = self.window_builder.parent_window(parent);
-    self
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      self.window_builder = self.window_builder.transient_for(&parent.gtk_window()?);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+      self.window_builder = self.window_builder.parent(parent.ns_window()?);
+    }
+
+    Ok(self)
   }
 
   /// Set an owner to the window to be created.
@@ -877,8 +894,75 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
   #[must_use]
-  pub fn owner_window(mut self, owner: HWND) -> Self {
-    self.window_builder = self.window_builder.owner_window(owner);
+  pub fn owner(mut self, owner: &Window) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.owner(owner.hwnd()?);
+    Ok(self)
+  }
+
+  /// Set an owner to the window to be created.
+  ///
+  /// From MSDN:
+  /// - An owned window is always above its owner in the z-order.
+  /// - The system automatically destroys an owned window when its owner is destroyed.
+  /// - An owned window is hidden when its owner is minimized.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
+  #[cfg(windows)]
+  #[must_use]
+  pub fn owner_raw(mut self, owner: HWND) -> Self {
+    self.window_builder = self.window_builder.owner(owner);
+    self
+  }
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  #[cfg(windows)]
+  #[must_use]
+  pub fn parent_raw(mut self, parent: HWND) -> Self {
+    self.window_builder = self.window_builder.parent(parent);
+    self
+  }
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// See <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn parent_raw(mut self, parent: *mut std::ffi::c_void) -> Self {
+    self.window_builder = self.window_builder.parent(parent);
+    self
+  }
+
+  /// Sets the window to be created transient for parent.
+  ///
+  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn transient_for(mut self, parent: &Window) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.transient_for(&parent.gtk_window()?);
+    self
+  }
+
+  /// Sets the window to be created transient for parent.
+  ///
+  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self.window_builder = self.window_builder.transient_for(parent);
     self
   }
 

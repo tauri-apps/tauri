@@ -275,24 +275,6 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn shadow(self, enable: bool) -> Self;
 
-  /// Sets a parent to the window to be created.
-  ///
-  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
-  ///
-  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
-  #[cfg(windows)]
-  #[must_use]
-  fn parent_window(self, parent: HWND) -> Self;
-
-  /// Sets a parent to the window to be created.
-  ///
-  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
-  ///
-  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  fn parent_window(self, parent: *mut std::ffi::c_void) -> Self;
-
   /// Set an owner to the window to be created.
   ///
   /// From MSDN:
@@ -303,7 +285,35 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
   #[must_use]
-  fn owner_window(self, owner: HWND) -> Self;
+  fn owner(self, owner: HWND) -> Self;
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  #[cfg(windows)]
+  #[must_use]
+  fn parent(self, parent: HWND) -> Self;
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// See <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn parent(self, parent: *mut std::ffi::c_void) -> Self;
+
+  /// Sets the window to be created transient for parent.
+  ///
+  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self;
 
   /// Hide the titlebar. Titlebar buttons will still be visible.
   #[cfg(target_os = "macos")]

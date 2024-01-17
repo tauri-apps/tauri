@@ -2435,6 +2435,8 @@ impl<R: Runtime> Window<R> {
           load_channels(&payload, &message.window);
 
           let resolver_ = resolver.clone();
+          #[cfg(feature = "span")]
+          let _span = tracing::debug_span!("ipc::request::mobile_plugin").entered();
           if let Err(e) = crate::plugin::mobile::run_command(
             plugin,
             &app_handle,

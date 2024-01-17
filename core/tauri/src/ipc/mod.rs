@@ -208,6 +208,19 @@ pub enum InvokeResponse {
   Err(InvokeError),
 }
 
+impl Serialize for InvokeResponse {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    match self {
+      Self::Ok(InvokeBody::Json(j)) => j.serialize(serializer),
+      Self::Ok(InvokeBody::Raw(b)) => b.serialize(serializer),
+      Self::Err(e) => e.0.serialize(serializer),
+    }
+  }
+}
+
 impl<T: IpcResponse, E: Into<InvokeError>> From<Result<T, E>> for InvokeResponse {
   #[inline]
   fn from(result: Result<T, E>) -> Self {

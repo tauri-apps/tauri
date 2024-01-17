@@ -485,7 +485,7 @@ fn build_nsis_app_installer(
 }
 
 fn handlebars_or(
-  h: &handlebars::Helper<'_, '_>,
+  h: &handlebars::Helper<'_>,
   _: &Handlebars<'_>,
   _: &handlebars::Context,
   _: &mut handlebars::RenderContext<'_, '_>,
@@ -503,7 +503,7 @@ fn handlebars_or(
 }
 
 fn association_description(
-  h: &handlebars::Helper<'_, '_>,
+  h: &handlebars::Helper<'_>,
   _: &Handlebars<'_>,
   _: &handlebars::Context,
   _: &mut handlebars::RenderContext<'_, '_>,

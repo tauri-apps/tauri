@@ -483,6 +483,9 @@ impl<R: Runtime> AppManager<R> {
   {
     assert_event_name_is_valid(event);
 
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("emit::run").entered();
+
     let emit_args = EmitArgs::from(event, source_window_label, payload)?;
 
     self
@@ -508,6 +511,9 @@ impl<R: Runtime> AppManager<R> {
     payload: S,
   ) -> crate::Result<()> {
     assert_event_name_is_valid(event);
+
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("emit::run").entered();
 
     let emit_args = EmitArgs::from(event, source_window_label, payload)?;
 

@@ -1070,9 +1070,9 @@ pub enum WindowMessage {
 
 #[derive(Debug, Clone)]
 pub enum WebviewMessage {
-  #[cfg(not(feature = "tracing"))]
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
   EvaluateScript(String),
-  #[cfg(feature = "tracing")]
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
   EvaluateScript(String, Sender<()>, tracing::Span),
   #[allow(dead_code)]
   WebviewEvent(WebviewEvent),
@@ -1583,7 +1583,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  #[cfg(feature = "tracing")]
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     // use a channel so the EvaluateScript task uses the current span as parent
     let (tx, rx) = channel();
@@ -1597,7 +1597,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  #[cfg(not(feature = "tracing"))]
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     send_user_message(
       &self.context,
@@ -2429,7 +2429,7 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::Webview(id, webview_message) => match webview_message {
-      #[cfg(feature = "tracing")]
+      #[cfg(all(feature = "tracing", not(target_os = "android")))]
       WebviewMessage::EvaluateScript(script, tx, span) => {
         let _span = span.entered();
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
@@ -2441,7 +2441,7 @@ fn handle_user_message<T: UserEvent>(
         }
         tx.send(()).unwrap();
       }
-      #[cfg(not(feature = "tracing"))]
+      #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
       WebviewMessage::EvaluateScript(script) => {
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
           windows.borrow().get(&id).and_then(|w| w.inner.as_ref())

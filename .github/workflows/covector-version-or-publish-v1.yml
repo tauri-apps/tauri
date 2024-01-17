@@ -97,6 +97,7 @@ jobs:
           cargo update -p tar --precise 0.4.39
           cargo update -p serde_json --precise 1.0.97
           cargo update -p arboard --precise 3.2.1
+          cargo update -p petgraph --precise 0.6.3
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test,

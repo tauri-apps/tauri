@@ -9,19 +9,17 @@ use std::{
   env::vars_os,
   fs::File,
   io::{BufWriter, Write},
-  num::NonZeroU64,
   path::PathBuf,
 };
 
 use crate::acl::Error;
-use crate::acl::{Commands, Permission, Scopes};
 use schemars::{
   schema::{InstanceType, Metadata, RootSchema, Schema, SchemaObject, SubschemaValidation},
   schema_for,
 };
 use serde::Deserialize;
 
-use super::capability::Capability;
+use super::{capability::Capability, plugin::PermissionFile};
 
 /// Cargo cfg key for permissions file paths
 pub const PERMISSION_FILES_PATH_KEY: &str = "PERMISSION_FILES_PATH";
@@ -37,57 +35,6 @@ const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
 
 /// Known filename of a capability schema
 const CAPABILITIES_SCHEMA_FILE_NAME: &str = ".schema.json";
-
-/// A set of permissions or other permission sets.
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct PermissionSet {
-  /// A unique identifier for the permission.
-  pub identifier: String,
-
-  /// Human-readable description of what the permission does.
-  pub description: String,
-
-  /// All permissions this set contains.
-  pub permissions: Vec<String>,
-}
-
-/// The default permission of the plugin.
-///
-/// Works similarly to a permission with the "default" identifier.
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct DefaultPermission {
-  /// The version of the permission.
-  pub version: Option<NonZeroU64>,
-
-  /// Human-readable description of what the permission does.
-  pub description: Option<String>,
-
-  /// Allowed or denied commands when using this permission.
-  #[serde(default)]
-  pub commands: Commands,
-
-  /// Allowed or denied scoped when using this permission.
-  #[serde(default)]
-  pub scope: Scopes,
-}
-
-/// Permission file that can define a default permission, a set of permissions or a list of inlined permissions.
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct PermissionFile {
-  /// The default permission set for the plugin
-  pub default: Option<DefaultPermission>,
-
-  /// A list of permissions sets defined
-  #[serde(default)]
-  pub set: Vec<PermissionSet>,
-
-  /// Test something!!
-  pub test: Option<PermissionSet>,
-
-  /// A list of inlined permissions
-  #[serde(default)]
-  pub permission: Vec<Permission>,
-}
 
 /// Capability formats accepted in a capability file.
 #[derive(Deserialize, schemars::JsonSchema)]

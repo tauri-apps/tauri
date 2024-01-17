@@ -987,8 +987,27 @@ struct InvokeInitializationScript<'a> {
   fetch_channel_data_command: &'a str,
   use_custom_protocol: bool,
 }
+
+/// Make `Wry` the default `Runtime` for `Builder`
+#[cfg(feature = "wry")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
+impl Default for Builder<crate::Wry> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+#[cfg(not(feature = "wry"))]
+#[cfg_attr(docsrs, doc(cfg(not(feature = "wry"))))]
 impl<R: Runtime> Default for Builder<R> {
   fn default() -> Self {
+    Self::new()
+  }
+}
+
+impl<R: Runtime> Builder<R> {
+  /// Creates a new App builder.
+  pub fn new() -> Self {
     Self {
       #[cfg(any(windows, target_os = "linux"))]
       runtime_any_thread: false,
@@ -1015,13 +1034,6 @@ impl<R: Runtime> Default for Builder<R> {
       window_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
     }
-  }
-}
-
-impl<R: Runtime> Builder<R> {
-  /// Creates a new App builder.
-  pub fn new() -> Self {
-    Self::default()
   }
 }
 
@@ -1839,8 +1851,6 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     c(app_handle, event);
   }
 }
-
-
 
 #[cfg(test)]
 mod tests {

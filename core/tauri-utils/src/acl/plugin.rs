@@ -4,10 +4,50 @@
 
 //! Plugin ACL types.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, num::NonZeroU64};
 
-use super::{build::PermissionFile, Permission, PermissionSet};
+use super::{Commands, Permission, PermissionSet, Scopes};
 use serde::{Deserialize, Serialize};
+
+/// The default permission of the plugin.
+///
+/// Works similarly to a permission with the "default" identifier.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct DefaultPermission {
+  /// The version of the permission.
+  pub version: Option<NonZeroU64>,
+
+  /// Human-readable description of what the permission does.
+  pub description: Option<String>,
+
+  /// Allowed or denied commands when using this permission.
+  #[serde(default)]
+  pub commands: Commands,
+
+  /// Allowed or denied scoped when using this permission.
+  #[serde(default)]
+  pub scope: Scopes,
+}
+
+/// Permission file that can define a default permission, a set of permissions or a list of inlined permissions.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct PermissionFile {
+  /// The default permission set for the plugin
+  pub default: Option<DefaultPermission>,
+
+  /// A list of permissions sets defined
+  #[serde(default)]
+  pub set: Vec<PermissionSet>,
+
+  /// Test something!!
+  pub test: Option<PermissionSet>,
+
+  /// A list of inlined permissions
+  #[serde(default)]
+  pub permission: Vec<Permission>,
+}
 
 /// Plugin manifest.
 #[derive(Serialize, Deserialize)]

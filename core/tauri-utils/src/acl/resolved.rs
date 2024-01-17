@@ -318,7 +318,7 @@ mod build {
   impl ToTokens for ResolvedCommand {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, str_lit);
-      let scope = self.scope;
+      let scope = opt_lit(self.scope.as_ref());
       literal_struct!(tokens, ResolvedCommand, windows, scope)
     }
   }

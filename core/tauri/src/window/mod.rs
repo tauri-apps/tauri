@@ -858,7 +858,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     - An owned window is hidden when its owner is minimized.
   /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
   /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
-  #[must_use]
   pub fn parent(mut self, parent: &Window<R>) -> crate::Result<Self> {
     #[cfg(windows)]
     {

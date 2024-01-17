@@ -307,7 +307,7 @@ commands.deny = ["{command}"]
 "###,
       command = command,
       slugified_command = slugified_command,
-      schema_path = schema_path.display().to_string().replace("\\", "\\\\")
+      schema_path = schema_path.display().to_string().replace('\\', "\\\\")
     );
 
     std::fs::write(path.join(format!("{command}.toml")), toml)

@@ -101,8 +101,8 @@ commands.deny = ["{command}"]
 }
 
 /// Grab an env var that is expected to be set inside of build scripts.
-fn build_var(key: &str) -> Result<String, Error> {
-  std::env::var(key).map_err(|_| Error::BuildVar(key.into()))
+fn build_var(key: &'static str) -> Result<String, Error> {
+  std::env::var(key).map_err(|_| Error::BuildVar(key))
 }
 
 fn find_metadata() -> Result<Metadata, Error> {

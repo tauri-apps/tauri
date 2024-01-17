@@ -18,6 +18,7 @@ build = [
   "dep:toml",
   "dep:schemars",
 ]
+runtime = []
 
 [dependencies]
 serde = { version = "1", optional = true }

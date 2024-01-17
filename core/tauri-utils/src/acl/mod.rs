@@ -25,7 +25,7 @@ pub enum Error {
   ///
   /// Whatever generated this should be called inside of a build script.
   #[error("expected build script env var {0}, but it was not found - ensure this is called in a build script")]
-  BuildVar(String),
+  BuildVar(&'static str),
 
   /// Plugin name doesn't follow Tauri standards
   #[error("plugin names cannot contain underscores")]

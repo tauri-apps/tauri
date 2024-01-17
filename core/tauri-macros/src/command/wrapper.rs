@@ -136,8 +136,8 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
   // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`
   let maybe_macro_export = match &function.vis {
-    Visibility::Public(_) => quote!(#[macro_export]),
-    _ => Default::default(),
+    Visibility::Public(_) | Visibility::Restricted(_) => quote!(#[macro_export]),
+    _ => TokenStream2::default(),
   };
 
   let invoke = Invoke {

@@ -144,6 +144,7 @@
           "macOS": {
             "minimumSystemVersion": "10.13"
           },
+          "pacman": {},
           "targets": "all",
           "windows": {
             "allowDowngrades": true,
@@ -284,6 +285,7 @@
             "macOS": {
               "minimumSystemVersion": "10.13"
             },
+            "pacman": {},
             "targets": "all",
             "windows": {
               "allowDowngrades": true,
@@ -1047,7 +1049,7 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"pacman\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
@@ -1132,6 +1134,15 @@
           "allOf": [
             {
               "$ref": "#/definitions/DebConfig"
+            }
+          ]
+        },
+        "pacman": {
+          "description": "Configuration for the Pacman bundle.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/PacmanConfig"
             }
           ]
         },
@@ -1222,6 +1233,13 @@
           "type": "string",
           "enum": [
             "appimage"
+          ]
+        },
+        {
+          "description": "The Linux Pacman bundle (PKGBUILD)",
+          "type": "string",
+          "enum": [
+            "pacman"
           ]
         },
         {
@@ -1341,6 +1359,23 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PacmanConfig": {
+      "description": "Configuration for Pacman bundles.",
+      "type": "object",
+      "properties": {
+        "depends": {
+          "description": "The list of deb dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

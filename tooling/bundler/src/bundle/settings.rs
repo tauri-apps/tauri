@@ -34,6 +34,8 @@ pub enum PackageType {
   Rpm,
   /// The Linux AppImage bundle (.AppImage).
   AppImage,
+  /// The Linux Pacman bundle (PKGBUILD)
+  Pacman,
   /// The macOS DMG bundle (.dmg).
   Dmg,
   /// The Updater bundle.
@@ -45,6 +47,7 @@ impl From<BundleType> for PackageType {
     match bundle {
       BundleType::Deb => Self::Deb,
       BundleType::AppImage => Self::AppImage,
+      BundleType::Pacman => Self::Pacman,
       BundleType::Msi => Self::WindowsMsi,
       BundleType::Nsis => Self::Nsis,
       BundleType::App => Self::MacOsBundle,
@@ -56,7 +59,7 @@ impl From<BundleType> for PackageType {
 
 impl PackageType {
   /// Maps a short name to a PackageType.
-  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "dmg", "updater".
+  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "pacman", "dmg", "updater".
   pub fn from_short_name(name: &str) -> Option<PackageType> {
     // Other types we may eventually want to support: apk.
     match name {
@@ -67,6 +70,7 @@ impl PackageType {
       "app" => Some(PackageType::MacOsBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
+      "pacman" => Some(PackageType::Pacman),
       "dmg" => Some(PackageType::Dmg),
       "updater" => Some(PackageType::Updater),
       _ => None,
@@ -84,6 +88,7 @@ impl PackageType {
       PackageType::MacOsBundle => "app",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
+      PackageType::Pacman => "pacman",
       PackageType::Dmg => "dmg",
       PackageType::Updater => "updater",
     }
@@ -109,6 +114,7 @@ impl PackageType {
       PackageType::Deb => 0,
       PackageType::Rpm => 0,
       PackageType::AppImage => 0,
+      PackageType::Pacman => 0,
       PackageType::Dmg => 1,
       PackageType::Updater => 2,
     }
@@ -128,6 +134,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::MacOsBundle,
   #[cfg(target_os = "linux")]
   PackageType::Rpm,
+  #[cfg(target_os = "linux")]
+  PackageType::Pacman,
   #[cfg(target_os = "macos")]
   PackageType::Dmg,
   #[cfg(target_os = "linux")]
@@ -193,6 +201,14 @@ pub struct DebianSettings {
   /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
   /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
   pub changelog: Option<PathBuf>,
+}
+
+/// The Linux Pacman bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct PacmanSettings {
+  // OS-specific settings:
+  /// the list of Pacman dependencies.
+  pub depends: Option<Vec<String>>,
 }
 
 /// The macOS bundle settings.
@@ -426,6 +442,8 @@ pub struct BundleSettings {
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// Pacman specific settings
+  pub pacman: PacmanSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
   /// Updater configuration.
@@ -689,7 +707,7 @@ impl Settings {
     let mut platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
-      "linux" => vec![PackageType::Deb, PackageType::AppImage],
+      "linux" => vec![PackageType::Deb, PackageType::AppImage, PackageType::Pacman],
       "windows" => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(
@@ -854,6 +872,10 @@ impl Settings {
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+  /// Returns the pacman settings.
+  pub fn pacman(&self) -> &PacmanSettings {
+    &self.bundle_settings.pacman
   }
 
   /// Returns the MacOS settings.

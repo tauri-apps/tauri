@@ -551,6 +551,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56ce8c6da7551ec6c462cbaf3bfbc75131ebbfa1c944aeaa9dab51ca1c5f0c3b"
 
 [[package]]
+name = "dyn-clone"
+version = "1.0.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "545b22097d44f8a9581187cdf93de7a71e4722bf51200cfaba810865b49a495d"
+
+[[package]]
 name = "embed-resource"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2108,6 +2114,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemars"
+version = "0.8.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45a28f4c49489add4ce10783f7911893516f15afe45d015608d41faca6bc4d29"
+dependencies = [
+ "dyn-clone",
+ "schemars_derive",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "0.8.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c767fd6fa65d9ccf9cf026122c1b555f2ef9a4f0cea69da4d7dbc3e258d30967"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "scoped-tls"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2166,6 +2197,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.39",
+]
+
+[[package]]
+name = "serde_derive_internals"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85bf8229e7920a9f636479437026331ce11aa132b4dde37d121944a44d6e5f3c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2381,6 +2423,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "string_cache"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2487,7 +2535,7 @@ checksum = "14c39fd04924ca3a864207c66fc2cd7d22d7c016007f9ce846cbb9326331930a"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-alpha.18"
+version = "2.0.0-alpha.21"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2506,7 +2554,6 @@ dependencies = [
  "mime",
  "muda",
  "objc",
- "once_cell",
  "percent-encoding",
  "raw-window-handle",
  "reqwest",
@@ -2515,6 +2562,7 @@ dependencies = [
  "serde_repr",
  "serialize-to-javascript",
  "state",
+ "static_assertions",
  "swift-rs",
  "tauri-build",
  "tauri-macros",
@@ -2531,26 +2579,29 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-alpha.12"
+version = "2.0.0-alpha.14"
 dependencies = [
  "anyhow",
  "cargo_toml",
  "dirs-next",
+ "glob",
  "heck",
  "json-patch",
  "plist",
+ "schemars",
  "semver",
  "serde",
  "serde_json",
  "swift-rs",
  "tauri-utils",
  "tauri-winres",
+ "toml 0.8.8",
  "walkdir",
 ]
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-alpha.11"
+version = "2.0.0-alpha.13"
 dependencies = [
  "base64",
  "ico",
@@ -2573,7 +2624,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-alpha.11"
+version = "2.0.0-alpha.13"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -2587,13 +2638,17 @@ dependencies = [
 name = "tauri-plugin"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "cargo_metadata",
+ "glob",
+ "serde",
+ "serde_json",
  "tauri",
+ "tauri-utils",
+ "toml 0.8.8",
 ]
 
 [[package]]
-name = "tauri-plugin-maybe"
+name = "tauri-plugin-example"
 version = "0.1.0"
 dependencies = [
  "tauri-plugin",
@@ -2601,7 +2656,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "1.0.0-alpha.5"
+version = "1.0.0-alpha.8"
 dependencies = [
  "gtk",
  "http",
@@ -2617,8 +2672,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-alpha.11"
+version = "2.0.0-alpha.13"
 dependencies = [
+ "cargo_metadata",
  "ctor",
  "dunce",
  "glob",
@@ -2632,11 +2688,13 @@ dependencies = [
  "phf 0.11.2",
  "proc-macro2",
  "quote",
+ "schemars",
  "semver",
  "serde",
  "serde_json",
  "serde_with",
  "thiserror",
+ "toml 0.8.8",
  "url",
  "walkdir",
 ]

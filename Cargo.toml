@@ -14,10 +14,8 @@ members = [
 
   # integration tests
   "core/tests/restart",
-
-  # examples that should be tested by default
-  "examples/plugins/*"
-, "core/tests/acl"]
+  "core/tests/acl",
+]
 
 exclude = [
   # examples that can be compiled with the tauri CLI
@@ -26,6 +24,7 @@ exclude = [
   "examples/web/core",
   "examples/file-associations/src-tauri",
   "examples/workspace",
+  "examples/plugins/tauri-plugin-example",
 ]
 
 [workspace.package]

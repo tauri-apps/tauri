@@ -77,7 +77,8 @@ jobs:
           cargo update -p flate2 --precise 1.0.26
           cargo update -p h2 --precise 0.3.20
           cargo update -p reqwest --precise 0.11.18
-          cargo update -p cfg-expr:0.15.5 --precise 0.15.4
+          cargo update -p bstr --precise 1.6.2
+          cargo update -p cfg-expr:0.15.6 --precise 0.15.4
           cargo update -p memchr --precise 2.6.2
           cargo update -p async-executor --precise 1.5.1
           cargo update -p proptest --precise 1.2.0
@@ -94,6 +95,7 @@ jobs:
           cargo update -p async-process --precise 1.7.0
           cargo update -p is-terminal --precise 0.4.7
           cargo update -p tar --precise 0.4.39
+          cargo update -p serde_json --precise 1.0.97
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test,

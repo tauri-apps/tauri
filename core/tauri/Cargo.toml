@@ -28,6 +28,7 @@ rustc-args = [ "--cfg", "docsrs" ]
 rustdoc-args = [ "--cfg", "docsrs" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
+  "loongarch64-unknown-linux-gnu",
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
   "x86_64-apple-darwin",

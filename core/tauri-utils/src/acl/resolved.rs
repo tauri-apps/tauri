@@ -5,7 +5,7 @@
 //! Resolved ACL for runtime usage.
 
 use std::{
-  collections::{hash_map::DefaultHasher, BTreeMap},
+  collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
   hash::{Hash, Hasher},
 };
 
@@ -138,11 +138,13 @@ impl Resolved {
             .scope
             .iter()
             .flat_map(|s| command_scopes.get(s).unwrap().allow.clone())
+            .flatten()
             .collect(),
           deny: allowed
             .scope
             .iter()
             .flat_map(|s| command_scopes.get(s).unwrap().deny.clone())
+            .flatten()
             .collect(),
         };
 
@@ -154,10 +156,12 @@ impl Resolved {
       allow: global_scope
         .iter_mut()
         .flat_map(|s| s.allow.take())
+        .flatten()
         .collect(),
       deny: global_scope
         .iter_mut()
         .flat_map(|s| s.deny.take())
+        .flatten()
         .collect(),
     };
 
@@ -168,7 +172,7 @@ impl Resolved {
           (
             key,
             ResolvedCommand {
-              windows: cmd.windows,
+              windows: cmd.windows.into_iter().collect(),
               scope: cmd.resolved_scope_key,
             },
           )
@@ -180,7 +184,7 @@ impl Resolved {
           (
             key,
             ResolvedCommand {
-              windows: cmd.windows,
+              windows: cmd.windows.into_iter().collect(),
               scope: cmd.resolved_scope_key,
             },
           )
@@ -196,7 +200,7 @@ impl Resolved {
 
 #[derive(Debug, Default)]
 struct ResolvedCommandTemp {
-  pub windows: Vec<String>,
+  pub windows: HashSet<String>,
   pub scope: Vec<usize>,
   pub resolved_scope_key: Option<usize>,
 }

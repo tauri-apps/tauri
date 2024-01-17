@@ -2,5 +2,5 @@
 [[permission]]
 identifier = "allow-app"
 description = "Allows accessing the $APP path."
-[permission.scope.allow]
+[[permission.scope.allow]]
 path = "$APP"

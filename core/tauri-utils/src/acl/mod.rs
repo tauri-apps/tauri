@@ -138,9 +138,9 @@ pub struct Commands {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Scopes {
   /// Data that defines what is allowed by the scope.
-  pub allow: Option<Value>,
+  pub allow: Option<Vec<Value>>,
   /// Data that defines what is denied by the scope.
-  pub deny: Option<Value>,
+  pub deny: Option<Vec<Value>>,
 }
 
 /// Descriptions of explicit privileges of commands.

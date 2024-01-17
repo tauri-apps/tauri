@@ -415,7 +415,7 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
 /// Creates a `.tar.gz` file from the given directory (placing the new file
 /// within the given directory's parent directory), then deletes the original
 /// directory and returns the path to the new file.
-fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
+pub fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
   let src_dir = src_dir.as_ref();
   let dest_path = src_dir.with_extension("tar.gz");
   let dest_file = common::create_file(&dest_path)?;

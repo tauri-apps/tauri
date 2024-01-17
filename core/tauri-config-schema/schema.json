@@ -1368,7 +1368,47 @@
       "type": "object",
       "properties": {
         "depends": {
-          "description": "The list of deb dependencies your application relies on.",
+          "description": "List of Pacman dependencies.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "provides": {
+          "description": "Additional packages that are provided by this app.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "Packages that conflict with the app.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "replaces": {
+          "description": "Only use if this app replaces some obsolete packages",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "source": {
+          "description": "Source of the package to be stored at PKGBUILD. PKGBUILD is a bash script, so version can be referred as ${pkgver}",
           "type": [
             "array",
             "null"

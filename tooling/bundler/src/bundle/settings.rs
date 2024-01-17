@@ -204,11 +204,21 @@ pub struct DebianSettings {
 }
 
 /// The Linux Pacman bundle settings.
+/// Must Read https://wiki.archlinux.org/title/PKGBUILD
 #[derive(Clone, Debug, Default)]
 pub struct PacmanSettings {
-  // OS-specific settings:
-  /// the list of Pacman dependencies.
+  // Arch Linux Specific settings.
+  /// List of Pacman dependencies.
   pub depends: Option<Vec<String>>,
+  /// Additional packages that are provided by this app.
+  pub provides: Option<Vec<String>>,
+  /// Packages that conflict with the app.
+  pub conflicts: Option<Vec<String>>,
+  /// Only use if this app replaces some obsolete packages
+  pub replaces: Option<Vec<String>>,
+  /// Source of the package to be stored at PKGBUILD.
+  /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+  pub source: Option<Vec<String>>,
 }
 
 /// The macOS bundle settings.

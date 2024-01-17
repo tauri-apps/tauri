@@ -1329,7 +1329,7 @@
           ]
         },
         "priority": {
-          "description": "Change the priority of the Debian Package. By default, it is set to optional. Recognized Priorities as of now are :  required, important, standard, optional, extra",
+          "description": "Change the priority of the Debian Package. By default, it is set to `optional`. Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`",
           "type": [
             "string",
             "null"

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+  ffi::OsStr,
   fs::{create_dir, create_dir_all, read_dir, remove_dir_all},
   path::{Path, PathBuf},
 };
@@ -283,4 +284,39 @@ where
     files,
     directories,
   })
+}
+
+pub trait PathExt {
+	/// Either sets or appends an extension to the filename.
+	///
+	/// ```
+	/// # use client_cli::util::PathExt;
+	/// # use std::path::PathBuf;
+	/// #
+	/// // Something that has an extention getting another suffix.
+	/// assert_eq!(
+	///     PathBuf::from("./asset.zip").with_additional_extension("sig"),
+	///     PathBuf::from("./asset.zip.sig")
+	/// );
+	///
+	/// // Something that doesn't have an extention, setting its extension.
+	/// assert_eq!(
+	///     PathBuf::from("./executable").with_additional_extension("sig"),
+	///     PathBuf::from("./executable.sig")
+	/// );
+	fn with_additional_extension(&self, suffix: impl AsRef<OsStr>) -> PathBuf;
+}
+
+impl PathExt for Path {
+	fn with_additional_extension(&self, suffix: impl AsRef<OsStr>) -> PathBuf {
+		match self.extension() {
+			Some(ext) => {
+				let mut ext = ext.to_os_string();
+				ext.push(".");
+				ext.push(suffix);
+				self.with_extension(ext)
+			}
+			None => self.with_extension(suffix),
+		}
+	}
 }

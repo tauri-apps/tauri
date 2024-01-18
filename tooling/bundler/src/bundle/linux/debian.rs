@@ -23,7 +23,7 @@
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
 
-use super::super::common;
+use super::super::{common, path_utils::PathExt};
 use crate::Settings;
 use anyhow::Context;
 use handlebars::Handlebars;
@@ -100,9 +100,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Apply tar/gzip/ar to create the final package file.
   let control_tar_gz_path =
-    tar_and_gzip_dir(control_dir).with_context(|| "Failed to tar/gzip control directory")?;
+    tar_and_gzip_dir(control_dir, Compression::default()).with_context(|| "Failed to tar/gzip control directory")?;
   let data_tar_gz_path =
-    tar_and_gzip_dir(data_dir).with_context(|| "Failed to tar/gzip data directory")?;
+    tar_and_gzip_dir(data_dir, Compression::default()).with_context(|| "Failed to tar/gzip data directory")?;
   create_archive(
     vec![debian_binary_path, control_tar_gz_path, data_tar_gz_path],
     &package_path,
@@ -303,7 +303,7 @@ fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()
 }
 
 /// Copies user-defined files to the deb package.
-fn copy_custom_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+pub fn copy_custom_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   for (deb_path, path) in settings.deb().files.iter() {
     let deb_path = if deb_path.is_absolute() {
       deb_path.strip_prefix("/").unwrap()
@@ -415,11 +415,11 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
 /// Creates a `.tar.gz` file from the given directory (placing the new file
 /// within the given directory's parent directory), then deletes the original
 /// directory and returns the path to the new file.
-pub fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
+pub fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P, compression_level:Compression) -> crate::Result<PathBuf> {
   let src_dir = src_dir.as_ref();
-  let dest_path = src_dir.with_extension("tar.gz");
+  let dest_path = src_dir.with_additional_extension("tar.gz");
   let dest_file = common::create_file(&dest_path)?;
-  let gzip_encoder = GzEncoder::new(dest_file, Compression::default());
+  let gzip_encoder = GzEncoder::new(dest_file, compression_level);
   let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
   let mut dest_file = gzip_encoder.finish()?;
   dest_file.flush()?;

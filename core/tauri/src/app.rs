@@ -762,6 +762,10 @@ shared_app_impl!(App<R>);
 shared_app_impl!(AppHandle<R>);
 
 impl<R: Runtime> App<R> {
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(name = "app::core_plugins::register")
+  )]
   fn register_core_plugins(&self) -> crate::Result<()> {
     self.handle.plugin(crate::path::plugin::init())?;
     self.handle.plugin(crate::event::plugin::init())?;
@@ -1663,6 +1667,7 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
   }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(name = "app::setup"))]
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   let pending_windows = app.pending_windows.take();
   if let Some(pending_windows) = pending_windows {

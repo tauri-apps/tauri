@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-alpha.13]
+
+### Enhancements
+
+- [`d621d343`](https://www.github.com/tauri-apps/tauri/commit/d621d3437ce3947175eecf345b2c6d1c4c7ce020)([#8607](https://www.github.com/tauri-apps/tauri/pull/8607)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.13`
+- Upgraded to `tauri-codegen@2.0.0-alpha.13`
+
 ## \[2.0.0-alpha.12]
 
 ### Dependencies

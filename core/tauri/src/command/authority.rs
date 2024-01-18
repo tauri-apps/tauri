@@ -47,7 +47,7 @@ impl RuntimeAuthority {
   pub fn resolve_access(
     &self,
     command: &str,
-    window: &String,
+    window: &str,
     context: ExecutionContext,
   ) -> Option<&ResolvedCommand> {
     let key = CommandKey {

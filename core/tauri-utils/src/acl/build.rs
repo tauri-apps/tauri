@@ -33,8 +33,8 @@ pub const PERMISSION_SCHEMA_FILE_NAME: &str = ".schema.json";
 /// Allowed capability file extensions
 const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
 
-/// Known filename of a capability schema
-const CAPABILITIES_SCHEMA_FILE_NAME: &str = ".schema.json";
+/// Known folder name of the capability schemas
+const CAPABILITIES_SCHEMA_FOLDER_NAME: &str = "schemas";
 
 const CORE_PLUGIN_PERMISSIONS_TOKEN: &str = "__CORE_PLUGIN__";
 
@@ -111,12 +111,8 @@ pub fn parse_capabilities(
         .map(|e| CAPABILITY_FILE_EXTENSIONS.contains(&e))
         .unwrap_or_default()
     })
-    // filter schema file
-    .filter(|p| {
-      p.file_name()
-        .map(|name| name != CAPABILITIES_SCHEMA_FILE_NAME)
-        .unwrap_or(true)
-    })
+    // filter schema files
+    .filter(|p| p.parent().unwrap().file_name().unwrap() != CAPABILITIES_SCHEMA_FOLDER_NAME)
   {
     println!("cargo:rerun-if-changed={}", path.display());
 
@@ -219,7 +215,7 @@ pub fn generate_schema<P: AsRef<Path>>(
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
 
   let out_dir = out_dir.as_ref();
-  create_dir_all(&out_dir).expect("unable to create schema output directory");
+  create_dir_all(out_dir).expect("unable to create schema output directory");
 
   let mut schema_file = BufWriter::new(
     File::create(out_dir.join(PERMISSION_SCHEMA_FILE_NAME)).map_err(Error::CreateFile)?,

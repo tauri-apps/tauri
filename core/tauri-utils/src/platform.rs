@@ -4,7 +4,10 @@
 
 //! Platform helper functions.
 
-use std::path::{PathBuf, MAIN_SEPARATOR};
+use std::{
+  fmt::Display,
+  path::{PathBuf, MAIN_SEPARATOR},
+};
 
 use crate::{Env, PackageInfo};
 
@@ -23,6 +26,22 @@ pub enum Target {
   Android,
   /// iOS.
   Ios,
+}
+
+impl Display for Target {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Darwin => "darwin",
+        Self::Windows => "windows",
+        Self::Linux => "linux",
+        Self::Android => "android",
+        Self::Ios => "ios",
+      }
+    )
+  }
 }
 
 impl Target {

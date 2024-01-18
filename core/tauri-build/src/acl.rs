@@ -4,7 +4,7 @@
 
 use std::{
   collections::BTreeMap,
-  fs::{create_dir_all, File},
+  fs::{copy, create_dir_all, File},
   io::{BufWriter, Write},
   path::PathBuf,
 };
@@ -14,9 +14,13 @@ use schemars::{
   schema::{InstanceType, Metadata, RootSchema, Schema, SchemaObject, SubschemaValidation},
   schema_for,
 };
-use tauri_utils::acl::{build::CapabilityFile, capability::Capability, plugin::Manifest};
+use tauri_utils::{
+  acl::{build::CapabilityFile, capability::Capability, plugin::Manifest},
+  platform::Target,
+};
 
-const CAPABILITIES_SCHEMA_FILE_NAME: &str = ".schema.json";
+const CAPABILITIES_SCHEMA_FILE_NAME: &str = "schema.json";
+const CAPABILITIES_SCHEMA_FOLDER_NAME: &str = "schemas";
 
 fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSchema {
   let mut schema = schema_for!(CapabilityFile);
@@ -77,14 +81,31 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
   schema
 }
 
-pub fn generate_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> Result<()> {
+pub fn generate_schema(
+  plugin_manifests: &BTreeMap<String, Manifest>,
+  target: Target,
+) -> Result<()> {
   let schema = capabilities_schema(plugin_manifests);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
-  let out_dir = PathBuf::from("capabilities");
+  let out_dir = PathBuf::from("capabilities").join(CAPABILITIES_SCHEMA_FOLDER_NAME);
   create_dir_all(&out_dir).context("unable to create schema output directory")?;
 
-  let mut schema_file = BufWriter::new(File::create(out_dir.join(CAPABILITIES_SCHEMA_FILE_NAME))?);
+  let schema_path = out_dir.join(format!("{target}-{CAPABILITIES_SCHEMA_FILE_NAME}"));
+  let mut schema_file = BufWriter::new(File::create(&schema_path)?);
   write!(schema_file, "{schema_str}")?;
+
+  copy(
+    schema_path,
+    out_dir.join(format!(
+      "{}-{CAPABILITIES_SCHEMA_FILE_NAME}",
+      if target.is_desktop() {
+        "desktop"
+      } else {
+        "mobile"
+      }
+    )),
+  )?;
+
   Ok(())
 }
 

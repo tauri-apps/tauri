@@ -412,8 +412,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
 
+  let target_triple = std::env::var("TARGET").unwrap();
+  let target = tauri_utils::platform::Target::from_triple(&target_triple);
+
   let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
-    tauri_utils::platform::Target::from_triple(&std::env::var("TARGET").unwrap()),
+    target,
     std::env::current_dir().unwrap(),
   )?)?;
   if let Ok(env) = std::env::var("TAURI_CONFIG") {
@@ -467,7 +470,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   } else {
     parse_capabilities("./capabilities/**/*")?
   };
-  acl::generate_schema(&plugin_manifests)?;
+  acl::generate_schema(&plugin_manifests, target)?;
 
   acl::validate_capabilities(&plugin_manifests, &capabilities)?;
 
@@ -475,8 +478,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     out_dir.join(CAPABILITIES_FILE_NAME),
     serde_json::to_string(&capabilities)?,
   )?;
-
-  let target_triple = std::env::var("TARGET").unwrap();
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
 

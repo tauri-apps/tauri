@@ -29,11 +29,11 @@ use std::{
 };
 
 mod acl;
-mod allowlist;
 #[cfg(feature = "codegen")]
 mod codegen;
 /// Tauri configuration functions.
 pub mod config;
+mod manifest;
 /// Mobile build functions.
 pub mod mobile;
 mod static_vcruntime;
@@ -459,7 +459,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
 
-  allowlist::check(&config, &mut manifest)?;
+  manifest::check(&config, &mut manifest)?;
   let plugin_manifests = acl::get_plugin_manifests()?;
   std::fs::write(
     out_dir.join(PLUGIN_MANIFESTS_FILE_NAME),

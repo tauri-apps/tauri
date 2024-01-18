@@ -9,6 +9,8 @@ use std::{
   hash::{Hash, Hasher},
 };
 
+use crate::platform::Target;
+
 use super::{
   capability::{Capability, CapabilityContext},
   plugin::Manifest,
@@ -64,6 +66,7 @@ impl Resolved {
   pub fn resolve(
     acl: BTreeMap<String, Manifest>,
     capabilities: BTreeMap<String, Capability>,
+    target: Target,
   ) -> Result<Self, Error> {
     let mut allowed_commands = BTreeMap::new();
     let mut denied_commands = BTreeMap::new();
@@ -74,6 +77,14 @@ impl Resolved {
 
     // resolve commands
     for capability in capabilities.values() {
+      if !capability
+        .platforms
+        .iter()
+        .any(|platform| platform.matches(&target))
+      {
+        continue;
+      }
+
       for permission_id in &capability.permissions {
         let permission_name = permission_id.get_base();
 

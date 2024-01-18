@@ -398,7 +398,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     Default::default()
   };
 
-  let resolved_act = Resolved::resolve(acl, capabilities).expect("failed to resolve ACL");
+  let resolved_act = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
 
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]

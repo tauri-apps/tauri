@@ -4,7 +4,7 @@
 
 //! End-user abstraction for selecting permissions a window has access to.
 
-use crate::acl::Identifier;
+use crate::{acl::Identifier, platform::Target};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,6 +37,50 @@ pub struct Capability {
   pub windows: Vec<String>,
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   pub permissions: Vec<Identifier>,
+  /// Target platforms this capability applies. By default all platforms applies.
+  #[serde(default = "default_platforms")]
+  pub platforms: Vec<CapabilityPlatform>,
+}
+
+fn default_platforms() -> Vec<CapabilityPlatform> {
+  vec![CapabilityPlatform::Desktop, CapabilityPlatform::Mobile]
+}
+
+/// Target platform of a capability.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum CapabilityPlatform {
+  /// Windows.
+  Windows,
+  /// Linux.
+  Linux,
+  /// macOS.
+  #[serde(rename = "macOS")]
+  MacOS,
+  /// Android.
+  Android,
+  /// iOS
+  #[serde(rename = "iOS")]
+  Ios,
+  /// Desktop.
+  Desktop,
+  /// Mobile.
+  Mobile,
+}
+
+impl CapabilityPlatform {
+  /// Checks if the platform matches the given [`Target`].
+  pub fn matches(&self, target: &Target) -> bool {
+    match (self, target) {
+      (Self::Windows | Self::Desktop, Target::Windows) => true,
+      (Self::Linux | Self::Desktop, Target::Linux) => true,
+      (Self::MacOS | Self::Desktop, Target::Darwin) => true,
+      (Self::Android | Self::Mobile, Target::Android) => true,
+      (Self::Ios | Self::Mobile, Target::Ios) => true,
+      _ => false,
+    }
+  }
 }
 
 /// Context of the capability.

@@ -104,7 +104,17 @@ pub fn validate_capabilities(
   plugin_manifests: &BTreeMap<String, Manifest>,
   capabilities: &BTreeMap<String, Capability>,
 ) -> Result<()> {
+  let target = tauri_utils::platform::Target::from_triple(&std::env::var("TARGET").unwrap());
+
   for capability in capabilities.values() {
+    if !capability
+      .platforms
+      .iter()
+      .any(|platform| platform.matches(&target))
+    {
+      continue;
+    }
+
     for permission in &capability.permissions {
       if let Some((plugin_name, permission_name)) = permission.get().split_once(':') {
         let permission_exists = plugin_manifests

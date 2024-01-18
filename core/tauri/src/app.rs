@@ -1680,6 +1680,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     let manager = app.manager();
 
     for mut pending in pending_windows {
+      #[cfg(desktop)]
       if let Some(config) = app
         .config()
         .tauri
@@ -1707,12 +1708,12 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
             target_os = "openbsd"
           ))]
           {
-            pending.window_builder = pending.window_builder.transient_for(&parent.gtk_window()?);
+            pending.window_builder = pending.window_builder.transient_for(&window.gtk_window()?);
           }
 
           #[cfg(target_os = "macos")]
           {
-            pending.window_builder = pending.window_builder.parent(parent.ns_window()?);
+            pending.window_builder = pending.window_builder.parent(window.ns_window()?);
           }
         }
       }

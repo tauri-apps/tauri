@@ -313,6 +313,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       on_page_load_handler: None,
     };
 
+    #[cfg(desktop)]
     if let Some(parent) = config.parent {
       let window = manager
         .get_window(&parent)

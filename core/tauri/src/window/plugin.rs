@@ -12,6 +12,7 @@ use crate::{
 #[cfg(desktop)]
 mod desktop_commands {
   use serde::Deserialize;
+  use tauri_runtime::ResizeDirection;
   use tauri_utils::ProgressBarState;
 
   use super::*;
@@ -155,6 +156,7 @@ mod desktop_commands {
   setter!(set_cursor_position, Position);
   setter!(set_ignore_cursor_events, bool);
   setter!(start_dragging);
+  setter!(start_resize_dragging, ResizeDirection);
   setter!(set_progress_bar, ProgressBarState);
   setter!(print);
 
@@ -211,6 +213,107 @@ mod desktop_commands {
     }
     Ok(())
   }
+
+  #[derive(Debug)]
+  enum HitTestResult {
+    Client,
+    Left,
+    Right,
+    Top,
+    Bottom,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    NoWhere,
+  }
+
+  impl HitTestResult {
+    fn drag_resize_window<R: Runtime>(&self, window: &Window<R>) {
+      let _ = window.start_resize_dragging(match self {
+        HitTestResult::Left => ResizeDirection::West,
+        HitTestResult::Right => ResizeDirection::East,
+        HitTestResult::Top => ResizeDirection::North,
+        HitTestResult::Bottom => ResizeDirection::South,
+        HitTestResult::TopLeft => ResizeDirection::NorthWest,
+        HitTestResult::TopRight => ResizeDirection::NorthEast,
+        HitTestResult::BottomLeft => ResizeDirection::SouthWest,
+        HitTestResult::BottomRight => ResizeDirection::SouthEast,
+        _ => unreachable!(),
+      });
+    }
+
+    fn change_cursor<R: Runtime>(&self, window: &Window<R>) {
+      let _ = window.set_cursor_icon(match self {
+        HitTestResult::Left => CursorIcon::WResize,
+        HitTestResult::Right => CursorIcon::EResize,
+        HitTestResult::Top => CursorIcon::NResize,
+        HitTestResult::Bottom => CursorIcon::SResize,
+        HitTestResult::TopLeft => CursorIcon::NwResize,
+        HitTestResult::TopRight => CursorIcon::NeResize,
+        HitTestResult::BottomLeft => CursorIcon::SwResize,
+        HitTestResult::BottomRight => CursorIcon::SeResize,
+        _ => CursorIcon::Default,
+      });
+    }
+  }
+
+  fn hit_test(window_size: PhysicalSize<u32>, x: i32, y: i32, scale: f64) -> HitTestResult {
+    const BORDERLESS_RESIZE_INSET: f64 = 5.0;
+
+    const CLIENT: isize = 0b0000;
+    const LEFT: isize = 0b0001;
+    const RIGHT: isize = 0b0010;
+    const TOP: isize = 0b0100;
+    const BOTTOM: isize = 0b1000;
+    const TOPLEFT: isize = TOP | LEFT;
+    const TOPRIGHT: isize = TOP | RIGHT;
+    const BOTTOMLEFT: isize = BOTTOM | LEFT;
+    const BOTTOMRIGHT: isize = BOTTOM | RIGHT;
+
+    let top = 0;
+    let left = 0;
+    let bottom = top + window_size.height as i32;
+    let right = left + window_size.width as i32;
+
+    let inset = (BORDERLESS_RESIZE_INSET * scale) as i32;
+
+    #[rustfmt::skip]
+        let result =
+            (LEFT * (if x < (left + inset) { 1 } else { 0 }))
+          | (RIGHT * (if x >= (right - inset) { 1 } else { 0 }))
+          | (TOP * (if y < (top + inset) { 1 } else { 0 }))
+          | (BOTTOM * (if y >= (bottom - inset) { 1 } else { 0 }));
+
+    match result {
+      CLIENT => HitTestResult::Client,
+      LEFT => HitTestResult::Left,
+      RIGHT => HitTestResult::Right,
+      TOP => HitTestResult::Top,
+      BOTTOM => HitTestResult::Bottom,
+      TOPLEFT => HitTestResult::TopLeft,
+      TOPRIGHT => HitTestResult::TopRight,
+      BOTTOMLEFT => HitTestResult::BottomLeft,
+      BOTTOMRIGHT => HitTestResult::BottomRight,
+      _ => HitTestResult::NoWhere,
+    }
+  }
+
+  #[command(root = "crate")]
+  pub async fn on_mousemove<R: Runtime>(window: Window<R>, x: i32, y: i32) -> crate::Result<()> {
+    hit_test(window.inner_size()?, x, y, window.scale_factor()?).change_cursor(&window);
+    Ok(())
+  }
+
+  #[command(root = "crate")]
+  pub async fn on_mousedown<R: Runtime>(window: Window<R>, x: i32, y: i32) -> crate::Result<()> {
+    let res = hit_test(window.inner_size()?, x, y, window.scale_factor()?);
+    match res {
+      HitTestResult::Client | HitTestResult::NoWhere => {}
+      _ => res.drag_resize_window(&window),
+    };
+    Ok(())
+  }
 }
 
 /// Initializes the plugin.
@@ -232,6 +335,21 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
   init_script.push_str(
     &Drag {
+      os_name: std::env::consts::OS,
+    }
+    .render_default(&Default::default())
+    .unwrap()
+    .into_string(),
+  );
+
+  #[derive(Template)]
+  #[default_template("./scripts/undecorated-resizing.js")]
+  struct UndecoratedResizingJavascript<'a> {
+    os_name: &'a str,
+  }
+
+  init_script.push_str(
+    &UndecoratedResizingJavascript {
       os_name: std::env::consts::OS,
     }
     .render_default(&Default::default())
@@ -320,6 +438,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_cursor_position,
             desktop_commands::set_ignore_cursor_events,
             desktop_commands::start_dragging,
+            desktop_commands::start_resize_dragging,
             desktop_commands::set_progress_bar,
             desktop_commands::print,
             desktop_commands::set_icon,
@@ -327,6 +446,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::internal_toggle_maximize,
             #[cfg(any(debug_assertions, feature = "devtools"))]
             desktop_commands::internal_toggle_devtools,
+            desktop_commands::on_mousemove,
+            desktop_commands::on_mousedown,
           ]);
         handler(invoke)
       }

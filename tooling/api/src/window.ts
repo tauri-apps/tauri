@@ -293,7 +293,10 @@ class Window {
       invoke('plugin:window|create', {
         options: {
           ...options,
-          parent: options.parent?.label,
+          parent:
+            typeof options.parent === 'string'
+              ? options.parent
+              : options.parent?.label,
           label
         }
       })
@@ -2089,7 +2092,7 @@ interface WindowOptions {
    */
   closable?: boolean
   /**
-   * Sets a parent to the window to be created.
+   * Sets a parent to the window to be created. Can be either a {@linkcode Window} or a label of the window.
    *
    * #### Platform-specific
    *
@@ -2101,7 +2104,7 @@ interface WindowOptions {
    * - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
    * - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
    */
-  parent?: Window
+  parent?: Window | string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

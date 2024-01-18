@@ -72,14 +72,14 @@ pub enum CapabilityPlatform {
 impl CapabilityPlatform {
   /// Checks if the platform matches the given [`Target`].
   pub fn matches(&self, target: &Target) -> bool {
-    match (self, target) {
-      (Self::Windows | Self::Desktop, Target::Windows) => true,
-      (Self::Linux | Self::Desktop, Target::Linux) => true,
-      (Self::MacOS | Self::Desktop, Target::Darwin) => true,
-      (Self::Android | Self::Mobile, Target::Android) => true,
-      (Self::Ios | Self::Mobile, Target::Ios) => true,
-      _ => false,
-    }
+    matches!(
+      (self, target),
+      (Self::Windows | Self::Desktop, Target::Windows)
+        | (Self::Linux | Self::Desktop, Target::Linux)
+        | (Self::MacOS | Self::Desktop, Target::Darwin)
+        | (Self::Android | Self::Mobile, Target::Android)
+        | (Self::Ios | Self::Mobile, Target::Ios)
+    )
   }
 }
 

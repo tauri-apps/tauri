@@ -600,7 +600,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     Self::default().focused(true)
   }
 
-  fn with_config(config: WindowConfig) -> Self {
+  fn with_config(config: &WindowConfig) -> Self {
     let mut window = WindowBuilderWrapper::new();
 
     #[cfg(target_os = "macos")]

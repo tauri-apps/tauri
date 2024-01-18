@@ -210,7 +210,7 @@ impl WindowBuilder for MockWindowBuilder {
     Self {}
   }
 
-  fn with_config(config: WindowConfig) -> Self {
+  fn with_config(config: &WindowConfig) -> Self {
     Self {}
   }
 

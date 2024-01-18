@@ -286,21 +286,22 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// #[tauri::command]
   /// async fn reopen_window(app: tauri::AppHandle) {
   ///   let window = tauri::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  ///     .unwrap()
   ///     .build()
   ///     .unwrap();
   /// }
   /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
-    let builder = Self {
+  pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> crate::Result<Self> {
+    let mut builder = Self {
       manager: manager.manager_owned(),
       runtime: manager.runtime(),
       app_handle: manager.app_handle().clone(),
       label: config.label.clone(),
       webview_attributes: WebviewAttributes::from(&config),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
-        config,
+        &config,
       ),
       download_handler: None,
       web_resource_request_handler: None,
@@ -312,7 +313,14 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       on_page_load_handler: None,
     };
 
-    builder
+    if let Some(parent) = config.parent {
+      let window = manager
+        .get_window(&parent)
+        .ok_or(crate::Error::WindowNotFound)?;
+      builder = builder.parent(&window)?;
+    }
+
+    Ok(builder)
   }
 
   /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.
@@ -893,7 +901,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
   #[must_use]
-  pub fn owner(mut self, owner: &Window) -> crate::Result<Self> {
+  pub fn owner(mut self, owner: &Window<R>) -> crate::Result<Self> {
     self.window_builder = self.window_builder.owner(owner.hwnd()?);
     Ok(self)
   }
@@ -945,7 +953,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  pub fn transient_for(mut self, parent: &Window) -> crate::Result<Self> {
+  pub fn transient_for(mut self, parent: &Window<R>) -> crate::Result<Self> {
     self.window_builder = self.window_builder.transient_for(&parent.gtk_window()?);
     Ok(self)
   }

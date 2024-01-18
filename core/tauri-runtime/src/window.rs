@@ -327,7 +327,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
     label: impl Into<String>,
   ) -> crate::Result<Self> {
     let window_builder =
-      <<R::Dispatcher as Dispatch<T>>::WindowBuilder>::with_config(window_config);
+      <<R::Dispatcher as Dispatch<T>>::WindowBuilder>::with_config(&window_config);
 
     let label = label.into();
     if !is_label_valid(&label) {

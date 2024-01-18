@@ -58,7 +58,7 @@ mod desktop_commands {
 
   #[command(root = "crate")]
   pub async fn create<R: Runtime>(app: AppHandle<R>, options: WindowConfig) -> crate::Result<()> {
-    WindowBuilder::from_config(&app, options).build()?;
+    WindowBuilder::from_config(&app, options)?.build()?;
     Ok(())
   }
 

@@ -1679,7 +1679,44 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     let app_handle = app.handle();
     let manager = app.manager();
 
-    for pending in pending_windows {
+    for mut pending in pending_windows {
+      if let Some(config) = app
+        .config()
+        .tauri
+        .windows
+        .iter()
+        .find(|w| w.label == pending.label)
+      {
+        use tauri_runtime::webview::WindowBuilder;
+
+        if let Some(parent) = &config.parent {
+          let window = manager
+            .get_window(&parent)
+            .ok_or(crate::Error::WindowNotFound)?;
+
+          #[cfg(windows)]
+          {
+            pending.window_builder = pending.window_builder.owner(window.hwnd()?);
+          }
+
+          #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+          ))]
+          {
+            pending.window_builder = pending.window_builder.transient_for(&parent.gtk_window()?);
+          }
+
+          #[cfg(target_os = "macos")]
+          {
+            pending.window_builder = pending.window_builder.parent(parent.ns_window()?);
+          }
+        }
+      }
+
       let pending = manager
         .window
         .prepare_window(app_handle.clone(), pending, &window_labels)?;

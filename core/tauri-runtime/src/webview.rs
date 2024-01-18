@@ -151,7 +151,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn new() -> Self;
 
   /// Initializes a new webview builder from a [`WindowConfig`]
-  fn with_config(config: WindowConfig) -> Self;
+  fn with_config(config: &WindowConfig) -> Self;
 
   /// Show window in the center of the screen.
   #[must_use]

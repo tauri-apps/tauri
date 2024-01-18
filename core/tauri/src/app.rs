@@ -1692,7 +1692,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
 
         if let Some(parent) = &config.parent {
           let window = manager
-            .get_window(&parent)
+            .get_window(parent)
             .ok_or(crate::Error::WindowNotFound)?;
 
           #[cfg(windows)]

@@ -2479,6 +2479,7 @@ fn handle_user_message<T: UserEvent>(
         webview_id_map.insert(window.id(), window_id);
 
         let window = Arc::new(window);
+
         #[cfg(windows)]
         let surface = if is_window_transparent {
           if let Ok(context) = softbuffer::Context::new(window.clone()) {
@@ -2502,6 +2503,7 @@ fn handle_user_message<T: UserEvent>(
             inner: Some(WindowHandle::Window(window.clone())),
             window_event_listeners: Default::default(),
             is_window_transparent,
+            #[cfg(windows)]
             surface,
           },
         );

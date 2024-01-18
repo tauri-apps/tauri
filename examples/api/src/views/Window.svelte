@@ -79,7 +79,9 @@
     (state) => EffectState[state]
   )
 
-  const progressBarStatusOptions = Object.keys(ProgressBarStatus).map(s => ProgressBarStatus[s])
+  const progressBarStatusOptions = Object.keys(ProgressBarStatus).map(
+    (s) => ProgressBarStatus[s]
+  )
 
   export let onMessage
   const mainEl = document.querySelector('main')
@@ -152,8 +154,9 @@
   function createWindow() {
     if (!newWindowLabel) return
 
-    const webview = new Window(newWindowLabel)
-    windowMap[newWindowLabel] = webview
+    const label = `main-${newWindowLabel}`
+    const webview = new Window(label)
+    windowMap[label] = webview
     webview.once('tauri://error', function () {
       onMessage('Error creating new webview')
     })
@@ -282,7 +285,10 @@
       new PhysicalPosition(cursorX, cursorY)
     )
   $: windowMap[selectedWindow]?.setIgnoreCursorEvents(cursorIgnoreEvents)
-  $: windowMap[selectedWindow]?.setProgressBar({ status: selectedProgressBarStatus, progress })
+  $: windowMap[selectedWindow]?.setProgressBar({
+    status: selectedProgressBarStatus,
+    progress
+  })
 </script>
 
 <div class="flex flex-col children:grow gap-2">
@@ -310,7 +316,11 @@
     <div class="flex gap-1 items-center">
       <label for="windowIconPath"> Icon path </label>
       <form class="flex gap-1 grow" on:submit|preventDefault={setTitle_}>
-        <input id="windowIconPath" class="input grow" bind:value={windowIconPath} />
+        <input
+          id="windowIconPath"
+          class="input grow"
+          bind:value={windowIconPath}
+        />
         <button class="btn" type="submit"> Change window icon </button>
       </form>
     </div>
@@ -557,7 +567,13 @@
 
         <label>
           Progress
-          <input class="input" type="number" min="0" max="100" bind:value={progress} />
+          <input
+            class="input"
+            type="number"
+            min="0"
+            max="100"
+            bind:value={progress}
+          />
         </label>
       </div>
     </div>

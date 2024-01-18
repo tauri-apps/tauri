@@ -1,7 +1,7 @@
 "$schema" = ".schema.json"
 identifier = "run-app"
 description = "app capability"
-windows = ["main"]
+windows = ["main", "main-*"]
 permissions = [
   "path:default",
   "event:default",

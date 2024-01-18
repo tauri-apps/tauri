@@ -22,7 +22,7 @@ pub type ScopeKey = usize;
 #[derive(Debug, Clone)]
 pub struct ResolvedCommand {
   /// The list of window label patterns that is allowed to run this command.
-  pub windows: Vec<String>,
+  pub windows: Vec<glob::Pattern>,
   /// The reference of the scope that is associated with this command. See [`Resolved#structfield.scopes`].
   pub scope: Option<ScopeKey>,
 }
@@ -169,33 +169,41 @@ impl Resolved {
       allowed_commands: allowed_commands
         .into_iter()
         .map(|(key, cmd)| {
-          (
+          Ok((
             key,
             ResolvedCommand {
-              windows: cmd.windows.into_iter().collect(),
+              windows: parse_window_patterns(cmd.windows)?,
               scope: cmd.resolved_scope_key,
             },
-          )
+          ))
         })
-        .collect(),
+        .collect::<Result<_, Error>>()?,
       denied_commands: denied_commands
         .into_iter()
         .map(|(key, cmd)| {
-          (
+          Ok((
             key,
             ResolvedCommand {
-              windows: cmd.windows.into_iter().collect(),
+              windows: parse_window_patterns(cmd.windows)?,
               scope: cmd.resolved_scope_key,
             },
-          )
+          ))
         })
-        .collect(),
+        .collect::<Result<_, Error>>()?,
       command_scope: resolved_scopes,
       global_scope,
     };
 
     Ok(resolved)
   }
+}
+
+fn parse_window_patterns(windows: HashSet<String>) -> Result<Vec<glob::Pattern>, Error> {
+  let mut patterns = Vec::new();
+  for window in windows {
+    patterns.push(glob::Pattern::new(&window)?);
+  }
+  Ok(patterns)
 }
 
 #[derive(Debug, Default)]
@@ -324,7 +332,10 @@ mod build {
 
   impl ToTokens for ResolvedCommand {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let windows = vec_lit(&self.windows, str_lit);
+      let windows = vec_lit(&self.windows, |window| {
+        let w = window.as_str();
+        quote!(#w.parse().unwrap())
+      });
       let scope = opt_lit(self.scope.as_ref());
       literal_struct!(tokens, ResolvedCommand, windows, scope)
     }

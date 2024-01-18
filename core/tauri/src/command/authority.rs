@@ -60,7 +60,7 @@ impl RuntimeAuthority {
       self
         .allowed_commands
         .get(&key)
-        .filter(|allowed| allowed.windows.contains(window))
+        .filter(|allowed| allowed.windows.iter().any(|w| w.matches(window)))
     }
   }
 }

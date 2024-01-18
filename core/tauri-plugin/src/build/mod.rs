@@ -47,10 +47,7 @@ impl<'a> Builder<'a> {
       acl::build::autogenerate_command_permissions(commands_dir, self.commands, "");
     }
 
-    let permissions = acl::build::define_permissions(
-      "./permissions/**/*.*",
-      &std::env::var("CARGO_PKG_NAME").unwrap(),
-    )?;
+    let permissions = acl::build::define_permissions("./permissions/**/*.*", &name)?;
     acl::build::generate_schema(&permissions, "./permissions")?;
 
     let metadata = find_metadata()?;

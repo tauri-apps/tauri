@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{super::common, debian::{generate_data, tar_and_gzip_dir, copy_custom_files}};
+use super::{
+  super::common,
+  debian::{copy_custom_files, generate_data, tar_and_gzip_dir},
+};
 use crate::Settings;
 use anyhow::Context;
-use log::info;
 use flate2::Compression;
+use heck::AsKebabCase;
+use log::info;
 
 use std::{
   fs,
@@ -15,7 +19,7 @@ use std::{
 };
 
 /// Bundles the project.
-/// Not implemented yet.
+/// Returns a vector of PathBuf that shows where the archive.tar.gz was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86" => "i386",
@@ -25,12 +29,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "aarch64" => "arm64",
     other => other,
   };
-let pkgrel = 1;
   let package_base_name = format!(
-    "{}-{}-{}-{}",
+    "{}-{}-1-{}",
     settings.main_binary_name(),
     settings.version_string(),
-    pkgrel,
     arch
   );
 
@@ -52,26 +54,72 @@ let pkgrel = 1;
     .with_context(|| "Failed to build data folders and files")?;
   copy_custom_files(settings, &data_dir).with_context(|| "Failed to copy custom files")?;
 
+  // Generate PKGBUILD file.
+  generate_pkgbuild_file(settings, arch, &package_dir)
+    .with_context(|| "Failed to create PKGBUILD file")?;
   // Apply tar/gzip to create the final package file.
-  let package_path =
-    tar_and_gzip_dir(package_dir, Compression::default()).with_context(|| "Failed to tar/gzip control directory")?;
+  let package_path = tar_and_gzip_dir(package_dir, Compression::default())
+    .with_context(|| "Failed to create the tar.gz package")?;
 
   Ok(vec![package_path])
 }
 
 /// Generates the pacman PKGBUILD file.
-fn generate_pkgbuild_file(
-  settings: &Settings,
-  arch: &str,
-  dest_path: &Path,
-  data_dir: &Path,
-) -> crate::Result<()> {
-  // For more information about the format of this file, see
-  // https://wiki.archlinux.org/title/PKGBUILD
-  let mut file = common::create_file(&dest_path)?;
+/// For more information about the format of this file, see
+/// https://wiki.archlinux.org/title/PKGBUILD
+fn generate_pkgbuild_file(settings: &Settings, arch: &str, dest_dir: &Path) -> crate::Result<()> {
+  let pkgbuild_path = dest_dir.with_file_name("PKGBUILD");
+  let mut file = common::create_file(&pkgbuild_path)?;
 
   let authors = settings.authors_comma_separated().unwrap_or_default();
   writeln!(file, "# Maintainer: {}", authors)?;
+  writeln!(file, "pkgname={}", AsKebabCase(settings.product_name()))?;
+  writeln!(file, "pkgver={}", settings.version_string())?;
+  writeln!(file, "pkgrel=1")?;
+  writeln!(file, "epoch=")?;
+  writeln!(file, "pkgdesc=\"{}\"", settings.short_description().trim())?;
+  writeln!(file, "arch=('{}')", arch)?;
+  writeln!(file, "url=\"{}\"", settings.homepage_url())?;
+
+  let dependencies = settings
+    .pacman()
+    .depends
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !dependencies.is_empty() {
+    writeln!(file, "depends=({})", dependencies.join(" \n"))?;
+  }
+  let provides = settings
+    .pacman()
+    .provides
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !provides.is_empty() {
+    writeln!(file, "provides=({})", provides.join(" \n"))?;
+  }
+  let conflicts = settings
+    .pacman()
+    .conflicts
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !conflicts.is_empty() {
+    writeln!(file, "conflicts=({})", conflicts.join(" \n"))?;
+  }
+  let replaces = settings
+    .pacman()
+    .replaces
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !replaces.is_empty() {
+    writeln!(file, "replaces=({})", replaces.join(" \n"))?;
+  }
+  writeln!(file, "options=(!lto)")?;
+  writeln!(file, "source=()")?;
+  writeln!(file, "sha512sums=()")?;
 
   file.flush()?;
   Ok(())

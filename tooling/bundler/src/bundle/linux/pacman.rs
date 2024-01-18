@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{super::common, debian::generate_data};
+use super::{super::common, debian::{generate_data, tar_and_gzip_dir, copy_custom_files}};
 use crate::Settings;
 use anyhow::Context;
 use log::info;
+use flate2::Compression;
+
 use std::{
   fs,
   io::Write,
@@ -23,13 +25,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "aarch64" => "arm64",
     other => other,
   };
-  let pkgrel = 1;
+let pkgrel = 1;
   let package_base_name = format!(
     "{}-{}-{}-{}",
     settings.main_binary_name(),
     settings.version_string(),
-    arch,
-    pkgrel
+    pkgrel,
+    arch
   );
 
   let base_dir = settings.project_out_directory().join("bundle/pacman");
@@ -48,9 +50,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let (data_dir, _) = generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
-  //copy_custom_files(settings, &data_dir).with_context(|| "Failed to copy custom files")?;
+  copy_custom_files(settings, &data_dir).with_context(|| "Failed to copy custom files")?;
 
-  // Apply tar/gzip/ar to create the final package file.
+  // Apply tar/gzip to create the final package file.
+  let package_path =
+    tar_and_gzip_dir(package_dir, Compression::default()).with_context(|| "Failed to tar/gzip control directory")?;
 
   Ok(vec![package_path])
 }

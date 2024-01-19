@@ -51,21 +51,21 @@ impl ConfigFormat {
   fn into_platform_file_name(self, target: Target) -> &'static str {
     match self {
       Self::Json => match target {
-        Target::Darwin => "tauri.macos.conf.json",
+        Target::MacOS => "tauri.macos.conf.json",
         Target::Windows => "tauri.windows.conf.json",
         Target::Linux => "tauri.linux.conf.json",
         Target::Android => "tauri.android.conf.json",
         Target::Ios => "tauri.ios.conf.json",
       },
       Self::Json5 => match target {
-        Target::Darwin => "tauri.macos.conf.json5",
+        Target::MacOS => "tauri.macos.conf.json5",
         Target::Windows => "tauri.windows.conf.json5",
         Target::Linux => "tauri.linux.conf.json5",
         Target::Android => "tauri.android.conf.json5",
         Target::Ios => "tauri.ios.conf.json5",
       },
       Self::Toml => match target {
-        Target::Darwin => "Tauri.macos.toml",
+        Target::MacOS => "Tauri.macos.toml",
         Target::Windows => "Tauri.windows.toml",
         Target::Linux => "Tauri.linux.toml",
         Target::Android => "Tauri.android.toml",

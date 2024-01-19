@@ -39,48 +39,17 @@ pub struct Capability {
   pub permissions: Vec<Identifier>,
   /// Target platforms this capability applies. By default all platforms applies.
   #[serde(default = "default_platforms")]
-  pub platforms: Vec<CapabilityPlatform>,
+  pub platforms: Vec<Target>,
 }
 
-fn default_platforms() -> Vec<CapabilityPlatform> {
-  vec![CapabilityPlatform::Desktop, CapabilityPlatform::Mobile]
-}
-
-/// Target platform of a capability.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum CapabilityPlatform {
-  /// Windows.
-  Windows,
-  /// Linux.
-  Linux,
-  /// macOS.
-  #[serde(rename = "macOS")]
-  MacOS,
-  /// Android.
-  Android,
-  /// iOS
-  #[serde(rename = "iOS")]
-  Ios,
-  /// Desktop.
-  Desktop,
-  /// Mobile.
-  Mobile,
-}
-
-impl CapabilityPlatform {
-  /// Checks if the platform matches the given [`Target`].
-  pub fn matches(&self, target: &Target) -> bool {
-    matches!(
-      (self, target),
-      (Self::Windows | Self::Desktop, Target::Windows)
-        | (Self::Linux | Self::Desktop, Target::Linux)
-        | (Self::MacOS | Self::Desktop, Target::Darwin)
-        | (Self::Android | Self::Mobile, Target::Android)
-        | (Self::Ios | Self::Mobile, Target::Ios)
-    )
-  }
+fn default_platforms() -> Vec<Target> {
+  vec![
+    Target::Linux,
+    Target::MacOS,
+    Target::Windows,
+    Target::Android,
+    Target::Ios,
+  ]
 }
 
 /// Context of the capability.

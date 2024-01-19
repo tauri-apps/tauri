@@ -128,11 +128,7 @@ pub fn validate_capabilities(
   let target = tauri_utils::platform::Target::from_triple(&std::env::var("TARGET").unwrap());
 
   for capability in capabilities.values() {
-    if !capability
-      .platforms
-      .iter()
-      .any(|platform| platform.matches(&target))
-    {
+    if !capability.platforms.contains(&target) {
       continue;
     }
 

@@ -77,11 +77,7 @@ impl Resolved {
 
     // resolve commands
     for capability in capabilities.values() {
-      if !capability
-        .platforms
-        .iter()
-        .any(|platform| platform.matches(&target))
-      {
+      if !capability.platforms.contains(&target) {
         continue;
       }
 

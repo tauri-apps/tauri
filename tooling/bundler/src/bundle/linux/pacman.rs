@@ -11,10 +11,11 @@ use anyhow::Context;
 use flate2::Compression;
 use heck::AsKebabCase;
 use log::info;
+use sha2::{Sha512, Digest};
 
 use std::{
-  fs,
-  io::Write,
+  fs::{self, File},
+  io::{self, Write},
   path::{Path, PathBuf},
 };
 
@@ -22,11 +23,10 @@ use std::{
 /// Returns a vector of PathBuf that shows where the archive.tar.gz was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
+    // Arch Linux recognises `x86_64` and `aarch64` instead of `amd64` and `arm64` respectively.
     "x86" => "i386",
-    "x86_64" => "amd64",
     // ARM64 is detected differently, armel isn't supported, so armhf is the only reasonable choice here.
     "arm" => "armhf",
-    "aarch64" => "arm64",
     other => other,
   };
   let package_base_name = format!(
@@ -54,12 +54,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .with_context(|| "Failed to build data folders and files")?;
   copy_custom_files(settings, &data_dir).with_context(|| "Failed to copy custom files")?;
 
-  // Generate PKGBUILD file.
-  generate_pkgbuild_file(settings, arch, &package_dir)
-    .with_context(|| "Failed to create PKGBUILD file")?;
   // Apply tar/gzip to create the final package file.
-  let package_path = tar_and_gzip_dir(package_dir, Compression::default())
+  let package_path = tar_and_gzip_dir(package_dir.clone(), Compression::default())
     .with_context(|| "Failed to create the tar.gz package")?;
+
+  // Generate PKGBUILD file.
+  generate_pkgbuild_file(settings, arch, &package_dir, &package_path)
+    .with_context(|| "Failed to create PKGBUILD file")?;
 
   Ok(vec![package_path])
 }
@@ -67,7 +68,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 /// Generates the pacman PKGBUILD file.
 /// For more information about the format of this file, see
 /// https://wiki.archlinux.org/title/PKGBUILD
-fn generate_pkgbuild_file(settings: &Settings, arch: &str, dest_dir: &Path) -> crate::Result<()> {
+fn generate_pkgbuild_file(settings: &Settings, arch: &str, dest_dir: &Path, package_path: &Path) -> crate::Result<()> {
   let pkgbuild_path = dest_dir.with_file_name("PKGBUILD");
   let mut file = common::create_file(&pkgbuild_path)?;
 
@@ -87,40 +88,44 @@ fn generate_pkgbuild_file(settings: &Settings, arch: &str, dest_dir: &Path) -> c
     .as_ref()
     .cloned()
     .unwrap_or_default();
-  if !dependencies.is_empty() {
-    writeln!(file, "depends=({})", dependencies.join(" \n"))?;
-  }
+  writeln!(file, "depends=({})", dependencies.join(" \n"))?;
+
   let provides = settings
     .pacman()
     .provides
     .as_ref()
     .cloned()
     .unwrap_or_default();
-  if !provides.is_empty() {
-    writeln!(file, "provides=({})", provides.join(" \n"))?;
-  }
+  writeln!(file, "provides=({})", provides.join(" \n"))?;
+
   let conflicts = settings
     .pacman()
     .conflicts
     .as_ref()
     .cloned()
     .unwrap_or_default();
-  if !conflicts.is_empty() {
-    writeln!(file, "conflicts=({})", conflicts.join(" \n"))?;
-  }
+  writeln!(file, "conflicts=({})", conflicts.join(" \n"))?;
+
   let replaces = settings
     .pacman()
     .replaces
     .as_ref()
     .cloned()
     .unwrap_or_default();
-  if !replaces.is_empty() {
-    writeln!(file, "replaces=({})", replaces.join(" \n"))?;
-  }
-  writeln!(file, "options=(!lto)")?;
-  writeln!(file, "source=()")?;
-  writeln!(file, "sha512sums=()")?;
+  writeln!(file, "replaces=({})", replaces.join(" \n"))?;
 
+  writeln!(file, "options=(!lto)")?;
+  writeln!(file, "source=({:?})", package_path.file_name().unwrap())?;
+
+  // Generate SHA512 sum of the package
+  let mut sha_file = File::open(package_path)?;
+  let mut sha512 = Sha512::new();
+  io::copy(&mut sha_file, &mut sha512)?;
+  let sha_hash = sha512.finalize();
+
+  writeln!(file, "sha512sums=(\"{:x}\")", sha_hash)?;
+  writeln!(file, "package() {{\n\tcp -r ${{srcdir}}/data/* ${{pkgdir}}/\n}}")?;
+  
   file.flush()?;
   Ok(())
 }

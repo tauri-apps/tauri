@@ -339,6 +339,8 @@ pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,
   capabilities_path_pattern: Option<&'static str>,
+  #[cfg(feature = "codegen")]
+  codegen: Option<codegen::context::CodegenContext>,
 }
 
 impl Attributes {
@@ -358,6 +360,14 @@ impl Attributes {
   #[must_use]
   pub fn capabilities_path_pattern(mut self, pattern: &'static str) -> Self {
     self.capabilities_path_pattern.replace(pattern);
+    self
+  }
+
+  #[cfg(feature = "codegen")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
+  #[must_use]
+  pub fn codegen(mut self, codegen: codegen::context::CodegenContext) -> Self {
+    self.codegen.replace(codegen);
     self
   }
 }
@@ -642,6 +652,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       }
       _ => (),
     }
+  }
+
+  #[cfg(feature = "codegen")]
+  if let Some(codegen) = attributes.codegen {
+    codegen.try_build()?;
   }
 
   Ok(())

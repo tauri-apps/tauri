@@ -25,6 +25,7 @@ use tauri_utils::{
 
 use std::{
   env::var_os,
+  fs::read_to_string,
   path::{Path, PathBuf},
 };
 
@@ -484,10 +485,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   acl::validate_capabilities(&plugin_manifests, &capabilities)?;
 
-  std::fs::write(
-    out_dir.join(CAPABILITIES_FILE_NAME),
-    serde_json::to_string(&capabilities)?,
-  )?;
+  let capabilities_path = out_dir.join(CAPABILITIES_FILE_NAME);
+  let capabilities_json = serde_json::to_string(&capabilities)?;
+  if capabilities_json != read_to_string(&capabilities_path).unwrap_or_default() {
+    std::fs::write(capabilities_path, capabilities_json)?;
+  }
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
 

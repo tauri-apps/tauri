@@ -7,7 +7,7 @@
 use std::{
   collections::{BTreeMap, HashMap},
   env::{current_dir, vars_os},
-  fs::{create_dir_all, File},
+  fs::{create_dir_all, read_to_string, File},
   io::{BufWriter, Write},
   path::{Path, PathBuf},
 };
@@ -309,7 +309,10 @@ commands.deny = ["{command}"]
       schema_path = schema_path.display().to_string().replace('\\', "\\\\")
     );
 
-    std::fs::write(path.join(format!("{command}.toml")), toml)
-      .unwrap_or_else(|_| panic!("unable to autogenerate ${command}.toml"));
+    let out_path = path.join(format!("{command}.toml"));
+    if toml != read_to_string(&out_path).unwrap_or_default() {
+      std::fs::write(out_path, toml)
+        .unwrap_or_else(|_| panic!("unable to autogenerate ${command}.toml"));
+    }
   }
 }

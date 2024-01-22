@@ -10,7 +10,10 @@ mod tests {
     path::Path,
   };
 
-  use tauri_utils::acl::{build::parse_capabilities, plugin::Manifest, resolved::Resolved};
+  use tauri_utils::{
+    acl::{build::parse_capabilities, plugin::Manifest, resolved::Resolved},
+    platform::Target,
+  };
 
   fn load_plugins(plugins: &[String]) -> BTreeMap<String, Manifest> {
     let mut manifests = BTreeMap::new();
@@ -50,7 +53,8 @@ mod tests {
       let capabilities = parse_capabilities(&format!("{}/*.toml", fixture_entry.path().display()))
         .expect("failed to parse capabilities");
 
-      let resolved = Resolved::resolve(manifests, capabilities).expect("failed to resolve ACL");
+      let resolved = Resolved::resolve(manifests, capabilities, Target::current())
+        .expect("failed to resolve ACL");
 
       insta::assert_debug_snapshot!(
         fixture_entry

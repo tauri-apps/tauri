@@ -1,6 +1,6 @@
 ---
 source: core/tests/acl/src/lib.rs
-assertion_line: 49
+assertion_line: 59
 expression: resolved
 ---
 Resolved {
@@ -10,7 +10,24 @@ Resolved {
             context: Local,
         }: ResolvedCommand {
             windows: [
-                "main",
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
             ],
             scope: Some(
                 18088007599891946824,
@@ -21,7 +38,24 @@ Resolved {
             context: Local,
         }: ResolvedCommand {
             windows: [
-                "main",
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
             ],
             scope: Some(
                 7912899488978770657,
@@ -32,7 +66,24 @@ Resolved {
             context: Local,
         }: ResolvedCommand {
             windows: [
-                "main",
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
             ],
             scope: Some(
                 7912899488978770657,

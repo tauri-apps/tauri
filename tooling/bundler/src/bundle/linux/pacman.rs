@@ -11,7 +11,7 @@ use anyhow::Context;
 use flate2::Compression;
 use heck::AsKebabCase;
 use log::info;
-use sha2::{Sha512, Digest};
+use sha2::{Digest, Sha512};
 
 use std::{
   fs::{self, File},
@@ -68,13 +68,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 /// Generates the pacman PKGBUILD file.
 /// For more information about the format of this file, see
 /// https://wiki.archlinux.org/title/PKGBUILD
-fn generate_pkgbuild_file(settings: &Settings, arch: &str, dest_dir: &Path, package_path: &Path) -> crate::Result<()> {
+fn generate_pkgbuild_file(
+  settings: &Settings,
+  arch: &str,
+  dest_dir: &Path,
+  package_path: &Path,
+) -> crate::Result<()> {
   let pkgbuild_path = dest_dir.with_file_name("PKGBUILD");
   let mut file = common::create_file(&pkgbuild_path)?;
 
   let authors = settings.authors_comma_separated().unwrap_or_default();
   writeln!(file, "# Maintainer: {}", authors)?;
-  writeln!(file, "pkgname={}", AsKebabCase(settings.product_name()))?;
+  writeln!(file, "pkgname={}-bin", AsKebabCase(settings.product_name()))?;
   writeln!(file, "pkgver={}", settings.version_string())?;
   writeln!(file, "pkgrel=1")?;
   writeln!(file, "epoch=")?;
@@ -115,7 +120,18 @@ fn generate_pkgbuild_file(settings: &Settings, arch: &str, dest_dir: &Path, pack
   writeln!(file, "replaces=({})", replaces.join(" \n"))?;
 
   writeln!(file, "options=(!lto)")?;
-  writeln!(file, "source=({:?})", package_path.file_name().unwrap())?;
+  let source = settings
+    .pacman()
+    .source
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+
+  if source.is_empty() {
+    writeln!(file, "source=({:?})", package_path.file_name().unwrap())?;
+  } else {
+    writeln!(file, "source=({})", source.join(" \n"))?;
+  }
 
   // Generate SHA512 sum of the package
   let mut sha_file = File::open(package_path)?;
@@ -124,8 +140,11 @@ fn generate_pkgbuild_file(settings: &Settings, arch: &str, dest_dir: &Path, pack
   let sha_hash = sha512.finalize();
 
   writeln!(file, "sha512sums=(\"{:x}\")", sha_hash)?;
-  writeln!(file, "package() {{\n\tcp -r ${{srcdir}}/data/* ${{pkgdir}}/\n}}")?;
-  
+  writeln!(
+    file,
+    "package() {{\n\tcp -r ${{srcdir}}/data/* ${{pkgdir}}/\n}}"
+  )?;
+
   file.flush()?;
   Ok(())
 }

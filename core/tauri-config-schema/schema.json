@@ -491,7 +491,7 @@
           "type": "boolean"
         },
         "visibleOnAllWorkspaces": {
-          "description": "Whether the window should be visible on all workspaces or virtual desktops.",
+          "description": "Whether the window should be visible on all workspaces or virtual desktops.\n\n## Platform-specific\n\n- **Windows / iOS / Android:** Unsupported.",
           "default": false,
           "type": "boolean"
         },

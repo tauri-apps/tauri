@@ -24,6 +24,32 @@ pub struct RuntimeAuthority {
   scope_manager: ScopeManager,
 }
 
+/// The origin trying to access the IPC.
+pub enum Origin {
+  /// Local app origin.
+  Local,
+  /// Remote origin.
+  Remote {
+    /// Remote origin domain.
+    domain: String,
+  },
+}
+
+impl Origin {
+  fn matches(&self, context: &ExecutionContext) -> bool {
+    match (self, context) {
+      (Self::Local, ExecutionContext::Local) => true,
+      (
+        Self::Remote { domain },
+        ExecutionContext::Remote {
+          domain: domain_pattern,
+        },
+      ) => domain_pattern.matches(domain),
+      _ => false,
+    }
+  }
+}
+
 impl RuntimeAuthority {
   pub(crate) fn new(acl: Resolved) -> Self {
     let command_cache = acl
@@ -48,18 +74,20 @@ impl RuntimeAuthority {
     &self,
     command: &str,
     window: &str,
-    context: ExecutionContext,
+    origin: Origin,
   ) -> Option<&ResolvedCommand> {
-    let key = CommandKey {
-      name: command.into(),
-      context,
-    };
-    if self.denied_commands.contains_key(&key) {
+    if self
+      .denied_commands
+      .keys()
+      .any(|cmd| cmd.name == command && origin.matches(&cmd.context))
+    {
       None
     } else {
       self
         .allowed_commands
-        .get(&key)
+        .iter()
+        .find(|(cmd, _)| cmd.name == command && origin.matches(&cmd.context))
+        .map(|(_cmd, allowed)| allowed)
         .filter(|allowed| allowed.windows.iter().any(|w| w.matches(window)))
     }
   }
@@ -212,6 +240,8 @@ mod tests {
     ExecutionContext,
   };
 
+  use crate::command::Origin;
+
   use super::RuntimeAuthority;
 
   #[test]
@@ -241,7 +271,7 @@ mod tests {
       authority.resolve_access(
         &command.name,
         &window.replace("*", "something"),
-        command.context
+        Origin::Local
       ),
       Some(&resolved_cmd)
     );
@@ -249,10 +279,11 @@ mod tests {
 
   #[test]
   fn remote_domain_matches() {
+    let domain = "tauri.app";
     let command = CommandKey {
       name: "my-command".into(),
       context: ExecutionContext::Remote {
-        domain: "tauri.app".into(),
+        domain: Pattern::new(domain).unwrap(),
       },
     };
     let window = "main";
@@ -273,7 +304,51 @@ mod tests {
     });
 
     assert_eq!(
-      authority.resolve_access(&command.name, window, command.context),
+      authority.resolve_access(
+        &command.name,
+        window,
+        Origin::Remote {
+          domain: domain.into()
+        }
+      ),
+      Some(&resolved_cmd)
+    );
+  }
+
+  #[test]
+  fn remote_domain_glob_pattern_matches() {
+    let domain = "tauri.*";
+    let command = CommandKey {
+      name: "my-command".into(),
+      context: ExecutionContext::Remote {
+        domain: Pattern::new(domain).unwrap(),
+      },
+    };
+    let window = "main";
+
+    let resolved_cmd = ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      scope: None,
+    };
+    let allowed_commands = [(command.clone(), resolved_cmd.clone())]
+      .into_iter()
+      .collect();
+
+    let authority = RuntimeAuthority::new(Resolved {
+      allowed_commands,
+      denied_commands: Default::default(),
+      command_scope: Default::default(),
+      global_scope: Default::default(),
+    });
+
+    assert_eq!(
+      authority.resolve_access(
+        &command.name,
+        window,
+        Origin::Remote {
+          domain: domain.replace("*", "studio")
+        }
+      ),
       Some(&resolved_cmd)
     );
   }
@@ -305,7 +380,7 @@ mod tests {
       .resolve_access(
         &command.name,
         window,
-        ExecutionContext::Remote {
+        Origin::Remote {
           domain: "tauri.app".into()
         }
       )
@@ -347,7 +422,7 @@ mod tests {
     });
 
     assert!(authority
-      .resolve_access(&command.name, window, command.context)
+      .resolve_access(&command.name, window, Origin::Local)
       .is_none());
   }
 }

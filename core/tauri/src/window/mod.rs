@@ -9,7 +9,6 @@ pub(crate) mod plugin;
 use http::HeaderMap;
 pub use tauri_runtime::window::PageLoadEvent;
 use tauri_runtime::ResizeDirection;
-use tauri_utils::acl::ExecutionContext;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
 
@@ -17,7 +16,7 @@ use url::Url;
 use crate::TitleBarStyle;
 use crate::{
   app::{AppHandle, UriSchemeResponder},
-  command::{CommandArg, CommandItem},
+  command::{CommandArg, CommandItem, Origin},
   event::{EmitArgs, Event, EventId},
   ipc::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
@@ -2351,9 +2350,9 @@ impl<R: Runtime> Window<R> {
         &request.cmd,
         &message.window.window.label,
         if is_local {
-          ExecutionContext::Local
+          Origin::Local
         } else {
-          ExecutionContext::Remote {
+          Origin::Remote {
             domain: current_url
               .domain()
               .map(|d| d.to_string())

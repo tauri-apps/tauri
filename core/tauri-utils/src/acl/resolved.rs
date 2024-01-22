@@ -9,6 +9,8 @@ use std::{
   hash::{Hash, Hasher},
 };
 
+use glob::Pattern;
+
 use crate::platform::Target;
 
 use super::{
@@ -233,7 +235,8 @@ fn resolve_command(
     CapabilityContext::Remote { domains } => domains
       .iter()
       .map(|domain| ExecutionContext::Remote {
-        domain: domain.to_string(),
+        domain: Pattern::new(domain)
+          .unwrap_or_else(|e| panic!("invalid glob pattern for remote domain {domain}: {e}")),
       })
       .collect(),
   };

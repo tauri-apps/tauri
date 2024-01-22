@@ -4,6 +4,7 @@
 
 //! Access Control List types.
 
+use glob::Pattern;
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroU64;
 use thiserror::Error;
@@ -190,15 +191,13 @@ pub enum ExecutionContext {
   Local,
   /// Remote URL is tring to use the IPC.
   Remote {
-    /// The domain trying to access the IPC.
-    domain: String,
+    /// The domain trying to access the IPC (glob pattern).
+    domain: Pattern,
   },
 }
 
 #[cfg(feature = "build")]
 mod build_ {
-  use crate::tokens::*;
-
   use super::*;
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
@@ -212,8 +211,8 @@ mod build_ {
           quote! { #prefix::Local }
         }
         Self::Remote { domain } => {
-          let domain = str_lit(domain);
-          quote! { #prefix::Remote { domain: #domain } }
+          let domain = domain.as_str();
+          quote! { #prefix::Remote { domain: #domain.parse().unwrap() } }
         }
       });
     }

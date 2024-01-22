@@ -62,7 +62,7 @@ pub enum CapabilityContext {
   Local,
   /// Capability refers to remote usage.
   Remote {
-    /// Remote domains this capability refers to.
+    /// Remote domains this capability refers to. Can use glob patterns.
     domains: Vec<String>,
   },
 }

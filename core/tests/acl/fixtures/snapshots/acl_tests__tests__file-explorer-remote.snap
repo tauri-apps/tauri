@@ -8,7 +8,39 @@ Resolved {
         CommandKey {
             name: "plugin:fs|read_dir",
             context: Remote {
-                domain: "tauri.app",
+                domain: Pattern {
+                    original: "tauri.app",
+                    tokens: [
+                        Char(
+                            't',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'u',
+                        ),
+                        Char(
+                            'r',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            '.',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
             },
         }: ResolvedCommand {
             windows: [
@@ -36,7 +68,39 @@ Resolved {
         CommandKey {
             name: "plugin:fs|read_file",
             context: Remote {
-                domain: "tauri.app",
+                domain: Pattern {
+                    original: "tauri.app",
+                    tokens: [
+                        Char(
+                            't',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'u',
+                        ),
+                        Char(
+                            'r',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            '.',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
             },
         }: ResolvedCommand {
             windows: [

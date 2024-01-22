@@ -45,9 +45,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   let package_name = format!("{}.tar.gz", package_base_name);
-
   let package_path = base_dir.join(&package_name);
-
   info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
   let (data_dir, _) = generate_data(settings, &package_dir)

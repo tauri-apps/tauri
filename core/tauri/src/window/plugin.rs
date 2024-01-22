@@ -158,6 +158,7 @@ mod desktop_commands {
   setter!(start_dragging);
   setter!(start_resize_dragging, ResizeDirection);
   setter!(set_progress_bar, ProgressBarState);
+  setter!(set_visibile_on_all_workspaces, bool);
   setter!(print);
 
   #[command(root = "crate")]
@@ -440,6 +441,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::start_dragging,
             desktop_commands::start_resize_dragging,
             desktop_commands::set_progress_bar,
+            desktop_commands::set_visibile_on_all_workspaces,
             desktop_commands::print,
             desktop_commands::set_icon,
             desktop_commands::toggle_maximize,

@@ -1560,6 +1560,22 @@ class Window {
     })
   }
 
+  /**
+   * Sets whether the window should be visible on all workspaces or virtual desktops.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows / iOS / Android:** Unsupported.
+   *
+   * @since 2.0.0
+   */
+  async setVisibleOnAllWorkspaces(visible: boolean): Promise<void> {
+    return invoke('plugin:window|set_visible_on_all_workspaces', {
+      label: this.label,
+      value: visible
+    })
+  }
+
   // Listeners
 
   /**
@@ -2114,6 +2130,16 @@ interface WindowOptions {
    * Whether the window's native close button is enabled or not. Defaults to `true`.
    */
   closable?: boolean
+  /**
+   * Whether the window should be visible on all workspaces or virtual desktops.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows / iOS / Android:** Unsupported.
+   *
+   * @since 2.0.0
+   */
+  visibleOnAllWorkspaces?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

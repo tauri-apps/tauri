@@ -1148,6 +1148,10 @@ pub struct WindowConfig {
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
   /// Whether the window should be visible on all workspaces or virtual desktops.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / iOS / Android:** Unsupported.
   #[serde(default, alias = "all-workspaces")]
   pub visible_on_all_workspaces: bool,
   /// Prevents the window contents from being captured by other apps.

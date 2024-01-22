@@ -1065,6 +1065,7 @@ pub enum WindowMessage {
   SetIgnoreCursorEvents(bool),
   SetProgressBar(ProgressBarState),
   DragWindow,
+  ResizeDragWindow(tauri_runtime::ResizeDirection),
   RequestRedraw,
 }
 
@@ -1583,6 +1584,13 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::ResizeDragWindow(direction)),
+    )
+  }
+
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     // use a channel so the EvaluateScript task uses the current span as parent
@@ -1678,6 +1686,9 @@ pub struct WindowWrapper {
   label: String,
   inner: Option<WindowHandle>,
   window_event_listeners: WindowEventListeners,
+  is_window_transparent: bool,
+  #[cfg(windows)]
+  surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
 }
 
 impl fmt::Debug for WindowWrapper {
@@ -1685,6 +1696,7 @@ impl fmt::Debug for WindowWrapper {
     f.debug_struct("WindowWrapper")
       .field("label", &self.label)
       .field("inner", &self.inner)
+      .field("is_window_transparent", &self.is_window_transparent)
       .finish()
   }
 }
@@ -2419,6 +2431,18 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::DragWindow => {
             let _ = window.drag_window();
           }
+          WindowMessage::ResizeDragWindow(direction) => {
+            let _ = window.drag_resize_window(match direction {
+              tauri_runtime::ResizeDirection::East => tao::window::ResizeDirection::East,
+              tauri_runtime::ResizeDirection::North => tao::window::ResizeDirection::North,
+              tauri_runtime::ResizeDirection::NorthEast => tao::window::ResizeDirection::NorthEast,
+              tauri_runtime::ResizeDirection::NorthWest => tao::window::ResizeDirection::NorthWest,
+              tauri_runtime::ResizeDirection::South => tao::window::ResizeDirection::South,
+              tauri_runtime::ResizeDirection::SouthEast => tao::window::ResizeDirection::SouthEast,
+              tauri_runtime::ResizeDirection::SouthWest => tao::window::ResizeDirection::SouthWest,
+              tauri_runtime::ResizeDirection::West => tao::window::ResizeDirection::West,
+            });
+          }
           WindowMessage::RequestRedraw => {
             window.request_redraw();
           }
@@ -2470,20 +2494,40 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::CreateWindow(window_id, handler, sender) => {
       let (label, builder) = handler();
+      let is_window_transparent = builder.window.transparent;
       if let Ok(window) = builder.build(event_loop) {
         webview_id_map.insert(window.id(), window_id);
 
-        let w = Arc::new(window);
+        let window = Arc::new(window);
+
+        #[cfg(windows)]
+        let surface = if is_window_transparent {
+          if let Ok(context) = softbuffer::Context::new(window.clone()) {
+            if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
+              clear_window_surface(&window, &mut surface);
+              Some(surface)
+            } else {
+              None
+            }
+          } else {
+            None
+          }
+        } else {
+          None
+        };
 
         windows.borrow_mut().insert(
           window_id,
           WindowWrapper {
             label,
-            inner: Some(WindowHandle::Window(w.clone())),
+            inner: Some(WindowHandle::Window(window.clone())),
             window_event_listeners: Default::default(),
+            is_window_transparent,
+            #[cfg(windows)]
+            surface,
           },
         );
-        sender.send(Ok(Arc::downgrade(&w))).unwrap();
+        sender.send(Ok(Arc::downgrade(&window))).unwrap();
       } else {
         sender.send(Err(Error::CreateWindow)).unwrap();
       }
@@ -2533,8 +2577,23 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Exit);
     }
 
-    #[cfg(feature = "tracing")]
+    #[cfg(any(feature = "tracing", windows))]
     Event::RedrawRequested(id) => {
+      #[cfg(windows)]
+      if let Some(window_id) = webview_id_map.get(&id) {
+        let mut windows_ref = windows.borrow_mut();
+        if let Some(window) = windows_ref.get_mut(&window_id) {
+          if window.is_window_transparent {
+            if let Some(surface) = &mut window.surface {
+              if let Some(window) = &window.inner {
+                clear_window_surface(&window, surface)
+              }
+            }
+          }
+        }
+      }
+
+      #[cfg(feature = "tracing")]
       active_tracing_spans.remove_window_draw(id);
     }
 
@@ -2685,6 +2744,8 @@ fn on_close_requested<'a, T: UserEvent>(
 fn on_window_close(window_id: WebviewId, windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
   if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
+    #[cfg(windows)]
+    window_wrapper.surface.take();
   }
 }
 
@@ -3021,10 +3082,27 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     .unwrap();
   }
 
+  let window = Arc::new(window);
+  #[cfg(windows)]
+  let surface = if is_window_transparent {
+    if let Ok(context) = softbuffer::Context::new(window.clone()) {
+      if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
+        clear_window_surface(&window, &mut surface);
+        Some(surface)
+      } else {
+        None
+      }
+    } else {
+      None
+    }
+  } else {
+    None
+  };
+
   Ok(WindowWrapper {
     label,
     inner: Some(WindowHandle::Webview {
-      window: Arc::new(window),
+      window,
       inner: Rc::new(webview),
       context_store: web_context_store.clone(),
       context_key: if automation_enabled {
@@ -3034,6 +3112,9 @@ fn create_webview<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       },
     }),
     window_event_listeners,
+    is_window_transparent,
+    #[cfg(windows)]
+    surface,
   })
 }
 
@@ -3056,4 +3137,21 @@ fn create_ipc_handler<T: UserEvent>(
       request,
     );
   })
+}
+
+#[cfg(windows)]
+fn clear_window_surface(
+  window: &Window,
+  surface: &mut softbuffer::Surface<Arc<Window>, Arc<Window>>,
+) {
+  let size = window.inner_size();
+  if let (Some(width), Some(height)) = (
+    std::num::NonZeroU32::new(size.width),
+    std::num::NonZeroU32::new(size.height),
+  ) {
+    surface.resize(width, height).unwrap();
+    let mut buffer = surface.buffer_mut().unwrap();
+    buffer.fill(0);
+    let _ = buffer.present();
+  }
 }

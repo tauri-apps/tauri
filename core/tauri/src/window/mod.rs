@@ -8,6 +8,7 @@ pub(crate) mod plugin;
 
 use http::HeaderMap;
 pub use tauri_runtime::window::PageLoadEvent;
+use tauri_runtime::ResizeDirection;
 use tauri_utils::acl::ExecutionContext;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 use url::Url;
@@ -2255,6 +2256,15 @@ impl<R: Runtime> Window<R> {
   /// Starts dragging the window.
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
+  }
+
+  /// Starts resize-dragging the window.
+  pub fn start_resize_dragging(&self, direction: ResizeDirection) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .start_resize_dragging(direction)
+      .map_err(Into::into)
   }
 
   /// Sets the taskbar progress state.

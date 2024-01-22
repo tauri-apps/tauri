@@ -103,9 +103,7 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
     )));
   }
   if to.exists() {
-    return Err(crate::Error::GenericError(format!(
-      "{from:?} already exists"
-    )));
+    return Err(crate::Error::GenericError(format!("{to:?} already exists")));
   }
   let parent = to.parent().expect("No data in parent");
   fs::create_dir_all(parent)?;

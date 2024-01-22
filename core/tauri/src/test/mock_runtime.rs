@@ -676,6 +676,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
+  fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> Result<()> {
+    Ok(())
+  }
+
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     self
       .last_evaluated_script

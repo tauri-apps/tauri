@@ -21,7 +21,7 @@ use super::{
 pub type ScopeKey = usize;
 
 /// A resolved command permission.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedCommand {
   /// The list of window label patterns that is allowed to run this command.
   pub windows: Vec<glob::Pattern>,
@@ -40,7 +40,7 @@ pub struct ResolvedScope {
 
 /// A command key for the map of allowed and denied commands.
 /// Takes into consideration the command name and the execution context.
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct CommandKey {
   /// The full command name.
   pub name: String,

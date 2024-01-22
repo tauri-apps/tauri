@@ -203,3 +203,151 @@ impl ScopeManager {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use glob::Pattern;
+  use tauri_utils::acl::{
+    resolved::{CommandKey, Resolved, ResolvedCommand},
+    ExecutionContext,
+  };
+
+  use super::RuntimeAuthority;
+
+  #[test]
+  fn window_glob_pattern_matches() {
+    let command = CommandKey {
+      name: "my-command".into(),
+      context: ExecutionContext::Local,
+    };
+    let window = "main-*";
+
+    let resolved_cmd = ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      scope: None,
+    };
+    let allowed_commands = [(command.clone(), resolved_cmd.clone())]
+      .into_iter()
+      .collect();
+
+    let authority = RuntimeAuthority::new(Resolved {
+      allowed_commands,
+      denied_commands: Default::default(),
+      command_scope: Default::default(),
+      global_scope: Default::default(),
+    });
+
+    assert_eq!(
+      authority.resolve_access(
+        &command.name,
+        &window.replace("*", "something"),
+        command.context
+      ),
+      Some(&resolved_cmd)
+    );
+  }
+
+  #[test]
+  fn remote_domain_matches() {
+    let command = CommandKey {
+      name: "my-command".into(),
+      context: ExecutionContext::Remote {
+        domain: "tauri.app".into(),
+      },
+    };
+    let window = "main";
+
+    let resolved_cmd = ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      scope: None,
+    };
+    let allowed_commands = [(command.clone(), resolved_cmd.clone())]
+      .into_iter()
+      .collect();
+
+    let authority = RuntimeAuthority::new(Resolved {
+      allowed_commands,
+      denied_commands: Default::default(),
+      command_scope: Default::default(),
+      global_scope: Default::default(),
+    });
+
+    assert_eq!(
+      authority.resolve_access(&command.name, window, command.context),
+      Some(&resolved_cmd)
+    );
+  }
+
+  #[test]
+  fn remote_context_denied() {
+    let command = CommandKey {
+      name: "my-command".into(),
+      context: ExecutionContext::Local,
+    };
+    let window = "main";
+
+    let resolved_cmd = ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      scope: None,
+    };
+    let allowed_commands = [(command.clone(), resolved_cmd.clone())]
+      .into_iter()
+      .collect();
+
+    let authority = RuntimeAuthority::new(Resolved {
+      allowed_commands,
+      denied_commands: Default::default(),
+      command_scope: Default::default(),
+      global_scope: Default::default(),
+    });
+
+    assert!(authority
+      .resolve_access(
+        &command.name,
+        window,
+        ExecutionContext::Remote {
+          domain: "tauri.app".into()
+        }
+      )
+      .is_none());
+  }
+
+  #[test]
+  fn denied_command_takes_precendence() {
+    let command = CommandKey {
+      name: "my-command".into(),
+      context: ExecutionContext::Local,
+    };
+    let window = "main";
+    let windows = vec![Pattern::new(window).unwrap()];
+    let allowed_commands = [(
+      command.clone(),
+      ResolvedCommand {
+        windows: windows.clone(),
+        scope: None,
+      },
+    )]
+    .into_iter()
+    .collect();
+    let denied_commands = [(
+      command.clone(),
+      ResolvedCommand {
+        windows: windows.clone(),
+        scope: None,
+      },
+    )]
+    .into_iter()
+    .collect();
+
+    let authority = RuntimeAuthority::new(Resolved {
+      allowed_commands,
+      denied_commands,
+      command_scope: Default::default(),
+      global_scope: Default::default(),
+    });
+
+    assert!(authority
+      .resolve_access(&command.name, window, command.context)
+      .is_none());
+  }
+}

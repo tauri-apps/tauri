@@ -184,7 +184,7 @@ pub struct PermissionSet {
 }
 
 /// Execution context of an IPC call.
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum ExecutionContext {
   /// A local URL is used (the Tauri app URL).
   Local,

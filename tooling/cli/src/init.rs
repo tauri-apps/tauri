@@ -5,6 +5,7 @@
 use crate::{
   helpers::{
     framework::{infer_from_package_json as infer_framework, Framework},
+    prompts::request_input,
     resolve_tauri_path, template,
   },
   VersionMetadata,
@@ -12,16 +13,13 @@ use crate::{
 use std::{
   collections::BTreeMap,
   env::current_dir,
-  fmt::Display,
   fs::{read_to_string, remove_dir_all},
   path::PathBuf,
-  str::FromStr,
 };
 
 use crate::Result;
 use anyhow::Context;
 use clap::Parser;
-use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
 use log::warn;
@@ -33,7 +31,7 @@ const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
 #[clap(about = "Initialize a Tauri project in an existing directory")]
 pub struct Options {
   /// Skip prompting for values
-  #[clap(long)]
+  #[clap(long, env = "CI")]
   ci: bool,
   /// Force init to overwrite the src-tauri folder
   #[clap(short, long)]
@@ -76,7 +74,6 @@ struct InitDefaults {
 
 impl Options {
   fn load(mut self) -> Result<Self> {
-    self.ci = self.ci || std::env::var("CI").is_ok();
     let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
@@ -278,30 +275,4 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   Ok(())
-}
-
-fn request_input<T>(
-  prompt: &str,
-  initial: Option<T>,
-  skip: bool,
-  allow_empty: bool,
-) -> Result<Option<T>>
-where
-  T: Clone + FromStr + Display + ToString,
-  T::Err: Display + std::fmt::Debug,
-{
-  if skip {
-    Ok(initial)
-  } else {
-    let theme = dialoguer::theme::ColorfulTheme::default();
-    let mut builder = Input::with_theme(&theme)
-      .with_prompt(prompt)
-      .allow_empty(allow_empty);
-
-    if let Some(v) = initial {
-      builder = builder.with_initial_text(v.to_string());
-    }
-
-    builder.interact_text().map(Some).map_err(Into::into)
-  }
 }

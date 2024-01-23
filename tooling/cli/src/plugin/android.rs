@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{helpers::template, Result};
+use crate::{
+  helpers::{prompts::request_input, template},
+  Result,
+};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 
@@ -56,7 +59,7 @@ pub fn command(cli: Cli) -> Result<()> {
         return Err(anyhow::anyhow!("android folder already exists"));
       }
 
-      let plugin_id = super::init::request_input(
+      let plugin_id = request_input(
         "What should be the Android Package ID for your plugin?",
         Some(format!("com.plugin.{}", plugin_name)),
         false,

@@ -285,13 +285,21 @@ mod desktop_commands {
   }
 
   #[command(root = "crate")]
-  pub async fn on_mousemove<R: Runtime>(window: Window<R>, x: i32, y: i32) -> crate::Result<()> {
+  pub async fn internal_on_mousemove<R: Runtime>(
+    window: Window<R>,
+    x: i32,
+    y: i32,
+  ) -> crate::Result<()> {
     hit_test(window.inner_size()?, x, y, window.scale_factor()?).change_cursor(&window);
     Ok(())
   }
 
   #[command(root = "crate")]
-  pub async fn on_mousedown<R: Runtime>(window: Window<R>, x: i32, y: i32) -> crate::Result<()> {
+  pub async fn internal_on_mousedown<R: Runtime>(
+    window: Window<R>,
+    x: i32,
+    y: i32,
+  ) -> crate::Result<()> {
     let res = hit_test(window.inner_size()?, x, y, window.scale_factor()?);
     match res {
       HitTestResult::Client | HitTestResult::NoWhere => {}
@@ -405,8 +413,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_icon,
             desktop_commands::toggle_maximize,
             desktop_commands::internal_toggle_maximize,
-            desktop_commands::on_mousemove,
-            desktop_commands::on_mousedown,
+            desktop_commands::internal_on_mousemove,
+            desktop_commands::internal_on_mousedown,
           ]);
         handler(invoke)
       }

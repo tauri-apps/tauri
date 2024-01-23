@@ -5,4 +5,4 @@
 
 [default]
 description = "Default permissions for the plugin."
-permissions = ["allow-scale-factor", "allow-inner-position", "allow-outer-position", "allow-inner-size", "allow-outer-size", "allow-is-fullscreen", "allow-is-minimized", "allow-is-maximized", "allow-is-focused", "allow-is-decorated", "allow-is-resizable", "allow-is-maximizable", "allow-is-minimizable", "allow-is-closable", "allow-is-visible", "allow-title", "allow-current-monitor", "allow-primary-monitor", "allow-available-monitors", "allow-theme", "allow-internal-toggle-maximize", "allow-internal-toggle-devtools"]
+permissions = ["allow-scale-factor", "allow-inner-position", "allow-outer-position", "allow-inner-size", "allow-outer-size", "allow-is-fullscreen", "allow-is-minimized", "allow-is-maximized", "allow-is-focused", "allow-is-decorated", "allow-is-resizable", "allow-is-maximizable", "allow-is-minimizable", "allow-is-closable", "allow-is-visible", "allow-title", "allow-current-monitor", "allow-primary-monitor", "allow-available-monitors", "allow-theme", "allow-internal-toggle-maximize", "allow-internal-on-mousemove", "allow-internal-on-mousedown"]

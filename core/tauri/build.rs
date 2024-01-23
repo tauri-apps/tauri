@@ -94,11 +94,29 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_ignore_cursor_events", false),
       ("start_dragging", false),
       ("set_progress_bar", false),
-      ("print", false),
       ("set_icon", false),
       ("toggle_maximize", false),
       // internal
       ("internal_toggle_maximize", true),
+      ("internal_on_mousemove", true),
+      ("internal_on_mousedown", true),
+    ],
+  ),
+  (
+    "webview",
+    &[
+      ("create_webview", false),
+      ("create_webview_window", false),
+      // getters
+      ("webview_position", true),
+      ("webview_size", true),
+      // setters
+      ("webview_close", false),
+      ("set_webview_size", false),
+      ("set_webview_position", false),
+      ("set_webview_focus", false),
+      ("print", false),
+      // internal
       ("internal_toggle_devtools", true),
     ],
   ),

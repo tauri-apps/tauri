@@ -1543,20 +1543,6 @@ pub struct SecurityConfig {
   /// Your application might be vulnerable to XSS attacks without this Tauri protection.
   #[serde(default, alias = "dangerous-disable-asset-csp-modification")]
   pub dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
-  /// Allow external domains to send command to Tauri.
-  ///
-  /// By default, external domains do not have access to `window.__TAURI__`, which means they cannot
-  /// communicate with the commands defined in Rust. This prevents attacks where an externally
-  /// loaded malicious or compromised sites could start executing commands on the user's device.
-  ///
-  /// This configuration allows a set of external domains to have access to the Tauri commands.
-  /// When you configure a domain to be allowed to access the IPC, all subpaths are allowed. Subdomains are not allowed.
-  ///
-  /// **WARNING:** Only use this option if you either have internal checks against malicious
-  /// external sites or you can trust the allowed external sites. You application might be
-  /// vulnerable to dangerous Tauri command related attacks otherwise.
-  #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
-  pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
   /// Custom protocol config.
   #[serde(default, alias = "asset-protocol")]
   pub asset_protocol: AssetProtocolConfig,
@@ -2140,149 +2126,11 @@ fn default_build() -> BuildConfig {
 /// application using tauri while only parsing it once (in the build script).
 #[cfg(feature = "build")]
 mod build {
-  use std::{convert::identity, path::Path};
-
+  use super::*;
+  use crate::tokens::*;
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
-
-  use super::*;
-
-  use serde_json::Value as JsonValue;
-
-  /// Create a `String` constructor `TokenStream`.
-  ///
-  /// e.g. `"Hello World" -> String::from("Hello World").
-  /// This takes a `&String` to reduce casting all the `&String` -> `&str` manually.
-  fn str_lit(s: impl AsRef<str>) -> TokenStream {
-    let s = s.as_ref();
-    quote! { #s.into() }
-  }
-
-  /// Create an `Option` constructor `TokenStream`.
-  fn opt_lit(item: Option<&impl ToTokens>) -> TokenStream {
-    match item {
-      None => quote! { ::core::option::Option::None },
-      Some(item) => quote! { ::core::option::Option::Some(#item) },
-    }
-  }
-
-  /// Helper function to combine an `opt_lit` with `str_lit`.
-  fn opt_str_lit(item: Option<impl AsRef<str>>) -> TokenStream {
-    opt_lit(item.map(str_lit).as_ref())
-  }
-
-  /// Helper function to combine an `opt_lit` with a list of `str_lit`
-  fn opt_vec_str_lit(item: Option<impl IntoIterator<Item = impl AsRef<str>>>) -> TokenStream {
-    opt_lit(item.map(|list| vec_lit(list, str_lit)).as_ref())
-  }
-
-  /// Create a `Vec` constructor, mapping items with a function that spits out `TokenStream`s.
-  fn vec_lit<Raw, Tokens>(
-    list: impl IntoIterator<Item = Raw>,
-    map: impl Fn(Raw) -> Tokens,
-  ) -> TokenStream
-  where
-    Tokens: ToTokens,
-  {
-    let items = list.into_iter().map(map);
-    quote! { vec![#(#items),*] }
-  }
-
-  /// Create a `PathBuf` constructor `TokenStream`.
-  ///
-  /// e.g. `"Hello World" -> String::from("Hello World").
-  fn path_buf_lit(s: impl AsRef<Path>) -> TokenStream {
-    let s = s.as_ref().to_string_lossy().into_owned();
-    quote! { ::std::path::PathBuf::from(#s) }
-  }
-
-  /// Creates a `Url` constructor `TokenStream`.
-  fn url_lit(url: &Url) -> TokenStream {
-    let url = url.as_str();
-    quote! { #url.parse().unwrap() }
-  }
-
-  /// Create a map constructor, mapping keys and values with other `TokenStream`s.
-  ///
-  /// This function is pretty generic because the types of keys AND values get transformed.
-  fn map_lit<Map, Key, Value, TokenStreamKey, TokenStreamValue, FuncKey, FuncValue>(
-    map_type: TokenStream,
-    map: Map,
-    map_key: FuncKey,
-    map_value: FuncValue,
-  ) -> TokenStream
-  where
-    <Map as IntoIterator>::IntoIter: ExactSizeIterator,
-    Map: IntoIterator<Item = (Key, Value)>,
-    TokenStreamKey: ToTokens,
-    TokenStreamValue: ToTokens,
-    FuncKey: Fn(Key) -> TokenStreamKey,
-    FuncValue: Fn(Value) -> TokenStreamValue,
-  {
-    let ident = quote::format_ident!("map");
-    let map = map.into_iter();
-
-    if map.len() > 0 {
-      let items = map.map(|(key, value)| {
-        let key = map_key(key);
-        let value = map_value(value);
-        quote! { #ident.insert(#key, #value); }
-      });
-
-      quote! {{
-        let mut #ident = #map_type::new();
-        #(#items)*
-        #ident
-      }}
-    } else {
-      quote! { #map_type::new() }
-    }
-  }
-
-  /// Create a `serde_json::Value` variant `TokenStream` for a number
-  fn json_value_number_lit(num: &serde_json::Number) -> TokenStream {
-    // See https://docs.rs/serde_json/1/serde_json/struct.Number.html for guarantees
-    let prefix = quote! { ::serde_json::Value };
-    if num.is_u64() {
-      // guaranteed u64
-      let num = num.as_u64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
-    } else if num.is_i64() {
-      // guaranteed i64
-      let num = num.as_i64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
-    } else if num.is_f64() {
-      // guaranteed f64
-      let num = num.as_f64().unwrap();
-      quote! { #prefix::Number(::serde_json::Number::from_f64(#num).unwrap(/* safe to unwrap, guaranteed f64 */)) }
-    } else {
-      // invalid number
-      quote! { #prefix::Null }
-    }
-  }
-
-  /// Create a `serde_json::Value` constructor `TokenStream`
-  fn json_value_lit(jv: &JsonValue) -> TokenStream {
-    let prefix = quote! { ::serde_json::Value };
-
-    match jv {
-      JsonValue::Null => quote! { #prefix::Null },
-      JsonValue::Bool(bool) => quote! { #prefix::Bool(#bool) },
-      JsonValue::Number(number) => json_value_number_lit(number),
-      JsonValue::String(str) => {
-        let s = str_lit(str);
-        quote! { #prefix::String(#s) }
-      }
-      JsonValue::Array(vec) => {
-        let items = vec.iter().map(json_value_lit);
-        quote! { #prefix::Array(vec![#(#items),*]) }
-      }
-      JsonValue::Object(map) => {
-        let map = map_lit(quote! { ::serde_json::Map }, map, str_lit, json_value_lit);
-        quote! { #prefix::Object(#map) }
-      }
-    }
-  }
+  use std::convert::identity;
 
   /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
   ///
@@ -2749,8 +2597,6 @@ mod build {
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
-      let dangerous_remote_domain_ipc_access =
-        vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
       let asset_protocol = &self.asset_protocol;
 
       literal_struct!(
@@ -2760,7 +2606,6 @@ mod build {
         dev_csp,
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
-        dangerous_remote_domain_ipc_access,
         asset_protocol
       );
     }
@@ -2921,7 +2766,6 @@ mod test {
         dev_csp: None,
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
-        dangerous_remote_domain_ipc_access: Vec::new(),
         asset_protocol: AssetProtocolConfig::default(),
       },
       tray_icon: None,

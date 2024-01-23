@@ -1,0 +1,8 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+[default]
+description = "Default permissions for the plugin."
+permissions = ["allow-scale-factor", "allow-inner-position", "allow-outer-position", "allow-inner-size", "allow-outer-size", "allow-is-fullscreen", "allow-is-minimized", "allow-is-maximized", "allow-is-focused", "allow-is-decorated", "allow-is-resizable", "allow-is-maximizable", "allow-is-minimizable", "allow-is-closable", "allow-is-visible", "allow-title", "allow-current-monitor", "allow-primary-monitor", "allow-available-monitors", "allow-theme", "allow-internal-toggle-maximize", "allow-internal-toggle-devtools"]

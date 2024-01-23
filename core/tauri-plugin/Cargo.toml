@@ -1,0 +1,34 @@
+[package]
+name = "tauri-plugin"
+version = "0.1.0"
+authors = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+categories = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+
+[features]
+build = [
+  "dep:serde",
+  "dep:cargo_metadata",
+  "dep:serde_json",
+  "dep:glob",
+  "dep:toml",
+]
+runtime = []
+
+[dependencies]
+serde = { version = "1", optional = true }
+cargo_metadata = { version = "0.18", optional = true }
+tauri-utils = { version = "2.0.0-alpha.12", default-features = false, path = "../tauri-utils" }
+tauri = { version = "2.0.0-alpha.20", default-features = false, path = "../tauri" }
+serde_json = { version = "1", optional = true }
+glob = { version = "0.3", optional = true }
+toml = { version = "0.8", optional = true }
+
+[package.metadata.docs.rs]
+features = ["build", "runtime"]
+rustc-args = ["--cfg", "docsrs"]
+rustdoc-args = ["--cfg", "docsrs"]

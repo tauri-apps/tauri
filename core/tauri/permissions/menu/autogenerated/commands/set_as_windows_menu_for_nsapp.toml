@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-set-as-windows-menu-for-nsapp"
+description = "Enables the set_as_windows_menu_for_nsapp command without any pre-configured scope."
+commands.allow = ["set_as_windows_menu_for_nsapp"]
+
+[[permission]]
+identifier = "deny-set-as-windows-menu-for-nsapp"
+description = "Denies the set_as_windows_menu_for_nsapp command without any pre-configured scope."
+commands.deny = ["set_as_windows_menu_for_nsapp"]

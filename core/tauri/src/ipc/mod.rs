@@ -14,6 +14,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_macros::default_runtime;
+use tauri_utils::acl::resolved::ResolvedCommand;
 
 use crate::{
   command::{CommandArg, CommandItem},
@@ -159,6 +160,9 @@ pub struct Invoke<R: Runtime> {
 
   /// The resolver of the message.
   pub resolver: InvokeResolver<R>,
+
+  /// Resolved ACL for this IPC invoke.
+  pub acl: Option<ResolvedCommand>,
 }
 
 /// Error response from an [`InvokeMessage`].

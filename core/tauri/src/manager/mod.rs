@@ -22,6 +22,7 @@ use tauri_utils::{
 
 use crate::{
   app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
+  command::RuntimeAuthority,
   event::{assert_event_name_is_valid, Event, EventId, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   plugin::PluginStore,
@@ -178,6 +179,7 @@ pub struct Asset {
 
 #[default_runtime(crate::Wry, wry)]
 pub struct AppManager<R: Runtime> {
+  pub runtime_authority: RuntimeAuthority,
   pub window: window::WindowManager<R>,
   #[cfg(all(desktop, feature = "tray-icon"))]
   pub tray: tray::TrayManager<R>,
@@ -245,6 +247,7 @@ impl<R: Runtime> AppManager<R> {
     }
 
     Self {
+      runtime_authority: RuntimeAuthority::new(context.resolved_acl),
       window: window::WindowManager {
         windows: Mutex::default(),
         invoke_handler,

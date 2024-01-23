@@ -1,0 +1,6 @@
+identifier = "run-app"
+description = "app capability"
+windows = ["main"]
+permissions = ["fs:read", "fs:allow-app"]
+[context.remote]
+domains = ["tauri.app"]

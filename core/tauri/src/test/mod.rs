@@ -60,6 +60,7 @@ use crate::{
   App, Builder, Context, Pattern, Webview,
 };
 use tauri_utils::{
+  acl::resolved::Resolved,
   assets::{AssetKey, Assets, CspHash},
   config::{Config, PatternKind, TauriConfig},
 };
@@ -123,6 +124,12 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
+    resolved_acl: Resolved {
+      allowed_commands: Default::default(),
+      denied_commands: Default::default(),
+      command_scope: Default::default(),
+      global_scope: Default::default(),
+    },
   }
 }
 

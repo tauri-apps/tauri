@@ -16,6 +16,11 @@ use serde::{
   Deserialize, Deserializer,
 };
 
+mod authority;
+
+pub use authority::{CommandScope, GlobalScope, Origin, RuntimeAuthority};
+use tauri_utils::acl::resolved::ResolvedCommand;
+
 /// Represents a custom command.
 pub struct CommandItem<'a, R: Runtime> {
   /// The name of the command, e.g. `handler` on `#[command] fn handler(value: u64)`
@@ -26,6 +31,9 @@ pub struct CommandItem<'a, R: Runtime> {
 
   /// The [`InvokeMessage`] that was passed to this command.
   pub message: &'a InvokeMessage<R>,
+
+  /// The resolved ACL for this command.
+  pub acl: &'a Option<ResolvedCommand>,
 }
 
 /// Trait implemented by command arguments to derive a value from a [`CommandItem`].

@@ -27,7 +27,7 @@ pub use url::Url;
 
 use crate::{
   app::UriSchemeResponder,
-  command::{CommandArg, CommandItem},
+  command::{CommandArg, CommandItem, Origin},
   event::{EmitArgs, EventSource},
   ipc::{
     CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
@@ -46,8 +46,6 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-pub(crate) const IPC_SCOPE_DOES_NOT_ALLOW: &str = "Not allowed by the scope";
-
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
@@ -56,18 +54,6 @@ pub(crate) type UriSchemeProtocolHandler =
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
 
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
-
-pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> String {
-  format!("Scope not defined for window `{label}` and URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
-}
-
-pub(crate) fn ipc_scope_window_error_message(label: &str) -> String {
-  format!("Scope not defined for window `{}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access", label)
-}
-
-pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {
-  format!("Scope not defined for URL `{url}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
-}
 
 #[derive(Clone, Serialize)]
 struct CreatedEvent {
@@ -1010,24 +996,6 @@ impl<R: Runtime> Webview<R> {
     let current_url = self.url();
     let is_local = self.is_local_url(&current_url);
 
-    let mut scope_not_found_error_message =
-      ipc_scope_not_found_error_message(&self.webview.label, current_url.as_str());
-    let scope = if is_local {
-      None
-    } else {
-      match self.ipc_scope().remote_access_for(&self, &current_url) {
-        Ok(scope) => Some(scope),
-        Err(e) => {
-          if e.matches_window {
-            scope_not_found_error_message = ipc_scope_domain_error_message(current_url.as_str());
-          } else if e.matches_domain {
-            scope_not_found_error_message = ipc_scope_window_error_message(&self.webview.label);
-          }
-          None
-        }
-      }
-    };
-
     let custom_responder = self.manager().webview.invoke_responder.clone();
 
     let resolver = InvokeResolver::new(
@@ -1058,14 +1026,36 @@ impl<R: Runtime> Webview<R> {
       request.headers,
     );
 
+    let resolved_acl = manager
+      .runtime_authority
+      .resolve_access(
+        &request.cmd,
+        &message.webview.webview.label,
+        if is_local {
+          Origin::Local
+        } else {
+          Origin::Remote {
+            domain: current_url
+              .domain()
+              .map(|d| d.to_string())
+              .unwrap_or_default(),
+          }
+        },
+      )
+      .cloned();
+
     let mut invoke = Invoke {
       message,
       resolver: resolver.clone(),
+      acl: resolved_acl,
     };
 
-    if !is_local && scope.is_none() {
-      invoke.resolver.reject(scope_not_found_error_message);
-    } else if request.cmd.starts_with("plugin:") {
+    if request.cmd.starts_with("plugin:") {
+      if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND && invoke.acl.is_none() {
+        invoke.resolver.reject("NOT ALLOWED");
+        return;
+      }
+
       let command = invoke.message.command.replace("plugin:", "");
       let mut tokens = command.split('|');
       // safe to unwrap: split always has a least one item
@@ -1074,16 +1064,6 @@ impl<R: Runtime> Webview<R> {
         .next()
         .map(|c| c.to_string())
         .unwrap_or_else(String::new);
-
-      if !(is_local
-        || plugin == crate::ipc::channel::CHANNEL_PLUGIN_NAME
-        || scope
-          .map(|s| s.plugins().contains(&plugin.into()))
-          .unwrap_or(true))
-      {
-        invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-        return;
-      }
 
       let command = invoke.message.command.clone();
 

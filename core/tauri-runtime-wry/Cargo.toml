@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "1.0.0-alpha.8"
+version = "1.0.0-alpha.9"
 description = "Wry bindings to the Tauri runtime"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -13,16 +13,17 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-wry = { version = "0.35.1", default-features = false, features = [ "file-drop", "protocol", "os-webview" ] }
-tao = { version = "0.24", default-features = false, features = [ "rwh_05" ] }
-tauri-runtime = { version = "1.0.0-alpha.7", path = "../tauri-runtime" }
-tauri-utils = { version = "2.0.0-alpha.12", path = "../tauri-utils" }
+wry = { version = "0.35.2", default-features = false, features = [ "file-drop", "protocol", "os-webview" ] }
+tao = { version = "0.24", default-features = false, features = [ "rwh_05", "rwh_06" ] }
+tauri-runtime = { version = "1.0.0-alpha.8", path = "../tauri-runtime" }
+tauri-utils = { version = "2.0.0-alpha.13", path = "../tauri-utils" }
 raw-window-handle = "0.5"
 http = "0.2"
 tracing = { version = "0.1", optional = true }
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.28"
+softbuffer = "0.4"
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.52"
@@ -48,4 +49,4 @@ macos-private-api = [
 ]
 objc-exception = [ "wry/objc-exception" ]
 linux-protocol-body = [ "wry/linux-body", "webkit2gtk/v2_40" ]
-tracing = [ "dep:tracing" ]
+tracing = [ "dep:tracing", "wry/tracing" ]

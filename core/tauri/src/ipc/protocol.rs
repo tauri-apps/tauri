@@ -4,15 +4,14 @@
 
 use std::{borrow::Cow, sync::Arc};
 
-use http::{
-  header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
-  HeaderValue, Method, StatusCode,
-};
-
 use crate::{
   manager::AppManager,
   webview::{InvokeRequest, UriSchemeProtocolHandler},
   Runtime,
+};
+use http::{
+  header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
+  HeaderValue, Method, StatusCode,
 };
 
 use super::{CallbackFn, InvokeBody, InvokeResponse};
@@ -29,6 +28,14 @@ pub fn message_handler<R: Runtime>(
 
 pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeProtocolHandler {
   Box::new(move |request, responder| {
+    #[cfg(feature = "tracing")]
+    let span = tracing::trace_span!(
+      "ipc::request",
+      kind = "custom-protocol",
+      request = tracing::field::Empty
+    )
+    .entered();
+
     let manager = manager.clone();
     let label = label.clone();
 
@@ -44,9 +51,35 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
         if let Some(webview) = manager.get_webview(&label) {
           match parse_invoke_request(&manager, request) {
             Ok(request) => {
+              #[cfg(feature = "tracing")]
+              span.record(
+                "request",
+                match &request.body {
+                  InvokeBody::Json(j) => serde_json::to_string(j).unwrap(),
+                  InvokeBody::Raw(b) => serde_json::to_string(b).unwrap(),
+                },
+              );
+              #[cfg(feature = "tracing")]
+              let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
+
               webview.on_message(
                 request,
                 Box::new(move |_webview, _cmd, response, _callback, _error| {
+                  #[cfg(feature = "tracing")]
+                  let _respond_span = tracing::trace_span!(
+                    parent: &request_span,
+                    "ipc::request::respond"
+                  )
+                  .entered();
+
+                  #[cfg(feature = "tracing")]
+                  let response_span = tracing::trace_span!(
+                    "ipc::request::response",
+                    response = serde_json::to_string(&response).unwrap(),
+                    mime_type = tracing::field::Empty
+                  )
+                  .entered();
+
                   let (mut response, mime_type) = match response {
                     InvokeResponse::Ok(InvokeBody::Json(v)) => (
                       http::Response::new(serde_json::to_vec(&v).unwrap().into()),
@@ -63,6 +96,9 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
                       (response, mime::TEXT_PLAIN)
                     }
                   };
+
+                  #[cfg(feature = "tracing")]
+                  response_span.record("mime_type", mime_type.essence_str());
 
                   response.headers_mut().insert(
                     CONTENT_TYPE,
@@ -129,6 +165,10 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
 #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, label: &str) {
   if let Some(webview) = manager.get_webview(label) {
+    #[cfg(feature = "tracing")]
+    let _span =
+      tracing::trace_span!("ipc::request", kind = "post-message", request = message).entered();
+
     use serde::{Deserialize, Deserializer};
 
     pub(crate) struct HeaderMap(http::HeaderMap);
@@ -185,6 +225,9 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
       }
 
       if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
+        #[cfg(feature = "tracing")]
+        let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
+
         invoke_message.replace(
           serde_json::from_str::<IsolationMessage<'_>>(&message)
             .map_err(Into::into)
@@ -201,18 +244,25 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
       }
     }
 
-    match invoke_message
-      .unwrap_or_else(|| serde_json::from_str::<Message>(&message).map_err(Into::into))
-    {
+    match invoke_message.unwrap_or_else(|| {
+      #[cfg(feature = "tracing")]
+      let _span = tracing::trace_span!("ipc::request::deserialize").entered();
+      serde_json::from_str::<Message>(&message).map_err(Into::into)
+    }) {
       Ok(message) => {
+        let request = InvokeRequest {
+          cmd: message.cmd,
+          callback: message.callback,
+          error: message.error,
+          body: message.payload.into(),
+          headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
+        };
+
+        #[cfg(feature = "tracing")]
+        let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
+
         webview.on_message(
-          InvokeRequest {
-            cmd: message.cmd,
-            callback: message.callback,
-            error: message.error,
-            body: message.payload.into(),
-            headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
-          },
+          request,
           Box::new(move |webview, cmd, response, callback, error| {
             use crate::ipc::{
               format_callback::{
@@ -222,6 +272,13 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
             };
             use crate::sealed::ManagerBase;
             use serde_json::Value as JsonValue;
+
+            #[cfg(feature = "tracing")]
+            let _respond_span = tracing::trace_span!(
+              parent: &request_span,
+              "ipc::request::respond"
+            )
+            .entered();
 
             // the channel data command is the only command that uses a custom protocol on Linux
             if webview.manager().webview.invoke_responder.is_none()
@@ -240,6 +297,19 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
 
                 let _ = webview.eval(&eval_js);
               }
+
+              #[cfg(feature = "tracing")]
+              let _response_span = tracing::trace_span!(
+                "ipc::request::response",
+                response = serde_json::to_string(&response).unwrap(),
+                mime_type = match &response {
+                  InvokeResponse::Ok(InvokeBody::Json(_)) => mime::APPLICATION_JSON,
+                  InvokeResponse::Ok(InvokeBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
+                  InvokeResponse::Err(_) => mime::TEXT_PLAIN,
+                }
+                .essence_str()
+              )
+              .entered();
 
               match &response {
                 InvokeResponse::Ok(InvokeBody::Json(v)) => {
@@ -278,6 +348,9 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
         );
       }
       Err(e) => {
+        #[cfg(feature = "tracing")]
+        tracing::trace!("ipc.request.error {}", e);
+
         let _ = webview.eval(&format!(
           r#"console.error({})"#,
           serde_json::Value::String(e.to_string())
@@ -302,6 +375,9 @@ fn parse_invoke_request<R: Runtime>(
   // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
   #[cfg(all(feature = "isolation", ipc_custom_protocol))]
   if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
+
     body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
       .and_then(|raw| crypto_keys.decrypt(raw))
       .map_err(|e| e.to_string())?;
@@ -335,6 +411,10 @@ fn parse_invoke_request<R: Runtime>(
     .map(|mime| mime.parse())
     .unwrap_or(Ok(mime::APPLICATION_OCTET_STREAM))
     .map_err(|_| "unknown content type")?;
+
+  #[cfg(feature = "tracing")]
+  let span = tracing::trace_span!("ipc::request::deserialize").entered();
+
   let body = if content_type == mime::APPLICATION_OCTET_STREAM {
     body.into()
   } else if content_type == mime::APPLICATION_JSON {
@@ -349,6 +429,9 @@ fn parse_invoke_request<R: Runtime>(
   } else {
     return Err(format!("content type {content_type} is not implemented"));
   };
+
+  #[cfg(feature = "tracing")]
+  drop(span);
 
   let payload = InvokeRequest {
     cmd,

@@ -20,6 +20,6 @@
     "unocss": "^0.39.3",
     "@sveltejs/vite-plugin-svelte": "^2.4.6",
     "svelte": "^4.2.1",
-    "vite": "^4.4.12"
+    "vite": "^4.5.2"
   }
 }

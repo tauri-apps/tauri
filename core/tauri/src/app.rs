@@ -17,7 +17,6 @@ use crate::{
     window::WindowEvent as RuntimeWindowEvent, ExitRequestedEventAction,
     RunEvent as RuntimeRunEvent,
   },
-  scope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
@@ -48,7 +47,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc, Weak},
+  sync::{mpsc::Sender, Arc},
 };
 
 use crate::runtime::RuntimeHandle;
@@ -256,7 +255,7 @@ impl AppHandle<crate::Wry> {
   >(
     &self,
     f: F,
-  ) -> crate::Result<Weak<tauri_runtime_wry::Window>> {
+  ) -> crate::Result<std::sync::Weak<tauri_runtime_wry::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
 
@@ -761,6 +760,10 @@ shared_app_impl!(App<R>);
 shared_app_impl!(AppHandle<R>);
 
 impl<R: Runtime> App<R> {
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(name = "app::core_plugins::register")
+  )]
   fn register_core_plugins(&self) -> crate::Result<()> {
     self.handle.plugin(crate::path::plugin::init())?;
     self.handle.plugin(crate::event::plugin::init())?;
@@ -981,6 +984,23 @@ struct InvokeInitializationScript<'a> {
   use_custom_protocol: bool,
 }
 
+/// Make `Wry` the default `Runtime` for `Builder`
+#[cfg(feature = "wry")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
+impl Default for Builder<crate::Wry> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+#[cfg(not(feature = "wry"))]
+#[cfg_attr(docsrs, doc(cfg(not(feature = "wry"))))]
+impl<R: Runtime> Default for Builder<R> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
@@ -1010,7 +1030,9 @@ impl<R: Runtime> Builder<R> {
       device_event_filter: Default::default(),
     }
   }
+}
 
+impl<R: Runtime> Builder<R> {
   /// Builds a new Tauri application running on any thread, bypassing the main thread requirement.
   ///
   /// ## Platform-specific
@@ -1533,9 +1555,8 @@ impl<R: Runtime> Builder<R> {
     app.manage(env);
 
     app.manage(Scopes {
-      ipc: scope::ipc::Scope::new(app.config()),
       #[cfg(feature = "protocol-asset")]
-      asset_protocol: scope::fs::Scope::new(
+      asset_protocol: crate::scope::fs::Scope::new(
         &app,
         &app.config().tauri.security.asset_protocol.scope,
       )?,
@@ -1646,6 +1667,7 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
   }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(name = "app::setup"))]
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   let window_labels = app
     .config()
@@ -1780,15 +1802,6 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
 
   if let Some(c) = callback {
     c(app_handle, event);
-  }
-}
-
-/// Make `Wry` the default `Runtime` for `Builder`
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-impl Default for Builder<crate::Wry> {
-  fn default() -> Self {
-    Self::new()
   }
 }
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-alpha.14]
+
+### New Features
+
+- [`27bad32d`](https://www.github.com/tauri-apps/tauri/commit/27bad32d4d4acca8155b20225d529d540fb9aaf4)([#7798](https://www.github.com/tauri-apps/tauri/pull/7798)) Add `files` object on the `tauri > bundle > macOS` configuration option.
+- [`27bad32d`](https://www.github.com/tauri-apps/tauri/commit/27bad32d4d4acca8155b20225d529d540fb9aaf4)([#7798](https://www.github.com/tauri-apps/tauri/pull/7798)) Add `files` map on the `MacOsSettings` struct to add custom files to the `.app` bundle.
+
+### Enhancements
+
+- [`091100ac`](https://www.github.com/tauri-apps/tauri/commit/091100acbb507b51de39fb1446f685926f888fd2)([#5202](https://www.github.com/tauri-apps/tauri/pull/5202)) Add RPM packaging
+- [`8032b22f`](https://www.github.com/tauri-apps/tauri/commit/8032b22f2a5b866e4be8b9bd2165eedd09309e15)([#8596](https://www.github.com/tauri-apps/tauri/pull/8596)) Support using socks proxy from environment when downloading files.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.13`
+
 ## \[2.0.0-alpha.13]
 
 ### Dependencies

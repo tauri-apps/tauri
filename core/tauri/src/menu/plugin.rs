@@ -661,7 +661,7 @@ async fn popup<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn default<R: Runtime>(app: AppHandle<R>) -> crate::Result<(ResourceId, MenuId)> {
+fn create_default<R: Runtime>(app: AppHandle<R>) -> crate::Result<(ResourceId, MenuId)> {
   let mut resources_table = app.resources_table();
   let menu = Menu::default(&app)?;
   let id = menu.id().clone();
@@ -858,7 +858,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       items,
       get,
       popup,
-      default,
+      create_default,
       set_as_app_menu,
       set_as_window_menu,
       text,

@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-is-fullscreen"
+description = "Enables the is_fullscreen command without any pre-configured scope."
+commands.allow = ["is_fullscreen"]
+
+[[permission]]
+identifier = "deny-is-fullscreen"
+description = "Denies the is_fullscreen command without any pre-configured scope."
+commands.deny = ["is_fullscreen"]

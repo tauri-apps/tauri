@@ -112,6 +112,10 @@ pub use http;
 #[cfg(feature = "wry")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
+/// A Tauri [`RuntimeHandle`] wrapper around wry.
+#[cfg(feature = "wry")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
+pub type WryHandle = tauri_runtime_wry::WryHandle<EventLoopMessage>;
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
@@ -186,6 +190,7 @@ use std::{
   fmt::{self, Debug},
   sync::MutexGuard,
 };
+use utils::acl::resolved::Resolved;
 
 #[cfg(feature = "wry")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
@@ -275,8 +280,11 @@ pub enum EventLoopMessage {
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
+/// The webview runtime handle. A wrapper arond [`runtime::RuntimeHandle`] with the proper user event type associated.
+pub trait RuntimeHandle: runtime::RuntimeHandle<EventLoopMessage> {}
 
 impl<W: runtime::Runtime<EventLoopMessage>> Runtime for W {}
+impl<R: runtime::RuntimeHandle<EventLoopMessage>> RuntimeHandle for R {}
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///
@@ -415,6 +423,7 @@ pub struct Context<A: Assets> {
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
+  pub(crate) resolved_acl: Resolved,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
@@ -515,6 +524,7 @@ impl<A: Assets> Context<A> {
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
+    resolved_acl: Resolved,
   ) -> Self {
     Self {
       config,
@@ -526,6 +536,7 @@ impl<A: Assets> Context<A> {
       package_info,
       _info_plist: info_plist,
       pattern,
+      resolved_acl,
     }
   }
 
@@ -887,11 +898,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Gets the managed [`Env`].
   fn env(&self) -> Env {
     self.state::<Env>().inner().clone()
-  }
-
-  /// Gets the scope for the IPC.
-  fn ipc_scope(&self) -> scope::ipc::Scope {
-    self.state::<Scopes>().inner().ipc.clone()
   }
 
   /// Gets the scope for the asset protocol.

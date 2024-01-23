@@ -1,5 +1,31 @@
 # Changelog
 
+## \[2.0.0-alpha.21]
+
+### New Features
+
+- [`27bad32d`](https://www.github.com/tauri-apps/tauri/commit/27bad32d4d4acca8155b20225d529d540fb9aaf4)([#7798](https://www.github.com/tauri-apps/tauri/pull/7798)) Add `files` object on the `tauri > bundle > macOS` configuration option.
+- [`0ec28c39`](https://www.github.com/tauri-apps/tauri/commit/0ec28c39f478de7199a66dd75e8642e1aa1344e6)([#8529](https://www.github.com/tauri-apps/tauri/pull/8529)) Include tauri-build on the migration script.
+
+### Enhancements
+
+- [`091100ac`](https://www.github.com/tauri-apps/tauri/commit/091100acbb507b51de39fb1446f685926f888fd2)([#5202](https://www.github.com/tauri-apps/tauri/pull/5202)) Add RPM packaging
+
+### Bug Fixes
+
+- [`4f73057e`](https://www.github.com/tauri-apps/tauri/commit/4f73057e6fd4c137bc112367fb91f5fc0c8a39f6)([#8486](https://www.github.com/tauri-apps/tauri/pull/8486)) Prevent `Invalid target triple` warnings and correctly set `TAURI_ENV_` vars when target triple contains 4 components.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.21`
+
+### Breaking Changes
+
+- [`4f73057e`](https://www.github.com/tauri-apps/tauri/commit/4f73057e6fd4c137bc112367fb91f5fc0c8a39f6)([#8486](https://www.github.com/tauri-apps/tauri/pull/8486)) Removed `TAURI_ENV_PLATFORM_TYPE` which will not be set for CLI hook commands anymore, use `TAURI_ENV_PLATFORM` instead. Also Changed value of `TAURI_ENV_PLATFORM` and `TAURI_ENV_ARCH` values to match the target triple more accurately:
+
+  - `darwin` and `androideabi` are no longer replaced with `macos` and `android` in `TAURI_ENV_PLATFORM`.
+  - `i686` and `i586` are no longer replaced with `x86` in `TAURI_ENV_ARCH`.
+
 ## \[2.0.0-alpha.20]
 
 ### Dependencies

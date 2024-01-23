@@ -22,6 +22,7 @@ use tauri_utils::{
 
 use crate::{
   app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
+  command::RuntimeAuthority,
   event::{assert_event_name_is_valid, Event, EventId, EventSource, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   plugin::PluginStore,
@@ -179,6 +180,7 @@ pub struct Asset {
 
 #[default_runtime(crate::Wry, wry)]
 pub struct AppManager<R: Runtime> {
+  pub runtime_authority: RuntimeAuthority,
   pub window: window::WindowManager<R>,
   pub webview: webview::WebviewManager<R>,
   #[cfg(all(desktop, feature = "tray-icon"))]
@@ -247,6 +249,7 @@ impl<R: Runtime> AppManager<R> {
     }
 
     Self {
+      runtime_authority: RuntimeAuthority::new(context.resolved_acl),
       window: window::WindowManager {
         windows: Mutex::default(),
         default_icon: context.default_window_icon,
@@ -485,6 +488,8 @@ impl<R: Runtime> AppManager<R> {
   {
     assert_event_name_is_valid(event);
 
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("emit::run").entered();
     let emit_args = EmitArgs::from(event, &source, payload)?;
 
     self
@@ -508,6 +513,8 @@ impl<R: Runtime> AppManager<R> {
   ) -> crate::Result<()> {
     assert_event_name_is_valid(event);
 
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("emit::run").entered();
     let emit_args = EmitArgs::from(event, &source, payload)?;
 
     self

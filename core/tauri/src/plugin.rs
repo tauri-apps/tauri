@@ -795,6 +795,9 @@ impl<R: Runtime> PluginStore<R> {
 
   pub(crate) fn on_navigation(&mut self, webview: &Webview<R>, url: &Url) -> bool {
     for plugin in self.store.iter_mut() {
+      #[cfg(feature = "tracing")]
+      let _span =
+        tracing::trace_span!("plugin::hooks::on_navigation", name = plugin.name()).entered();
       if !plugin.on_navigation(webview, url) {
         return false;
       }

@@ -13,7 +13,7 @@
 
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::parse_macro_input;
 
 mod command;
 mod menu;
@@ -87,7 +87,7 @@ pub fn generate_context(items: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStream {
   let attributes = parse_macro_input!(attributes as runtime::Attributes);
-  let input = parse_macro_input!(input as DeriveInput);
+  let input = parse_macro_input!(input as runtime::Input);
   runtime::default_runtime(attributes, input).into()
 }
 

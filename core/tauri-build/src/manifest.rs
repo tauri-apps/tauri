@@ -211,7 +211,7 @@ mod tests {
         },
       ),
     ] {
-      assert_eq!(super::features_diff(&current, &expected), result);
+      assert_eq!(crate::manifest::features_diff(&current, &expected), result);
     }
   }
 }

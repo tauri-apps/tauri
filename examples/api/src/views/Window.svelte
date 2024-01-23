@@ -152,8 +152,9 @@
   function createWebviewWindow() {
     if (!newWebviewLabel) return
 
-    const webview = new WebviewWindow(newWebviewLabel)
-    webviewMap[newWebviewLabel] = webview
+    const label = `main-${newWebviewLabel}`
+    const webview = new WebviewWindow(label)
+    webviewMap[label] = webview
     webview.once('tauri://error', function (e) {
       onMessage('Error creating new webview ' + JSON.stringify(e))
     })
@@ -316,7 +317,11 @@
     <div class="flex gap-1 items-center">
       <label for="windowIconPath"> Icon path </label>
       <form class="flex gap-1 grow" on:submit|preventDefault={setTitle_}>
-        <input id="windowIconPath" class="input grow" bind:value={windowIconPath} />
+        <input
+          id="windowIconPath"
+          class="input grow"
+          bind:value={windowIconPath}
+        />
         <button class="btn" type="submit"> Change window icon </button>
       </form>
     </div>

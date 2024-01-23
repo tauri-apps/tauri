@@ -213,6 +213,13 @@
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"]
     },
+    "tauri-plugin": {
+      "path": "./core/tauri-plugin",
+      "manager": "rust",
+      "dependencies": [
+        "tauri"
+      ]
+    },
     "tauri-build": {
       "path": "./core/tauri-build",
       "manager": "rust",

@@ -12,7 +12,7 @@ pub struct PingRequest {
   pub on_event: Channel,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct PingResponse {
   pub value: Option<String>,
 }

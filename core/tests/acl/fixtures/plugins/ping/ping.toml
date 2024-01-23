@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-ping"
+description = "Enables the ping command without any pre-configured scope."
+commands.allow = ["ping"]

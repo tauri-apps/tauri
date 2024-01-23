@@ -70,6 +70,19 @@ impl Default for DeviceEventFilter {
   }
 }
 
+/// Defines the orientation that a window resize will be performed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum ResizeDirection {
+  East,
+  North,
+  NorthEast,
+  NorthWest,
+  South,
+  SouthEast,
+  SouthWest,
+  West,
+}
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -647,6 +660,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Starts dragging the window.
   fn start_dragging(&self) -> Result<()>;
+
+  /// Starts resize-dragging the window.
+  fn start_resize_dragging(&self, direction: ResizeDirection) -> Result<()>;
 
   /// Sets the taskbar progress state.
   ///

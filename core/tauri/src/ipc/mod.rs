@@ -14,6 +14,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_macros::default_runtime;
+use tauri_utils::acl::resolved::ResolvedCommand;
 
 use crate::{
   command::{CommandArg, CommandItem},
@@ -160,6 +161,9 @@ pub struct Invoke<R: Runtime> {
 
   /// The resolver of the message.
   pub resolver: InvokeResolver<R>,
+
+  /// Resolved ACL for this IPC invoke.
+  pub acl: Option<ResolvedCommand>,
 }
 
 /// Error response from an [`InvokeMessage`].
@@ -203,6 +207,19 @@ pub enum InvokeResponse {
   Ok(InvokeBody),
   /// Reject the promise.
   Err(InvokeError),
+}
+
+impl Serialize for InvokeResponse {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    match self {
+      Self::Ok(InvokeBody::Json(j)) => j.serialize(serializer),
+      Self::Ok(InvokeBody::Raw(b)) => b.serialize(serializer),
+      Self::Err(e) => e.0.serialize(serializer),
+    }
+  }
 }
 
 impl<T: IpcResponse, E: Into<InvokeError>> From<Result<T, E>> for InvokeResponse {

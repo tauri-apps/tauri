@@ -3768,7 +3768,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri",
- "tauri-utils",
  "toml 0.8.2",
 ]
 

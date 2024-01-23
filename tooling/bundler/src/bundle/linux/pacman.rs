@@ -30,7 +30,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     other => other,
   };
   let package_base_name = format!(
-    "{}-{}-1-{}",
+    "{}_{}_{}",
     settings.main_binary_name(),
     settings.version_string(),
     arch
@@ -77,7 +77,7 @@ fn generate_pkgbuild_file(
 
   let authors = settings.authors_comma_separated().unwrap_or_default();
   writeln!(file, "# Maintainer: {}", authors)?;
-  writeln!(file, "pkgname={}-bin", AsKebabCase(settings.product_name()))?;
+  writeln!(file, "pkgname={}", AsKebabCase(settings.product_name()))?;
   writeln!(file, "pkgver={}", settings.version_string())?;
   writeln!(file, "pkgrel=1")?;
   writeln!(file, "epoch=")?;

@@ -7,7 +7,7 @@
 use crate::{
   window::{
     dpi::{Position, Size},
-    is_label_valid, DetachedWindow,
+    is_label_valid,
   },
   Runtime, UserEvent,
 };
@@ -341,4 +341,4 @@ impl WebviewAttributes {
 }
 
 /// IPC handler.
-pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWindow<T, R>, String) + Send>;
+pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, String) + Send>;

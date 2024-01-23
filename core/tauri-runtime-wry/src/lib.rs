@@ -3385,6 +3385,7 @@ fn create_webview<T: UserEvent>(
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       window_id,
+      id,
       context.clone(),
       label.clone(),
       handler,
@@ -3515,24 +3516,23 @@ fn create_webview<T: UserEvent>(
   })
 }
 
-// TODO: use webview instead
 /// Create a wry ipc handler from a tauri ipc handler.
 fn create_ipc_handler<T: UserEvent>(
   window_id: WindowId,
+  webview_id: WebviewId,
   context: Context<T>,
   label: String,
   handler: WebviewIpcHandler<T, Wry<T>>,
 ) -> Box<IpcHandler> {
   Box::new(move |request| {
     handler(
-      DetachedWindow {
-        id: window_id,
+      DetachedWebview {
         label: label.clone(),
-        dispatcher: WryWindowDispatcher {
+        dispatcher: WryWebviewDispatcher {
           window_id,
+          webview_id,
           context: context.clone(),
         },
-        webview: None,
       },
       request,
     );

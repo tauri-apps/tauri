@@ -270,7 +270,7 @@ mod tests {
     assert_eq!(
       authority.resolve_access(
         &command.name,
-        &window.replace("*", "something"),
+        &window.replace('*', "something"),
         Origin::Local
       ),
       Some(&resolved_cmd)
@@ -346,7 +346,7 @@ mod tests {
         &command.name,
         window,
         Origin::Remote {
-          domain: domain.replace("*", "studio")
+          domain: domain.replace('*', "studio")
         }
       ),
       Some(&resolved_cmd)

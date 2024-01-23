@@ -2234,7 +2234,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
       Ok(DetachedWebview { label, dispatcher })
     } else {
-      todo!()
+      Err(Error::WindowNotFound)
     }
   }
 

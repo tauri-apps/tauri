@@ -16,6 +16,7 @@ use crate::{
   ipc::{channel::JavaScriptChannelId, Channel},
   plugin::{Builder, TauriPlugin},
   resources::{ResourceId, ResourceTable},
+  sealed::ManagerBase,
   AppHandle, IconDto, Manager, RunEvent, Runtime, State, Webview, Window,
 };
 use tauri_macros::do_menu_item;
@@ -639,7 +640,7 @@ async fn popup<R: Runtime>(
   at: Option<Position>,
 ) -> crate::Result<()> {
   let window = window
-    .map(|w| app.get_window(&w))
+    .map(|w| app.manager().get_window(&w))
     .unwrap_or(Some(current_window));
 
   if let Some(window) = window {
@@ -692,7 +693,7 @@ async fn set_as_window_menu<R: Runtime>(
   window: Option<String>,
 ) -> crate::Result<Option<(ResourceId, MenuId)>> {
   let window = window
-    .map(|w| app.get_window(&w))
+    .map(|w| app.manager().get_window(&w))
     .unwrap_or(Some(current_window));
 
   if let Some(window) = window {

@@ -726,26 +726,36 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Fetch a single window from the manager.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
   }
 
   /// Fetch the focused window. Returns `None` if there is not any focused window.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   fn get_focused_window(&self) -> Option<Window<R>> {
     self.manager().get_focused_window()
   }
 
   /// Fetch all managed windows.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   fn windows(&self) -> HashMap<String, Window<R>> {
     self.manager().windows()
   }
 
   /// Fetch a single webview from the manager.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   fn get_webview(&self, label: &str) -> Option<Webview<R>> {
     self.manager().get_webview(label)
   }
 
   /// Fetch all managed webviews.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   fn webviews(&self) -> HashMap<String, Webview<R>> {
     self.manager().webviews()
   }

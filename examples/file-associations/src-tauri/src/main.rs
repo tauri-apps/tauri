@@ -41,8 +41,7 @@ fn main() {
         "".into()
       };
 
-      let window = tauri::WindowBuilder::new(app, "main").build().unwrap();
-      tauri::WebviewBuilder::new(&window, "main", Default::default())
+      tauri::WebviewWindowBuilder::new(app, "main", Default::default())
         .initialization_script(&format!("window.openedUrls = `{opened_urls}`"))
         .initialization_script(&format!("console.log(`{opened_urls}`)"))
         .build()
@@ -57,7 +56,7 @@ fn main() {
       |app, event| {
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         if let tauri::RunEvent::Opened { urls } = event {
-          if let Some(w) = app.get_window("main") {
+          if let Some(w) = app.get_webview_window("main") {
             let urls = urls
               .iter()
               .map(|u| u.as_str())

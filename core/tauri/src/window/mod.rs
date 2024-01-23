@@ -148,7 +148,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// ```
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let window = tauri::WindowBuilder::new(app, "label")
+  ///     let window = tauri::window::WindowBuilder::new(app, "label")
   ///       .build()?;
   ///     Ok(())
   ///   });
@@ -161,7 +161,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///   .setup(|app| {
   ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
-  ///       let window = tauri::WindowBuilder::new(&handle, "label")
+  ///       let window = tauri::window::WindowBuilder::new(&handle, "label")
   ///         .build()
   ///         .unwrap();
   ///     });
@@ -174,7 +174,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// ```
   /// #[tauri::command]
   /// async fn create_window(app: tauri::AppHandle) {
-  ///   let window = tauri::WindowBuilder::new(&app, "label")
+  ///   let window = tauri::window::WindowBuilder::new(&app, "label")
   ///     .build()
   ///     .unwrap();
   /// }
@@ -211,7 +211,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// ```
   /// #[tauri::command]
   /// async fn reopen_window(app: tauri::AppHandle) {
-  ///   let window = tauri::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  ///   let window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
   ///     .build()
   ///     .unwrap();
   /// }
@@ -254,7 +254,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///         &save_menu_item,
   ///       ])?,
   ///     ])?;
-  ///     let window = tauri::WindowBuilder::new(app, "editor")
+  ///     let window = tauri::window::WindowBuilder::new(app, "editor")
   ///       .menu(menu)
   ///       .on_menu_event(move |window, event| {
   ///         if event.id == save_menu_item.id() {
@@ -959,7 +959,7 @@ impl<R: Runtime> Window<R> {
   ///         &save_menu_item,
   ///       ])?,
   ///     ])?;
-  ///     let window = tauri::WindowBuilder::new(app, "editor")
+  ///     let window = tauri::window::WindowBuilder::new(app, "editor")
   ///       .menu(menu)
   ///       .build()
   ///       .unwrap();

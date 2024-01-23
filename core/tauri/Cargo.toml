@@ -175,6 +175,7 @@ path = "../../examples/helloworld/main.rs"
 [[example]]
 name = "multiwebview"
 path = "../../examples/multiwebview/main.rs"
+required-features = [ "unstable" ]
 
 [[example]]
 name = "multiwindow"

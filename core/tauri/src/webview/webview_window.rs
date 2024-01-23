@@ -37,6 +37,8 @@ use crate::{
   AppHandle, Event, EventId, Manager, Runtime, Webview, Window, WindowEvent,
 };
 
+use tauri_macros::default_runtime;
+
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
@@ -118,7 +120,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// ```
   /// #[tauri::command]
   /// async fn reopen_window(app: tauri::AppHandle) {
-  ///   let webview_window = tauri::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  ///   let webview_window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
   ///     .build()
   ///     .unwrap();
   /// }
@@ -740,6 +742,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].
+#[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct WebviewWindow<R: Runtime> {
   pub(crate) webview: Webview<R>,
@@ -857,7 +860,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///         &save_menu_item,
   ///       ])?,
   ///     ])?;
-  ///     let webview_window = tauri::WindowBuilder::new(app, "editor")
+  ///     let webview_window = tauri::window::WindowBuilder::new(app, "editor")
   ///       .menu(menu)
   ///       .build()
   ///       .unwrap();

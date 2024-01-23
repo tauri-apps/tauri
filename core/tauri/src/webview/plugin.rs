@@ -18,7 +18,8 @@ mod desktop_commands {
 
   use super::*;
   use crate::{
-    command, utils::config::WindowEffectsConfig, AppHandle, Manager, Webview, WebviewWindowBuilder,
+    command, sealed::ManagerBase, utils::config::WindowEffectsConfig, AppHandle, Webview,
+    WebviewWindowBuilder,
   };
 
   #[derive(Debug, PartialEq, Clone, Deserialize)]
@@ -64,6 +65,7 @@ mod desktop_commands {
     options: WebviewConfig,
   ) -> crate::Result<()> {
     let window = app
+      .manager()
       .get_window(&window_label)
       .ok_or(crate::Error::WindowNotFound)?;
     let mut builder = crate::webview::WebviewBuilder::new(label, options.url);
@@ -90,7 +92,10 @@ mod desktop_commands {
     label: Option<String>,
   ) -> crate::Result<Webview<R>> {
     match label {
-      Some(l) if !l.is_empty() => webview.get_webview(&l).ok_or(crate::Error::WebviewNotFound),
+      Some(l) if !l.is_empty() => webview
+        .manager()
+        .get_webview(&l)
+        .ok_or(crate::Error::WebviewNotFound),
       _ => Ok(webview),
     }
   }

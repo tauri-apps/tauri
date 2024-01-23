@@ -7,6 +7,7 @@ use serde_json::Value as JsonValue;
 use tauri_runtime::window::is_label_valid;
 
 use crate::plugin::{Builder, TauriPlugin};
+use crate::sealed::ManagerBase;
 use crate::{command, ipc::CallbackFn, EventId, Manager, Result, Runtime};
 use crate::{AppHandle, Webview};
 
@@ -70,6 +71,7 @@ pub fn listen<R: Runtime>(
 ) -> Result<EventId> {
   if let Some(l) = webview_label {
     app
+      .manager()
       .get_webview(&l.0)
       .ok_or(crate::Error::WebviewNotFound)?
       .listen_js(EventSource::Webview { label: l.0 }, event.0, handler)

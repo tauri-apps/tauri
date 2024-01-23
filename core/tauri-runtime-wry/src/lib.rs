@@ -3170,6 +3170,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     )?);
   }
 
+  let window = Arc::new(window);
+
   #[cfg(windows)]
   let surface = if is_window_transparent {
     if let Ok(context) = softbuffer::Context::new(window.clone()) {
@@ -3189,7 +3191,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   Ok(WindowWrapper {
     label,
     has_children: AtomicBool::new(false),
-    inner: Some(Arc::new(window)),
+    inner: Some(window),
     webviews,
     window_event_listeners,
     is_window_transparent,

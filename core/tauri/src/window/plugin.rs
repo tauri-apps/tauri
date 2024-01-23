@@ -18,10 +18,11 @@ mod desktop_commands {
   use super::*;
   use crate::{
     command,
+    sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
     window::WindowBuilder,
-    AppHandle, CursorIcon, Icon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
-    Theme, UserAttentionType, Window,
+    AppHandle, CursorIcon, Icon, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
+    UserAttentionType, Window,
   };
 
   #[derive(Deserialize)]
@@ -66,7 +67,10 @@ mod desktop_commands {
 
   fn get_window<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<Window<R>> {
     match label {
-      Some(l) if !l.is_empty() => window.get_window(&l).ok_or(crate::Error::WindowNotFound),
+      Some(l) if !l.is_empty() => window
+        .manager()
+        .get_window(&l)
+        .ok_or(crate::Error::WindowNotFound),
       _ => Ok(window),
     }
   }

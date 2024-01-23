@@ -5,7 +5,7 @@
 use std::path::Path;
 
 use cargo_metadata::{Metadata, MetadataCommand};
-use tauri_utils::acl::{self, Error};
+use tauri::utils::acl::{self, Error};
 
 pub struct Builder<'a> {
   commands: &'a [&'static str],

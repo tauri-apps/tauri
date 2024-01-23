@@ -27,7 +27,8 @@ use crate::{
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::{WindowConfig, WindowEffectsConfig},
-  EventLoopMessage, Manager, Runtime, Theme, Webview, WebviewBuilder, WindowEvent,
+  webview::WebviewBuilder,
+  EventLoopMessage, Manager, Runtime, Theme, Webview, WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
@@ -95,18 +96,32 @@ impl Monitor {
   }
 }
 
-/// A builder for a window managed by Tauri.
-pub struct WindowBuilder<'a, R: Runtime, M: Manager<R>> {
-  manager: &'a M,
-  pub(crate) label: String,
-  pub(crate) window_builder:
-    <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
-  #[cfg(desktop)]
-  pub(crate) menu: Option<Menu<R>>,
-  #[cfg(desktop)]
-  on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
-  window_effects: Option<WindowEffectsConfig>,
+macro_rules! unstable_struct {
+    (#[doc = $doc:expr] $($tokens:tt)*) => {
+      #[cfg(feature = "unstable")]
+      #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+      #[doc = $doc]
+      pub $($tokens)*
+
+      #[cfg(not(feature = "unstable"))]
+      pub(crate) $($tokens)*
+    }
 }
+
+unstable_struct!(
+  #[doc = "A builder for a window managed by Tauri."]
+  struct WindowBuilder<'a, R: Runtime, M: Manager<R>> {
+    manager: &'a M,
+    pub(crate) label: String,
+    pub(crate) window_builder:
+      <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
+    #[cfg(desktop)]
+    pub(crate) menu: Option<Menu<R>>,
+    #[cfg(desktop)]
+    on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
+    window_effects: Option<WindowEffectsConfig>,
+  }
+);
 
 impl<'a, R: Runtime, M: Manager<R>> fmt::Debug for WindowBuilder<'a, R, M> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -117,6 +132,7 @@ impl<'a, R: Runtime, M: Manager<R>> fmt::Debug for WindowBuilder<'a, R, M> {
   }
 }
 
+#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// Initializes a window builder with the given window label.
   ///
@@ -378,6 +394,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
 
 /// Desktop APIs.
 #[cfg(desktop)]
+#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// Sets the menu for the window.
   #[must_use]
@@ -866,13 +883,15 @@ impl<R: Runtime> Window<R> {
   /// Initializes a window builder with the given window label.
   ///
   /// Data URLs are only supported with the `webview-data-url` feature flag.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   pub fn builder<M: Manager<R>, L: Into<String>>(manager: &M, label: L) -> WindowBuilder<'_, R, M> {
     WindowBuilder::new(manager, label.into())
   }
 
   /// Adds a new webview as a child of this window.
-  #[cfg(desktop)]
-  #[cfg_attr(docsrs, doc(cfg(desktop)))]
+  #[cfg(all(desktop, feature = "unstable"))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
   pub fn add_child<P: Into<Position>, S: Into<Size>>(
     &self,
     webview_builder: WebviewBuilder<R>,

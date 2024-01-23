@@ -235,16 +235,31 @@ impl PlatformWebview {
   }
 }
 
-/// A builder for a webview.
-pub struct WebviewBuilder<R: Runtime> {
-  pub(crate) label: String,
-  pub(crate) webview_attributes: WebviewAttributes,
-  pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
-  pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
-  pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
-  pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
+macro_rules! unstable_struct {
+    (#[doc = $doc:expr] $($tokens:tt)*) => {
+      #[cfg(feature = "unstable")]
+      #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+      #[doc = $doc]
+      pub $($tokens)*
+
+      #[cfg(not(feature = "unstable"))]
+      pub(crate) $($tokens)*
+    }
 }
 
+unstable_struct!(
+  #[doc = "A builder for a webview."]
+  struct WebviewBuilder<R: Runtime> {
+    pub(crate) label: String,
+    pub(crate) webview_attributes: WebviewAttributes,
+    pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+    pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
+    pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
+    pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
+  }
+);
+
+#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
   /// Initializes a webview builder with the given webview label and URL to load.
   ///
@@ -803,6 +818,8 @@ impl<R: Runtime> Webview<R> {
   /// Initializes a webview builder with the given window label and URL to load on the webview.
   ///
   /// Data URLs are only supported with the `webview-data-url` feature flag.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   pub fn builder<L: Into<String>>(label: L, url: WebviewUrl) -> WebviewBuilder<R> {
     WebviewBuilder::new(label.into(), url)
   }

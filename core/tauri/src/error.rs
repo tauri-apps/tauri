@@ -142,6 +142,9 @@ pub enum Error {
   /// webview not found.
   #[error("webview not found")]
   WebviewNotFound,
+  /// API requires the unstable feature flag.
+  #[error("this feature requires the `unstable` flag on Cargo.toml")]
+  UnstableFeatureNotSupported,
 }
 
 /// `Result<T, ::tauri::Error>`

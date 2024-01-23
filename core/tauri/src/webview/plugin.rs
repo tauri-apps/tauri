@@ -13,15 +13,12 @@ use crate::{
 mod desktop_commands {
 
   use serde::Deserialize;
-  use tauri_runtime::window::dpi::{
-    LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size,
-  };
+  use tauri_runtime::window::dpi::{Position, Size};
   use tauri_utils::config::{WebviewUrl, WindowConfig};
 
   use super::*;
   use crate::{
-    command, utils::config::WindowEffectsConfig, AppHandle, Manager, Webview, WebviewBuilder,
-    WebviewWindowBuilder,
+    command, utils::config::WindowEffectsConfig, AppHandle, Manager, Webview, WebviewWindowBuilder,
   };
 
   #[derive(Debug, PartialEq, Clone, Deserialize)]
@@ -52,7 +49,13 @@ mod desktop_commands {
     WebviewWindowBuilder::from_config(&app, options).build()?;
     Ok(())
   }
+  #[cfg(not(feature = "unstable"))]
+  #[command(root = "crate")]
+  pub async fn create_webview() -> crate::Result<()> {
+    Err(crate::Error::UnstableFeatureNotSupported)
+  }
 
+  #[cfg(feature = "unstable")]
   #[command(root = "crate")]
   pub async fn create_webview<R: Runtime>(
     app: AppHandle<R>,
@@ -63,7 +66,7 @@ mod desktop_commands {
     let window = app
       .get_window(&window_label)
       .ok_or(crate::Error::WindowNotFound)?;
-    let mut builder = WebviewBuilder::new(label, options.url);
+    let mut builder = crate::webview::WebviewBuilder::new(label, options.url);
 
     builder.webview_attributes.user_agent = options.user_agent;
     builder.webview_attributes.file_drop_handler_enabled =
@@ -75,8 +78,8 @@ mod desktop_commands {
 
     window.add_child(
       builder,
-      LogicalPosition::new(options.x, options.y),
-      LogicalSize::new(options.width, options.height),
+      tauri_runtime::window::dpi::LogicalPosition::new(options.x, options.y),
+      tauri_runtime::window::dpi::LogicalSize::new(options.width, options.height),
     )?;
 
     Ok(())
@@ -133,8 +136,16 @@ mod desktop_commands {
   }
 
   // TODO
-  getter!(webview_position, position, PhysicalPosition<i32>);
-  getter!(webview_size, size, PhysicalSize<u32>);
+  getter!(
+    webview_position,
+    position,
+    tauri_runtime::window::dpi::PhysicalPosition<i32>
+  );
+  getter!(
+    webview_size,
+    size,
+    tauri_runtime::window::dpi::PhysicalSize<u32>
+  );
   //getter!(is_focused, bool);
 
   setter!(print);

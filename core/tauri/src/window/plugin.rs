@@ -19,8 +19,9 @@ mod desktop_commands {
   use crate::{
     command,
     utils::config::{WindowConfig, WindowEffectsConfig},
+    window::WindowBuilder,
     AppHandle, CursorIcon, Icon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
-    Theme, UserAttentionType, Window, WindowBuilder,
+    Theme, UserAttentionType, Window,
   };
 
   #[derive(Deserialize)]

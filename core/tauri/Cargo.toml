@@ -132,6 +132,7 @@ default = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6"
 ]
+unstable = [ ]
 tray-icon = [ "dep:tray-icon" ]
 tracing = [
   "dep:tracing",

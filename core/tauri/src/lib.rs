@@ -13,6 +13,7 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
@@ -221,10 +222,14 @@ pub use {
     config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
   },
-  self::webview::{Webview, WebviewBuilder, WebviewWindow, WebviewWindowBuilder},
-  self::window::{Monitor, Window, WindowBuilder},
+  self::webview::{Webview, WebviewWindow, WebviewWindowBuilder},
+  self::window::{Monitor, Window},
   scope::*,
 };
+
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use {self::webview::WebviewBuilder, self::window::WindowBuilder};
 
 /// The Tauri version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

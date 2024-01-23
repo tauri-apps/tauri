@@ -32,8 +32,9 @@ use crate::{
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::PageLoadPayload,
-  AppHandle, Event, EventId, Manager, Runtime, Webview, WebviewBuilder, Window, WindowBuilder,
-  WindowEvent,
+  webview::WebviewBuilder,
+  window::WindowBuilder,
+  AppHandle, Event, EventId, Manager, Runtime, Webview, Window, WindowEvent,
 };
 
 #[cfg(windows)]
@@ -747,12 +748,6 @@ pub struct WebviewWindow<R: Runtime> {
 impl<R: Runtime> AsRef<Webview<R>> for WebviewWindow<R> {
   fn as_ref(&self) -> &Webview<R> {
     &self.webview
-  }
-}
-
-impl<R: Runtime> AsRef<Window<R>> for WebviewWindow<R> {
-  fn as_ref(&self) -> &Window<R> {
-    self.webview.window()
   }
 }
 

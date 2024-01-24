@@ -69,6 +69,8 @@ pub struct VersionMetadata {
   tauri: String,
   #[serde(rename = "tauri-build")]
   tauri_build: String,
+  #[serde(rename = "tauri-plugin")]
+  tauri_plugin: String,
 }
 
 #[derive(Deserialize)]

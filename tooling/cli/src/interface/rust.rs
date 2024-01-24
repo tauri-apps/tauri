@@ -612,6 +612,7 @@ struct WorkspacePackageSettings {
   description: Option<String>,
   homepage: Option<String>,
   version: Option<String>,
+  license: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -930,7 +931,18 @@ impl RustAppSettings {
           })
           .unwrap()
       }),
-      license: cargo_package_settings.license.clone(),
+      license: cargo_package_settings.license.clone().map(|license| {
+        license
+          .resolve("license", || {
+            ws_package_settings
+              .as_ref()
+              .and_then(|v| v.license.clone())
+              .ok_or_else(|| {
+                anyhow::anyhow!("Couldn't inherit value for `license` from workspace")
+              })
+          })
+          .unwrap()
+      }),
       default_run: cargo_package_settings.default_run.clone(),
     };
 

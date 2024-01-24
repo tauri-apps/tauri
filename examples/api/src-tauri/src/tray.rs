@@ -53,7 +53,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         app.remove_tray_by_id("tray-1");
       }
       "toggle" => {
-        if let Some(window) = app.get_window("main") {
+        if let Some(window) = app.get_webview_window("main") {
           let new_title = if window.is_visible().unwrap_or_default() {
             let _ = window.hide();
             "Show"
@@ -106,7 +106,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     .on_tray_icon_event(|tray, event| {
       if event.click_type == ClickType::Left {
         let app = tray.app_handle();
-        if let Some(window) = app.get_window("main") {
+        if let Some(window) = app.get_webview_window("main") {
           let _ = window.show();
           let _ = window.set_focus();
         }

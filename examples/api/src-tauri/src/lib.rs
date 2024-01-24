@@ -167,7 +167,7 @@ mod tests {
   #[test]
   fn run_app() {
     super::run_app(tauri::test::mock_builder(), |app| {
-      let window = app.get_window("main").unwrap();
+      let window = app.get_webview_window("main").unwrap();
       std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(1));
         window.close().unwrap();

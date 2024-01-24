@@ -81,7 +81,7 @@ enum Predefined {
   Hide,
   HideOthers,
   ShowAll,
-  CloseWebview,
+  CloseWindow,
   Quit,
   About(Option<AboutMetadata>),
   Services,
@@ -270,7 +270,7 @@ impl PredefinedMenuItemPayload {
       Predefined::Hide => PredefinedMenuItem::hide(webview, self.text.as_deref()),
       Predefined::HideOthers => PredefinedMenuItem::hide_others(webview, self.text.as_deref()),
       Predefined::ShowAll => PredefinedMenuItem::show_all(webview, self.text.as_deref()),
-      Predefined::CloseWebview => PredefinedMenuItem::close_window(webview, self.text.as_deref()),
+      Predefined::CloseWindow => PredefinedMenuItem::close_window(webview, self.text.as_deref()),
       Predefined::Quit => PredefinedMenuItem::quit(webview, self.text.as_deref()),
       Predefined::About(metadata) => {
         PredefinedMenuItem::about(webview, self.text.as_deref(), metadata.map(Into::into))
@@ -770,7 +770,7 @@ fn set_accelerator<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn set_as_webviews_menu_for_nsapp<R: Runtime>(
+fn set_as_windows_menu_for_nsapp<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
 ) -> crate::Result<()> {
@@ -867,7 +867,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       is_enabled,
       set_enabled,
       set_accelerator,
-      set_as_webviews_menu_for_nsapp,
+      set_as_windows_menu_for_nsapp,
       set_as_help_menu_for_nsapp,
       is_checked,
       set_checked,

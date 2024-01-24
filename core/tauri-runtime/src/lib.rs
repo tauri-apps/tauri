@@ -217,7 +217,7 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
     before_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>>;
 
-  /// Create a new window.
+  /// Create a new webview.
   fn create_webview(
     &self,
     window_id: WindowId,

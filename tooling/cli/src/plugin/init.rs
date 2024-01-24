@@ -204,6 +204,10 @@ pub fn command(mut options: Options) -> Result<()> {
     )
     .with_context(|| "failed to render plugin Android template")?;
   }
+
+  std::fs::create_dir(template_target_path.join("permissions"))
+    .with_context(|| "failed to create `permissions` directory")?;
+
   Ok(())
 }
 

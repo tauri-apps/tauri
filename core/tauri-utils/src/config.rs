@@ -2754,10 +2754,8 @@ mod test {
     // create a build config
     let build = BuildConfig {
       runner: None,
-      dev_path: Some(AppUrl::Url(WebviewUrl::External(
-        Url::parse("http://localhost:8080").unwrap(),
-      ))),
-      dist_dir: Some(AppUrl::Url(WebviewUrl::App("../dist".into()))),
+      dev_path: None,
+      dist_dir: None,
       before_dev_command: None,
       before_build_command: None,
       before_bundle_command: None,

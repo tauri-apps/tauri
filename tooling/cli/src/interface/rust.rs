@@ -635,7 +635,7 @@ pub struct CargoPackageSettings {
   /// the package's authors.
   pub authors: Option<MaybeWorkspace<Vec<String>>>,
   /// the package's license.
-  pub license: Option<String>,
+  pub license: Option<MaybeWorkspace<String>>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }

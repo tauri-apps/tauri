@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use crate::Result;
 
-pub fn request_input<T>(
+pub fn input<T>(
   prompt: &str,
   initial: Option<T>,
   skip: bool,
@@ -26,4 +26,13 @@ where
 
     builder.interact_text().map(Some).map_err(Into::into)
   }
+}
+
+pub fn confirm(prompt: &str, default: Option<bool>) -> Result<bool> {
+  let theme = dialoguer::theme::ColorfulTheme::default();
+  let mut builder = dialoguer::Confirm::with_theme(&theme).with_prompt(prompt);
+  if let Some(default) = default {
+    builder = builder.default(default);
+  }
+  builder.interact().map_err(Into::into)
 }

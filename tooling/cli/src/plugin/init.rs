@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::prompts::request_input;
+use crate::helpers::prompts::input;
 use crate::Result;
 use crate::{
   helpers::{resolve_tauri_path, template},
@@ -131,7 +131,7 @@ pub fn command(mut options: Options) -> Result<()> {
     }
 
     let plugin_id = if options.android || options.mobile {
-      let plugin_id = request_input(
+      let plugin_id = input(
         "What should be the Android Package ID for your plugin?",
         Some(format!("com.plugin.{}", plugin_name)),
         false,

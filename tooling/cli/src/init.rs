@@ -5,8 +5,7 @@
 use crate::{
   helpers::{
     framework::{infer_from_package_json as infer_framework, Framework},
-    prompts::request_input,
-    resolve_tauri_path, template,
+    prompts, resolve_tauri_path, template,
   },
   VersionMetadata,
 };
@@ -89,7 +88,7 @@ impl Options {
     };
 
     self.app_name = self.app_name.map(|s| Ok(Some(s))).unwrap_or_else(|| {
-      request_input(
+      prompts::input(
         "What is your app name?",
         init_defaults.app_name.clone(),
         self.ci,
@@ -98,7 +97,7 @@ impl Options {
     })?;
 
     self.window_title = self.window_title.map(|s| Ok(Some(s))).unwrap_or_else(|| {
-      request_input(
+      prompts::input(
         "What should the window title be?",
         init_defaults.app_name.clone(),
         self.ci,
@@ -106,7 +105,7 @@ impl Options {
       )
     })?;
 
-    self.dist_dir = self.dist_dir.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
+    self.dist_dir = self.dist_dir.map(|s| Ok(Some(s))).unwrap_or_else(|| prompts::input(
       r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
       init_defaults.framework.as_ref().map(|f| f.dist_dir()),
       self.ci,
@@ -114,7 +113,7 @@ impl Options {
     ))?;
 
     self.dev_path = self.dev_path.map(|s| Ok(Some(s))).unwrap_or_else(|| {
-      request_input(
+      prompts::input(
         "What is the url of your dev server?",
         init_defaults.framework.map(|f| f.dev_path()),
         self.ci,
@@ -126,7 +125,7 @@ impl Options {
       .before_dev_command
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
-        request_input(
+        prompts::input(
           "What is your frontend dev command?",
           Some("npm run dev".to_string()),
           self.ci,
@@ -137,7 +136,7 @@ impl Options {
       .before_build_command
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
-        request_input(
+        prompts::input(
           "What is your frontend build command?",
           Some("npm run build".to_string()),
           self.ci,

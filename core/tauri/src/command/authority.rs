@@ -13,7 +13,7 @@ use tauri_utils::acl::{
   ExecutionContext,
 };
 
-use crate::{ipc::InvokeError, Runtime};
+use crate::{ipc::InvokeError, sealed::ManagerBase, Runtime};
 
 use super::{CommandArg, CommandItem};
 
@@ -127,8 +127,8 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
       .and_then(|scope_id| {
         command
           .message
-          .window
-          .manager
+          .webview
+          .manager()
           .runtime_authority
           .scope_manager
           .get_command_scope_typed(&scope_id)
@@ -161,8 +161,8 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     let scope = command
       .message
-      .window
-      .manager
+      .webview
+      .manager()
       .runtime_authority
       .scope_manager
       .get_global_scope_typed();

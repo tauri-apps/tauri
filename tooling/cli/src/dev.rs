@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WindowUrl},
+    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WebviewUrl},
     resolve_merge_config,
   },
   interface::{AppInterface, DevProcess, ExitReason, Interface},
@@ -195,13 +195,13 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
         if mobile {
           let local_ip_address = local_ip_address(options.force_ip_prompt).to_string();
           before_dev = before_dev.replace("$HOST", &local_ip_address);
-          if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
+          if let AppUrl::Url(WebviewUrl::External(url)) = &mut dev_path {
             url.set_host(Some(&local_ip_address))?;
           }
         } else {
           before_dev = before_dev.replace(
             "$HOST",
-            if let AppUrl::Url(WindowUrl::External(url)) = &dev_path {
+            if let AppUrl::Url(WebviewUrl::External(url)) = &dev_path {
               url.host_str().unwrap_or("0.0.0.0")
             } else {
               "0.0.0.0"
@@ -314,7 +314,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     .dev_path
     .clone();
   if !options.no_dev_server {
-    if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
+    if let AppUrl::Url(WebviewUrl::App(path)) = &dev_path {
       use crate::helpers::web_dev_server::start_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
@@ -325,7 +325,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
         };
         let server_url = start_dev_server(path, ip, options.port)?;
         let server_url = format!("http://{server_url}");
-        dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
+        dev_path = AppUrl::Url(WebviewUrl::External(server_url.parse().unwrap()));
 
         if let Some(c) = &options.config {
           let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
@@ -341,7 +341,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
   }
 
   if !options.no_dev_server_wait {
-    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {
+    if let AppUrl::Url(WebviewUrl::External(dev_server_url)) = dev_path {
       let host = dev_server_url
         .host()
         .unwrap_or_else(|| panic!("No host name in the URL"));

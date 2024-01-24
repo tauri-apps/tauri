@@ -18,7 +18,8 @@ use tauri_utils::acl::resolved::ResolvedCommand;
 
 use crate::{
   command::{CommandArg, CommandItem},
-  Runtime, StateManager, Window,
+  webview::Webview,
+  Runtime, StateManager,
 };
 
 pub(crate) mod channel;
@@ -33,10 +34,10 @@ pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
 pub type InvokeResponder<R> =
-  dyn Fn(&Window<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
+  dyn Fn(&Webview<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
 /// Similar to [`InvokeResponder`] but taking owned arguments.
 pub type OwnedInvokeResponder<R> =
-  dyn FnOnce(Window<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + 'static;
+  dyn FnOnce(Webview<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + 'static;
 
 /// Possible values of an IPC payload.
 #[derive(Debug, Clone)]
@@ -243,7 +244,7 @@ impl From<InvokeError> for InvokeResponse {
 /// Resolver of a invoke message.
 #[default_runtime(crate::Wry, wry)]
 pub struct InvokeResolver<R: Runtime> {
-  window: Window<R>,
+  webview: Webview<R>,
   responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
   cmd: String,
   pub(crate) callback: CallbackFn,
@@ -253,7 +254,7 @@ pub struct InvokeResolver<R: Runtime> {
 impl<R: Runtime> Clone for InvokeResolver<R> {
   fn clone(&self) -> Self {
     Self {
-      window: self.window.clone(),
+      webview: self.webview.clone(),
       responder: self.responder.clone(),
       cmd: self.cmd.clone(),
       callback: self.callback,
@@ -264,14 +265,14 @@ impl<R: Runtime> Clone for InvokeResolver<R> {
 
 impl<R: Runtime> InvokeResolver<R> {
   pub(crate) fn new(
-    window: Window<R>,
+    webview: Webview<R>,
     responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
     cmd: String,
     callback: CallbackFn,
     error: CallbackFn,
   ) -> Self {
     Self {
-      window,
+      webview,
       responder,
       cmd,
       callback,
@@ -287,7 +288,7 @@ impl<R: Runtime> InvokeResolver<R> {
   {
     crate::async_runtime::spawn(async move {
       Self::return_task(
-        self.window,
+        self.webview,
         self.responder,
         task,
         self.cmd,
@@ -309,7 +310,7 @@ impl<R: Runtime> InvokeResolver<R> {
         Err(err) => InvokeResponse::Err(err),
       };
       Self::return_result(
-        self.window,
+        self.webview,
         self.responder,
         response,
         self.cmd,
@@ -322,7 +323,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// Reply to the invoke promise with a serializable value.
   pub fn respond<T: IpcResponse>(self, value: Result<T, InvokeError>) {
     Self::return_result(
-      self.window,
+      self.webview,
       self.responder,
       value.into(),
       self.cmd,
@@ -339,7 +340,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// Reject the invoke promise with a value.
   pub fn reject<T: Serialize>(self, value: T) {
     Self::return_result(
-      self.window,
+      self.webview,
       self.responder,
       Result::<(), _>::Err(value).into(),
       self.cmd,
@@ -351,7 +352,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// Reject the invoke promise with an [`InvokeError`].
   pub fn invoke_error(self, error: InvokeError) {
     Self::return_result(
-      self.window,
+      self.webview,
       self.responder,
       error.into(),
       self.cmd,
@@ -366,7 +367,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
   /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
   pub async fn return_task<T, F>(
-    window: Window<R>,
+    webview: Webview<R>,
     responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
     task: F,
     cmd: String,
@@ -378,7 +379,7 @@ impl<R: Runtime> InvokeResolver<R> {
   {
     let result = task.await;
     Self::return_closure(
-      window,
+      webview,
       responder,
       || result,
       cmd,
@@ -388,7 +389,7 @@ impl<R: Runtime> InvokeResolver<R> {
   }
 
   pub(crate) fn return_closure<T: IpcResponse, F: FnOnce() -> Result<T, InvokeError>>(
-    window: Window<R>,
+    webview: Webview<R>,
     responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
     f: F,
     cmd: String,
@@ -396,7 +397,7 @@ impl<R: Runtime> InvokeResolver<R> {
     error_callback: CallbackFn,
   ) {
     Self::return_result(
-      window,
+      webview,
       responder,
       f().into(),
       cmd,
@@ -406,7 +407,7 @@ impl<R: Runtime> InvokeResolver<R> {
   }
 
   pub(crate) fn return_result(
-    window: Window<R>,
+    webview: Webview<R>,
     responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
     response: InvokeResponse,
     cmd: String,
@@ -414,7 +415,7 @@ impl<R: Runtime> InvokeResolver<R> {
     error_callback: CallbackFn,
   ) {
     (responder.lock().unwrap().take().expect("resolver consumed"))(
-      window,
+      webview,
       cmd,
       response,
       success_callback,
@@ -427,8 +428,8 @@ impl<R: Runtime> InvokeResolver<R> {
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct InvokeMessage<R: Runtime> {
-  /// The window that received the invoke message.
-  pub(crate) window: Window<R>,
+  /// The webview that received the invoke message.
+  pub(crate) webview: Webview<R>,
   /// Application managed state.
   pub(crate) state: Arc<StateManager>,
   /// The IPC command.
@@ -442,7 +443,7 @@ pub struct InvokeMessage<R: Runtime> {
 impl<R: Runtime> Clone for InvokeMessage<R> {
   fn clone(&self) -> Self {
     Self {
-      window: self.window.clone(),
+      webview: self.webview.clone(),
       state: self.state.clone(),
       command: self.command.clone(),
       payload: self.payload.clone(),
@@ -452,16 +453,16 @@ impl<R: Runtime> Clone for InvokeMessage<R> {
 }
 
 impl<R: Runtime> InvokeMessage<R> {
-  /// Create an new [`InvokeMessage`] from a payload send to a window.
+  /// Create an new [`InvokeMessage`] from a payload send by a webview.
   pub(crate) fn new(
-    window: Window<R>,
+    webview: Webview<R>,
     state: Arc<StateManager>,
     command: String,
     payload: InvokeBody,
     headers: HeaderMap,
   ) -> Self {
     Self {
-      window,
+      webview,
       state,
       command,
       payload,
@@ -475,16 +476,16 @@ impl<R: Runtime> InvokeMessage<R> {
     &self.command
   }
 
-  /// The window that received the invoke.
+  /// The webview that received the invoke.
   #[inline(always)]
-  pub fn window(&self) -> Window<R> {
-    self.window.clone()
+  pub fn webview(&self) -> Webview<R> {
+    self.webview.clone()
   }
 
-  /// A reference to window that received the invoke.
+  /// A reference to webview that received the invoke.
   #[inline(always)]
-  pub fn window_ref(&self) -> &Window<R> {
-    &self.window
+  pub fn webview_ref(&self) -> &Webview<R> {
+    &self.webview
   }
 
   /// A reference to the payload the invoke received.

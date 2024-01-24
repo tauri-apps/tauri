@@ -13,14 +13,15 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
-//! - **test**: Enables the [`test`] module exposing unit test helpers.
+//! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
 //! - **linux-ipc-protocol**: Use custom protocol for faster IPC on Linux. Requires webkit2gtk v2.40 or above.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
-//! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
+//! - **devtools**: Enables the developer tools (Web inspector) and [`window::Window#method.open_devtools`]. Enabled by default on debug builds.
 //! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
 //! - **native-tls**: Provides TLS support to connect over HTTPS.
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL.
@@ -28,7 +29,7 @@
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **tray-icon**: Enables application tray icon APIs. Enabled by default if the `trayIcon` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
-//! - **window-data-url**: Enables usage of data URLs on the webview.
+//! - **webview-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
@@ -66,6 +67,7 @@ pub use cocoa;
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
+use event::EventSource;
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -86,6 +88,7 @@ pub mod plugin;
 pub(crate) mod protocol;
 mod resources;
 mod vibrancy;
+pub mod webview;
 pub mod window;
 use tauri_runtime as runtime;
 #[cfg(target_os = "ios")]
@@ -216,12 +219,17 @@ pub use {
   self::state::{State, StateManager},
   self::utils::{
     assets::Assets,
-    config::{Config, WindowUrl},
+    config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
   },
-  self::window::{Monitor, Window, WindowBuilder},
+  self::webview::{Webview, WebviewWindow, WebviewWindowBuilder},
+  self::window::{Monitor, Window},
   scope::*,
 };
+
+#[cfg(feature = "unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+pub use {self::webview::WebviewBuilder, self::window::WindowBuilder};
 
 /// The Tauri version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -637,7 +645,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().once(event.into(), None, handler)
   }
 
-  /// Emits an event to all windows.
+  /// Emits an event to all webviews.
   ///
   /// If using [`Window`] to emit the event, it will be used as the source.
   ///
@@ -647,7 +655,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// #[tauri::command]
   /// fn synchronize(app: tauri::AppHandle) {
-  ///   // emits the synchronized event to all windows
+  ///   // emits the synchronized event to all webviews
   ///   app.emit("synchronized", ());
   /// }
   /// ```
@@ -656,10 +664,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     tracing::instrument("app::emit", skip(self, payload))
   )]
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-    self.manager().emit(event, None, payload)
+    self.manager().emit(event, EventSource::Global, payload)
   }
 
-  /// Emits an event to the window with the specified label.
+  /// Emits an event to the webview with the specified label.
   ///
   /// If using [`Window`] to emit the event, it will be used as the source.
   ///
@@ -683,10 +691,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
-      .emit_filter(event, None, payload, |w| label == w.label())
+      .emit_filter(event, EventSource::Global, payload, |w| label == w.label())
   }
 
-  /// Emits an event to specific windows based on a filter.
+  /// Emits an event to specific webviews based on a filter.
   ///
   /// If using [`Window`] to emit the event, it will be used as the source.
   ///
@@ -710,23 +718,73 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Window<R>) -> bool,
+    F: Fn(&Webview<R>) -> bool,
   {
-    self.manager().emit_filter(event, None, payload, filter)
+    self
+      .manager()
+      .emit_filter(event, EventSource::Global, payload, filter)
   }
 
   /// Fetch a single window from the manager.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   fn get_window(&self, label: &str) -> Option<Window<R>> {
     self.manager().get_window(label)
   }
+
   /// Fetch the focused window. Returns `None` if there is not any focused window.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   fn get_focused_window(&self) -> Option<Window<R>> {
     self.manager().get_focused_window()
   }
 
   /// Fetch all managed windows.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   fn windows(&self) -> HashMap<String, Window<R>> {
     self.manager().windows()
+  }
+
+  /// Fetch a single webview from the manager.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+  fn get_webview(&self, label: &str) -> Option<Webview<R>> {
+    self.manager().get_webview(label)
+  }
+
+  /// Fetch all managed webviews.
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+  fn webviews(&self) -> HashMap<String, Webview<R>> {
+    self.manager().webviews()
+  }
+
+  /// Fetch a single webview window from the manager.
+  fn get_webview_window(&self, label: &str) -> Option<WebviewWindow<R>> {
+    self.manager().get_webview(label).and_then(|webview| {
+      if webview.window().webview_window {
+        Some(WebviewWindow { webview })
+      } else {
+        None
+      }
+    })
+  }
+
+  /// Fetch all managed webview windows.
+  fn webview_windows(&self) -> HashMap<String, WebviewWindow<R>> {
+    self
+      .manager()
+      .webviews()
+      .into_iter()
+      .filter_map(|(label, webview)| {
+        if webview.window().webview_window {
+          Some((label, WebviewWindow { webview }))
+        } else {
+          None
+        }
+      })
+      .collect::<HashMap<_, _>>()
   }
 
   /// Add `state` to the state managed by the application.
@@ -884,7 +942,7 @@ pub(crate) mod sealed {
     RuntimeHandle(R::Handle),
 
     /// A dispatcher to the running [`Runtime`].
-    Dispatch(R::Dispatcher),
+    Dispatch(R::WindowDispatcher),
   }
 
   /// Managed handle to the application runtime.

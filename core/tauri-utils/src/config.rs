@@ -1846,7 +1846,7 @@ pub enum HookCommand {
 ///
 /// See more: <https://tauri.app/v1/api/config#buildconfig>
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
@@ -1894,21 +1894,6 @@ pub struct BuildConfig {
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
-}
-
-impl Default for BuildConfig {
-  fn default() -> Self {
-    Self {
-      runner: None,
-      dev_path: None,
-      dist_dir: None,
-      before_dev_command: None,
-      before_build_command: None,
-      before_bundle_command: None,
-      features: None,
-      with_global_tauri: false,
-    }
-  }
 }
 
 #[derive(Debug, PartialEq, Eq)]

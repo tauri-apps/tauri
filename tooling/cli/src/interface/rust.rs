@@ -937,9 +937,7 @@ impl RustAppSettings {
             ws_package_settings
               .as_ref()
               .and_then(|v| v.license.clone())
-              .ok_or_else(|| {
-                anyhow::anyhow!("Couldn't inherit value for `license` from workspace")
-              })
+              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `license` from workspace"))
           })
           .unwrap()
       }),

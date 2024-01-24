@@ -270,7 +270,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     )?;
   }
 
-  if let AppUrl::Url(WebviewUrl::App(web_asset_path)) = &config_.build.dist_dir {
+  if let Some(AppUrl::Url(WebviewUrl::App(web_asset_path))) = &config_.build.dist_dir {
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
           "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",

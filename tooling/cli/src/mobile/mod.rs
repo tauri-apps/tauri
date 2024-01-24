@@ -168,7 +168,7 @@ fn setup_dev_config(
     .dev_path
     .clone();
 
-  if let AppUrl::Url(WebviewUrl::External(url)) = &mut dev_path {
+  if let Some(AppUrl::Url(WebviewUrl::External(url))) = dev_path.as_mut() {
     let localhost = match url.host() {
       Some(url::Host::Domain(d)) => d == "localhost",
       Some(url::Host::Ipv4(i)) => {

@@ -387,7 +387,7 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(windows)]
-  fn drag_and_drop(mut self, enabled: bool) -> Self {
+  fn drag_and_drop(self, enabled: bool) -> Self {
     self
   }
 

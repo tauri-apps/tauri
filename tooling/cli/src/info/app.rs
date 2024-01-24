@@ -33,11 +33,13 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
         .unwrap_or_else(|| "unset".to_string());
       items.push(SectionItem::new().description(format!("CSP: {csp}")));
 
-      let dist_dir = &config.build.dist_dir;
-      items.push(SectionItem::new().description(format!("distDir: {dist_dir}")));
+      if let Some(dist_dir) = &config.build.dist_dir {
+        items.push(SectionItem::new().description(format!("distDir: {dist_dir}")));
+      }
 
-      let dev_path = &config.build.dev_path;
-      items.push(SectionItem::new().description(format!("devPath: {dev_path}")));
+      if let Some(dev_path) = &config.build.dev_path {
+        items.push(SectionItem::new().description(format!("devPath: {dev_path}")));
+      }
 
       if let Some(app_dir) = app_dir {
         if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {

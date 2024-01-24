@@ -175,7 +175,6 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     command
       .plugin
-      .as_deref()
       .and_then(|plugin| {
         command
           .message

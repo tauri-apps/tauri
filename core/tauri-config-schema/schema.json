@@ -1368,7 +1368,7 @@
       "type": "object",
       "properties": {
         "depends": {
-          "description": "List of Pacman dependencies.",
+          "description": "List of softwares that must be installed for the app to build and run.\n\nSee : <https://wiki.archlinux.org/title/PKGBUILD#provides>",
           "type": [
             "array",
             "null"
@@ -1378,7 +1378,7 @@
           }
         },
         "provides": {
-          "description": "Additional packages that are provided by this app.",
+          "description": "Additional packages that are provided by this app.\n\nSee : <https://wiki.archlinux.org/title/PKGBUILD#provides>",
           "type": [
             "array",
             "null"
@@ -1388,7 +1388,7 @@
           }
         },
         "conflicts": {
-          "description": "Packages that conflict with the app.",
+          "description": "Packages that conflict or cause problems with the app. All these packages and packages providing this item will need to be removed\n\nSee : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>",
           "type": [
             "array",
             "null"
@@ -1398,7 +1398,7 @@
           }
         },
         "replaces": {
-          "description": "Only use if this app replaces some obsolete packages",
+          "description": "Only use if this app replaces some obsolete packages. For example, if you rename any package.\n\nSee : <https://wiki.archlinux.org/title/PKGBUILD#replaces>",
           "type": [
             "array",
             "null"

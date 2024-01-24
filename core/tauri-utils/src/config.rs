@@ -300,18 +300,27 @@ pub struct DebConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PacmanConfig {
-  // Arch Linux Specific settings.
-  /// List of Pacman dependencies.
-  pub depends: Option<Vec<String>>,
-  /// Additional packages that are provided by this app.
-  pub provides: Option<Vec<String>>,
-  /// Packages that conflict with the app.
-  pub conflicts: Option<Vec<String>>,
-  /// Only use if this app replaces some obsolete packages
-  pub replaces: Option<Vec<String>>,
-  /// Source of the package to be stored at PKGBUILD.
-  /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
-  pub source: Option<Vec<String>>,
+    /// List of softwares that must be installed for the app to build and run.
+    ///
+    /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+    pub depends: Option<Vec<String>>,
+    /// Additional packages that are provided by this app.
+    ///
+    /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+    pub provides: Option<Vec<String>>,
+    /// Packages that conflict or cause problems with the app.
+    /// All these packages and packages providing this item will need to be removed
+    ///
+    /// See : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>
+    pub conflicts: Option<Vec<String>>,
+    /// Only use if this app replaces some obsolete packages.
+    /// For example, if you rename any package.
+    ///
+    /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
+    pub replaces: Option<Vec<String>>,
+    /// Source of the package to be stored at PKGBUILD.
+    /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+    pub source: Option<Vec<String>>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>

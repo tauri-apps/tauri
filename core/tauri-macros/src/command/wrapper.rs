@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::env::var;
+
 use heck::{ToLowerCamelCase, ToSnakeCase};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
@@ -203,13 +205,17 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     }
   }
 
+  let plugin_name = var("CARGO_PKG_NAME")
+    .expect("missing `CARGO_PKG_NAME` environment variable")
+    .strip_prefix("tauri-plugin-")
+    .map(|name| quote!(::core::option::Option::Some(#name)))
+    .unwrap_or_else(|| quote!(::core::option::Option::None));
+
   let body = match attrs.execution_context {
-    ExecutionContext::Async => {
-      body_async(&function, &invoke, &attrs).unwrap_or_else(syn::Error::into_compile_error)
-    }
-    ExecutionContext::Blocking => {
-      body_blocking(&function, &invoke, &attrs).unwrap_or_else(syn::Error::into_compile_error)
-    }
+    ExecutionContext::Async => body_async(&plugin_name, &function, &invoke, &attrs)
+      .unwrap_or_else(syn::Error::into_compile_error),
+    ExecutionContext::Blocking => body_blocking(&plugin_name, &function, &invoke, &attrs)
+      .unwrap_or_else(syn::Error::into_compile_error),
   };
 
   let Invoke {
@@ -282,6 +288,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
 fn body_async(
+  plugin_name: &TokenStream2,
   function: &ItemFn,
   invoke: &Invoke,
   attributes: &WrapperAttributes,
@@ -291,7 +298,7 @@ fn body_async(
     resolver,
     acl,
   } = invoke;
-  parse_args(function, message, acl, attributes).map(|args| {
+  parse_args(plugin_name, function, message, acl, attributes).map(|args| {
     #[cfg(feature = "tracing")]
     quote! {
       use tracing::Instrument;
@@ -324,6 +331,7 @@ fn body_async(
 ///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
 fn body_blocking(
+  plugin_name: &TokenStream2,
   function: &ItemFn,
   invoke: &Invoke,
   attributes: &WrapperAttributes,
@@ -333,7 +341,7 @@ fn body_blocking(
     resolver,
     acl,
   } = invoke;
-  let args = parse_args(function, message, acl, attributes)?;
+  let args = parse_args(plugin_name, function, message, acl, attributes)?;
 
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
@@ -358,6 +366,7 @@ fn body_blocking(
 
 /// Parse all arguments for the command wrapper to use from the signature of the command function.
 fn parse_args(
+  plugin_name: &TokenStream2,
   function: &ItemFn,
   message: &Ident,
   acl: &Ident,
@@ -367,12 +376,22 @@ fn parse_args(
     .sig
     .inputs
     .iter()
-    .map(|arg| parse_arg(&function.sig.ident, arg, message, acl, attributes))
+    .map(|arg| {
+      parse_arg(
+        plugin_name,
+        &function.sig.ident,
+        arg,
+        message,
+        acl,
+        attributes,
+      )
+    })
     .collect()
 }
 
 /// Transform a [`FnArg`] into a command argument.
 fn parse_arg(
+  plugin_name: &TokenStream2,
   command: &Ident,
   arg: &FnArg,
   message: &Ident,
@@ -425,6 +444,7 @@ fn parse_arg(
 
   Ok(quote!(#root::command::CommandArg::from_command(
     #root::command::CommandItem {
+      plugin: #plugin_name,
       name: stringify!(#command),
       key: #key,
       message: &#message,

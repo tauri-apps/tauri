@@ -6,6 +6,7 @@
 
 use crate::{
   app::UriSchemeResponder,
+  command::ScopeValue,
   ipc::{Invoke, InvokeHandler},
   manager::webview::UriSchemeProtocol,
   utils::config::PluginConfig,
@@ -17,7 +18,12 @@ use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 use url::Url;
 
-use std::{borrow::Cow, collections::HashMap, fmt, sync::Arc};
+use std::{
+  borrow::Cow,
+  collections::HashMap,
+  fmt::{self, Debug},
+  sync::Arc,
+};
 
 /// Mobile APIs.
 #[cfg(mobile)]
@@ -131,6 +137,18 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   /// Returns the application handle.
   pub fn app(&self) -> &AppHandle<R> {
     &self.handle
+  }
+
+  /// Gets the global scope defined on the permissions that are part of the app ACL.
+  pub fn scope<T: Debug + DeserializeOwned + Send + Sync + 'static>(
+    &self,
+  ) -> crate::Result<&ScopeValue<T>> {
+    self
+      .handle
+      .manager
+      .runtime_authority
+      .scope_manager
+      .get_global_scope_typed(self.name)
   }
 }
 

@@ -230,7 +230,7 @@ impl<T: UserEvent> Context<T> {
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Wry<T>>,
-    before_window_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
     let context = self.clone();
@@ -248,7 +248,7 @@ impl<T: UserEvent> Context<T> {
             event_loop,
             &context,
             pending,
-            before_window_creation,
+            after_window_creation,
           )
         }),
       ),
@@ -1532,9 +1532,9 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
-    before_window_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    self.context.create_window(pending, before_window_creation)
+    self.context.create_window(pending, after_window_creation)
   }
 
   // Creates a webview by dispatching a message to the event loop.
@@ -1974,9 +1974,9 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
-    before_window_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    self.context.create_window(pending, before_window_creation)
+    self.context.create_window(pending, after_window_creation)
   }
 
   // Creates a webview by dispatching a message to the event loop.
@@ -2141,7 +2141,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self>,
-    before_window_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
     let window_id = self.context.next_window_id();
@@ -2156,7 +2156,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       &self.event_loop,
       &self.context,
       pending,
-      before_window_creation,
+      after_window_creation,
     )?;
 
     let dispatcher = WryWindowDispatcher {
@@ -3078,7 +3078,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   context: &Context<T>,
   pending: PendingWindow<T, Wry<T>>,
-  before_window_creation: Option<F>,
+  after_window_creation: Option<F>,
 ) -> Result<WindowWrapper> {
   #[allow(unused_mut)]
   let PendingWindow {
@@ -3132,7 +3132,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     let _ = center_window(&window, window.inner_size());
   }
 
-  if let Some(handler) = before_window_creation {
+  if let Some(handler) = after_window_creation {
     let raw = RawWindow {
       #[cfg(windows)]
       hwnd: window.hwnd(),

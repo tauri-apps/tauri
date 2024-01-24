@@ -299,7 +299,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self>,
-    before_webview_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>>;
 
   /// Create a new webview.
@@ -538,7 +538,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
-    before_webview_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Create a new webview.

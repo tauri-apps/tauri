@@ -122,7 +122,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
-    _before_webview_creation: Option<F>,
+    _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = self.context.next_window_id();
 
@@ -641,7 +641,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
-    _before_webview_creation: Option<F>,
+    _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
     let id = self.context.next_window_id();
 
@@ -902,7 +902,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self>,
-    _before_webview_creation: Option<F>,
+    _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     let id = self.context.next_window_id();
 

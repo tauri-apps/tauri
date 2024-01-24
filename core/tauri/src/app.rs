@@ -1088,15 +1088,20 @@ impl<R: Runtime> Builder<R> {
   /// Defines the setup hook.
   ///
   /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let main_window = app.get_window("main").unwrap();
-  ///     main_window.set_title("Tauri!");
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::Manager;
+tauri::Builder::default()
+  .setup(|app| {
+    let main_window = app.get_window("main").unwrap();
+    main_window.set_title("Tauri!");
+    Ok(())
+  });
+```
+  "####
+  )]
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
@@ -1169,7 +1174,7 @@ impl<R: Runtime> Builder<R> {
   /// refers to a different `T`.
   ///
   /// Managed state can be retrieved by any command handler via the
-  /// [`State`] guard. In particular, if a value of type `T`
+  /// [`crate::State`] guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
   /// Additionally, [`state`](crate::Manager#method.state) can be used to retrieve the value manually.

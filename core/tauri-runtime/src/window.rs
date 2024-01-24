@@ -192,14 +192,14 @@ impl<'de> Deserialize<'de> for CursorIcon {
   }
 }
 
-/// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::Runtime).
+/// Do **NOT** implement this trait except for use in a custom [`Runtime`]
 ///
 /// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
 pub trait WindowBuilderBase: std::fmt::Debug + Clone + Sized {}
 
 /// A builder for all attributes related to a single window.
 ///
-/// This trait is only meant to be implemented by a custom [`Runtime`](crate::Runtime)
+/// This trait is only meant to be implemented by a custom [`Runtime`]
 /// and not by applications.
 pub trait WindowBuilder: WindowBuilderBase {
   /// Initializes a new window attributes builder.

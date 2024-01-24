@@ -402,7 +402,7 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Bring the window to front and focus the webview.
   fn set_focus(&self) -> Result<()>;
 
-  /// Executes javascript on the window this [`Dispatch`] represents.
+  /// Executes javascript on the window this [`WindowDispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
 }
 

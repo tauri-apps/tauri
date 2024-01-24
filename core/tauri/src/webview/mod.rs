@@ -92,7 +92,7 @@ pub enum DownloadEvent<'a> {
   },
 }
 
-/// The payload for the [`WindowBuilder::on_page_load`] hook.
+/// The payload for the [`WebviewBuilder::on_page_load`] hook.
 #[derive(Debug, Clone)]
 pub struct PageLoadPayload<'a> {
   pub(crate) url: &'a Url,
@@ -272,41 +272,56 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// - Create a webview in the setup hook:
   ///
-  /// ```
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
-  ///     let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
-  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+tauri::Builder::default()
+  .setup(|app| {
+    let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+    let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
+    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+    Ok(())
+  });
+```
+  "####
+  )]
   ///
   /// - Create a webview in a separate thread:
   ///
-  /// ```
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let handle = app.handle().clone();
-  ///     std::thread::spawn(move || {
-  ///       let window = tauri::window::WindowBuilder::new(&handle, "label").build().unwrap();
-  ///       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
-  ///       window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
-  ///     });
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+tauri::Builder::default()
+  .setup(|app| {
+    let handle = app.handle().clone();
+    std::thread::spawn(move || {
+      let window = tauri::window::WindowBuilder::new(&handle, "label").build().unwrap();
+      let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
+      window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+    });
+    Ok(())
+  });
+```
+   "####
+  )]
   ///
   /// - Create a webview in a command:
   ///
-  /// ```
-  /// #[tauri::command]
-  /// async fn create_window(app: tauri::AppHandle) {
-  ///   let window = tauri::window::WindowBuilder::new(&app, "label").build().unwrap();
-  ///   let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()));
-  ///   window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
-  /// }
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+#[tauri::command]
+async fn create_window(app: tauri::AppHandle) {
+  let window = tauri::window::WindowBuilder::new(&app, "label").build().unwrap();
+  let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()));
+  window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+}
+```
+  "####
+  )]
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<L: Into<String>>(label: L, url: WebviewUrl) -> Self {
@@ -333,14 +348,19 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// - Create a webview in a command:
   ///
-  /// ```
-  /// #[tauri::command]
-  /// async fn reopen_window(app: tauri::AppHandle) {
-  ///   let window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
-  ///     .build()
-  ///     .unwrap();
-  /// }
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+#[tauri::command]
+async fn reopen_window(app: tauri::AppHandle) {
+  let window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+    .build()
+    .unwrap();
+}
+```
+  "####
+  )]
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(config: WindowConfig) -> Self {
@@ -363,39 +383,44 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// use tauri::{
-  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
-  ///   window::WindowBuilder,
-  ///   webview::WebviewBuilder,
-  /// };
-  /// use http::header::HeaderValue;
-  /// use std::collections::HashMap;
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
-  ///
-  ///     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
-  ///       .on_web_resource_request(|request, response| {
-  ///         if request.uri().scheme_str() == Some("tauri") {
-  ///           // if we have a CSP header, Tauri is loading an HTML file
-  ///           //  for this example, let's dynamically change the CSP
-  ///           if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
-  ///             // use the tauri helper to parse the CSP policy to a map
-  ///             let mut csp_map: HashMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
-  ///             csp_map.entry("script-src".to_string()).or_insert_with(Default::default).push("'unsafe-inline'");
-  ///             // use the tauri helper to get a CSP string from the map
-  ///             let csp_string = Csp::from(csp_map).to_string();
-  ///             *csp = HeaderValue::from_str(&csp_string).unwrap();
-  ///           }
-  ///         }
-  ///       });
-  ///
-  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
-  ///
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{
+  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  window::WindowBuilder,
+  webview::WebviewBuilder,
+};
+use http::header::HeaderValue;
+use std::collections::HashMap;
+tauri::Builder::default()
+  .setup(|app| {
+    let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+
+    let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+      .on_web_resource_request(|request, response| {
+        if request.uri().scheme_str() == Some("tauri") {
+          // if we have a CSP header, Tauri is loading an HTML file
+          //  for this example, let's dynamically change the CSP
+          if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
+            // use the tauri helper to parse the CSP policy to a map
+            let mut csp_map: HashMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
+            csp_map.entry("script-src".to_string()).or_insert_with(Default::default).push("'unsafe-inline'");
+            // use the tauri helper to get a CSP string from the map
+            let csp_string = Csp::from(csp_map).to_string();
+            *csp = HeaderValue::from_str(&csp_string).unwrap();
+          }
+        }
+      });
+
+    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn on_web_resource_request<
     F: Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync + 'static,
   >(
@@ -410,28 +435,33 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// use tauri::{
-  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
-  ///   window::WindowBuilder,
-  ///   webview::WebviewBuilder,
-  /// };
-  /// use http::header::HeaderValue;
-  /// use std::collections::HashMap;
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
-  ///
-  ///     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
-  ///       .on_navigation(|url| {
-  ///         // allow the production URL or localhost on dev
-  ///         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
-  ///       });
-  ///
-  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{
+  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  window::WindowBuilder,
+  webview::WebviewBuilder,
+};
+use http::header::HeaderValue;
+use std::collections::HashMap;
+tauri::Builder::default()
+  .setup(|app| {
+    let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+
+    let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+      .on_navigation(|url| {
+        // allow the production URL or localhost on dev
+        url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
+      });
+
+    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
     self
@@ -443,36 +473,41 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// use tauri::{
-  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
-  ///   window::WindowBuilder,
-  ///   webview::{DownloadEvent, WebviewBuilder},
-  /// };
-  ///
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = WindowBuilder::new(app, "label").build()?;
-  ///     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
-  ///       .on_download(|webview, event| {
-  ///         match event {
-  ///           DownloadEvent::Requested { url, destination } => {
-  ///             println!("downloading {}", url);
-  ///             *destination = "/home/tauri/target/path".into();
-  ///           }
-  ///           DownloadEvent::Finished { url, path, success } => {
-  ///             println!("downloaded {} to {:?}, success: {}", url, path, success);
-  ///           }
-  ///           _ => (),
-  ///         }
-  ///         // let the download start
-  ///         true
-  ///       });
-  ///
-  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{
+  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  window::WindowBuilder,
+  webview::{DownloadEvent, WebviewBuilder},
+};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let window = WindowBuilder::new(app, "label").build()?;
+    let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+      .on_download(|webview, event| {
+        match event {
+          DownloadEvent::Requested { url, destination } => {
+            println!("downloading {}", url);
+            *destination = "/home/tauri/target/path".into();
+          }
+          DownloadEvent::Finished { url, path, success } => {
+            println!("downloaded {} to {:?}, success: {}", url, path, success);
+          }
+          _ => (),
+        }
+        // let the download start
+        true
+      });
+
+    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn on_download<F: Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync + 'static>(
     mut self,
     f: F,
@@ -487,32 +522,37 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// use tauri::{
-  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
-  ///   window::WindowBuilder,
-  ///   webview::{PageLoadEvent, WebviewBuilder},
-  /// };
-  /// use http::header::HeaderValue;
-  /// use std::collections::HashMap;
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
-  ///     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
-  ///       .on_page_load(|webview, payload| {
-  ///         match payload.event() {
-  ///           PageLoadEvent::Started => {
-  ///             println!("{} finished loading", payload.url());
-  ///           }
-  ///           PageLoadEvent::Finished => {
-  ///             println!("{} finished loading", payload.url());
-  ///           }
-  ///         }
-  ///       });
-  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{
+  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  window::WindowBuilder,
+  webview::{PageLoadEvent, WebviewBuilder},
+};
+use http::header::HeaderValue;
+use std::collections::HashMap;
+tauri::Builder::default()
+  .setup(|app| {
+    let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+    let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+      .on_page_load(|webview, payload| {
+        match payload.event() {
+          PageLoadEvent::Started => {
+            println!("{} finished loading", payload.url());
+          }
+          PageLoadEvent::Finished => {
+            println!("{} finished loading", payload.url());
+          }
+        }
+      });
+    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn on_page_load<F: Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static>(
     mut self,
     f: F,
@@ -648,28 +688,33 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// # Examples
   ///
-  /// ```rust
-  /// use tauri::{WindowBuilder, Runtime};
-  ///
-  /// const INIT_SCRIPT: &str = r#"
-  ///   if (window.location.origin === 'https://tauri.app') {
-  ///     console.log("hello world from js init script");
-  ///
-  ///     window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
-  ///   }
-  /// "#;
-  ///
-  /// fn main() {
-  ///   tauri::Builder::default()
-  ///     .setup(|app| {
-  ///       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
-  ///       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
-  ///         .initialization_script(INIT_SCRIPT);
-  ///       let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
-  ///       Ok(())
-  ///     });
-  /// }
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust
+use tauri::{WindowBuilder, Runtime};
+
+const INIT_SCRIPT: &str = r#"
+  if (window.location.origin === 'https://tauri.app') {
+    console.log("hello world from js init script");
+
+    window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
+  }
+"#;
+
+fn main() {
+  tauri::Builder::default()
+    .setup(|app| {
+      let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+      let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
+        .initialization_script(INIT_SCRIPT);
+      let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+      Ok(())
+    });
+}
+```
+  "####
+  )]
   #[must_use]
   pub fn initialization_script(mut self, script: &str) -> Self {
     self
@@ -924,51 +969,56 @@ impl<R: Runtime> Webview<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// #[cfg(target_os = "macos")]
-  /// #[macro_use]
-  /// extern crate objc;
-  /// use tauri::Manager;
-  ///
-  /// fn main() {
-  ///   tauri::Builder::default()
-  ///     .setup(|app| {
-  ///       let main_webview = app.get_webview("main").unwrap();
-  ///       main_webview.with_webview(|webview| {
-  ///         #[cfg(target_os = "linux")]
-  ///         {
-  ///           // see https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html
-  ///           use webkit2gtk::WebViewExt;
-  ///           webview.inner().set_zoom_level(4.);
-  ///         }
-  ///
-  ///         #[cfg(windows)]
-  ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
-  ///           webview.controller().SetZoomFactor(4.).unwrap();
-  ///         }
-  ///
-  ///         #[cfg(target_os = "macos")]
-  ///         unsafe {
-  ///           let () = msg_send![webview.inner(), setPageZoom: 4.];
-  ///           let () = msg_send![webview.controller(), removeAllUserScripts];
-  ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
-  ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
-  ///         }
-  ///
-  ///         #[cfg(target_os = "android")]
-  ///         {
-  ///           use jni::objects::JValue;
-  ///           webview.jni_handle().exec(|env, _, webview| {
-  ///             env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
-  ///           })
-  ///         }
-  ///       });
-  ///       Ok(())
-  ///   });
-  /// }
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+#[cfg(target_os = "macos")]
+#[macro_use]
+extern crate objc;
+use tauri::Manager;
+
+fn main() {
+  tauri::Builder::default()
+    .setup(|app| {
+      let main_webview = app.get_webview("main").unwrap();
+      main_webview.with_webview(|webview| {
+        #[cfg(target_os = "linux")]
+        {
+          // see https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html
+          // and https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html
+          use webkit2gtk::WebViewExt;
+          webview.inner().set_zoom_level(4.);
+        }
+
+        #[cfg(windows)]
+        unsafe {
+          // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+          webview.controller().SetZoomFactor(4.).unwrap();
+        }
+
+        #[cfg(target_os = "macos")]
+        unsafe {
+          let () = msg_send![webview.inner(), setPageZoom: 4.];
+          let () = msg_send![webview.controller(), removeAllUserScripts];
+          let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
+          let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
+        }
+
+        #[cfg(target_os = "android")]
+        {
+          use jni::objects::JValue;
+          webview.jni_handle().exec(|env, _, webview| {
+            env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
+          })
+        }
+      });
+      Ok(())
+  });
+}
+```
+  "####
+  )]
   #[cfg(feature = "wry")]
   #[cfg_attr(docsrs, doc(feature = "wry"))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
@@ -1260,15 +1310,20 @@ impl<R: Runtime> Webview<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// use tauri::Manager;
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     #[cfg(debug_assertions)]
-  ///     app.get_webview("main").unwrap().open_devtools();
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::Manager;
+tauri::Builder::default()
+  .setup(|app| {
+    #[cfg(debug_assertions)]
+    app.get_webview("main").unwrap().open_devtools();
+    Ok(())
+  });
+```
+  "####
+  )]
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn open_devtools(&self) {
@@ -1286,22 +1341,27 @@ impl<R: Runtime> Webview<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// use tauri::Manager;
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     #[cfg(debug_assertions)]
-  ///     {
-  ///       let webview = app.get_webview("main").unwrap();
-  ///       webview.open_devtools();
-  ///       std::thread::spawn(move || {
-  ///         std::thread::sleep(std::time::Duration::from_secs(10));
-  ///         webview.close_devtools();
-  ///       });
-  ///     }
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::Manager;
+tauri::Builder::default()
+  .setup(|app| {
+    #[cfg(debug_assertions)]
+    {
+      let webview = app.get_webview("main").unwrap();
+      webview.open_devtools();
+      std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        webview.close_devtools();
+      });
+    }
+    Ok(())
+  });
+```
+  "####
+  )]
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn close_devtools(&self) {
@@ -1319,20 +1379,25 @@ impl<R: Runtime> Webview<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// use tauri::Manager;
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     #[cfg(debug_assertions)]
-  ///     {
-  ///       let webview = app.get_webview("main").unwrap();
-  ///       if !webview.is_devtools_open() {
-  ///         webview.open_devtools();
-  ///       }
-  ///     }
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::Manager;
+tauri::Builder::default()
+  .setup(|app| {
+    #[cfg(debug_assertions)]
+    {
+      let webview = app.get_webview("main").unwrap();
+      if !webview.is_devtools_open() {
+        webview.open_devtools();
+      }
+    }
+    Ok(())
+  });
+```
+  "####
+  )]
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn is_devtools_open(&self) -> bool {
@@ -1349,19 +1414,24 @@ impl<R: Runtime> Webview<R> {
   /// Listen to an event on this webview.
   ///
   /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let webview = app.get_webview("main").unwrap();
-  ///     webview.listen("component-loaded", move |event| {
-  ///       println!("window just loaded a component");
-  ///     });
-  ///
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::Manager;
+
+tauri::Builder::default()
+  .setup(|app| {
+    let webview = app.get_webview("main").unwrap();
+    webview.listen("component-loaded", move |event| {
+      println!("window just loaded a component");
+    });
+
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
@@ -1375,28 +1445,32 @@ impl<R: Runtime> Webview<R> {
   /// Unlisten to an event on this window.
   ///
   /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let webview = app.get_webview("main").unwrap();
-  ///     let webview_ = webview.clone();
-  ///     let handler = webview.listen("component-loaded", move |event| {
-  ///       println!("webview just loaded a component");
-  ///
-  ///       // we no longer need to listen to the event
-  ///       // we also could have used `webview.once` instead
-  ///       webview_.unlisten(event.id());
-  ///     });
-  ///
-  ///     // stop listening to the event when you do not need it anymore
-  ///     webview.unlisten(handler);
-  ///
-  ///
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::Manager;
+
+tauri::Builder::default()
+  .setup(|app| {
+    let webview = app.get_webview("main").unwrap();
+    let webview_ = webview.clone();
+    let handler = webview.listen("component-loaded", move |event| {
+      println!("webview just loaded a component");
+
+      // we no longer need to listen to the event
+      // we also could have used `webview.once` instead
+      webview_.unlisten(event.id());
+    });
+
+    // stop listening to the event when you do not need it anymore
+    webview.unlisten(handler);
+
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn unlisten(&self, id: EventId) {
     self.window.manager.unlisten(id)
   }

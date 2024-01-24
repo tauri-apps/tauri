@@ -1451,7 +1451,7 @@
       "additionalProperties": false
     },
     "DmgConfig": {
-      "description": "Configuration for Apple Disk Image (.dmg) bundles.\n\nSee more: https://tauri.app/v1/api/config#dmgconfig",
+      "description": "Configuration for Apple Disk Image (.dmg) bundles.\n\nSee more: <https://tauri.app/v1/api/config#dmgconfig>",
       "type": "object",
       "properties": {
         "background": {

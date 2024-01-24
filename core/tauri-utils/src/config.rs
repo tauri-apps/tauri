@@ -353,7 +353,7 @@ pub struct Size {
 
 /// Configuration for Apple Disk Image (.dmg) bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#dmgconfig
+/// See more: <https://tauri.app/v1/api/config#dmgconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]

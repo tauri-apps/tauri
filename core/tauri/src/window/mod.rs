@@ -145,40 +145,54 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// - Create a window in the setup hook:
   ///
-  /// ```
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = tauri::window::WindowBuilder::new(app, "label")
-  ///       .build()?;
-  ///     Ok(())
-  ///   });
-  /// ```
-  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+tauri::Builder::default()
+  .setup(|app| {
+    let window = tauri::window::WindowBuilder::new(app, "label")
+      .build()?;
+    Ok(())
+  });
+```
+  "####
+  )]
   /// - Create a window in a separate thread:
   ///
-  /// ```
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let handle = app.handle().clone();
-  ///     std::thread::spawn(move || {
-  ///       let window = tauri::window::WindowBuilder::new(&handle, "label")
-  ///         .build()
-  ///         .unwrap();
-  ///     });
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+tauri::Builder::default()
+  .setup(|app| {
+    let handle = app.handle().clone();
+    std::thread::spawn(move || {
+      let window = tauri::window::WindowBuilder::new(&handle, "label")
+        .build()
+        .unwrap();
+    });
+    Ok(())
+  });
+```
+  "####
+  )]
   ///
   /// - Create a window in a command:
   ///
-  /// ```
-  /// #[tauri::command]
-  /// async fn create_window(app: tauri::AppHandle) {
-  ///   let window = tauri::window::WindowBuilder::new(&app, "label")
-  ///     .build()
-  ///     .unwrap();
-  /// }
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+#[tauri::command]
+async fn create_window(app: tauri::AppHandle) {
+  let window = tauri::window::WindowBuilder::new(&app, "label")
+    .build()
+    .unwrap();
+}
+```
+  "####
+  )]
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<L: Into<String>>(manager: &'a M, label: L) -> Self {
@@ -208,14 +222,19 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// - Create a window in a command:
   ///
-  /// ```
-  /// #[tauri::command]
-  /// async fn reopen_window(app: tauri::AppHandle) {
-  ///   let window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
-  ///     .build()
-  ///     .unwrap();
-  /// }
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+#[tauri::command]
+async fn reopen_window(app: tauri::AppHandle) {
+  let window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+    .build()
+    .unwrap();
+}
+```
+  "####
+  )]
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(manager: &'a M, config: WindowConfig) -> Self {
@@ -243,30 +262,34 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// the window used to register it was closed.
   ///
   /// # Examples
-  /// ```
-  /// use tauri::menu::{Menu, Submenu, MenuItem};
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
-  ///     let menu = Menu::with_items(handle, &[
-  ///       &Submenu::with_items(handle, "File", true, &[
-  ///         &save_menu_item,
-  ///       ])?,
-  ///     ])?;
-  ///     let window = tauri::window::WindowBuilder::new(app, "editor")
-  ///       .menu(menu)
-  ///       .on_menu_event(move |window, event| {
-  ///         if event.id == save_menu_item.id() {
-  ///           // save menu item
-  ///         }
-  ///       })
-  ///       .build()
-  ///       .unwrap();
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::menu::{Menu, Submenu, MenuItem};
+tauri::Builder::default()
+  .setup(|app| {
+    let handle = app.handle();
+    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let menu = Menu::with_items(handle, &[
+      &Submenu::with_items(handle, "File", true, &[
+        &save_menu_item,
+      ])?,
+    ])?;
+    let window = tauri::window::WindowBuilder::new(app, "editor")
+      .menu(menu)
+      .on_menu_event(move |window, event| {
+        if event.id == save_menu_item.id() {
+          // save menu item
+        }
+      })
+      .build()
+      .unwrap();
   ///
-  ///     Ok(())
-  ///   });
-  /// ```
+    Ok(())
+  });
+```"####
+  )]
   #[cfg(desktop)]
   pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
@@ -948,31 +971,36 @@ impl<R: Runtime> Window<R> {
   /// the window used to register it was closed.
   ///
   /// # Examples
-  /// ```
-  /// use tauri::menu::{Menu, Submenu, MenuItem};
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
-  ///     let menu = Menu::with_items(handle, &[
-  ///       &Submenu::with_items(handle, "File", true, &[
-  ///         &save_menu_item,
-  ///       ])?,
-  ///     ])?;
-  ///     let window = tauri::window::WindowBuilder::new(app, "editor")
-  ///       .menu(menu)
-  ///       .build()
-  ///       .unwrap();
-  ///
-  ///     window.on_menu_event(move |window, event| {
-  ///       if event.id == save_menu_item.id() {
-  ///           // save menu item
-  ///       }
-  ///     });
-  ///
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::menu::{Menu, Submenu, MenuItem};
+tauri::Builder::default()
+  .setup(|app| {
+    let handle = app.handle();
+    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let menu = Menu::with_items(handle, &[
+      &Submenu::with_items(handle, "File", true, &[
+        &save_menu_item,
+      ])?,
+    ])?;
+    let window = tauri::window::WindowBuilder::new(app, "editor")
+      .menu(menu)
+      .build()
+      .unwrap();
+
+    window.on_menu_event(move |window, event| {
+      if event.id == save_menu_item.id() {
+          // save menu item
+      }
+    });
+
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     &self,
     f: F,
@@ -1585,23 +1613,27 @@ impl<R: Runtime> Window<R> {
   ///
   /// See [`EffectsBuilder`] for a convenient builder for [`WindowEffectsConfig`].
   ///
-  ///
-  /// ```rust,no_run
-  /// use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = app.get_window("main").unwrap();
-  ///     window.set_effects(
-  ///       EffectsBuilder::new()
-  ///         .effect(Effect::Popover)
-  ///         .state(EffectState::Active)
-  ///         .radius(5.)
-  ///         .color(Color(0, 0, 0, 255))
-  ///         .build(),
-  ///     )?;
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};
+tauri::Builder::default()
+  .setup(|app| {
+    let window = app.get_window("main").unwrap();
+    window.set_effects(
+      EffectsBuilder::new()
+        .effect(Effect::Popover)
+        .state(EffectState::Active)
+        .radius(5.)
+        .color(Color(0, 0, 0, 255))
+        .build(),
+    )?;
+    Ok(())
+  });
+```
+  "####
+  )]
   ///
   /// ## Platform-specific:
   ///
@@ -1825,19 +1857,24 @@ impl<R: Runtime> Window<R> {
   /// Listen to an event on this window.
   ///
   /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = app.get_window("main").unwrap();
-  ///     window.listen("component-loaded", move |event| {
-  ///       println!("window just loaded a component");
-  ///     });
-  ///
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::Manager;
+
+tauri::Builder::default()
+  .setup(|app| {
+    let window = app.get_window("main").unwrap();
+    window.listen("component-loaded", move |event| {
+      println!("window just loaded a component");
+    });
+
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
@@ -1849,28 +1886,32 @@ impl<R: Runtime> Window<R> {
   /// Unlisten to an event on this window.
   ///
   /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  ///
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = app.get_window("main").unwrap();
-  ///     let window_ = window.clone();
-  ///     let handler = window.listen("component-loaded", move |event| {
-  ///       println!("window just loaded a component");
-  ///
-  ///       // we no longer need to listen to the event
-  ///       // we also could have used `window.once` instead
-  ///       window_.unlisten(event.id());
-  ///     });
-  ///
-  ///     // stop listening to the event when you do not need it anymore
-  ///     window.unlisten(handler);
-  ///
-  ///
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::Manager;
+
+tauri::Builder::default()
+  .setup(|app| {
+    let window = app.get_window("main").unwrap();
+    let window_ = window.clone();
+    let handler = window.listen("component-loaded", move |event| {
+      println!("window just loaded a component");
+
+      // we no longer need to listen to the event
+      // we also could have used `window.once` instead
+      window_.unlisten(event.id());
+    });
+
+    // stop listening to the event when you do not need it anymore
+    window.unlisten(handler);
+
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn unlisten(&self, id: EventId) {
     self.manager.unlisten(id)
   }

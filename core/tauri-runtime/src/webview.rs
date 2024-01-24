@@ -167,7 +167,7 @@ pub struct DetachedWebview<T: UserEvent, R: Runtime<T>> {
   /// Name of the window
   pub label: String,
 
-  /// The [`WebviewDispatch`] associated with the window.
+  /// The [`crate::WebviewDispatch`] associated with the window.
   pub dispatcher: R::WebviewDispatcher,
 }
 

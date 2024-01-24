@@ -7,6 +7,8 @@
     "main-*"
   ],
   "permissions": [
+    "sample:allow-ping-scoped",
+    "sample:global-scope",
     "path:default",
     "event:default",
     "window:default",

@@ -21,7 +21,7 @@ use super::{CommandArg, CommandItem};
 pub struct RuntimeAuthority {
   allowed_commands: BTreeMap<CommandKey, ResolvedCommand>,
   denied_commands: BTreeMap<CommandKey, ResolvedCommand>,
-  scope_manager: ScopeManager,
+  pub(crate) scope_manager: ScopeManager,
 }
 
 /// The origin trying to access the IPC.
@@ -93,10 +93,23 @@ impl RuntimeAuthority {
   }
 }
 
+/// List of allowed and denied objects that match either the command-specific or plugin global scope criterias.
 #[derive(Debug)]
-struct ScopeValue<T: Debug + DeserializeOwned + Send + Sync + 'static> {
+pub struct ScopeValue<T: Debug + DeserializeOwned + Send + Sync + 'static> {
   allow: Vec<T>,
   deny: Vec<T>,
+}
+
+impl<T: Debug + DeserializeOwned + Send + Sync + 'static> ScopeValue<T> {
+  /// What this access scope allows.
+  pub fn allows(&self) -> &Vec<T> {
+    &self.allow
+  }
+
+  /// What this access scope denies.
+  pub fn denies(&self) -> &Vec<T> {
+    &self.deny
+  }
 }
 
 /// Access scope for a command that can be retrieved directly in the command function.
@@ -132,6 +145,7 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
           .runtime_authority
           .scope_manager
           .get_command_scope_typed(&scope_id)
+          .unwrap_or_default()
           .map(CommandScope)
       })
       .ok_or_else(|| InvokeError::from_anyhow(anyhow::anyhow!("scope not found")))
@@ -159,45 +173,55 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
 {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`GlobalScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
-    let scope = command
-      .message
-      .webview
-      .manager()
-      .runtime_authority
-      .scope_manager
-      .get_global_scope_typed();
-    Ok(GlobalScope(scope))
+    command
+      .plugin
+      .as_deref()
+      .and_then(|plugin| {
+        command
+          .message
+          .webview
+          .manager()
+          .runtime_authority
+          .scope_manager
+          .get_global_scope_typed(plugin)
+          .ok()
+      })
+      .map(GlobalScope)
+      .ok_or_else(|| InvokeError::from_anyhow(anyhow::anyhow!("global scope not found")))
   }
 }
 
 #[derive(Debug)]
 pub struct ScopeManager {
   command_scope: BTreeMap<ScopeKey, ResolvedScope>,
-  global_scope: ResolvedScope,
+  global_scope: BTreeMap<String, ResolvedScope>,
   command_cache: BTreeMap<ScopeKey, TypeMap![Send + Sync]>,
   global_scope_cache: TypeMap![Send + Sync],
 }
 
 impl ScopeManager {
-  fn get_global_scope_typed<T: Send + Sync + DeserializeOwned + Debug + 'static>(
+  pub(crate) fn get_global_scope_typed<T: Send + Sync + DeserializeOwned + Debug + 'static>(
     &self,
-  ) -> &ScopeValue<T> {
+    plugin: &str,
+  ) -> crate::Result<&ScopeValue<T>> {
     match self.global_scope_cache.try_get() {
-      Some(cached) => cached,
+      Some(cached) => Ok(cached),
       None => {
         let mut allow: Vec<T> = Vec::new();
         let mut deny: Vec<T> = Vec::new();
 
-        for allowed in &self.global_scope.allow {
-          allow.push(allowed.deserialize().unwrap());
-        }
-        for denied in &self.global_scope.deny {
-          deny.push(denied.deserialize().unwrap());
+        if let Some(global_scope) = self.global_scope.get(plugin) {
+          for allowed in &global_scope.allow {
+            allow.push(serde_json::from_value(allowed.clone().into())?);
+          }
+          for denied in &global_scope.deny {
+            deny.push(serde_json::from_value(denied.clone().into())?);
+          }
         }
 
         let scope = ScopeValue { allow, deny };
         let _ = self.global_scope_cache.set(scope);
-        self.global_scope_cache.get()
+        Ok(self.global_scope_cache.get())
       }
     }
   }
@@ -205,27 +229,27 @@ impl ScopeManager {
   fn get_command_scope_typed<T: Send + Sync + DeserializeOwned + Debug + 'static>(
     &self,
     key: &ScopeKey,
-  ) -> Option<&ScopeValue<T>> {
+  ) -> crate::Result<Option<&ScopeValue<T>>> {
     let cache = self.command_cache.get(key).unwrap();
     match cache.try_get() {
-      cached @ Some(_) => cached,
+      cached @ Some(_) => Ok(cached),
       None => match self.command_scope.get(key).map(|r| {
         let mut allow: Vec<T> = Vec::new();
         let mut deny: Vec<T> = Vec::new();
 
         for allowed in &r.allow {
-          allow.push(allowed.deserialize().unwrap());
+          allow.push(serde_json::from_value(allowed.clone().into())?);
         }
         for denied in &r.deny {
-          deny.push(denied.deserialize().unwrap());
+          deny.push(serde_json::from_value(denied.clone().into())?);
         }
 
-        ScopeValue { allow, deny }
+        crate::Result::Ok(Some(ScopeValue { allow, deny }))
       }) {
-        None => None,
+        None => Ok(None),
         Some(value) => {
           let _ = cache.set(value);
-          cache.try_get()
+          Ok(cache.try_get())
         }
       },
     }

@@ -8,7 +8,6 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 /// A valid ACL number.
@@ -58,12 +57,23 @@ pub enum Value {
   Map(BTreeMap<String, Value>),
 }
 
-impl Value {
-  /// TODO: implement [`serde::Deserializer`] directly to avoid serializing then deserializing
-  pub fn deserialize<T: DeserializeOwned + Debug>(&self) -> Option<T> {
-    dbg!(serde_json::to_string(self))
-      .ok()
-      .and_then(|s| dbg!(serde_json::from_str(&s).ok()))
+impl From<Value> for serde_json::Value {
+  fn from(value: Value) -> Self {
+    match value {
+      Value::Bool(b) => serde_json::Value::Bool(b),
+      Value::Number(Number::Float(f)) => {
+        serde_json::Value::Number(serde_json::Number::from_f64(f).unwrap())
+      }
+      Value::Number(Number::Int(i)) => serde_json::Value::Number(i.into()),
+      Value::String(s) => serde_json::Value::String(s),
+      Value::List(list) => serde_json::Value::Array(list.into_iter().map(Into::into).collect()),
+      Value::Map(map) => serde_json::Value::Object(
+        map
+          .into_iter()
+          .map(|(key, value)| (key, value.into()))
+          .collect(),
+      ),
+    }
   }
 }
 

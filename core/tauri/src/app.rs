@@ -8,28 +8,27 @@ use crate::{
     channel::ChannelDataIpcQueue, CallbackFn, Invoke, InvokeError, InvokeHandler, InvokeResponder,
     InvokeResponse,
   },
-  manager::{window::UriSchemeProtocol, AppManager, Asset},
+  manager::{
+    webview::{UriSchemeProtocol, WebviewLabelDef},
+    AppManager, Asset,
+  },
   plugin::{Plugin, PluginStore},
   runtime::{
-    webview::WebviewAttributes,
-    window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
-    ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
+    window::WindowEvent as RuntimeWindowEvent, ExitRequestedEventAction,
+    RunEvent as RuntimeRunEvent,
   },
-  scope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
   utils::{assets::Assets, Env},
-  window::PageLoadPayload,
+  webview::PageLoadPayload,
   Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
-  StateManager, Theme, Window,
+  StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
 #[cfg(desktop)]
 use crate::menu::{Menu, MenuEvent};
 #[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
-#[cfg(desktop)]
-use crate::window::WindowMenu;
 use raw_window_handle::HasRawDisplayHandle;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
@@ -48,7 +47,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc, Weak},
+  sync::{mpsc::Sender, Arc},
 };
 
 use crate::runtime::RuntimeHandle;
@@ -67,8 +66,8 @@ pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(&Window<R>, &WindowEve
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
-/// A closure that is run once every time a window is created and loaded.
-pub type OnPageLoad<R> = dyn Fn(&Window<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
+/// A closure that is run every time a page starts or finishes loading.
+pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -256,14 +255,14 @@ impl AppHandle<crate::Wry> {
   >(
     &self,
     f: F,
-  ) -> crate::Result<Weak<tauri_runtime_wry::Window>> {
+  ) -> crate::Result<std::sync::Weak<tauri_runtime_wry::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
 
   /// Sends a window message to the event loop.
   pub fn send_tao_window_event(
     &self,
-    window_id: tauri_runtime_wry::WindowId,
+    window_id: tauri_runtime_wry::TaoWindowId,
     message: tauri_runtime_wry::WindowMessage,
   ) -> crate::Result<()> {
     self
@@ -288,7 +287,7 @@ impl<R: Runtime> Clone for AppHandle<R> {
 impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
   /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`AppHandle`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.window().app_handle)
+    Ok(command.message.webview().window().app_handle.clone())
   }
 }
 
@@ -404,7 +403,6 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 #[default_runtime(crate::Wry, wry)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
-  pending_windows: Option<Vec<PendingWindow<EventLoopMessage, R>>>,
   setup: Option<SetupHook<R>>,
   manager: Arc<AppManager<R>>,
   handle: AppHandle<R>,
@@ -624,7 +622,7 @@ macro_rules! shared_app_impl {
             let has_app_wide_menu = window.has_app_wide_menu() || window.menu().is_none();
             if has_app_wide_menu {
               window.set_menu(menu.clone())?;
-              window.menu_lock().replace(WindowMenu {
+              window.menu_lock().replace(crate::window::WindowMenu {
                 is_app_wide: true,
                 menu: menu.clone(),
               });
@@ -770,6 +768,7 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::path::plugin::init())?;
     self.handle.plugin(crate::event::plugin::init())?;
     self.handle.plugin(crate::window::plugin::init())?;
+    self.handle.plugin(crate::webview::plugin::init())?;
     self.handle.plugin(crate::app::plugin::init())?;
     self.handle.plugin(crate::resources::plugin::init())?;
     #[cfg(desktop)]
@@ -950,9 +949,6 @@ pub struct Builder<R: Runtime> {
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
-  /// windows to create when starting up.
-  pending_windows: Vec<PendingWindow<EventLoopMessage, R>>,
-
   /// All passed plugins
   plugins: PluginStore<R>,
 
@@ -988,6 +984,23 @@ struct InvokeInitializationScript<'a> {
   use_custom_protocol: bool,
 }
 
+/// Make `Wry` the default `Runtime` for `Builder`
+#[cfg(feature = "wry")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
+impl Default for Builder<crate::Wry> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+#[cfg(not(feature = "wry"))]
+#[cfg_attr(docsrs, doc(cfg(not(feature = "wry"))))]
+impl<R: Runtime> Default for Builder<R> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
@@ -998,7 +1011,7 @@ impl<R: Runtime> Builder<R> {
       invoke_handler: Box::new(|_| false),
       invoke_responder: None,
       invoke_initialization_script: InvokeInitializationScript {
-        process_ipc_message_fn: crate::manager::window::PROCESS_IPC_MESSAGE_FN,
+        process_ipc_message_fn: crate::manager::webview::PROCESS_IPC_MESSAGE_FN,
         os_name: std::env::consts::OS,
         fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
         use_custom_protocol: cfg!(ipc_custom_protocol),
@@ -1007,7 +1020,6 @@ impl<R: Runtime> Builder<R> {
       .unwrap()
       .into_string(),
       on_page_load: None,
-      pending_windows: Default::default(),
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
@@ -1018,7 +1030,9 @@ impl<R: Runtime> Builder<R> {
       device_event_filter: Default::default(),
     }
   }
+}
 
+impl<R: Runtime> Builder<R> {
   /// Builds a new Tauri application running on any thread, bypassing the main thread requirement.
   ///
   /// ## Platform-specific
@@ -1064,7 +1078,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
-    F: Fn(&Window<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
+    F: Fn(&Webview<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
     self.invoke_initialization_script = initialization_script;
     self.invoke_responder.replace(Arc::new(responder));
@@ -1074,15 +1088,20 @@ impl<R: Runtime> Builder<R> {
   /// Defines the setup hook.
   ///
   /// # Examples
-  /// ```
-  /// use tauri::Manager;
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let main_window = app.get_window("main").unwrap();
-  ///     main_window.set_title("Tauri!");
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::Manager;
+tauri::Builder::default()
+  .setup(|app| {
+    let main_window = app.get_window("main").unwrap();
+    main_window.set_title("Tauri!");
+    Ok(())
+  });
+```
+  "####
+  )]
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
@@ -1096,7 +1115,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(&Window<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
+    F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
     self
@@ -1155,7 +1174,7 @@ impl<R: Runtime> Builder<R> {
   /// refers to a different `T`.
   ///
   /// Managed state can be retrieved by any command handler via the
-  /// [`State`] guard. In particular, if a value of type `T`
+  /// [`crate::State`] guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
   /// command handler instructs Tauri to retrieve the managed value.
   /// Additionally, [`state`](crate::Manager#method.state) can be used to retrieve the value manually.
@@ -1430,7 +1449,7 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Builds the application.
-  #[allow(clippy::type_complexity)]
+  #[allow(clippy::type_complexity, unused_mut)]
   #[cfg_attr(
     feature = "tracing",
     tracing::instrument(name = "app::build", skip_all)
@@ -1455,18 +1474,6 @@ impl<R: Runtime> Builder<R> {
       HashMap::new(),
       (self.invoke_responder, self.invoke_initialization_script),
     ));
-
-    // set up all the windows defined in the config
-    for config in manager.config().tauri.windows.clone() {
-      let label = config.label.clone();
-      let webview_attributes = WebviewAttributes::from(&config);
-
-      self.pending_windows.push(PendingWindow::with_config(
-        config,
-        webview_attributes,
-        label,
-      )?);
-    }
 
     let runtime_args = RuntimeInitArgs {
       #[cfg(windows)]
@@ -1524,7 +1531,6 @@ impl<R: Runtime> Builder<R> {
     #[allow(unused_mut)]
     let mut app = App {
       runtime: Some(runtime),
-      pending_windows: Some(self.pending_windows),
       setup: Some(self.setup),
       manager: manager.clone(),
       handle: AppHandle {
@@ -1554,9 +1560,8 @@ impl<R: Runtime> Builder<R> {
     app.manage(env);
 
     app.manage(Scopes {
-      ipc: scope::ipc::Scope::new(app.config()),
       #[cfg(feature = "protocol-asset")]
-      asset_protocol: scope::fs::Scope::new(
+      asset_protocol: crate::scope::fs::Scope::new(
         &app,
         &app.config().tauri.security.asset_protocol.scope,
       )?,
@@ -1669,91 +1674,24 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
 
 #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::setup"))]
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
-  let pending_windows = app.pending_windows.take();
-  if let Some(pending_windows) = pending_windows {
-    let window_labels = pending_windows
-      .iter()
-      .map(|p| p.label.clone())
-      .collect::<Vec<_>>();
+  let window_labels = app
+    .config()
+    .tauri
+    .windows
+    .iter()
+    .map(|p| p.label.clone())
+    .collect::<Vec<_>>();
+  let webview_labels = window_labels
+    .iter()
+    .map(|label| WebviewLabelDef {
+      window_label: label.clone(),
+      label: label.clone(),
+    })
+    .collect::<Vec<_>>();
 
-    let app_handle = app.handle();
-    let manager = app.manager();
-
-    for mut pending in pending_windows {
-      #[cfg(desktop)]
-      if let Some(config) = app
-        .config()
-        .tauri
-        .windows
-        .iter()
-        .find(|w| w.label == pending.label)
-      {
-        use tauri_runtime::webview::WindowBuilder;
-
-        if let Some(parent) = &config.parent {
-          let window = manager
-            .get_window(parent)
-            .ok_or(crate::Error::WindowNotFound)?;
-
-          #[cfg(windows)]
-          {
-            pending.window_builder = pending.window_builder.owner(window.hwnd()?);
-          }
-
-          #[cfg(any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-          ))]
-          {
-            pending.window_builder = pending.window_builder.transient_for(&window.gtk_window()?);
-          }
-
-          #[cfg(target_os = "macos")]
-          {
-            pending.window_builder = pending.window_builder.parent(window.ns_window()?);
-          }
-        }
-      }
-
-      let pending = manager
-        .window
-        .prepare_window(app_handle.clone(), pending, &window_labels)?;
-
-      #[cfg(desktop)]
-      let window_menu = app.manager.menu.menu_lock().as_ref().map(|m| WindowMenu {
-        is_app_wide: true,
-        menu: m.clone(),
-      });
-
-      #[cfg(desktop)]
-      let handler = manager
-        .menu
-        .prepare_window_menu_creation_handler(window_menu.as_ref());
-      #[cfg(not(desktop))]
-      #[allow(clippy::type_complexity)]
-      let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
-
-      let window_effects = pending.webview_attributes.window_effects.clone();
-      let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app_handle.runtime() {
-        runtime.create_window(pending, handler)?
-      } else {
-        // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
-        unreachable!()
-      };
-      let window = manager.window.attach_window(
-        app_handle.clone(),
-        detached,
-        #[cfg(desktop)]
-        None,
-      );
-
-      if let Some(effects) = window_effects {
-        crate::vibrancy::set_window_effects(&window, Some(effects))?;
-      }
-    }
+  for window_config in app.config().tauri.windows.clone() {
+    WebviewWindowBuilder::from_config(app.handle(), &window_config)?
+      .build_internal(&window_labels, &webview_labels)?;
   }
 
   if let Some(setup) = app.setup.take() {
@@ -1774,6 +1712,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     event: RuntimeWindowEvent::Destroyed,
   } = &event
   {
+    // TODO: destroy webviews
     manager.window.on_window_close(label);
   }
 
@@ -1825,7 +1764,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
             listener(app_handle, e.clone());
           }
           for (label, listener) in &*app_handle.manager.menu.event_listeners.lock().unwrap() {
-            if let Some(w) = app_handle.get_window(label) {
+            if let Some(w) = app_handle.manager().get_window(label) {
               listener(&w, e.clone());
             }
           }
@@ -1868,15 +1807,6 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
 
   if let Some(c) = callback {
     c(app_handle, event);
-  }
-}
-
-/// Make `Wry` the default `Runtime` for `Builder`
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-impl Default for Builder<crate::Wry> {
-  fn default() -> Self {
-    Self::new()
   }
 }
 

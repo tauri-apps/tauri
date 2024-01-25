@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use serde::Deserialize;
+use std::path::PathBuf;
 use tauri::{
   plugin::{Builder, TauriPlugin},
   Manager, Runtime,
@@ -35,9 +37,40 @@ impl<R: Runtime, T: Manager<R>> crate::SampleExt<R> for T {
   }
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct PingScope {
+  path: PathBuf,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct SampleScope {
+  path: PathBuf,
+}
+
+#[tauri::command]
+fn ping<R: tauri::Runtime>(
+  app: tauri::AppHandle<R>,
+  value: Option<String>,
+  scope: tauri::command::CommandScope<PingScope>,
+  global_scope: tauri::command::GlobalScope<SampleScope>,
+) -> std::result::Result<PingResponse, String> {
+  println!("local scope {:?}", scope);
+  println!("global scope {:?}", global_scope);
+  app
+    .sample()
+    .ping(PingRequest {
+      value,
+      on_event: tauri::ipc::Channel::new(|_| Ok(())),
+    })
+    .map_err(|e| e.to_string())
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("sample")
     .setup(|app, api| {
+      println!("global scope: {:?}", api.scope::<SampleScope>());
       #[cfg(mobile)]
       let sample = mobile::init(app, api)?;
       #[cfg(desktop)]
@@ -46,6 +79,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
       Ok(())
     })
+    .invoke_handler(tauri::generate_handler![ping])
     .on_navigation(|window, url| {
       println!("navigation {} {url}", window.label());
       true

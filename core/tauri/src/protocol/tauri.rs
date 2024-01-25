@@ -7,8 +7,8 @@ use std::{borrow::Cow, sync::Arc};
 use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
 
 use crate::{
-  manager::{window::PROXY_DEV_SERVER, AppManager},
-  window::{UriSchemeProtocolHandler, WebResourceRequestHandler},
+  manager::{webview::PROXY_DEV_SERVER, AppManager},
+  webview::{UriSchemeProtocolHandler, WebResourceRequestHandler},
   Runtime,
 };
 

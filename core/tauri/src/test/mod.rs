@@ -30,14 +30,12 @@
 //!     // Use `tauri::Builder::default()` to use the default runtime rather than the `MockRuntime`;
 //!     // let app = create_app(tauri::Builder::default());
 //!     let app = create_app(mock_builder());
-//!     let window = tauri::WindowBuilder::new(&app, "main", Default::default())
-//!         .build()
-//!         .unwrap();
+//!     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
 //!
 //!     // run the `ping` command and assert it returns `pong`
 //!     let res = tauri::test::get_ipc_response(
-//!         &window,
-//!         tauri::window::InvokeRequest {
+//!         &webview,
+//!         tauri::webview::InvokeRequest {
 //!             cmd: "ping".into(),
 //!             callback: tauri::ipc::CallbackFn(0),
 //!             error: tauri::ipc::CallbackFn(1),
@@ -58,10 +56,11 @@ use std::{borrow::Cow, collections::HashMap, fmt::Debug};
 
 use crate::{
   ipc::{InvokeBody, InvokeError, InvokeResponse},
-  window::InvokeRequest,
-  App, Builder, Context, Pattern, Window,
+  webview::InvokeRequest,
+  App, Builder, Context, Pattern, Webview,
 };
 use tauri_utils::{
+  acl::resolved::Resolved,
   assets::{AssetKey, Assets, CspHash},
   config::{Config, PatternKind, TauriConfig},
 };
@@ -125,6 +124,12 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
+    resolved_acl: Resolved {
+      allowed_commands: Default::default(),
+      denied_commands: Default::default(),
+      command_scope: Default::default(),
+      global_scope: Default::default(),
+    },
   }
 }
 
@@ -174,14 +179,12 @@ pub fn mock_app() -> App<MockRuntime> {
 ///
 /// fn main() {
 ///     let app = create_app(mock_builder());
-///     let window = tauri::WindowBuilder::new(&app, "main", Default::default())
-///         .build()
-///         .unwrap();
+///     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
 ///
 ///     // run the `ping` command and assert it returns `pong`
 ///     tauri::test::assert_ipc_response(
-///         &window,
-///         tauri::window::InvokeRequest {
+///         &webview,
+///         tauri::webview::InvokeRequest {
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
@@ -192,13 +195,16 @@ pub fn mock_app() -> App<MockRuntime> {
 ///     );
 /// }
 /// ```
-pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
-  window: &Window<MockRuntime>,
+pub fn assert_ipc_response<
+  T: Serialize + Debug + Send + Sync + 'static,
+  W: AsRef<Webview<MockRuntime>>,
+>(
+  webview: &W,
   request: InvokeRequest,
   expected: Result<T, T>,
 ) {
   let response =
-    get_ipc_response(window, request).map(|b| b.deserialize::<serde_json::Value>().unwrap());
+    get_ipc_response(webview, request).map(|b| b.deserialize::<serde_json::Value>().unwrap());
   assert_eq!(
     response,
     expected
@@ -229,14 +235,12 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
 ///
 /// fn main() {
 ///     let app = create_app(mock_builder());
-///     let window = tauri::WindowBuilder::new(&app, "main", Default::default())
-///         .build()
-///         .unwrap();
+///     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
 ///
 ///     // run the `ping` command and assert it returns `pong`
 ///     let res = tauri::test::get_ipc_response(
-///         &window,
-///         tauri::window::InvokeRequest {
+///         &webview,
+///         tauri::webview::InvokeRequest {
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
@@ -248,12 +252,12 @@ pub fn assert_ipc_response<T: Serialize + Debug + Send + Sync + 'static>(
 ///     assert_eq!(res.unwrap().deserialize::<String>().unwrap(), String::from("pong"));
 /// }
 ///```
-pub fn get_ipc_response(
-  window: &Window<MockRuntime>,
+pub fn get_ipc_response<W: AsRef<Webview<MockRuntime>>>(
+  webview: &W,
   request: InvokeRequest,
 ) -> Result<InvokeBody, serde_json::Value> {
   let (tx, rx) = std::sync::mpsc::sync_channel(1);
-  window.clone().on_message(
+  webview.as_ref().clone().on_message(
     request,
     Box::new(move |_window, _cmd, response, _callback, _error| {
       tx.send(response).unwrap();
@@ -269,7 +273,6 @@ pub fn get_ipc_response(
 
 #[cfg(test)]
 mod tests {
-  use crate::WindowBuilder;
   use std::time::Duration;
 
   use super::mock_app;
@@ -278,7 +281,7 @@ mod tests {
   fn run_app() {
     let app = mock_app();
 
-    let w = WindowBuilder::new(&app, "main", Default::default())
+    let w = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
       .build()
       .unwrap();
 

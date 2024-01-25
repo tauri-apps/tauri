@@ -7,6 +7,7 @@ fn main() {
   if !cfg!(feature = "custom-protocol") {
     codegen = codegen.dev();
   }
-  codegen.build();
-  tauri_build::build();
+
+  tauri_build::try_build(tauri_build::Attributes::new().codegen(codegen))
+    .expect("failed to run tauri-build");
 }

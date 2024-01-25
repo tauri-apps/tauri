@@ -17,6 +17,7 @@ rust-version = { workspace = true }
 no-default-features = true
 features = [
   "wry",
+  "unstable",
   "custom-protocol",
   "tray-icon",
   "devtools",
@@ -71,6 +72,7 @@ png = { version = "0.17", optional = true }
 ico = { version = "0.3.0", optional = true }
 http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }
+static_assertions = "1"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.11", default-features = false, features = [ "serde" ] }
@@ -110,6 +112,7 @@ swift-rs = "1.0.6"
 [build-dependencies]
 heck = "0.4"
 tauri-build = { path = "../tauri-build/", version = "2.0.0-alpha.14" }
+tauri-utils = { path = "../tauri-utils/", version = "2.0.0-alpha.13", features = [ "build" ] }
 
 [dev-dependencies]
 proptest = "1.4.0"
@@ -130,6 +133,7 @@ default = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6"
 ]
+unstable = [ ]
 tray-icon = [ "dep:tray-icon" ]
 tracing = [
   "dep:tracing",
@@ -153,7 +157,7 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry/macos-private-api"
 ]
-window-data-url = [ "data-url" ]
+webview-data-url = [ "data-url" ]
 protocol-asset = [ "http-range" ]
 config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]
@@ -167,6 +171,11 @@ path = "../../examples/commands/main.rs"
 [[example]]
 name = "helloworld"
 path = "../../examples/helloworld/main.rs"
+
+[[example]]
+name = "multiwebview"
+path = "../../examples/multiwebview/main.rs"
+required-features = [ "unstable" ]
 
 [[example]]
 name = "multiwindow"

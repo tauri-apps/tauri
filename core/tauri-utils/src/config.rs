@@ -47,7 +47,7 @@ fn default_true() -> bool {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
 #[non_exhaustive]
-pub enum WindowUrl {
+pub enum WebviewUrl {
   /// An external URL.
   External(Url),
   /// The path portion of an app URL.
@@ -56,7 +56,7 @@ pub enum WindowUrl {
   App(PathBuf),
 }
 
-impl fmt::Display for WindowUrl {
+impl fmt::Display for WebviewUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::External(url) => write!(f, "{url}"),
@@ -65,7 +65,7 @@ impl fmt::Display for WindowUrl {
   }
 }
 
-impl Default for WindowUrl {
+impl Default for WebviewUrl {
   fn default() -> Self {
     Self::App("index.html".into())
   }
@@ -78,6 +78,8 @@ impl Default for WindowUrl {
 pub enum BundleType {
   /// The debian bundle (.deb).
   Deb,
+  /// The RPM bundle (.rpm).
+  Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
   /// The Microsoft Installer bundle (.msi).
@@ -99,6 +101,7 @@ impl Display for BundleType {
       "{}",
       match self {
         Self::Deb => "deb",
+        Self::Rpm => "rpm",
         Self::AppImage => "appimage",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
@@ -127,6 +130,7 @@ impl<'de> Deserialize<'de> for BundleType {
     let s = String::deserialize(deserializer)?;
     match s.to_lowercase().as_str() {
       "deb" => Ok(Self::Deb),
+      "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
@@ -282,6 +286,124 @@ pub struct DebConfig {
   pub desktop_template: Option<PathBuf>,
 }
 
+/// Configuration for RPM bundles.
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RpmConfig {
+  /// The package's license identifier. If not set, defaults to the license from
+  /// the Cargo.toml file.
+  pub license: Option<String>,
+  /// The list of RPM dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The RPM release tag.
+  #[serde(default = "default_release")]
+  pub release: String,
+  /// The RPM epoch.
+  #[serde(default)]
+  pub epoch: u32,
+  /// The files to include on the package.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
+}
+
+impl Default for RpmConfig {
+  fn default() -> Self {
+    Self {
+      license: None,
+      depends: None,
+      release: default_release(),
+      epoch: 0,
+      files: Default::default(),
+      desktop_template: None,
+    }
+  }
+}
+
+fn default_release() -> String {
+  "1".into()
+}
+
+/// Position coordinates struct.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Position {
+  /// X coordinate.
+  pub x: u32,
+  /// Y coordinate.
+  pub y: u32,
+}
+
+/// Size of the window.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Size {
+  /// Width of the window.
+  pub width: u32,
+  /// Height of the window.
+  pub height: u32,
+}
+
+/// Configuration for Apple Disk Image (.dmg) bundles.
+///
+/// See more: <https://tauri.app/v1/api/config#dmgconfig>
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DmgConfig {
+  /// Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.
+  pub background: Option<PathBuf>,
+  /// Position of volume window on screen.
+  pub window_position: Option<Position>,
+  /// Size of volume window.
+  #[serde(default = "dmg_window_size", alias = "window-size")]
+  pub window_size: Size,
+  /// Position of app file on window.
+  #[serde(default = "dmg_app_position", alias = "app-position")]
+  pub app_position: Position,
+  /// Position of application folder on window.
+  #[serde(
+    default = "dmg_application_folder_position",
+    alias = "application-folder-position"
+  )]
+  pub application_folder_position: Position,
+}
+
+impl Default for DmgConfig {
+  fn default() -> Self {
+    Self {
+      background: None,
+      window_position: None,
+      window_size: dmg_window_size(),
+      app_position: dmg_app_position(),
+      application_folder_position: dmg_application_folder_position(),
+    }
+  }
+}
+
+fn dmg_window_size() -> Size {
+  Size {
+    width: 660,
+    height: 400,
+  }
+}
+
+fn dmg_app_position() -> Position {
+  Position { x: 180, y: 170 }
+}
+
+fn dmg_application_folder_position() -> Position {
+  Position { x: 480, y: 170 }
+}
+
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
   D: Deserializer<'de>,
@@ -305,6 +427,9 @@ pub struct MacConfig {
   ///
   /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
   pub frameworks: Option<Vec<String>>,
+  /// The files to include in the application relative to the Contents directory.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
   ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
@@ -337,6 +462,7 @@ impl Default for MacConfig {
   fn default() -> Self {
     Self {
       frameworks: None,
+      files: HashMap::new(),
       minimum_system_version: minimum_system_version(),
       exception_domain: None,
       license: None,
@@ -824,7 +950,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
@@ -864,6 +990,12 @@ pub struct BundleConfig {
   /// Configuration for the Debian bundle.
   #[serde(default)]
   pub deb: DebConfig,
+  /// Configuration for the RPM bundle.
+  #[serde(default)]
+  pub rpm: RpmConfig,
+  /// DMG-specific settings.
+  #[serde(default)]
+  pub dmg: DmgConfig,
   /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", default)]
   pub macos: MacConfig,
@@ -937,7 +1069,7 @@ pub struct WindowConfig {
   pub label: String,
   /// The window webview URL.
   #[serde(default)]
-  pub url: WindowUrl,
+  pub url: WebviewUrl,
   /// The user agent for the webview
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
@@ -1095,7 +1227,7 @@ impl Default for WindowConfig {
   fn default() -> Self {
     Self {
       label: default_window_label(),
-      url: WindowUrl::default(),
+      url: WebviewUrl::default(),
       user_agent: None,
       file_drop_enabled: true,
       center: false,
@@ -1425,20 +1557,6 @@ pub struct SecurityConfig {
   /// Your application might be vulnerable to XSS attacks without this Tauri protection.
   #[serde(default, alias = "dangerous-disable-asset-csp-modification")]
   pub dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
-  /// Allow external domains to send command to Tauri.
-  ///
-  /// By default, external domains do not have access to `window.__TAURI__`, which means they cannot
-  /// communicate with the commands defined in Rust. This prevents attacks where an externally
-  /// loaded malicious or compromised sites could start executing commands on the user's device.
-  ///
-  /// This configuration allows a set of external domains to have access to the Tauri commands.
-  /// When you configure a domain to be allowed to access the IPC, all subpaths are allowed. Subdomains are not allowed.
-  ///
-  /// **WARNING:** Only use this option if you either have internal checks against malicious
-  /// external sites or you can trust the allowed external sites. You application might be
-  /// vulnerable to dangerous Tauri command related attacks otherwise.
-  #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
-  pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
   /// Custom protocol config.
   #[serde(default, alias = "asset-protocol")]
   pub asset_protocol: AssetProtocolConfig,
@@ -1687,7 +1805,7 @@ fn default_min_sdk_version() -> u32 {
 #[non_exhaustive]
 pub enum AppUrl {
   /// The app's external URL, or the path to the directory containing the app assets.
-  Url(WindowUrl),
+  Url(WebviewUrl),
   /// An array of files to embed on the app.
   Files(Vec<PathBuf>),
 }
@@ -1806,13 +1924,13 @@ impl Default for BuildConfig {
 }
 
 fn default_dev_path() -> AppUrl {
-  AppUrl::Url(WindowUrl::External(
+  AppUrl::Url(WebviewUrl::External(
     Url::parse("http://localhost:8080").unwrap(),
   ))
 }
 
 fn default_dist_dir() -> AppUrl {
-  AppUrl::Url(WindowUrl::App("../dist".into()))
+  AppUrl::Url(WebviewUrl::App("../dist".into()))
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -2022,149 +2140,11 @@ fn default_build() -> BuildConfig {
 /// application using tauri while only parsing it once (in the build script).
 #[cfg(feature = "build")]
 mod build {
-  use std::{convert::identity, path::Path};
-
+  use super::*;
+  use crate::tokens::*;
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
-
-  use super::*;
-
-  use serde_json::Value as JsonValue;
-
-  /// Create a `String` constructor `TokenStream`.
-  ///
-  /// e.g. `"Hello World" -> String::from("Hello World").
-  /// This takes a `&String` to reduce casting all the `&String` -> `&str` manually.
-  fn str_lit(s: impl AsRef<str>) -> TokenStream {
-    let s = s.as_ref();
-    quote! { #s.into() }
-  }
-
-  /// Create an `Option` constructor `TokenStream`.
-  fn opt_lit(item: Option<&impl ToTokens>) -> TokenStream {
-    match item {
-      None => quote! { ::core::option::Option::None },
-      Some(item) => quote! { ::core::option::Option::Some(#item) },
-    }
-  }
-
-  /// Helper function to combine an `opt_lit` with `str_lit`.
-  fn opt_str_lit(item: Option<impl AsRef<str>>) -> TokenStream {
-    opt_lit(item.map(str_lit).as_ref())
-  }
-
-  /// Helper function to combine an `opt_lit` with a list of `str_lit`
-  fn opt_vec_str_lit(item: Option<impl IntoIterator<Item = impl AsRef<str>>>) -> TokenStream {
-    opt_lit(item.map(|list| vec_lit(list, str_lit)).as_ref())
-  }
-
-  /// Create a `Vec` constructor, mapping items with a function that spits out `TokenStream`s.
-  fn vec_lit<Raw, Tokens>(
-    list: impl IntoIterator<Item = Raw>,
-    map: impl Fn(Raw) -> Tokens,
-  ) -> TokenStream
-  where
-    Tokens: ToTokens,
-  {
-    let items = list.into_iter().map(map);
-    quote! { vec![#(#items),*] }
-  }
-
-  /// Create a `PathBuf` constructor `TokenStream`.
-  ///
-  /// e.g. `"Hello World" -> String::from("Hello World").
-  fn path_buf_lit(s: impl AsRef<Path>) -> TokenStream {
-    let s = s.as_ref().to_string_lossy().into_owned();
-    quote! { ::std::path::PathBuf::from(#s) }
-  }
-
-  /// Creates a `Url` constructor `TokenStream`.
-  fn url_lit(url: &Url) -> TokenStream {
-    let url = url.as_str();
-    quote! { #url.parse().unwrap() }
-  }
-
-  /// Create a map constructor, mapping keys and values with other `TokenStream`s.
-  ///
-  /// This function is pretty generic because the types of keys AND values get transformed.
-  fn map_lit<Map, Key, Value, TokenStreamKey, TokenStreamValue, FuncKey, FuncValue>(
-    map_type: TokenStream,
-    map: Map,
-    map_key: FuncKey,
-    map_value: FuncValue,
-  ) -> TokenStream
-  where
-    <Map as IntoIterator>::IntoIter: ExactSizeIterator,
-    Map: IntoIterator<Item = (Key, Value)>,
-    TokenStreamKey: ToTokens,
-    TokenStreamValue: ToTokens,
-    FuncKey: Fn(Key) -> TokenStreamKey,
-    FuncValue: Fn(Value) -> TokenStreamValue,
-  {
-    let ident = quote::format_ident!("map");
-    let map = map.into_iter();
-
-    if map.len() > 0 {
-      let items = map.map(|(key, value)| {
-        let key = map_key(key);
-        let value = map_value(value);
-        quote! { #ident.insert(#key, #value); }
-      });
-
-      quote! {{
-        let mut #ident = #map_type::new();
-        #(#items)*
-        #ident
-      }}
-    } else {
-      quote! { #map_type::new() }
-    }
-  }
-
-  /// Create a `serde_json::Value` variant `TokenStream` for a number
-  fn json_value_number_lit(num: &serde_json::Number) -> TokenStream {
-    // See https://docs.rs/serde_json/1/serde_json/struct.Number.html for guarantees
-    let prefix = quote! { ::serde_json::Value };
-    if num.is_u64() {
-      // guaranteed u64
-      let num = num.as_u64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
-    } else if num.is_i64() {
-      // guaranteed i64
-      let num = num.as_i64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
-    } else if num.is_f64() {
-      // guaranteed f64
-      let num = num.as_f64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
-    } else {
-      // invalid number
-      quote! { #prefix::Null }
-    }
-  }
-
-  /// Create a `serde_json::Value` constructor `TokenStream`
-  fn json_value_lit(jv: &JsonValue) -> TokenStream {
-    let prefix = quote! { ::serde_json::Value };
-
-    match jv {
-      JsonValue::Null => quote! { #prefix::Null },
-      JsonValue::Bool(bool) => quote! { #prefix::Bool(#bool) },
-      JsonValue::Number(number) => json_value_number_lit(number),
-      JsonValue::String(str) => {
-        let s = str_lit(str);
-        quote! { #prefix::String(#s) }
-      }
-      JsonValue::Array(vec) => {
-        let items = vec.iter().map(json_value_lit);
-        quote! { #prefix::Array(vec![#(#items),*]) }
-      }
-      JsonValue::Object(map) => {
-        let map = map_lit(quote! { ::serde_json::Map }, map, str_lit, json_value_lit);
-        quote! { #prefix::Object(#map) }
-      }
-    }
-  }
+  use std::convert::identity;
 
   /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
   ///
@@ -2179,9 +2159,9 @@ mod build {
     };
   }
 
-  impl ToTokens for WindowUrl {
+  impl ToTokens for WebviewUrl {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::WindowUrl };
+      let prefix = quote! { ::tauri::utils::config::WebviewUrl };
 
       tokens.append_all(match self {
         Self::App(path) => {
@@ -2454,6 +2434,8 @@ mod build {
       let long_description = quote!(None);
       let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
+      let rpm = quote!(Default::default());
+      let dmg = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
@@ -2477,6 +2459,8 @@ mod build {
         long_description,
         appimage,
         deb,
+        rpm,
+        dmg,
         macos,
         external_bin,
         windows,
@@ -2627,8 +2611,6 @@ mod build {
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
-      let dangerous_remote_domain_ipc_access =
-        vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
       let asset_protocol = &self.asset_protocol;
 
       literal_struct!(
@@ -2638,7 +2620,6 @@ mod build {
         dev_csp,
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
-        dangerous_remote_domain_ipc_access,
         asset_protocol
       );
     }
@@ -2785,6 +2766,8 @@ mod test {
         long_description: None,
         appimage: Default::default(),
         deb: Default::default(),
+        rpm: Default::default(),
+        dmg: Default::default(),
         macos: Default::default(),
         external_bin: None,
         windows: Default::default(),
@@ -2797,7 +2780,6 @@ mod test {
         dev_csp: None,
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
-        dangerous_remote_domain_ipc_access: Vec::new(),
         asset_protocol: AssetProtocolConfig::default(),
       },
       tray_icon: None,
@@ -2807,10 +2789,10 @@ mod test {
     // create a build config
     let build = BuildConfig {
       runner: None,
-      dev_path: AppUrl::Url(WindowUrl::External(
+      dev_path: AppUrl::Url(WebviewUrl::External(
         Url::parse("http://localhost:8080").unwrap(),
       )),
-      dist_dir: AppUrl::Url(WindowUrl::App("../dist".into())),
+      dist_dir: AppUrl::Url(WebviewUrl::App("../dist".into())),
       before_dev_command: None,
       before_build_command: None,
       before_bundle_command: None,
@@ -2824,7 +2806,7 @@ mod test {
     assert_eq!(d_bundle, tauri.bundle);
     assert_eq!(
       d_path,
-      AppUrl::Url(WindowUrl::External(
+      AppUrl::Url(WebviewUrl::External(
         Url::parse("http://localhost:8080").unwrap()
       ))
     );

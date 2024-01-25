@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
-  open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
+  merge_plist, open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -145,10 +145,23 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
   inject_assets(&config)?;
+
+  let info_plist_path = config
+    .project_dir()
+    .join(config.scheme())
+    .join("Info.plist");
+  merge_plist(
+    &[
+      tauri_path.join("Info.plist"),
+      tauri_path.join("Info.ios.plist"),
+    ],
+    &info_plist_path,
+  )?;
+
   run_dev(options, tauri_config, &app, &config, noise_level)
 }
 

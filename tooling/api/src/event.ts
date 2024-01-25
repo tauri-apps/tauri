@@ -9,13 +9,26 @@
  * @module
  */
 
-import { invoke, transformCallback } from './primitives'
+import { invoke, transformCallback } from './core'
+
+type EventSource =
+  | {
+      kind: 'global'
+    }
+  | {
+      kind: 'window'
+      label: string
+    }
+  | {
+      kind: 'webview'
+      label: string
+    }
 
 interface Event<T> {
   /** Event name */
   event: EventName
-  /** The label of the window that emitted this event. */
-  windowLabel: string
+  /** The source of the event. Can be a global event, an event from a window or an event from another webview. */
+  source: EventSource
   /** Event identifier used to unlisten */
   id: number
   /** Event payload */
@@ -30,14 +43,16 @@ type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
 interface Options {
   /**
-   * Label of the window the function targets.
+   * Window or webview the function targets.
    *
    * When listening to events and using this value,
    * only events triggered by the window with the given label are received.
    *
    * When emitting events, only the window with the given label will receive it.
    */
-  target?: string
+  target?:
+    | { kind: 'window'; label: string }
+    | { kind: 'webview'; label: string }
 }
 
 /**
@@ -47,16 +62,15 @@ enum TauriEvent {
   WINDOW_RESIZED = 'tauri://resize',
   WINDOW_MOVED = 'tauri://move',
   WINDOW_CLOSE_REQUESTED = 'tauri://close-requested',
-  WINDOW_CREATED = 'tauri://window-created',
   WINDOW_DESTROYED = 'tauri://destroyed',
   WINDOW_FOCUS = 'tauri://focus',
   WINDOW_BLUR = 'tauri://blur',
   WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
   WINDOW_THEME_CHANGED = 'tauri://theme-changed',
-  WINDOW_FILE_DROP = 'tauri://file-drop',
-  WINDOW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
-  WINDOW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
-  MENU = 'tauri://menu'
+  WEBVIEW_CREATED = 'tauri://webview-created',
+  WEBVIEW_FILE_DROP = 'tauri://file-drop',
+  WEBVIEW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
+  WEBVIEW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled'
 }
 
 /**
@@ -76,13 +90,13 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
 
 /**
  * Listen to an event. The event can be either global or window-specific.
- * See {@link Event.windowLabel} to check the event source.
+ * See {@link Event.source} to check the event source.
  *
  * @example
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
  * const unlisten = await listen<string>('error', (event) => {
- *   console.log(`Got error in window ${event.windowLabel}, payload: ${event.payload}`);
+ *   console.log(`Got error in window ${event.source}, payload: ${event.payload}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
@@ -103,7 +117,7 @@ async function listen<T>(
 ): Promise<UnlistenFn> {
   return invoke<number>('plugin:event|listen', {
     event,
-    windowLabel: options?.target,
+    target: options?.target,
     handler: transformCallback(handler)
   }).then((eventId) => {
     return async () => _unlisten(event, eventId)
@@ -168,11 +182,18 @@ async function emit(
 ): Promise<void> {
   await invoke('plugin:event|emit', {
     event,
-    windowLabel: options?.target,
+    target: options?.target,
     payload
   })
 }
 
-export type { Event, EventCallback, UnlistenFn, EventName, Options }
+export type {
+  EventSource,
+  Event,
+  EventCallback,
+  UnlistenFn,
+  EventName,
+  Options
+}
 
 export { listen, once, emit, TauriEvent }

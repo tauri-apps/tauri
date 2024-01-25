@@ -1,5 +1,31 @@
 # Changelog
 
+## \[2.0.0-alpha.13]
+
+### Enhancements
+
+- [`d621d343`](https://www.github.com/tauri-apps/tauri/commit/d621d3437ce3947175eecf345b2c6d1c4c7ce020)([#8607](https://www.github.com/tauri-apps/tauri/pull/8607)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.13`
+- Upgraded to `tauri-codegen@2.0.0-alpha.13`
+
+## \[2.0.0-alpha.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.12`
+- Upgraded to `tauri-codegen@2.0.0-alpha.12`
+
+## \[2.0.0-alpha.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.11`
+- Upgraded to `tauri-codegen@2.0.0-alpha.11`
+- [`b6ed4ecb`](https://www.github.com/tauri-apps/tauri/commit/b6ed4ecb3730c346c973f1b34aa0de1b7d43ac44)([#7634](https://www.github.com/tauri-apps/tauri/pull/7634)) Update to syn v2.
+
 ## \[2.0.0-alpha.10]
 
 ### Enhancements
@@ -96,6 +122,12 @@
   - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.4.2]
+
+### Enhancements
+
+- [`5e05236b`](https://www.github.com/tauri-apps/tauri/commit/5e05236b4987346697c7caae0567d3c50714c198)([#8289](https://www.github.com/tauri-apps/tauri/pull/8289)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
 
 ## \[1.4.1]
 

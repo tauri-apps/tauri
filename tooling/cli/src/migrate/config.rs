@@ -5,8 +5,15 @@
 use crate::Result;
 
 use serde_json::{Map, Value};
+use tauri_utils::{
+  acl::capability::{Capability, CapabilityContext},
+  platform::Target,
+};
 
-use std::{fs::write, path::Path};
+use std::{
+  fs::{create_dir_all, write},
+  path::Path,
+};
 
 macro_rules! move_allowlist_object {
   ($plugins: ident, $value: expr, $plugin: literal, $field: literal) => {{
@@ -16,7 +23,7 @@ macro_rules! move_allowlist_object {
         .or_insert_with(|| Value::Object(Default::default()))
         .as_object_mut()
         .unwrap()
-        .insert($field.into(), serde_json::to_value($value)?);
+        .insert($field.into(), serde_json::to_value($value.clone())?);
     }
   }};
 }
@@ -25,14 +32,56 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
   if let Ok((mut config, config_path)) =
     tauri_utils_v1::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))
   {
-    migrate_config(&mut config)?;
-    write(config_path, serde_json::to_string_pretty(&config)?)?;
+    let migrated = migrate_config(&mut config)?;
+    write(&config_path, serde_json::to_string_pretty(&config)?)?;
+
+    let mut permissions = vec![
+      "path:default",
+      "event:default",
+      "window:default",
+      "app:default",
+      "resources:default",
+      "menu:default",
+      "tray:default",
+    ];
+    permissions.extend(migrated.permissions);
+
+    let capabilities_path = config_path.parent().unwrap().join("capabilities");
+    create_dir_all(&capabilities_path)?;
+    write(
+      capabilities_path.join("migrated.json"),
+      serde_json::to_string_pretty(&Capability {
+        identifier: "migrated".to_string(),
+        description: "permissions that were migrated from v1".into(),
+        context: CapabilityContext::Local,
+        windows: vec!["main".into()],
+        permissions: permissions
+          .into_iter()
+          .map(|p| p.to_string().try_into().unwrap())
+          .collect(),
+        platforms: vec![
+          Target::Linux,
+          Target::MacOS,
+          Target::Windows,
+          Target::Android,
+          Target::Ios,
+        ],
+      })?,
+    )?;
   }
 
   Ok(())
 }
 
-fn migrate_config(config: &mut Value) -> Result<()> {
+struct MigratedConfig {
+  permissions: Vec<&'static str>,
+}
+
+fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
+  let mut migrated = MigratedConfig {
+    permissions: Vec::new(),
+  };
+
   if let Some(config) = config.as_object_mut() {
     let mut plugins = config
       .entry("plugins")
@@ -44,7 +93,9 @@ fn migrate_config(config: &mut Value) -> Result<()> {
     if let Some(tauri_config) = config.get_mut("tauri").and_then(|c| c.as_object_mut()) {
       // allowlist
       if let Some(allowlist) = tauri_config.remove("allowlist") {
-        process_allowlist(tauri_config, &mut plugins, allowlist)?;
+        let allowlist = process_allowlist(tauri_config, &mut plugins, allowlist)?;
+        let permissions = allowlist_to_permissions(&allowlist);
+        migrated.permissions = permissions;
       }
 
       if let Some(security) = tauri_config
@@ -72,7 +123,7 @@ fn migrate_config(config: &mut Value) -> Result<()> {
     config.insert("plugins".into(), plugins.into());
   }
 
-  Ok(())
+  Ok(migrated)
 }
 
 fn process_security(security: &mut Map<String, Value>) -> Result<()> {
@@ -117,7 +168,7 @@ fn process_allowlist(
   tauri_config: &mut Map<String, Value>,
   plugins: &mut Map<String, Value>,
   allowlist: Value,
-) -> Result<()> {
+) -> Result<tauri_utils_v1::config::AllowlistConfig> {
   let allowlist: tauri_utils_v1::config::AllowlistConfig = serde_json::from_value(allowlist)?;
 
   move_allowlist_object!(plugins, allowlist.fs.scope, "fs", "scope");
@@ -135,7 +186,7 @@ fn process_allowlist(
     let mut asset_protocol = Map::new();
     asset_protocol.insert(
       "scope".into(),
-      serde_json::to_value(allowlist.protocol.asset_scope)?,
+      serde_json::to_value(allowlist.protocol.asset_scope.clone())?,
     );
     if allowlist.protocol.asset {
       asset_protocol.insert("enable".into(), true.into());
@@ -143,7 +194,114 @@ fn process_allowlist(
     security.insert("assetProtocol".into(), asset_protocol.into());
   }
 
-  Ok(())
+  Ok(allowlist)
+}
+
+fn allowlist_to_permissions(
+  allowlist: &tauri_utils_v1::config::AllowlistConfig,
+) -> Vec<&'static str> {
+  macro_rules! permissions {
+    ($allowlist: ident, $permissions_list: ident, $object: ident, $field: ident => $associated_permission: expr) => {
+      if $allowlist.all || $allowlist.$object.all || $allowlist.$object.$field {
+        $permissions_list.push($associated_permission);
+      }
+    };
+  }
+
+  let mut permissions = Vec::new();
+
+  // fs
+  permissions!(allowlist, permissions, fs, read_file => "fs:allow-read-file");
+  permissions!(allowlist, permissions, fs, write_file => "fs:allow-write-file");
+  permissions!(allowlist, permissions, fs, read_dir => "fs:allow-read-dir");
+  permissions!(allowlist, permissions, fs, copy_file => "fs:allow-copy-file");
+  permissions!(allowlist, permissions, fs, create_dir => "fs:allow-mkdir");
+  permissions!(allowlist, permissions, fs, remove_dir => "fs:allow-remove");
+  permissions!(allowlist, permissions, fs, remove_file => "fs:allow-remove");
+  permissions!(allowlist, permissions, fs, rename_file => "fs:allow-rename");
+  permissions!(allowlist, permissions, fs, exists => "fs:allow-exists");
+  // window
+  permissions!(allowlist, permissions, window, create => "window:allow-create");
+  permissions!(allowlist, permissions, window, center => "window:allow-center");
+  permissions!(allowlist, permissions, window, request_user_attention => "window:allow-request-user-attention");
+  permissions!(allowlist, permissions, window, set_resizable => "window:allow-set-resizable");
+  permissions!(allowlist, permissions, window, set_maximizable => "window:allow-set-maximizable");
+  permissions!(allowlist, permissions, window, set_minimizable => "window:allow-set-minimizable");
+  permissions!(allowlist, permissions, window, set_closable => "window:allow-set-closable");
+  permissions!(allowlist, permissions, window, set_title => "window:allow-set-title");
+  permissions!(allowlist, permissions, window, maximize => "window:allow-maximize");
+  permissions!(allowlist, permissions, window, unmaximize => "window:allow-unmaximize");
+  permissions!(allowlist, permissions, window, minimize => "window:allow-minimize");
+  permissions!(allowlist, permissions, window, unminimize => "window:allow-unminimize");
+  permissions!(allowlist, permissions, window, show => "window:allow-show");
+  permissions!(allowlist, permissions, window, hide => "window:allow-hide");
+  permissions!(allowlist, permissions, window, close => "window:allow-close");
+  permissions!(allowlist, permissions, window, set_decorations => "window:allow-set-decorations");
+  permissions!(allowlist, permissions, window, set_always_on_top => "window:allow-set-always-on-top");
+  permissions!(allowlist, permissions, window, set_content_protected => "window:allow-set-content-protected");
+  permissions!(allowlist, permissions, window, set_size => "window:allow-set-size");
+  permissions!(allowlist, permissions, window, set_min_size => "window:allow-set-min-size");
+  permissions!(allowlist, permissions, window, set_max_size => "window:allow-set-max-size");
+  permissions!(allowlist, permissions, window, set_position => "window:allow-set-position");
+  permissions!(allowlist, permissions, window, set_fullscreen => "window:allow-set-fullscreen");
+  permissions!(allowlist, permissions, window, set_focus => "window:allow-set-focus");
+  permissions!(allowlist, permissions, window, set_icon => "window:allow-set-icon");
+  permissions!(allowlist, permissions, window, set_skip_taskbar => "window:allow-set-skip-taskbar");
+  permissions!(allowlist, permissions, window, set_cursor_grab => "window:allow-set-cursor-grab");
+  permissions!(allowlist, permissions, window, set_cursor_visible => "window:allow-set-cursor-visible");
+  permissions!(allowlist, permissions, window, set_cursor_icon => "window:allow-set-cursor-icon");
+  permissions!(allowlist, permissions, window, set_cursor_position => "window:allow-set-cursor-position");
+  permissions!(allowlist, permissions, window, set_ignore_cursor_events => "window:allow-set-ignore-cursor-events");
+  permissions!(allowlist, permissions, window, start_dragging => "window:allow-start-dragging");
+  permissions!(allowlist, permissions, window, print => "webview:allow-print");
+  // shell
+  permissions!(allowlist, permissions, shell, execute => "shell:allow-execute");
+  permissions!(allowlist, permissions, shell, sidecar => "shell:allow-execute");
+  if allowlist.all
+    || allowlist.shell.all
+    || !matches!(
+      allowlist.shell.open,
+      tauri_utils_v1::config::ShellAllowlistOpen::Flag(false)
+    )
+  {
+    permissions.push("shell:allow-open");
+  }
+  // dialog
+  permissions!(allowlist, permissions, dialog, open => "dialog:allow-open");
+  permissions!(allowlist, permissions, dialog, save => "dialog:allow-save");
+  permissions!(allowlist, permissions, dialog, message => "dialog:allow-message");
+  permissions!(allowlist, permissions, dialog, ask => "dialog:allow-ask");
+  permissions!(allowlist, permissions, dialog, confirm => "dialog:allow-confirm");
+  // http
+  permissions!(allowlist, permissions, http, request => "http:default");
+  // notification
+  permissions!(allowlist, permissions, notification, all => "notification:default");
+  // global-shortcut
+  permissions!(allowlist, permissions, global_shortcut, all => "global-shortcut:allow-is-registered");
+  permissions!(allowlist, permissions, global_shortcut, all => "global-shortcut:allow-register");
+  permissions!(allowlist, permissions, global_shortcut, all => "global-shortcut:allow-register-all");
+  permissions!(allowlist, permissions, global_shortcut, all => "global-shortcut:allow-unregister");
+  permissions!(allowlist, permissions, global_shortcut, all => "global-shortcut:allow-unregister-all");
+  // os
+  permissions!(allowlist, permissions, os, all => "os:allow-platform");
+  permissions!(allowlist, permissions, os, all => "os:allow-version");
+  permissions!(allowlist, permissions, os, all => "os:allow-os-type");
+  permissions!(allowlist, permissions, os, all => "os:allow-family");
+  permissions!(allowlist, permissions, os, all => "os:allow-arch");
+  permissions!(allowlist, permissions, os, all => "os:allow-exe-extension");
+  permissions!(allowlist, permissions, os, all => "os:allow-locale");
+  permissions!(allowlist, permissions, os, all => "os:allow-hostname");
+  // process
+  permissions!(allowlist, permissions, process, relaunch => "process:allow-restart");
+  permissions!(allowlist, permissions, process, exit => "process:allow-exit");
+  // clipboard
+  permissions!(allowlist, permissions, clipboard, read_text => "clipboard-manager:allow-read");
+  permissions!(allowlist, permissions, clipboard, write_text => "clipboard-manager:allow-write");
+  // app
+  permissions!(allowlist, permissions, app, show => "app:allow-app-show");
+  permissions!(allowlist, permissions, app, hide => "app:allow-app-hide");
+
+  permissions
 }
 
 fn process_cli(plugins: &mut Map<String, Value>, cli: Value) -> Result<()> {
@@ -297,8 +455,12 @@ mod test {
 
     // fs scope
     assert_eq!(
-      migrated["plugins"]["fs"]["scope"],
-      original["tauri"]["allowlist"]["fs"]["scope"]
+      migrated["plugins"]["fs"]["scope"]["allow"],
+      original["tauri"]["allowlist"]["fs"]["scope"]["allow"]
+    );
+    assert_eq!(
+      migrated["plugins"]["fs"]["scope"]["deny"],
+      original["tauri"]["allowlist"]["fs"]["scope"]["deny"]
     );
 
     // shell scope
@@ -323,8 +485,12 @@ mod test {
       original["tauri"]["allowlist"]["protocol"]["asset"]
     );
     assert_eq!(
-      migrated["tauri"]["security"]["assetProtocol"]["scope"],
-      original["tauri"]["allowlist"]["protocol"]["assetScope"]
+      migrated["tauri"]["security"]["assetProtocol"]["scope"]["allow"],
+      original["tauri"]["allowlist"]["protocol"]["assetScope"]["allow"]
+    );
+    assert_eq!(
+      migrated["tauri"]["security"]["assetProtocol"]["scope"]["deny"],
+      original["tauri"]["allowlist"]["protocol"]["assetScope"]["deny"]
     );
 
     // security CSP

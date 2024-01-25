@@ -2,19 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { defineConfig, Plugin } from 'rollup'
+import { defineConfig, Plugin, RollupLog } from 'rollup'
 import typescript from '@rollup/plugin-typescript'
 import terser from '@rollup/plugin-terser'
 import fg from 'fast-glob'
 import { basename, join } from 'path'
-import {
-  writeFileSync,
-  copyFileSync,
-  opendirSync,
-  rmSync,
-  Dir,
-  readFileSync
-} from 'fs'
+import { copyFileSync, opendirSync, rmSync, Dir } from 'fs'
 import { fileURLToPath } from 'url'
 
 // cleanup dist dir
@@ -31,6 +24,7 @@ export default defineConfig([
         format: 'esm',
         dir: './dist',
         preserveModules: true,
+        preserveModulesRoot: 'src',
         entryFileNames: (chunkInfo) => {
           if (chunkInfo.name.includes('node_modules')) {
             return chunkInfo.name.replace('node_modules', 'external') + '.js'
@@ -43,6 +37,7 @@ export default defineConfig([
         format: 'cjs',
         dir: './dist',
         preserveModules: true,
+        preserveModulesRoot: 'src',
         entryFileNames: (chunkInfo) => {
           if (chunkInfo.name.includes('node_modules')) {
             return chunkInfo.name.replace('node_modules', 'external') + '.cjs'
@@ -59,7 +54,8 @@ export default defineConfig([
         rootDir: 'src'
       }),
       makeFlatPackageInDist()
-    ]
+    ],
+    onwarn
   },
 
   {
@@ -67,51 +63,27 @@ export default defineConfig([
     output: {
       format: 'iife',
       name: '__TAURI_IIFE__',
-      file: '../../core/tauri/scripts/bundle.global.js',
-      footer: 'window.__TAURI__ = __TAURI_IIFE__'
+      footer: 'window.__TAURI__ = __TAURI_IIFE__',
+      file: '../../core/tauri/scripts/bundle.global.js'
     },
-    plugins: [typescript(), terser()]
+    plugins: [typescript(), terser()],
+    onwarn
   }
 ])
+
+function onwarn(warning: RollupLog) {
+  // deny warnings by default
+  throw Object.assign(new Error(), warning)
+}
 
 function makeFlatPackageInDist(): Plugin {
   return {
     name: 'makeFlatPackageInDist',
     writeBundle() {
-      // append our api modules to `exports` in `package.json` then write it to `./dist`
-      const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-      const mods = modules.map((p) => basename(p).split('.')[0])
-
-      const outputPkg = {
-        ...pkg,
-        devDependencies: {},
-        exports: Object.assign(
-          {},
-          ...mods.map((mod) => {
-            let temp: Record<string, { import: string; require: string }> = {}
-            let key = `./${mod}`
-            if (mod === 'index') {
-              key = '.'
-            }
-
-            temp[key] = {
-              import: `./${mod}.js`,
-              require: `./${mod}.cjs`
-            }
-            return temp
-          }),
-          // if for some reason in the future we manually add something in the `exports` field
-          // this will ensure it doesn't get overwritten by the logic above
-          { ...(pkg.exports || {}) }
-        )
-      }
-      writeFileSync(
-        'dist/package.json',
-        JSON.stringify(outputPkg, undefined, 2)
-      )
-
       // copy necessary files like `CHANGELOG.md` , `README.md` and Licenses to `./dist`
-      fg.sync('(LICENSE*|*.md)').forEach((f) => copyFileSync(f, `dist/${f}`))
+      fg.sync('(LICENSE*|*.md|package.json)').forEach((f) =>
+        copyFileSync(f, `dist/${f}`)
+      )
     }
   }
 }

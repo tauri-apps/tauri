@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-set-min-size"
+description = "Enables the set_min_size command without any pre-configured scope."
+commands.allow = ["set_min_size"]
+
+[[permission]]
+identifier = "deny-set-min-size"
+description = "Denies the set_min_size command without any pre-configured scope."
+commands.deny = ["set_min_size"]

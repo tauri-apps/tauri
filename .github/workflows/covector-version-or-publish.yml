@@ -112,25 +112,15 @@ jobs:
           repository: tauri-apps/tauri-docs
           event-type: update-docs
 
-      - name: Process covector output
-        id: covectorOutput
-        if: |
-          steps.covector.outputs.successfulPublish == 'true' &&
-          contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
-        run: |
-          id=$(node .scripts/covector/parse-output.js '${{ toJSON(steps.covector.outputs) }}' "-tauri-apps-cli-releaseId")
-          echo "cliReleaseId=$id" >> "$GITHUB_OUTPUT"
-
       - name: Trigger `@tauri-apps/cli` publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
         uses: peter-evans/repository-dispatch@v1
         with:
-          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
-          repository: tauri-apps/tauri
           event-type: publish-js-cli
-          client-payload: '{"releaseId": "${{ steps.covectorOutput.outputs.cliReleaseId }}" }'
+          client-payload: >-
+            {"releaseId": "${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}" }
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |
@@ -138,6 +128,4 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
         uses: peter-evans/repository-dispatch@v1
         with:
-          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
-          repository: tauri-apps/tauri
           event-type: publish-clirs

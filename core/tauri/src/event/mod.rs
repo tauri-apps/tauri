@@ -5,7 +5,7 @@
 mod listener;
 pub(crate) mod plugin;
 pub(crate) use listener::Listeners;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Checks if an event name is valid.
 pub fn is_event_name_valid(event: &str) -> bool {
@@ -24,6 +24,15 @@ pub fn assert_event_name_is_valid(event: &str) {
 /// Unique id of an event.
 pub type EventId = u32;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind")]
+#[serde(rename_all = "camelCase")]
+pub enum EventSource {
+  Global,
+  Window { label: String },
+  Webview { label: String },
+}
+
 /// Serialized emit arguments.
 #[derive(Clone)]
 pub struct EmitArgs {
@@ -31,22 +40,20 @@ pub struct EmitArgs {
   pub event_name: String,
   /// Serialized event name.
   pub event: String,
-  /// Serialized source window label ("null" for global events)
-  pub source_window_label: String,
+  /// Serialized [`EventSource`].
+  pub source: String,
   /// Serialized payload.
   pub payload: String,
 }
 
 impl EmitArgs {
-  pub fn from<S: Serialize>(
-    event: &str,
-    source_window_label: Option<&str>,
-    payload: S,
-  ) -> crate::Result<Self> {
+  pub fn from<S: Serialize>(event: &str, source: &EventSource, payload: S) -> crate::Result<Self> {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("window::emit::serialize").entered();
     Ok(EmitArgs {
       event_name: event.into(),
       event: serde_json::to_string(event)?,
-      source_window_label: serde_json::to_string(&source_window_label)?,
+      source: serde_json::to_string(source)?,
       payload: serde_json::to_string(&payload)?,
     })
   }
@@ -75,7 +82,7 @@ pub fn listen_js(
   listeners_object_name: &str,
   event: &str,
   event_id: EventId,
-  window_label: Option<&str>,
+  serialized_source: &str,
   handler: &str,
 ) -> String {
   format!(
@@ -90,28 +97,23 @@ pub fn listen_js(
       const eventListeners = window['{listeners}'][{event}]
       const listener = {{
         id: {event_id},
-        windowLabel: {window_label},
+        source: {source},
         handler: {handler}
       }};
       eventListeners.push(listener);
     }})()
   ",
     listeners = listeners_object_name,
-    window_label = if let Some(l) = window_label {
-      crate::runtime::window::assert_label_is_valid(l);
-      format!("'{l}'")
-    } else {
-      "null".to_owned()
-    },
+    source = serialized_source,
   )
 }
 
 pub fn emit_js(event_emit_function_name: &str, emit_args: &EmitArgs) -> crate::Result<String> {
   Ok(format!(
-    "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
+    "(function () {{ const fn = window['{}']; fn && fn({{event: {}, source: {}, payload: {}}}) }})()",
     event_emit_function_name,
     emit_args.event,
-    emit_args.source_window_label,
+    emit_args.source,
     emit_args.payload
   ))
 }
@@ -141,10 +143,7 @@ pub fn event_initialization_script(function: &str, listeners: &str) -> String {
 
         for (let i = listeners.length - 1; i >= 0; i--) {{
           const listener = listeners[i]
-          if (
-              (listener.windowLabel && listener.windowLabel === eventData.windowLabel) ||
-              (!listener.windowLabel && (listener.windowLabel === null || eventData.windowLabel === null))
-            ) {{
+          if (listener.source.kind === 'global' || eventData.source.kind === 'global' || listener.source.kind === 'window' || eventData.source.kind === 'window' || listener.source.label === eventData.source.label) {{
             eventData.id = listener.id
             listener.handler(eventData)
           }}

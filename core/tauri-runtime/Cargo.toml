@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "1.0.0-alpha.4"
+version = "1.0.0-alpha.8"
 description = "Runtime for Tauri applications"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -29,13 +29,13 @@ targets = [
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "2.0.0-alpha.10", path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-alpha.13", path = "../tauri-utils" }
 http = "0.2.4"
 raw-window-handle = "0.5"
 url = { version = "2" }
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.51"
+version = "0.52"
 features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

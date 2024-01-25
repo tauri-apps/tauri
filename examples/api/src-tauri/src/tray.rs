@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   menu::{Menu, MenuItem},
   tray::{ClickType, TrayIconBuilder},
-  Manager, Runtime, WindowBuilder, WindowUrl,
+  Manager, Runtime, WebviewUrl,
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
@@ -53,7 +53,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         app.remove_tray_by_id("tray-1");
       }
       "toggle" => {
-        if let Some(window) = app.get_window("main") {
+        if let Some(window) = app.get_webview_window("main") {
           let new_title = if window.is_visible().unwrap_or_default() {
             let _ = window.hide();
             "Show"
@@ -66,9 +66,11 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         }
       }
       "new-window" => {
-        let _ = WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
-          .title("Tauri")
-          .build();
+        let _webview =
+          tauri::WebviewWindowBuilder::new(app, "new", WebviewUrl::App("index.html".into()))
+            .title("Tauri")
+            .build()
+            .unwrap();
       }
       #[cfg(target_os = "macos")]
       "set-title" => {
@@ -104,7 +106,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     .on_tray_icon_event(|tray, event| {
       if event.click_type == ClickType::Left {
         let app = tray.app_handle();
-        if let Some(window) = app.get_window("main") {
+        if let Some(window) = app.get_webview_window("main") {
           let _ = window.show();
           let _ = window.set_focus();
         }

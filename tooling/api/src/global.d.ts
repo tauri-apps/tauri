@@ -4,7 +4,7 @@
 
 /** @ignore */
 
-import type { invoke, transformCallback, convertFileSrc } from './primitives'
+import type { invoke, transformCallback, convertFileSrc } from './core'
 
 /** @ignore */
 declare global {
@@ -23,6 +23,8 @@ declare global {
       metadata: {
         windows: WindowDef[]
         currentWindow: WindowDef
+        webviews: WebviewDef[]
+        currentWebview: WebviewDef
       }
       plugins: {
         path: {
@@ -32,6 +34,12 @@ declare global {
       }
     }
   }
+}
+
+/** @ignore */
+interface WebviewDef {
+  windowLabel: string
+  label: string
 }
 
 /** @ignore */

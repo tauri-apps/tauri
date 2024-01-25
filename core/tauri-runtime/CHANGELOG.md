@@ -1,5 +1,33 @@
 # Changelog
 
+## \[1.0.0-alpha.8]
+
+### New Features
+
+- [`29ced5ce`](https://www.github.com/tauri-apps/tauri/commit/29ced5ceec40b2934094ade2db9a8855f294e1d1)([#8159](https://www.github.com/tauri-apps/tauri/pull/8159)) Added download event closure via `PendingWindow::download_handler`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.13`
+
+## \[1.0.0-alpha.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.12`
+
+## \[1.0.0-alpha.6]
+
+### Dependencies
+
+- [\`\`](https://www.github.com/tauri-apps/tauri/commit/undefined) Update dependencies.
+
+## \[1.0.0-alpha.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.11`
+
 ## \[1.0.0-alpha.4]
 
 ### New Features

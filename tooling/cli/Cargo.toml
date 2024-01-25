@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "2.0.0-alpha.17"
+version = "2.0.0-alpha.21"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.70"
@@ -39,8 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.7", default-features = false }
-textwrap = { version = "0.11.0", features = [ "term_size" ] }
+cargo-mobile2 = { version = "0.8", default-features = false }
 jsonrpsee = { version = "0.20", features = [ "server" ] }
 jsonrpsee-core = "0.20"
 jsonrpsee-client-transport = { version = "0.20", features = [ "ws" ] }
@@ -50,29 +49,28 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.4", features = [ "derive", "env" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "2.0.0-alpha.11", default-features = false, path = "../bundler" }
+tauri-bundler = { version = "2.0.0-alpha.14", default-features = false, path = "../bundler" }
 colored = "2.0"
-once_cell = "1"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 notify = "6.1"
 notify-debouncer-mini = "0.4"
 shared_child = "1.0"
 duct = "0.13"
-toml_edit = "0.20"
+toml_edit = "0.21"
 json-patch = "1.2"
-tauri-utils = { version = "2.0.0-alpha.10", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
+tauri-utils = { version = "2.0.0-alpha.13", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
 jsonschema = "0.17"
-handlebars = "4.4"
+handlebars = "5.0"
 include_dir = "0.7"
 minisign = "=0.7.5"
-base64 = "0.21.4"
+base64 = "0.21.5"
 ureq = { version = "2.8", default-features = false, features = [ "gzip" ] }
 os_info = "3"
 semver = "1.0"
-regex = "1.6.0"
+regex = "1.10.2"
 unicode-width = "0.1"
 zeroize = "1.6"
 heck = { version = "0.4", features = [ "unicode" ] }
@@ -94,6 +92,7 @@ serde-value = "0.7.0"
 itertools = "0.11"
 local-ip-address = "0.5"
 css-color = "0.2"
+resvg = "0.36.0"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }
@@ -101,6 +100,9 @@ cc = "1"
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+plist = "1"
 
 [features]
 default = [ "rustls" ]

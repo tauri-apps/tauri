@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{
-      get as get_config, reload as reload_config, AppUrl, Config as TauriConfig, WindowUrl,
+      get as get_config, reload as reload_config, AppUrl, Config as TauriConfig, WebviewUrl,
     },
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
@@ -168,7 +168,7 @@ fn setup_dev_config(
     .dev_path
     .clone();
 
-  if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
+  if let AppUrl::Url(WebviewUrl::External(url)) = &mut dev_path {
     let localhost = match url.host() {
       Some(url::Host::Domain(d)) => d == "localhost",
       Some(url::Host::Ipv4(i)) => {
@@ -217,11 +217,10 @@ fn env() -> Result<Env, EnvError> {
   Ok(env)
 }
 
+pub struct OptionsHandle(Runtime, ServerHandle);
+
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
-pub fn write_options(
-  identifier: &str,
-  mut options: CliOptions,
-) -> crate::Result<(Runtime, ServerHandle)> {
+pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result<OptionsHandle> {
   options.vars.extend(env_vars());
 
   let runtime = Runtime::new().unwrap();
@@ -243,7 +242,7 @@ pub fn write_options(
     addr.to_string(),
   )?;
 
-  Ok((runtime, handle))
+  Ok(OptionsHandle(runtime, handle))
 }
 
 fn read_options(identifier: &str) -> CliOptions {

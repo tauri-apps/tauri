@@ -24,6 +24,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use log::warn;
 
+pub mod acl;
 pub mod assets;
 pub mod config;
 pub mod html;
@@ -33,6 +34,8 @@ pub mod platform;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]
 pub mod resources;
+#[cfg(feature = "build")]
+pub mod tokens;
 
 /// Application pattern.
 pub mod pattern;

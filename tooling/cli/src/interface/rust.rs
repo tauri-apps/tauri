@@ -22,8 +22,8 @@ use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
+  PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
 
@@ -228,27 +228,21 @@ impl Interface for Rust {
       self.app_settings.target_triple.clone(),
     );
 
-    let mut s = self.app_settings.target_triple.split('-');
-    let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
-    env.insert(
-      "TAURI_ENV_ARCH",
-      match arch {
-        // keeps compatibility with old `std::env::consts::ARCH` implementation
-        "i686" | "i586" => "x86".into(),
-        a => a.into(),
-      },
-    );
-    env.insert(
-      "TAURI_ENV_PLATFORM",
-      match host {
-        // keeps compatibility with old `std::env::consts::OS` implementation
-        "darwin" => "macos".into(),
-        "ios-sim" => "ios".into(),
-        "androideabi" => "android".into(),
-        h => h.into(),
-      },
-    );
+    let target_triple = &self.app_settings.target_triple;
+    let target_components: Vec<&str> = target_triple.split('-').collect();
+    let (arch, host, _host_env) = match target_components.as_slice() {
+      // 3 components like aarch64-apple-darwin
+      [arch, _, host] => (*arch, *host, None),
+      // 4 components like x86_64-pc-windows-msvc and aarch64-apple-ios-sim
+      [arch, _, host, host_env] => (*arch, *host, Some(*host_env)),
+      _ => {
+        log::warn!("Invalid target triple: {}", target_triple);
+        return env;
+      }
+    };
 
+    env.insert("TAURI_ENV_ARCH", arch.into());
+    env.insert("TAURI_ENV_PLATFORM", host.into());
     env.insert(
       "TAURI_ENV_FAMILY",
       match host {
@@ -256,13 +250,6 @@ impl Interface for Rust {
         _ => "unix".into(),
       },
     );
-
-    match host {
-      "linux" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Linux".into()),
-      "windows" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Windows_NT".into()),
-      "darwin" => env.insert("TAURI_ENV_PLATFORM_TYPE", "Darwin".into()),
-      _ => None,
-    };
 
     env
   }
@@ -647,6 +634,8 @@ pub struct CargoPackageSettings {
   pub homepage: Option<MaybeWorkspace<String>>,
   /// the package's authors.
   pub authors: Option<MaybeWorkspace<Vec<String>>>,
+  /// the package's license.
+  pub license: Option<String>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -708,8 +697,15 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    let mut settings =
-      tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone())?;
+    let arch64bits =
+      self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
+
+    let mut settings = tauri_config_to_bundle_settings(
+      &self.manifest,
+      features,
+      config.tauri.bundle.clone(),
+      arch46bits,
+    )?;
 
     if let Some(plugin_config) = config
       .plugins
@@ -956,6 +952,7 @@ impl RustAppSettings {
           })
           .unwrap()
       }),
+      license: cargo_package_settings.license.clone(),
       default_run: cargo_package_settings.default_run.clone(),
     };
 
@@ -1069,6 +1066,7 @@ fn tauri_config_to_bundle_settings(
   manifest: &Manifest,
   features: &[String],
   config: crate::helpers::config::BundleConfig,
+  arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
 
@@ -1089,11 +1087,15 @@ fn tauri_config_to_bundle_settings(
     .resources
     .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
-  let mut depends = config.deb.depends.unwrap_or_default();
+  let mut depends_deb = config.deb.depends.unwrap_or_default();
+  #[allow(unused_mut)]
+  let mut depends_rpm = config.rpm.depends.unwrap_or_default();
 
   // set env vars used by the bundler and inject dependencies
   #[cfg(target_os = "linux")]
   {
+    let mut libs: Vec<String> = Vec::new();
+
     if enabled_features.contains(&"tray-icon".into())
       || enabled_features.contains(&"tauri/tray-icon".into())
     {
@@ -1122,19 +1124,30 @@ fn tauri_config_to_bundle_settings(
         .unwrap_or_else(|_| pkgconfig_utils::get_appindicator_library_path());
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
-          depends.push("libayatana-appindicator3-1".into());
+          depends_deb.push("libayatana-appindicator3-1".into());
         }
         pkgconfig_utils::TrayKind::Libappindicator => {
-          depends.push("libappindicator3-1".into());
+          depends_deb.push("libappindicator3-1".into());
+          libs.push("libappindicator3.so.1".into());
         }
       }
 
       std::env::set_var("TAURI_TRAY_LIBRARY_PATH", path);
     }
 
-    // provides `libwebkit2gtk-4.1.so.37` and all `4.0` versions have the -37 package name
-    depends.push("libwebkit2gtk-4.1-0".to_string());
-    depends.push("libgtk-3-0".to_string());
+    depends_deb.push("libwebkit2gtk-4.1-0".to_string());
+    depends_deb.push("libgtk-3-0".to_string());
+
+    libs.push("libwebkit2gtk-4.1.so.0".into());
+    libs.push("libgtk-3.so.0".into());
+
+    for lib in libs {
+      let mut requires = lib;
+      if arch64bits {
+        requires.push_str("()(64bit)");
+      }
+      depends_rpm.push(requires);
+    }
   }
 
   #[cfg(windows)]
@@ -1192,16 +1205,48 @@ fn tauri_config_to_bundle_settings(
     long_description: config.long_description,
     external_bin: config.external_bin,
     deb: DebianSettings {
-      depends: if depends.is_empty() {
+      depends: if depends_deb.is_empty() {
         None
       } else {
-        Some(depends)
+        Some(depends_deb)
       },
       files: config.deb.files,
       desktop_template: config.deb.desktop_template,
     },
+    rpm: RpmSettings {
+      license: config.rpm.license,
+      depends: if depends_rpm.is_empty() {
+        None
+      } else {
+        Some(depends_rpm)
+      },
+      release: config.rpm.release,
+      epoch: config.rpm.epoch,
+      files: config.rpm.files,
+      desktop_template: config.rpm.desktop_template,
+    },
+    dmg: DmgSettings {
+      background: config.dmg.background,
+      window_position: config.dmg.window_position.map(|window_position| Position {
+        x: window_position.x,
+        y: window_position.y,
+      }),
+      window_size: Size {
+        width: config.dmg.window_size.width,
+        height: config.dmg.window_size.height,
+      },
+      app_position: Position {
+        x: config.dmg.app_position.x,
+        y: config.dmg.app_position.y,
+      },
+      application_folder_position: Position {
+        x: config.dmg.application_folder_position.x,
+        y: config.dmg.application_folder_position.y,
+      },
+    },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
+      files: config.macos.files,
       minimum_system_version: config.macos.minimum_system_version,
       license: config.macos.license,
       exception_domain: config.macos.exception_domain,

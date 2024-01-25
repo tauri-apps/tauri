@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-alpha.13]
+
+### Bug Fixes
+
+- [`9b230de7`](https://www.github.com/tauri-apps/tauri/commit/9b230de7bc6690c2733f5324d50b999af1f7a6ef)([#8407](https://www.github.com/tauri-apps/tauri/pull/8407)) Fix compile error when parsing config that includes float values.
+
+## \[2.0.0-alpha.12]
+
+### New Features
+
+- [\`\`](https://www.github.com/tauri-apps/tauri/commit/undefined) Add bundle DMG configuration options.
+
+## \[2.0.0-alpha.11]
+
+### Breaking Changes
+
+- [`5e84e92e`](https://www.github.com/tauri-apps/tauri/commit/5e84e92e99376f24b730f8eba002239379b593e1)([#8243](https://www.github.com/tauri-apps/tauri/pull/8243)) Changed `platform::windows_version` to return a `(u32, u32, u32)` instead of `Option<(u32, u32, u32)>`
+
 ## \[2.0.0-alpha.10]
 
 ### Enhancements
@@ -99,6 +117,12 @@
   - [b3a3afc7](https://www.github.com/tauri-apps/tauri/commit/b3a3afc7de8de4021d73559288f5192732a706cf) feat(core): detect android and ios platform configuration files ([#4997](https://www.github.com/tauri-apps/tauri/pull/4997)) on 2022-08-22
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.3]
+
+### New Features
+
+- [`b3e53e72`](https://www.github.com/tauri-apps/tauri/commit/b3e53e7243311a2659b7569dddc20c56ac9f9d8e)([#8288](https://www.github.com/tauri-apps/tauri/pull/8288)) Added `Assets::iter` to iterate on all embedded assets.
 
 ## \[1.5.0]
 

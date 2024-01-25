@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WindowUrl},
+    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WebviewUrl},
     resolve_merge_config,
   },
   interface::{AppInterface, DevProcess, ExitReason, Interface},
@@ -16,7 +16,6 @@ use crate::{
 use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
 use log::{error, info, warn};
-use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
 use tauri_utils::platform::Target;
 
@@ -26,12 +25,12 @@ use std::{
   process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
+    Arc, Mutex, OnceLock,
   },
 };
 
-static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
-static KILL_BEFORE_DEV_FLAG: OnceCell<AtomicBool> = OnceCell::new();
+static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
+static KILL_BEFORE_DEV_FLAG: OnceLock<AtomicBool> = OnceLock::new();
 
 #[cfg(unix)]
 const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
@@ -64,7 +63,9 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
-  /// Command line arguments passed to the runner. Arguments after `--` are passed to the application.
+  /// Command line arguments passed to the runner.
+  /// Use `--` to explicitly mark the start of the arguments. Arguments after a second `--` are passed to the application
+  /// e.g. `tauri dev -- [runnerArgs] -- [appArgs]`.
   pub args: Vec<String>,
   /// Skip waiting for the frontend dev server to start before building the tauri application.
   #[clap(long, env = "TAURI_CLI_NO_DEV_SERVER_WAIT")]
@@ -107,7 +108,7 @@ fn command_internal(mut options: Options) -> Result<()> {
 }
 
 pub fn local_ip_address(force: bool) -> &'static IpAddr {
-  static LOCAL_IP: OnceCell<IpAddr> = OnceCell::new();
+  static LOCAL_IP: OnceLock<IpAddr> = OnceLock::new();
   LOCAL_IP.get_or_init(|| {
     let prompt_for_ip = || {
       let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()
@@ -194,13 +195,13 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
         if mobile {
           let local_ip_address = local_ip_address(options.force_ip_prompt).to_string();
           before_dev = before_dev.replace("$HOST", &local_ip_address);
-          if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
+          if let AppUrl::Url(WebviewUrl::External(url)) = &mut dev_path {
             url.set_host(Some(&local_ip_address))?;
           }
         } else {
           before_dev = before_dev.replace(
             "$HOST",
-            if let AppUrl::Url(WindowUrl::External(url)) = &dev_path {
+            if let AppUrl::Url(WebviewUrl::External(url)) = &dev_path {
               url.host_str().unwrap_or("0.0.0.0")
             } else {
               "0.0.0.0"
@@ -313,7 +314,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     .dev_path
     .clone();
   if !options.no_dev_server {
-    if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
+    if let AppUrl::Url(WebviewUrl::App(path)) = &dev_path {
       use crate::helpers::web_dev_server::start_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
@@ -324,7 +325,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
         };
         let server_url = start_dev_server(path, ip, options.port)?;
         let server_url = format!("http://{server_url}");
-        dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
+        dev_path = AppUrl::Url(WebviewUrl::External(server_url.parse().unwrap()));
 
         if let Some(c) = &options.config {
           let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
@@ -340,7 +341,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
   }
 
   if !options.no_dev_server_wait {
-    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {
+    if let AppUrl::Url(WebviewUrl::External(dev_server_url)) = dev_path {
       let host = dev_server_url
         .host()
         .unwrap_or_else(|| panic!("No host name in the URL"));

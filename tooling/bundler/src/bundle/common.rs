@@ -103,9 +103,7 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
     )));
   }
   if to.exists() {
-    return Err(crate::Error::GenericError(format!(
-      "{from:?} already exists"
-    )));
+    return Err(crate::Error::GenericError(format!("{to:?} already exists")));
   }
   let parent = to.parent().expect("No data in parent");
   fs::create_dir_all(parent)?;
@@ -164,11 +162,14 @@ impl CommandExt for Command {
       let mut lines = stdout_lines_.lock().unwrap();
       loop {
         line.clear();
-        if let Ok(0) = stdout.read_line(&mut line) {
-          break;
+        match stdout.read_line(&mut line) {
+          Ok(0) => break,
+          Ok(_) => {
+            debug!(action = "stdout"; "{}", line.trim_end());
+            lines.extend(line.as_bytes().to_vec());
+          }
+          Err(_) => (),
         }
-        debug!(action = "stdout"; "{}", &line[0..line.len() - 1]);
-        lines.extend(line.as_bytes().to_vec());
       }
     });
 
@@ -180,11 +181,14 @@ impl CommandExt for Command {
       let mut lines = stderr_lines_.lock().unwrap();
       loop {
         line.clear();
-        if let Ok(0) = stderr.read_line(&mut line) {
-          break;
+        match stderr.read_line(&mut line) {
+          Ok(0) => break,
+          Ok(_) => {
+            debug!(action = "stderr"; "{}", line.trim_end());
+            lines.extend(line.as_bytes().to_vec());
+          }
+          Err(_) => (),
         }
-        debug!(action = "stderr"; "{}", &line[0..line.len() - 1]);
-        lines.extend(line.as_bytes().to_vec());
       }
     });
 

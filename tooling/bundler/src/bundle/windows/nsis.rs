@@ -8,9 +8,9 @@ use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, download_and_verify, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
-      NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL,
-      WEBVIEW2_X64_OFFLINE_INSTALLER_GUID, WEBVIEW2_X86_OFFLINE_INSTALLER_GUID,
+      download, download_and_verify, download_webview2_bootstrapper,
+      download_webview2_offline_installer, extract_zip, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
+      NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
   Settings,
@@ -37,8 +37,8 @@ const NSIS_URL: &str =
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.1/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "53A7CFAEB6A4A9653D6D5FBFF02A3C3B8720130A";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.2/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "16DF1D1A5B4D5DF3859447279C55BE36D4109DFB";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -290,23 +290,38 @@ fn build_nsis_app_installer(
     .iter()
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+  let main_binary_path = settings.binary_path(main_binary).with_extension("exe");
   data.insert(
     "main_binary_name",
     to_json(main_binary.name().replace(".exe", "")),
   );
-  data.insert(
-    "main_binary_path",
-    to_json(settings.binary_path(main_binary).with_extension("exe")),
-  );
+  data.insert("main_binary_path", to_json(&main_binary_path));
 
   let out_file = "nsis-output.exe";
   data.insert("out_file", to_json(out_file));
 
   let resources = generate_resource_data(settings)?;
-  data.insert("resources", to_json(resources));
+  let resources_dirs =
+    std::collections::HashSet::<PathBuf>::from_iter(resources.values().map(|r| r.0.to_owned()));
+
+  let mut resources_ancestors = resources_dirs
+    .iter()
+    .flat_map(|p| p.ancestors())
+    .collect::<Vec<_>>();
+  resources_ancestors.sort_unstable();
+  resources_ancestors.dedup();
+  resources_ancestors.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
+  resources_ancestors.pop(); // Last one is always ""
+
+  data.insert("resources_ancestors", to_json(resources_ancestors));
+  data.insert("resources_dirs", to_json(resources_dirs));
+  data.insert("resources", to_json(&resources));
 
   let binaries = generate_binaries_data(settings)?;
-  data.insert("binaries", to_json(binaries));
+  data.insert("binaries", to_json(&binaries));
+
+  let estimated_size = generate_estimated_size(&main_binary_path, &binaries, &resources)?;
+  data.insert("estimated_size", to_json(estimated_size));
 
   if let Some(file_associations) = &settings.file_associations() {
     data.insert("file_associations", to_json(file_associations));
@@ -367,40 +382,15 @@ fn build_nsis_app_installer(
 
   match webview2_install_mode {
     WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
-      let webview2_bootstrapper_path = tauri_tools_path.join("MicrosoftEdgeWebview2Setup.exe");
-      std::fs::write(
-        &webview2_bootstrapper_path,
-        download(WEBVIEW2_BOOTSTRAPPER_URL)?,
-      )?;
+      let webview2_bootstrapper_path = download_webview2_bootstrapper(tauri_tools_path)?;
       data.insert(
         "webview2_bootstrapper_path",
         to_json(webview2_bootstrapper_path),
       );
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
-      let guid = if arch == "x64" {
-        WEBVIEW2_X64_OFFLINE_INSTALLER_GUID
-      } else {
-        WEBVIEW2_X86_OFFLINE_INSTALLER_GUID
-      };
-      let offline_installer_path = tauri_tools_path
-        .join("Webview2OfflineInstaller")
-        .join(guid)
-        .join(arch);
-      create_dir_all(&offline_installer_path)?;
       let webview2_installer_path =
-        offline_installer_path.join("MicrosoftEdgeWebView2RuntimeInstaller.exe");
-      if !webview2_installer_path.exists() {
-        std::fs::write(
-          &webview2_installer_path,
-          download(
-            &format!("https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/{}/MicrosoftEdgeWebView2RuntimeInstaller{}.exe",
-              guid,
-              arch.to_uppercase(),
-            ),
-          )?,
-        )?;
-      }
+        download_webview2_offline_installer(&tauri_tools_path.join(arch), arch)?;
       data.insert("webview2_installer_path", to_json(webview2_installer_path));
     }
     _ => {}
@@ -487,6 +477,8 @@ fn build_nsis_app_installer(
       _ => "-V4",
     })
     .arg(installer_nsi_path)
+    .env_remove("NSISDIR")
+    .env_remove("NSISCONFDIR")
     .current_dir(output_path)
     .piped()
     .context("error running makensis.exe")?;
@@ -501,7 +493,7 @@ fn build_nsis_app_installer(
 }
 
 fn handlebars_or(
-  h: &handlebars::Helper<'_, '_>,
+  h: &handlebars::Helper<'_>,
   _: &Handlebars<'_>,
   _: &handlebars::Context,
   _: &mut handlebars::RenderContext<'_, '_>,
@@ -519,7 +511,7 @@ fn handlebars_or(
 }
 
 fn association_description(
-  h: &handlebars::Helper<'_, '_>,
+  h: &handlebars::Helper<'_>,
   _: &Handlebars<'_>,
   _: &handlebars::Context,
   _: &mut handlebars::RenderContext<'_, '_>,
@@ -606,6 +598,24 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
   }
 
   Ok(binaries)
+}
+
+fn generate_estimated_size(
+  main: &Path,
+  binaries: &BinariesMap,
+  resources: &ResourcesMap,
+) -> crate::Result<String> {
+  use std::fs::metadata;
+
+  let mut size = metadata(main)?.len();
+
+  for k in binaries.keys().chain(resources.keys()) {
+    size += metadata(k)?.len();
+  }
+
+  size /= 1000;
+
+  Ok(format!("{size:#08x}"))
 }
 
 fn get_lang_data(

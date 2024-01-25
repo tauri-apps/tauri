@@ -1,5 +1,65 @@
 # Changelog
 
+## \[2.0.0-alpha.21]
+
+### New Features
+
+- [`27bad32d`](https://www.github.com/tauri-apps/tauri/commit/27bad32d4d4acca8155b20225d529d540fb9aaf4)([#7798](https://www.github.com/tauri-apps/tauri/pull/7798)) Add `files` object on the `tauri > bundle > macOS` configuration option.
+- [`0ec28c39`](https://www.github.com/tauri-apps/tauri/commit/0ec28c39f478de7199a66dd75e8642e1aa1344e6)([#8529](https://www.github.com/tauri-apps/tauri/pull/8529)) Include tauri-build on the migration script.
+
+### Enhancements
+
+- [`091100ac`](https://www.github.com/tauri-apps/tauri/commit/091100acbb507b51de39fb1446f685926f888fd2)([#5202](https://www.github.com/tauri-apps/tauri/pull/5202)) Add RPM packaging
+
+### Bug Fixes
+
+- [`4f73057e`](https://www.github.com/tauri-apps/tauri/commit/4f73057e6fd4c137bc112367fb91f5fc0c8a39f6)([#8486](https://www.github.com/tauri-apps/tauri/pull/8486)) Prevent `Invalid target triple` warnings and correctly set `TAURI_ENV_` vars when target triple contains 4 components.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.21`
+
+### Breaking Changes
+
+- [`4f73057e`](https://www.github.com/tauri-apps/tauri/commit/4f73057e6fd4c137bc112367fb91f5fc0c8a39f6)([#8486](https://www.github.com/tauri-apps/tauri/pull/8486)) Removed `TAURI_ENV_PLATFORM_TYPE` which will not be set for CLI hook commands anymore, use `TAURI_ENV_PLATFORM` instead. Also Changed value of `TAURI_ENV_PLATFORM` and `TAURI_ENV_ARCH` values to match the target triple more accurately:
+
+  - `darwin` and `androideabi` are no longer replaced with `macos` and `android` in `TAURI_ENV_PLATFORM`.
+  - `i686` and `i586` are no longer replaced with `x86` in `TAURI_ENV_ARCH`.
+
+## \[2.0.0-alpha.20]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.20`
+
+## \[2.0.0-alpha.19]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.19`
+
+## \[2.0.0-alpha.18]
+
+### New Features
+
+- [`50f7ccbb`](https://www.github.com/tauri-apps/tauri/commit/50f7ccbbf3467f33cc7dd1cca53125fec6eda1c6)([#6444](https://www.github.com/tauri-apps/tauri/pull/6444)) Add suport to SVG input image for the `tauri icon` command.
+- [`25e5f91d`](https://www.github.com/tauri-apps/tauri/commit/25e5f91dae7fe2bbc1ba4317d5d829402bfd1d50)([#8200](https://www.github.com/tauri-apps/tauri/pull/8200)) Merge `src-tauri/Info.plist` and `src-tauri/Info.ios.plist` with the iOS project plist file.
+
+### Enhancements
+
+- [`01a7a983`](https://www.github.com/tauri-apps/tauri/commit/01a7a983aba2946b455a608b8a6a4b08cb25fc11)([#8128](https://www.github.com/tauri-apps/tauri/pull/8128)) Transform paths to relative to the mobile project for the IDE script runner script.
+
+### Bug Fixes
+
+- [`88dac86f`](https://www.github.com/tauri-apps/tauri/commit/88dac86f3b301d1919df6473a9e20f46b560f29b)([#8149](https://www.github.com/tauri-apps/tauri/pull/8149)) Ensure `tauri add` prints `rust_code` with plugin name in snake case.
+- [`977d0e52`](https://www.github.com/tauri-apps/tauri/commit/977d0e52f14b1ad01c86371765ef25b36572459e)([#8202](https://www.github.com/tauri-apps/tauri/pull/8202)) Fixes `android build --open` and `ios build --open` IDE failing to read CLI options.
+- [`bfbbefdb`](https://www.github.com/tauri-apps/tauri/commit/bfbbefdb9e13ed1f42f6db7fa9ceaa84db1267e9)([#8161](https://www.github.com/tauri-apps/tauri/pull/8161)) Fix invalid plugin template.
+- [`92b50a3a`](https://www.github.com/tauri-apps/tauri/commit/92b50a3a398c9d55b6992a8f5c2571e4d72bdaaf)([#8209](https://www.github.com/tauri-apps/tauri/pull/8209)) Added support to Xcode's archive. This requires regenerating the Xcode project.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-alpha.18`
+
 ## \[2.0.0-alpha.17]
 
 ### Enhancements
@@ -253,6 +313,34 @@
   - [a9c8e565](https://www.github.com/tauri-apps/tauri/commit/a9c8e565c6495961940877df7090f307be16b554) feat: add `android open` and `ios open` commands ([#4946](https://www.github.com/tauri-apps/tauri/pull/4946)) on 2022-08-15
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.8]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.8`
+
+## \[1.5.7]
+
+### Bug Fixes
+
+- [`1d5aa38a`](https://www.github.com/tauri-apps/tauri/commit/1d5aa38ae418ea31f593590b6d32cf04d3bfd8c1)([#8162](https://www.github.com/tauri-apps/tauri/pull/8162)) Fixes errors on command output, occuring when the output stream contains an invalid UTF-8 character, or ends with a multi-bytes UTF-8 character.
+- [`f26d9f08`](https://www.github.com/tauri-apps/tauri/commit/f26d9f0884f63f61b9f4d4fac15e6b251163793e)([#8263](https://www.github.com/tauri-apps/tauri/pull/8263)) Fixes an issue in the NSIS installer which caused the uninstallation to leave empty folders on the system if the `resources` feature was used.
+- [`92bc7d0e`](https://www.github.com/tauri-apps/tauri/commit/92bc7d0e16157434330a1bcf1eefda6f0f1e5f85)([#8233](https://www.github.com/tauri-apps/tauri/pull/8233)) Fixes an issue in the NSIS installer which caused the installation to take much longer than expected when many `resources` were added to the bundle.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.7`
+
+## \[1.5.6]
+
+### Bug Fixes
+
+- [`5264e41d`](https://www.github.com/tauri-apps/tauri/commit/5264e41db3763e4c2eb0c3c21bd423fb7bece3e2)([#8082](https://www.github.com/tauri-apps/tauri/pull/8082)) Downgraded `rust-minisign` to `0.7.3` to fix signing updater bundles with empty passwords.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.6`
 
 ## \[1.5.5]
 

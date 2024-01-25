@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.0.0-alpha.14]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.13`
+- Upgraded to `tauri-codegen@2.0.0-alpha.13`
+
+## \[2.0.0-alpha.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.12`
+- Upgraded to `tauri-codegen@2.0.0-alpha.12`
+
+## \[2.0.0-alpha.12]
+
+### Bug Fixes
+
+- [`a5479712`](https://www.github.com/tauri-apps/tauri/commit/a5479712095c224e2cb147d5c271acbc2fc97e79)([#8168](https://www.github.com/tauri-apps/tauri/pull/8168)) Fixed an issue that caused the resource compiler to not run on Windows when `package.version` was not set in `tauri.conf.json` preventing the app from starting.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.11`
+- Upgraded to `tauri-codegen@2.0.0-alpha.11`
+
 ## \[2.0.0-alpha.11]
 
 ### Enhancements

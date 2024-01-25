@@ -4,17 +4,25 @@
 
 //! Platform helper functions.
 
-use std::path::{PathBuf, MAIN_SEPARATOR};
+use std::{
+  fmt::Display,
+  path::{PathBuf, MAIN_SEPARATOR},
+};
+
+use serde::{Deserialize, Serialize};
 
 use crate::{Env, PackageInfo};
 
 mod starting_binary;
 
 /// Platform target.
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum Target {
   /// MacOS.
-  Darwin,
+  #[serde(rename = "macOS")]
+  MacOS,
   /// Windows.
   Windows,
   /// Linux.
@@ -22,14 +30,31 @@ pub enum Target {
   /// Android.
   Android,
   /// iOS.
+  #[serde(rename = "iOS")]
   Ios,
+}
+
+impl Display for Target {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::MacOS => "macOS",
+        Self::Windows => "windows",
+        Self::Linux => "linux",
+        Self::Android => "android",
+        Self::Ios => "iOS",
+      }
+    )
+  }
 }
 
 impl Target {
   /// Parses the target from the given target triple.
   pub fn from_triple(target: &str) -> Self {
     if target.contains("darwin") {
-      Self::Darwin
+      Self::MacOS
     } else if target.contains("windows") {
       Self::Windows
     } else if target.contains("android") {
@@ -44,9 +69,13 @@ impl Target {
   /// Gets the current build target.
   pub fn current() -> Self {
     if cfg!(target_os = "macos") {
-      Self::Darwin
+      Self::MacOS
     } else if cfg!(target_os = "windows") {
       Self::Windows
+    } else if cfg!(target_os = "ios") {
+      Self::Ios
+    } else if cfg!(target_os = "android") {
+      Self::Android
     } else {
       Self::Linux
     }
@@ -254,88 +283,4 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
   }
 
   res
-}
-
-#[cfg(windows)]
-pub use windows_platform::{get_function_impl, is_windows_7, windows_version};
-
-#[cfg(windows)]
-mod windows_platform {
-  use std::{iter::once, os::windows::prelude::OsStrExt};
-  use windows::{
-    core::{PCSTR, PCWSTR},
-    Win32::{
-      Foundation::FARPROC,
-      System::{
-        LibraryLoader::{GetProcAddress, LoadLibraryW},
-        SystemInformation::OSVERSIONINFOW,
-      },
-    },
-  };
-
-  /// Checks if we're running on Windows 7.
-  pub fn is_windows_7() -> bool {
-    if let Some(v) = windows_version() {
-      // windows 7 is 6.1
-      if v.0 == 6 && v.1 == 1 {
-        return true;
-      }
-    }
-    false
-  }
-
-  fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
-    string.as_ref().encode_wide().chain(once(0)).collect()
-  }
-
-  /// Helper function to dynamically load function pointer.
-  /// `library` and `function` must be null-terminated.
-  pub fn get_function_impl(library: &str, function: &str) -> Option<FARPROC> {
-    let library = encode_wide(library);
-    assert_eq!(function.chars().last(), Some('\0'));
-    let function = PCSTR::from_raw(function.as_ptr());
-
-    // Library names we will use are ASCII so we can use the A version to avoid string conversion.
-    let module = unsafe { LoadLibraryW(PCWSTR::from_raw(library.as_ptr())) }.unwrap_or_default();
-    if module.is_invalid() {
-      None
-    } else {
-      Some(unsafe { GetProcAddress(module, function) })
-    }
-  }
-
-  macro_rules! get_function {
-    ($lib:expr, $func:ident) => {
-      get_function_impl(concat!($lib, '\0'), concat!(stringify!($func), '\0'))
-        .map(|f| unsafe { std::mem::transmute::<windows::Win32::Foundation::FARPROC, $func>(f) })
-    };
-  }
-
-  /// Returns a tuple of (major, minor, buildnumber) for the Windows version.
-  pub fn windows_version() -> Option<(u32, u32, u32)> {
-    type RtlGetVersion = unsafe extern "system" fn(*mut OSVERSIONINFOW) -> i32;
-    let handle = get_function!("ntdll.dll", RtlGetVersion);
-    if let Some(rtl_get_version) = handle {
-      unsafe {
-        let mut vi = OSVERSIONINFOW {
-          dwOSVersionInfoSize: 0,
-          dwMajorVersion: 0,
-          dwMinorVersion: 0,
-          dwBuildNumber: 0,
-          dwPlatformId: 0,
-          szCSDVersion: [0; 128],
-        };
-
-        let status = (rtl_get_version)(&mut vi as _);
-
-        if status >= 0 {
-          Some((vi.dwMajorVersion, vi.dwMinorVersion, vi.dwBuildNumber))
-        } else {
-          None
-        }
-      }
-    } else {
-      None
-    }
-  }
 }

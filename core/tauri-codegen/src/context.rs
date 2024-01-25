@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
@@ -10,14 +11,20 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 
+use tauri_utils::acl::capability::Capability;
+use tauri_utils::acl::plugin::Manifest;
+use tauri_utils::acl::resolved::Resolved;
 use tauri_utils::assets::AssetKey;
-use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
+use tauri_utils::config::{AppUrl, Config, PatternKind, WebviewUrl};
 use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
 use tauri_utils::platform::Target;
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
+
+const PLUGIN_MANIFESTS_FILE_NAME: &str = "plugin-manifests.json";
+const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
 pub struct ContextData {
@@ -158,8 +165,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let assets = match app_url {
     AppUrl::Url(url) => match url {
-      WindowUrl::External(_) => Default::default(),
-      WindowUrl::App(path) => {
+      WebviewUrl::External(_) => Default::default(),
+      WebviewUrl::App(path) => {
         if path.components().count() == 0 {
           panic!(
             "The `{}` configuration cannot be empty",
@@ -233,7 +240,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   };
 
-  let app_icon = if target == Target::Darwin && dev {
+  let app_icon = if target == Target::MacOS && dev {
     let mut icon_path = find_icon(
       &config,
       &config_parent,
@@ -297,7 +304,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   #[cfg(target_os = "macos")]
-  let info_plist = if target == Target::Darwin && dev {
+  let info_plist = if target == Target::MacOS && dev {
     let info_plist_path = config_parent.join("Info.plist");
     let mut info_plist = if info_plist_path.exists() {
       plist::Value::from_file(&info_plist_path)
@@ -373,16 +380,37 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   };
 
+  let acl_file_path = out_dir.join(PLUGIN_MANIFESTS_FILE_NAME);
+  let acl: BTreeMap<String, Manifest> = if acl_file_path.exists() {
+    let acl_file =
+      std::fs::read_to_string(acl_file_path).expect("failed to read plugin manifest map");
+    serde_json::from_str(&acl_file).expect("failed to parse plugin manifest map")
+  } else {
+    Default::default()
+  };
+
+  let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
+  let capabilities: BTreeMap<String, Capability> = if capabilities_file_path.exists() {
+    let capabilities_file =
+      std::fs::read_to_string(capabilities_file_path).expect("failed to read capabilities");
+    serde_json::from_str(&capabilities_file).expect("failed to parse capabilities")
+  } else {
+    Default::default()
+  };
+
+  let resolved_act = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
+
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
       #config,
-      ::std::sync::Arc::new(#assets),
+      ::std::boxed::Box::new(#assets),
       #default_window_icon,
       #app_icon,
       #package_info,
       #info_plist,
       #pattern,
+      #resolved_act
     );
     #with_tray_icon_code
     context

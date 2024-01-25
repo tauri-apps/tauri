@@ -639,7 +639,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  pub fn transient_for(mut self, parent: &Window<R>) -> crate::Result<Self> {
+  pub fn transient_for(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
     self.window_builder = self.window_builder.transient_for(&parent.webview.window)?;
     Ok(self)
   }
@@ -655,7 +655,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
-    self.window_builder = self.window_builder.transient_for(parent);
+    self.window_builder = self.window_builder.transient_for_raw(parent);
     self
   }
 

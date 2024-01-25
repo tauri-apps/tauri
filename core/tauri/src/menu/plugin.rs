@@ -128,11 +128,7 @@ struct CheckMenuItemPayload {
 }
 
 impl CheckMenuItemPayload {
-<<<<<<< HEAD
-  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> crate::Result<CheckMenuItem<R>> {
-=======
-  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> CheckMenuItem<R> {
->>>>>>> dev
+  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> crate::Result<CheckMenuItem<R>> {
     let mut builder = if let Some(id) = self.id {
       CheckMenuItemBuilder::with_id(id, self.text)
     } else {
@@ -145,11 +141,7 @@ impl CheckMenuItemPayload {
       builder = builder.enabled(enabled);
     }
 
-<<<<<<< HEAD
-    let item = builder.checked(self.checked).build(window)?;
-=======
-    let item = builder.checked(self.checked).build(webview);
->>>>>>> dev
+    let item = builder.checked(self.checked).build(webview)?;
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
@@ -184,11 +176,7 @@ struct IconMenuItemPayload {
 }
 
 impl IconMenuItemPayload {
-<<<<<<< HEAD
-  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> crate::Result<IconMenuItem<R>> {
-=======
-  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> IconMenuItem<R> {
->>>>>>> dev
+  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> crate::Result<IconMenuItem<R>> {
     let mut builder = if let Some(id) = self.id {
       IconMenuItemBuilder::with_id(id, self.text)
     } else {
@@ -205,11 +193,7 @@ impl IconMenuItemPayload {
       Icon::Icon(icon) => builder.icon(icon.into()),
     };
 
-<<<<<<< HEAD
-    let item = builder.build(window)?;
-=======
-    let item = builder.build(webview);
->>>>>>> dev
+    let item = builder.build(webview)?;
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
@@ -235,11 +219,7 @@ struct MenuItemPayload {
 }
 
 impl MenuItemPayload {
-<<<<<<< HEAD
-  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> crate::Result<MenuItem<R>> {
-=======
-  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> MenuItem<R> {
->>>>>>> dev
+  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> crate::Result<MenuItem<R>> {
     let mut builder = if let Some(id) = self.id {
       MenuItemBuilder::with_id(id, self.text)
     } else {
@@ -252,11 +232,7 @@ impl MenuItemPayload {
       builder = builder.enabled(enabled);
     }
 
-<<<<<<< HEAD
-    let item = builder.build(window)?;
-=======
-    let item = builder.build(webview);
->>>>>>> dev
+    let item = builder.build(webview)?;
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
@@ -279,11 +255,10 @@ struct PredefinedMenuItemPayload {
 }
 
 impl PredefinedMenuItemPayload {
-<<<<<<< HEAD
-  pub fn create_item<R: Runtime>(self, window: &Window<R>) -> crate::Result<PredefinedMenuItem<R>> {
-=======
-  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> PredefinedMenuItem<R> {
->>>>>>> dev
+  pub fn create_item<R: Runtime>(
+    self,
+    webview: &Webview<R>,
+  ) -> crate::Result<PredefinedMenuItem<R>> {
     match self.item {
       Predefined::Separator => PredefinedMenuItem::separator(webview),
       Predefined::Copy => PredefinedMenuItem::copy(webview, self.text.as_deref()),
@@ -330,19 +305,11 @@ impl MenuItemPayloadKind {
       Self::ExistingItem((rid, kind)) => {
         do_menu_item!(resources_table, rid, kind, |i| f(&*i))
       }
-<<<<<<< HEAD
-      Self::Submenu(i) => f(&i.create_item(window, resources_table)?),
-      Self::Predefined(i) => f(&i.create_item(window)?),
-      Self::Check(i) => f(&i.create_item(window)?),
-      Self::Icon(i) => f(&i.create_item(window)?),
-      Self::MenuItem(i) => f(&i.create_item(window)?),
-=======
       Self::Submenu(i) => f(&i.create_item(webview, resources_table)?),
-      Self::Predefined(i) => f(&i.create_item(webview)),
-      Self::Check(i) => f(&i.create_item(webview)),
-      Self::Icon(i) => f(&i.create_item(webview)),
-      Self::MenuItem(i) => f(&i.create_item(webview)),
->>>>>>> dev
+      Self::Predefined(i) => f(&i.create_item(webview)?),
+      Self::Check(i) => f(&i.create_item(webview)?),
+      Self::Icon(i) => f(&i.create_item(webview)?),
+      Self::MenuItem(i) => f(&i.create_item(webview)?),
     }
   }
 }
@@ -414,11 +381,7 @@ fn new<R: Runtime>(
         enabled: options.enabled,
         accelerator: options.accelerator,
       }
-<<<<<<< HEAD
-      .create_item(&window)?;
-=======
-      .create_item(&webview);
->>>>>>> dev
+      .create_item(&webview)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -429,11 +392,7 @@ fn new<R: Runtime>(
         item: options.predefined_item.unwrap(),
         text: options.text,
       }
-<<<<<<< HEAD
-      .create_item(&window)?;
-=======
-      .create_item(&webview);
->>>>>>> dev
+      .create_item(&webview)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -449,11 +408,7 @@ fn new<R: Runtime>(
         enabled: options.enabled,
         accelerator: options.accelerator,
       }
-<<<<<<< HEAD
-      .create_item(&window)?;
-=======
-      .create_item(&webview);
->>>>>>> dev
+      .create_item(&webview)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -469,11 +424,7 @@ fn new<R: Runtime>(
         enabled: options.enabled,
         accelerator: options.accelerator,
       }
-<<<<<<< HEAD
-      .create_item(&window)?;
-=======
-      .create_item(&webview);
->>>>>>> dev
+      .create_item(&webview)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)

@@ -704,7 +704,7 @@ impl AppSettings for RustAppSettings {
       &self.manifest,
       features,
       config.tauri.bundle.clone(),
-      arch46bits,
+      arch64bits,
     )?;
 
     if let Some(plugin_config) = config

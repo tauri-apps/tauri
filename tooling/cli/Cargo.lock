@@ -477,7 +477,7 @@ dependencies = [
  "embed-resource",
  "english-numbers",
  "freedesktop_entry_parser",
- "handlebars",
+ "handlebars 4.5.0",
  "heck",
  "home",
  "ignore",
@@ -1736,6 +1736,20 @@ name = "handlebars"
 version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faa67bab9ff362228eb3d00bd024a4965d8231bbb7921167f0cfa66c6626b225"
+dependencies = [
+ "log",
+ "pest",
+ "pest_derive",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "handlebars"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94eae21d01d20dabef65d8eda734d83df6e2dea8166788804be9bd6bc92448fa"
 dependencies = [
  "log",
  "pest",
@@ -4444,6 +4458,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "socks"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0c3dbbd9ae980613c6dd8e28a9407b50509d3803b57624d5dfe8315218cd58b"
+dependencies = [
+ "byteorder",
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "soketto"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4712,7 +4737,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.0-alpha.13"
+version = "2.0.0-alpha.14"
 dependencies = [
  "anyhow",
  "ar",
@@ -4720,7 +4745,7 @@ dependencies = [
  "dirs-next",
  "dunce",
  "glob",
- "handlebars",
+ "handlebars 5.0.0",
  "heck",
  "hex",
  "image",
@@ -4740,7 +4765,7 @@ dependencies = [
  "strsim",
  "tar",
  "tauri-icns",
- "tauri-utils 2.0.0-alpha.12",
+ "tauri-utils 2.0.0-alpha.13",
  "tempfile",
  "thiserror",
  "time",
@@ -4754,7 +4779,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-alpha.20"
+version = "2.0.0-alpha.21"
 dependencies = [
  "anyhow",
  "axum",
@@ -4770,7 +4795,7 @@ dependencies = [
  "dialoguer",
  "duct",
  "env_logger",
- "handlebars",
+ "handlebars 5.0.0",
  "heck",
  "html5ever",
  "ignore",
@@ -4804,7 +4829,7 @@ dependencies = [
  "tauri-bundler",
  "tauri-icns",
  "tauri-utils 1.5.0",
- "tauri-utils 2.0.0-alpha.12",
+ "tauri-utils 2.0.0-alpha.13",
  "thiserror",
  "tokio",
  "toml 0.8.8",
@@ -4870,7 +4895,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-alpha.12"
+version = "2.0.0-alpha.13"
 dependencies = [
  "aes-gcm",
  "ctor 0.2.5",
@@ -5398,6 +5423,7 @@ dependencies = [
  "once_cell",
  "rustls",
  "rustls-webpki",
+ "socks",
  "url",
  "webpki-roots",
 ]

@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-create-webview-window"
+description = "Enables the create_webview_window command without any pre-configured scope."
+commands.allow = ["create_webview_window"]
+
+[[permission]]
+identifier = "deny-create-webview-window"
+description = "Denies the create_webview_window command without any pre-configured scope."
+commands.deny = ["create_webview_window"]

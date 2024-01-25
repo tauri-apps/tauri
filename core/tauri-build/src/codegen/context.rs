@@ -10,7 +10,7 @@ use std::{
   path::PathBuf,
 };
 use tauri_codegen::{context_codegen, ContextData};
-use tauri_utils::config::{AppUrl, WindowUrl};
+use tauri_utils::config::{AppUrl, WebviewUrl};
 
 // TODO docs
 /// A builder for generating a Tauri application context during compile time.
@@ -78,20 +78,7 @@ impl CodegenContext {
   ///
   /// Unless you are doing something special with this builder, you don't need to do anything with
   /// the returned output path.
-  ///
-  /// # Panics
-  ///
-  /// If any parts of the codegen fail, this will panic with the related error message. This is
-  /// typically desirable when running inside a build script; see [`Self::try_build`] for no panics.
-  pub fn build(self) -> PathBuf {
-    match self.try_build() {
-      Ok(out) => out,
-      Err(error) => panic!("Error found during Codegen::build: {error}"),
-    }
-  }
-
-  /// Non-panicking [`Self::build`]
-  pub fn try_build(self) -> Result<PathBuf> {
+  pub(crate) fn try_build(self) -> Result<PathBuf> {
     let (config, config_parent) = tauri_codegen::get_config(&self.config_path)?;
 
     // rerun if changed
@@ -101,7 +88,7 @@ impl CodegenContext {
       &config.build.dist_dir
     };
     match app_url {
-      AppUrl::Url(WindowUrl::App(p)) => {
+      AppUrl::Url(WebviewUrl::App(p)) => {
         println!("cargo:rerun-if-changed={}", config_parent.join(p).display());
       }
       AppUrl::Files(files) => {

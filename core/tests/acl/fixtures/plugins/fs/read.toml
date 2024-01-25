@@ -1,0 +1,4 @@
+[[set]]
+identifier = "read"
+description = "allows all read APIs"
+permissions = ["allow-read-dir", "allow-read-file"]

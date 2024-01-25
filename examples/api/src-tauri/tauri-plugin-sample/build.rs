@@ -4,6 +4,8 @@
 
 use std::process::exit;
 
+const COMMANDS: &[&str] = &["ping"];
+
 fn main() {
   if let Err(error) = tauri_build::mobile::PluginBuilder::new()
     .android_path("android")
@@ -13,4 +15,6 @@ fn main() {
     println!("{error:#}");
     exit(1);
   }
+
+  tauri_plugin::Builder::new(COMMANDS).build();
 }

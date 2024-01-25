@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::env::var;
+
 use heck::{ToLowerCamelCase, ToSnakeCase};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
@@ -120,6 +122,7 @@ enum ArgumentCase {
 struct Invoke {
   message: Ident,
   resolver: Ident,
+  acl: Ident,
 }
 
 /// Create a new [`Wrapper`] from the function and the generated code parsed from the function.
@@ -135,13 +138,14 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
   // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`
   let maybe_macro_export = match &function.vis {
-    Visibility::Public(_) => quote!(#[macro_export]),
-    _ => Default::default(),
+    Visibility::Public(_) | Visibility::Restricted(_) => quote!(#[macro_export]),
+    _ => TokenStream2::default(),
   };
 
   let invoke = Invoke {
     message: format_ident!("__tauri_message__"),
     resolver: format_ident!("__tauri_resolver__"),
+    acl: format_ident!("__tauri_acl__"),
   };
 
   // Tauri currently doesn't support async commands that take a reference as input and don't return
@@ -201,16 +205,24 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     }
   }
 
+  let plugin_name = var("CARGO_PKG_NAME")
+    .expect("missing `CARGO_PKG_NAME` environment variable")
+    .strip_prefix("tauri-plugin-")
+    .map(|name| quote!(::core::option::Option::Some(#name)))
+    .unwrap_or_else(|| quote!(::core::option::Option::None));
+
   let body = match attrs.execution_context {
-    ExecutionContext::Async => {
-      body_async(&function, &invoke, &attrs).unwrap_or_else(syn::Error::into_compile_error)
-    }
-    ExecutionContext::Blocking => {
-      body_blocking(&function, &invoke, &attrs).unwrap_or_else(syn::Error::into_compile_error)
-    }
+    ExecutionContext::Async => body_async(&plugin_name, &function, &invoke, &attrs)
+      .unwrap_or_else(syn::Error::into_compile_error),
+    ExecutionContext::Blocking => body_blocking(&plugin_name, &function, &invoke, &attrs)
+      .unwrap_or_else(syn::Error::into_compile_error),
   };
 
-  let Invoke { message, resolver } = invoke;
+  let Invoke {
+    message,
+    resolver,
+    acl,
+  } = invoke;
 
   let root = attrs.root;
 
@@ -255,7 +267,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           use #root::command::private::*;
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
-          let #root::ipc::Invoke { message: #message, resolver: #resolver } = $invoke;
+          let #root::ipc::Invoke { message: #message, resolver: #resolver, acl: #acl } = $invoke;
 
           #maybe_span
 
@@ -276,12 +288,17 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
 fn body_async(
+  plugin_name: &TokenStream2,
   function: &ItemFn,
   invoke: &Invoke,
   attributes: &WrapperAttributes,
 ) -> syn::Result<TokenStream2> {
-  let Invoke { message, resolver } = invoke;
-  parse_args(function, message, attributes).map(|args| {
+  let Invoke {
+    message,
+    resolver,
+    acl,
+  } = invoke;
+  parse_args(plugin_name, function, message, acl, attributes).map(|args| {
     #[cfg(feature = "tracing")]
     quote! {
       use tracing::Instrument;
@@ -314,12 +331,17 @@ fn body_async(
 ///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
 fn body_blocking(
+  plugin_name: &TokenStream2,
   function: &ItemFn,
   invoke: &Invoke,
   attributes: &WrapperAttributes,
 ) -> syn::Result<TokenStream2> {
-  let Invoke { message, resolver } = invoke;
-  let args = parse_args(function, message, attributes)?;
+  let Invoke {
+    message,
+    resolver,
+    acl,
+  } = invoke;
+  let args = parse_args(plugin_name, function, message, acl, attributes)?;
 
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
@@ -344,23 +366,36 @@ fn body_blocking(
 
 /// Parse all arguments for the command wrapper to use from the signature of the command function.
 fn parse_args(
+  plugin_name: &TokenStream2,
   function: &ItemFn,
   message: &Ident,
+  acl: &Ident,
   attributes: &WrapperAttributes,
 ) -> syn::Result<Vec<TokenStream2>> {
   function
     .sig
     .inputs
     .iter()
-    .map(|arg| parse_arg(&function.sig.ident, arg, message, attributes))
+    .map(|arg| {
+      parse_arg(
+        plugin_name,
+        &function.sig.ident,
+        arg,
+        message,
+        acl,
+        attributes,
+      )
+    })
     .collect()
 }
 
 /// Transform a [`FnArg`] into a command argument.
 fn parse_arg(
+  plugin_name: &TokenStream2,
   command: &Ident,
   arg: &FnArg,
   message: &Ident,
+  acl: &Ident,
   attributes: &WrapperAttributes,
 ) -> syn::Result<TokenStream2> {
   // we have no use for self arguments
@@ -409,9 +444,11 @@ fn parse_arg(
 
   Ok(quote!(#root::command::CommandArg::from_command(
     #root::command::CommandItem {
+      plugin: #plugin_name,
       name: stringify!(#command),
       key: #key,
       message: &#message,
+      acl: &#acl,
     }
   )))
 }

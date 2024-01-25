@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../.schema.json"
+
+[[permission]]
+identifier = "allow-is-focused"
+description = "Enables the is_focused command without any pre-configured scope."
+commands.allow = ["is_focused"]
+
+[[permission]]
+identifier = "deny-is-focused"
+description = "Denies the is_focused command without any pre-configured scope."
+commands.deny = ["is_focused"]

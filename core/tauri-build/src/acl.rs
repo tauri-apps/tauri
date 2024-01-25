@@ -132,8 +132,9 @@ pub fn validate_capabilities(
       continue;
     }
 
-    for permission in &capability.permissions {
-      if let Some((plugin_name, permission_name)) = permission.get().split_once(':') {
+    for permission_entry in &capability.permissions {
+      let permission_id = permission_entry.identifier();
+      if let Some((plugin_name, permission_name)) = permission_id.get().split_once(':') {
         let permission_exists = plugin_manifests
           .get(plugin_name)
           .map(|manifest| {
@@ -162,7 +163,7 @@ pub fn validate_capabilities(
 
           anyhow::bail!(
             "Permission {} not found, expected one of {}",
-            permission.get(),
+            permission_id.get(),
             available_permissions.join(", ")
           );
         }

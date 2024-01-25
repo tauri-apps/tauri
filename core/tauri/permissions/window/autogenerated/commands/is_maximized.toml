@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 # Automatically generated - DO NOT EDIT!
 
-"$schema" = "..\\..\\..\\.schema.json"
+"$schema" = "../../../.schema.json"
 
 [[permission]]
 identifier = "allow-is-maximized"

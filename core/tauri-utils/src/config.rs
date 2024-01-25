@@ -1152,7 +1152,7 @@ pub struct WindowConfig {
   /// ## Platform-specific
   ///
   /// - **Windows / iOS / Android:** Unsupported.
-  #[serde(default, alias = "all-workspaces")]
+  #[serde(default, alias = "visible-on-all-workspaces")]
   pub visible_on_all_workspaces: bool,
   /// Prevents the window contents from being captured by other apps.
   #[serde(default, alias = "content-protected")]

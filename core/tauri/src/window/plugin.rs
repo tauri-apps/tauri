@@ -415,6 +415,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::start_dragging,
             desktop_commands::start_resize_dragging,
             desktop_commands::set_progress_bar,
+            desktop_commands::set_icon,
             desktop_commands::set_visible_on_all_workspaces,
             desktop_commands::toggle_maximize,
             desktop_commands::internal_toggle_maximize,

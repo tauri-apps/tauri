@@ -25,7 +25,7 @@ use tauri_utils::{
 
 use std::{
   env::var_os,
-  fs::{copy, read_to_string},
+  fs::copy,
   path::{Path, PathBuf},
 };
 
@@ -485,7 +485,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   acl::validate_capabilities(&plugin_manifests, &capabilities)?;
 
   let capabilities_path = acl::save_capabilities(&capabilities)?;
-  copy(&capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
+  copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
 
   acl::save_plugin_manifests(&plugin_manifests)?;
 

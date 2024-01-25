@@ -4,17 +4,25 @@
 
 //! Platform helper functions.
 
-use std::path::{PathBuf, MAIN_SEPARATOR};
+use std::{
+  fmt::Display,
+  path::{PathBuf, MAIN_SEPARATOR},
+};
+
+use serde::{Deserialize, Serialize};
 
 use crate::{Env, PackageInfo};
 
 mod starting_binary;
 
 /// Platform target.
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum Target {
   /// MacOS.
-  Darwin,
+  #[serde(rename = "macOS")]
+  MacOS,
   /// Windows.
   Windows,
   /// Linux.
@@ -22,14 +30,31 @@ pub enum Target {
   /// Android.
   Android,
   /// iOS.
+  #[serde(rename = "iOS")]
   Ios,
+}
+
+impl Display for Target {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::MacOS => "macOS",
+        Self::Windows => "windows",
+        Self::Linux => "linux",
+        Self::Android => "android",
+        Self::Ios => "iOS",
+      }
+    )
+  }
 }
 
 impl Target {
   /// Parses the target from the given target triple.
   pub fn from_triple(target: &str) -> Self {
     if target.contains("darwin") {
-      Self::Darwin
+      Self::MacOS
     } else if target.contains("windows") {
       Self::Windows
     } else if target.contains("android") {
@@ -44,9 +69,13 @@ impl Target {
   /// Gets the current build target.
   pub fn current() -> Self {
     if cfg!(target_os = "macos") {
-      Self::Darwin
+      Self::MacOS
     } else if cfg!(target_os = "windows") {
       Self::Windows
+    } else if cfg!(target_os = "ios") {
+      Self::Ios
+    } else if cfg!(target_os = "android") {
+      Self::Android
     } else {
       Self::Linux
     }

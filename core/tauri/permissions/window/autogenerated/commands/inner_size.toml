@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "..\\..\\..\\.schema.json"
+
+[[permission]]
+identifier = "allow-inner-size"
+description = "Enables the inner_size command without any pre-configured scope."
+commands.allow = ["inner_size"]
+
+[[permission]]
+identifier = "deny-inner-size"
+description = "Denies the inner_size command without any pre-configured scope."
+commands.deny = ["inner_size"]

@@ -22,22 +22,24 @@ use tauri_utils::{
 
 use crate::{
   app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
-  event::{assert_event_name_is_valid, Event, EventId, Listeners},
+  command::RuntimeAuthority,
+  event::{assert_event_name_is_valid, Event, EventId, EventSource, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   plugin::PluginStore,
   utils::{
     assets::Assets,
-    config::{AppUrl, Config, WindowUrl},
+    config::{AppUrl, Config, WebviewUrl},
     PackageInfo,
   },
   Context, Pattern, Runtime, StateManager, Window,
 };
-use crate::{event::EmitArgs, resources::ResourceTable};
+use crate::{event::EmitArgs, resources::ResourceTable, Webview};
 
 #[cfg(desktop)]
 mod menu;
 #[cfg(all(desktop, feature = "tray-icon"))]
 mod tray;
+pub mod webview;
 pub mod window;
 
 #[derive(Default)]
@@ -178,7 +180,9 @@ pub struct Asset {
 
 #[default_runtime(crate::Wry, wry)]
 pub struct AppManager<R: Runtime> {
+  pub runtime_authority: RuntimeAuthority,
   pub window: window::WindowManager<R>,
+  pub webview: webview::WebviewManager<R>,
   #[cfg(all(desktop, feature = "tray-icon"))]
   pub tray: tray::TrayManager<R>,
   #[cfg(desktop)]
@@ -229,7 +233,7 @@ impl<R: Runtime> AppManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
-    uri_scheme_protocols: HashMap<String, Arc<window::UriSchemeProtocol<R>>>,
+    uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<
@@ -245,13 +249,17 @@ impl<R: Runtime> AppManager<R> {
     }
 
     Self {
+      runtime_authority: RuntimeAuthority::new(context.resolved_acl),
       window: window::WindowManager {
         windows: Mutex::default(),
+        default_icon: context.default_window_icon,
+        event_listeners: Arc::new(window_event_listeners),
+      },
+      webview: webview::WebviewManager {
+        webviews: Mutex::default(),
         invoke_handler,
         on_page_load,
-        default_icon: context.default_window_icon,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
-        event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,
       },
@@ -305,7 +313,7 @@ impl<R: Runtime> AppManager<R> {
   /// In dev mode, this will be based on the `devPath` configuration value.
   pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
-      AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
+      AppUrl::Url(WebviewUrl::External(url)) => Cow::Borrowed(url),
       _ => self.protocol_url(),
     }
   }
@@ -414,7 +422,7 @@ impl<R: Runtime> AppManager<R> {
   }
 
   pub fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
-    (self.window.invoke_handler)(invoke)
+    (self.webview.invoke_handler)(invoke)
   }
 
   pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
@@ -444,7 +452,7 @@ impl<R: Runtime> AppManager<R> {
   pub fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<Window<R>>,
+    window: Option<Webview<R>>,
     handler: F,
   ) -> EventId {
     assert_event_name_is_valid(&event);
@@ -458,43 +466,39 @@ impl<R: Runtime> AppManager<R> {
   pub fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<String>,
+    webview: Option<String>,
     handler: F,
   ) {
     assert_event_name_is_valid(&event);
     self
       .listeners()
-      .once(event, window.and_then(|w| self.get_window(&w)), handler)
+      .once(event, webview.and_then(|w| self.get_webview(&w)), handler)
   }
 
   pub fn emit_filter<S, F>(
     &self,
     event: &str,
-    source_window_label: Option<&str>,
+    source: EventSource,
     payload: S,
     filter: F,
   ) -> crate::Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Window<R>) -> bool,
+    F: Fn(&Webview<R>) -> bool,
   {
     assert_event_name_is_valid(event);
 
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
-
-    let emit_args = EmitArgs::from(event, source_window_label, payload)?;
+    let emit_args = EmitArgs::from(event, &source, payload)?;
 
     self
-      .window
-      .windows_lock()
+      .webview
+      .webviews_lock()
       .values()
-      .filter(|w| {
-        w.has_js_listener(None, event)
-          || w.has_js_listener(source_window_label.map(Into::into), event)
-      })
+      .filter(|w| w.has_js_listener(&source, event))
       .filter(|w| filter(w))
-      .try_for_each(|window| window.emit_js(&emit_args))?;
+      .try_for_each(|webview| webview.emit_js(&emit_args))?;
 
     self.listeners().emit_filter(&emit_args, Some(filter))?;
 
@@ -504,24 +508,20 @@ impl<R: Runtime> AppManager<R> {
   pub fn emit<S: Serialize + Clone>(
     &self,
     event: &str,
-    source_window_label: Option<&str>,
+    source: EventSource,
     payload: S,
   ) -> crate::Result<()> {
     assert_event_name_is_valid(event);
 
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
-
-    let emit_args = EmitArgs::from(event, source_window_label, payload)?;
+    let emit_args = EmitArgs::from(event, &source, payload)?;
 
     self
-      .window
-      .windows_lock()
+      .webview
+      .webviews_lock()
       .values()
-      .filter(|w| {
-        w.has_js_listener(None, event)
-          || w.has_js_listener(source_window_label.map(Into::into), event)
-      })
+      .filter(|w| w.has_js_listener(&source, event))
       .try_for_each(|window| window.emit_js(&emit_args))?;
 
     self.listeners().emit(&emit_args)?;
@@ -544,6 +544,14 @@ impl<R: Runtime> AppManager<R> {
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.window.windows_lock().clone()
+  }
+
+  pub fn get_webview(&self, label: &str) -> Option<Webview<R>> {
+    self.webview.webviews_lock().get(label).cloned()
+  }
+
+  pub fn webviews(&self) -> HashMap<String, Webview<R>> {
+    self.webview.webviews_lock().clone()
   }
 
   /// Resources table managed by the application.
@@ -604,7 +612,7 @@ mod test {
     generate_context,
     plugin::PluginStore,
     test::{mock_app, MockRuntime},
-    App, Manager, StateManager, Window, WindowBuilder, Wry,
+    App, Manager, StateManager, WebviewWindow, WebviewWindowBuilder, Wry,
   };
 
   use super::AppManager;
@@ -647,21 +655,21 @@ mod test {
 
   struct EventSetup {
     app: App<MockRuntime>,
-    window: Window<MockRuntime>,
+    webview: WebviewWindow<MockRuntime>,
     tx: Sender<(&'static str, String)>,
     rx: Receiver<(&'static str, String)>,
   }
 
   fn setup_events() -> EventSetup {
     let app = mock_app();
-    let window = WindowBuilder::new(&app, "main", Default::default())
+    let webview = WebviewWindowBuilder::new(&app, "main", Default::default())
       .build()
       .unwrap();
 
     let (tx, rx) = channel();
 
     let tx_ = tx.clone();
-    window.listen(TEST_EVENT_NAME, move |evt| {
+    webview.listen(TEST_EVENT_NAME, move |evt| {
       tx_
         .send((
           WINDOW_LISTEN_ID,
@@ -671,7 +679,7 @@ mod test {
     });
 
     let tx_ = tx.clone();
-    window.listen_global(TEST_EVENT_NAME, move |evt| {
+    webview.listen_global(TEST_EVENT_NAME, move |evt| {
       tx_
         .send((
           WINDOW_LISTEN_GLOBAL_ID,
@@ -692,7 +700,7 @@ mod test {
 
     EventSetup {
       app,
-      window,
+      webview,
       tx,
       rx,
     }
@@ -715,7 +723,7 @@ mod test {
   fn app_global_events() {
     let EventSetup {
       app,
-      window: _,
+      webview: _,
       tx: _,
       rx,
     } = setup_events();
@@ -741,14 +749,14 @@ mod test {
   fn window_global_events() {
     let EventSetup {
       app: _,
-      window,
+      webview,
       tx: _,
       rx,
     } = setup_events();
 
     let mut received = Vec::new();
     let payload = "global-payload";
-    window.emit(TEST_EVENT_NAME, payload).unwrap();
+    webview.emit(TEST_EVENT_NAME, payload).unwrap();
     while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
       assert_eq!(p, payload);
       received.push(source);
@@ -767,15 +775,15 @@ mod test {
   fn window_local_events() {
     let EventSetup {
       app,
-      window,
+      webview,
       tx,
       rx,
     } = setup_events();
 
     let mut received = Vec::new();
     let payload = "global-payload";
-    window
-      .emit_to(window.label(), TEST_EVENT_NAME, payload)
+    webview
+      .emit_to(webview.label(), TEST_EVENT_NAME, payload)
       .unwrap();
     while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
       assert_eq!(p, payload);
@@ -784,24 +792,25 @@ mod test {
     assert_events(&received, &[WINDOW_LISTEN_ID]);
 
     received.clear();
-    let other_window_listen_id = "OtherWindow::listen";
-    let other_window = WindowBuilder::new(&app, "other", Default::default())
+    let other_webview_listen_id = "OtherWebview::listen";
+    let other_webview = WebviewWindowBuilder::new(&app, "other", Default::default())
       .build()
       .unwrap();
-    other_window.listen(TEST_EVENT_NAME, move |evt| {
+
+    other_webview.listen(TEST_EVENT_NAME, move |evt| {
       tx.send((
-        other_window_listen_id,
+        other_webview_listen_id,
         serde_json::from_str::<String>(evt.payload()).unwrap(),
       ))
       .unwrap();
     });
-    window
-      .emit_to(other_window.label(), TEST_EVENT_NAME, payload)
+    webview
+      .emit_to(other_webview.label(), TEST_EVENT_NAME, payload)
       .unwrap();
     while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
       assert_eq!(p, payload);
       received.push(source);
     }
-    assert_events(&received, &[other_window_listen_id]);
+    assert_events(&received, &[other_webview_listen_id]);
   }
 }

@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "..\\..\\..\\.schema.json"
+
+[[permission]]
+identifier = "allow-webview-close"
+description = "Enables the webview_close command without any pre-configured scope."
+commands.allow = ["webview_close"]
+
+[[permission]]
+identifier = "deny-webview-close"
+description = "Denies the webview_close command without any pre-configured scope."
+commands.deny = ["webview_close"]

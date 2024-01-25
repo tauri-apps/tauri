@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "..\\..\\..\\.schema.json"
+
+[[permission]]
+identifier = "allow-normalize"
+description = "Enables the normalize command without any pre-configured scope."
+commands.allow = ["normalize"]
+
+[[permission]]
+identifier = "deny-normalize"
+description = "Denies the normalize command without any pre-configured scope."
+commands.deny = ["normalize"]

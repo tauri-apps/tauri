@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "..\\..\\..\\.schema.json"
+
+[[permission]]
+identifier = "allow-set-shadow"
+description = "Enables the set_shadow command without any pre-configured scope."
+commands.allow = ["set_shadow"]
+
+[[permission]]
+identifier = "deny-set-shadow"
+description = "Denies the set_shadow command without any pre-configured scope."
+commands.deny = ["set_shadow"]

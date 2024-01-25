@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "..\\..\\..\\.schema.json"
+
+[[permission]]
+identifier = "allow-app-show"
+description = "Enables the app_show command without any pre-configured scope."
+commands.allow = ["app_show"]
+
+[[permission]]
+identifier = "deny-app-show"
+description = "Denies the app_show command without any pre-configured scope."
+commands.deny = ["app_show"]

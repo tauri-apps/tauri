@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "..\\..\\..\\.schema.json"
+
+[[permission]]
+identifier = "allow-set-webview-focus"
+description = "Enables the set_webview_focus command without any pre-configured scope."
+commands.allow = ["set_webview_focus"]
+
+[[permission]]
+identifier = "deny-set-webview-focus"
+description = "Denies the set_webview_focus command without any pre-configured scope."
+commands.deny = ["set_webview_focus"]

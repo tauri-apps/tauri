@@ -6,7 +6,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
   manager::AppManager,
-  window::{InvokeRequest, UriSchemeProtocolHandler},
+  webview::{InvokeRequest, UriSchemeProtocolHandler},
   Runtime,
 };
 use http::{
@@ -23,7 +23,7 @@ const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
 pub fn message_handler<R: Runtime>(
   manager: Arc<AppManager<R>>,
 ) -> crate::runtime::webview::WebviewIpcHandler<crate::EventLoopMessage, R> {
-  Box::new(move |window, request| handle_ipc_message(request, &manager, &window.label))
+  Box::new(move |webview, request| handle_ipc_message(request, &manager, &webview.label))
 }
 
 pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeProtocolHandler {
@@ -48,7 +48,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
 
     match *request.method() {
       Method::POST => {
-        if let Some(window) = manager.get_window(&label) {
+        if let Some(webview) = manager.get_webview(&label) {
           match parse_invoke_request(&manager, request) {
             Ok(request) => {
               #[cfg(feature = "tracing")]
@@ -62,9 +62,9 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
               #[cfg(feature = "tracing")]
               let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
 
-              window.on_message(
+              webview.on_message(
                 request,
-                Box::new(move |_window, _cmd, response, _callback, _error| {
+                Box::new(move |_webview, _cmd, response, _callback, _error| {
                   #[cfg(feature = "tracing")]
                   let _respond_span = tracing::trace_span!(
                     parent: &request_span,
@@ -125,7 +125,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
               .status(StatusCode::BAD_REQUEST)
               .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
               .body(
-                "failed to acquire window reference"
+                "failed to acquire webview reference"
                   .as_bytes()
                   .to_vec()
                   .into(),
@@ -164,7 +164,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
 
 #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, label: &str) {
-  if let Some(window) = manager.get_window(label) {
+  if let Some(webview) = manager.get_webview(label) {
     #[cfg(feature = "tracing")]
     let _span =
       tracing::trace_span!("ipc::request", kind = "post-message", request = message).entered();
@@ -261,15 +261,16 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
         #[cfg(feature = "tracing")]
         let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
 
-        window.on_message(
+        webview.on_message(
           request,
-          Box::new(move |window, cmd, response, callback, error| {
+          Box::new(move |webview, cmd, response, callback, error| {
             use crate::ipc::{
               format_callback::{
                 format as format_callback, format_result as format_callback_result,
               },
               Channel,
             };
+            use crate::sealed::ManagerBase;
             use serde_json::Value as JsonValue;
 
             #[cfg(feature = "tracing")]
@@ -280,11 +281,11 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
             .entered();
 
             // the channel data command is the only command that uses a custom protocol on Linux
-            if window.manager.window.invoke_responder.is_none()
+            if webview.manager().webview.invoke_responder.is_none()
               && cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
             {
               fn responder_eval<R: Runtime>(
-                window: &crate::Window<R>,
+                webview: &crate::Webview<R>,
                 js: crate::Result<String>,
                 error: CallbackFn,
               ) {
@@ -294,7 +295,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                     .expect("unable to serialize response error string to json"),
                 };
 
-                let _ = window.eval(&eval_js);
+                let _ = webview.eval(&eval_js);
               }
 
               #[cfg(feature = "tracing")]
@@ -315,10 +316,10 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                   if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
                     && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
                   {
-                    let _ = Channel::from_callback_fn(window, callback).send(v);
+                    let _ = Channel::from_callback_fn(webview, callback).send(v);
                   } else {
                     responder_eval(
-                      &window,
+                      &webview,
                       format_callback_result(Result::<_, ()>::Ok(v), callback, error),
                       error,
                     )
@@ -327,17 +328,17 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                 InvokeResponse::Ok(InvokeBody::Raw(v)) => {
                   if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
                     responder_eval(
-                      &window,
+                      &webview,
                       format_callback_result(Result::<_, ()>::Ok(v), callback, error),
                       error,
                     );
                   } else {
                     let _ =
-                      Channel::from_callback_fn(window, callback).send(InvokeBody::Raw(v.clone()));
+                      Channel::from_callback_fn(webview, callback).send(InvokeBody::Raw(v.clone()));
                   }
                 }
                 InvokeResponse::Err(e) => responder_eval(
-                  &window,
+                  &webview,
                   format_callback_result(Result::<(), _>::Err(&e.0), callback, error),
                   error,
                 ),
@@ -350,7 +351,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
         #[cfg(feature = "tracing")]
         tracing::trace!("ipc.request.error {}", e);
 
-        let _ = window.eval(&format!(
+        let _ = webview.eval(&format!(
           r#"console.error({})"#,
           serde_json::Value::String(e.to_string())
         ));

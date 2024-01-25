@@ -18,9 +18,11 @@ mod desktop_commands {
   use super::*;
   use crate::{
     command,
+    sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
-    AppHandle, CursorIcon, Icon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
-    Theme, UserAttentionType, Window, WindowBuilder,
+    window::WindowBuilder,
+    AppHandle, CursorIcon, Icon, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
+    UserAttentionType, Window,
   };
 
   #[derive(Deserialize)]
@@ -65,7 +67,10 @@ mod desktop_commands {
 
   fn get_window<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<Window<R>> {
     match label {
-      Some(l) if !l.is_empty() => window.get_window(&l).ok_or(crate::Error::WindowNotFound),
+      Some(l) if !l.is_empty() => window
+        .manager()
+        .get_window(&l)
+        .ok_or(crate::Error::WindowNotFound),
       _ => Ok(window),
     }
   }
@@ -159,7 +164,6 @@ mod desktop_commands {
   setter!(start_resize_dragging, ResizeDirection);
   setter!(set_progress_bar, ProgressBarState);
   setter!(set_visible_on_all_workspaces, bool);
-  setter!(print);
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
@@ -196,21 +200,6 @@ mod desktop_commands {
         true => window.unmaximize()?,
         false => window.maximize()?,
       };
-    }
-    Ok(())
-  }
-
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[command(root = "crate")]
-  pub async fn internal_toggle_devtools<R: Runtime>(
-    window: Window<R>,
-    label: Option<String>,
-  ) -> crate::Result<()> {
-    let window = get_window(window, label)?;
-    if window.is_devtools_open() {
-      window.close_devtools();
-    } else {
-      window.open_devtools();
     }
     Ok(())
   }
@@ -301,13 +290,21 @@ mod desktop_commands {
   }
 
   #[command(root = "crate")]
-  pub async fn on_mousemove<R: Runtime>(window: Window<R>, x: i32, y: i32) -> crate::Result<()> {
+  pub async fn internal_on_mousemove<R: Runtime>(
+    window: Window<R>,
+    x: i32,
+    y: i32,
+  ) -> crate::Result<()> {
     hit_test(window.inner_size()?, x, y, window.scale_factor()?).change_cursor(&window);
     Ok(())
   }
 
   #[command(root = "crate")]
-  pub async fn on_mousedown<R: Runtime>(window: Window<R>, x: i32, y: i32) -> crate::Result<()> {
+  pub async fn internal_on_mousedown<R: Runtime>(
+    window: Window<R>,
+    x: i32,
+    y: i32,
+  ) -> crate::Result<()> {
     let res = hit_test(window.inner_size()?, x, y, window.scale_factor()?);
     match res {
       HitTestResult::Client | HitTestResult::NoWhere => {}
@@ -322,11 +319,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 
   let mut init_script = String::new();
-  // window.print works on Linux/Windows; need to use the API on macOS
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  {
-    init_script.push_str(include_str!("./scripts/print.js"));
-  }
 
   #[derive(Template)]
   #[default_template("./scripts/drag.js")]
@@ -357,24 +349,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     .unwrap()
     .into_string(),
   );
-
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  {
-    #[derive(Template)]
-    #[default_template("./scripts/toggle-devtools.js")]
-    struct Devtools<'a> {
-      os_name: &'a str,
-    }
-
-    init_script.push_str(
-      &Devtools {
-        os_name: std::env::consts::OS,
-      }
-      .render_default(&Default::default())
-      .unwrap()
-      .into_string(),
-    );
-  }
 
   Builder::new("window")
     .js_init_script(init_script)
@@ -442,14 +416,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::start_resize_dragging,
             desktop_commands::set_progress_bar,
             desktop_commands::set_visible_on_all_workspaces,
-            desktop_commands::print,
-            desktop_commands::set_icon,
             desktop_commands::toggle_maximize,
             desktop_commands::internal_toggle_maximize,
-            #[cfg(any(debug_assertions, feature = "devtools"))]
-            desktop_commands::internal_toggle_devtools,
-            desktop_commands::on_mousemove,
-            desktop_commands::on_mousedown,
+            desktop_commands::internal_on_mousemove,
+            desktop_commands::internal_on_mousedown,
           ]);
         handler(invoke)
       }

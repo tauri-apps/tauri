@@ -241,6 +241,7 @@ async fn reopen_window(app: tauri::AppHandle) {
     Self {
       manager,
       label: config.label.clone(),
+      window_effects: config.window_effects.clone(),
       window_builder:
         <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder::with_config(
           config,
@@ -249,7 +250,6 @@ async fn reopen_window(app: tauri::AppHandle) {
       menu: None,
       #[cfg(desktop)]
       on_menu_event: None,
-      window_effects: None,
     }
   }
 

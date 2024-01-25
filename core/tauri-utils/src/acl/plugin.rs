@@ -4,7 +4,7 @@
 
 //! Plugin ACL types.
 
-use std::{collections::HashMap, num::NonZeroU64};
+use std::{collections::BTreeMap, num::NonZeroU64};
 
 use super::{Permission, PermissionSet};
 use serde::{Deserialize, Serialize};
@@ -50,9 +50,9 @@ pub struct Manifest {
   /// Default permission.
   pub default_permission: Option<PermissionSet>,
   /// Plugin permissions.
-  pub permissions: HashMap<String, Permission>,
+  pub permissions: BTreeMap<String, Permission>,
   /// Plugin permission sets.
-  pub permission_sets: HashMap<String, PermissionSet>,
+  pub permission_sets: BTreeMap<String, PermissionSet>,
 }
 
 impl Manifest {
@@ -60,8 +60,8 @@ impl Manifest {
   pub fn from_files(permission_files: Vec<PermissionFile>) -> Self {
     let mut manifest = Self {
       default_permission: None,
-      permissions: HashMap::new(),
-      permission_sets: HashMap::new(),
+      permissions: BTreeMap::new(),
+      permission_sets: BTreeMap::new(),
     };
 
     for permission_file in permission_files {
@@ -80,7 +80,7 @@ impl Manifest {
           .permission
           .into_iter()
           .map(|p| (p.identifier.clone(), p))
-          .collect::<HashMap<_, _>>(),
+          .collect::<BTreeMap<_, _>>(),
       );
 
       manifest.permission_sets.extend(
@@ -97,7 +97,7 @@ impl Manifest {
               },
             )
           })
-          .collect::<HashMap<_, _>>(),
+          .collect::<BTreeMap<_, _>>(),
       );
     }
 

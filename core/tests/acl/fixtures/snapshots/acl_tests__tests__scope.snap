@@ -124,24 +124,26 @@ Resolved {
             deny: [],
         },
     },
-    global_scope: ResolvedScope {
-        allow: [
-            Map(
-                {
-                    "path": String(
-                        "$APP",
-                    ),
-                },
-            ),
-        ],
-        deny: [
-            Map(
-                {
-                    "path": String(
-                        "$HOME",
-                    ),
-                },
-            ),
-        ],
+    global_scope: {
+        "fs": ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$APP",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME",
+                        ),
+                    },
+                ),
+            ],
+        },
     },
 }

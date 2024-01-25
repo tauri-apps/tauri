@@ -5,6 +5,7 @@ use crate::Result;
 mod add;
 mod copy;
 mod create;
+mod ls;
 mod rm;
 
 #[derive(Debug, Parser)]
@@ -21,6 +22,8 @@ enum Commands {
   #[clap(alias = "remove")]
   Rm(rm::Options),
   Copy(copy::Options),
+  #[clap(alias = "list")]
+  Ls(ls::Options),
 }
 
 pub fn command(cli: Cli) -> Result<()> {
@@ -29,5 +32,6 @@ pub fn command(cli: Cli) -> Result<()> {
     Commands::Add(options) => add::command(options),
     Commands::Rm(options) => rm::command(options),
     Commands::Copy(options) => copy::command(options),
+    Commands::Ls(options) => ls::command(options),
   }
 }

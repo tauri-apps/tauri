@@ -17,6 +17,7 @@ rust-version = { workspace = true }
 no-default-features = true
 features = [
   "wry",
+  "unstable",
   "custom-protocol",
   "tray-icon",
   "devtools",
@@ -132,6 +133,7 @@ default = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6"
 ]
+unstable = [ ]
 tray-icon = [ "dep:tray-icon" ]
 tracing = [
   "dep:tracing",
@@ -155,7 +157,7 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry/macos-private-api"
 ]
-window-data-url = [ "data-url" ]
+webview-data-url = [ "data-url" ]
 protocol-asset = [ "http-range" ]
 config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]
@@ -169,6 +171,11 @@ path = "../../examples/commands/main.rs"
 [[example]]
 name = "helloworld"
 path = "../../examples/helloworld/main.rs"
+
+[[example]]
+name = "multiwebview"
+path = "../../examples/multiwebview/main.rs"
+required-features = [ "unstable" ]
 
 [[example]]
 name = "multiwindow"

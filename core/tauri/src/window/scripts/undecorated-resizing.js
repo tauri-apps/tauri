@@ -6,13 +6,13 @@
   const osName = __TEMPLATE_os_name__
   if (osName !== 'macos') {
     document.addEventListener('mousemove', (e) => {
-      window.__TAURI_INTERNALS__.invoke('plugin:window|on_mousemove', {
+      window.__TAURI_INTERNALS__.invoke('plugin:window|internal_on_mousemove', {
         x: e.clientX,
         y: e.clientY
       })
     })
     document.addEventListener('mousedown', (e) => {
-      window.__TAURI_INTERNALS__.invoke('plugin:window|on_mousedown', {
+      window.__TAURI_INTERNALS__.invoke('plugin:window|internal_on_mousedown', {
         x: e.clientX,
         y: e.clientY
       })

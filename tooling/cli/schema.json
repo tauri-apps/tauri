@@ -342,7 +342,7 @@
           "default": "index.html",
           "allOf": [
             {
-              "$ref": "#/definitions/WindowUrl"
+              "$ref": "#/definitions/WebviewUrl"
             }
           ]
         },
@@ -571,7 +571,7 @@
       },
       "additionalProperties": false
     },
-    "WindowUrl": {
+    "WebviewUrl": {
       "description": "An URL to open on a Tauri webview window.",
       "anyOf": [
         {
@@ -1451,7 +1451,7 @@
       "additionalProperties": false
     },
     "DmgConfig": {
-      "description": "Configuration for Apple Disk Image (.dmg) bundles.\n\nSee more: https://tauri.app/v1/api/config#dmgconfig",
+      "description": "Configuration for Apple Disk Image (.dmg) bundles.\n\nSee more: <https://tauri.app/v1/api/config#dmgconfig>",
       "type": "object",
       "properties": {
         "background": {
@@ -2482,7 +2482,7 @@
           "description": "The app's external URL, or the path to the directory containing the app assets.",
           "allOf": [
             {
-              "$ref": "#/definitions/WindowUrl"
+              "$ref": "#/definitions/WebviewUrl"
             }
           ]
         },

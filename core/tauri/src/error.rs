@@ -37,6 +37,9 @@ pub enum Error {
   /// Window label must be unique.
   #[error("a window with label `{0}` already exists")]
   WindowLabelAlreadyExists(String),
+  /// Webview label must be unique.
+  #[error("a webview with label `{0}` already exists")]
+  WebviewLabelAlreadyExists(String),
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),
@@ -71,7 +74,7 @@ pub enum Error {
   IsolationPattern(#[from] tauri_utils::pattern::isolation::Error),
   /// An invalid window URL was provided. Includes details about the error.
   #[error("invalid window url: {0}")]
-  InvalidWindowUrl(&'static str),
+  InvalidWebviewUrl(&'static str),
   /// Invalid glob pattern.
   #[error("invalid glob pattern: {0}")]
   GlobPattern(#[from] glob::PatternError),
@@ -136,6 +139,12 @@ pub enum Error {
   /// The anyhow crate error.
   #[error(transparent)]
   Anyhow(#[from] anyhow::Error),
+  /// webview not found.
+  #[error("webview not found")]
+  WebviewNotFound,
+  /// API requires the unstable feature flag.
+  #[error("this feature requires the `unstable` flag on Cargo.toml")]
+  UnstableFeatureNotSupported,
 }
 
 /// `Result<T, ::tauri::Error>`

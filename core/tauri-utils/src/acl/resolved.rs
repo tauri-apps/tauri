@@ -14,9 +14,9 @@ use glob::Pattern;
 use crate::platform::Target;
 
 use super::{
-  capability::{Capability, CapabilityContext},
+  capability::{Capability, CapabilityContext, PermissionEntry},
   plugin::Manifest,
-  Error, ExecutionContext, Permission, PermissionSet, Value,
+  Error, ExecutionContext, Permission, PermissionSet, Scopes, Value,
 };
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
@@ -60,7 +60,7 @@ pub struct Resolved {
   /// The store of scopes referenced by a [`ResolvedCommand`].
   pub command_scope: BTreeMap<ScopeKey, ResolvedScope>,
   /// The global scope.
-  pub global_scope: ResolvedScope,
+  pub global_scope: BTreeMap<String, ResolvedScope>,
 }
 
 impl Resolved {
@@ -75,7 +75,7 @@ impl Resolved {
 
     let mut current_scope_id = 0;
     let mut command_scopes = BTreeMap::new();
-    let mut global_scope = Vec::new();
+    let mut global_scope: BTreeMap<String, Vec<Scopes>> = BTreeMap::new();
 
     // resolve commands
     for capability in capabilities.values() {
@@ -83,21 +83,48 @@ impl Resolved {
         continue;
       }
 
-      for permission_id in &capability.permissions {
+      for permission_entry in &capability.permissions {
+        let permission_id = permission_entry.identifier();
         let permission_name = permission_id.get_base();
 
         if let Some(plugin_name) = permission_id.get_prefix() {
           let permissions = get_permissions(plugin_name, permission_name, &acl)?;
 
           for permission in permissions {
+            let scope = match permission_entry {
+              PermissionEntry::PermissionRef(_) => permission.scope.clone(),
+              PermissionEntry::ExtendedPermission {
+                identifier: _,
+                scope,
+              } => {
+                let mut merged = permission.scope.clone();
+                if let Some(allow) = scope.allow.clone() {
+                  merged
+                    .allow
+                    .get_or_insert_with(Default::default)
+                    .extend(allow);
+                }
+                if let Some(deny) = scope.deny.clone() {
+                  merged
+                    .deny
+                    .get_or_insert_with(Default::default)
+                    .extend(deny);
+                }
+                merged
+              }
+            };
+
             if permission.commands.allow.is_empty() && permission.commands.deny.is_empty() {
               // global scope
-              global_scope.push(permission.scope.clone());
+              global_scope
+                .entry(plugin_name.to_string())
+                .or_default()
+                .push(scope.clone());
             } else {
-              let has_scope = permission.scope.allow.is_some() || permission.scope.deny.is_some();
+              let has_scope = scope.allow.is_some() || scope.deny.is_some();
               if has_scope {
                 current_scope_id += 1;
-                command_scopes.insert(current_scope_id, permission.scope.clone());
+                command_scopes.insert(current_scope_id, scope.clone());
               }
 
               let scope_id = if has_scope {
@@ -161,18 +188,21 @@ impl Resolved {
       }
     }
 
-    let global_scope = ResolvedScope {
-      allow: global_scope
-        .iter_mut()
-        .flat_map(|s| s.allow.take())
-        .flatten()
-        .collect(),
-      deny: global_scope
-        .iter_mut()
-        .flat_map(|s| s.deny.take())
-        .flatten()
-        .collect(),
-    };
+    let global_scope = global_scope
+      .into_iter()
+      .map(|(plugin_name, scopes)| {
+        let mut resolved_scope = ResolvedScope::default();
+        for scope in scopes {
+          if let Some(allow) = scope.allow {
+            resolved_scope.allow.extend(allow);
+          }
+          if let Some(deny) = scope.deny {
+            resolved_scope.deny.extend(deny);
+          }
+        }
+        (plugin_name, resolved_scope)
+      })
+      .collect();
 
     let resolved = Self {
       allowed_commands: allowed_commands
@@ -382,7 +412,12 @@ mod build {
         identity,
       );
 
-      let global_scope = &self.global_scope;
+      let global_scope = map_lit(
+        quote! { ::std::collections::BTreeMap },
+        &self.global_scope,
+        str_lit,
+        identity,
+      );
 
       literal_struct!(
         tokens,

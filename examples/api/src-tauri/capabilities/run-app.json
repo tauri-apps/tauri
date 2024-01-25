@@ -7,6 +7,8 @@
     "main-*"
   ],
   "permissions": [
+    "sample:allow-ping-scoped",
+    "sample:global-scope",
     "path:default",
     "event:default",
     "window:default",
@@ -16,7 +18,6 @@
     "tray:default",
     "app:allow-app-hide",
     "app:allow-app-show",
-    "window:allow-create",
     "window:allow-center",
     "window:allow-request-user-attention",
     "window:allow-set-resizable",
@@ -51,9 +52,10 @@
     "window:allow-set-ignore-cursor-events",
     "window:allow-start-dragging",
     "window:allow-set-progress-bar",
-    "window:allow-print",
     "window:allow-set-icon",
     "window:allow-toggle-maximize",
+    "webview:allow-create-webview-window",
+    "webview:allow-print",
     "menu:allow-new",
     "menu:allow-append",
     "menu:allow-prepend",

@@ -17,7 +17,7 @@ use crate::{
   command,
   command::{CommandArg, CommandItem},
   plugin::{Builder as PluginBuilder, TauriPlugin},
-  Manager, Runtime, State, Window,
+  Manager, Runtime, State, Webview,
 };
 
 use super::{CallbackFn, InvokeBody, InvokeError, IpcResponse, Request, Response};
@@ -58,7 +58,7 @@ impl Serialize for Channel {
 /// # Examples
 ///
 /// ```rust
-/// use tauri::{ipc::JavaScriptChannelId, Runtime, Window};
+/// use tauri::{ipc::JavaScriptChannelId, Runtime, Webview};
 ///
 /// #[derive(serde::Deserialize)]
 /// #[serde(rename_all = "camelCase")]
@@ -68,8 +68,8 @@ impl Serialize for Channel {
 /// }
 ///
 /// #[tauri::command]
-/// fn add_button<R: Runtime>(window: Window<R>, button: Button) {
-///   let channel = button.on_click.channel_on(window);
+/// fn add_button<R: Runtime>(webview: Webview<R>, button: Button) {
+///   let channel = button.on_click.channel_on(webview);
 ///   channel.send("clicked").unwrap();
 /// }
 /// ```
@@ -87,9 +87,9 @@ impl FromStr for JavaScriptChannelId {
 }
 
 impl JavaScriptChannelId {
-  /// Gets a [`Channel`] for this channel ID on the given [`Window`].
-  pub fn channel_on<R: Runtime>(&self, window: Window<R>) -> Channel {
-    Channel::from_callback_fn(window, self.0)
+  /// Gets a [`Channel`] for this channel ID on the given [`Webview`].
+  pub fn channel_on<R: Runtime>(&self, webview: Webview<R>) -> Channel {
+    Channel::from_callback_fn(webview, self.0)
   }
 }
 
@@ -131,16 +131,16 @@ impl Channel {
     channel
   }
 
-  pub(crate) fn from_callback_fn<R: Runtime>(window: Window<R>, callback: CallbackFn) -> Self {
+  pub(crate) fn from_callback_fn<R: Runtime>(webview: Webview<R>, callback: CallbackFn) -> Self {
     Channel::new_with_id(callback.0, move |body| {
       let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
-      window
+      webview
         .state::<ChannelDataIpcQueue>()
         .0
         .lock()
         .unwrap()
         .insert(data_id, body);
-      window.eval(&format!(
+      webview.eval(&format!(
         "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then(window['_' + {}]).catch(console.error)",
         callback.0
       ))
@@ -160,15 +160,15 @@ impl Channel {
 }
 
 impl<'de, R: Runtime> CommandArg<'de, R> for Channel {
-  /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`Channel`].
+  /// Grabs the [`Webview`] from the [`CommandItem`] and returns the associated [`Channel`].
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let name = command.name;
     let arg = command.key;
-    let window = command.message.window();
+    let webview = command.message.webview();
     let value: String =
       Deserialize::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e))?;
     JavaScriptChannelId::from_str(&value)
-      .map(|id| id.channel_on(window))
+      .map(|id| id.channel_on(webview))
       .map_err(|_| {
         InvokeError::from_anyhow(anyhow::anyhow!(
         "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"

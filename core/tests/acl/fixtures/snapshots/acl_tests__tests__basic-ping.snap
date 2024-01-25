@@ -34,8 +34,5 @@ Resolved {
     },
     denied_commands: {},
     command_scope: {},
-    global_scope: ResolvedScope {
-        allow: [],
-        deny: [],
-    },
+    global_scope: {},
 }

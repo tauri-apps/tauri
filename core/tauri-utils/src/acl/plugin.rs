@@ -36,9 +36,6 @@ pub struct PermissionFile {
   #[serde(default)]
   pub set: Vec<PermissionSet>,
 
-  /// Test something!!
-  pub test: Option<PermissionSet>,
-
   /// A list of inlined permissions
   #[serde(default)]
   pub permission: Vec<Permission>,
@@ -102,5 +99,68 @@ impl Manifest {
     }
 
     manifest
+  }
+}
+
+#[cfg(feature = "build")]
+mod build {
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
+  use std::convert::identity;
+
+  use super::*;
+  use crate::tokens::*;
+
+  /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
+  ///
+  /// All fields must represent a binding of the same name that implements `ToTokens`.
+  macro_rules! literal_struct {
+    ($tokens:ident, $struct:ident, $($field:ident),+) => {
+      $tokens.append_all(quote! {
+        ::tauri::utils::acl::plugin::$struct {
+          $($field: #$field),+
+        }
+      })
+    };
+  }
+
+  impl ToTokens for DefaultPermission {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let version = opt_lit_owned(self.version.as_ref().map(|v| {
+        let v = v.get();
+        quote!(::core::num::NonZeroU64::new(#v).unwrap())
+      }));
+      let description = opt_str_lit(self.description.as_ref());
+      let permissions = vec_lit(&self.permissions, str_lit);
+      literal_struct!(tokens, DefaultPermission, version, description, permissions)
+    }
+  }
+
+  impl ToTokens for Manifest {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let default_permission = opt_lit(self.default_permission.as_ref());
+
+      let permissions = map_lit(
+        quote! { ::std::collections::BTreeMap },
+        &self.permissions,
+        str_lit,
+        identity,
+      );
+
+      let permission_sets = map_lit(
+        quote! { ::std::collections::BTreeMap },
+        &self.permission_sets,
+        str_lit,
+        identity,
+      );
+
+      literal_struct!(
+        tokens,
+        Manifest,
+        default_permission,
+        permissions,
+        permission_sets
+      )
+    }
   }
 }

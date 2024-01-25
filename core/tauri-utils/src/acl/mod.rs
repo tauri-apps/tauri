@@ -198,9 +198,26 @@ pub enum ExecutionContext {
 
 #[cfg(feature = "build")]
 mod build_ {
+  use std::convert::identity;
+
+  use crate::tokens::*;
+
   use super::*;
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
+
+  /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
+  ///
+  /// All fields must represent a binding of the same name that implements `ToTokens`.
+  macro_rules! literal_struct {
+    ($tokens:ident, $struct:ident, $($field:ident),+) => {
+      $tokens.append_all(quote! {
+        ::tauri::utils::acl::$struct {
+          $($field: #$field),+
+        }
+      })
+    };
+  }
 
   impl ToTokens for ExecutionContext {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -215,6 +232,53 @@ mod build_ {
           quote! { #prefix::Remote { domain: #domain.parse().unwrap() } }
         }
       });
+    }
+  }
+
+  impl ToTokens for Commands {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let allow = vec_lit(&self.allow, str_lit);
+      let deny = vec_lit(&self.deny, str_lit);
+      literal_struct!(tokens, Commands, allow, deny)
+    }
+  }
+
+  impl ToTokens for Scopes {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let allow = opt_vec_lit(self.allow.as_ref(), identity);
+      let deny = opt_vec_lit(self.deny.as_ref(), identity);
+      literal_struct!(tokens, Scopes, allow, deny)
+    }
+  }
+
+  impl ToTokens for Permission {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let version = opt_lit_owned(self.version.as_ref().map(|v| {
+        let v = v.get();
+        quote!(::core::num::NonZeroU64::new(#v).unwrap())
+      }));
+      let identifier = str_lit(&self.identifier);
+      let description = opt_str_lit(self.description.as_ref());
+      let commands = &self.commands;
+      let scope = &self.scope;
+      literal_struct!(
+        tokens,
+        Permission,
+        version,
+        identifier,
+        description,
+        commands,
+        scope
+      )
+    }
+  }
+
+  impl ToTokens for PermissionSet {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let identifier = str_lit(&self.identifier);
+      let description = str_lit(&self.description);
+      let permissions = vec_lit(&self.permissions, str_lit);
+      literal_struct!(tokens, PermissionSet, identifier, description, permissions)
     }
   }
 }

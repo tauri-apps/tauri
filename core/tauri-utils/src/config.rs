@@ -2423,7 +2423,7 @@ mod build {
       let rpm = quote!(Default::default());
       let dmg = quote!(Default::default());
       let macos = quote!(Default::default());
-      let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
+      let external_bin = opt_vec_lit(self.external_bin.as_ref(), str_lit);
       let windows = &self.windows;
       let ios = quote!(Default::default());
       let android = quote!(Default::default());

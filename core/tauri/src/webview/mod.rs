@@ -1093,22 +1093,19 @@ fn main() {
       request.headers,
     );
 
+    let acl_origin = if is_local {
+      Origin::Local
+    } else {
+      Origin::Remote {
+        domain: current_url
+          .domain()
+          .map(|d| d.to_string())
+          .unwrap_or_default(),
+      }
+    };
     let resolved_acl = manager
       .runtime_authority
-      .resolve_access(
-        &request.cmd,
-        &message.webview.webview.label,
-        if is_local {
-          Origin::Local
-        } else {
-          Origin::Remote {
-            domain: current_url
-              .domain()
-              .map(|d| d.to_string())
-              .unwrap_or_default(),
-          }
-        },
-      )
+      .resolve_access(&request.cmd, &message.webview.webview.label, &acl_origin)
       .cloned();
 
     let mut invoke = Invoke {
@@ -1117,20 +1114,33 @@ fn main() {
       acl: resolved_acl,
     };
 
-    if request.cmd.starts_with("plugin:") {
+    if let Some((plugin, command_name)) = request.cmd.strip_prefix("plugin:").map(|raw_command| {
+      let mut tokens = raw_command.split('|');
+      // safe to unwrap: split always has a least one item
+      let plugin = tokens.next().unwrap();
+      let command = tokens.next().map(|c| c.to_string()).unwrap_or_default();
+      (plugin, command)
+    }) {
       if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND && invoke.acl.is_none() {
-        invoke.resolver.reject("NOT ALLOWED");
+        #[cfg(debug_assertions)]
+        {
+          invoke
+            .resolver
+            .reject(manager.runtime_authority.resolve_access_message(
+              plugin,
+              &command_name,
+              &invoke.message.webview.webview.label,
+              &acl_origin,
+            ));
+        }
+        #[cfg(not(debug_assertions))]
+        invoke
+          .resolver
+          .reject(format!("Command {} not allowed by ACL", request.cmd));
         return;
       }
 
-      let command = invoke.message.command.replace("plugin:", "");
-      let mut tokens = command.split('|');
-      // safe to unwrap: split always has a least one item
-      let plugin = tokens.next().unwrap();
-      invoke.message.command = tokens
-        .next()
-        .map(|c| c.to_string())
-        .unwrap_or_else(String::new);
+      invoke.message.command = command_name;
 
       let command = invoke.message.command.clone();
 

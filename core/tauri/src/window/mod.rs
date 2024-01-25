@@ -229,6 +229,7 @@ async fn create_window(app: tauri::AppHandle) {
 #[tauri::command]
 async fn reopen_window(app: tauri::AppHandle) {
   let window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+    .unwrap()
     .build()
     .unwrap();
 }

@@ -12,6 +12,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/test-cli-rs.yml'
+      - 'core/tauri-utils/**'
+      - 'tooling/bundler/**'
       - 'tooling/cli/**'
 
 env:

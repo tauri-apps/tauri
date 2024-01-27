@@ -6,7 +6,7 @@ use crate::Result;
 
 use serde_json::{Map, Value};
 use tauri_utils::{
-  acl::capability::{Capability, CapabilityContext},
+  acl::capability::{Capability, CapabilityContext, PermissionEntry},
   platform::Target,
 };
 
@@ -57,7 +57,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
         windows: vec!["main".into()],
         permissions: permissions
           .into_iter()
-          .map(|p| p.to_string().try_into().unwrap())
+          .map(|p| PermissionEntry::PermissionRef(p.to_string().try_into().unwrap()))
           .collect(),
         platforms: vec![
           Target::Linux,

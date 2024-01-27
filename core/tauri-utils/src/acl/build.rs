@@ -306,7 +306,10 @@ commands.deny = ["{command}"]
 "###,
       command = command,
       slugified_command = slugified_command,
-      schema_path = schema_path.display().to_string().replace('\\', "\\\\")
+      schema_path = dunce::simplified(&schema_path)
+        .display()
+        .to_string()
+        .replace('\\', "/")
     );
 
     let out_path = path.join(format!("{command}.toml"));

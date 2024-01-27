@@ -867,7 +867,7 @@ pub struct MockRuntime {
 impl MockRuntime {
   fn init() -> Self {
     let is_running = Arc::new(AtomicBool::new(false));
-    let (tx, rx) = sync_channel(1);
+    let (tx, rx) = sync_channel(256);
     let context = RuntimeContext {
       is_running: is_running.clone(),
       windows: Default::default(),

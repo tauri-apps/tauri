@@ -50,7 +50,7 @@ mod tests {
         .expect("required-plugins.json is not a valid JSON");
 
       let manifests = load_plugins(&fixture_plugins);
-      let capabilities = parse_capabilities(&format!("{}/*.toml", fixture_entry.path().display()))
+      let capabilities = parse_capabilities(&format!("{}/cap*", fixture_entry.path().display()))
         .expect("failed to parse capabilities");
 
       let resolved = Resolved::resolve(manifests, capabilities, Target::current())

@@ -54,6 +54,10 @@ pub enum Error {
   #[error("failed to create file: {0}")]
   CreateFile(std::io::Error),
 
+  /// IO error while canonicalizing a path
+  #[error("failed to canonicalize path: {0}")]
+  Canonicalize(std::io::Error),
+
   /// [`cargo_metadata`] was not able to complete successfully
   #[cfg(feature = "build")]
   #[error("failed to execute: {0}")]

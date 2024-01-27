@@ -12,12 +12,13 @@ use std::{
 use anyhow::{Context, Result};
 use schemars::{
   schema::{
-    InstanceType, Metadata, ObjectValidation, RootSchema, Schema, SchemaObject, SubschemaValidation,
+    ArrayValidation, InstanceType, Metadata, ObjectValidation, RootSchema, Schema, SchemaObject,
+    SubschemaValidation,
   },
   schema_for,
 };
 use tauri_utils::{
-  acl::{build::CapabilityFile, capability::Capability, plugin::Manifest, Value},
+  acl::{build::CapabilityFile, capability::Capability, plugin::Manifest},
   platform::Target,
 };
 
@@ -42,47 +43,6 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
       enum_values: Some(vec![serde_json::Value::String(format!("{plugin}:{id}"))]),
       ..Default::default()
     })
-  }
-
-  fn value_schema(value: &Value) -> Schema {
-    let mut schema = SchemaObject::default();
-
-    match value {
-      Value::Map(map) => {
-        schema.instance_type.replace(InstanceType::Object.into());
-        for (key, value) in map {
-          schema
-            .object()
-            .properties
-            .insert(key.clone(), value_schema(value));
-        }
-      }
-      Value::Bool(_) => {
-        schema.instance_type.replace(InstanceType::Boolean.into());
-      }
-      Value::String(_) => {
-        schema.instance_type.replace(InstanceType::String.into());
-      }
-      Value::Number(_) => {
-        schema.instance_type.replace(InstanceType::Number.into());
-      }
-      Value::List(list) => {
-        schema.instance_type.replace(InstanceType::Array.into());
-
-        let mut any_of: Vec<Schema> = list.iter().map(value_schema).collect();
-        any_of.dedup();
-        let item_schema = Schema::Object(SchemaObject {
-          subschemas: Some(Box::new(SubschemaValidation {
-            any_of: Some(any_of),
-            ..Default::default()
-          })),
-          ..Default::default()
-        });
-        schema.array().items.replace(item_schema.into());
-      }
-    }
-
-    schema.into()
   }
 
   let mut permission_schemas = Vec::new();
@@ -125,84 +85,86 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
   }
 
   if let Some(Schema::Object(obj)) = schema.definitions.get_mut("PermissionEntry") {
-    let any_of = obj.subschemas().any_of.as_mut().unwrap();
-    let scope_extended_schema = any_of.iter_mut().last().unwrap();
+    let permission_entry_any_of_schemas = obj.subschemas().any_of.as_mut().unwrap();
 
-    if let Schema::Object(scope_extended_schema_obj) = scope_extended_schema {
-      let mut one_of = Vec::new();
+    if let Schema::Object(mut scope_extended_schema_obj) =
+      permission_entry_any_of_schemas.remove(permission_entry_any_of_schemas.len() - 1)
+    {
+      let mut global_scope_one_of = Vec::new();
 
       for (plugin, manifest) in plugin_manifests {
-        let mut scopes = Vec::new();
-        for permission in manifest.permissions.values() {
-          if let Some(allow) = &permission.scope.allow {
-            scopes.extend(allow.clone());
-          }
-          if let Some(deny) = &permission.scope.deny {
-            scopes.extend(deny.clone());
-          }
-        }
+        if let Some(global_scope_schema) = &manifest.global_scope_schema {
+          let global_scope_schema_def: Schema = serde_json::from_value(global_scope_schema.clone())
+            .unwrap_or_else(|e| panic!("invalid JSON schema for plugin {plugin}: {e}"));
 
-        if scopes.is_empty() {
-          continue;
-        }
-
-        let scope_schema = value_schema(&Value::List(scopes));
-
-        let mut required = BTreeSet::new();
-        required.insert("identifier".to_string());
-
-        let mut object = ObjectValidation {
-          required,
-          ..Default::default()
-        };
-
-        let mut permission_schemas = Vec::new();
-        if let Some(default) = &manifest.default_permission {
-          permission_schemas.push(schema_from(plugin, "default", Some(&default.description)));
-        }
-        for set in manifest.permission_sets.values() {
-          permission_schemas.push(schema_from(plugin, &set.identifier, Some(&set.description)));
-        }
-        for permission in manifest.permissions.values() {
-          permission_schemas.push(schema_from(
-            plugin,
-            &permission.identifier,
-            permission.description.as_deref(),
-          ));
-        }
-
-        let identifier_schema = Schema::Object(SchemaObject {
-          subschemas: Some(Box::new(SubschemaValidation {
-            one_of: Some(permission_schemas),
+          let global_scope_schema = Schema::Object(SchemaObject {
+            array: Some(Box::new(ArrayValidation {
+              items: Some(global_scope_schema_def.into()),
+              ..Default::default()
+            })),
             ..Default::default()
-          })),
-          ..Default::default()
-        });
+          });
 
-        object
-          .properties
-          .insert("identifier".to_string(), identifier_schema);
-        object
-          .properties
-          .insert("allow".to_string(), scope_schema.clone());
-        object
-          .properties
-          .insert("deny".to_string(), scope_schema.clone());
+          let mut required = BTreeSet::new();
+          required.insert("identifier".to_string());
 
-        one_of.push(Schema::Object(SchemaObject {
-          instance_type: Some(InstanceType::Object.into()),
-          object: Some(Box::new(object)),
-          ..Default::default()
-        }));
+          let mut object = ObjectValidation {
+            required,
+            ..Default::default()
+          };
+
+          let mut permission_schemas = Vec::new();
+          if let Some(default) = &manifest.default_permission {
+            permission_schemas.push(schema_from(plugin, "default", Some(&default.description)));
+          }
+          for set in manifest.permission_sets.values() {
+            permission_schemas.push(schema_from(plugin, &set.identifier, Some(&set.description)));
+          }
+          for permission in manifest.permissions.values() {
+            permission_schemas.push(schema_from(
+              plugin,
+              &permission.identifier,
+              permission.description.as_deref(),
+            ));
+          }
+
+          let identifier_schema = Schema::Object(SchemaObject {
+            subschemas: Some(Box::new(SubschemaValidation {
+              one_of: Some(permission_schemas),
+              ..Default::default()
+            })),
+            ..Default::default()
+          });
+
+          object
+            .properties
+            .insert("identifier".to_string(), identifier_schema);
+          object
+            .properties
+            .insert("allow".to_string(), global_scope_schema.clone());
+          object
+            .properties
+            .insert("deny".to_string(), global_scope_schema);
+
+          global_scope_one_of.push(Schema::Object(SchemaObject {
+            instance_type: Some(InstanceType::Object.into()),
+            object: Some(Box::new(object)),
+            ..Default::default()
+          }));
+        }
       }
 
-      scope_extended_schema_obj.object = None;
-      scope_extended_schema_obj
-        .subschemas
-        .replace(Box::new(SubschemaValidation {
-          one_of: Some(one_of),
-          ..Default::default()
-        }));
+      if !global_scope_one_of.is_empty() {
+        scope_extended_schema_obj.object = None;
+        scope_extended_schema_obj
+          .subschemas
+          .replace(Box::new(SubschemaValidation {
+            one_of: Some(global_scope_one_of),
+            ..Default::default()
+          }));
+
+        permission_entry_any_of_schemas.push(scope_extended_schema_obj.into());
+      };
     }
   }
 
@@ -260,10 +222,13 @@ pub fn save_plugin_manifests(plugin_manifests: &BTreeMap<String, Manifest>) -> R
 pub fn get_plugin_manifests() -> Result<BTreeMap<String, Manifest>> {
   let permission_map =
     tauri_utils::acl::build::read_permissions().context("failed to read plugin permissions")?;
+  let mut global_scope_map = tauri_utils::acl::build::read_global_scope_schemas()
+    .context("failed to read global scope schemas")?;
 
   let mut processed = BTreeMap::new();
   for (plugin_name, permission_files) in permission_map {
-    processed.insert(plugin_name, Manifest::from_files(permission_files));
+    let manifest = Manifest::new(permission_files, global_scope_map.remove(&plugin_name));
+    processed.insert(plugin_name, manifest);
   }
 
   Ok(processed)

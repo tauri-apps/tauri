@@ -48,6 +48,13 @@ impl<'a> Builder<'a> {
     }
 
     let permissions = acl::build::define_permissions("./permissions/**/*.*", &name)?;
+    acl::build::define_global_scope_schema(
+      format!(
+        "./permissions/global-scope{}",
+        acl::build::PERMISSION_SCHEMA_FILE_SUFFIX
+      ),
+      &name,
+    )?;
     acl::build::generate_schema(&permissions, "./permissions")?;
 
     let metadata = find_metadata()?;

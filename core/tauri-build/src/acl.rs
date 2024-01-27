@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::BTreeMap,
+  collections::{BTreeMap, BTreeSet},
   fs::{copy, create_dir_all, read_to_string, File},
   io::{BufWriter, Write},
   path::PathBuf,
@@ -11,11 +11,13 @@ use std::{
 
 use anyhow::{Context, Result};
 use schemars::{
-  schema::{InstanceType, Metadata, RootSchema, Schema, SchemaObject, SubschemaValidation},
+  schema::{
+    InstanceType, Metadata, ObjectValidation, RootSchema, Schema, SchemaObject, SubschemaValidation,
+  },
   schema_for,
 };
 use tauri_utils::{
-  acl::{build::CapabilityFile, capability::Capability, plugin::Manifest},
+  acl::{build::CapabilityFile, capability::Capability, plugin::Manifest, Value},
   platform::Target,
 };
 
@@ -40,6 +42,47 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
       enum_values: Some(vec![serde_json::Value::String(format!("{plugin}:{id}"))]),
       ..Default::default()
     })
+  }
+
+  fn value_schema(value: &Value) -> Schema {
+    let mut schema = SchemaObject::default();
+
+    match value {
+      Value::Map(map) => {
+        schema.instance_type.replace(InstanceType::Object.into());
+        for (key, value) in map {
+          schema
+            .object()
+            .properties
+            .insert(key.clone(), value_schema(value));
+        }
+      }
+      Value::Bool(_) => {
+        schema.instance_type.replace(InstanceType::Boolean.into());
+      }
+      Value::String(_) => {
+        schema.instance_type.replace(InstanceType::String.into());
+      }
+      Value::Number(_) => {
+        schema.instance_type.replace(InstanceType::Number.into());
+      }
+      Value::List(list) => {
+        schema.instance_type.replace(InstanceType::Array.into());
+
+        let mut any_of: Vec<Schema> = list.iter().map(value_schema).collect();
+        any_of.dedup();
+        let item_schema = Schema::Object(SchemaObject {
+          subschemas: Some(Box::new(SubschemaValidation {
+            any_of: Some(any_of),
+            ..Default::default()
+          })),
+          ..Default::default()
+        });
+        schema.array().items.replace(item_schema.into());
+      }
+    }
+
+    schema.into()
   }
 
   let mut permission_schemas = Vec::new();
@@ -79,6 +122,88 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
       one_of: Some(permission_schemas),
       ..Default::default()
     }));
+  }
+
+  if let Some(Schema::Object(obj)) = schema.definitions.get_mut("PermissionEntry") {
+    let any_of = obj.subschemas().any_of.as_mut().unwrap();
+    let scope_extended_schema = any_of.iter_mut().last().unwrap();
+
+    if let Schema::Object(scope_extended_schema_obj) = scope_extended_schema {
+      let mut one_of = Vec::new();
+
+      for (plugin, manifest) in plugin_manifests {
+        let mut scopes = Vec::new();
+        for permission in manifest.permissions.values() {
+          if let Some(allow) = &permission.scope.allow {
+            scopes.extend(allow.clone());
+          }
+          if let Some(deny) = &permission.scope.deny {
+            scopes.extend(deny.clone());
+          }
+        }
+
+        if scopes.is_empty() {
+          continue;
+        }
+
+        let scope_schema = value_schema(&Value::List(scopes));
+
+        let mut required = BTreeSet::new();
+        required.insert("identifier".to_string());
+
+        let mut object = ObjectValidation {
+          required,
+          ..Default::default()
+        };
+
+        let mut permission_schemas = Vec::new();
+        if let Some(default) = &manifest.default_permission {
+          permission_schemas.push(schema_from(plugin, "default", Some(&default.description)));
+        }
+        for set in manifest.permission_sets.values() {
+          permission_schemas.push(schema_from(plugin, &set.identifier, Some(&set.description)));
+        }
+        for permission in manifest.permissions.values() {
+          permission_schemas.push(schema_from(
+            plugin,
+            &permission.identifier,
+            permission.description.as_deref(),
+          ));
+        }
+
+        let identifier_schema = Schema::Object(SchemaObject {
+          subschemas: Some(Box::new(SubschemaValidation {
+            one_of: Some(permission_schemas),
+            ..Default::default()
+          })),
+          ..Default::default()
+        });
+
+        object
+          .properties
+          .insert("identifier".to_string(), identifier_schema);
+        object
+          .properties
+          .insert("allow".to_string(), scope_schema.clone());
+        object
+          .properties
+          .insert("deny".to_string(), scope_schema.clone());
+
+        one_of.push(Schema::Object(SchemaObject {
+          instance_type: Some(InstanceType::Object.into()),
+          object: Some(Box::new(object)),
+          ..Default::default()
+        }));
+      }
+
+      scope_extended_schema_obj.object = None;
+      scope_extended_schema_obj
+        .subschemas
+        .replace(Box::new(SubschemaValidation {
+          one_of: Some(one_of),
+          ..Default::default()
+        }));
+    }
   }
 
   schema

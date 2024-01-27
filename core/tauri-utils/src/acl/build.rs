@@ -30,8 +30,11 @@ pub const GLOBAL_SCOPE_SCHEMA_PATH_KEY: &str = "GLOBAL_SCOPE_SCHEMA_PATH";
 /// Allowed permission file extensions
 pub const PERMISSION_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
 
-/// Known filename suffix of a permission schema
-pub const PERMISSION_SCHEMA_FILE_SUFFIX: &str = ".schema.json";
+/// Known foldername of the permission schema files
+pub const PERMISSION_SCHEMAS_FOLDER_NAME: &str = "schemas";
+
+/// Known filename of the permission schema JSON file
+pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
 
 /// Allowed capability file extensions
 const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
@@ -66,16 +69,8 @@ pub fn define_permissions(pattern: &str, pkg_name: &str) -> Result<Vec<Permissio
         .map(|e| PERMISSION_FILE_EXTENSIONS.contains(&e))
         .unwrap_or_default()
     })
-    // filter schema file
-    .filter(|p| {
-      p.file_name()
-        .map(|name| {
-          !name
-            .to_string_lossy()
-            .ends_with(PERMISSION_SCHEMA_FILE_SUFFIX)
-        })
-        .unwrap_or(true)
-    })
+    // filter schemas
+    .filter(|p| p.parent().unwrap().file_name().unwrap() != PERMISSION_SCHEMAS_FOLDER_NAME)
     .collect::<Vec<PathBuf>>();
 
   for path in &permission_files {
@@ -108,6 +103,8 @@ pub fn define_permissions(pattern: &str, pkg_name: &str) -> Result<Vec<Permissio
 pub fn define_global_scope_schema<P: AsRef<Path>>(path: P, pkg_name: &str) -> Result<(), Error> {
   let path = path.as_ref();
   if path.exists() {
+    println!("cargo:rerun-if-changed={}", path.display());
+
     let path = path.canonicalize().map_err(Error::Canonicalize)?;
     if let Some(plugin_name) = pkg_name.strip_prefix("tauri:") {
       println!(
@@ -238,11 +235,11 @@ pub fn generate_schema<P: AsRef<Path>>(
   let schema = permissions_schema(permissions);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
 
-  let out_dir = out_dir.as_ref();
-  create_dir_all(out_dir).expect("unable to create schema output directory");
+  let out_dir = out_dir.as_ref().join(PERMISSION_SCHEMAS_FOLDER_NAME);
+  create_dir_all(&out_dir).expect("unable to create schema output directory");
 
   let mut schema_file = BufWriter::new(
-    File::create(out_dir.join(PERMISSION_SCHEMA_FILE_SUFFIX)).map_err(Error::CreateFile)?,
+    File::create(out_dir.join(PERMISSION_SCHEMA_FILE_NAME)).map_err(Error::CreateFile)?,
   );
   write!(schema_file, "{schema_str}").map_err(Error::WriteFile)?;
   Ok(())
@@ -343,7 +340,8 @@ pub fn autogenerate_command_permissions(path: &Path, commands: &[&str], license_
   let schema_path = (1..components_len)
     .map(|_| "..")
     .collect::<PathBuf>()
-    .join(PERMISSION_SCHEMA_FILE_SUFFIX);
+    .join(PERMISSION_SCHEMAS_FOLDER_NAME)
+    .join(PERMISSION_SCHEMA_FILE_NAME);
 
   for command in commands {
     let slugified_command = command.replace('_', "-");

@@ -27,7 +27,7 @@ mod tests {
         plugin,
       )
       .expect("failed to define permissions");
-      let manifest = Manifest::from_files(permission_files);
+      let manifest = Manifest::new(permission_files, None);
       manifests.insert(plugin.to_string(), manifest);
     }
 

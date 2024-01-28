@@ -6,6 +6,7 @@
 mod tests {
   use std::{
     collections::BTreeMap,
+    env::temp_dir,
     fs::{read_dir, read_to_string},
     path::Path,
   };
@@ -19,12 +20,15 @@ mod tests {
     let mut manifests = BTreeMap::new();
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let out_dir = temp_dir();
+
     for plugin in plugins {
       let plugin_path = manifest_dir.join("fixtures").join("plugins").join(plugin);
 
       let permission_files = tauri_utils::acl::build::define_permissions(
         &format!("{}/*.toml", plugin_path.display()),
         plugin,
+        &out_dir,
       )
       .expect("failed to define permissions");
       let manifest = Manifest::new(permission_files, None);

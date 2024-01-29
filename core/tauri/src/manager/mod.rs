@@ -544,6 +544,14 @@ impl<R: Runtime> AppManager<R> {
       .map(|w| w.1.clone())
   }
 
+  pub(crate) fn on_window_close(&self, label: &str) {
+    if let Some(window) = self.window.windows_lock().remove(label) {
+      for webview in window.webviews() {
+        self.webview.webviews_lock().remove(webview.label());
+      }
+    }
+  }
+
   pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.window.windows_lock().clone()
   }

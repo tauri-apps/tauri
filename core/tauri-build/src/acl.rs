@@ -4,7 +4,7 @@
 
 use std::{
   collections::BTreeMap,
-  fs::{copy, create_dir_all, File},
+  fs::{copy, create_dir_all, read_to_string, File},
   io::{BufWriter, Write},
   path::PathBuf,
 };
@@ -20,7 +20,10 @@ use tauri_utils::{
 };
 
 const CAPABILITIES_SCHEMA_FILE_NAME: &str = "schema.json";
-const CAPABILITIES_SCHEMA_FOLDER_NAME: &str = "schemas";
+/// Path of the folder where schemas are saved.
+const CAPABILITIES_SCHEMA_FOLDER_PATH: &str = "capabilities/schemas";
+const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
+const PLUGIN_MANIFESTS_FILE_NAME: &str = "plugin-manifests.json";
 
 fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSchema {
   let mut schema = schema_for!(CapabilityFile);
@@ -87,7 +90,7 @@ pub fn generate_schema(
 ) -> Result<()> {
   let schema = capabilities_schema(plugin_manifests);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
-  let out_dir = PathBuf::from("capabilities").join(CAPABILITIES_SCHEMA_FOLDER_NAME);
+  let out_dir = PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH);
   create_dir_all(&out_dir).context("unable to create schema output directory")?;
 
   let schema_path = out_dir.join(format!("{target}-{CAPABILITIES_SCHEMA_FILE_NAME}"));
@@ -107,6 +110,26 @@ pub fn generate_schema(
   )?;
 
   Ok(())
+}
+
+pub fn save_capabilities(capabilities: &BTreeMap<String, Capability>) -> Result<PathBuf> {
+  let capabilities_path =
+    PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH).join(CAPABILITIES_FILE_NAME);
+  let capabilities_json = serde_json::to_string(&capabilities)?;
+  if capabilities_json != read_to_string(&capabilities_path).unwrap_or_default() {
+    std::fs::write(&capabilities_path, capabilities_json)?;
+  }
+  Ok(capabilities_path)
+}
+
+pub fn save_plugin_manifests(plugin_manifests: &BTreeMap<String, Manifest>) -> Result<PathBuf> {
+  let plugin_manifests_path =
+    PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH).join(PLUGIN_MANIFESTS_FILE_NAME);
+  let plugin_manifests_json = serde_json::to_string(&plugin_manifests)?;
+  if plugin_manifests_json != read_to_string(&plugin_manifests_path).unwrap_or_default() {
+    std::fs::write(&plugin_manifests_path, plugin_manifests_json)?;
+  }
+  Ok(plugin_manifests_path)
 }
 
 pub fn get_plugin_manifests() -> Result<BTreeMap<String, Manifest>> {
@@ -132,8 +155,9 @@ pub fn validate_capabilities(
       continue;
     }
 
-    for permission in &capability.permissions {
-      if let Some((plugin_name, permission_name)) = permission.get().split_once(':') {
+    for permission_entry in &capability.permissions {
+      let permission_id = permission_entry.identifier();
+      if let Some((plugin_name, permission_name)) = permission_id.get().split_once(':') {
         let permission_exists = plugin_manifests
           .get(plugin_name)
           .map(|manifest| {
@@ -162,7 +186,7 @@ pub fn validate_capabilities(
 
           anyhow::bail!(
             "Permission {} not found, expected one of {}",
-            permission.get(),
+            permission_id.get(),
             available_permissions.join(", ")
           );
         }

@@ -125,10 +125,6 @@ impl<R: Runtime> WindowManager<R> {
     window
   }
 
-  pub(crate) fn on_window_close(&self, label: &str) {
-    self.windows_lock().remove(label);
-  }
-
   pub fn labels(&self) -> HashSet<String> {
     self.windows_lock().keys().cloned().collect()
   }

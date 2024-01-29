@@ -14,7 +14,7 @@ use glob::Pattern;
 use crate::platform::Target;
 
 use super::{
-  capability::{Capability, CapabilityContext},
+  capability::{Capability, CapabilityContext, PermissionEntry},
   plugin::Manifest,
   Error, ExecutionContext, Permission, PermissionSet, Scopes, Value,
 };
@@ -83,24 +83,48 @@ impl Resolved {
         continue;
       }
 
-      for permission_id in &capability.permissions {
+      for permission_entry in &capability.permissions {
+        let permission_id = permission_entry.identifier();
         let permission_name = permission_id.get_base();
 
         if let Some(plugin_name) = permission_id.get_prefix() {
           let permissions = get_permissions(plugin_name, permission_name, &acl)?;
 
           for permission in permissions {
+            let scope = match permission_entry {
+              PermissionEntry::PermissionRef(_) => permission.scope.clone(),
+              PermissionEntry::ExtendedPermission {
+                identifier: _,
+                scope,
+              } => {
+                let mut merged = permission.scope.clone();
+                if let Some(allow) = scope.allow.clone() {
+                  merged
+                    .allow
+                    .get_or_insert_with(Default::default)
+                    .extend(allow);
+                }
+                if let Some(deny) = scope.deny.clone() {
+                  merged
+                    .deny
+                    .get_or_insert_with(Default::default)
+                    .extend(deny);
+                }
+                merged
+              }
+            };
+
             if permission.commands.allow.is_empty() && permission.commands.deny.is_empty() {
               // global scope
               global_scope
                 .entry(plugin_name.to_string())
                 .or_default()
-                .push(permission.scope.clone());
+                .push(scope.clone());
             } else {
-              let has_scope = permission.scope.allow.is_some() || permission.scope.deny.is_some();
+              let has_scope = scope.allow.is_some() || scope.deny.is_some();
               if has_scope {
                 current_scope_id += 1;
-                command_scopes.insert(current_scope_id, permission.scope.clone());
+                command_scopes.insert(current_scope_id, scope.clone());
               }
 
               let scope_id = if has_scope {

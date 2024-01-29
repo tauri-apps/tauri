@@ -856,7 +856,7 @@ pub struct MockRuntime {
 impl MockRuntime {
   fn init() -> Self {
     let is_running = Arc::new(AtomicBool::new(false));
-    let (tx, rx) = sync_channel(1);
+    let (tx, rx) = sync_channel(256);
     let context = RuntimeContext {
       is_running: is_running.clone(),
       windows: Default::default(),
@@ -992,12 +992,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(
-    &mut self,
-    callback: F,
-  ) -> tauri_runtime::RunIteration {
-    Default::default()
-  }
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F) {}
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
     self.is_running.store(true, Ordering::Relaxed);

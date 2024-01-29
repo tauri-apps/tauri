@@ -216,7 +216,7 @@ pub struct ScopeManager {
   global_scope_cache: TypeMap![Send + Sync],
 }
 
-/// Marks a type as an scope object.
+/// Marks a type as a scope object.
 ///
 /// Usually you will just rely on [`serde::de::DeserializeOwned`] instead of implementing it manually,
 /// though this is useful if you need to do some initialization logic on the type itself.

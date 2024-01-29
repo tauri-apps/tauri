@@ -214,7 +214,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    DeviceEventFilter, RunIteration, UserAttentionType,
+    DeviceEventFilter, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{

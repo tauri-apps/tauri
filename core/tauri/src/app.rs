@@ -1715,8 +1715,7 @@ fn on_event_loop_event<R: Runtime>(
     event: RuntimeWindowEvent::Destroyed,
   } = &event
   {
-    // TODO: destroy webviews
-    manager.window.on_window_close(label);
+    manager.on_window_close(label);
   }
 
   let event = match event {

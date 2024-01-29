@@ -848,7 +848,7 @@ pub struct FileAssociation {
 pub struct DeepLinkProtocol {
   /// URL schemes to associate with this app without `://`. For example `my-app`
   pub schemes: Vec<String>,
-  /// The protocol name. macOS-only and maps to `CFBundleTypeName`. Defaults to `<bundle-id>.<schemes[0]>`
+  /// The protocol name. **macOS-only** and maps to `CFBundleTypeName`. Defaults to `<bundle-id>.<schemes[0]>`
   pub name: Option<String>,
   /// The app's role for these schemes. macOS-only and maps to `CFBundleTypeRole`.
   #[serde(default)]

@@ -885,6 +885,8 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```no_run
+  /// use tauri::Manager;
+  ///
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))

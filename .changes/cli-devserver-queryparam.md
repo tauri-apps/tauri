@@ -3,4 +3,4 @@
 "@tauri-apps/cli": patch:bug
 ---
 
-The built-in dev watcher now ignores the `?` query part of URLs.
+Fix the built-in dev server failing to serve files when URL had queries `?` and other url components.

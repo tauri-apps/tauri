@@ -902,14 +902,14 @@ impl Settings {
   }
 
   /// Return file associations.
-  pub fn file_associations(&self) -> &Option<Vec<FileAssociation>> {
-    &self.bundle_settings.file_associations
+  pub fn file_associations(&self) -> Option<&Vec<FileAssociation>> {
+    self.bundle_settings.file_associations.as_ref()
   }
 
   /// Return the list of deep link protocols to be registered for
   /// this bundle.
-  pub fn deep_link_protocols(&self) -> &Option<Vec<DeepLinkProtocol>> {
-    &self.bundle_settings.deep_link_protocols
+  pub fn deep_link_protocols(&self) -> Option<&Vec<DeepLinkProtocol>> {
+    self.bundle_settings.deep_link_protocols.as_ref()
   }
 
   /// Returns the app's short description.

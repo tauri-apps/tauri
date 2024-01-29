@@ -520,7 +520,7 @@ pub fn build_wix_app_installer(
     .unwrap_or_default();
 
   data.insert("product_name", to_json(settings.product_name()));
-  data.insert("version", to_json(&app_version));
+  data.insert("version", to_json(app_version));
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()
@@ -618,11 +618,11 @@ pub fn build_wix_app_installer(
     }
   }
 
-  if let Some(file_associations) = &settings.file_associations() {
+  if let Some(file_associations) = settings.file_associations() {
     data.insert("file_associations", to_json(file_associations));
   }
 
-  if let Some(protocols) = &settings.deep_link_protocols() {
+  if let Some(protocols) = settings.deep_link_protocols() {
     let schemes = protocols
       .iter()
       .flat_map(|p| &p.schemes)

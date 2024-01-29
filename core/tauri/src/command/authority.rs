@@ -193,6 +193,11 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     command
       .plugin
+      .ok_or_else(|| {
+        InvokeError::from_anyhow(anyhow::anyhow!(
+          "global scope not available for app commands"
+        ))
+      })
       .and_then(|plugin| {
         command
           .message
@@ -201,10 +206,9 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
           .runtime_authority
           .scope_manager
           .get_global_scope_typed(plugin)
-          .ok()
+          .map_err(InvokeError::from_error)
       })
       .map(GlobalScope)
-      .ok_or_else(|| InvokeError::from_anyhow(anyhow::anyhow!("global scope not found")))
   }
 }
 

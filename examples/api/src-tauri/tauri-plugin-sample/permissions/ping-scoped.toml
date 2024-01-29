@@ -1,4 +1,4 @@
-"$schema" = ".schema.json"
+"$schema" = "schemas/schema.json"
 
 [[permission]]
 identifier = "allow-ping-scoped"

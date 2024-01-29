@@ -3765,6 +3765,7 @@ version = "1.0.0"
 dependencies = [
  "cargo_metadata",
  "glob",
+ "schemars",
  "serde",
  "serde_json",
  "tauri",

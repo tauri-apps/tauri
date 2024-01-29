@@ -175,6 +175,7 @@ mod build {
       let prefix = quote! { ::tauri::utils::acl::Value };
 
       tokens.append_all(match self {
+        Value::Null => quote! { #prefix::Null },
         Value::Bool(bool) => quote! { #prefix::Bool(#bool) },
         Value::Number(number) => quote! { #prefix::Number(#number) },
         Value::String(str) => {

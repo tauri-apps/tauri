@@ -2286,7 +2286,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, mut callback: F) {
     use tao::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
@@ -2388,7 +2388,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 }
 
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
-  pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
+  pub callback: &'a mut (dyn FnMut(RunEvent<T>)),
   pub webview_id_map: WindowIdStore,
   pub windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
   #[cfg(feature = "tracing")]
@@ -2985,7 +2985,7 @@ fn handle_event_loop<T: UserEvent>(
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {
-        return handle_user_message(
+        handle_user_message(
           event_loop,
           message,
           UserMessageContext {
@@ -3003,8 +3003,8 @@ fn handle_event_loop<T: UserEvent>(
   }
 }
 
-fn on_close_requested<'a, T: UserEvent>(
-  callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
+fn on_close_requested<T: UserEvent>(
+  callback: &mut (dyn FnMut(RunEvent<T>)),
   window_id: WindowId,
   windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
 ) {

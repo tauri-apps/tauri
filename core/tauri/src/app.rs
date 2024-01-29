@@ -47,7 +47,11 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    mpsc::Sender,
+    Arc,
+  },
 };
 
 use crate::runtime::RuntimeHandle;
@@ -406,6 +410,7 @@ pub struct App<R: Runtime> {
   setup: Option<SetupHook<R>>,
   manager: Arc<AppManager<R>>,
   handle: AppHandle<R>,
+  ran_setup: AtomicBool,
 }
 
 impl<R: Runtime> fmt::Debug for App<R> {
@@ -877,7 +882,7 @@ impl<R: Runtime> App<R> {
     });
   }
 
-  /// Runs a iteration of the runtime event loop and immediately return.
+  /// Runs an iteration of the runtime event loop and immediately return.
   ///
   /// Note that when using this API, app cleanup is not automatically done.
   /// The cleanup calls [`App::cleanup_before_exit`] so you may want to call that function before exiting the application.
@@ -888,13 +893,26 @@ impl<R: Runtime> App<R> {
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
-  /// app.run_iteration();
-  /// app.cleanup_before_exit();
+  ///
+  /// loop {
+  ///   app.run_iteration();
+  ///   if app.webview_windows().is_empty() {
+  ///     app.cleanup_before_exit();
+  ///     break;
+  ///   }
+  /// }
   /// ```
   #[cfg(desktop)]
-  pub fn run_iteration<F: Fn(&AppHandle<R>, RunEvent) + 'static>(&mut self, callback: F) {
+  pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent)>(&mut self, mut callback: F) {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
+
+    if !self.ran_setup.load(Ordering::Relaxed) {
+      if let Err(e) = setup(self) {
+        panic!("Failed to setup app: {e}");
+      }
+    }
+
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
       let event = on_event_loop_event(&app_handle, event, &manager);
       callback(&app_handle, event);
@@ -1520,6 +1538,7 @@ tauri::Builder::default()
         runtime_handle,
         manager,
       },
+      ran_setup: Default::default(),
     };
 
     #[cfg(desktop)]
@@ -1657,6 +1676,8 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
 
 #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::setup"))]
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
+  app.ran_setup.store(true, Ordering::Relaxed);
+
   let window_labels = app
     .config()
     .tauri

@@ -4,6 +4,8 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use tauri::Manager;
+
 fn main() {
   let mut app = tauri::Builder::default()
     .build(tauri::generate_context!(
@@ -11,6 +13,14 @@ fn main() {
     ))
     .expect("error while building tauri application");
 
-  app.run_iteration(|_app, _event| {});
-  app.cleanup_before_exit();
+  loop {
+    app.run_iteration(|_app, _event| {
+      //println!("{:?}", _event);
+    });
+
+    if app.webview_windows().is_empty() {
+      app.cleanup_before_exit();
+      break;
+    }
+  }
 }

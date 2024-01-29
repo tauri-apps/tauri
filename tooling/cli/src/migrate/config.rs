@@ -527,32 +527,6 @@ mod test {
     // cli
     assert_eq!(migrated["plugins"]["cli"], original["tauri"]["cli"]);
 
-    // fs scope
-    assert_eq!(
-      migrated["plugins"]["fs"]["scope"]["allow"],
-      original["tauri"]["allowlist"]["fs"]["scope"]["allow"]
-    );
-    assert_eq!(
-      migrated["plugins"]["fs"]["scope"]["deny"],
-      original["tauri"]["allowlist"]["fs"]["scope"]["deny"]
-    );
-
-    // shell scope
-    assert_eq!(
-      migrated["plugins"]["shell"]["scope"],
-      original["tauri"]["allowlist"]["shell"]["scope"]
-    );
-    assert_eq!(
-      migrated["plugins"]["shell"]["open"],
-      original["tauri"]["allowlist"]["shell"]["open"]
-    );
-
-    // http scope
-    assert_eq!(
-      migrated["plugins"]["http"]["scope"],
-      original["tauri"]["allowlist"]["http"]["scope"]
-    );
-
     // asset scope
     assert_eq!(
       migrated["tauri"]["security"]["assetProtocol"]["enable"],

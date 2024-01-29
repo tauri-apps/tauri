@@ -157,7 +157,6 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
         std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
       }
 
-      // TODO: Consider using the plugin crate directly
       if let Some(open) = config_.plugins.0.get("shell").and_then(|v| v.get("open")) {
         if open.as_bool().is_some_and(|x| x) || open.is_string() {
           std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");

@@ -31,6 +31,7 @@ pub fn walk_builder(path: &Path) -> WalkBuilder {
 
   let mut builder = WalkBuilder::new(path);
   builder.add_custom_ignore_filename(".taurignore");
+  builder.git_global(false);
   let _ = builder.add_ignore(default_gitignore);
   builder
 }

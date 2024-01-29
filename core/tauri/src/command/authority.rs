@@ -8,12 +8,14 @@ use std::{collections::BTreeMap, ops::Deref};
 use serde::de::DeserializeOwned;
 use state::TypeMap;
 
+use tauri_utils::acl::Value;
 use tauri_utils::acl::{
   resolved::{CommandKey, Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
   ExecutionContext,
 };
 
 use crate::{ipc::InvokeError, sealed::ManagerBase, Runtime};
+use crate::{AppHandle, Manager};
 
 use super::{CommandArg, CommandItem};
 
@@ -95,12 +97,12 @@ impl RuntimeAuthority {
 
 /// List of allowed and denied objects that match either the command-specific or plugin global scope criterias.
 #[derive(Debug)]
-pub struct ScopeValue<T: Debug + DeserializeOwned + Send + Sync + 'static> {
+pub struct ScopeValue<T: ScopeObject> {
   allow: Vec<T>,
   deny: Vec<T>,
 }
 
-impl<T: Debug + DeserializeOwned + Send + Sync + 'static> ScopeValue<T> {
+impl<T: ScopeObject> ScopeValue<T> {
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<T> {
     &self.allow
@@ -130,11 +132,9 @@ impl<'a, T: Debug> Deref for OwnedOrRef<'a, T> {
 
 /// Access scope for a command that can be retrieved directly in the command function.
 #[derive(Debug)]
-pub struct CommandScope<'a, T: Debug + DeserializeOwned + Send + Sync + 'static>(
-  OwnedOrRef<'a, ScopeValue<T>>,
-);
+pub struct CommandScope<'a, T: ScopeObject>(OwnedOrRef<'a, ScopeValue<T>>);
 
-impl<'a, T: Debug + DeserializeOwned + Send + Sync + 'static> CommandScope<'a, T> {
+impl<'a, T: ScopeObject> CommandScope<'a, T> {
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<T> {
     &self.0.allow
@@ -146,9 +146,7 @@ impl<'a, T: Debug + DeserializeOwned + Send + Sync + 'static> CommandScope<'a, T
   }
 }
 
-impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> CommandArg<'a, R>
-  for CommandScope<'a, T>
-{
+impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<'a, T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`CommandScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     if let Some(scope_id) = command.acl.as_ref().and_then(|resolved| resolved.scope) {
@@ -159,7 +157,7 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
           .manager()
           .runtime_authority
           .scope_manager
-          .get_command_scope_typed(&scope_id)?,
+          .get_command_scope_typed(command.message.webview.app_handle(), &scope_id)?,
       )))
     } else {
       Ok(CommandScope(OwnedOrRef::Owned(ScopeValue {
@@ -172,9 +170,9 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
 
 /// Global access scope that can be retrieved directly in the command function.
 #[derive(Debug)]
-pub struct GlobalScope<'a, T: Debug + DeserializeOwned + Send + Sync + 'static>(&'a ScopeValue<T>);
+pub struct GlobalScope<'a, T: ScopeObject>(&'a ScopeValue<T>);
 
-impl<'a, T: Debug + DeserializeOwned + Send + Sync + 'static> GlobalScope<'a, T> {
+impl<'a, T: ScopeObject> GlobalScope<'a, T> {
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<T> {
     &self.0.allow
@@ -186,9 +184,7 @@ impl<'a, T: Debug + DeserializeOwned + Send + Sync + 'static> GlobalScope<'a, T>
   }
 }
 
-impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> CommandArg<'a, R>
-  for GlobalScope<'a, T>
-{
+impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for GlobalScope<'a, T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`GlobalScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     command
@@ -205,7 +201,7 @@ impl<'a, R: Runtime, T: Debug + DeserializeOwned + Send + Sync + 'static> Comman
           .manager()
           .runtime_authority
           .scope_manager
-          .get_global_scope_typed(plugin)
+          .get_global_scope_typed(command.message.webview.app_handle(), plugin)
           .map_err(InvokeError::from_error)
       })
       .map(GlobalScope)
@@ -220,9 +216,28 @@ pub struct ScopeManager {
   global_scope_cache: TypeMap![Send + Sync],
 }
 
+/// Marks a type as an scope object.
+///
+/// Usually you will just rely on [`serde::de::DeserializeOwned`] instead of implementing it manually,
+/// though this is useful if you need to do some initialization logic on the type itself.
+pub trait ScopeObject: Sized + Send + Sync + Debug + 'static {
+  /// The error type.
+  type Error: std::error::Error;
+  /// Deserialize the raw scope value.
+  fn deserialize<R: Runtime>(app: &AppHandle<R>, raw: Value) -> Result<Self, Self::Error>;
+}
+
+impl<T: Send + Sync + Debug + DeserializeOwned + 'static> ScopeObject for T {
+  type Error = serde_json::Error;
+  fn deserialize<R: Runtime>(_app: &AppHandle<R>, raw: Value) -> Result<Self, Self::Error> {
+    serde_json::from_value(raw.into())
+  }
+}
+
 impl ScopeManager {
-  pub(crate) fn get_global_scope_typed<T: Send + Sync + DeserializeOwned + Debug + 'static>(
+  pub(crate) fn get_global_scope_typed<R: Runtime, T: ScopeObject>(
     &self,
+    app: &AppHandle<R>,
     plugin: &str,
   ) -> crate::Result<&ScopeValue<T>> {
     match self.global_scope_cache.try_get() {
@@ -233,10 +248,16 @@ impl ScopeManager {
 
         if let Some(global_scope) = self.global_scope.get(plugin) {
           for allowed in &global_scope.allow {
-            allow.push(serde_json::from_value(allowed.clone().into())?);
+            allow.push(
+              T::deserialize(app, allowed.clone())
+                .map_err(|e| crate::Error::CannotDeserializeScope(Box::new(e)))?,
+            );
           }
           for denied in &global_scope.deny {
-            deny.push(serde_json::from_value(denied.clone().into())?);
+            deny.push(
+              T::deserialize(app, denied.clone())
+                .map_err(|e| crate::Error::CannotDeserializeScope(Box::new(e)))?,
+            );
           }
         }
 
@@ -247,8 +268,9 @@ impl ScopeManager {
     }
   }
 
-  fn get_command_scope_typed<T: Send + Sync + DeserializeOwned + Debug + 'static>(
+  fn get_command_scope_typed<R: Runtime, T: ScopeObject>(
     &self,
+    app: &AppHandle<R>,
     key: &ScopeKey,
   ) -> crate::Result<&ScopeValue<T>> {
     let cache = self.command_cache.get(key).unwrap();
@@ -264,10 +286,16 @@ impl ScopeManager {
         let mut deny: Vec<T> = Vec::new();
 
         for allowed in &resolved_scope.allow {
-          allow.push(serde_json::from_value(allowed.clone().into())?);
+          allow.push(
+            T::deserialize(app, allowed.clone())
+              .map_err(|e| crate::Error::CannotDeserializeScope(Box::new(e)))?,
+          );
         }
         for denied in &resolved_scope.deny {
-          deny.push(serde_json::from_value(denied.clone().into())?);
+          deny.push(
+            T::deserialize(app, denied.clone())
+              .map_err(|e| crate::Error::CannotDeserializeScope(Box::new(e)))?,
+          );
         }
 
         let value = ScopeValue { allow, deny };

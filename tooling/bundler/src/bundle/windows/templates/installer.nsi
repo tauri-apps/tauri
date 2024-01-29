@@ -662,8 +662,8 @@ Section Uninstall
 
   ; Delete deep links
   {{#each deep_link_protocol as |protocol| ~}}
-    ReadRegStr $DL0 SHCTX "Software\Classes\{{protocol}}\shell\open\command" ""
-    !if $DL0 == "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
+    ReadRegStr $R7 SHCTX "Software\Classes\{{protocol}}\shell\open\command" ""
+    !if $R7 == "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
       DeleteRegKey SHCTX "Software\Classes\{{protocol}}"
     !endif
   {{/each}}

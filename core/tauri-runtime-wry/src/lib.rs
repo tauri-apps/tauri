@@ -2985,7 +2985,7 @@ fn handle_event_loop<T: UserEvent>(
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {
-        return handle_user_message(
+        handle_user_message(
           event_loop,
           message,
           UserMessageContext {

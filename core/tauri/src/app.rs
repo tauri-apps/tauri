@@ -893,7 +893,7 @@ impl<R: Runtime> App<R> {
   ///   .expect("error while building tauri application");
   ///
   /// loop {
-  ///   app.run_iteration();
+  ///   app.run_iteration(|_app, _event| {});
   ///   if app.webview_windows().is_empty() {
   ///     app.cleanup_before_exit();
   ///     break;

@@ -862,24 +862,17 @@ impl<R: Runtime> App<R> {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
         }
-        on_event_loop_event(
-          &app_handle,
-          RuntimeRunEvent::Ready,
-          &manager,
-          Some(&mut callback),
-        );
+        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
+        callback(&app_handle, event);
       }
       RuntimeRunEvent::Exit => {
-        on_event_loop_event(
-          &app_handle,
-          RuntimeRunEvent::Exit,
-          &manager,
-          Some(&mut callback),
-        );
+        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
+        callback(&app_handle, event);
         app_handle.cleanup_before_exit();
       }
       _ => {
-        on_event_loop_event(&app_handle, event, &manager, Some(&mut callback));
+        let event = on_event_loop_event(&app_handle, event, &manager);
+        callback(&app_handle, event);
       }
     });
   }
@@ -895,26 +888,16 @@ impl<R: Runtime> App<R> {
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
-  /// loop {
-  ///   let iteration = app.run_iteration();
-  ///   if iteration.window_count == 0 {
-  ///     app.cleanup_before_exit();
-  ///     break;
-  ///   }
-  /// }
+  /// app.run_iteration();
+  /// app.cleanup_before_exit();
   /// ```
   #[cfg(desktop)]
-  #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::run_iteration"))]
-  pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
+  pub fn run_iteration<F: Fn(&AppHandle<R>, RunEvent) + 'static>(&mut self, callback: F) {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
-      on_event_loop_event(
-        &app_handle,
-        event,
-        &manager,
-        Option::<&mut Box<dyn FnMut(&AppHandle<R>, RunEvent)>>::None,
-      )
+      let event = on_event_loop_event(&app_handle, event, &manager);
+      callback(&app_handle, event);
     })
   }
 }
@@ -1701,12 +1684,11 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   Ok(())
 }
 
-fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
+fn on_event_loop_event<R: Runtime>(
   app_handle: &AppHandle<R>,
   event: RuntimeRunEvent<EventLoopMessage>,
   manager: &AppManager<R>,
-  callback: Option<&mut F>,
-) {
+) -> RunEvent {
   if let RuntimeRunEvent::WindowEvent {
     label,
     event: RuntimeWindowEvent::Destroyed,
@@ -1805,9 +1787,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     .expect("poisoned plugin store")
     .on_event(app_handle, &event);
 
-  if let Some(c) = callback {
-    c(app_handle, event);
-  }
+  event
 }
 
 #[cfg(test)]

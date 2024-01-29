@@ -47,11 +47,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{
-    atomic::{AtomicBool, Ordering},
-    mpsc::Sender,
-    Arc,
-  },
+  sync::{mpsc::Sender, Arc},
 };
 
 use crate::runtime::RuntimeHandle;
@@ -410,7 +406,7 @@ pub struct App<R: Runtime> {
   setup: Option<SetupHook<R>>,
   manager: Arc<AppManager<R>>,
   handle: AppHandle<R>,
-  ran_setup: AtomicBool,
+  ran_setup: bool,
 }
 
 impl<R: Runtime> fmt::Debug for App<R> {
@@ -907,7 +903,7 @@ impl<R: Runtime> App<R> {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
 
-    if !self.ran_setup.load(Ordering::Relaxed) {
+    if !self.ran_setup {
       if let Err(e) = setup(self) {
         panic!("Failed to setup app: {e}");
       }
@@ -1538,7 +1534,7 @@ tauri::Builder::default()
         runtime_handle,
         manager,
       },
-      ran_setup: Default::default(),
+      ran_setup: false,
     };
 
     #[cfg(desktop)]
@@ -1676,7 +1672,7 @@ unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
 
 #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::setup"))]
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
-  app.ran_setup.store(true, Ordering::Relaxed);
+  app.ran_setup = true;
 
   let window_labels = app
     .config()

@@ -3006,7 +3006,7 @@ fn handle_event_loop<T: UserEvent>(
         }
       }
       Message::Window(id, WindowMessage::Close) => {
-        on_window_close(id, windows.clone());
+        on_close_requested(callback, id, windows.clone());
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {

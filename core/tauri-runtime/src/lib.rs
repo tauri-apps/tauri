@@ -153,6 +153,8 @@ pub enum RunEvent<T: UserEvent> {
   Exit,
   /// Event loop is about to exit
   ExitRequested {
+    /// The exit code.
+    code: Option<i32>,
     tx: Sender<ExitRequestedEventAction>,
   },
   /// An event associated with a window.
@@ -203,6 +205,9 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
   fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
+
+  /// Requests an exit of the event loop.
+  fn request_exit(&self, code: i32) -> Result<()>;
 
   /// Create a new window.
   fn create_window<F: Fn(RawWindow) + Send + 'static>(

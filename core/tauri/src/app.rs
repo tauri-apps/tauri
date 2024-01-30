@@ -41,7 +41,7 @@ use tauri_runtime::{
   },
   RuntimeInitArgs,
 };
-use tauri_utils::PackageInfo;
+use tauri_utils::{debug_eprintln, PackageInfo};
 
 use std::{
   borrow::Cow,
@@ -68,6 +68,9 @@ pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 /// A closure that is run every time a page starts or finishes loading.
 pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
+
+/// The exit code on [`RunEvent::ExitRequested`] when [`AppHandle#method.restart`] is called.
+pub const RESTART_EXIT_CODE: i32 = i32::MAX;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
@@ -171,6 +174,10 @@ pub enum RunEvent {
   /// The app is about to exit
   #[non_exhaustive]
   ExitRequested {
+    /// Exit code.
+    /// [`Option::None`] when the exit is requested by user interaction,
+    /// [`Option::Some`] when requested programatically via [`AppHandle#method.exit`] and [`AppHandle#method.restart`].
+    code: Option<i32>,
     /// Event API
     api: ExitRequestApi,
   },
@@ -365,15 +372,30 @@ impl<R: Runtime> AppHandle<R> {
     self.manager().plugins.lock().unwrap().unregister(plugin)
   }
 
-  /// Exits the app. This is the same as [`std::process::exit`], but it performs cleanup on this application.
+  /// Exits the app by triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`].
+  ///
+  /// # Panics
+  ///
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](App#method.run) closure.
   pub fn exit(&self, exit_code: i32) {
-    self.cleanup_before_exit();
-    std::process::exit(exit_code);
+    if let Err(e) = self.runtime_handle.request_exit(exit_code) {
+      debug_eprintln!("failed to exit: {}", e);
+      self.cleanup_before_exit();
+      std::process::exit(exit_code);
+    }
   }
 
-  /// Restarts the app. This is the same as [`crate::process::restart`], but it performs cleanup on this application.
+  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`]..
+  ///
+  /// # Panics
+  ///
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](App#method.run) closure.
   pub fn restart(&self) {
-    self.cleanup_before_exit();
+    if self.runtime_handle.request_exit(RESTART_EXIT_CODE).is_err() {
+      self.cleanup_before_exit();
+    }
     crate::process::restart(&self.env());
   }
 }
@@ -1718,7 +1740,8 @@ fn on_event_loop_event<R: Runtime>(
 
   let event = match event {
     RuntimeRunEvent::Exit => RunEvent::Exit,
-    RuntimeRunEvent::ExitRequested { tx } => RunEvent::ExitRequested {
+    RuntimeRunEvent::ExitRequested { code, tx } => RunEvent::ExitRequested {
+      code,
       api: ExitRequestApi(tx),
     },
     RuntimeRunEvent::WindowEvent { label, event } => RunEvent::WindowEvent {

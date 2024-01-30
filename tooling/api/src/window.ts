@@ -23,7 +23,14 @@ import {
   PhysicalSize
 } from './dpi'
 import type { Event, EventName, EventCallback, UnlistenFn } from './event'
-import { TauriEvent, emit, emitTo, listen, once } from './event'
+import {
+  TauriEvent,
+  type EventTarget,
+  emit,
+  emitTo,
+  listen,
+  once
+} from './event'
 import { invoke } from './core'
 
 /**
@@ -346,7 +353,7 @@ class Window {
   }
 
   /**
-   * Listen to an event emitted by the backend that is tied to the window.
+   * Listen to an emitted event on this window.
    *
    * @example
    * ```typescript
@@ -381,7 +388,7 @@ class Window {
   }
 
   /**
-   * Listen to an one-off event emitted by the backend that is tied to the window.
+   * Listen to an emitted event on this window only once.
    *
    * @example
    * ```typescript
@@ -413,7 +420,7 @@ class Window {
   }
 
   /**
-   * Emits an event to the backend, tied to the window.
+   * Emits an event to all {@link EventTarget|targets}.
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
@@ -439,13 +446,13 @@ class Window {
   }
 
   /**
-   * Emits an event to the backend, tied to the webview.
+   * Emits an event to all {@link EventTarget|targets} matching the given label.
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/webview';
    * await getCurrent().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
    * ```
-   *
+   * @param target Label of the target Window, Webview or WebviewWindow.
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */

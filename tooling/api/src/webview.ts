@@ -19,7 +19,14 @@
 import { PhysicalPosition, PhysicalSize } from './dpi'
 import type { LogicalPosition, LogicalSize } from './dpi'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { TauriEvent, emit, emitTo, listen, once } from './event'
+import {
+  TauriEvent,
+  type EventTarget,
+  emit,
+  emitTo,
+  listen,
+  once
+} from './event'
 import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
 import type { WindowOptions } from './window'
@@ -190,7 +197,7 @@ class Webview {
   }
 
   /**
-   * Listen to an event emitted by the backend that is tied to the webview.
+   * Listen to an emitted event on this webview.
    *
    * @example
    * ```typescript
@@ -225,7 +232,7 @@ class Webview {
   }
 
   /**
-   * Listen to an one-off event emitted by the backend that is tied to the webview.
+   * Listen to an emitted event on this webview only once.
    *
    * @example
    * ```typescript
@@ -257,7 +264,8 @@ class Webview {
   }
 
   /**
-   * Emits an event to the backend, tied to the webview.
+   * Emits an event to all {@link EventTarget|targets}.
+   *
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/webview';
@@ -283,13 +291,15 @@ class Webview {
   }
 
   /**
-   * Emits an event to the backend, tied to the webview.
+   * Emits an event to all {@link EventTarget|targets} matching the given label.
+   *
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/webview';
    * await getCurrent().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    *
+   * @param target Label of the target Window, Webview or WebviewWindow.
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
@@ -629,12 +639,12 @@ class WebviewWindow {
   }
 
   /**
-   * Listen to an event emitted by the backend that is tied to the webview.
+   * Listen to an emitted event on this webivew window.
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * const unlisten = await getCurrent().listen<string>('state-changed', (event) => {
+   * import { WebviewWindow } from '@tauri-apps/api/webview';
+   * const unlisten = await WebviewWindow.getCurrent().listen<string>('state-changed', (event) => {
    *   console.log(`Got error: ${payload}`);
    * });
    *
@@ -664,12 +674,12 @@ class WebviewWindow {
   }
 
   /**
-   * Listen to an one-off event emitted by the backend that is tied to the webview.
+   * Listen to an emitted event on this webivew window only once.
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * const unlisten = await getCurrent().once<null>('initialized', (event) => {
+   * import { WebviewWindow } from '@tauri-apps/api/webview';
+   * const unlisten = await WebviewWindow.getCurrent().once<null>('initialized', (event) => {
    *   console.log(`Webview initialized!`);
    * });
    *
@@ -696,10 +706,10 @@ class WebviewWindow {
   }
 }
 
-// order matters, we use window APIs by default
+// Order matters, we use window APIs by default
 applyMixins(WebviewWindow, [Window, Webview])
 
-/** Extends a base class by other specifed classes */
+/** Extends a base class by other specifed classes, wihtout overriding existing properties */
 function applyMixins(
   baseClass: { prototype: unknown },
   extendedClasses: unknown
@@ -709,8 +719,12 @@ function applyMixins(
     : [extendedClasses]
   ).forEach((extendedClass: { prototype: unknown }) => {
     Object.getOwnPropertyNames(extendedClass.prototype).forEach((name) => {
-      // @ts-ignore
-      if (name in baseClass.prototype) return
+      if (
+        typeof baseClass.prototype === 'object' &&
+        baseClass.prototype &&
+        name in baseClass.prototype
+      )
+        return
       Object.defineProperty(
         baseClass.prototype,
         name,

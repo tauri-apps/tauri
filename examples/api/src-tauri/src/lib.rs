@@ -153,10 +153,13 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   app.run(move |_app_handle, _event| {
     #[cfg(all(desktop, not(test)))]
-    if let RunEvent::ExitRequested { api, .. } = &_event {
+    if let RunEvent::ExitRequested { api, code, .. } = &_event {
       // Keep the event loop running even if all windows are closed
       // This allow us to catch tray icon events when there is no window
-      api.prevent_exit();
+      // if we manually requested an exit (code is Some(_)) we will let it go through
+      if code.is_none() {
+        api.prevent_exit();
+      }
     }
   })
 }

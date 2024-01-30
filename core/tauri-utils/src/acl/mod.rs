@@ -200,24 +200,11 @@ pub enum ExecutionContext {
 mod build_ {
   use std::convert::identity;
 
-  use crate::tokens::*;
+  use crate::{literal_struct, tokens::*};
 
   use super::*;
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
-
-  /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
-  ///
-  /// All fields must represent a binding of the same name that implements `ToTokens`.
-  macro_rules! literal_struct {
-    ($tokens:ident, $struct:ident, $($field:ident),+) => {
-      $tokens.append_all(quote! {
-        ::tauri::utils::acl::$struct {
-          $($field: #$field),+
-        }
-      })
-    };
-  }
 
   impl ToTokens for ExecutionContext {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -239,7 +226,7 @@ mod build_ {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let allow = vec_lit(&self.allow, str_lit);
       let deny = vec_lit(&self.deny, str_lit);
-      literal_struct!(tokens, Commands, allow, deny)
+      literal_struct!(tokens, ::tauri::utils::acl::Commands, allow, deny)
     }
   }
 
@@ -247,7 +234,7 @@ mod build_ {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let allow = opt_vec_lit(self.allow.as_ref(), identity);
       let deny = opt_vec_lit(self.deny.as_ref(), identity);
-      literal_struct!(tokens, Scopes, allow, deny)
+      literal_struct!(tokens, ::tauri::utils::acl::Scopes, allow, deny)
     }
   }
 
@@ -263,7 +250,7 @@ mod build_ {
       let scope = &self.scope;
       literal_struct!(
         tokens,
-        Permission,
+        ::tauri::utils::acl::Permission,
         version,
         identifier,
         description,
@@ -278,7 +265,13 @@ mod build_ {
       let identifier = str_lit(&self.identifier);
       let description = str_lit(&self.description);
       let permissions = vec_lit(&self.permissions, str_lit);
-      literal_struct!(tokens, PermissionSet, identifier, description, permissions)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::PermissionSet,
+        identifier,
+        description,
+        permissions
+      )
     }
   }
 }

@@ -109,20 +109,7 @@ mod build {
   use std::convert::identity;
 
   use super::*;
-  use crate::tokens::*;
-
-  /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
-  ///
-  /// All fields must represent a binding of the same name that implements `ToTokens`.
-  macro_rules! literal_struct {
-    ($tokens:ident, $struct:ident, $($field:ident),+) => {
-      $tokens.append_all(quote! {
-        ::tauri::utils::acl::plugin::$struct {
-          $($field: #$field),+
-        }
-      })
-    };
-  }
+  use crate::{literal_struct, tokens::*};
 
   impl ToTokens for DefaultPermission {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -132,7 +119,13 @@ mod build {
       }));
       let description = opt_str_lit(self.description.as_ref());
       let permissions = vec_lit(&self.permissions, str_lit);
-      literal_struct!(tokens, DefaultPermission, version, description, permissions)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::plugin::DefaultPermission,
+        version,
+        description,
+        permissions
+      )
     }
   }
 
@@ -156,7 +149,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        Manifest,
+        ::tauri::utils::acl::plugin::Manifest,
         default_permission,
         permissions,
         permission_sets

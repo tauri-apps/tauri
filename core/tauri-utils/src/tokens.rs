@@ -11,6 +11,20 @@ use quote::{quote, ToTokens};
 use serde_json::Value as JsonValue;
 use url::Url;
 
+/// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
+///
+/// All fields must represent a binding of the same name that implements `ToTokens`.
+#[macro_export]
+macro_rules! literal_struct {
+  ($tokens:ident, $struct:path, $($field:ident),+) => {
+    $tokens.append_all(quote! {
+      $struct {
+        $($field: #$field),+
+      }
+    })
+  };
+}
+
 /// Create a `String` constructor `TokenStream`.
 ///
 /// e.g. `"Hello World" -> String::from("Hello World").

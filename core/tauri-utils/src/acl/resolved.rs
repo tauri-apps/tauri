@@ -403,26 +403,18 @@ mod build {
   use std::convert::identity;
 
   use super::*;
-  use crate::tokens::*;
-
-  /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
-  ///
-  /// All fields must represent a binding of the same name that implements `ToTokens`.
-  macro_rules! literal_struct {
-    ($tokens:ident, $struct:ident, $($field:ident),+) => {
-      $tokens.append_all(quote! {
-        ::tauri::utils::acl::resolved::$struct {
-          $($field: #$field),+
-        }
-      })
-    };
-  }
+  use crate::{literal_struct, tokens::*};
 
   impl ToTokens for CommandKey {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let name = str_lit(&self.name);
       let context = &self.context;
-      literal_struct!(tokens, CommandKey, name, context)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::resolved::CommandKey,
+        name,
+        context
+      )
     }
   }
 
@@ -431,7 +423,12 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let capability = str_lit(&self.capability);
       let permission = str_lit(&self.permission);
-      literal_struct!(tokens, ResolvedCommandReference, capability, permission)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::resolved::ResolvedCommandReference,
+        capability,
+        permission
+      )
     }
   }
 
@@ -448,10 +445,21 @@ mod build {
 
       #[cfg(debug_assertions)]
       {
-        literal_struct!(tokens, ResolvedCommand, referenced_by, windows, scope)
+        literal_struct!(
+          tokens,
+          ::tauri::utils::acl::resolved::ResolvedCommand,
+          referenced_by,
+          windows,
+          scope
+        )
       }
       #[cfg(not(debug_assertions))]
-      literal_struct!(tokens, ResolvedCommand, windows, scope)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::resolved::ResolvedCommand,
+        windows,
+        scope
+      )
     }
   }
 
@@ -459,7 +467,12 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let allow = vec_lit(&self.allow, identity);
       let deny = vec_lit(&self.deny, identity);
-      literal_struct!(tokens, ResolvedScope, allow, deny)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::resolved::ResolvedScope,
+        allow,
+        deny
+      )
     }
   }
 
@@ -505,7 +518,7 @@ mod build {
       {
         literal_struct!(
           tokens,
-          Resolved,
+          ::tauri::utils::acl::resolved::Resolved,
           acl,
           allowed_commands,
           denied_commands,
@@ -516,7 +529,7 @@ mod build {
       #[cfg(not(debug_assertions))]
       literal_struct!(
         tokens,
-        Resolved,
+        ::tauri::utils::acl::resolved::Resolved,
         allowed_commands,
         denied_commands,
         command_scope,

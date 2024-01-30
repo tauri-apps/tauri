@@ -77,7 +77,9 @@ pub const RESTART_EXIT_CODE: i32 = i32::MAX;
 pub struct ExitRequestApi(Sender<ExitRequestedEventAction>);
 
 impl ExitRequestApi {
-  /// Prevents the app from exiting
+  /// Prevents the app from exiting.
+  ///
+  /// **Note:** This is ignored when using [`AppHandle#method.restart`].
   pub fn prevent_exit(&self) {
     self.0.send(ExitRequestedEventAction::Prevent).unwrap();
   }

@@ -6,6 +6,11 @@
 
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
+use crate::{
+  event::EventTarget,
+  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
+  window::Monitor,
+};
 #[cfg(desktop)]
 use crate::{
   menu::{ContextMenu, Menu},
@@ -17,10 +22,6 @@ use crate::{
     UserAttentionType,
   },
   Icon,
-};
-use crate::{
-  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
-  window::Monitor,
 };
 use serde::Serialize;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
@@ -1666,7 +1667,13 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.webview.listen(event, handler)
+    self.manager().listen(
+      event.into(),
+      EventTarget::WebviewWindow {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 
   /// Unlisten to an event on this window.
@@ -1699,7 +1706,7 @@ tauri::Builder::default()
   "####
   )]
   pub fn unlisten(&self, id: EventId) {
-    self.webview.unlisten(id)
+    self.manager().unlisten(id)
   }
 
   /// Listen to an event on this webview only once.
@@ -1709,7 +1716,13 @@ tauri::Builder::default()
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.webview.once(event, handler)
+    self.manager().once(
+      event.into(),
+      EventTarget::WebviewWindow {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 }
 
@@ -1720,17 +1733,17 @@ impl<R: Runtime> Manager<R> for WebviewWindow<R> {
 
   fn emit_to<S: Serialize + Clone>(
     &self,
-    label: &str,
+    target: &str,
     event: &str,
     payload: S,
   ) -> crate::Result<()> {
-    self.webview.emit_to(label, event, payload)
+    self.webview.emit_to(target, event, payload)
   }
 
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
+    F: Fn(&EventTarget) -> bool,
   {
     self.webview.emit_filter(event, payload, filter)
   }

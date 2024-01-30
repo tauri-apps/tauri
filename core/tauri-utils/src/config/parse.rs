@@ -108,7 +108,7 @@ pub enum ConfigError {
     path: PathBuf,
 
     /// The parsing [`toml::Error`].
-    error: ::toml::de::Error,
+    error: Box<::toml::de::Error>,
   },
 
   /// Unknown config file name encountered.
@@ -381,7 +381,7 @@ fn do_parse_json5<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, Conf
 fn do_parse_toml<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, ConfigError> {
   ::toml::from_str(raw).map_err(|error| ConfigError::FormatToml {
     path: path.into(),
-    error,
+    error: Box::new(error),
   })
 }
 

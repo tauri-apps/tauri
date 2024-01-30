@@ -19,7 +19,7 @@
 import { PhysicalPosition, PhysicalSize } from './dpi'
 import type { LogicalPosition, LogicalSize } from './dpi'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { TauriEvent, emit, listen, once } from './event'
+import { TauriEvent, emit, emitTo, listen, once } from './event'
 import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
 import type { WindowOptions } from './window'
@@ -220,7 +220,7 @@ class Webview {
       })
     }
     return listen(event, handler, {
-      target: { kind: 'webview', label: this.label }
+      target: { kind: 'Webview', label: this.label }
     })
   }
 
@@ -252,7 +252,7 @@ class Webview {
       })
     }
     return once(event, handler, {
-      target: { kind: 'webview', label: this.label }
+      target: { kind: 'Webview', label: this.label }
     })
   }
 
@@ -274,15 +274,42 @@ class Webview {
         handler({
           event,
           id: -1,
-          source: { kind: 'webview', label: this.label },
           payload
         })
       }
       return Promise.resolve()
     }
-    return emit(event, payload, {
-      target: { kind: 'webview', label: this.label }
-    })
+    return emit(event, payload)
+  }
+
+  /**
+   * Emits an event to the backend, tied to the webview.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   *
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emitTo(
+    target: string,
+    event: string,
+    payload?: unknown
+  ): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return Promise.resolve()
+    }
+    return emitTo(target, event, payload)
   }
 
   /** @ignore */
@@ -600,10 +627,77 @@ class WebviewWindow {
     // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     return getAll().map((w) => new WebviewWindow(w.label, { skip: true }))
   }
+
+  /**
+   * Listen to an event emitted by the backend that is tied to the webview.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * const unlisten = await getCurrent().listen<string>('state-changed', (event) => {
+   *   console.log(`Got error: ${payload}`);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param handler Event handler.
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async listen<T>(
+    event: EventName,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
+    if (this._handleTauriEvent(event, handler)) {
+      return Promise.resolve(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, security/detect-object-injection
+        const listeners = this.listeners[event]
+        listeners.splice(listeners.indexOf(handler), 1)
+      })
+    }
+    return listen(event, handler, {
+      target: { kind: 'WebviewWindow', label: this.label }
+    })
+  }
+
+  /**
+   * Listen to an one-off event emitted by the backend that is tied to the webview.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * const unlisten = await getCurrent().once<null>('initialized', (event) => {
+   *   console.log(`Webview initialized!`);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param handler Event handler.
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
+    if (this._handleTauriEvent(event, handler)) {
+      return Promise.resolve(() => {
+        // eslint-disable-next-line security/detect-object-injection
+        const listeners = this.listeners[event]
+        listeners.splice(listeners.indexOf(handler), 1)
+      })
+    }
+    return once(event, handler, {
+      target: { kind: 'WebviewWindow', label: this.label }
+    })
+  }
 }
 
 // order matters, we use window APIs by default
-applyMixins(WebviewWindow, [Webview, Window])
+applyMixins(WebviewWindow, [Window, Webview])
 
 /** Extends a base class by other specifed classes */
 function applyMixins(
@@ -615,6 +709,8 @@ function applyMixins(
     : [extendedClasses]
   ).forEach((extendedClass: { prototype: unknown }) => {
     Object.getOwnPropertyNames(extendedClass.prototype).forEach((name) => {
+      // @ts-ignore
+      if (name in baseClass.prototype) return
       Object.defineProperty(
         baseClass.prototype,
         name,

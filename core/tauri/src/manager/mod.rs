@@ -23,7 +23,7 @@ use tauri_utils::{
 use crate::{
   app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
   command::RuntimeAuthority,
-  event::{assert_event_name_is_valid, Event, EventId, EventSource, Listeners},
+  event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder},
   plugin::PluginStore,
   utils::{
@@ -189,7 +189,7 @@ pub struct AppManager<R: Runtime> {
   pub menu: menu::MenuManager<R>,
 
   pub(crate) plugins: Mutex<PluginStore<R>>,
-  pub listeners: Listeners<R>,
+  pub listeners: Listeners,
   pub state: Arc<StateManager>,
   pub config: Config,
   pub assets: Box<dyn Assets>,
@@ -417,7 +417,7 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  pub(crate) fn listeners(&self) -> &Listeners<R> {
+  pub(crate) fn listeners(&self) -> &Listeners {
     &self.listeners
   }
 
@@ -452,11 +452,11 @@ impl<R: Runtime> AppManager<R> {
   pub fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
-    window: Option<Webview<R>>,
+    target: EventTarget,
     handler: F,
   ) -> EventId {
     assert_event_name_is_valid(&event);
-    self.listeners().listen(event, window, handler)
+    self.listeners().listen(event, target, handler)
   }
 
   pub fn unlisten(&self, id: EventId) {
@@ -466,65 +466,59 @@ impl<R: Runtime> AppManager<R> {
   pub fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
-    webview: Option<String>,
+    target: EventTarget,
     handler: F,
   ) {
     assert_event_name_is_valid(&event);
-    self
-      .listeners()
-      .once(event, webview.and_then(|w| self.get_webview(&w)), handler)
+    self.listeners().once(event, target, handler)
   }
 
-  pub fn emit_filter<S, F>(
-    &self,
-    event: &str,
-    source: EventSource,
-    payload: S,
-    filter: F,
-  ) -> crate::Result<()>
+  pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
+    F: Fn(&EventTarget) -> bool,
   {
     assert_event_name_is_valid(event);
 
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = EmitArgs::from(event, &source, payload)?;
+    let emit_args = EmitArgs::new(event, payload)?;
 
-    self
-      .webview
-      .webviews_lock()
-      .values()
-      .filter(|w| w.has_js_listener(&source, event))
-      .filter(|w| filter(w))
-      .try_for_each(|webview| webview.emit_js(&emit_args))?;
+    let listeners = self.listeners();
 
-    self.listeners().emit_filter(&emit_args, Some(filter))?;
+    listeners.try_for_each_js(
+      event,
+      self.webview.webviews_lock().values(),
+      |webview, target| {
+        if filter(target) {
+          webview.emit_js(&emit_args, target)
+        } else {
+          Ok(())
+        }
+      },
+    )?;
+
+    listeners.emit_filter(emit_args, Some(filter))?;
 
     Ok(())
   }
 
-  pub fn emit<S: Serialize + Clone>(
-    &self,
-    event: &str,
-    source: EventSource,
-    payload: S,
-  ) -> crate::Result<()> {
+  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     assert_event_name_is_valid(event);
 
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = EmitArgs::from(event, &source, payload)?;
+    let emit_args = EmitArgs::new(event, payload)?;
 
-    self
-      .webview
-      .webviews_lock()
-      .values()
-      .filter(|w| w.has_js_listener(&source, event))
-      .try_for_each(|window| window.emit_js(&emit_args))?;
+    let listeners = self.listeners();
 
-    self.listeners().emit(&emit_args)?;
+    listeners.try_for_each_js(
+      event,
+      self.webview.webviews_lock().values(),
+      |webview, target| webview.emit_js(&emit_args, target),
+    )?;
+
+    listeners.emit(emit_args)?;
 
     Ok(())
   }

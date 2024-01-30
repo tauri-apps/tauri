@@ -22,14 +22,8 @@ import {
   PhysicalPosition,
   PhysicalSize
 } from './dpi'
-import type {
-  Event,
-  EventName,
-  EventCallback,
-  UnlistenFn,
-  EventSource
-} from './event'
-import { TauriEvent, emit, listen, once } from './event'
+import type { Event, EventName, EventCallback, UnlistenFn } from './event'
+import { TauriEvent, emit, emitTo, listen, once } from './event'
 import { invoke } from './core'
 
 /**
@@ -96,15 +90,12 @@ enum UserAttentionType {
 class CloseRequestedEvent {
   /** Event name */
   event: EventName
-  /** The source of the event. */
-  source: EventSource
   /** Event identifier used to unlisten */
   id: number
   private _preventDefault = false
 
   constructor(event: Event<null>) {
     this.event = event.event
-    this.source = event.source
     this.id = event.id
   }
 
@@ -385,7 +376,7 @@ class Window {
       })
     }
     return listen(event, handler, {
-      target: { kind: 'window', label: this.label }
+      target: { kind: 'Window', label: this.label }
     })
   }
 
@@ -417,7 +408,7 @@ class Window {
       })
     }
     return once(event, handler, {
-      target: { kind: 'window', label: this.label }
+      target: { kind: 'Window', label: this.label }
     })
   }
 
@@ -439,15 +430,42 @@ class Window {
         handler({
           event,
           id: -1,
-          source: { kind: 'window', label: this.label },
           payload
         })
       }
       return Promise.resolve()
     }
-    return emit(event, payload, {
-      target: { kind: 'window', label: this.label }
-    })
+    return emit(event, payload)
+  }
+
+  /**
+   * Emits an event to the backend, tied to the webview.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   *
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emitTo(
+    target: string,
+    event: string,
+    payload?: unknown
+  ): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return Promise.resolve()
+    }
+    return emitTo(target, event, payload)
   }
 
   /** @ignore */

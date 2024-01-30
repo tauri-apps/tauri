@@ -16,7 +16,7 @@ pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState a
 use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
-  event::{Event, EventId, EventSource},
+  event::{Event, EventId, EventTarget},
   ipc::InvokeError,
   manager::{webview::WebviewLabelDef, AppManager},
   runtime::{
@@ -809,33 +809,22 @@ impl<R: Runtime> Manager<R> for Window<R> {
     tracing::instrument("window::emit", skip(self, payload))
   )]
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    // store the webviews before emit_filter() to prevent a deadlock
-    let webviews = self.webviews();
-    self.manager().emit_filter(
-      event,
-      EventSource::Window {
-        label: self.label().to_string(),
-      },
-      payload,
-      |w| webviews.contains(w),
-    )?;
+    self.manager().emit(event, payload)?;
     Ok(())
   }
 
   fn emit_to<S: Serialize + Clone>(
     &self,
-    label: &str,
+    target: &str,
     event: &str,
     payload: S,
   ) -> crate::Result<()> {
-    self.manager().emit_filter(
-      event,
-      EventSource::Window {
-        label: self.label().to_string(),
-      },
-      payload,
-      |w| label == w.label(),
-    )
+    self.manager().emit_filter(event, payload, |s| match s {
+      EventTarget::Global => false,
+      EventTarget::Window { label }
+      | EventTarget::Webview { label }
+      | EventTarget::WebviewWindow { label } => label == target,
+    })
   }
 
   #[cfg_attr(
@@ -845,16 +834,9 @@ impl<R: Runtime> Manager<R> for Window<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
+    F: Fn(&EventTarget) -> bool,
   {
-    self.manager().emit_filter(
-      event,
-      EventSource::Window {
-        label: self.label().to_string(),
-      },
-      payload,
-      filter,
-    )
+    self.manager().emit_filter(event, payload, filter)
   }
 }
 
@@ -1879,8 +1861,13 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    // TODO: listen on all webviews
-    self.manager.listen(event.into(), None, handler)
+    self.manager.listen(
+      event.into(),
+      EventTarget::Window {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 
   /// Unlisten to an event on this window.
@@ -1923,8 +1910,13 @@ tauri::Builder::default()
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    // TODO: listen on all webviews
-    self.manager.once(event.into(), None, handler)
+    self.manager.once(
+      event.into(),
+      EventTarget::Window {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 }
 

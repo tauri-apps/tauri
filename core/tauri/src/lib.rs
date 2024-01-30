@@ -67,7 +67,6 @@ pub use cocoa;
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
-use event::EventSource;
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -204,7 +203,7 @@ pub use runtime::ActivationPolicy;
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
 
-pub use self::event::{Event, EventId};
+pub use self::event::{Event, EventId, EventTarget};
 pub use {
   self::app::{App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WindowEvent},
   self::manager::Asset,
@@ -604,7 +603,9 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.manager().listen(event.into(), None, handler)
+    self
+      .manager()
+      .listen(event.into(), EventTarget::Global, handler)
   }
 
   /// Remove an event listener.
@@ -642,7 +643,9 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.manager().once(event.into(), None, handler)
+    self
+      .manager()
+      .once(event.into(), EventTarget::Global, handler)
   }
 
   /// Emits an event to all webviews.
@@ -664,7 +667,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     tracing::instrument("app::emit", skip(self, payload))
   )]
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-    self.manager().emit(event, EventSource::Global, payload)
+    self.manager().emit(event, payload)
   }
 
   /// Emits an event to the webview with the specified label.
@@ -688,10 +691,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     feature = "tracing",
     tracing::instrument("app::emit::to", skip(self, payload))
   )]
-  fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
-    self
-      .manager()
-      .emit_filter(event, EventSource::Global, payload, |w| label == w.label())
+  fn emit_to<S: Serialize + Clone>(&self, target: &str, event: &str, payload: S) -> Result<()> {
+    self.manager().emit_filter(event, payload, |s| match s {
+      EventTarget::Global => false,
+      EventTarget::Window { label }
+      | EventTarget::Webview { label }
+      | EventTarget::WebviewWindow { label } => label == target,
+    })
   }
 
   /// Emits an event to specific webviews based on a filter.
@@ -718,11 +724,9 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
+    F: Fn(&EventTarget) -> bool,
   {
-    self
-      .manager()
-      .emit_filter(event, EventSource::Global, payload, filter)
+    self.manager().emit_filter(event, payload, filter)
   }
 
   /// Fetch a single window from the manager.

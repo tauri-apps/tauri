@@ -24,13 +24,27 @@ pub fn assert_event_name_is_valid(event: &str) {
 /// Unique id of an event.
 pub type EventId = u32;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Event Target
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(tag = "kind")]
-#[serde(rename_all = "camelCase")]
-pub enum EventSource {
+pub enum EventTarget {
+  /// All event targets.
   Global,
-  Window { label: String },
-  Webview { label: String },
+  /// [`Window`] Target
+  Window {
+    /// [`Window`] label
+    label: String,
+  },
+  /// [`Webview`] Target
+  Webview {
+    /// [`Webview`] label
+    label: String,
+  },
+  /// [`WebviewWindow`] Target
+  WebviewWindow {
+    /// [`WebviewWindow`] label
+    label: String,
+  },
 }
 
 /// Serialized emit arguments.
@@ -40,20 +54,17 @@ pub struct EmitArgs {
   pub event_name: String,
   /// Serialized event name.
   pub event: String,
-  /// Serialized [`EventSource`].
-  pub source: String,
   /// Serialized payload.
   pub payload: String,
 }
 
 impl EmitArgs {
-  pub fn from<S: Serialize>(event: &str, source: &EventSource, payload: S) -> crate::Result<Self> {
+  pub fn new<S: Serialize>(event: &str, payload: S) -> crate::Result<Self> {
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("window::emit::serialize").entered();
     Ok(EmitArgs {
       event_name: event.into(),
       event: serde_json::to_string(event)?,
-      source: serde_json::to_string(source)?,
       payload: serde_json::to_string(&payload)?,
     })
   }
@@ -67,6 +78,10 @@ pub struct Event {
 }
 
 impl Event {
+  fn new(id: EventId, data: String) -> Self {
+    Self { id, data }
+  }
+
   /// The [`EventId`] of the handler that was triggered.
   pub fn id(&self) -> EventId {
     self.id
@@ -78,11 +93,11 @@ impl Event {
   }
 }
 
-pub fn listen_js(
+pub fn listen_js_script(
   listeners_object_name: &str,
+  serialized_target: &str,
   event: &str,
   event_id: EventId,
-  serialized_source: &str,
   handler: &str,
 ) -> String {
   format!(
@@ -91,34 +106,42 @@ pub fn listen_js(
       if (window['{listeners}'] === void 0) {{
         Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
       }}
-      if (window['{listeners}'][{event}] === void 0) {{
-        Object.defineProperty(window['{listeners}'], {event}, {{ value: [] }});
+      if (window['{listeners}']['{event}'] === void 0) {{
+        Object.defineProperty(window['{listeners}'], '{event}', {{ value: [] }});
       }}
-      const eventListeners = window['{listeners}'][{event}]
+      const eventListeners = window['{listeners}']['{event}']
       const listener = {{
         id: {event_id},
-        source: {source},
+        target: {target},
         handler: {handler}
       }};
       eventListeners.push(listener);
     }})()
   ",
     listeners = listeners_object_name,
-    source = serialized_source,
+    target = serialized_target,
   )
 }
 
-pub fn emit_js(event_emit_function_name: &str, emit_args: &EmitArgs) -> crate::Result<String> {
+pub fn emit_js_script(
+  event_emit_function_name: &str,
+  emit_args: &EmitArgs,
+  serialized_target: &str,
+) -> crate::Result<String> {
   Ok(format!(
-    "(function () {{ const fn = window['{}']; fn && fn({{event: {}, source: {}, payload: {}}}) }})()",
+    "(function () {{ const fn = window['{}']; fn && fn({{event: {}, payload: {}}}, {target}) }})()",
     event_emit_function_name,
     emit_args.event,
-    emit_args.source,
-    emit_args.payload
+    emit_args.payload,
+    target = serialized_target,
   ))
 }
 
-pub fn unlisten_js(listeners_object_name: &str, event_name: &str, event_id: EventId) -> String {
+pub fn unlisten_js_script(
+  listeners_object_name: &str,
+  event_name: &str,
+  event_id: EventId,
+) -> String {
   format!(
     "
       (function () {{
@@ -138,12 +161,11 @@ pub fn event_initialization_script(function: &str, listeners: &str) -> String {
   format!(
     "
     Object.defineProperty(window, '{function}', {{
-      value: function (eventData) {{
+      value: function (eventData, target) {{
         const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
-
         for (let i = listeners.length - 1; i >= 0; i--) {{
           const listener = listeners[i]
-          if (listener.source.kind === 'global' || eventData.source.kind === 'global' || listener.source.kind === 'window' || eventData.source.kind === 'window' || listener.source.label === eventData.source.label) {{
+          if ((listener.target.kind === 'Global' && target.kind === 'Global') || (listener.target.kind === target.kind && listener.target.label === target.label)) {{
             eventData.id = listener.id
             listener.handler(eventData)
           }}

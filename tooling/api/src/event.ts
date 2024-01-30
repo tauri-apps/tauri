@@ -11,24 +11,15 @@
 
 import { invoke, transformCallback } from './core'
 
-type EventSource =
-  | {
-      kind: 'global'
-    }
-  | {
-      kind: 'window'
-      label: string
-    }
-  | {
-      kind: 'webview'
-      label: string
-    }
+type EventTarget =
+  | { kind: 'Global' }
+  | { kind: 'Window'; label: string }
+  | { kind: 'Webview'; label: string }
+  | { kind: 'WebviewWindow'; label: string }
 
 interface Event<T> {
   /** Event name */
   event: EventName
-  /** The source of the event. Can be a global event, an event from a window or an event from another webview. */
-  source: EventSource
   /** Event identifier used to unlisten */
   id: number
   /** Event payload */
@@ -50,9 +41,7 @@ interface Options {
    *
    * When emitting events, only the window with the given label will receive it.
    */
-  target?:
-    | { kind: 'window'; label: string }
-    | { kind: 'webview'; label: string }
+  target?: EventTarget
 }
 
 /**
@@ -115,9 +104,10 @@ async function listen<T>(
   handler: EventCallback<T>,
   options?: Options
 ): Promise<UnlistenFn> {
+  let target = options?.target ? options.target : { kind: 'Global' }
   return invoke<number>('plugin:event|listen', {
     event,
-    target: options?.target,
+    target,
     handler: transformCallback(handler)
   }).then((eventId) => {
     return async () => _unlisten(event, eventId)
@@ -175,25 +165,45 @@ async function once<T>(
  *
  * @since 1.0.0
  */
-async function emit(
-  event: string,
-  payload?: unknown,
-  options?: Options
-): Promise<void> {
+async function emit(event: string, payload?: unknown): Promise<void> {
   await invoke('plugin:event|emit', {
     event,
-    target: options?.target,
+    payload
+  })
+}
+
+/**
+ * Emits an event to the specified target.
+ * @example
+ * ```typescript
+ * import { emit } from '@tauri-apps/api/event';
+ * await emit('frontend-loaded', { loggedIn: true, token: 'authToken' });
+ * ```
+ *
+ * @param taret Label of the target Window, Webview or WebviewWindow.
+ * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ *
+ * @since 1.0.0
+ */
+async function emitTo(
+  target: string,
+  event: string,
+  payload?: unknown
+): Promise<void> {
+  await invoke('plugin:event|emit_to', {
+    target,
+    event,
     payload
   })
 }
 
 export type {
-  EventSource,
   Event,
+  EventTarget,
   EventCallback,
   UnlistenFn,
   EventName,
   Options
 }
 
-export { listen, once, emit, TauriEvent }
+export { listen, once, emit, emitTo, TauriEvent }

@@ -803,42 +803,7 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {
-  #[cfg_attr(
-    feature = "tracing",
-    tracing::instrument("window::emit", skip(self, payload))
-  )]
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager().emit(event, payload)?;
-    Ok(())
-  }
-
-  fn emit_to<S: Serialize + Clone>(
-    &self,
-    target: &str,
-    event: &str,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.manager().emit_filter(event, payload, |s| match s {
-      EventTarget::Global => false,
-      EventTarget::Window { label }
-      | EventTarget::Webview { label }
-      | EventTarget::WebviewWindow { label } => label == target,
-    })
-  }
-
-  #[cfg_attr(
-    feature = "tracing",
-    tracing::instrument("window::emit::filter", skip(self, payload, filter))
-  )]
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool,
-  {
-    self.manager().emit_filter(event, payload, filter)
-  }
-}
+impl<R: Runtime> Manager<R> for Window<R> {}
 
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &AppManager<R> {

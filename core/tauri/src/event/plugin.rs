@@ -71,7 +71,7 @@ pub fn listen<R: Runtime>(
   target: EventTarget,
   handler: CallbackFn,
 ) -> Result<EventId> {
-  webview.listen_js(event.0, target, handler)
+  webview.listen_js(&event, target, handler)
 }
 
 #[command(root = "crate")]
@@ -80,7 +80,7 @@ pub fn unlisten<R: Runtime>(
   event: EventName,
   event_id: EventId,
 ) -> Result<()> {
-  webview.unlisten_js(event.as_ref(), event_id)
+  webview.unlisten_js(&event, event_id)
 }
 
 #[command(root = "crate")]
@@ -89,7 +89,7 @@ pub fn emit<R: Runtime>(
   event: EventName,
   payload: Option<JsonValue>,
 ) -> Result<()> {
-  app.emit(&event.0, payload)
+  app.emit(&event, payload)
 }
 
 #[command(root = "crate")]

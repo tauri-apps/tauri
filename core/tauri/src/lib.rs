@@ -578,7 +578,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().package_info()
   }
 
-  /// Listen to an event emitted on any window.
+  /// Listen to an emitted event to any [target](EventTarget).
   ///
   /// # Examples
   /// ```
@@ -636,7 +636,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().unlisten(id)
   }
 
-  /// Listen to a global event only once.
+  /// Listens once to an emitted event to any [target](EventTarget) .
   ///
   /// See [`Self::listen_global`] for more information.
   fn once_global<F>(&self, event: impl Into<String>, handler: F)
@@ -648,9 +648,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .once(event.into(), EventTarget::Global, handler)
   }
 
-  /// Emits an event to all webviews.
-  ///
-  /// If using [`Window`] to emit the event, it will be used as the source.
+  /// Emits an event to all [targets](EventTarget).
   ///
   /// # Examples
   /// ```
@@ -670,9 +668,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().emit(event, payload)
   }
 
-  /// Emits an event to the webview with the specified label.
-  ///
-  /// If using [`Window`] to emit the event, it will be used as the source.
+  /// Emits an event to all [targets](EventTarget) matching the given label.
   ///
   /// # Examples
   /// ```
@@ -700,20 +696,21 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     })
   }
 
-  /// Emits an event to specific webviews based on a filter.
-  ///
-  /// If using [`Window`] to emit the event, it will be used as the source.
+  /// Emits an event to all [targets](EventTarget) based on the given filter.
   ///
   /// # Examples
   /// ```
-  /// use tauri::Manager;
+  /// use tauri::{Manager, EventTarget};
   ///
   /// #[tauri::command]
   /// fn download(app: tauri::AppHandle) {
   ///   for i in 1..100 {
   ///     std::thread::sleep(std::time::Duration::from_millis(150));
   ///     // emit a download progress event to the updater window
-  ///     app.emit_filter("download-progress", i, |w| w.label() == "main" );
+  ///     app.emit_filter("download-progress", i, |t| match t {
+  ///       EventTarget::WebviewWindow { label } => label == "main",
+  ///       _ => false,
+  ///     });
   ///   }
   /// }
   /// ```

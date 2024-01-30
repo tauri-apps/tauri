@@ -23,7 +23,6 @@ use crate::{
   },
   Icon,
 };
-use serde::Serialize;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
 
@@ -796,24 +795,6 @@ impl<R: Runtime> PartialEq for WebviewWindow<R> {
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for WebviewWindow<R> {
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
     self.webview.window().raw_window_handle()
-  }
-}
-
-impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
-  fn manager(&self) -> &AppManager<R> {
-    self.webview.manager()
-  }
-
-  fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.webview.manager_owned()
-  }
-
-  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    self.webview.runtime()
-  }
-
-  fn managed_app_handle(&self) -> &AppHandle<R> {
-    self.webview.managed_app_handle()
   }
 }
 
@@ -1641,7 +1622,7 @@ tauri::Builder::default()
 
 /// Event system APIs.
 impl<R: Runtime> WebviewWindow<R> {
-  /// Listen to an event on this webview.
+  /// Listen to an event on this webview window.
   ///
   /// # Examples
   ///
@@ -1676,7 +1657,7 @@ tauri::Builder::default()
     )
   }
 
-  /// Unlisten to an event on this window.
+  /// Unlisten to an event on this webview window.
   ///
   /// # Examples
   #[cfg_attr(
@@ -1709,7 +1690,7 @@ tauri::Builder::default()
     self.manager().unlisten(id)
   }
 
-  /// Listen to an event on this webview only once.
+  /// Listen to an event on this window webview only once.
   ///
   /// See [`Self::listen`] for more information.
   pub fn once<F>(&self, event: impl Into<String>, handler: F)
@@ -1726,25 +1707,22 @@ tauri::Builder::default()
   }
 }
 
-impl<R: Runtime> Manager<R> for WebviewWindow<R> {
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.webview.emit(event, payload)
+impl<R: Runtime> Manager<R> for WebviewWindow<R> {}
+
+impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
+  fn manager(&self) -> &AppManager<R> {
+    self.webview.manager()
   }
 
-  fn emit_to<S: Serialize + Clone>(
-    &self,
-    target: &str,
-    event: &str,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.webview.emit_to(target, event, payload)
+  fn manager_owned(&self) -> Arc<AppManager<R>> {
+    self.webview.manager_owned()
   }
 
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool,
-  {
-    self.webview.emit_filter(event, payload, filter)
+  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
+    self.webview.runtime()
+  }
+
+  fn managed_app_handle(&self) -> &AppHandle<R> {
+    self.webview.managed_app_handle()
   }
 }

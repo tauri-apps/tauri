@@ -218,7 +218,7 @@ impl Listeners {
 
   pub(crate) fn listen_js(
     &self,
-    event: String,
+    event: &str,
     source_webview_label: &str,
     target: EventTarget,
     id: EventId,
@@ -227,7 +227,7 @@ impl Listeners {
     listeners
       .entry(source_webview_label.to_string())
       .or_default()
-      .entry(event)
+      .entry(event.to_string())
       .or_default()
       .insert(JsHandler { id, target });
   }

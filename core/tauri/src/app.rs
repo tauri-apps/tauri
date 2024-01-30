@@ -375,11 +375,6 @@ impl<R: Runtime> AppHandle<R> {
   }
 
   /// Exits the app by triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`].
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](App#method.run) closure.
   pub fn exit(&self, exit_code: i32) {
     if let Err(e) = self.runtime_handle.request_exit(exit_code) {
       debug_eprintln!("failed to exit: {}", e);
@@ -389,11 +384,6 @@ impl<R: Runtime> AppHandle<R> {
   }
 
   /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`]..
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](App#method.run) closure.
   pub fn restart(&self) {
     if self.runtime_handle.request_exit(RESTART_EXIT_CODE).is_err() {
       self.cleanup_before_exit();

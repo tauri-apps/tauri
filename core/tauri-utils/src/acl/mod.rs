@@ -139,8 +139,10 @@ pub struct Commands {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Scopes {
   /// Data that defines what is allowed by the scope.
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub allow: Option<Vec<Value>>,
   /// Data that defines what is denied by the scope.
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub deny: Option<Vec<Value>>,
 }
 

@@ -50,15 +50,21 @@ pub struct Manifest {
   pub permissions: BTreeMap<String, Permission>,
   /// Plugin permission sets.
   pub permission_sets: BTreeMap<String, PermissionSet>,
+  /// The global scope schema.
+  pub global_scope_schema: Option<serde_json::Value>,
 }
 
 impl Manifest {
-  /// Creates a new manifest from a list of permission files.
-  pub fn from_files(permission_files: Vec<PermissionFile>) -> Self {
+  /// Creates a new manifest from the given plugin permission files and global scope schema.
+  pub fn new(
+    permission_files: Vec<PermissionFile>,
+    global_scope_schema: Option<serde_json::Value>,
+  ) -> Self {
     let mut manifest = Self {
       default_permission: None,
       permissions: BTreeMap::new(),
       permission_sets: BTreeMap::new(),
+      global_scope_schema,
     };
 
     for permission_file in permission_files {
@@ -147,12 +153,16 @@ mod build {
         identity,
       );
 
+      let global_scope_schema =
+        opt_lit_owned(self.global_scope_schema.as_ref().map(json_value_lit));
+
       literal_struct!(
         tokens,
         ::tauri::utils::acl::plugin::Manifest,
         default_permission,
         permissions,
-        permission_sets
+        permission_sets,
+        global_scope_schema
       )
     }
   }

@@ -184,12 +184,6 @@ pub enum ExitRequestedEventAction {
   Prevent,
 }
 
-/// Metadata for a runtime event loop iteration on `run_iteration`.
-#[derive(Debug, Clone, Default)]
-pub struct RunIteration {
-  pub window_count: usize,
-}
-
 /// Application's activation policy. Corresponds to NSApplicationActivationPolicy.
 #[cfg(target_os = "macos")]
 #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -340,9 +334,9 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// [`tao`]: https://crates.io/crates/tao
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
 
-  /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
+  /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
-  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(&mut self, callback: F) -> RunIteration;
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F);
 
   /// Run the webview runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);

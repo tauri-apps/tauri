@@ -145,6 +145,9 @@ pub enum Error {
   /// API requires the unstable feature flag.
   #[error("this feature requires the `unstable` flag on Cargo.toml")]
   UnstableFeatureNotSupported,
+  /// Failed to deserialize scope object.
+  #[error("error deserializing scope: {0}")]
+  CannotDeserializeScope(Box<dyn std::error::Error>),
 }
 
 /// `Result<T, ::tauri::Error>`

@@ -3,14 +3,17 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(target_os = "windows")]
-use crate::bundle::windows::sign::{sign_command, try_sign};
+use crate::bundle::windows::sign::sign_command;
 use crate::{
   bundle::{
     common::CommandExt,
-    windows::util::{
-      download, download_and_verify, download_webview2_bootstrapper,
-      download_webview2_offline_installer, extract_zip, verify_file_hash, HashAlgorithm,
-      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+    windows::{
+      try_sign,
+      util::{
+        download, download_and_verify, download_webview2_bootstrapper,
+        download_webview2_offline_installer, extract_zip, verify_file_hash, HashAlgorithm,
+        NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+      },
     },
   },
   Settings,

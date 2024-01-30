@@ -25,7 +25,7 @@ use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
   PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
-use tauri_utils::config::parse::is_configuration_file;
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::helpers::{
@@ -681,6 +681,13 @@ pub struct RustAppSettings {
   target: Target,
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum DesktopDeepLinks {
+  One(DeepLinkProtocol),
+  List(Vec<DeepLinkProtocol>),
+}
+
 impl AppSettings for RustAppSettings {
   fn get_package_settings(&self) -> PackageSettings {
     self.package_settings.clone()
@@ -694,12 +701,27 @@ impl AppSettings for RustAppSettings {
     let arch64bits =
       self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
 
-    tauri_config_to_bundle_settings(
+    let mut settings = tauri_config_to_bundle_settings(
       &self.manifest,
       features,
       config.tauri.bundle.clone(),
       arch64bits,
-    )
+    )?;
+
+    if let Some(plugin_config) = config
+      .plugins
+      .0
+      .get("deep-link")
+      .and_then(|c| c.get("desktop").cloned())
+    {
+      let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config.clone())?;
+      settings.deep_link_protocols = Some(match protocols {
+        DesktopDeepLinks::One(p) => vec![p],
+        DesktopDeepLinks::List(p) => p,
+      });
+    }
+
+    Ok(settings)
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {

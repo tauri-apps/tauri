@@ -111,17 +111,26 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   // add plugin init code to main.rs or lib.rs
+  let plugin_init_fn = if metadata.builder {
+    "Builder::new().build()"
+  } else {
+    "init()"
+  };
+  let plugin_init = format!(".plugin(tauri_plugin_{plugin_snake_case}::{plugin_init_fn})");
   let re = Regex::new(r"(tauri\s*::\s*Builder\s*::\s*default\(\))(\s*)")?;
   for file in [tauri_dir.join("src/main.rs"), tauri_dir.join("src/lib.rs")] {
     let contents = std::fs::read_to_string(&file)?;
+
+    if contents.contains(&plugin_init) {
+      log::info!(
+        "Plugin initialization code already found on {}",
+        file.display()
+      );
+      return Ok(());
+    }
+
     if re.is_match(&contents) {
-      let plugin_init = if metadata.builder {
-        "Builder::new().build()"
-      } else {
-        "init()"
-      };
-      let replacement = format!("$1$2.plugin(tauri_plugin_{plugin_snake_case}::{plugin_init})$2");
-      let out = re.replace(&contents, replacement);
+      let out = re.replace(&contents, format!("$1$2{plugin_init}$2"));
 
       log::info!("Adding plugin to {}", file.display());
       std::fs::write(file, out.as_bytes())?;

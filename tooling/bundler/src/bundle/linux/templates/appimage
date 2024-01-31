@@ -28,6 +28,11 @@ if [[ "$APPIMAGE_BUNDLE_XDG_OPEN" != "0" ]] && [[ -f "/usr/bin/xdg-open" ]]; the
   cp /usr/bin/xdg-open usr/bin
 fi
 
+if [[ "$APPIMAGE_BUNDLE_XDG_MIME" != "0" ]] && [[ -f "/usr/bin/xdg-mime" ]]; then
+  echo "Copying /usr/bin/xdg-mime"
+  cp /usr/bin/xdg-mime usr/bin
+fi
+
 if [[ "$TAURI_TRAY_LIBRARY_PATH" != "0" ]]; then
   echo "Copying appindicator library ${TAURI_TRAY_LIBRARY_PATH}"
   cp ${TAURI_TRAY_LIBRARY_PATH} usr/lib

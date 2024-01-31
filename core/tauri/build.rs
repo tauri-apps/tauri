@@ -211,7 +211,9 @@ fn main() {
     target_os != "android" && (target_os != "linux" || has_feature("linux-ipc-protocol")),
   );
 
-  let checked_features_out_path = Path::new(&var("OUT_DIR").unwrap()).join("checked_features");
+  let out_dir = PathBuf::from(var("OUT_DIR").unwrap());
+
+  let checked_features_out_path = out_dir.join("checked_features");
   std::fs::write(
     checked_features_out_path,
     CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
@@ -293,10 +295,10 @@ fn main() {
     }
   }
 
-  define_permissions();
+  define_permissions(&out_dir);
 }
 
-fn define_permissions() {
+fn define_permissions(out_dir: &Path) {
   let license_header = r#"# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
@@ -339,6 +341,7 @@ permissions = [{default_permissions}]
     let permissions = tauri_utils::acl::build::define_permissions(
       &format!("./permissions/{plugin}/**/*.toml"),
       &format!("tauri:{plugin}"),
+      out_dir,
     )
     .unwrap_or_else(|e| panic!("failed to define permissions for {plugin}: {e}"));
     tauri_utils::acl::build::generate_schema(&permissions, format!("./permissions/{plugin}"))

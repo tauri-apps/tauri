@@ -860,12 +860,26 @@ pub struct FileAssociation {
   pub name: Option<String>,
   /// The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.
   pub description: Option<String>,
-  /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
+  /// The app's role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]
   pub role: BundleTypeRole,
   /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
   #[serde(alias = "mime-type")]
   pub mime_type: Option<String>,
+}
+
+/// File association
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeepLinkProtocol {
+  /// URL schemes to associate with this app without `://`. For example `my-app`
+  pub schemes: Vec<String>,
+  /// The protocol name. **macOS-only** and maps to `CFBundleTypeName`. Defaults to `<bundle-id>.<schemes[0]>`
+  pub name: Option<String>,
+  /// The app's role for these schemes. **macOS-only** and maps to `CFBundleTypeRole`.
+  #[serde(default)]
+  pub role: BundleTypeRole,
 }
 
 /// The Updater configuration object.
@@ -2129,23 +2143,10 @@ fn default_build() -> BuildConfig {
 #[cfg(feature = "build")]
 mod build {
   use super::*;
-  use crate::tokens::*;
+  use crate::{literal_struct, tokens::*};
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
   use std::convert::identity;
-
-  /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
-  ///
-  /// All fields must represent a binding of the same name that implements `ToTokens`.
-  macro_rules! literal_struct {
-    ($tokens:ident, $struct:ident, $($field:ident),+) => {
-      $tokens.append_all(quote! {
-        ::tauri::utils::config::$struct {
-          $($field: #$field),+
-        }
-      })
-    };
-  }
 
   impl ToTokens for WebviewUrl {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -2192,7 +2193,14 @@ mod build {
       let radius = opt_lit(self.radius.as_ref());
       let color = opt_lit(self.color.as_ref());
 
-      literal_struct!(tokens, WindowEffectsConfig, effects, state, radius, color)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::WindowEffectsConfig,
+        effects,
+        state,
+        radius,
+        color
+      )
     }
   }
 
@@ -2301,7 +2309,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        WindowConfig,
+        ::tauri::utils::config::WindowConfig,
         label,
         url,
         user_agent,
@@ -2407,7 +2415,13 @@ mod build {
       let pubkey = str_lit(&self.pubkey);
       let windows = &self.windows;
 
-      literal_struct!(tokens, UpdaterConfig, active, pubkey, windows);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::UpdaterConfig,
+        active,
+        pubkey,
+        windows
+      );
     }
   }
 
@@ -2429,7 +2443,7 @@ mod build {
       let rpm = quote!(Default::default());
       let dmg = quote!(Default::default());
       let macos = quote!(Default::default());
-      let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
+      let external_bin = opt_vec_lit(self.external_bin.as_ref(), str_lit);
       let windows = &self.windows;
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
@@ -2437,7 +2451,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        BundleConfig,
+        ::tauri::utils::config::BundleConfig,
         active,
         identifier,
         publisher,
@@ -2492,7 +2506,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        BuildConfig,
+        ::tauri::utils::config::BuildConfig,
         runner,
         dev_path,
         dist_dir,
@@ -2520,7 +2534,11 @@ mod build {
   impl ToTokens for UpdaterWindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let install_mode = &self.install_mode;
-      literal_struct!(tokens, UpdaterWindowsConfig, install_mode);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::UpdaterWindowsConfig,
+        install_mode
+      );
     }
   }
 
@@ -2588,7 +2606,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        RemoteDomainAccessScope,
+        ::tauri::utils::config::RemoteDomainAccessScope,
         scheme,
         domain,
         windows,
@@ -2607,7 +2625,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        SecurityConfig,
+        ::tauri::utils::config::SecurityConfig,
         csp,
         dev_csp,
         freeze_prototype,
@@ -2627,7 +2645,7 @@ mod build {
       let tooltip = opt_str_lit(self.tooltip.as_ref());
       literal_struct!(
         tokens,
-        TrayIconConfig,
+        ::tauri::utils::config::TrayIconConfig,
         id,
         icon_path,
         icon_as_template,
@@ -2675,7 +2693,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        TauriConfig,
+        ::tauri::utils::config::TauriConfig,
         pattern,
         windows,
         bundle,
@@ -2703,7 +2721,12 @@ mod build {
       let product_name = opt_str_lit(self.product_name.as_ref());
       let version = opt_str_lit(self.version.as_ref());
 
-      literal_struct!(tokens, PackageConfig, product_name, version);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::PackageConfig,
+        product_name,
+        version
+      );
     }
   }
 
@@ -2715,7 +2738,15 @@ mod build {
       let build = &self.build;
       let plugins = &self.plugins;
 
-      literal_struct!(tokens, Config, schema, package, tauri, build, plugins);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::Config,
+        schema,
+        package,
+        tauri,
+        build,
+        plugins
+      );
     }
   }
 }

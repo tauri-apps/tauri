@@ -208,12 +208,12 @@ impl PlatformWebview {
 
 macro_rules! unstable_struct {
     (#[doc = $doc:expr] $($tokens:tt)*) => {
-      #[cfg(feature = "unstable")]
+      #[cfg(any(test, feature = "unstable"))]
       #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
       #[doc = $doc]
       pub $($tokens)*
 
-      #[cfg(not(feature = "unstable"))]
+      #[cfg(not(any(test, feature = "unstable")))]
       pub(crate) $($tokens)*
     }
 }

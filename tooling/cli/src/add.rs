@@ -126,6 +126,13 @@ pub fn command(options: Options) -> Result<()> {
       log::info!("Adding plugin to {}", file.display());
       std::fs::write(file, out.as_bytes())?;
 
+      // run cargo fmt
+      log::info!("Running `cargo fmt`...");
+      let _ = Command::new("cargo")
+        .arg("fmt")
+        .current_dir(&tauri_dir)
+        .status();
+
       return Ok(());
     }
   }

@@ -1818,7 +1818,10 @@ tauri::Builder::default()
   }
 
   /// Starts resize-dragging the window.
-  pub fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> crate::Result<()> {
+  pub fn start_resize_dragging(
+    &self,
+    direction: tauri_runtime::ResizeDirection,
+  ) -> crate::Result<()> {
     self
       .window
       .dispatcher

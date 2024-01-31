@@ -31,6 +31,7 @@ import type {
 } from './event'
 import { TauriEvent, emit, listen, once } from './event'
 import { invoke } from './core'
+import { WebviewWindow } from './webview'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -298,6 +299,10 @@ class Window {
       invoke('plugin:window|create', {
         options: {
           ...options,
+          parent:
+            typeof options.parent === 'string'
+              ? options.parent
+              : options.parent?.label,
           label
         }
       })
@@ -2033,7 +2038,20 @@ interface WindowOptions {
    */
   closable?: boolean
   /**
-   * Whether the window should be visible on all workspaces or virtual desktops.
+   * Sets a parent to the window to be created. Can be either a {@linkcode Window} or a label of the window.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows**: This sets the passed parent as an owner window to the window to be created.
+   *   From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows):
+   *     - An owned window is always above its owner in the z-order.
+   *     - The system automatically destroys an owned window when its owner is destroyed.
+   *     - An owned window is hidden when its owner is minimized.
+   * - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+   * - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+   */
+  parent?: Window | WebviewWindow | string
+  /** Whether the window should be visible on all workspaces or virtual desktops.
    *
    * ## Platform-specific
    *

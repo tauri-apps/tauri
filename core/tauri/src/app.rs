@@ -1706,7 +1706,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     .collect::<Vec<_>>();
 
   for window_config in app.config().tauri.windows.clone() {
-    WebviewWindowBuilder::from_config(app.handle(), window_config)
+    WebviewWindowBuilder::from_config(app.handle(), &window_config)?
       .build_internal(&window_labels, &webview_labels)?;
   }
 

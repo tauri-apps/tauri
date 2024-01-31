@@ -196,7 +196,7 @@ impl Listeners {
           let handlers: Vec<_> = match filter {
             Some(filter) => handlers
               .iter()
-              .filter(|(_, Handler { target: source, .. })| filter(source))
+              .filter(|(_, Handler { target, .. })| *target == EventTarget::Any || filter(target))
               .collect(),
             None => handlers.iter().collect(),
           };
@@ -330,7 +330,7 @@ mod test {
       // clone e as the key
       let key = e.clone();
       // pass e and an dummy func into listen
-      listeners.listen(e, EventTarget::Global, event_fn);
+      listeners.listen(e, EventTarget::Any, event_fn);
 
       // lock mutex
       let l = listeners.inner.handlers.lock().unwrap();
@@ -346,7 +346,7 @@ mod test {
        // clone e as the key
        let key = e.clone();
        // pass e and an dummy func into listen
-       listeners.listen(e, EventTarget::Global, event_fn);
+       listeners.listen(e, EventTarget::Any, event_fn);
 
        // lock mutex
        let mut l = listeners.inner.handlers.lock().unwrap();
@@ -370,7 +370,7 @@ mod test {
     fn check_on_event(key in "[a-z]+", d in "[a-z]+") {
       let listeners: Listeners = Default::default();
       // call listen with key and the event_fn dummy func
-      listeners.listen(key.clone(), EventTarget::Global, event_fn);
+      listeners.listen(key.clone(), EventTarget::Any, event_fn);
       // call on event with key and d.
       listeners.emit(EmitArgs {
         event_name: key.clone(),

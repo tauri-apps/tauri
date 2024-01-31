@@ -603,20 +603,20 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     app.listen_global("synchronized", |event| {
+  ///     app.listen_any("synchronized", |event| {
   ///       println!("app is in sync");
   ///     });
   ///     Ok(())
   ///   })
   ///   .invoke_handler(tauri::generate_handler![synchronize]);
   /// ```
-  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  fn listen_any<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
     self
       .manager()
-      .listen(event.into(), EventTarget::Global, handler)
+      .listen(event.into(), EventTarget::Any, handler)
   }
 
   /// Remove an event listener.
@@ -628,7 +628,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle().clone();
-  ///     let handler = app.listen_global("ready", move |event| {
+  ///     let handler = app.listen_any("ready", move |event| {
   ///       println!("app is ready");
   ///
   ///       // we no longer need to listen to the event
@@ -649,14 +649,12 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Listens once to an emitted event to any [target](EventTarget) .
   ///
-  /// See [`Self::listen_global`] for more information.
-  fn once_global<F>(&self, event: impl Into<String>, handler: F)
+  /// See [`Self::listen_any`] for more information.
+  fn once_any<F>(&self, event: impl Into<String>, handler: F)
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self
-      .manager()
-      .once(event.into(), EventTarget::Global, handler)
+    self.manager().once(event.into(), EventTarget::Any, handler)
   }
 
   /// Emits an event to all [targets](EventTarget).
@@ -683,27 +681,48 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// # Examples
   /// ```
-  /// use tauri::Manager;
+  /// use tauri::{Manager, EventTarget};
   ///
   /// #[tauri::command]
   /// fn download(app: tauri::AppHandle) {
   ///   for i in 1..100 {
   ///     std::thread::sleep(std::time::Duration::from_millis(150));
   ///     // emit a download progress event to the updater window
-  ///     app.emit_to("updater", "download-progress", i);
+  ///     app.emit_to(EventTarget::Any, "download-progress", i);
+  ///     app.emit_to(EventTarget::App, "download-progress", i);
+  ///     app.emit_to("updater", "download-progress", i); // similar to using EventTarget::AnyLabel
+  ///     app.emit_to(EventTarget::AnyLabel { label: "updater".to_string() }, "download-progress", i);
+  ///     app.emit_to(EventTarget::WebviewWindow { label: "updater".to_string() }, "download-progress", i);
   ///   }
   /// }
   /// ```
   #[cfg_attr(
     feature = "tracing",
-    tracing::instrument("app::emit::to", skip(self, payload))
+    tracing::instrument("app::emit::to", skip(self, target, payload), fields(target))
   )]
-  fn emit_to<S: Serialize + Clone>(&self, target: &str, event: &str, payload: S) -> Result<()> {
+  fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> Result<()>
+  where
+    I: Into<EventTarget>,
+    S: Serialize + Clone,
+  {
+    let target = target.into();
+    #[cfg(feature = "tracing")]
+    tracing::Span::current().record("target", format!("{target:?}"));
+
     self.manager().emit_filter(event, payload, |s| match s {
-      EventTarget::Global => false,
-      EventTarget::Window { label }
-      | EventTarget::Webview { label }
-      | EventTarget::WebviewWindow { label } => label == target,
+      t @ EventTarget::Window { label }
+      | t @ EventTarget::Webview { label }
+      | t @ EventTarget::WebviewWindow { label } => {
+        if let EventTarget::AnyLabel {
+          label: target_label,
+        } = &target
+        {
+          label == target_label
+        } else {
+          t == &target
+        }
+      }
+      t => t == &target,
     })
   }
 

@@ -4,6 +4,8 @@
 
 mod listener;
 pub(crate) mod plugin;
+use std::{convert::Infallible, str::FromStr};
+
 pub(crate) use listener::Listeners;
 use serde::{Deserialize, Serialize};
 
@@ -28,23 +30,53 @@ pub type EventId = u32;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(tag = "kind")]
 pub enum EventTarget {
-  /// All event targets.
-  Global,
-  /// [`Window`] Target
+  /// Any and all event targets.
+  Any,
+
+  /// Any [`Window`](crate::Window), [`Webview`](crate::Webview) or [`WebviewWindow`](crate::WebviewWindow) that have this label.
+  AnyLabel {
+    /// Target label.
+    label: String,
+  },
+
+  /// [`App`](crate::App) and [`AppHandle`](crate::AppHandle) targets.
+  App,
+
+  /// [`Window`](crate::Window) target.
   Window {
-    /// [`Window`] label
+    /// window label.
     label: String,
   },
-  /// [`Webview`] Target
+
+  /// [`Webview`](crate::Webview) target.
   Webview {
-    /// [`Webview`] label
+    /// webview label.
     label: String,
   },
-  /// [`WebviewWindow`] Target
+
+  /// [`WebviewWindow`](crate::WebviewWindow) target.
   WebviewWindow {
-    /// [`WebviewWindow`] label
+    /// webview window label.
     label: String,
   },
+}
+
+impl<T: AsRef<str>> From<T> for EventTarget {
+  fn from(value: T) -> Self {
+    Self::AnyLabel {
+      label: value.as_ref().to_string(),
+    }
+  }
+}
+
+impl FromStr for EventTarget {
+  type Err = Infallible;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    Ok(Self::AnyLabel {
+      label: s.to_string(),
+    })
+  }
 }
 
 /// Serialized emit arguments.

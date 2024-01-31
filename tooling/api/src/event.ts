@@ -12,7 +12,9 @@
 import { invoke, transformCallback } from './core'
 
 type EventTarget =
-  | { kind: 'Global' }
+  | { kind: 'Any' }
+  | { kind: 'AnyLabel'; label: string }
+  | { kind: 'App' }
   | { kind: 'Window'; label: string }
   | { kind: 'Webview'; label: string }
   | { kind: 'WebviewWindow'; label: string }
@@ -34,7 +36,7 @@ type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
 interface Options {
   /**
-   * The event target to listen to, defaults to `{ kind: 'Global' }`, see {@link EventTarget}.
+   * The event target to listen to, defaults to `{ kind: 'Any' }`, see {@link EventTarget}.
    */
   target?: EventTarget
 }
@@ -99,7 +101,7 @@ async function listen<T>(
   handler: EventCallback<T>,
   options?: Options
 ): Promise<UnlistenFn> {
-  const target = options?.target ? options.target : { kind: 'Global' }
+  const target = options?.target ? options.target : { kind: 'Any' }
   return invoke<number>('plugin:event|listen', {
     event,
     target,

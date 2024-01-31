@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "0.14.1"
+version = "0.14.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -13,12 +13,14 @@ exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.24.4", default-features = false, features = [ "file-drop", "protocol" ] }
-tauri-runtime = { version = "0.14.1", path = "../tauri-runtime" }
-tauri-utils = { version = "1.5.0", path = "../tauri-utils" }
+wry = { version = "0.24.6", default-features = false, features = [ "file-drop", "protocol" ] }
+tauri-runtime = { version = "0.14.2", path = "../tauri-runtime" }
+tauri-utils = { version = "1.5.2", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
+tracing = { version = "0.1", optional = true }
+arboard = { version = "3", optional = true }
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"
@@ -46,5 +48,6 @@ macos-private-api = [
 ]
 objc-exception = [ "wry/objc-exception" ]
 global-shortcut = [ "tauri-runtime/global-shortcut" ]
-clipboard = [ "tauri-runtime/clipboard" ]
+clipboard = [ "tauri-runtime/clipboard", "arboard/wayland-data-control" ]
 linux-headers = [ "wry/linux-headers", "webkit2gtk/v2_36" ]
+tracing = [ "dep:tracing", "wry/tracing" ]

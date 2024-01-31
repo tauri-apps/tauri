@@ -493,13 +493,21 @@ Section WebView2
 SectionEnd
 
 !macro CheckIfAppIsRunning
-  nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
+  !if "${INSTALLMODE}" == "currentUser"
+    nsis_tauri_utils::FindProcessCurrentUser "${MAINBINARYNAME}.exe"
+  !else
+    nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
+  !endif
   Pop $R0
   ${If} $R0 = 0
       IfSilent kill 0
       ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
       kill:
-        nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
+        !if "${INSTALLMODE}" == "currentUser"
+          nsis_tauri_utils::KillProcessCurrentUser "${MAINBINARYNAME}.exe"
+        !else
+          nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
+        !endif
         Pop $R0
         Sleep 500
         ${If} $R0 = 0

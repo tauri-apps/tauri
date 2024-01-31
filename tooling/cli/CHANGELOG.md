@@ -1,5 +1,34 @@
 # Changelog
 
+## \[1.5.9]
+
+### Bug Fixes
+
+- [`0a2175ea`](https://www.github.com/tauri-apps/tauri/commit/0a2175eabb736b2a4cd01ab682e08be0b5ebb2b9)([#8439](https://www.github.com/tauri-apps/tauri/pull/8439)) Expand glob patterns in workspace member paths so the CLI would watch all matching pathhs.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.4.8`
+- Upgraded to `tauri-utils@1.5.2`
+
+## \[1.5.8]
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.4.7`
+
+## \[1.5.7]
+
+### Bug Fixes
+
+- [`1d5aa38a`](https://www.github.com/tauri-apps/tauri/commit/1d5aa38ae418ea31f593590b6d32cf04d3bfd8c1)([#8162](https://www.github.com/tauri-apps/tauri/pull/8162)) Fixes errors on command output, occuring when the output stream contains an invalid UTF-8 character, or ends with a multi-bytes UTF-8 character.
+- [`f26d9f08`](https://www.github.com/tauri-apps/tauri/commit/f26d9f0884f63f61b9f4d4fac15e6b251163793e)([#8263](https://www.github.com/tauri-apps/tauri/pull/8263)) Fixes an issue in the NSIS installer which caused the uninstallation to leave empty folders on the system if the `resources` feature was used.
+- [`92bc7d0e`](https://www.github.com/tauri-apps/tauri/commit/92bc7d0e16157434330a1bcf1eefda6f0f1e5f85)([#8233](https://www.github.com/tauri-apps/tauri/pull/8233)) Fixes an issue in the NSIS installer which caused the installation to take much longer than expected when many `resources` were added to the bundle.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.4.6`
+
 ## \[1.5.6]
 
 ### Bug Fixes

@@ -19,6 +19,7 @@ use std::{
 };
 
 use anyhow::Context;
+use glob::glob;
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use log::{debug, error, info};
@@ -334,6 +335,52 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
+// Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
+fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
+  let Some(path) = path.to_str() else {
+    return Err(anyhow::anyhow!("path is not UTF-8 compatible"));
+  };
+  let res = glob(path).with_context(|| format!("could not parse pattern `{}`", &path))?;
+  let res = res
+    .map(|p| p.with_context(|| format!("unable to match path to pattern `{}`", &path)))
+    .collect::<Result<Vec<_>, _>>()?;
+  Ok(res)
+}
+
+fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
+  let tauri_path = tauri_dir();
+  let workspace_path = get_workspace_dir()?;
+
+  // We always want to watch the main tauri folder.
+  let mut watch_folders = vec![tauri_path.to_path_buf()];
+
+  // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
+  let cargo_settings = CargoSettings::load(&workspace_path)?;
+  if let Some(members) = cargo_settings.workspace.and_then(|w| w.members) {
+    for p in members {
+      let p = workspace_path.join(p);
+      match expand_member_path(&p) {
+        // Sometimes expand_member_path returns an empty vec, for example if the path contains `[]` as in `C:/[abc]/project/`.
+        // Cargo won't complain unless theres a workspace.members config with glob patterns so we should support it too.
+        Ok(expanded_paths) => {
+          if expanded_paths.is_empty() {
+            watch_folders.push(p);
+          } else {
+            watch_folders.extend(expanded_paths);
+          }
+        }
+        Err(err) => {
+          // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
+          error!("Error watching {}: {}", p.display(), err.to_string());
+          watch_folders.push(p);
+        }
+      };
+    }
+  }
+
+  Ok(watch_folders)
+}
+
 impl Rust {
   fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
@@ -399,29 +446,11 @@ impl Rust {
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
     let app_path = app_dir();
-    let tauri_path = tauri_dir();
-    let workspace_path = get_workspace_dir()?;
 
-    let watch_folders = if tauri_path == workspace_path {
-      vec![tauri_path]
-    } else {
-      let cargo_settings = CargoSettings::load(&workspace_path)?;
-      cargo_settings
-        .workspace
-        .as_ref()
-        .map(|w| {
-          w.members
-            .clone()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|p| workspace_path.join(p))
-            .collect()
-        })
-        .unwrap_or_else(|| vec![tauri_path])
-    };
+    let watch_folders = get_watch_folders()?;
 
-    let watch_folders = watch_folders.iter().map(Path::new).collect::<Vec<_>>();
-    let common_ancestor = common_path::common_path_all(watch_folders.clone()).unwrap();
+    let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
+      .expect("watch_folders should not be empty");
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
     let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
@@ -431,9 +460,9 @@ impl Rust {
     })
     .unwrap();
     for path in watch_folders {
-      if !ignore_matcher.is_ignore(path, true) {
-        info!("Watching {} for changes...", display_path(path));
-        lookup(path, |file_type, p| {
+      if !ignore_matcher.is_ignore(&path, true) {
+        info!("Watching {} for changes...", display_path(&path));
+        lookup(&path, |file_type, p| {
           if p != path {
             debug!("Watching {} for changes...", display_path(&p));
             let _ = watcher.watcher().watch(
@@ -1072,6 +1101,9 @@ fn tauri_config_to_bundle_settings(
       },
       files: config.deb.files,
       desktop_template: config.deb.desktop_template,
+      section: config.deb.section,
+      priority: config.deb.priority,
+      changelog: config.deb.changelog,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,

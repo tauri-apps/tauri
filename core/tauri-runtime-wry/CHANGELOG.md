@@ -1,5 +1,23 @@
 # Changelog
 
+## \[0.14.3]
+
+### Bug Fixes
+
+- [`0d0501cb`](https://www.github.com/tauri-apps/tauri/commit/0d0501cb7b5e767c51a3697a148acfe84211a7ad)([#8394](https://www.github.com/tauri-apps/tauri/pull/8394)) Use `arboard` instead of `tao` clipboard implementation to prevent a crash.
+- [`b2f83f03`](https://www.github.com/tauri-apps/tauri/commit/b2f83f03a872baa91e2b6bbb22a3e7a5cd975dc0)([#8402](https://www.github.com/tauri-apps/tauri/pull/8402)) Use `Arc` instead of `Rc` to prevent crashes on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-runtime@0.14.2`
+
+## \[0.14.2]
+
+### Enhancements
+
+- [`5e05236b`](https://www.github.com/tauri-apps/tauri/commit/5e05236b4987346697c7caae0567d3c50714c198)([#8289](https://www.github.com/tauri-apps/tauri/pull/8289)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
+
 ## \[0.14.1]
 
 ### Enhancements

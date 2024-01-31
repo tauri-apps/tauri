@@ -402,11 +402,6 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(windows)]
-  fn owner_raw(self, owner: HWND) -> Self {
-    self
-  }
-
-  #[cfg(windows)]
   fn drag_and_drop(self, enabled: bool) -> Self {
     self
   }

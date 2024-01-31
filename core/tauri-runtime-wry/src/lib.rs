@@ -21,8 +21,8 @@ use tauri_runtime::{
     WindowBuilderBase, WindowEvent, WindowId,
   },
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent,
-  RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
-  WebviewDispatch, WindowDispatch, WindowEventId,
+  Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
+  WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
@@ -1185,6 +1185,7 @@ pub type CreateWebviewClosure = Box<dyn FnOnce(&Window) -> Result<WebviewWrapper
 
 pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
+  RequestExit(i32),
   #[cfg(target_os = "macos")]
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
@@ -1969,6 +1970,15 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     EventProxy(self.context.proxy.clone())
   }
 
+  fn request_exit(&self, code: i32) -> Result<()> {
+    // NOTE: request_exit cannot use the `send_user_message` function because it accesses the event loop callback
+    self
+      .context
+      .proxy
+      .send_event(Message::RequestExit(code))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
   // Creates a window by dispatching a message to the event loop.
   // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
@@ -2286,7 +2296,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, mut callback: F) {
     use tao::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
@@ -2295,8 +2305,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     #[cfg(feature = "tracing")]
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
-
-    let mut iteration = RunIteration::default();
 
     let proxy = self.event_loop.create_proxy();
 
@@ -2328,7 +2336,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           }
         }
 
-        iteration = handle_event_loop(
+        handle_event_loop(
           event,
           event_loop,
           control_flow,
@@ -2341,8 +2349,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           },
         );
       });
-
-    iteration
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
@@ -2392,7 +2398,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 }
 
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
-  pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
+  pub callback: &'a mut (dyn FnMut(RunEvent<T>)),
   pub webview_id_map: WindowIdStore,
   pub windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
   #[cfg(feature = "tracing")]
@@ -2408,13 +2414,14 @@ fn handle_user_message<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   message: Message<T>,
   context: UserMessageContext,
-) -> RunIteration {
+) {
   let UserMessageContext {
     webview_id_map,
     windows,
   } = context;
   match message {
     Message::Task(task) => task(),
+    Message::RequestExit(_code) => panic!("cannot handle RequestExit on the main thread"),
     #[cfg(target_os = "macos")]
     Message::Application(application_message) => match application_message {
       ApplicationMessage::Show => {
@@ -2825,11 +2832,6 @@ fn handle_user_message<T: UserEvent>(
 
     Message::UserEvent(_) => (),
   }
-
-  let it = RunIteration {
-    window_count: windows.borrow().len(),
-  };
-  it
 }
 
 fn handle_event_loop<T: UserEvent>(
@@ -2837,7 +2839,7 @@ fn handle_event_loop<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   control_flow: &mut ControlFlow,
   context: EventLoopIterationContext<'_, T>,
-) -> RunIteration {
+) {
   let EventLoopIterationContext {
     callback,
     webview_id_map,
@@ -2958,7 +2960,7 @@ fn handle_event_loop<T: UserEvent>(
               let is_empty = windows.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
-                callback(RunEvent::ExitRequested { tx });
+                callback(RunEvent::ExitRequested { code: None, tx });
 
                 let recv = rx.try_recv();
                 let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
@@ -2989,12 +2991,26 @@ fn handle_event_loop<T: UserEvent>(
       }
     }
     Event::UserEvent(message) => match message {
+      Message::RequestExit(code) => {
+        let (tx, rx) = channel();
+        callback(RunEvent::ExitRequested {
+          code: Some(code),
+          tx,
+        });
+
+        let recv = rx.try_recv();
+        let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+        if !should_prevent {
+          *control_flow = ControlFlow::Exit;
+        }
+      }
       Message::Window(id, WindowMessage::Close) => {
         on_window_close(id, windows.clone());
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {
-        return handle_user_message(
+        handle_user_message(
           event_loop,
           message,
           UserMessageContext {
@@ -3010,15 +3026,10 @@ fn handle_event_loop<T: UserEvent>(
     }
     _ => (),
   }
-
-  let it = RunIteration {
-    window_count: windows.borrow().len(),
-  };
-  it
 }
 
-fn on_close_requested<'a, T: UserEvent>(
-  callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
+fn on_close_requested<T: UserEvent>(
+  callback: &mut (dyn FnMut(RunEvent<T>)),
   window_id: WindowId,
   windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
 ) {

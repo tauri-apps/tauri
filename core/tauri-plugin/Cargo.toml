@@ -26,6 +26,7 @@ tauri = { version = "2.0.0-alpha.20", default-features = false, path = "../tauri
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 toml = { version = "0.8", optional = true }
+schemars = "0.8"
 
 [package.metadata.docs.rs]
 features = ["build", "runtime"]

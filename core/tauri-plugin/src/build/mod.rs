@@ -2,18 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use cargo_metadata::{Metadata, MetadataCommand};
 use tauri::utils::acl::{self, Error};
 
 pub struct Builder<'a> {
   commands: &'a [&'static str],
+  global_scope_schema: Option<schemars::schema::RootSchema>,
 }
 
 impl<'a> Builder<'a> {
   pub fn new(commands: &'a [&'static str]) -> Self {
-    Self { commands }
+    Self {
+      commands,
+      global_scope_schema: None,
+    }
+  }
+
+  /// Sets the global scope JSON schema.
+  pub fn global_scope_schema(mut self, schema: schemars::schema::RootSchema) -> Self {
+    self.global_scope_schema.replace(schema);
+    self
   }
 
   /// [`Self::try_build`] but will exit automatically if an error is found.
@@ -37,6 +47,8 @@ impl<'a> Builder<'a> {
       return Err(Error::CrateName);
     }
 
+    let out_dir = PathBuf::from(build_var("OUT_DIR")?);
+
     // requirement: links MUST be set and MUST match the name
     let _links = build_var("CARGO_MANIFEST_LINKS")?;
 
@@ -47,8 +59,13 @@ impl<'a> Builder<'a> {
       acl::build::autogenerate_command_permissions(commands_dir, self.commands, "");
     }
 
-    let permissions = acl::build::define_permissions("./permissions/**/*.*", &name)?;
+    let permissions = acl::build::define_permissions("./permissions/**/*.*", &name, &out_dir)?;
+
     acl::build::generate_schema(&permissions, "./permissions")?;
+
+    if let Some(global_scope_schema) = self.global_scope_schema {
+      acl::build::define_global_scope_schema(global_scope_schema, &name, &out_dir)?;
+    }
 
     let metadata = find_metadata()?;
     println!("{metadata:#?}");

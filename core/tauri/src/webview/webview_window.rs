@@ -34,7 +34,7 @@ use crate::{
   webview::PageLoadPayload,
   webview::WebviewBuilder,
   window::WindowBuilder,
-  AppHandle, Event, EventId, Manager, Runtime, Webview, Window, WindowEvent,
+  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
 
 use tauri_macros::default_runtime;
@@ -153,7 +153,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
   ///     let menu = Menu::with_items(handle, &[
   ///       &Submenu::with_items(handle, "File", true, &[
   ///         &save_menu_item,
@@ -173,7 +173,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   ///   });
   /// ```
   #[cfg(desktop)]
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -880,7 +880,7 @@ use tauri::menu::{Menu, Submenu, MenuItem};
 tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
     let menu = Menu::with_items(handle, &[
       &Submenu::with_items(handle, "File", true, &[
         &save_menu_item,
@@ -902,7 +902,7 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     &self,
     f: F,
   ) {

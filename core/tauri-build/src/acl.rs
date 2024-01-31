@@ -3,15 +3,18 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::BTreeMap,
-  fs::{copy, create_dir_all, File},
+  collections::{BTreeMap, BTreeSet},
+  fs::{copy, create_dir_all, read_to_string, File},
   io::{BufWriter, Write},
   path::PathBuf,
 };
 
 use anyhow::{Context, Result};
 use schemars::{
-  schema::{InstanceType, Metadata, RootSchema, Schema, SchemaObject, SubschemaValidation},
+  schema::{
+    ArrayValidation, InstanceType, Metadata, ObjectValidation, RootSchema, Schema, SchemaObject,
+    SubschemaValidation,
+  },
   schema_for,
 };
 use tauri_utils::{
@@ -20,7 +23,10 @@ use tauri_utils::{
 };
 
 const CAPABILITIES_SCHEMA_FILE_NAME: &str = "schema.json";
-const CAPABILITIES_SCHEMA_FOLDER_NAME: &str = "schemas";
+/// Path of the folder where schemas are saved.
+const CAPABILITIES_SCHEMA_FOLDER_PATH: &str = "capabilities/schemas";
+const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
+const PLUGIN_MANIFESTS_FILE_NAME: &str = "plugin-manifests.json";
 
 fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSchema {
   let mut schema = schema_for!(CapabilityFile);
@@ -78,6 +84,90 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
     }));
   }
 
+  if let Some(Schema::Object(obj)) = schema.definitions.get_mut("PermissionEntry") {
+    let permission_entry_any_of_schemas = obj.subschemas().any_of.as_mut().unwrap();
+
+    if let Schema::Object(mut scope_extended_schema_obj) =
+      permission_entry_any_of_schemas.remove(permission_entry_any_of_schemas.len() - 1)
+    {
+      let mut global_scope_one_of = Vec::new();
+
+      for (plugin, manifest) in plugin_manifests {
+        if let Some(global_scope_schema) = &manifest.global_scope_schema {
+          let global_scope_schema_def: Schema = serde_json::from_value(global_scope_schema.clone())
+            .unwrap_or_else(|e| panic!("invalid JSON schema for plugin {plugin}: {e}"));
+
+          let global_scope_schema = Schema::Object(SchemaObject {
+            array: Some(Box::new(ArrayValidation {
+              items: Some(global_scope_schema_def.into()),
+              ..Default::default()
+            })),
+            ..Default::default()
+          });
+
+          let mut required = BTreeSet::new();
+          required.insert("identifier".to_string());
+
+          let mut object = ObjectValidation {
+            required,
+            ..Default::default()
+          };
+
+          let mut permission_schemas = Vec::new();
+          if let Some(default) = &manifest.default_permission {
+            permission_schemas.push(schema_from(plugin, "default", Some(&default.description)));
+          }
+          for set in manifest.permission_sets.values() {
+            permission_schemas.push(schema_from(plugin, &set.identifier, Some(&set.description)));
+          }
+          for permission in manifest.permissions.values() {
+            permission_schemas.push(schema_from(
+              plugin,
+              &permission.identifier,
+              permission.description.as_deref(),
+            ));
+          }
+
+          let identifier_schema = Schema::Object(SchemaObject {
+            subschemas: Some(Box::new(SubschemaValidation {
+              one_of: Some(permission_schemas),
+              ..Default::default()
+            })),
+            ..Default::default()
+          });
+
+          object
+            .properties
+            .insert("identifier".to_string(), identifier_schema);
+          object
+            .properties
+            .insert("allow".to_string(), global_scope_schema.clone());
+          object
+            .properties
+            .insert("deny".to_string(), global_scope_schema);
+
+          global_scope_one_of.push(Schema::Object(SchemaObject {
+            instance_type: Some(InstanceType::Object.into()),
+            object: Some(Box::new(object)),
+            ..Default::default()
+          }));
+        }
+      }
+
+      if !global_scope_one_of.is_empty() {
+        scope_extended_schema_obj.object = None;
+        scope_extended_schema_obj
+          .subschemas
+          .replace(Box::new(SubschemaValidation {
+            one_of: Some(global_scope_one_of),
+            ..Default::default()
+          }));
+
+        permission_entry_any_of_schemas.push(scope_extended_schema_obj.into());
+      };
+    }
+  }
+
   schema
 }
 
@@ -87,7 +177,7 @@ pub fn generate_schema(
 ) -> Result<()> {
   let schema = capabilities_schema(plugin_manifests);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
-  let out_dir = PathBuf::from("capabilities").join(CAPABILITIES_SCHEMA_FOLDER_NAME);
+  let out_dir = PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH);
   create_dir_all(&out_dir).context("unable to create schema output directory")?;
 
   let schema_path = out_dir.join(format!("{target}-{CAPABILITIES_SCHEMA_FILE_NAME}"));
@@ -109,13 +199,36 @@ pub fn generate_schema(
   Ok(())
 }
 
+pub fn save_capabilities(capabilities: &BTreeMap<String, Capability>) -> Result<PathBuf> {
+  let capabilities_path =
+    PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH).join(CAPABILITIES_FILE_NAME);
+  let capabilities_json = serde_json::to_string(&capabilities)?;
+  if capabilities_json != read_to_string(&capabilities_path).unwrap_or_default() {
+    std::fs::write(&capabilities_path, capabilities_json)?;
+  }
+  Ok(capabilities_path)
+}
+
+pub fn save_plugin_manifests(plugin_manifests: &BTreeMap<String, Manifest>) -> Result<PathBuf> {
+  let plugin_manifests_path =
+    PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH).join(PLUGIN_MANIFESTS_FILE_NAME);
+  let plugin_manifests_json = serde_json::to_string(&plugin_manifests)?;
+  if plugin_manifests_json != read_to_string(&plugin_manifests_path).unwrap_or_default() {
+    std::fs::write(&plugin_manifests_path, plugin_manifests_json)?;
+  }
+  Ok(plugin_manifests_path)
+}
+
 pub fn get_plugin_manifests() -> Result<BTreeMap<String, Manifest>> {
   let permission_map =
     tauri_utils::acl::build::read_permissions().context("failed to read plugin permissions")?;
+  let mut global_scope_map = tauri_utils::acl::build::read_global_scope_schemas()
+    .context("failed to read global scope schemas")?;
 
   let mut processed = BTreeMap::new();
   for (plugin_name, permission_files) in permission_map {
-    processed.insert(plugin_name, Manifest::from_files(permission_files));
+    let manifest = Manifest::new(permission_files, global_scope_map.remove(&plugin_name));
+    processed.insert(plugin_name, manifest);
   }
 
   Ok(processed)
@@ -132,8 +245,9 @@ pub fn validate_capabilities(
       continue;
     }
 
-    for permission in &capability.permissions {
-      if let Some((plugin_name, permission_name)) = permission.get().split_once(':') {
+    for permission_entry in &capability.permissions {
+      let permission_id = permission_entry.identifier();
+      if let Some((plugin_name, permission_name)) = permission_id.get().split_once(':') {
         let permission_exists = plugin_manifests
           .get(plugin_name)
           .map(|manifest| {
@@ -162,7 +276,7 @@ pub fn validate_capabilities(
 
           anyhow::bail!(
             "Permission {} not found, expected one of {}",
-            permission.get(),
+            permission_id.get(),
             available_permissions.join(", ")
           );
         }

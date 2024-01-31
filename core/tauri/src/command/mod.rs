@@ -18,11 +18,14 @@ use serde::{
 
 mod authority;
 
-pub use authority::{CommandScope, GlobalScope, Origin, RuntimeAuthority};
+pub use authority::{CommandScope, GlobalScope, Origin, RuntimeAuthority, ScopeObject, ScopeValue};
 use tauri_utils::acl::resolved::ResolvedCommand;
 
 /// Represents a custom command.
 pub struct CommandItem<'a, R: Runtime> {
+  /// Name of the plugin if this command targets one.
+  pub plugin: Option<&'static str>,
+
   /// The name of the command, e.g. `handler` on `#[command] fn handler(value: u64)`
   pub name: &'static str,
 

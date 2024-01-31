@@ -6,7 +6,6 @@
 
 pub(crate) mod plugin;
 
-use tauri_runtime::ResizeDirection;
 use tauri_runtime::{
   webview::PendingWebview,
   window::dpi::{PhysicalPosition, PhysicalSize},
@@ -241,6 +240,7 @@ async fn reopen_window(app: tauri::AppHandle) {
     Self {
       manager,
       label: config.label.clone(),
+      window_effects: config.window_effects.clone(),
       window_builder:
         <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder::with_config(
           config,
@@ -249,7 +249,6 @@ async fn reopen_window(app: tauri::AppHandle) {
       menu: None,
       #[cfg(desktop)]
       on_menu_event: None,
-      window_effects: None,
     }
   }
 
@@ -270,7 +269,7 @@ use tauri::menu::{Menu, Submenu, MenuItem};
 tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
     let menu = Menu::with_items(handle, &[
       &Submenu::with_items(handle, "File", true, &[
         &save_menu_item,
@@ -983,7 +982,7 @@ use tauri::menu::{Menu, Submenu, MenuItem};
 tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
     let menu = Menu::with_items(handle, &[
       &Submenu::with_items(handle, "File", true, &[
         &save_menu_item,
@@ -1573,12 +1572,6 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Closes this window.
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn close(&self) -> crate::Result<()> {
     self.window.dispatcher.close().map_err(Into::into)
   }
@@ -1833,7 +1826,10 @@ tauri::Builder::default()
   }
 
   /// Starts resize-dragging the window.
-  pub fn start_resize_dragging(&self, direction: ResizeDirection) -> crate::Result<()> {
+  pub fn start_resize_dragging(
+    &self,
+    direction: tauri_runtime::ResizeDirection,
+  ) -> crate::Result<()> {
     self
       .window
       .dispatcher

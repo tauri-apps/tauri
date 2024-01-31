@@ -1,0 +1,212 @@
+---
+source: core/tests/acl/src/lib.rs
+assertion_line: 59
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        CommandKey {
+            name: "plugin:fs|move",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: Some(
+                792017965103506125,
+            ),
+        },
+        CommandKey {
+            name: "plugin:fs|read_dir",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: Some(
+                5856262838373339618,
+            ),
+        },
+        CommandKey {
+            name: "plugin:fs|read_file",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: Some(
+                10252531491715478446,
+            ),
+        },
+    },
+    denied_commands: {},
+    command_scope: {
+        792017965103506125: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$TEMP/*",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+        5856262838373339618: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME/.config/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**/*.key",
+                        ),
+                    },
+                ),
+            ],
+        },
+        10252531491715478446: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME/.config/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**/*.key",
+                        ),
+                    },
+                ),
+            ],
+        },
+    },
+    global_scope: {
+        "fs": ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$APP",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$APP/**",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$APP/*.db",
+                        ),
+                    },
+                ),
+            ],
+        },
+    },
+}

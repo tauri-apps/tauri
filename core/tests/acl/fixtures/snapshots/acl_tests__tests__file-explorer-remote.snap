@@ -128,16 +128,18 @@ Resolved {
     },
     denied_commands: {},
     command_scope: {},
-    global_scope: ResolvedScope {
-        allow: [
-            Map(
-                {
-                    "path": String(
-                        "$APP",
-                    ),
-                },
-            ),
-        ],
-        deny: [],
+    global_scope: {
+        "fs": ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$APP",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
     },
 }

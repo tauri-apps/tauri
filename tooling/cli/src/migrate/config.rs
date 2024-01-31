@@ -6,7 +6,10 @@ use crate::Result;
 
 use serde_json::{Map, Value};
 use tauri_utils::{
-  acl::capability::{Capability, CapabilityContext},
+  acl::{
+    capability::{Capability, CapabilityContext, PermissionEntry},
+    Scopes, Value as AclValue,
+  },
   platform::Target,
 };
 
@@ -35,7 +38,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
     let migrated = migrate_config(&mut config)?;
     write(&config_path, serde_json::to_string_pretty(&config)?)?;
 
-    let mut permissions = vec![
+    let mut permissions: Vec<PermissionEntry> = vec![
       "path:default",
       "event:default",
       "window:default",
@@ -43,7 +46,10 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
       "resources:default",
       "menu:default",
       "tray:default",
-    ];
+    ]
+    .into_iter()
+    .map(|p| PermissionEntry::PermissionRef(p.to_string().try_into().unwrap()))
+    .collect();
     permissions.extend(migrated.permissions);
 
     let capabilities_path = config_path.parent().unwrap().join("capabilities");
@@ -55,10 +61,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
         description: "permissions that were migrated from v1".into(),
         context: CapabilityContext::Local,
         windows: vec!["main".into()],
-        permissions: permissions
-          .into_iter()
-          .map(|p| p.to_string().try_into().unwrap())
-          .collect(),
+        permissions,
         platforms: vec![
           Target::Linux,
           Target::MacOS,
@@ -74,7 +77,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
 }
 
 struct MigratedConfig {
-  permissions: Vec<&'static str>,
+  permissions: Vec<PermissionEntry>,
 }
 
 fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
@@ -94,7 +97,7 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       // allowlist
       if let Some(allowlist) = tauri_config.remove("allowlist") {
         let allowlist = process_allowlist(tauri_config, &mut plugins, allowlist)?;
-        let permissions = allowlist_to_permissions(&allowlist);
+        let permissions = allowlist_to_permissions(allowlist);
         migrated.permissions = permissions;
       }
 
@@ -171,10 +174,7 @@ fn process_allowlist(
 ) -> Result<tauri_utils_v1::config::AllowlistConfig> {
   let allowlist: tauri_utils_v1::config::AllowlistConfig = serde_json::from_value(allowlist)?;
 
-  move_allowlist_object!(plugins, allowlist.fs.scope, "fs", "scope");
-  move_allowlist_object!(plugins, allowlist.shell.scope, "shell", "scope");
   move_allowlist_object!(plugins, allowlist.shell.open, "shell", "open");
-  move_allowlist_object!(plugins, allowlist.http.scope, "http", "scope");
 
   if allowlist.protocol.asset_scope != Default::default() {
     let security = tauri_config
@@ -198,12 +198,14 @@ fn process_allowlist(
 }
 
 fn allowlist_to_permissions(
-  allowlist: &tauri_utils_v1::config::AllowlistConfig,
-) -> Vec<&'static str> {
+  allowlist: tauri_utils_v1::config::AllowlistConfig,
+) -> Vec<PermissionEntry> {
   macro_rules! permissions {
     ($allowlist: ident, $permissions_list: ident, $object: ident, $field: ident => $associated_permission: expr) => {
       if $allowlist.all || $allowlist.$object.all || $allowlist.$object.$field {
-        $permissions_list.push($associated_permission);
+        $permissions_list.push(PermissionEntry::PermissionRef(
+          $associated_permission.to_string().try_into().unwrap(),
+        ));
       }
     };
   }
@@ -220,6 +222,36 @@ fn allowlist_to_permissions(
   permissions!(allowlist, permissions, fs, remove_file => "fs:allow-remove");
   permissions!(allowlist, permissions, fs, rename_file => "fs:allow-rename");
   permissions!(allowlist, permissions, fs, exists => "fs:allow-exists");
+  let (fs_allowed, fs_denied) = match allowlist.fs.scope {
+    tauri_utils_v1::config::FsAllowlistScope::AllowedPaths(paths) => (paths, Vec::new()),
+    tauri_utils_v1::config::FsAllowlistScope::Scope { allow, deny, .. } => (allow, deny),
+  };
+  if !(fs_allowed.is_empty() && fs_denied.is_empty()) {
+    let fs_allowed = fs_allowed
+      .into_iter()
+      .map(|p| AclValue::String(p.to_string_lossy().into()))
+      .collect::<Vec<_>>();
+    let fs_denied = fs_denied
+      .into_iter()
+      .map(|p| AclValue::String(p.to_string_lossy().into()))
+      .collect::<Vec<_>>();
+    permissions.push(PermissionEntry::ExtendedPermission {
+      identifier: "fs:scope".to_string().try_into().unwrap(),
+      scope: Scopes {
+        allow: if fs_allowed.is_empty() {
+          None
+        } else {
+          Some(fs_allowed)
+        },
+        deny: if fs_denied.is_empty() {
+          None
+        } else {
+          Some(fs_denied)
+        },
+      },
+    });
+  }
+
   // window
   permissions!(allowlist, permissions, window, create => "window:allow-create");
   permissions!(allowlist, permissions, window, center => "window:allow-center");
@@ -254,9 +286,29 @@ fn allowlist_to_permissions(
   permissions!(allowlist, permissions, window, set_ignore_cursor_events => "window:allow-set-ignore-cursor-events");
   permissions!(allowlist, permissions, window, start_dragging => "window:allow-start-dragging");
   permissions!(allowlist, permissions, window, print => "webview:allow-print");
+
   // shell
-  permissions!(allowlist, permissions, shell, execute => "shell:allow-execute");
-  permissions!(allowlist, permissions, shell, sidecar => "shell:allow-execute");
+  if allowlist.shell.scope.0.is_empty() {
+    permissions!(allowlist, permissions, shell, execute => "shell:allow-execute");
+    permissions!(allowlist, permissions, shell, sidecar => "shell:allow-execute");
+  } else {
+    let allowed = allowlist
+      .shell
+      .scope
+      .0
+      .into_iter()
+      .map(|p| serde_json::to_value(p).unwrap().into())
+      .collect::<Vec<_>>();
+
+    permissions.push(PermissionEntry::ExtendedPermission {
+      identifier: "shell:allow-execute".to_string().try_into().unwrap(),
+      scope: Scopes {
+        allow: Some(allowed),
+        deny: None,
+      },
+    });
+  }
+
   if allowlist.all
     || allowlist.shell.all
     || !matches!(
@@ -264,7 +316,9 @@ fn allowlist_to_permissions(
       tauri_utils_v1::config::ShellAllowlistOpen::Flag(false)
     )
   {
-    permissions.push("shell:allow-open");
+    permissions.push(PermissionEntry::PermissionRef(
+      "shell:allow-open".to_string().try_into().unwrap(),
+    ));
   }
   // dialog
   permissions!(allowlist, permissions, dialog, open => "dialog:allow-open");
@@ -272,8 +326,28 @@ fn allowlist_to_permissions(
   permissions!(allowlist, permissions, dialog, message => "dialog:allow-message");
   permissions!(allowlist, permissions, dialog, ask => "dialog:allow-ask");
   permissions!(allowlist, permissions, dialog, confirm => "dialog:allow-confirm");
+
   // http
-  permissions!(allowlist, permissions, http, request => "http:default");
+  if allowlist.http.scope.0.is_empty() {
+    permissions!(allowlist, permissions, http, request => "http:default");
+  } else {
+    let allowed = allowlist
+      .http
+      .scope
+      .0
+      .into_iter()
+      .map(|p| AclValue::String(p.to_string()))
+      .collect::<Vec<_>>();
+
+    permissions.push(PermissionEntry::ExtendedPermission {
+      identifier: "http:default".to_string().try_into().unwrap(),
+      scope: Scopes {
+        allow: Some(allowed),
+        deny: None,
+      },
+    });
+  }
+
   // notification
   permissions!(allowlist, permissions, notification, all => "notification:default");
   // global-shortcut
@@ -452,32 +526,6 @@ mod test {
 
     // cli
     assert_eq!(migrated["plugins"]["cli"], original["tauri"]["cli"]);
-
-    // fs scope
-    assert_eq!(
-      migrated["plugins"]["fs"]["scope"]["allow"],
-      original["tauri"]["allowlist"]["fs"]["scope"]["allow"]
-    );
-    assert_eq!(
-      migrated["plugins"]["fs"]["scope"]["deny"],
-      original["tauri"]["allowlist"]["fs"]["scope"]["deny"]
-    );
-
-    // shell scope
-    assert_eq!(
-      migrated["plugins"]["shell"]["scope"],
-      original["tauri"]["allowlist"]["shell"]["scope"]
-    );
-    assert_eq!(
-      migrated["plugins"]["shell"]["open"],
-      original["tauri"]["allowlist"]["shell"]["open"]
-    );
-
-    // http scope
-    assert_eq!(
-      migrated["plugins"]["http"]["scope"],
-      original["tauri"]["allowlist"]["http"]["scope"]
-    );
 
     // asset scope
     assert_eq!(

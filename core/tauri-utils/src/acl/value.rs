@@ -8,7 +8,6 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 /// A valid ACL number.
@@ -42,6 +41,9 @@ impl From<f64> for Number {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum Value {
+  /// Represents a null JSON value.
+  Null,
+
   /// Represents a [`bool`].
   Bool(bool),
 
@@ -58,12 +60,50 @@ pub enum Value {
   Map(BTreeMap<String, Value>),
 }
 
-impl Value {
-  /// TODO: implement [`serde::Deserializer`] directly to avoid serializing then deserializing
-  pub fn deserialize<T: DeserializeOwned + Debug>(&self) -> Option<T> {
-    dbg!(serde_json::to_string(self))
-      .ok()
-      .and_then(|s| dbg!(serde_json::from_str(&s).ok()))
+impl From<Value> for serde_json::Value {
+  fn from(value: Value) -> Self {
+    match value {
+      Value::Null => serde_json::Value::Null,
+      Value::Bool(b) => serde_json::Value::Bool(b),
+      Value::Number(Number::Float(f)) => {
+        serde_json::Value::Number(serde_json::Number::from_f64(f).unwrap())
+      }
+      Value::Number(Number::Int(i)) => serde_json::Value::Number(i.into()),
+      Value::String(s) => serde_json::Value::String(s),
+      Value::List(list) => serde_json::Value::Array(list.into_iter().map(Into::into).collect()),
+      Value::Map(map) => serde_json::Value::Object(
+        map
+          .into_iter()
+          .map(|(key, value)| (key, value.into()))
+          .collect(),
+      ),
+    }
+  }
+}
+
+impl From<serde_json::Value> for Value {
+  fn from(value: serde_json::Value) -> Self {
+    match value {
+      serde_json::Value::Null => Value::Null,
+      serde_json::Value::Bool(b) => Value::Bool(b),
+      serde_json::Value::Number(n) => Value::Number(if let Some(f) = n.as_f64() {
+        Number::Float(f)
+      } else if let Some(n) = n.as_u64() {
+        Number::Int(n as i64)
+      } else if let Some(n) = n.as_i64() {
+        Number::Int(n)
+      } else {
+        Number::Int(0)
+      }),
+      serde_json::Value::String(s) => Value::String(s),
+      serde_json::Value::Array(list) => Value::List(list.into_iter().map(Into::into).collect()),
+      serde_json::Value::Object(map) => Value::Map(
+        map
+          .into_iter()
+          .map(|(key, value)| (key, value.into()))
+          .collect(),
+      ),
+    }
   }
 }
 
@@ -135,6 +175,7 @@ mod build {
       let prefix = quote! { ::tauri::utils::acl::Value };
 
       tokens.append_all(match self {
+        Value::Null => quote! { #prefix::Null },
         Value::Bool(bool) => quote! { #prefix::Bool(#bool) },
         Value::Number(number) => quote! { #prefix::Number(#number) },
         Value::String(str) => {

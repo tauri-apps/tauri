@@ -7,11 +7,37 @@
 use crate::{acl::Identifier, platform::Target};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+use super::Scopes;
 
-/// A set of direct capabilities grouped together under a new name.
-pub struct CapabilitySet {
-  inner: Vec<Capability>,
+/// An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`]
+/// or an object that references a permission and extends its scope.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub enum PermissionEntry {
+  /// Reference a permission or permission set by identifier.
+  PermissionRef(Identifier),
+  /// Reference a permission or permission set by identifier and extends its scope.
+  ExtendedPermission {
+    /// Identifier of the permission or permission set.
+    identifier: Identifier,
+    /// Scope to append to the existing permission scope.
+    #[serde(default, flatten)]
+    scope: Scopes,
+  },
+}
+
+impl PermissionEntry {
+  /// The identifier of the permission referenced in this entry.
+  pub fn identifier(&self) -> &Identifier {
+    match self {
+      Self::PermissionRef(identifier) => identifier,
+      Self::ExtendedPermission {
+        identifier,
+        scope: _,
+      } => identifier,
+    }
+  }
 }
 
 /// a grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.
@@ -36,7 +62,7 @@ pub struct Capability {
   /// List of windows that uses this capability. Can be a glob pattern.
   pub windows: Vec<String>,
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
-  pub permissions: Vec<Identifier>,
+  pub permissions: Vec<PermissionEntry>,
   /// Target platforms this capability applies. By default all platforms applies.
   #[serde(default = "default_platforms")]
   pub platforms: Vec<Target>,

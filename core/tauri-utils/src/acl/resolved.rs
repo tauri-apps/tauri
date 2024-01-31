@@ -6,6 +6,7 @@
 
 use std::{
   collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
+  fmt,
   hash::{Hash, Hasher},
 };
 
@@ -14,21 +15,43 @@ use glob::Pattern;
 use crate::platform::Target;
 
 use super::{
-  capability::{Capability, CapabilityContext},
+  capability::{Capability, CapabilityContext, PermissionEntry},
   plugin::Manifest,
-  Error, ExecutionContext, Permission, PermissionSet, Value,
+  Error, ExecutionContext, Permission, PermissionSet, Scopes, Value,
 };
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
-pub type ScopeKey = usize;
+pub type ScopeKey = u64;
+
+/// Metadata for what referenced a [`ResolvedCommand`].
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ResolvedCommandReference {
+  /// Identifier of the capability.
+  pub capability: String,
+  /// Identifier of the permission.
+  pub permission: String,
+}
 
 /// A resolved command permission.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Clone, PartialEq, Eq)]
 pub struct ResolvedCommand {
-  /// The list of window label patterns that is allowed to run this command.
+  /// The list of capability/permission that referenced this command.
+  #[cfg(debug_assertions)]
+  pub referenced_by: Vec<ResolvedCommandReference>,
+  /// The list of window label patterns that was resolved for this command.
   pub windows: Vec<glob::Pattern>,
   /// The reference of the scope that is associated with this command. See [`Resolved#structfield.scopes`].
   pub scope: Option<ScopeKey>,
+}
+
+impl fmt::Debug for ResolvedCommand {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("ResolvedCommand")
+      .field("windows", &self.windows)
+      .field("scope", &self.scope)
+      .finish()
+  }
 }
 
 /// A resolved scope. Merges all scopes defined for a single command.
@@ -51,8 +74,11 @@ pub struct CommandKey {
 }
 
 /// Resolved access control list.
-#[derive(Debug)]
+#[derive(Default)]
 pub struct Resolved {
+  /// ACL plugin manifests.
+  #[cfg(debug_assertions)]
+  pub acl: BTreeMap<String, Manifest>,
   /// The commands that are allowed. Map each command with its context to a [`ResolvedCommand`].
   pub allowed_commands: BTreeMap<CommandKey, ResolvedCommand>,
   /// The commands that are denied. Map each command with its context to a [`ResolvedCommand`].
@@ -60,7 +86,18 @@ pub struct Resolved {
   /// The store of scopes referenced by a [`ResolvedCommand`].
   pub command_scope: BTreeMap<ScopeKey, ResolvedScope>,
   /// The global scope.
-  pub global_scope: ResolvedScope,
+  pub global_scope: BTreeMap<String, ResolvedScope>,
+}
+
+impl fmt::Debug for Resolved {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Resolved")
+      .field("allowed_commands", &self.allowed_commands)
+      .field("denied_commands", &self.denied_commands)
+      .field("command_scope", &self.command_scope)
+      .field("global_scope", &self.global_scope)
+      .finish()
+  }
 }
 
 impl Resolved {
@@ -75,7 +112,7 @@ impl Resolved {
 
     let mut current_scope_id = 0;
     let mut command_scopes = BTreeMap::new();
-    let mut global_scope = Vec::new();
+    let mut global_scope: BTreeMap<String, Vec<Scopes>> = BTreeMap::new();
 
     // resolve commands
     for capability in capabilities.values() {
@@ -83,21 +120,48 @@ impl Resolved {
         continue;
       }
 
-      for permission_id in &capability.permissions {
+      for permission_entry in &capability.permissions {
+        let permission_id = permission_entry.identifier();
         let permission_name = permission_id.get_base();
 
         if let Some(plugin_name) = permission_id.get_prefix() {
           let permissions = get_permissions(plugin_name, permission_name, &acl)?;
 
           for permission in permissions {
+            let scope = match permission_entry {
+              PermissionEntry::PermissionRef(_) => permission.scope.clone(),
+              PermissionEntry::ExtendedPermission {
+                identifier: _,
+                scope,
+              } => {
+                let mut merged = permission.scope.clone();
+                if let Some(allow) = scope.allow.clone() {
+                  merged
+                    .allow
+                    .get_or_insert_with(Default::default)
+                    .extend(allow);
+                }
+                if let Some(deny) = scope.deny.clone() {
+                  merged
+                    .deny
+                    .get_or_insert_with(Default::default)
+                    .extend(deny);
+                }
+                merged
+              }
+            };
+
             if permission.commands.allow.is_empty() && permission.commands.deny.is_empty() {
               // global scope
-              global_scope.push(permission.scope.clone());
+              global_scope
+                .entry(plugin_name.to_string())
+                .or_default()
+                .push(scope.clone());
             } else {
-              let has_scope = permission.scope.allow.is_some() || permission.scope.deny.is_some();
+              let has_scope = scope.allow.is_some() || scope.deny.is_some();
               if has_scope {
                 current_scope_id += 1;
-                command_scopes.insert(current_scope_id, permission.scope.clone());
+                command_scopes.insert(current_scope_id, scope.clone());
               }
 
               let scope_id = if has_scope {
@@ -112,6 +176,8 @@ impl Resolved {
                   format!("plugin:{plugin_name}|{allowed_command}"),
                   capability,
                   scope_id,
+                  #[cfg(debug_assertions)]
+                  permission,
                 );
               }
 
@@ -121,6 +187,8 @@ impl Resolved {
                   format!("plugin:{plugin_name}|{denied_command}"),
                   capability,
                   scope_id,
+                  #[cfg(debug_assertions)]
+                  permission,
                 );
               }
             }
@@ -138,7 +206,7 @@ impl Resolved {
 
         let mut hasher = DefaultHasher::new();
         allowed.scope.hash(&mut hasher);
-        let hash = hasher.finish() as usize;
+        let hash = hasher.finish();
 
         allowed.resolved_scope_key.replace(hash);
 
@@ -161,26 +229,33 @@ impl Resolved {
       }
     }
 
-    let global_scope = ResolvedScope {
-      allow: global_scope
-        .iter_mut()
-        .flat_map(|s| s.allow.take())
-        .flatten()
-        .collect(),
-      deny: global_scope
-        .iter_mut()
-        .flat_map(|s| s.deny.take())
-        .flatten()
-        .collect(),
-    };
+    let global_scope = global_scope
+      .into_iter()
+      .map(|(plugin_name, scopes)| {
+        let mut resolved_scope = ResolvedScope::default();
+        for scope in scopes {
+          if let Some(allow) = scope.allow {
+            resolved_scope.allow.extend(allow);
+          }
+          if let Some(deny) = scope.deny {
+            resolved_scope.deny.extend(deny);
+          }
+        }
+        (plugin_name, resolved_scope)
+      })
+      .collect();
 
     let resolved = Self {
+      #[cfg(debug_assertions)]
+      acl,
       allowed_commands: allowed_commands
         .into_iter()
         .map(|(key, cmd)| {
           Ok((
             key,
             ResolvedCommand {
+              #[cfg(debug_assertions)]
+              referenced_by: cmd.referenced_by,
               windows: parse_window_patterns(cmd.windows)?,
               scope: cmd.resolved_scope_key,
             },
@@ -193,6 +268,8 @@ impl Resolved {
           Ok((
             key,
             ResolvedCommand {
+              #[cfg(debug_assertions)]
+              referenced_by: cmd.referenced_by,
               windows: parse_window_patterns(cmd.windows)?,
               scope: cmd.resolved_scope_key,
             },
@@ -217,16 +294,19 @@ fn parse_window_patterns(windows: HashSet<String>) -> Result<Vec<glob::Pattern>,
 
 #[derive(Debug, Default)]
 struct ResolvedCommandTemp {
+  #[cfg(debug_assertions)]
+  pub referenced_by: Vec<ResolvedCommandReference>,
   pub windows: HashSet<String>,
-  pub scope: Vec<usize>,
-  pub resolved_scope_key: Option<usize>,
+  pub scope: Vec<ScopeKey>,
+  pub resolved_scope_key: Option<ScopeKey>,
 }
 
 fn resolve_command(
   commands: &mut BTreeMap<CommandKey, ResolvedCommandTemp>,
   command: String,
   capability: &Capability,
-  scope_id: Option<usize>,
+  scope_id: Option<ScopeKey>,
+  #[cfg(debug_assertions)] permission: &Permission,
 ) {
   let contexts = match &capability.context {
     CapabilityContext::Local => {
@@ -248,6 +328,12 @@ fn resolve_command(
         context,
       })
       .or_default();
+
+    #[cfg(debug_assertions)]
+    resolved.referenced_by.push(ResolvedCommandReference {
+      capability: capability.identifier.clone(),
+      permission: permission.identifier.clone(),
+    });
 
     resolved.windows.extend(capability.windows.clone());
     if let Some(id) = scope_id {
@@ -317,37 +403,63 @@ mod build {
   use std::convert::identity;
 
   use super::*;
-  use crate::tokens::*;
-
-  /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
-  ///
-  /// All fields must represent a binding of the same name that implements `ToTokens`.
-  macro_rules! literal_struct {
-    ($tokens:ident, $struct:ident, $($field:ident),+) => {
-      $tokens.append_all(quote! {
-        ::tauri::utils::acl::resolved::$struct {
-          $($field: #$field),+
-        }
-      })
-    };
-  }
+  use crate::{literal_struct, tokens::*};
 
   impl ToTokens for CommandKey {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let name = str_lit(&self.name);
       let context = &self.context;
-      literal_struct!(tokens, CommandKey, name, context)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::resolved::CommandKey,
+        name,
+        context
+      )
+    }
+  }
+
+  #[cfg(debug_assertions)]
+  impl ToTokens for ResolvedCommandReference {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let capability = str_lit(&self.capability);
+      let permission = str_lit(&self.permission);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::resolved::ResolvedCommandReference,
+        capability,
+        permission
+      )
     }
   }
 
   impl ToTokens for ResolvedCommand {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      #[cfg(debug_assertions)]
+      let referenced_by = vec_lit(&self.referenced_by, identity);
+
       let windows = vec_lit(&self.windows, |window| {
         let w = window.as_str();
         quote!(#w.parse().unwrap())
       });
       let scope = opt_lit(self.scope.as_ref());
-      literal_struct!(tokens, ResolvedCommand, windows, scope)
+
+      #[cfg(debug_assertions)]
+      {
+        literal_struct!(
+          tokens,
+          ::tauri::utils::acl::resolved::ResolvedCommand,
+          referenced_by,
+          windows,
+          scope
+        )
+      }
+      #[cfg(not(debug_assertions))]
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::resolved::ResolvedCommand,
+        windows,
+        scope
+      )
     }
   }
 
@@ -355,12 +467,25 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let allow = vec_lit(&self.allow, identity);
       let deny = vec_lit(&self.deny, identity);
-      literal_struct!(tokens, ResolvedScope, allow, deny)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::resolved::ResolvedScope,
+        allow,
+        deny
+      )
     }
   }
 
   impl ToTokens for Resolved {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      #[cfg(debug_assertions)]
+      let acl = map_lit(
+        quote! { ::std::collections::BTreeMap },
+        &self.acl,
+        str_lit,
+        identity,
+      );
+
       let allowed_commands = map_lit(
         quote! { ::std::collections::BTreeMap },
         &self.allowed_commands,
@@ -382,11 +507,29 @@ mod build {
         identity,
       );
 
-      let global_scope = &self.global_scope;
+      let global_scope = map_lit(
+        quote! { ::std::collections::BTreeMap },
+        &self.global_scope,
+        str_lit,
+        identity,
+      );
 
+      #[cfg(debug_assertions)]
+      {
+        literal_struct!(
+          tokens,
+          ::tauri::utils::acl::resolved::Resolved,
+          acl,
+          allowed_commands,
+          denied_commands,
+          command_scope,
+          global_scope
+        )
+      }
+      #[cfg(not(debug_assertions))]
       literal_struct!(
         tokens,
-        Resolved,
+        ::tauri::utils::acl::resolved::Resolved,
         allowed_commands,
         denied_commands,
         command_scope,

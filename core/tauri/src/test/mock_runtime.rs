@@ -118,6 +118,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     EventProxy {}
   }
 
+  fn request_exit(&self, code: i32) -> Result<()> {
+    unimplemented!()
+  }
+
   /// Create a new webview window.
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
@@ -387,7 +391,7 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(windows)]
-  fn drag_and_drop(mut self, enabled: bool) -> Self {
+  fn drag_and_drop(self, enabled: bool) -> Self {
     self
   }
 
@@ -856,7 +860,7 @@ pub struct MockRuntime {
 impl MockRuntime {
   fn init() -> Self {
     let is_running = Arc::new(AtomicBool::new(false));
-    let (tx, rx) = sync_channel(1);
+    let (tx, rx) = sync_channel(256);
     let context = RuntimeContext {
       is_running: is_running.clone(),
       windows: Default::default(),
@@ -992,12 +996,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(
-    &mut self,
-    callback: F,
-  ) -> tauri_runtime::RunIteration {
-    Default::default()
-  }
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F) {}
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
     self.is_running.store(true, Ordering::Relaxed);
@@ -1013,7 +1012,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
               let is_empty = self.context.windows.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
-                callback(RunEvent::ExitRequested { tx });
+                callback(RunEvent::ExitRequested { code: None, tx });
 
                 let recv = rx.try_recv();
                 let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));

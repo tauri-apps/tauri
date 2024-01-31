@@ -520,7 +520,7 @@ pub fn build_wix_app_installer(
     .unwrap_or_default();
 
   data.insert("product_name", to_json(settings.product_name()));
-  data.insert("version", to_json(&app_version));
+  data.insert("version", to_json(app_version));
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()
@@ -570,7 +570,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  data.insert("app_exe_source", to_json(&app_exe_source));
+  data.insert("app_exe_source", to_json(app_exe_source));
 
   // copy icon from `settings.windows().icon_path` folder to resource folder near msi
   let icon_path = copy_icon(settings, "icon.ico", &settings.windows().icon_path)?;
@@ -618,8 +618,16 @@ pub fn build_wix_app_installer(
     }
   }
 
-  if let Some(file_associations) = &settings.file_associations() {
+  if let Some(file_associations) = settings.file_associations() {
     data.insert("file_associations", to_json(file_associations));
+  }
+
+  if let Some(protocols) = settings.deep_link_protocols() {
+    let schemes = protocols
+      .iter()
+      .flat_map(|p| &p.schemes)
+      .collect::<Vec<_>>();
+    data.insert("deep_link_protocols", to_json(schemes));
   }
 
   if let Some(path) = custom_template_path {

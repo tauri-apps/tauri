@@ -7,7 +7,7 @@
 use std::{
   collections::{BTreeMap, HashMap},
   env::{current_dir, vars_os},
-  fs::{create_dir_all, read_to_string, File},
+  fs::{create_dir_all, read_to_string, write, File},
   io::{BufWriter, Write},
   path::{Path, PathBuf},
 };
@@ -24,11 +24,17 @@ use super::{capability::Capability, plugin::PermissionFile};
 /// Cargo cfg key for permissions file paths
 pub const PERMISSION_FILES_PATH_KEY: &str = "PERMISSION_FILES_PATH";
 
+/// Cargo cfg key for global scope schemas
+pub const GLOBAL_SCOPE_SCHEMA_PATH_KEY: &str = "GLOBAL_SCOPE_SCHEMA_PATH";
+
 /// Allowed permission file extensions
 pub const PERMISSION_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
 
-/// Known filename of a permission schema
-pub const PERMISSION_SCHEMA_FILE_NAME: &str = ".schema.json";
+/// Known foldername of the permission schema files
+pub const PERMISSION_SCHEMAS_FOLDER_NAME: &str = "schemas";
+
+/// Known filename of the permission schema JSON file
+pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
 
 /// Allowed capability file extensions
 const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
@@ -52,7 +58,11 @@ pub enum CapabilityFile {
 }
 
 /// Write the permissions to a temporary directory and pass it to the immediate consuming crate.
-pub fn define_permissions(pattern: &str, pkg_name: &str) -> Result<Vec<PermissionFile>, Error> {
+pub fn define_permissions(
+  pattern: &str,
+  pkg_name: &str,
+  out_dir: &Path,
+) -> Result<Vec<PermissionFile>, Error> {
   let permission_files = glob::glob(pattern)?
     .flatten()
     .flat_map(|p| p.canonicalize())
@@ -63,19 +73,15 @@ pub fn define_permissions(pattern: &str, pkg_name: &str) -> Result<Vec<Permissio
         .map(|e| PERMISSION_FILE_EXTENSIONS.contains(&e))
         .unwrap_or_default()
     })
-    // filter schema file
-    .filter(|p| {
-      p.file_name()
-        .map(|name| name != PERMISSION_SCHEMA_FILE_NAME)
-        .unwrap_or(true)
-    })
+    // filter schemas
+    .filter(|p| p.parent().unwrap().file_name().unwrap() != PERMISSION_SCHEMAS_FOLDER_NAME)
     .collect::<Vec<PathBuf>>();
 
   for path in &permission_files {
     println!("cargo:rerun-if-changed={}", path.display());
   }
 
-  let permission_files_path = std::env::temp_dir().join(format!("{}-permission-files", pkg_name));
+  let permission_files_path = out_dir.join(format!("{}-permission-files", pkg_name));
   std::fs::write(
     &permission_files_path,
     serde_json::to_string(&permission_files)?,
@@ -95,6 +101,27 @@ pub fn define_permissions(pattern: &str, pkg_name: &str) -> Result<Vec<Permissio
   }
 
   parse_permissions(permission_files)
+}
+
+/// Define the global scope schema JSON file path if it exists and pass it to the immediate consuming crate.
+pub fn define_global_scope_schema(
+  schema: schemars::schema::RootSchema,
+  pkg_name: &str,
+  out_dir: &Path,
+) -> Result<(), Error> {
+  let path = out_dir.join("global-scope.json");
+  write(&path, serde_json::to_vec(&schema)?).map_err(Error::WriteFile)?;
+
+  if let Some(plugin_name) = pkg_name.strip_prefix("tauri:") {
+    println!(
+      "cargo:{plugin_name}{CORE_PLUGIN_PERMISSIONS_TOKEN}_{GLOBAL_SCOPE_SCHEMA_PATH_KEY}={}",
+      path.display()
+    );
+  } else {
+    println!("cargo:{GLOBAL_SCOPE_SCHEMA_PATH_KEY}={}", path.display());
+  }
+
+  Ok(())
 }
 
 /// Parses all capability files with the given glob pattern.
@@ -214,8 +241,8 @@ pub fn generate_schema<P: AsRef<Path>>(
   let schema = permissions_schema(permissions);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
 
-  let out_dir = out_dir.as_ref();
-  create_dir_all(out_dir).expect("unable to create schema output directory");
+  let out_dir = out_dir.as_ref().join(PERMISSION_SCHEMAS_FOLDER_NAME);
+  create_dir_all(&out_dir).expect("unable to create schema output directory");
 
   let mut schema_file = BufWriter::new(
     File::create(out_dir.join(PERMISSION_SCHEMA_FILE_NAME)).map_err(Error::CreateFile)?,
@@ -259,6 +286,40 @@ pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error>
   Ok(permissions_map)
 }
 
+/// Read all global scope schemas listed from the defined cargo cfg key value.
+pub fn read_global_scope_schemas() -> Result<HashMap<String, serde_json::Value>, Error> {
+  let mut permissions_map = HashMap::new();
+
+  for (key, value) in vars_os() {
+    let key = key.to_string_lossy();
+
+    if let Some(plugin_crate_name_var) = key
+      .strip_prefix("DEP_")
+      .and_then(|v| v.strip_suffix(&format!("_{GLOBAL_SCOPE_SCHEMA_PATH_KEY}")))
+      .map(|v| {
+        v.strip_suffix(CORE_PLUGIN_PERMISSIONS_TOKEN)
+          .and_then(|v| v.strip_prefix("TAURI_"))
+          .unwrap_or(v)
+      })
+    {
+      let path = PathBuf::from(value);
+      let json = std::fs::read_to_string(&path).map_err(Error::ReadFile)?;
+      let schema: serde_json::Value = serde_json::from_str(&json)?;
+
+      let plugin_crate_name = plugin_crate_name_var.to_lowercase().replace('_', "-");
+      permissions_map.insert(
+        plugin_crate_name
+          .strip_prefix("tauri-plugin-")
+          .map(|n| n.to_string())
+          .unwrap_or(plugin_crate_name),
+        schema,
+      );
+    }
+  }
+
+  Ok(permissions_map)
+}
+
 fn parse_permissions(paths: Vec<PathBuf>) -> Result<Vec<PermissionFile>, Error> {
   let mut permissions = Vec::new();
   for path in paths {
@@ -285,6 +346,7 @@ pub fn autogenerate_command_permissions(path: &Path, commands: &[&str], license_
   let schema_path = (1..components_len)
     .map(|_| "..")
     .collect::<PathBuf>()
+    .join(PERMISSION_SCHEMAS_FOLDER_NAME)
     .join(PERMISSION_SCHEMA_FILE_NAME);
 
   for command in commands {
@@ -306,7 +368,10 @@ commands.deny = ["{command}"]
 "###,
       command = command,
       slugified_command = slugified_command,
-      schema_path = schema_path.display().to_string().replace('\\', "\\\\")
+      schema_path = dunce::simplified(&schema_path)
+        .display()
+        .to_string()
+        .replace('\\', "/")
     );
 
     let out_path = path.join(format!("{command}.toml"));

@@ -41,7 +41,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   let mut builder = builder
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       {
         let handle = app.handle();
         tray::create_tray(handle)?;
@@ -51,7 +51,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       #[cfg(target_os = "macos")]
       app.manage(AppMenu::<R>(Default::default()));
 
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       app.manage(PopupMenu(
         tauri::menu::MenuBuilder::new(app)
           .check("check", "Tauri is awesome!")
@@ -61,7 +61,8 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       ));
 
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
-      #[cfg(desktop)]
+
+      #[cfg(all(desktop, not(test)))]
       {
         window_builder = window_builder
           .title("Tauri API Validation")
@@ -152,10 +153,13 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   app.run(move |_app_handle, _event| {
     #[cfg(all(desktop, not(test)))]
-    if let RunEvent::ExitRequested { api, .. } = &_event {
+    if let RunEvent::ExitRequested { api, code, .. } = &_event {
       // Keep the event loop running even if all windows are closed
       // This allow us to catch tray icon events when there is no window
-      api.prevent_exit();
+      // if we manually requested an exit (code is Some(_)) we will let it go through
+      if code.is_none() {
+        api.prevent_exit();
+      }
     }
   })
 }

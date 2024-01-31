@@ -597,6 +597,10 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   }
 
   /// Whether the window will be visible on all workspaces or virtual desktops.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / iOS / Android:** Unsupported.
   #[must_use]
   pub fn visible_on_all_workspaces(mut self, visible_on_all_workspaces: bool) -> Self {
     self.window_builder = self
@@ -1659,6 +1663,10 @@ tauri::Builder::default()
   }
 
   /// Sets whether the window should be visible on all workspaces or virtual desktops.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / iOS / Android:** Unsupported.
   pub fn set_visible_on_all_workspaces(
     &self,
     visible_on_all_workspaces: bool,

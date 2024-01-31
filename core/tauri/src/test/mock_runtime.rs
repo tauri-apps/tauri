@@ -402,7 +402,7 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(windows)]
-  fn owner_window(self, owner: HWND) -> Self {
+  fn owner_raw(self, owner: HWND) -> Self {
     self
   }
 

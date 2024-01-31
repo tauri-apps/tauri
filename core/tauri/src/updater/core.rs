@@ -855,7 +855,7 @@ fn copy_files_and_run<R: Read + Seek>(
           .iter()
           .map(ToString::to_string)
           .collect(),
-        "/ARGS".to_string(),
+        vec!["/ARGS".to_string()],
         current_exe_args,
         config
           .tauri

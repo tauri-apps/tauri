@@ -614,13 +614,19 @@ mod test {
     generate_context,
     plugin::PluginStore,
     test::{mock_app, MockRuntime},
-    App, Manager, StateManager, WebviewWindow, WebviewWindowBuilder, Wry,
+    webview::WebviewBuilder,
+    window::WindowBuilder,
+    App, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder, Window, Wry,
   };
 
   use super::AppManager;
 
   const WINDOW_LISTEN_ID: &str = "Window::listen";
   const WINDOW_LISTEN_GLOBAL_ID: &str = "Window::listen_global";
+  const WEBVIEW_LISTEN_ID: &str = "Webview::listen";
+  const WEBVIEW_LISTEN_GLOBAL_ID: &str = "Webview::listen_global";
+  const WEBVIEW_WINDOW_LISTEN_ID: &str = "WebviewWindow::listen";
+  const WEBVIEW_WINDOW_LISTEN_GLOBAL_ID: &str = "WebviewWindow::listen_global";
   const APP_LISTEN_GLOBAL_ID: &str = "App::listen_global";
   const TEST_EVENT_NAME: &str = "event";
 
@@ -657,21 +663,34 @@ mod test {
 
   struct EventSetup {
     app: App<MockRuntime>,
-    webview: WebviewWindow<MockRuntime>,
+    window: Window<MockRuntime>,
+    webview: Webview<MockRuntime>,
+    webview_window: WebviewWindow<MockRuntime>,
     tx: Sender<(&'static str, String)>,
     rx: Receiver<(&'static str, String)>,
   }
 
   fn setup_events() -> EventSetup {
     let app = mock_app();
-    let webview = WebviewWindowBuilder::new(&app, "main", Default::default())
+
+    let window = WindowBuilder::new(&app, "main-window").build().unwrap();
+
+    let webview = window
+      .add_child(
+        WebviewBuilder::new("main-webview", Default::default()),
+        crate::LogicalPosition::new(0, 0),
+        window.inner_size().unwrap(),
+      )
+      .unwrap();
+
+    let webview_window = WebviewWindowBuilder::new(&app, "main-webview-window", Default::default())
       .build()
       .unwrap();
 
     let (tx, rx) = channel();
 
     let tx_ = tx.clone();
-    webview.listen(TEST_EVENT_NAME, move |evt| {
+    window.listen(TEST_EVENT_NAME, move |evt| {
       tx_
         .send((
           WINDOW_LISTEN_ID,
@@ -681,10 +700,50 @@ mod test {
     });
 
     let tx_ = tx.clone();
-    webview.listen_global(TEST_EVENT_NAME, move |evt| {
+    window.listen_global(TEST_EVENT_NAME, move |evt| {
       tx_
         .send((
           WINDOW_LISTEN_GLOBAL_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    let tx_ = tx.clone();
+    webview.listen(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          WEBVIEW_LISTEN_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    let tx_ = tx.clone();
+    webview.listen_global(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          WEBVIEW_LISTEN_GLOBAL_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    let tx_ = tx.clone();
+    webview_window.listen(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          WEBVIEW_WINDOW_LISTEN_ID,
+          serde_json::from_str::<String>(evt.payload()).unwrap(),
+        ))
+        .unwrap();
+    });
+
+    let tx_ = tx.clone();
+    webview_window.listen_global(TEST_EVENT_NAME, move |evt| {
+      tx_
+        .send((
+          WEBVIEW_WINDOW_LISTEN_GLOBAL_ID,
           serde_json::from_str::<String>(evt.payload()).unwrap(),
         ))
         .unwrap();
@@ -702,102 +761,156 @@ mod test {
 
     EventSetup {
       app,
+      window,
       webview,
+      webview_window,
       tx,
       rx,
     }
   }
 
-  fn assert_events(received: &[&str], expected: &[&str]) {
+  fn assert_events(kind: &str, received: &[&str], expected: &[&str]) {
     for e in expected {
-      assert!(received.contains(e), "{e} did not receive global event");
+      assert!(received.contains(e), "{e} did not receive `{kind}` event");
     }
     assert_eq!(
       received.len(),
       expected.len(),
-      "received {:?} events but expected {:?}",
+      "received {:?} `{kind}` events but expected {:?}",
       received,
       expected
     );
   }
 
   #[test]
-  fn app_global_events() {
+  fn emit() {
     let EventSetup {
       app,
-      webview: _,
+      window,
+      webview,
+      webview_window,
       tx: _,
       rx,
     } = setup_events();
 
+    run_emit_test("emit (app)", app, &rx);
+    run_emit_test("emit (window)", window, &rx);
+    run_emit_test("emit (webview)", webview, &rx);
+    run_emit_test("emit (webview_window)", webview_window, &rx);
+  }
+
+  fn run_emit_test<M: Manager<MockRuntime>>(kind: &str, m: M, rx: &Receiver<(&str, String)>) {
     let mut received = Vec::new();
     let payload = "global-payload";
-    app.emit(TEST_EVENT_NAME, payload).unwrap();
+    m.emit(TEST_EVENT_NAME, payload).unwrap();
     while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
       assert_eq!(p, payload);
       received.push(source);
     }
     assert_events(
+      kind,
       &received,
       &[
         WINDOW_LISTEN_ID,
         WINDOW_LISTEN_GLOBAL_ID,
+        WEBVIEW_LISTEN_ID,
+        WEBVIEW_LISTEN_GLOBAL_ID,
+        WEBVIEW_WINDOW_LISTEN_ID,
+        WEBVIEW_LISTEN_GLOBAL_ID,
         APP_LISTEN_GLOBAL_ID,
       ],
     );
   }
 
   #[test]
-  fn window_global_events() {
+  fn emit_to() {
     let EventSetup {
       app: _,
+      window,
       webview,
-      tx: _,
-      rx,
-    } = setup_events();
-
-    let mut received = Vec::new();
-    let payload = "global-payload";
-    webview.emit(TEST_EVENT_NAME, payload).unwrap();
-    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
-      assert_eq!(p, payload);
-      received.push(source);
-    }
-    assert_events(
-      &received,
-      &[
-        WINDOW_LISTEN_ID,
-        WINDOW_LISTEN_GLOBAL_ID,
-        APP_LISTEN_GLOBAL_ID,
-      ],
-    );
-  }
-
-  #[test]
-  fn window_local_events() {
-    let EventSetup {
-      app,
-      webview,
+      webview_window,
       tx,
       rx,
     } = setup_events();
 
+    run_emit_to_test(
+      "emit_to (window)",
+      &window,
+      &window,
+      &webview,
+      &webview_window,
+      tx.clone(),
+      &rx,
+    );
+    run_emit_to_test(
+      "emit_to (webview)",
+      &webview,
+      &window,
+      &webview,
+      &webview_window,
+      tx.clone(),
+      &rx,
+    );
+    run_emit_to_test(
+      "emit_to (webview_window)",
+      &webview_window,
+      &window,
+      &webview,
+      &webview_window,
+      tx.clone(),
+      &rx,
+    );
+  }
+
+  fn run_emit_to_test<M: Manager<MockRuntime>>(
+    kind: &str,
+    m: &M,
+    window: &Window<MockRuntime>,
+    webview: &Webview<MockRuntime>,
+    webview_window: &WebviewWindow<MockRuntime>,
+    tx: Sender<(&'static str, String)>,
+    rx: &Receiver<(&'static str, String)>,
+  ) {
     let mut received = Vec::new();
     let payload = "global-payload";
-    webview
-      .emit_to(webview.label(), TEST_EVENT_NAME, payload)
+
+    m.emit_to(window.label(), TEST_EVENT_NAME, payload).unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(kind, &received, &[WINDOW_LISTEN_ID]);
+
+    received.clear();
+
+    m.emit_to(webview.label(), TEST_EVENT_NAME, payload)
       .unwrap();
     while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
       assert_eq!(p, payload);
       received.push(source);
     }
-    assert_events(&received, &[WINDOW_LISTEN_ID]);
+    assert_events(kind, &received, &[WEBVIEW_LISTEN_ID]);
 
     received.clear();
-    let other_webview_listen_id = "OtherWebview::listen";
-    let other_webview = WebviewWindowBuilder::new(&app, "other", Default::default())
-      .build()
+
+    m.emit_to(webview_window.label(), TEST_EVENT_NAME, payload)
       .unwrap();
+    while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
+      assert_eq!(p, payload);
+      received.push(source);
+    }
+    assert_events(kind, &received, &[WEBVIEW_WINDOW_LISTEN_ID]);
+
+    received.clear();
+
+    let other_webview_listen_id = "OtherWebview::listen";
+    let other_webview = WebviewWindowBuilder::new(
+      window,
+      kind.replace(['(', ')', ' '], ""),
+      Default::default(),
+    )
+    .build()
+    .unwrap();
 
     other_webview.listen(TEST_EVENT_NAME, move |evt| {
       tx.send((
@@ -806,13 +919,12 @@ mod test {
       ))
       .unwrap();
     });
-    webview
-      .emit_to(other_webview.label(), TEST_EVENT_NAME, payload)
+    m.emit_to(other_webview.label(), TEST_EVENT_NAME, payload)
       .unwrap();
     while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
       assert_eq!(p, payload);
       received.push(source);
     }
-    assert_events(&received, &[other_webview_listen_id]);
+    assert_events("emit_to", &received, &[other_webview_listen_id]);
   }
 }

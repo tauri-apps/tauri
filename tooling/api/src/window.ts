@@ -1239,12 +1239,12 @@ class Window {
       label: this.label,
       value: size
         ? {
-          type: size.type,
-          data: {
-            width: size.width,
-            height: size.height
+            type: size.type,
+            data: {
+              width: size.width,
+              height: size.height
+            }
           }
-        }
         : null
     })
   }
@@ -1273,12 +1273,12 @@ class Window {
       label: this.label,
       value: size
         ? {
-          type: size.type,
-          data: {
-            width: size.width,
-            height: size.height
+            type: size.type,
+            data: {
+              width: size.width,
+              height: size.height
+            }
           }
-        }
         : null
     })
   }
@@ -2040,11 +2040,11 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-      name: m.name,
-      scaleFactor: m.scaleFactor,
-      position: mapPhysicalPosition(m.position),
-      size: mapPhysicalSize(m.size)
-    }
+        name: m.name,
+        scaleFactor: m.scaleFactor,
+        position: mapPhysicalPosition(m.position),
+        size: mapPhysicalSize(m.size)
+      }
 }
 
 function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {

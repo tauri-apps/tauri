@@ -1020,13 +1020,13 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
         match m {
           Message::Task(p) => p(),
           Message::CloseWindow(id) => {
-            if let Some(label) = self
+            let label = self
               .context
               .windows
               .borrow()
               .get(&id)
-              .map(|w| w.label.clone())
-            {
+              .map(|w| w.label.clone());
+            if let Some(label) = label {
               let (tx, rx) = channel();
               callback(RunEvent::WindowEvent {
                 label,
@@ -1036,6 +1036,19 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
               let should_prevent = matches!(rx.try_recv(), Ok(true));
               if !should_prevent {
                 self.context.windows.borrow_mut().remove(&id);
+
+                let is_empty = self.context.windows.borrow().is_empty();
+                if is_empty {
+                  let (tx, rx) = channel();
+                  callback(RunEvent::ExitRequested { code: None, tx });
+
+                  let recv = rx.try_recv();
+                  let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+                  if !should_prevent {
+                    break;
+                  }
+                }
               }
             }
           }

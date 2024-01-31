@@ -74,6 +74,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("show", false),
       ("hide", false),
       ("close", false),
+      ("destroy", false),
       ("set_decorations", false),
       ("set_shadow", false),
       ("set_effects", false),

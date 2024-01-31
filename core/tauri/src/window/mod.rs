@@ -1573,6 +1573,11 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.close().map_err(Into::into)
   }
 
+  /// Destroys this window. Similar to [`Self::close`] but does not emit any events and force close the window instead.
+  pub fn destroy(&self) -> crate::Result<()> {
+    self.window.dispatcher.destroy().map_err(Into::into)
+  }
+
   /// Determines if this window should be [decorated].
   ///
   /// [decorated]: https://en.wikipedia.org/wiki/Window_(computing)#Window_decoration

@@ -1238,15 +1238,14 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().hide()
   }
 
-  /// Closes this window.
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
+  /// Closes this window. It emits [`crate::RunEvent::CloseRequested`] first like a user-initiated close request so you can intercept it.
   pub fn close(&self) -> crate::Result<()> {
     self.webview.window().close()
+  }
+
+  /// Destroys this window. Similar to [`Self::close`] but does not emit any events and force close the window instead.
+  pub fn destroy(&self) -> crate::Result<()> {
+    self.webview.window().destroy()
   }
 
   /// Determines if this window should be [decorated].

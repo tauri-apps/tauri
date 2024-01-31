@@ -597,6 +597,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Closes the window.
   fn close(&self) -> Result<()>;
 
+  /// Destroys the window.
+  fn destroy(&self) -> Result<()>;
+
   /// Updates the decorations flag.
   fn set_decorations(&self, decorations: bool) -> Result<()>;
 

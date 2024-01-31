@@ -1036,6 +1036,8 @@ class Window {
 
   /**
    * Closes the window.
+   *
+   * Note this emits a closeRequested event so you can intercept it. To force window close, use {@link Window.destroy}.
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
@@ -1046,6 +1048,22 @@ class Window {
    */
   async close(): Promise<void> {
     return invoke('plugin:window|close', {
+      label: this.label
+    })
+  }
+
+  /**
+   * Destroys the window. Behaves like {@link Window.close} but forces the window close instead of emitting a closeRequested event.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().destroy();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async destroy(): Promise<void> {
+    return invoke('plugin:window|destroy', {
       label: this.label
     })
   }
@@ -1221,12 +1239,12 @@ class Window {
       label: this.label,
       value: size
         ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
+          type: size.type,
+          data: {
+            width: size.width,
+            height: size.height
           }
+        }
         : null
     })
   }
@@ -1255,12 +1273,12 @@ class Window {
       label: this.label,
       value: size
         ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
+          type: size.type,
+          data: {
+            width: size.width,
+            height: size.height
           }
+        }
         : null
     })
   }
@@ -1642,7 +1660,7 @@ class Window {
       const evt = new CloseRequestedEvent(event)
       void Promise.resolve(handler(evt)).then(() => {
         if (!evt.isPreventDefault()) {
-          return this.close()
+          return this.destroy()
         }
       })
     })
@@ -2022,11 +2040,11 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-        name: m.name,
-        scaleFactor: m.scaleFactor,
-        position: mapPhysicalPosition(m.position),
-        size: mapPhysicalSize(m.size)
-      }
+      name: m.name,
+      scaleFactor: m.scaleFactor,
+      position: mapPhysicalPosition(m.position),
+      size: mapPhysicalSize(m.size)
+    }
 }
 
 function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {

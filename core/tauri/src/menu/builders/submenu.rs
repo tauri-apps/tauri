@@ -19,12 +19,12 @@ use crate::{menu::*, Icon, Manager, Runtime};
 ///     #   height: 0,
 ///     # };
 ///     # let icon2 = icon1.clone();
-///     let menu = Menu::new(handle);
+///     let menu = Menu::new(handle)?;
 ///     let submenu = SubmenuBuilder::new(handle, "File")
-///       .item(&MenuItem::new(handle, "MenuItem 1", true, None))
+///       .item(&MenuItem::new(handle, "MenuItem 1", true, None::<&str>)?)
 ///       .items(&[
-///         &CheckMenuItem::new(handle, "CheckMenuItem 1", true, true, None),
-///         &IconMenuItem::new(handle, "IconMenuItem 1", true, Some(icon1), None),
+///         &CheckMenuItem::new(handle, "CheckMenuItem 1", true, true, None::<&str>)?,
+///         &IconMenuItem::new(handle, "IconMenuItem 1", true, Some(icon1), None::<&str>)?,
 ///       ])
 ///       .separator()
 ///       .cut()
@@ -45,7 +45,7 @@ pub struct SubmenuBuilder<'m, R: Runtime, M: Manager<R>> {
   manager: &'m M,
   text: String,
   enabled: bool,
-  items: Vec<MenuItemKind<R>>,
+  items: Vec<crate::Result<MenuItemKind<R>>>,
 }
 
 impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
@@ -91,7 +91,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
 
   /// Add this item to the submenu.
   pub fn item(mut self, item: &dyn IsMenuItem<R>) -> Self {
-    self.items.push(item.kind());
+    self.items.push(Ok(item.kind()));
     self
   }
 
@@ -107,23 +107,24 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn text<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S) -> Self {
     self
       .items
-      .push(MenuItem::with_id(self.manager, id, text, true, None).kind());
+      .push(MenuItem::with_id(self.manager, id, text, true, None::<&str>).map(|i| i.kind()));
     self
   }
 
   /// Add a [CheckMenuItem] to the submenu.
   pub fn check<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S) -> Self {
-    self
-      .items
-      .push(CheckMenuItem::with_id(self.manager, id, text, true, true, None).kind());
+    self.items.push(
+      CheckMenuItem::with_id(self.manager, id, text, true, true, None::<&str>).map(|i| i.kind()),
+    );
     self
   }
 
   /// Add an [IconMenuItem] to the submenu.
   pub fn icon<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S, icon: Icon) -> Self {
-    self
-      .items
-      .push(IconMenuItem::with_id(self.manager, id, text, true, Some(icon), None).kind());
+    self.items.push(
+      IconMenuItem::with_id(self.manager, id, text, true, Some(icon), None::<&str>)
+        .map(|i| i.kind()),
+    );
     self
   }
 
@@ -139,7 +140,8 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
     icon: NativeIcon,
   ) -> Self {
     self.items.push(
-      IconMenuItem::with_id_and_native_icon(self.manager, id, text, true, Some(icon), None).kind(),
+      IconMenuItem::with_id_and_native_icon(self.manager, id, text, true, Some(icon), None::<&str>)
+        .map(|i| i.kind()),
     );
     self
   }
@@ -148,7 +150,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn separator(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::separator(self.manager).kind());
+      .push(PredefinedMenuItem::separator(self.manager).map(|i| i.kind()));
     self
   }
 
@@ -156,7 +158,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn copy(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::copy(self.manager, None).kind());
+      .push(PredefinedMenuItem::copy(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -164,7 +166,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn cut(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::cut(self.manager, None).kind());
+      .push(PredefinedMenuItem::cut(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -172,7 +174,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn paste(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::paste(self.manager, None).kind());
+      .push(PredefinedMenuItem::paste(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -180,7 +182,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn select_all(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::select_all(self.manager, None).kind());
+      .push(PredefinedMenuItem::select_all(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -192,7 +194,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn undo(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::undo(self.manager, None).kind());
+      .push(PredefinedMenuItem::undo(self.manager, None).map(|i| i.kind()));
     self
   }
   /// Add Redo menu item to the submenu.
@@ -203,7 +205,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn redo(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::redo(self.manager, None).kind());
+      .push(PredefinedMenuItem::redo(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -215,7 +217,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn minimize(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::minimize(self.manager, None).kind());
+      .push(PredefinedMenuItem::minimize(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -227,7 +229,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn maximize(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::maximize(self.manager, None).kind());
+      .push(PredefinedMenuItem::maximize(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -239,7 +241,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn fullscreen(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::fullscreen(self.manager, None).kind());
+      .push(PredefinedMenuItem::fullscreen(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -251,7 +253,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn hide(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::hide(self.manager, None).kind());
+      .push(PredefinedMenuItem::hide(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -263,7 +265,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn hide_others(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::hide_others(self.manager, None).kind());
+      .push(PredefinedMenuItem::hide_others(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -275,7 +277,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn show_all(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::show_all(self.manager, None).kind());
+      .push(PredefinedMenuItem::show_all(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -287,7 +289,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn close_window(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::close_window(self.manager, None).kind());
+      .push(PredefinedMenuItem::close_window(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -299,7 +301,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn quit(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::quit(self.manager, None).kind());
+      .push(PredefinedMenuItem::quit(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -307,7 +309,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn about(mut self, metadata: Option<AboutMetadata>) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::about(self.manager, None, metadata).kind());
+      .push(PredefinedMenuItem::about(self.manager, None, metadata).map(|i| i.kind()));
     self
   }
 
@@ -319,29 +321,23 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   pub fn services(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::services(self.manager, None).kind());
+      .push(PredefinedMenuItem::services(self.manager, None).map(|i| i.kind()));
     self
   }
 
   /// Builds this submenu
   pub fn build(self) -> crate::Result<Submenu<R>> {
-    if self.items.is_empty() {
-      Ok(if let Some(id) = self.id {
-        Submenu::with_id(self.manager, id, self.text, self.enabled)
-      } else {
-        Submenu::new(self.manager, self.text, self.enabled)
-      })
+    let submenu = if let Some(id) = self.id {
+      Submenu::with_id(self.manager, id, self.text, self.enabled)?
     } else {
-      let items = self
-        .items
-        .iter()
-        .map(|i| i as &dyn IsMenuItem<R>)
-        .collect::<Vec<_>>();
-      if let Some(id) = self.id {
-        Submenu::with_id_and_items(self.manager, id, self.text, self.enabled, &items)
-      } else {
-        Submenu::with_items(self.manager, self.text, self.enabled, &items)
-      }
+      Submenu::new(self.manager, self.text, self.enabled)?
+    };
+
+    for item in self.items {
+      let item = item?;
+      submenu.append(&item)?;
     }
+
+    Ok(submenu)
   }
 }

@@ -1567,6 +1567,22 @@ class Window {
     })
   }
 
+  /**
+   * Sets whether the window should be visible on all workspaces or virtual desktops.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows / iOS / Android:** Unsupported.
+   *
+   * @since 2.0.0
+   */
+  async setVisibleOnAllWorkspaces(visible: boolean): Promise<void> {
+    return invoke('plugin:window|set_visible_on_all_workspaces', {
+      label: this.label,
+      value: visible
+    })
+  }
+
   // Listeners
 
   /**
@@ -2035,6 +2051,15 @@ interface WindowOptions {
    * - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
    */
   parent?: Window | WebviewWindow | string
+  /** Whether the window should be visible on all workspaces or virtual desktops.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows / iOS / Android:** Unsupported.
+   *
+   * @since 2.0.0
+   */
+  visibleOnAllWorkspaces?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  command::{CommandArg, CommandItem},
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, Invoke, InvokeError, InvokeHandler, InvokeResponder,
-    InvokeResponse,
+    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
+    InvokeHandler, InvokeResponder, InvokeResponse,
   },
   manager::{
     webview::{UriSchemeProtocol, WebviewLabelDef},

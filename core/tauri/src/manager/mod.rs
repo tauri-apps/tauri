@@ -22,9 +22,8 @@ use tauri_utils::{
 
 use crate::{
   app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
-  command::RuntimeAuthority,
   event::{assert_event_name_is_valid, Event, EventId, EventSource, Listeners},
-  ipc::{Invoke, InvokeHandler, InvokeResponder},
+  ipc::{Invoke, InvokeHandler, InvokeResponder, RuntimeAuthority},
   plugin::PluginStore,
   utils::{
     assets::Assets,

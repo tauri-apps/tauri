@@ -27,8 +27,7 @@ use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
 
 use crate::{
-  command::{CommandArg, CommandItem},
-  ipc::{InvokeError, OwnedInvokeResponder},
+  ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::PageLoadPayload,

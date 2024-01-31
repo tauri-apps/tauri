@@ -78,7 +78,6 @@ pub use tauri_macros::{command, generate_handler};
 
 pub(crate) mod app;
 pub mod async_runtime;
-pub mod command;
 mod error;
 mod event;
 pub mod ipc;

@@ -6,8 +6,7 @@
 
 use crate::{
   app::UriSchemeResponder,
-  command::{ScopeObject, ScopeValue},
-  ipc::{Invoke, InvokeHandler},
+  ipc::{Invoke, InvokeHandler, ScopeObject, ScopeValue},
   manager::webview::UriSchemeProtocol,
   utils::config::PluginConfig,
   webview::PageLoadPayload,

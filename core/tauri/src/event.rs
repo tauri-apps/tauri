@@ -225,6 +225,57 @@ impl Listeners {
   }
 }
 
+pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: u32) -> String {
+  format!(
+    "
+      (function () {{
+        const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
+        if (listeners) {{
+          const index = window['{listeners_object_name}']['{event_name}'].findIndex(e => e.id === {event_id})
+          if (index > -1) {{
+            window['{listeners_object_name}']['{event_name}'].splice(index, 1)
+          }}
+        }}
+      }})()
+    ",
+  )
+}
+
+pub fn listen_js(
+  listeners_object_name: String,
+  event: String,
+  event_id: u32,
+  window_label: Option<String>,
+  handler: String,
+) -> String {
+  format!(
+    "
+    (function () {{
+      if (window['{listeners}'] === void 0) {{
+        Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
+      }}
+      if (window['{listeners}'][{event}] === void 0) {{
+        Object.defineProperty(window['{listeners}'], {event}, {{ value: [] }});
+      }}
+      const eventListeners = window['{listeners}'][{event}]
+      const listener = {{
+        id: {event_id},
+        windowLabel: {window_label},
+        handler: {handler}
+      }};
+      eventListeners.push(listener);
+    }})()
+  ",
+    listeners = listeners_object_name,
+    window_label = if let Some(l) = window_label {
+      crate::runtime::window::assert_label_is_valid(&l);
+      format!("'{l}'")
+    } else {
+      "null".to_owned()
+    },
+  )
+}
+
 #[cfg(test)]
 mod test {
   use super::*;
@@ -297,55 +348,4 @@ mod test {
       assert!(l.contains_key(&key));
     }
   }
-}
-
-pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: u32) -> String {
-  format!(
-    "
-      (function () {{
-        const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
-        if (listeners) {{
-          const index = window['{listeners_object_name}']['{event_name}'].findIndex(e => e.id === {event_id})
-          if (index > -1) {{
-            window['{listeners_object_name}']['{event_name}'].splice(index, 1)
-          }}
-        }}
-      }})()
-    ",
-  )
-}
-
-pub fn listen_js(
-  listeners_object_name: String,
-  event: String,
-  event_id: u32,
-  window_label: Option<String>,
-  handler: String,
-) -> String {
-  format!(
-    "
-    (function () {{
-      if (window['{listeners}'] === void 0) {{
-        Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
-      }}
-      if (window['{listeners}'][{event}] === void 0) {{
-        Object.defineProperty(window['{listeners}'], {event}, {{ value: [] }});
-      }}
-      const eventListeners = window['{listeners}'][{event}]
-      const listener = {{
-        id: {event_id},
-        windowLabel: {window_label},
-        handler: {handler}
-      }};
-      eventListeners.push(listener);
-    }})()
-  ",
-    listeners = listeners_object_name,
-    window_label = if let Some(l) = window_label {
-      crate::runtime::window::assert_label_is_valid(&l);
-      format!("'{l}'")
-    } else {
-      "null".to_owned()
-    },
-  )
 }

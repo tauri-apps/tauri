@@ -23,6 +23,8 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use flate2::{write::GzEncoder, Compression};
+
 use anyhow::Context;
 use log::info;
 use zip::write::FileOptions;
@@ -235,11 +237,11 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
 #[cfg(not(target_os = "windows"))]
 fn create_tar(src_dir: &Path, dest_path: &Path) -> crate::Result<PathBuf> {
   let dest_file = common::create_file(dest_path)?;
-  let gzip_encoder = libflate::gzip::Encoder::new(dest_file)?;
+  let gzip_encoder = GzEncoder::new(dest_file, Compression::default());
 
   let gzip_encoder = create_tar_from_src(src_dir, gzip_encoder)?;
 
-  let mut dest_file = gzip_encoder.finish().into_result()?;
+  let mut dest_file = gzip_encoder.finish()?;
   dest_file.flush()?;
   Ok(dest_path.to_owned())
 }

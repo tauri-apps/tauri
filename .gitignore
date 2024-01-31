@@ -73,7 +73,7 @@ TODO.md
 target
 
 # lock for libs
-/Cargo.lock
+#/Cargo.lock Committed to prevent msrv checks from failing
 /tooling/bench/tests/Cargo.lock
 /yarn.lock
 

@@ -280,6 +280,14 @@ pub struct DebConfig {
   ///
   /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
   pub desktop_template: Option<PathBuf>,
+  /// Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+  pub section: Option<String>,
+  /// Change the priority of the Debian Package. By default, it is set to `optional`.
+  /// Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`
+  pub priority: Option<String>,
+  /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
+  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  pub changelog: Option<PathBuf>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -2578,6 +2586,9 @@ impl WindowsUpdateInstallMode {
   }
 
   /// Returns the associated nsis arguments.
+  ///
+  /// [WindowsUpdateInstallMode::Passive] will return `["/P", "/R"]`
+  /// [WindowsUpdateInstallMode::Quiet] will return `["/S", "/R"]`
   pub fn nsis_args(&self) -> &'static [&'static str] {
     match self {
       Self::Passive => &["/P", "/R"],

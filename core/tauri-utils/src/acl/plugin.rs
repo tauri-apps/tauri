@@ -36,9 +36,6 @@ pub struct PermissionFile {
   #[serde(default)]
   pub set: Vec<PermissionSet>,
 
-  /// Test something!!
-  pub test: Option<PermissionSet>,
-
   /// A list of inlined permissions
   #[serde(default)]
   pub permission: Vec<Permission>,
@@ -108,5 +105,65 @@ impl Manifest {
     }
 
     manifest
+  }
+}
+
+#[cfg(feature = "build")]
+mod build {
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
+  use std::convert::identity;
+
+  use super::*;
+  use crate::{literal_struct, tokens::*};
+
+  impl ToTokens for DefaultPermission {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let version = opt_lit_owned(self.version.as_ref().map(|v| {
+        let v = v.get();
+        quote!(::core::num::NonZeroU64::new(#v).unwrap())
+      }));
+      let description = opt_str_lit(self.description.as_ref());
+      let permissions = vec_lit(&self.permissions, str_lit);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::plugin::DefaultPermission,
+        version,
+        description,
+        permissions
+      )
+    }
+  }
+
+  impl ToTokens for Manifest {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let default_permission = opt_lit(self.default_permission.as_ref());
+
+      let permissions = map_lit(
+        quote! { ::std::collections::BTreeMap },
+        &self.permissions,
+        str_lit,
+        identity,
+      );
+
+      let permission_sets = map_lit(
+        quote! { ::std::collections::BTreeMap },
+        &self.permission_sets,
+        str_lit,
+        identity,
+      );
+
+      let global_scope_schema =
+        opt_lit_owned(self.global_scope_schema.as_ref().map(json_value_lit));
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::plugin::Manifest,
+        default_permission,
+        permissions,
+        permission_sets,
+        global_scope_schema
+      )
+    }
   }
 }

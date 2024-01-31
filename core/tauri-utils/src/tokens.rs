@@ -11,6 +11,20 @@ use quote::{quote, ToTokens};
 use serde_json::Value as JsonValue;
 use url::Url;
 
+/// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
+///
+/// All fields must represent a binding of the same name that implements `ToTokens`.
+#[macro_export]
+macro_rules! literal_struct {
+  ($tokens:ident, $struct:path, $($field:ident),+) => {
+    $tokens.append_all(quote! {
+      $struct {
+        $($field: #$field),+
+      }
+    })
+  };
+}
+
 /// Create a `String` constructor `TokenStream`.
 ///
 /// e.g. `"Hello World" -> String::from("Hello World").
@@ -28,14 +42,28 @@ pub fn opt_lit(item: Option<&impl ToTokens>) -> TokenStream {
   }
 }
 
+/// Create an `Option` constructor `TokenStream` over an owned [`ToTokens`] impl type.
+pub fn opt_lit_owned(item: Option<impl ToTokens>) -> TokenStream {
+  match item {
+    None => quote! { ::core::option::Option::None },
+    Some(item) => quote! { ::core::option::Option::Some(#item) },
+  }
+}
+
 /// Helper function to combine an `opt_lit` with `str_lit`.
 pub fn opt_str_lit(item: Option<impl AsRef<str>>) -> TokenStream {
   opt_lit(item.map(str_lit).as_ref())
 }
 
 /// Helper function to combine an `opt_lit` with a list of `str_lit`
-pub fn opt_vec_str_lit(item: Option<impl IntoIterator<Item = impl AsRef<str>>>) -> TokenStream {
-  opt_lit(item.map(|list| vec_lit(list, str_lit)).as_ref())
+pub fn opt_vec_lit<Raw, Tokens>(
+  item: Option<impl IntoIterator<Item = Raw>>,
+  map: impl Fn(Raw) -> Tokens,
+) -> TokenStream
+where
+  Tokens: ToTokens,
+{
+  opt_lit(item.map(|list| vec_lit(list, map)).as_ref())
 }
 
 /// Create a `Vec` constructor, mapping items with a function that spits out `TokenStream`s.

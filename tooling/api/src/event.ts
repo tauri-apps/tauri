@@ -99,7 +99,7 @@ async function listen<T>(
   handler: EventCallback<T>,
   options?: Options
 ): Promise<UnlistenFn> {
-  let target = options?.target ? options.target : { kind: 'Global' }
+  const target = options?.target ? options.target : { kind: 'Global' }
   return invoke<number>('plugin:event|listen', {
     event,
     target,

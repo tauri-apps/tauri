@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::{collections::BTreeMap, ops::Deref};
 
 use serde::de::DeserializeOwned;
@@ -21,6 +21,8 @@ use super::{CommandArg, CommandItem};
 
 /// The runtime authority used to authorize IPC execution based on the Access Control List.
 pub struct RuntimeAuthority {
+  #[cfg(debug_assertions)]
+  acl: BTreeMap<String, crate::utils::acl::plugin::Manifest>,
   allowed_commands: BTreeMap<CommandKey, ResolvedCommand>,
   denied_commands: BTreeMap<CommandKey, ResolvedCommand>,
   pub(crate) scope_manager: ScopeManager,
@@ -35,6 +37,15 @@ pub enum Origin {
     /// Remote origin domain.
     domain: String,
   },
+}
+
+impl Display for Origin {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Local => write!(f, "local"),
+      Self::Remote { domain } => write!(f, "remote: {domain}"),
+    }
+  }
 }
 
 impl Origin {
@@ -53,21 +64,151 @@ impl Origin {
 }
 
 impl RuntimeAuthority {
-  pub(crate) fn new(acl: Resolved) -> Self {
-    let command_cache = acl
+  pub(crate) fn new(resolved_acl: Resolved) -> Self {
+    let command_cache = resolved_acl
       .command_scope
       .keys()
       .map(|key| (*key, <TypeMap![Send + Sync]>::new()))
       .collect();
     Self {
-      allowed_commands: acl.allowed_commands,
-      denied_commands: acl.denied_commands,
+      #[cfg(debug_assertions)]
+      acl: resolved_acl.acl,
+      allowed_commands: resolved_acl.allowed_commands,
+      denied_commands: resolved_acl.denied_commands,
       scope_manager: ScopeManager {
-        command_scope: acl.command_scope,
-        global_scope: acl.global_scope,
+        command_scope: resolved_acl.command_scope,
+        global_scope: resolved_acl.global_scope,
         command_cache,
         global_scope_cache: Default::default(),
       },
+    }
+  }
+
+  #[cfg(debug_assertions)]
+  pub(crate) fn resolve_access_message(
+    &self,
+    plugin: &str,
+    command_name: &str,
+    window: &str,
+    origin: &Origin,
+  ) -> String {
+    fn print_references(resolved: &ResolvedCommand) -> String {
+      resolved
+        .referenced_by
+        .iter()
+        .map(|r| format!("capability: {}, permission: {}", r.capability, r.permission))
+        .collect::<Vec<_>>()
+        .join(" || ")
+    }
+
+    fn has_permissions_allowing_command(
+      manifest: &crate::utils::acl::plugin::Manifest,
+      set: &crate::utils::acl::PermissionSet,
+      command: &str,
+    ) -> bool {
+      for permission_id in &set.permissions {
+        if permission_id == "default" {
+          if let Some(default) = &manifest.default_permission {
+            if has_permissions_allowing_command(manifest, default, command) {
+              return true;
+            }
+          }
+        } else if let Some(ref_set) = manifest.permission_sets.get(permission_id) {
+          if has_permissions_allowing_command(manifest, ref_set, command) {
+            return true;
+          }
+        } else if let Some(permission) = manifest.permissions.get(permission_id) {
+          if permission.commands.allow.contains(&command.into()) {
+            return true;
+          }
+        }
+      }
+      false
+    }
+
+    let command = format!("plugin:{plugin}|{command_name}");
+    if let Some((_cmd, resolved)) = self
+      .denied_commands
+      .iter()
+      .find(|(cmd, _)| cmd.name == command && origin.matches(&cmd.context))
+    {
+      format!(
+        "{plugin}.{command_name} denied on origin {origin}, referenced by: {}",
+        print_references(resolved)
+      )
+    } else {
+      let command_matches = self
+        .allowed_commands
+        .iter()
+        .filter(|(cmd, _)| cmd.name == command)
+        .collect::<BTreeMap<_, _>>();
+
+      if let Some((_cmd, resolved)) = command_matches
+        .iter()
+        .find(|(cmd, _)| origin.matches(&cmd.context))
+      {
+        if resolved.windows.iter().any(|w| w.matches(window)) {
+          "allowed".to_string()
+        } else {
+          format!("{plugin}.{command_name} not allowed on window {window}, expected one of {}, referenced by {}", resolved.windows.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "), print_references(resolved))
+        }
+      } else {
+        let permission_error_detail = if let Some(manifest) = self.acl.get(plugin) {
+          let mut permissions_referencing_command = Vec::new();
+
+          if let Some(default) = &manifest.default_permission {
+            if has_permissions_allowing_command(manifest, default, command_name) {
+              permissions_referencing_command.push("default".into());
+            }
+          }
+          for set in manifest.permission_sets.values() {
+            if has_permissions_allowing_command(manifest, set, command_name) {
+              permissions_referencing_command.push(set.identifier.clone());
+            }
+          }
+          for permission in manifest.permissions.values() {
+            if permission.commands.allow.contains(&command_name.into()) {
+              permissions_referencing_command.push(permission.identifier.clone());
+            }
+          }
+
+          permissions_referencing_command.sort();
+
+          format!(
+            "Permissions associated with this command: {}",
+            permissions_referencing_command
+              .iter()
+              .map(|p| format!("{plugin}:{p}"))
+              .collect::<Vec<_>>()
+              .join(", ")
+          )
+        } else {
+          "Plugin did not define its manifest".to_string()
+        };
+
+        if command_matches.is_empty() {
+          format!("{plugin}.{command_name} not allowed. {permission_error_detail}")
+        } else {
+          format!(
+            "{plugin}.{command_name} not allowed on origin [{}]. Please create a capability that has this origin on the context field.\n\nFound matches for: {}\n\n{permission_error_detail}",
+            origin,
+            command_matches
+              .iter()
+              .map(|(cmd, resolved)| {
+                let context = match &cmd.context {
+                  ExecutionContext::Local => "[local]".to_string(),
+                  ExecutionContext::Remote { domain } => format!("[remote: {}]", domain.as_str()),
+                };
+                format!(
+                  "- context: {context}, referenced by: {}",
+                  print_references(resolved)
+                )
+              })
+              .collect::<Vec<_>>()
+              .join("\n")
+          )
+        }
+      }
     }
   }
 
@@ -76,7 +217,7 @@ impl RuntimeAuthority {
     &self,
     command: &str,
     window: &str,
-    origin: Origin,
+    origin: &Origin,
   ) -> Option<&ResolvedCommand> {
     if self
       .denied_commands
@@ -89,8 +230,8 @@ impl RuntimeAuthority {
         .allowed_commands
         .iter()
         .find(|(cmd, _)| cmd.name == command && origin.matches(&cmd.context))
-        .map(|(_cmd, allowed)| allowed)
-        .filter(|allowed| allowed.windows.iter().any(|w| w.matches(window)))
+        .map(|(_cmd, resolved)| resolved)
+        .filter(|resolved| resolved.windows.iter().any(|w| w.matches(window)))
     }
   }
 }
@@ -329,7 +470,7 @@ mod tests {
 
     let resolved_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
-      scope: None,
+      ..Default::default()
     };
     let allowed_commands = [(command.clone(), resolved_cmd.clone())]
       .into_iter()
@@ -337,16 +478,14 @@ mod tests {
 
     let authority = RuntimeAuthority::new(Resolved {
       allowed_commands,
-      denied_commands: Default::default(),
-      command_scope: Default::default(),
-      global_scope: Default::default(),
+      ..Default::default()
     });
 
     assert_eq!(
       authority.resolve_access(
         &command.name,
         &window.replace('*', "something"),
-        Origin::Local
+        &Origin::Local
       ),
       Some(&resolved_cmd)
     );
@@ -366,6 +505,7 @@ mod tests {
     let resolved_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
       scope: None,
+      ..Default::default()
     };
     let allowed_commands = [(command.clone(), resolved_cmd.clone())]
       .into_iter()
@@ -373,16 +513,14 @@ mod tests {
 
     let authority = RuntimeAuthority::new(Resolved {
       allowed_commands,
-      denied_commands: Default::default(),
-      command_scope: Default::default(),
-      global_scope: Default::default(),
+      ..Default::default()
     });
 
     assert_eq!(
       authority.resolve_access(
         &command.name,
         window,
-        Origin::Remote {
+        &Origin::Remote {
           domain: domain.into()
         }
       ),
@@ -404,6 +542,7 @@ mod tests {
     let resolved_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
       scope: None,
+      ..Default::default()
     };
     let allowed_commands = [(command.clone(), resolved_cmd.clone())]
       .into_iter()
@@ -411,16 +550,14 @@ mod tests {
 
     let authority = RuntimeAuthority::new(Resolved {
       allowed_commands,
-      denied_commands: Default::default(),
-      command_scope: Default::default(),
-      global_scope: Default::default(),
+      ..Default::default()
     });
 
     assert_eq!(
       authority.resolve_access(
         &command.name,
         window,
-        Origin::Remote {
+        &Origin::Remote {
           domain: domain.replace('*', "studio")
         }
       ),
@@ -439,6 +576,7 @@ mod tests {
     let resolved_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
       scope: None,
+      ..Default::default()
     };
     let allowed_commands = [(command.clone(), resolved_cmd.clone())]
       .into_iter()
@@ -446,16 +584,14 @@ mod tests {
 
     let authority = RuntimeAuthority::new(Resolved {
       allowed_commands,
-      denied_commands: Default::default(),
-      command_scope: Default::default(),
-      global_scope: Default::default(),
+      ..Default::default()
     });
 
     assert!(authority
       .resolve_access(
         &command.name,
         window,
-        Origin::Remote {
+        &Origin::Remote {
           domain: "tauri.app".into()
         }
       )
@@ -474,7 +610,7 @@ mod tests {
       command.clone(),
       ResolvedCommand {
         windows: windows.clone(),
-        scope: None,
+        ..Default::default()
       },
     )]
     .into_iter()
@@ -483,7 +619,7 @@ mod tests {
       command.clone(),
       ResolvedCommand {
         windows: windows.clone(),
-        scope: None,
+        ..Default::default()
       },
     )]
     .into_iter()
@@ -492,12 +628,11 @@ mod tests {
     let authority = RuntimeAuthority::new(Resolved {
       allowed_commands,
       denied_commands,
-      command_scope: Default::default(),
-      global_scope: Default::default(),
+      ..Default::default()
     });
 
     assert!(authority
-      .resolve_access(&command.name, window, Origin::Local)
+      .resolve_access(&command.name, window, &Origin::Local)
       .is_none());
   }
 }

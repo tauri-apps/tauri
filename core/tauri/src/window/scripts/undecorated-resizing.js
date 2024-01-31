@@ -4,7 +4,7 @@
 
 ;(function () {
   const osName = __TEMPLATE_os_name__
-  if (osName !== 'macos') {
+  if (osName !== 'macos' && osName !== 'ios' && osName !== 'android') {
     document.addEventListener('mousemove', (e) => {
       window.__TAURI_INTERNALS__.invoke('plugin:window|internal_on_mousemove', {
         x: e.clientX,

@@ -1058,9 +1058,6 @@ fn main() {
           .make_relative(current_url)
           .is_some()
 
-      // TODO: what use-case is covered by this?
-      || (cfg!(dev) && current_url.domain() == Some("tauri.localhost"))
-
       // or from a custom protocol registered by the user
       || ({
         let scheme = current_url.scheme();

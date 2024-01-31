@@ -36,17 +36,17 @@
       component: App,
       icon: 'i-codicon-hubot'
     },
-    {
+    !isMobile && {
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
     },
-    {
+    !isMobile && {
       label: 'Menu',
       component: Menu,
       icon: 'i-ph-list'
     },
-    {
+    !isMobile && {
       label: 'Tray',
       component: Tray,
       icon: 'i-ph-tray'

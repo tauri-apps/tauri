@@ -423,6 +423,8 @@ impl<R: Runtime> WebviewManager<R> {
         }
         url
       }
+
+      WebviewUrl::CustomProtocol(url) => url.clone(),
       _ => unimplemented!(),
     };
 

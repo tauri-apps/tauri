@@ -43,23 +43,50 @@ fn default_true() -> bool {
 }
 
 /// An URL to open on a Tauri webview window.
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize, Serialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
 #[non_exhaustive]
 pub enum WebviewUrl {
-  /// An external URL.
+  /// An external URL. Must use either the `http` or `https` schemes.
   External(Url),
   /// The path portion of an app URL.
   /// For instance, to load `tauri://localhost/users/john`,
   /// you can simply provide `users/john` in this configuration.
   App(PathBuf),
+  /// A custom protocol url, for example, `doom://index.html`
+  CustomProtocol(Url),
+}
+
+impl<'de> Deserialize<'de> for WebviewUrl {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum WebviewUrlDeserializer {
+      Url(Url),
+      Path(PathBuf),
+    }
+
+    match WebviewUrlDeserializer::deserialize(deserializer)? {
+      WebviewUrlDeserializer::Url(u) => {
+        if u.scheme() == "https" || u.scheme() == "http" {
+          Ok(Self::External(u))
+        } else {
+          Ok(Self::CustomProtocol(u))
+        }
+      }
+      WebviewUrlDeserializer::Path(p) => Ok(Self::App(p)),
+    }
+  }
 }
 
 impl fmt::Display for WebviewUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::External(url) => write!(f, "{url}"),
+      Self::External(url) | Self::CustomProtocol(url) => write!(f, "{url}"),
       Self::App(path) => write!(f, "{}", path.display()),
     }
   }
@@ -1162,7 +1189,11 @@ pub struct WindowConfig {
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
   /// Whether the window should be visible on all workspaces or virtual desktops.
-  #[serde(default, alias = "all-workspaces")]
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / iOS / Android:** Unsupported.
+  #[serde(default, alias = "visible-on-all-workspaces")]
   pub visible_on_all_workspaces: bool,
   /// Prevents the window contents from being captured by other apps.
   #[serde(default, alias = "content-protected")]
@@ -1221,6 +1252,18 @@ pub struct WindowConfig {
   ///  - **Android**: Unsupported.
   #[serde(default)]
   pub incognito: bool,
+  /// Sets the window associated with this label to be the parent of the window to be created.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: This sets the passed parent as an owner window to the window to be created.
+  ///   From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows):
+  ///     - An owned window is always above its owner in the z-order.
+  ///     - The system automatically destroys an owned window when its owner is destroyed.
+  ///     - An owned window is hidden when its owner is minimized.
+  /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  pub parent: Option<String>,
 }
 
 impl Default for WindowConfig {
@@ -1264,6 +1307,7 @@ impl Default for WindowConfig {
       shadow: true,
       window_effects: None,
       incognito: false,
+      parent: None,
     }
   }
 }
@@ -1858,7 +1902,7 @@ pub enum HookCommand {
 ///
 /// See more: <https://tauri.app/v1/api/config#buildconfig>
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
@@ -1871,8 +1915,8 @@ pub struct BuildConfig {
   ///
   /// See [vite](https://vitejs.dev/guide/), [Webpack DevServer](https://webpack.js.org/configuration/dev-server/) and [sirv](https://github.com/lukeed/sirv)
   /// for examples on how to set up a dev server.
-  #[serde(default = "default_dev_path", alias = "dev-path")]
-  pub dev_path: AppUrl,
+  #[serde(alias = "dev-path")]
+  pub dev_path: Option<AppUrl>,
   /// The path to the application assets or URL to load in production.
   ///
   /// When a path relative to the configuration file is provided,
@@ -1884,8 +1928,8 @@ pub struct BuildConfig {
   ///
   /// When an URL is provided, the application won't have bundled assets
   /// and the application will load that URL by default.
-  #[serde(default = "default_dist_dir", alias = "dist-dir")]
-  pub dist_dir: AppUrl,
+  #[serde(alias = "dist-dir")]
+  pub dist_dir: Option<AppUrl>,
   /// A shell command to run before `tauri dev` kicks in.
   ///
   /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
@@ -1906,31 +1950,6 @@ pub struct BuildConfig {
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
-}
-
-impl Default for BuildConfig {
-  fn default() -> Self {
-    Self {
-      runner: None,
-      dev_path: default_dev_path(),
-      dist_dir: default_dist_dir(),
-      before_dev_command: None,
-      before_build_command: None,
-      before_bundle_command: None,
-      features: None,
-      with_global_tauri: false,
-    }
-  }
-}
-
-fn default_dev_path() -> AppUrl {
-  AppUrl::Url(WebviewUrl::External(
-    Url::parse("http://localhost:8080").unwrap(),
-  ))
-}
-
-fn default_dist_dir() -> AppUrl {
-  AppUrl::Url(WebviewUrl::App("../dist".into()))
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -2123,8 +2142,8 @@ pub struct PluginConfig(pub HashMap<String, JsonValue>);
 fn default_build() -> BuildConfig {
   BuildConfig {
     runner: None,
-    dev_path: default_dev_path(),
-    dist_dir: default_dist_dir(),
+    dev_path: None,
+    dist_dir: None,
     before_dev_command: None,
     before_build_command: None,
     before_bundle_command: None,
@@ -2158,6 +2177,10 @@ mod build {
         Self::External(url) => {
           let url = url_lit(url);
           quote! { #prefix::External(#url) }
+        }
+        Self::CustomProtocol(url) => {
+          let url = url_lit(url);
+          quote! { #prefix::CustomProtocol(#url) }
         }
       })
     }
@@ -2300,6 +2323,7 @@ mod build {
       let shadow = self.shadow;
       let window_effects = opt_lit(self.window_effects.as_ref());
       let incognito = self.incognito;
+      let parent = opt_str_lit(self.parent.as_ref());
 
       literal_struct!(
         tokens,
@@ -2341,7 +2365,8 @@ mod build {
         additional_browser_args,
         shadow,
         window_effects,
-        incognito
+        incognito,
+        parent
       );
     }
   }
@@ -2489,8 +2514,8 @@ mod build {
 
   impl ToTokens for BuildConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let dev_path = &self.dev_path;
-      let dist_dir = &self.dist_dir;
+      let dev_path = opt_lit(self.dev_path.as_ref());
+      let dist_dir = opt_lit(self.dist_dir.as_ref());
       let with_global_tauri = self.with_global_tauri;
       let runner = quote!(None);
       let before_dev_command = quote!(None);
@@ -2758,8 +2783,6 @@ mod test {
     let t_config = TauriConfig::default();
     // get default build config
     let b_config = BuildConfig::default();
-    // get default dev path
-    let d_path = default_dev_path();
     // get default window
     let d_windows: Vec<WindowConfig> = vec![];
     // get default bundle
@@ -2806,10 +2829,8 @@ mod test {
     // create a build config
     let build = BuildConfig {
       runner: None,
-      dev_path: AppUrl::Url(WebviewUrl::External(
-        Url::parse("http://localhost:8080").unwrap(),
-      )),
-      dist_dir: AppUrl::Url(WebviewUrl::App("../dist".into())),
+      dev_path: None,
+      dist_dir: None,
       before_dev_command: None,
       before_build_command: None,
       before_bundle_command: None,
@@ -2821,12 +2842,6 @@ mod test {
     assert_eq!(t_config, tauri);
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, tauri.bundle);
-    assert_eq!(
-      d_path,
-      AppUrl::Url(WebviewUrl::External(
-        Url::parse("http://localhost:8080").unwrap()
-      ))
-    );
     assert_eq!(d_windows, tauri.windows);
   }
 }

@@ -88,10 +88,10 @@ impl CodegenContext {
       &config.build.dist_dir
     };
     match app_url {
-      AppUrl::Url(WebviewUrl::App(p)) => {
+      Some(AppUrl::Url(WebviewUrl::App(p))) => {
         println!("cargo:rerun-if-changed={}", config_parent.join(p).display());
       }
-      AppUrl::Files(files) => {
+      Some(AppUrl::Files(files)) => {
         for path in files {
           println!(
             "cargo:rerun-if-changed={}",

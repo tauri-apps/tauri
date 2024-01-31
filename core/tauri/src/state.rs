@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  command::{CommandArg, CommandItem},
-  ipc::InvokeError,
+  ipc::{CommandArg, CommandItem, InvokeError},
   Runtime,
 };
 use state::TypeMap;

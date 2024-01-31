@@ -264,7 +264,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
         // double braces because the item is expected to be a block expression
         ($path:path, $invoke:ident) => {{
           #[allow(unused_imports)]
-          use #root::command::private::*;
+          use #root::ipc::private::*;
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
           let #root::ipc::Invoke { message: #message, resolver: #resolver, acl: #acl } = $invoke;
@@ -442,8 +442,8 @@ fn parse_arg(
 
   let root = &attributes.root;
 
-  Ok(quote!(#root::command::CommandArg::from_command(
-    #root::command::CommandItem {
+  Ok(quote!(#root::ipc::CommandArg::from_command(
+    #root::ipc::CommandItem {
       plugin: #plugin_name,
       name: stringify!(#command),
       key: #key,

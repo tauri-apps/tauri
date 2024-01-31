@@ -15,7 +15,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
   command,
-  command::{CommandArg, CommandItem},
+  ipc::{CommandArg, CommandItem},
   plugin::{Builder as PluginBuilder, TauriPlugin},
   Manager, Runtime, State, Webview,
 };

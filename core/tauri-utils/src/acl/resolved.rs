@@ -21,7 +21,7 @@ use super::{
 };
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
-pub type ScopeKey = usize;
+pub type ScopeKey = u64;
 
 /// Metadata for what referenced a [`ResolvedCommand`].
 #[cfg(debug_assertions)]
@@ -206,7 +206,7 @@ impl Resolved {
 
         let mut hasher = DefaultHasher::new();
         allowed.scope.hash(&mut hasher);
-        let hash = hasher.finish() as usize;
+        let hash = hasher.finish();
 
         allowed.resolved_scope_key.replace(hash);
 
@@ -297,15 +297,15 @@ struct ResolvedCommandTemp {
   #[cfg(debug_assertions)]
   pub referenced_by: Vec<ResolvedCommandReference>,
   pub windows: HashSet<String>,
-  pub scope: Vec<usize>,
-  pub resolved_scope_key: Option<usize>,
+  pub scope: Vec<ScopeKey>,
+  pub resolved_scope_key: Option<ScopeKey>,
 }
 
 fn resolve_command(
   commands: &mut BTreeMap<CommandKey, ResolvedCommandTemp>,
   command: String,
   capability: &Capability,
-  scope_id: Option<usize>,
+  scope_id: Option<ScopeKey>,
   #[cfg(debug_assertions)] permission: &Permission,
 ) {
   let contexts = match &capability.context {

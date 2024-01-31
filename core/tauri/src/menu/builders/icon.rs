@@ -87,7 +87,7 @@ impl IconMenuItemBuilder {
   }
 
   /// Build the menu item
-  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> IconMenuItem<R> {
+  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<IconMenuItem<R>> {
     if self.icon.is_some() {
       if let Some(id) = self.id {
         IconMenuItem::with_id(

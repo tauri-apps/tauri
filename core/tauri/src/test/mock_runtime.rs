@@ -81,7 +81,7 @@ impl RuntimeContext {
     } else {
       match message {
         Message::Task(task) => task(),
-        Message::CloseWindow(id) => {
+        Message::CloseWindow(id) | Message::DestroyWindow(id) => {
           self.windows.borrow_mut().remove(&id);
         }
       }
@@ -141,7 +141,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     self.context.windows.borrow_mut().insert(
       id,
       Window {
-        label: pending.label,
+        label: pending.label.clone(),
         webviews,
       },
     );
@@ -662,7 +662,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     self.context.windows.borrow_mut().insert(
       id,
       Window {
-        label: pending.label,
+        label: pending.label.clone(),
         webviews,
       },
     );
@@ -930,7 +930,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     self.context.windows.borrow_mut().insert(
       id,
       Window {
-        label: pending.label,
+        label: pending.label.clone(),
         webviews,
       },
     );

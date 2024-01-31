@@ -59,6 +59,7 @@ pub struct UriSchemeProtocol<R: Runtime> {
 }
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WebviewLabelDef {
   pub window_label: String,
   pub label: String,
@@ -168,7 +169,7 @@ impl<R: Runtime> WebviewManager<R> {
           Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
               windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
-              webviews: {webview_labels_array}.map(function (label) {{ return {{ label: label }} }}),
+              webviews: {webview_labels_array},
               currentWindow: {{ label: {current_window_label} }},
               currentWebview: {{ label: {current_webview_label} }}
             }}

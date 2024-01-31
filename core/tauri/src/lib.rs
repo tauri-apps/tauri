@@ -517,6 +517,17 @@ impl<A: Assets> Context<A> {
     &self.pattern
   }
 
+  /// A mutable reference to the resolved ACL.
+  ///
+  /// # Stability
+  ///
+  /// This API is unstable.
+  #[doc(hidden)]
+  #[inline(always)]
+  pub fn resolved_acl(&mut self) -> &mut Resolved {
+    &mut self.resolved_acl
+  }
+
   /// Create a new [`Context`] from the minimal required items.
   #[inline(always)]
   #[allow(clippy::too_many_arguments)]

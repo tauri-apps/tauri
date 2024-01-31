@@ -25,7 +25,11 @@ struct JsHandler {
 /// What to do with the pending handler when resolving it?
 enum Pending {
   Unlisten(EventId),
-  Listen(EventId, String, Handler),
+  Listen {
+    id: EventId,
+    event: String,
+    handler: Handler,
+  },
   Emit(EmitArgs),
 }
 
@@ -44,11 +48,14 @@ impl Handler {
   }
 }
 
+type WebviewLabel = String;
+type EventName = String;
+
 /// Holds event handlers and pending event handlers, along with the salts associating them.
 struct InnerListeners {
   pending: Mutex<Vec<Pending>>,
-  handlers: Mutex<HashMap<String, HashMap<EventId, Handler>>>,
-  js_event_listeners: Mutex<HashMap<String, HashMap<String, HashSet<JsHandler>>>>,
+  handlers: Mutex<HashMap<EventName, HashMap<EventId, Handler>>>,
+  js_event_listeners: Mutex<HashMap<WebviewLabel, HashMap<EventName, HashSet<JsHandler>>>>,
   function_name: &'static str,
   listeners_object_name: &'static str,
   next_event_id: Arc<AtomicU32>,
@@ -114,7 +121,7 @@ impl Listeners {
     for action in pending {
       match action {
         Pending::Unlisten(id) => self.unlisten(id),
-        Pending::Listen(id, event, handler) => self.listen_with_id(id, event, handler),
+        Pending::Listen { id, event, handler } => self.listen_with_id(id, event, handler),
         Pending::Emit(args) => {
           self.emit(args)?;
         }
@@ -126,7 +133,7 @@ impl Listeners {
 
   fn listen_with_id(&self, id: EventId, event: String, handler: Handler) {
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::Listen(id, event, handler)),
+      Err(_) => self.insert_pending(Pending::Listen { id, event, handler }),
       Ok(mut lock) => {
         lock.entry(event).or_default().insert(id, handler);
       }
@@ -239,11 +246,23 @@ impl Listeners {
     let listeners = listeners.values_mut();
     'outer: for listeners in listeners {
       for (key, handlers) in listeners.iter_mut() {
-        handlers.retain(|h| h.id != id);
+        let mut found = false;
+
+        handlers.retain(|h| {
+          let keep = h.id != id;
+          if !found {
+            found = !keep
+          }
+          keep
+        });
+
         if handlers.is_empty() {
           empty.replace(key.clone());
         }
-        break 'outer;
+
+        if found {
+          break 'outer;
+        }
       }
 
       if let Some(key) = &empty {

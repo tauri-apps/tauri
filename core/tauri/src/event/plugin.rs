@@ -99,7 +99,7 @@ pub fn emit_to<R: Runtime>(
   event: EventName,
   payload: Option<JsonValue>,
 ) -> Result<()> {
-  app.emit_to(&target, &event, payload)
+  app.emit_to(target, &event, payload)
 }
 
 /// Initializes the event plugin.

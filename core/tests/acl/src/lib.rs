@@ -46,7 +46,7 @@ mod tests {
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixtures_path = manifest_dir.join("fixtures").join("capabilities");
-    for fixture_path in read_dir(&fixtures_path).expect("failed to read fixtures") {
+    for fixture_path in read_dir(fixtures_path).expect("failed to read fixtures") {
       let fixture_entry = fixture_path.expect("failed to read fixture entry");
       let fixture_plugins_str = read_to_string(fixture_entry.path().join("required-plugins.json"))
         .expect("failed to read fixture required-plugins.json file");

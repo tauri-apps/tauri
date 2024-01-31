@@ -7,12 +7,9 @@ use crate::bundle::{
   common::CommandExt,
   path_utils::{copy_file, FileOpts},
   settings::Settings,
-  windows::{
-    sign::try_sign,
-    util::{
-      download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
-      extract_zip, HashAlgorithm, WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
-    },
+  windows::util::{
+    download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
+    extract_zip, HashAlgorithm, WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
   },
 };
 use anyhow::{bail, Context};
@@ -788,8 +785,9 @@ pub fn build_wix_app_installer(
       &msi_output_path,
     )?;
     rename(&msi_output_path, &msi_path)?;
-    try_sign(&msi_path, settings)?;
-    output_paths.push(msi_path);
+    if let Some(sign_params) = settings.sign_params() {
+      sign_params.sign(&msi_path)?;
+    }
   }
 
   Ok(output_paths)

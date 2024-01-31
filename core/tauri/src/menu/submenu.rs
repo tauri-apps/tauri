@@ -4,10 +4,11 @@
 
 use std::sync::Arc;
 
+use super::run_item_main_thread;
 use super::Submenu;
 use super::{sealed::ContextMenuBase, IsMenuItem, MenuItemKind};
 use crate::menu::SubmenuInner;
-use crate::{run_item_main_thread, run_main_thread};
+use crate::run_main_thread;
 use crate::{AppHandle, Manager, Position, Runtime, Window};
 use muda::{ContextMenu, MenuId};
 

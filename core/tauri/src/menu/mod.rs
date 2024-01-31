@@ -24,6 +24,24 @@ use serde::{Deserialize, Serialize};
 use crate::{AppHandle, Icon, Runtime};
 pub use muda::MenuId;
 
+macro_rules! run_item_main_thread {
+  ($self:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+    let self_ = $self.clone();
+    let task = move || {
+      let f = $ex;
+      let _ = tx.send(f(self_));
+    };
+    $self
+      .app_handle()
+      .run_on_main_thread(task)
+      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
+  }};
+}
+
+pub(crate) use run_item_main_thread;
+
 /// Describes a menu event emitted when a menu item is activated
 #[derive(Debug, Clone, Serialize)]
 pub struct MenuEvent {

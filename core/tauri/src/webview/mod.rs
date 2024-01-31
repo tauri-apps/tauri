@@ -27,11 +27,10 @@ pub use url::Url;
 
 use crate::{
   app::UriSchemeResponder,
-  command::{CommandArg, CommandItem, Origin},
   event::{EmitArgs, EventSource},
   ipc::{
-    CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
-    OwnedInvokeResponder,
+    CallbackFn, CommandArg, CommandItem, Invoke, InvokeBody, InvokeError, InvokeMessage,
+    InvokeResolver, Origin, OwnedInvokeResponder,
   },
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -354,7 +353,8 @@ async fn create_window(app: tauri::AppHandle) {
 ```
 #[tauri::command]
 async fn reopen_window(app: tauri::AppHandle) {
-  let window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  let window = tauri::window::WindowBuilder::from_config(&app, &app.config().tauri.windows.get(0).unwrap().clone())
+    .unwrap()
     .build()
     .unwrap();
 }
@@ -363,10 +363,10 @@ async fn reopen_window(app: tauri::AppHandle) {
   )]
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn from_config(config: WindowConfig) -> Self {
+  pub fn from_config(config: &WindowConfig) -> Self {
     Self {
       label: config.label.clone(),
-      webview_attributes: WebviewAttributes::from(&config),
+      webview_attributes: WebviewAttributes::from(config),
       web_resource_request_handler: None,
       navigation_handler: None,
       on_page_load_handler: None,

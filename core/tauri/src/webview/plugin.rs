@@ -47,7 +47,7 @@ mod desktop_commands {
     app: AppHandle<R>,
     options: WindowConfig,
   ) -> crate::Result<()> {
-    WebviewWindowBuilder::from_config(&app, options).build()?;
+    WebviewWindowBuilder::from_config(&app, &options)?.build()?;
     Ok(())
   }
   #[cfg(not(feature = "unstable"))]

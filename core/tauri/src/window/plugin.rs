@@ -61,7 +61,7 @@ mod desktop_commands {
 
   #[command(root = "crate")]
   pub async fn create<R: Runtime>(app: AppHandle<R>, options: WindowConfig) -> crate::Result<()> {
-    WindowBuilder::from_config(&app, options).build()?;
+    WindowBuilder::from_config(&app, &options)?.build()?;
     Ok(())
   }
 
@@ -142,6 +142,7 @@ mod desktop_commands {
   setter!(show);
   setter!(hide);
   setter!(close);
+  setter!(destroy);
   setter!(set_decorations, bool);
   setter!(set_shadow, bool);
   setter!(set_effects, Option<WindowEffectsConfig>);
@@ -394,6 +395,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::show,
             desktop_commands::hide,
             desktop_commands::close,
+            desktop_commands::destroy,
             desktop_commands::set_decorations,
             desktop_commands::set_shadow,
             desktop_commands::set_effects,

@@ -679,7 +679,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     Self::default().focused(true)
   }
 
-  fn with_config(config: WindowConfig) -> Self {
+  fn with_config(config: &WindowConfig) -> Self {
     let mut window = WindowBuilderWrapper::new();
 
     #[cfg(target_os = "macos")]
@@ -878,20 +878,32 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(windows)]
-  fn parent_window(mut self, parent: HWND) -> Self {
+  fn owner(mut self, owner: HWND) -> Self {
+    self.inner = self.inner.with_owner_window(owner.0);
+    self
+  }
+
+  #[cfg(windows)]
+  fn parent(mut self, parent: HWND) -> Self {
     self.inner = self.inner.with_parent_window(parent.0);
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
+  fn parent(mut self, parent: *mut std::ffi::c_void) -> Self {
     self.inner = self.inner.with_parent_window(parent);
     self
   }
 
-  #[cfg(windows)]
-  fn owner_window(mut self, owner: HWND) -> Self {
-    self.inner = self.inner.with_owner_window(owner.0);
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self.inner = self.inner.with_transient_for(parent);
     self
   }
 
@@ -1119,6 +1131,7 @@ pub enum WindowMessage {
   Show,
   Hide,
   Close,
+  Destroy,
   SetDecorations(bool),
   SetShadow(bool),
   SetAlwaysOnBottom(bool),
@@ -1630,6 +1643,15 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Close))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn destroy(&self) -> Result<()> {
+    // NOTE: destroy cannot use the `send_user_message` function because it accesses the event loop callback
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Destroy))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -2531,6 +2553,9 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
+          WindowMessage::Destroy => {
+            panic!("cannot handle `WindowMessage::Destroy` on the main thread")
+          }
           WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
           WindowMessage::SetShadow(_enable) => {
             #[cfg(windows)]
@@ -3006,6 +3031,9 @@ fn handle_event_loop<T: UserEvent>(
         }
       }
       Message::Window(id, WindowMessage::Close) => {
+        on_close_requested(callback, id, windows.clone());
+      }
+      Message::Window(id, WindowMessage::Destroy) => {
         on_window_close(id, windows.clone());
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),

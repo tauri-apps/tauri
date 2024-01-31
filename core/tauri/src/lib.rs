@@ -78,7 +78,6 @@ pub use tauri_macros::{command, generate_handler};
 
 pub(crate) mod app;
 pub mod async_runtime;
-pub mod command;
 mod error;
 mod event;
 pub mod ipc;
@@ -516,6 +515,17 @@ impl<A: Assets> Context<A> {
   #[inline(always)]
   pub fn pattern(&self) -> &Pattern {
     &self.pattern
+  }
+
+  /// A mutable reference to the resolved ACL.
+  ///
+  /// # Stability
+  ///
+  /// This API is unstable.
+  #[doc(hidden)]
+  #[inline(always)]
+  pub fn resolved_acl(&mut self) -> &mut Resolved {
+    &mut self.resolved_acl
   }
 
   /// Create a new [`Context`] from the minimal required items.

@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  command::{CommandArg, CommandItem},
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, Invoke, InvokeError, InvokeHandler, InvokeResponder,
-    InvokeResponse,
+    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
+    InvokeHandler, InvokeResponder, InvokeResponse,
   },
   manager::{
     webview::{UriSchemeProtocol, WebviewLabelDef},
@@ -1706,7 +1705,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     .collect::<Vec<_>>();
 
   for window_config in app.config().tauri.windows.clone() {
-    WebviewWindowBuilder::from_config(app.handle(), window_config)
+    WebviewWindowBuilder::from_config(app.handle(), &window_config)?
       .build_internal(&window_labels, &webview_labels)?;
   }
 

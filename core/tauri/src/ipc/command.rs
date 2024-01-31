@@ -16,9 +16,6 @@ use serde::{
   Deserialize, Deserializer,
 };
 
-mod authority;
-
-pub use authority::{CommandScope, GlobalScope, Origin, RuntimeAuthority, ScopeObject, ScopeValue};
 use tauri_utils::acl::resolved::ResolvedCommand;
 
 /// Represents a custom command.

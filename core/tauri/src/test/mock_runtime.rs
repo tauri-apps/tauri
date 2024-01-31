@@ -42,11 +42,13 @@ type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
 enum Message {
   Task(Box<dyn FnOnce() + Send>),
   CloseWindow(WindowId),
+  DestroyWindow(WindowId),
 }
 
 struct Webview;
 
 struct Window {
+  label: String,
   webviews: Vec<Webview>,
 }
 
@@ -79,7 +81,7 @@ impl RuntimeContext {
     } else {
       match message {
         Message::Task(task) => task(),
-        Message::CloseWindow(id) => {
+        Message::CloseWindow(id) | Message::DestroyWindow(id) => {
           self.windows.borrow_mut().remove(&id);
         }
       }
@@ -136,11 +138,13 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
       (None, Vec::new())
     };
 
-    self
-      .context
-      .windows
-      .borrow_mut()
-      .insert(id, Window { webviews });
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
 
     let webview = webview_id.map(|id| DetachedWebview {
       label: pending.label.clone(),
@@ -274,7 +278,7 @@ impl WindowBuilder for MockWindowBuilder {
     Self {}
   }
 
-  fn with_config(config: WindowConfig) -> Self {
+  fn with_config(config: &WindowConfig) -> Self {
     Self {}
   }
 
@@ -376,17 +380,28 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(windows)]
-  fn parent_window(self, parent: HWND) -> Self {
-    self
-  }
-
-  #[cfg(target_os = "macos")]
-  fn parent_window(self, parent: *mut std::ffi::c_void) -> Self {
+  fn owner(self, owner: HWND) -> Self {
     self
   }
 
   #[cfg(windows)]
-  fn owner_window(self, owner: HWND) -> Self {
+  fn parent(self, parent: HWND) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn parent(self, parent: *mut std::ffi::c_void) -> Self {
+    self
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
     self
   }
 
@@ -655,11 +670,13 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
       (None, Vec::new())
     };
 
-    self
-      .context
-      .windows
-      .borrow_mut()
-      .insert(id, Window { webviews });
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
 
     let webview = webview_id.map(|id| DetachedWebview {
       label: pending.label.clone(),
@@ -749,6 +766,11 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
 
   fn close(&self) -> Result<()> {
     self.context.send_message(Message::CloseWindow(self.id))?;
+    Ok(())
+  }
+
+  fn destroy(&self) -> Result<()> {
+    self.context.send_message(Message::DestroyWindow(self.id))?;
     Ok(())
   }
 
@@ -916,11 +938,13 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
       (None, Vec::new())
     };
 
-    self
-      .context
-      .windows
-      .borrow_mut()
-      .insert(id, Window { webviews });
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
 
     let webview = webview_id.map(|id| DetachedWebview {
       label: pending.label.clone(),
@@ -1007,6 +1031,39 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
         match m {
           Message::Task(p) => p(),
           Message::CloseWindow(id) => {
+            let label = self
+              .context
+              .windows
+              .borrow()
+              .get(&id)
+              .map(|w| w.label.clone());
+            if let Some(label) = label {
+              let (tx, rx) = channel();
+              callback(RunEvent::WindowEvent {
+                label,
+                event: WindowEvent::CloseRequested { signal_tx: tx },
+              });
+
+              let should_prevent = matches!(rx.try_recv(), Ok(true));
+              if !should_prevent {
+                self.context.windows.borrow_mut().remove(&id);
+
+                let is_empty = self.context.windows.borrow().is_empty();
+                if is_empty {
+                  let (tx, rx) = channel();
+                  callback(RunEvent::ExitRequested { code: None, tx });
+
+                  let recv = rx.try_recv();
+                  let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+                  if !should_prevent {
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          Message::DestroyWindow(id) => {
             let removed = self.context.windows.borrow_mut().remove(&id).is_some();
             if removed {
               let is_empty = self.context.windows.borrow().is_empty();

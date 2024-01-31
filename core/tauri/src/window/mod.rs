@@ -6,7 +6,6 @@
 
 pub(crate) mod plugin;
 
-use tauri_runtime::ResizeDirection;
 use tauri_runtime::{
   webview::PendingWebview,
   window::dpi::{PhysicalPosition, PhysicalSize},
@@ -1819,7 +1818,10 @@ tauri::Builder::default()
   }
 
   /// Starts resize-dragging the window.
-  pub fn start_resize_dragging(&self, direction: ResizeDirection) -> crate::Result<()> {
+  pub fn start_resize_dragging(
+    &self,
+    direction: tauri_runtime::ResizeDirection,
+  ) -> crate::Result<()> {
     self
       .window
       .dispatcher

@@ -1044,17 +1044,44 @@ fn main() {
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
-    self
-      .manager()
-      .get_url()
-      .make_relative(current_url)
-      .is_some()
-      || {
-        let protocol_url = self.manager().protocol_url();
-        current_url.scheme() == protocol_url.scheme()
-          && current_url.domain() == protocol_url.domain()
-      }
-      || (cfg!(dev) && current_url.domain() == Some("tauri.localhost"))
+    // if from `tauri://` custom protocol
+    ({
+      let protocol_url = self.manager().protocol_url();
+      current_url.scheme() == protocol_url.scheme()
+      && current_url.domain() == protocol_url.domain()
+    }) ||
+
+    // or if relative to `distDir` or `devPath`
+      self
+          .manager()
+          .get_url()
+          .make_relative(current_url)
+          .is_some()
+
+      // or from a custom protocol registered by the user
+      || ({
+        let scheme = current_url.scheme();
+        let protocols = self.manager().webview.uri_scheme_protocols.lock().unwrap();
+
+        #[cfg(all(not(windows), not(target_os = "android")))]
+        let local = protocols.contains_key(scheme);
+
+        // on window and android, custom protocols are `http://<protocol-name>.path/to/route`
+        // so we check using the first part of the domain
+        #[cfg(any(windows, target_os = "android"))]
+        let local = {
+          let protocol_url = self.manager().protocol_url();
+          let maybe_protocol = current_url
+            .domain()
+            .and_then(|d| d .split_once('.'))
+            .unwrap_or_default()
+            .0;
+
+          protocols.contains_key(maybe_protocol) && scheme == protocol_url.scheme()
+        };
+
+        local
+      })
   }
 
   /// Handles this window receiving an [`InvokeRequest`].

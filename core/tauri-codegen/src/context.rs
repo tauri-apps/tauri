@@ -164,36 +164,33 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   let assets = match app_url {
-    AppUrl::Url(url) => match url {
-      WebviewUrl::External(_) => Default::default(),
-      WebviewUrl::App(path) => {
-        if path.components().count() == 0 {
-          panic!(
-            "The `{}` configuration cannot be empty",
-            if dev { "devPath" } else { "distDir" }
-          )
+    Some(url) => match url {
+      AppUrl::Url(url) => match url {
+        WebviewUrl::External(_) | WebviewUrl::CustomProtocol(_) => Default::default(),
+        WebviewUrl::App(path) => {
+          let assets_path = config_parent.join(path);
+          if !assets_path.exists() {
+            panic!(
+              "The `{}` configuration is set to `{:?}` but this path doesn't exist",
+              if dev { "devPath" } else { "distDir" },
+              path
+            )
+          }
+          EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
         }
-        let assets_path = config_parent.join(path);
-        if !assets_path.exists() {
-          panic!(
-            "The `{}` configuration is set to `{:?}` but this path doesn't exist",
-            if dev { "devPath" } else { "distDir" },
-            path
-          )
-        }
-        EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
-      }
+        _ => unimplemented!(),
+      },
+      AppUrl::Files(files) => EmbeddedAssets::new(
+        files
+          .iter()
+          .map(|p| config_parent.join(p))
+          .collect::<Vec<_>>(),
+        &options,
+        map_core_assets(&options, target),
+      )?,
       _ => unimplemented!(),
     },
-    AppUrl::Files(files) => EmbeddedAssets::new(
-      files
-        .iter()
-        .map(|p| config_parent.join(p))
-        .collect::<Vec<_>>(),
-      &options,
-      map_core_assets(&options, target),
-    )?,
-    _ => unimplemented!(),
+    None => Default::default(),
   };
 
   let out_dir = {
@@ -398,7 +395,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     Default::default()
   };
 
-  let resolved_act = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
+  let resolved_acl = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
 
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
@@ -410,7 +407,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #package_info,
       #info_plist,
       #pattern,
-      #resolved_act
+      #resolved_acl
     );
     #with_tray_icon_code
     context

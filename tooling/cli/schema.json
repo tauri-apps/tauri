@@ -109,8 +109,6 @@
     "build": {
       "description": "The build configuration.",
       "default": {
-        "devPath": "http://localhost:8080/",
-        "distDir": "../dist",
         "withGlobalTauri": false
       },
       "allOf": [
@@ -575,13 +573,18 @@
       "description": "An URL to open on a Tauri webview window.",
       "anyOf": [
         {
-          "description": "An external URL.",
+          "description": "An external URL. Must use either the `http` or `https` schemes.",
           "type": "string",
           "format": "uri"
         },
         {
           "description": "The path portion of an app URL. For instance, to load `tauri://localhost/users/john`, you can simply provide `users/john` in this configuration.",
           "type": "string"
+        },
+        {
+          "description": "A custom protocol url, for example, `doom://index.html`",
+          "type": "string",
+          "format": "uri"
         }
       ]
     },
@@ -2408,19 +2411,23 @@
         },
         "devPath": {
           "description": "The path to the application assets or URL to load in development.\n\nThis is usually an URL to a dev server, which serves your application assets with live reloading. Most modern JavaScript bundlers provides a way to start a dev server by default.\n\nSee [vite](https://vitejs.dev/guide/), [Webpack DevServer](https://webpack.js.org/configuration/dev-server/) and [sirv](https://github.com/lukeed/sirv) for examples on how to set up a dev server.",
-          "default": "http://localhost:8080/",
-          "allOf": [
+          "anyOf": [
             {
               "$ref": "#/definitions/AppUrl"
+            },
+            {
+              "type": "null"
             }
           ]
         },
         "distDir": {
           "description": "The path to the application assets or URL to load in production.\n\nWhen a path relative to the configuration file is provided, it is read recursively and all files are embedded in the application binary. Tauri then looks for an `index.html` file unless you provide a custom window URL.\n\nYou can also provide a list of paths to be embedded, which allows granular control over what files are added to the binary. In this case, all files are added to the root and you must reference it that way in your HTML files.\n\nWhen an URL is provided, the application won't have bundled assets and the application will load that URL by default.",
-          "default": "../dist",
-          "allOf": [
+          "anyOf": [
             {
               "$ref": "#/definitions/AppUrl"
+            },
+            {
+              "type": "null"
             }
           ]
         },

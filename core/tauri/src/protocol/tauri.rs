@@ -165,7 +165,7 @@ fn get_response<R: Runtime>(
     handler(request, &mut response);
   }
   // if it's an HTML file, we need to set the CSP meta tag on Linux
-  #[cfg(all(not(dev), target_os = "linux"))]
+  #[cfg(target_os = "linux")]
   if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
     let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
     let html = String::from_utf8_lossy(response.body());

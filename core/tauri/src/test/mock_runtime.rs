@@ -118,6 +118,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     EventProxy {}
   }
 
+  fn request_exit(&self, code: i32) -> Result<()> {
+    unimplemented!()
+  }
+
   /// Create a new webview window.
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
@@ -394,6 +398,11 @@ impl WindowBuilder for MockWindowBuilder {
     target_os = "openbsd"
   ))]
   fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self
+  }
+
+  #[cfg(windows)]
+  fn owner_window(self, owner: HWND) -> Self {
     self
   }
 
@@ -1003,12 +1012,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(
-    &mut self,
-    callback: F,
-  ) -> tauri_runtime::RunIteration {
-    Default::default()
-  }
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F) {}
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
     self.is_running.store(true, Ordering::Relaxed);
@@ -1024,7 +1028,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
               let is_empty = self.context.windows.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
-                callback(RunEvent::ExitRequested { tx });
+                callback(RunEvent::ExitRequested { code: None, tx });
 
                 let recv = rx.try_recv();
                 let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));

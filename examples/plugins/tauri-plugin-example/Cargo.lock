@@ -2636,14 +2636,14 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "cargo_metadata",
  "glob",
+ "schemars",
  "serde",
  "serde_json",
  "tauri",
- "tauri-utils",
  "toml 0.8.8",
 ]
 

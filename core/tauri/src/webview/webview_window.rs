@@ -34,7 +34,7 @@ use crate::{
   webview::PageLoadPayload,
   webview::WebviewBuilder,
   window::WindowBuilder,
-  AppHandle, Event, EventId, Manager, Runtime, Webview, Window, WindowEvent,
+  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
 
 use tauri_macros::default_runtime;
@@ -174,7 +174,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   ///   });
   /// ```
   #[cfg(desktop)]
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -966,7 +966,7 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     &self,
     f: F,
   ) {

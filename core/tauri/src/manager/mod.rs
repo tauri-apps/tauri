@@ -299,13 +299,13 @@ impl<R: Runtime> AppManager<R> {
   /// * In dev mode, this will be based on the `devPath` configuration value.
   /// * Otherwise, this will be based on the `distDir` configuration value.
   #[cfg(not(dev))]
-  fn base_path(&self) -> &AppUrl {
-    &self.config.build.dist_dir
+  fn base_path(&self) -> Option<&AppUrl> {
+    self.config.build.dist_dir.as_ref()
   }
 
   #[cfg(dev)]
-  fn base_path(&self) -> &AppUrl {
-    &self.config.build.dev_path
+  fn base_path(&self) -> Option<&AppUrl> {
+    self.config.build.dev_path.as_ref()
   }
 
   /// Get the base URL to use for webview requests.
@@ -313,7 +313,9 @@ impl<R: Runtime> AppManager<R> {
   /// In dev mode, this will be based on the `devPath` configuration value.
   pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
-      AppUrl::Url(WebviewUrl::External(url)) => Cow::Borrowed(url),
+      Some(AppUrl::Url(WebviewUrl::External(url) | WebviewUrl::CustomProtocol(url))) => {
+        Cow::Borrowed(url)
+      }
       _ => self.protocol_url(),
     }
   }
@@ -540,6 +542,14 @@ impl<R: Runtime> AppManager<R> {
       .iter()
       .find(|w| w.1.is_focused().unwrap_or(false))
       .map(|w| w.1.clone())
+  }
+
+  pub(crate) fn on_window_close(&self, label: &str) {
+    if let Some(window) = self.window.windows_lock().remove(label) {
+      for webview in window.webviews() {
+        self.webview.webviews_lock().remove(webview.label());
+      }
+    }
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

@@ -20,13 +20,14 @@ type HttpClient = Client<hyper::client::HttpConnector>;
 const TAURI_OPTIONS: &str = "tauri:options";
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct TauriOptions {
   application: PathBuf,
   #[serde(default)]
   args: Vec<String>,
   #[cfg(target_os = "windows")]
   #[serde(default)]
-  webview_options: Option<Value>
+  webview_options: Option<Value>,
 }
 
 impl TauriOptions {

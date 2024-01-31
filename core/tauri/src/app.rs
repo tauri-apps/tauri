@@ -1285,9 +1285,9 @@ tauri::Builder::default()
   ///       "File",
   ///       true,
   ///       &[
-  ///         &PredefinedMenuItem::close_window(handle, None),
+  ///         &PredefinedMenuItem::close_window(handle, None)?,
   ///         #[cfg(target_os = "macos")]
-  ///         &MenuItem::new(handle, "Hello", true, None),
+  ///         &MenuItem::new(handle, "Hello", true, None::<&str>)?,
   ///       ],
   ///     )?
   ///   ]));
@@ -1706,7 +1706,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     .collect::<Vec<_>>();
 
   for window_config in app.config().tauri.windows.clone() {
-    WebviewWindowBuilder::from_config(app.handle(), window_config)
+    WebviewWindowBuilder::from_config(app.handle(), &window_config)?
       .build_internal(&window_labels, &webview_labels)?;
   }
 

@@ -80,6 +80,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_effects", false),
       ("set_always_on_top", false),
       ("set_always_on_bottom", false),
+      ("set_visible_on_all_workspaces", false),
       ("set_content_protected", false),
       ("set_size", false),
       ("set_min_size", false),

@@ -61,7 +61,7 @@ mod desktop_commands {
 
   #[command(root = "crate")]
   pub async fn create<R: Runtime>(app: AppHandle<R>, options: WindowConfig) -> crate::Result<()> {
-    WindowBuilder::from_config(&app, options).build()?;
+    WindowBuilder::from_config(&app, &options)?.build()?;
     Ok(())
   }
 
@@ -164,6 +164,7 @@ mod desktop_commands {
   setter!(start_dragging);
   setter!(start_resize_dragging, ResizeDirection);
   setter!(set_progress_bar, ProgressBarState);
+  setter!(set_visible_on_all_workspaces, bool);
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
@@ -417,6 +418,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::start_resize_dragging,
             desktop_commands::set_progress_bar,
             desktop_commands::set_icon,
+            desktop_commands::set_visible_on_all_workspaces,
             desktop_commands::toggle_maximize,
             desktop_commands::internal_toggle_maximize,
             desktop_commands::internal_on_mousemove,

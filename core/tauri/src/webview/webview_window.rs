@@ -34,7 +34,7 @@ use crate::{
   webview::PageLoadPayload,
   webview::WebviewBuilder,
   window::WindowBuilder,
-  AppHandle, Event, EventId, Manager, Runtime, Webview, Window, WindowEvent,
+  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
 
 use tauri_macros::default_runtime;
@@ -123,7 +123,8 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 ```
 #[tauri::command]
 async fn reopen_window(app: tauri::AppHandle) {
-  let webview_window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  let webview_window = tauri::window::WindowBuilder::from_config(&app, &app.config().tauri.windows.get(0).unwrap().clone())
+    .unwrap()
     .build()
     .unwrap();
 }
@@ -132,11 +133,11 @@ async fn reopen_window(app: tauri::AppHandle) {
   )]
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn from_config(manager: &'a M, config: WindowConfig) -> Self {
-    Self {
-      window_builder: WindowBuilder::from_config(manager, config.clone()),
+  pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
+    Ok(Self {
+      window_builder: WindowBuilder::from_config(manager, config)?,
       webview_builder: WebviewBuilder::from_config(config),
-    }
+    })
   }
 
   /// Registers a global menu event listener.
@@ -153,7 +154,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
   ///     let menu = Menu::with_items(handle, &[
   ///       &Submenu::with_items(handle, "File", true, &[
   ///         &save_menu_item,
@@ -173,7 +174,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   ///   });
   /// ```
   #[cfg(desktop)]
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -562,22 +563,18 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 
   /// Sets a parent to the window to be created.
   ///
-  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  /// ## Platform-specific
   ///
-  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
-  #[cfg(windows)]
-  #[must_use]
-  pub fn parent_window(mut self, parent: HWND) -> Self {
-    self.window_builder = self.window_builder.parent_window(parent);
-    self
-  }
-
-  /// Sets a parent to the window to be created.
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  pub fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
-    self.window_builder = self.window_builder.parent_window(parent);
-    self
+  /// - **Windows**: This sets the passed parent as an owner window to the window to be created.
+  ///   From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows):
+  ///     - An owned window is always above its owner in the z-order.
+  ///     - The system automatically destroys an owned window when its owner is destroyed.
+  ///     - An owned window is hidden when its owner is minimized.
+  /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  pub fn parent(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.parent(&parent.webview.window)?;
+    Ok(self)
   }
 
   /// Set an owner to the window to be created.
@@ -590,8 +587,75 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
   #[must_use]
-  pub fn owner_window(mut self, owner: HWND) -> Self {
-    self.window_builder = self.window_builder.owner_window(owner);
+  pub fn owner(mut self, owner: &WebviewWindow<R>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.owner(&owner.webview.window)?;
+    Ok(self)
+  }
+
+  /// Set an owner to the window to be created.
+  ///
+  /// From MSDN:
+  /// - An owned window is always above its owner in the z-order.
+  /// - The system automatically destroys an owned window when its owner is destroyed.
+  /// - An owned window is hidden when its owner is minimized.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
+  #[cfg(windows)]
+  #[must_use]
+  pub fn owner_raw(mut self, owner: HWND) -> Self {
+    self.window_builder = self.window_builder.owner_raw(owner);
+    self
+  }
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  #[cfg(windows)]
+  #[must_use]
+  pub fn parent_raw(mut self, parent: HWND) -> Self {
+    self.window_builder = self.window_builder.parent_raw(parent);
+    self
+  }
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// See <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn parent_raw(mut self, parent: *mut std::ffi::c_void) -> Self {
+    self.window_builder = self.window_builder.parent_raw(parent);
+    self
+  }
+
+  /// Sets the window to be created transient for parent.
+  ///
+  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn transient_for(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.transient_for(&parent.webview.window)?;
+    Ok(self)
+  }
+
+  /// Sets the window to be created transient for parent.
+  ///
+  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self.window_builder = self.window_builder.transient_for_raw(parent);
     self
   }
 
@@ -880,7 +944,7 @@ use tauri::menu::{Menu, Submenu, MenuItem};
 tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
     let menu = Menu::with_items(handle, &[
       &Submenu::with_items(handle, "File", true, &[
         &save_menu_item,
@@ -902,7 +966,7 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     &self,
     f: F,
   ) {

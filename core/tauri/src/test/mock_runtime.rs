@@ -278,7 +278,7 @@ impl WindowBuilder for MockWindowBuilder {
     Self {}
   }
 
-  fn with_config(config: WindowConfig) -> Self {
+  fn with_config(config: &WindowConfig) -> Self {
     Self {}
   }
 
@@ -380,22 +380,33 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(windows)]
-  fn parent_window(self, parent: HWND) -> Self {
+  fn owner(self, owner: HWND) -> Self {
+    self
+  }
+
+  #[cfg(windows)]
+  fn parent(self, parent: HWND) -> Self {
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn parent_window(self, parent: *mut std::ffi::c_void) -> Self {
+  fn parent(self, parent: *mut std::ffi::c_void) -> Self {
+    self
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
     self
   }
 
   #[cfg(windows)]
-  fn owner_window(self, owner: HWND) -> Self {
-    self
-  }
-
-  #[cfg(windows)]
-  fn drag_and_drop(mut self, enabled: bool) -> Self {
+  fn drag_and_drop(self, enabled: bool) -> Self {
     self
   }
 

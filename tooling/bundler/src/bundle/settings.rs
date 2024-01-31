@@ -186,6 +186,13 @@ pub struct DebianSettings {
   pub desktop_template: Option<PathBuf>,
 }
 
+/// The Linux AppImage bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct AppImageSettings {
+  /// The files to include in the Appimage Binary.
+  pub files: HashMap<PathBuf, PathBuf>,
+}
+
 /// The RPM bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct RpmSettings {
@@ -482,6 +489,8 @@ pub struct BundleSettings {
   pub deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// AppImage-specific settings.
+  pub appimage: AppImageSettings,
   /// Rpm-specific settings.
   pub rpm: RpmSettings,
   /// DMG-specific settings.
@@ -929,6 +938,11 @@ impl Settings {
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+
+  /// Returns the appimage settings.
+  pub fn appimage(&self) -> &AppImageSettings {
+    &self.bundle_settings.appimage
   }
 
   /// Returns the RPM settings.

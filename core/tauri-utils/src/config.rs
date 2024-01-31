@@ -292,6 +292,9 @@ pub struct AppImageConfig {
   /// This increases the bundle size by ~15-35MB depending on your build system.
   #[serde(default, alias = "bundle-media-framework")]
   pub bundle_media_framework: bool,
+  /// The files to include in the Appimage Binary.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
 }
 
 /// Configuration for Debian (.deb) bundles.

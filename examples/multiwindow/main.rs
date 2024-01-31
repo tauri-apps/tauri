@@ -24,7 +24,7 @@ fn main() {
       },
       ResolvedCommand {
         windows: vec!["*".parse().unwrap()],
-        scope: None,
+        ..Default::default()
       },
     );
   }

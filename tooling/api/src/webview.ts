@@ -556,6 +556,10 @@ class WebviewWindow {
       invoke('plugin:webview|create_webview_window', {
         options: {
           ...options,
+          parent:
+            typeof options.parent === 'string'
+              ? options.parent
+              : options.parent?.label,
           label
         }
       })

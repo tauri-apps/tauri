@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-const WebviewWindow = window.__TAURI__.window.WebviewWindow
+const WebviewWindow = window.__TAURI__.webview.WebviewWindow
 
 const routeSelect = document.querySelector('#route')
 const link = document.querySelector('#link')

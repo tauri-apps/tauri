@@ -31,6 +31,7 @@ import type {
 } from './event'
 import { TauriEvent, emit, listen, once } from './event'
 import { invoke } from './core'
+import { WebviewWindow } from './webview'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -2033,7 +2034,7 @@ interface WindowOptions {
    * - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
    * - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
    */
-  parent?: Window | string
+  parent?: Window | WebviewWindow | string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

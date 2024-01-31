@@ -253,9 +253,10 @@ async fn reopen_window(app: tauri::AppHandle) {
       on_menu_event: None,
     };
 
-    #[cfg(all(desktop, unstable))]
-    if let Some(parent) = config.parent {
+    #[cfg(desktop)]
+    if let Some(parent) = &config.parent {
       let window = manager
+        .manager()
         .get_window(&parent)
         .ok_or(crate::Error::WindowNotFound)?;
       builder = builder.parent(&window)?;

@@ -65,26 +65,27 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
 
   #[cfg(target_os = "windows")]
   {
-    // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
-    for bin in settings.binaries() {
-      let bin_path = settings.binary_path(bin);
-      windows::try_sign(&bin_path, &settings)?;
-    }
+    if let Some(sign_params) = settings.sign_params() {
+      // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
+      for bin in settings.binaries() {
+        let bin_path = settings.binary_path(bin);
+        sign_params.sign(&bin_path)?;
+      }
 
-    let uses_azure_sign_tool = windows::azuresign::can_azure_sign(&settings);
+      // Sign the sidecar binaries
+      for bin in settings.external_binaries() {
+        let path = bin?;
+        let skip =
+          std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
 
-    // Sign the sidecar binaries
-    for bin in settings.external_binaries() {
-      let path = bin?;
-      let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
-
-      if !skip && !uses_azure_sign_tool && windows::sign::verify(&path)? {
-        info!(
-          "sidecar at \"{}\" already signed. Skipping...",
-          path.display()
-        )
-      } else {
-        windows::try_sign(&path, &settings)?;
+        if !skip && sign_params.verify(&path)? {
+          info!(
+            "sidecar at \"{}\" already signed. Skipping...",
+            path.display()
+          )
+        } else {
+          sign_params.sign(&path)?;
+        }
       }
     }
   }

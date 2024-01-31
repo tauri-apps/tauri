@@ -19,9 +19,6 @@ use winreg::{
   RegKey,
 };
 
-#[cfg(windows)]
-const AZURESIGNTOOL: &[u8] = include_bytes!("../../../scripts/azuresigntool.exe");
-
 /// Enum to hold the different signing params depending on the current setup. (Signtool or AzureSignTool)
 pub enum SignParams {
   SignTool(SignToolParams),
@@ -243,18 +240,12 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   Err(crate::Error::SignToolNotFound)
 }
 
-/// This is going to locate azuresigntool in the tmp directory, and if it doesn't exist, it'll copy it to there.
+/// This is check if azuresigntool is available on the users system.
 fn locate_azuresigntool() -> crate::Result<PathBuf> {
-  let mut azuresigntool = std::env::temp_dir();
-  azuresigntool.push("azuresigntool.exe");
-
-  if !azuresigntool.exists() {
-    if let Ok(mut file) = std::fs::File::create(&azuresigntool) {
-      use std::io::Write;
-      file.write_all(AZURESIGNTOOL)?;
-    }
-  }
-  Ok(azuresigntool)
+  let mut cmd = Command::new("azuresigntool.exe");
+  cmd.arg("--help");
+  let _ = cmd.output_ok()?;
+  Ok(PathBuf::from("azuresigntool.exe"))
 }
 
 impl Settings {

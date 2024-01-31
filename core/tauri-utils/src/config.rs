@@ -54,7 +54,7 @@ pub enum WebviewUrl {
   /// For instance, to load `tauri://localhost/users/john`,
   /// you can simply provide `users/john` in this configuration.
   App(PathBuf),
-  /// A custom protcol url, for example, `doom://index.html`
+  /// A custom protocol url, for example, `doom://index.html`
   CustomProtocol(Url),
 }
 

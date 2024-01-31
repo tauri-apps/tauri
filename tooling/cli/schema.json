@@ -582,7 +582,7 @@
           "type": "string"
         },
         {
-          "description": "A custom protcol url, for example, `doom://index.html`",
+          "description": "A custom protocol url, for example, `doom://index.html`",
           "type": "string",
           "format": "uri"
         }

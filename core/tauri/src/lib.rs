@@ -954,6 +954,58 @@ pub(crate) mod sealed {
   }
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub(crate) enum IconDto {
+  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
+  File(std::path::PathBuf),
+  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
+  Raw(Vec<u8>),
+  Rgba {
+    rgba: Vec<u8>,
+    width: u32,
+    height: u32,
+  },
+}
+
+impl From<IconDto> for Icon {
+  fn from(icon: IconDto) -> Self {
+    match icon {
+      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
+      IconDto::File(path) => Self::File(path),
+      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
+      IconDto::Raw(raw) => Self::Raw(raw),
+      IconDto::Rgba {
+        rgba,
+        width,
+        height,
+      } => Self::Rgba {
+        rgba,
+        width,
+        height,
+      },
+    }
+  }
+}
+
+#[allow(unused)]
+macro_rules! run_main_thread {
+  ($handle:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+    let task = move || {
+      let f = $ex;
+      let _ = tx.send(f());
+    };
+    $handle
+      .run_on_main_thread(task)
+      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
+  }};
+}
+
+#[allow(unused)]
+pub(crate) use run_main_thread;
+
 #[cfg(any(test, feature = "test"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "test")))]
 pub mod test;
@@ -998,58 +1050,6 @@ mod tests {
     }
   }
 }
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-pub(crate) enum IconDto {
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  File(std::path::PathBuf),
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  Raw(Vec<u8>),
-  Rgba {
-    rgba: Vec<u8>,
-    width: u32,
-    height: u32,
-  },
-}
-
-impl From<IconDto> for Icon {
-  fn from(icon: IconDto) -> Self {
-    match icon {
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::File(path) => Self::File(path),
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::Raw(raw) => Self::Raw(raw),
-      IconDto::Rgba {
-        rgba,
-        width,
-        height,
-      } => Self::Rgba {
-        rgba,
-        width,
-        height,
-      },
-    }
-  }
-}
-
-#[allow(unused)]
-macro_rules! run_main_thread {
-  ($self:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-    let (tx, rx) = channel();
-    let self_ = $self.clone();
-    let task = move || {
-      let f = $ex;
-      let _ = tx.send(f(self_));
-    };
-    $self.app_handle.run_on_main_thread(Box::new(task))?;
-    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
-  }};
-}
-
-#[allow(unused)]
-pub(crate) use run_main_thread;
 
 #[cfg(test)]
 mod test_utils {

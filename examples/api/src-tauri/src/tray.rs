@@ -10,15 +10,16 @@ use tauri::{
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
-  let toggle_i = MenuItem::with_id(app, "toggle", "Toggle", true, None);
-  let new_window_i = MenuItem::with_id(app, "new-window", "New window", true, None);
-  let icon_i_1 = MenuItem::with_id(app, "icon-1", "Icon 1", true, None);
-  let icon_i_2 = MenuItem::with_id(app, "icon-2", "Icon 2", true, None);
+  let toggle_i = MenuItem::with_id(app, "toggle", "Toggle", true, None::<&str>)?;
+  let new_window_i = MenuItem::with_id(app, "new-window", "New window", true, None::<&str>)?;
+  let icon_i_1 = MenuItem::with_id(app, "icon-1", "Icon 1", true, None::<&str>)?;
+  let icon_i_2 = MenuItem::with_id(app, "icon-2", "Icon 2", true, None::<&str>)?;
   #[cfg(target_os = "macos")]
-  let set_title_i = MenuItem::with_id(app, "set-title", "Set Title", true, None);
-  let switch_i = MenuItem::with_id(app, "switch-menu", "Switch Menu", true, None);
-  let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None);
-  let remove_tray_i = MenuItem::with_id(app, "remove-tray", "Remove Tray icon", true, None);
+  let set_title_i = MenuItem::with_id(app, "set-title", "Set Title", true, None::<&str>)?;
+  let switch_i = MenuItem::with_id(app, "switch-menu", "Switch Menu", true, None::<&str>)?;
+  let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+  let remove_tray_i =
+    MenuItem::with_id(app, "remove-tray", "Remove Tray icon", true, None::<&str>)?;
   let menu1 = Menu::with_items(
     app,
     &[

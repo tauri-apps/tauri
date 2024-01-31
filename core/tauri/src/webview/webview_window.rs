@@ -153,7 +153,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
   ///     let menu = Menu::with_items(handle, &[
   ///       &Submenu::with_items(handle, "File", true, &[
   ///         &save_menu_item,
@@ -880,7 +880,7 @@ use tauri::menu::{Menu, Submenu, MenuItem};
 tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
     let menu = Menu::with_items(handle, &[
       &Submenu::with_items(handle, "File", true, &[
         &save_menu_item,

@@ -15,14 +15,6 @@
         }
       ]
     },
-    "set": {
-      "description": "A list of permissions sets defined",
-      "default": [],
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/PermissionSet"
-      }
-    },
     "permission": {
       "description": "A list of inlined permissions",
       "default": [],
@@ -30,117 +22,17 @@
       "items": {
         "$ref": "#/definitions/Permission"
       }
+    },
+    "set": {
+      "description": "A list of permissions sets defined",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PermissionSet"
+      }
     }
   },
   "definitions": {
-    "DefaultPermission": {
-      "description": "The default permission set of the plugin.\n\nWorks similarly to a permission with the \"default\" identifier.",
-      "type": "object",
-      "required": [
-        "permissions"
-      ],
-      "properties": {
-        "version": {
-          "description": "The version of the permission.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 1.0
-        },
-        "description": {
-          "description": "Human-readable description of what the permission does.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "permissions": {
-          "description": "All permissions this set contains.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "PermissionSet": {
-      "description": "A set of direct permissions grouped together under a new name.",
-      "type": "object",
-      "required": [
-        "description",
-        "identifier",
-        "permissions"
-      ],
-      "properties": {
-        "identifier": {
-          "description": "A unique identifier for the permission.",
-          "type": "string"
-        },
-        "description": {
-          "description": "Human-readable description of what the permission does.",
-          "type": "string"
-        },
-        "permissions": {
-          "description": "All permissions this set contains.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/PermissionKind"
-          }
-        }
-      }
-    },
-    "Permission": {
-      "description": "Descriptions of explicit privileges of commands.\n\nIt can enable commands to be accessible in the frontend of the application.\n\nIf the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
-      "type": "object",
-      "required": [
-        "identifier"
-      ],
-      "properties": {
-        "version": {
-          "description": "The version of the permission.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 1.0
-        },
-        "identifier": {
-          "description": "A unique identifier for the permission.",
-          "type": "string"
-        },
-        "description": {
-          "description": "Human-readable description of what the permission does.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "commands": {
-          "description": "Allowed or denied commands when using this permission.",
-          "default": {
-            "allow": [],
-            "deny": []
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/Commands"
-            }
-          ]
-        },
-        "scope": {
-          "description": "Allowed or denied scoped when using this permission.",
-          "default": {},
-          "allOf": [
-            {
-              "$ref": "#/definitions/Scopes"
-            }
-          ]
-        }
-      }
-    },
     "Commands": {
       "description": "Allowed and denied commands inside a permission.\n\nIf two commands clash inside of `allow` and `deny`, it should be denied by default.",
       "type": "object",
@@ -163,70 +55,37 @@
         }
       }
     },
-    "Scopes": {
-      "description": "A restriction of the command/endpoint functionality.\n\nIt can be of any serde serializable type and is used for allowing or preventing certain actions inside a Tauri command.\n\nThe scope is passed to the command and handled/enforced by the command itself.",
+    "DefaultPermission": {
+      "description": "The default permission set of the plugin.\n\nWorks similarly to a permission with the \"default\" identifier.",
       "type": "object",
+      "required": [
+        "permissions"
+      ],
       "properties": {
-        "allow": {
-          "description": "Data that defines what is allowed by the scope.",
+        "description": {
+          "description": "Human-readable description of what the permission does.",
           "type": [
-            "array",
+            "string",
             "null"
-          ],
-          "items": {
-            "$ref": "#/definitions/Value"
-          }
-        },
-        "deny": {
-          "description": "Data that defines what is denied by the scope.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/definitions/Value"
-          }
-        }
-      }
-    },
-    "Value": {
-      "description": "All supported ACL values.",
-      "anyOf": [
-        {
-          "description": "Represents a null JSON value.",
-          "type": "null"
-        },
-        {
-          "description": "Represents a [`bool`].",
-          "type": "boolean"
-        },
-        {
-          "description": "Represents a valid ACL [`Number`].",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Number"
-            }
           ]
         },
-        {
-          "description": "Represents a [`String`].",
-          "type": "string"
-        },
-        {
-          "description": "Represents a list of other [`Value`]s.",
+        "permissions": {
+          "description": "All permissions this set contains.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/Value"
+            "type": "string"
           }
         },
-        {
-          "description": "Represents a map of [`String`] keys to [`Value`]s.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Value"
-          }
+        "version": {
+          "description": "The version of the permission.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 1.0
         }
-      ]
+      }
     },
     "Number": {
       "description": "A valid ACL number.",
@@ -242,6 +101,56 @@
           "format": "double"
         }
       ]
+    },
+    "Permission": {
+      "description": "Descriptions of explicit privileges of commands.\n\nIt can enable commands to be accessible in the frontend of the application.\n\nIf the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
+      "type": "object",
+      "required": [
+        "identifier"
+      ],
+      "properties": {
+        "commands": {
+          "description": "Allowed or denied commands when using this permission.",
+          "default": {
+            "allow": [],
+            "deny": []
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Commands"
+            }
+          ]
+        },
+        "description": {
+          "description": "Human-readable description of what the permission does.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "identifier": {
+          "description": "A unique identifier for the permission.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "Allowed or denied scoped when using this permission.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/Scopes"
+            }
+          ]
+        },
+        "version": {
+          "description": "The version of the permission.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 1.0
+        }
+      }
     },
     "PermissionKind": {
       "type": "string",
@@ -560,6 +469,97 @@
           "enum": [
             "default"
           ]
+        }
+      ]
+    },
+    "PermissionSet": {
+      "description": "A set of direct permissions grouped together under a new name.",
+      "type": "object",
+      "required": [
+        "description",
+        "identifier",
+        "permissions"
+      ],
+      "properties": {
+        "description": {
+          "description": "Human-readable description of what the permission does.",
+          "type": "string"
+        },
+        "identifier": {
+          "description": "A unique identifier for the permission.",
+          "type": "string"
+        },
+        "permissions": {
+          "description": "All permissions this set contains.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PermissionKind"
+          }
+        }
+      }
+    },
+    "Scopes": {
+      "description": "A restriction of the command/endpoint functionality.\n\nIt can be of any serde serializable type and is used for allowing or preventing certain actions inside a Tauri command.\n\nThe scope is passed to the command and handled/enforced by the command itself.",
+      "type": "object",
+      "properties": {
+        "allow": {
+          "description": "Data that defines what is allowed by the scope.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        "deny": {
+          "description": "Data that defines what is denied by the scope.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        }
+      }
+    },
+    "Value": {
+      "description": "All supported ACL values.",
+      "anyOf": [
+        {
+          "description": "Represents a null JSON value.",
+          "type": "null"
+        },
+        {
+          "description": "Represents a [`bool`].",
+          "type": "boolean"
+        },
+        {
+          "description": "Represents a valid ACL [`Number`].",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
+        },
+        {
+          "description": "Represents a [`String`].",
+          "type": "string"
+        },
+        {
+          "description": "Represents a list of other [`Value`]s.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        {
+          "description": "Represents a map of [`String`] keys to [`Value`]s.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Value"
+          }
         }
       ]
     }

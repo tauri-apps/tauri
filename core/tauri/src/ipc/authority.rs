@@ -456,7 +456,7 @@ mod tests {
     ExecutionContext,
   };
 
-  use crate::command::Origin;
+  use crate::ipc::Origin;
 
   use super::RuntimeAuthority;
 

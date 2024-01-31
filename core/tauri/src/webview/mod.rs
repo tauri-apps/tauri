@@ -27,11 +27,10 @@ pub use url::Url;
 
 use crate::{
   app::UriSchemeResponder,
-  command::{CommandArg, CommandItem, Origin},
   event::{EmitArgs, EventSource},
   ipc::{
-    CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
-    OwnedInvokeResponder,
+    CallbackFn, CommandArg, CommandItem, Invoke, InvokeBody, InvokeError, InvokeMessage,
+    InvokeResolver, Origin, OwnedInvokeResponder,
   },
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},

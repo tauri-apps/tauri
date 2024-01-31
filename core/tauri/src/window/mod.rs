@@ -14,9 +14,8 @@ pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState a
 
 use crate::{
   app::AppHandle,
-  command::{CommandArg, CommandItem},
   event::{Event, EventId, EventSource},
-  ipc::InvokeError,
+  ipc::{CommandArg, CommandItem, InvokeError},
   manager::{webview::WebviewLabelDef, AppManager},
   runtime::{
     monitor::Monitor as RuntimeMonitor,

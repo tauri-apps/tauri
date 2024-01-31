@@ -16,18 +16,18 @@ pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_macros::default_runtime;
 use tauri_utils::acl::resolved::ResolvedCommand;
 
-use crate::{
-  command::{CommandArg, CommandItem},
-  webview::Webview,
-  Runtime, StateManager,
-};
+use crate::{webview::Webview, Runtime, StateManager};
 
+mod authority;
 pub(crate) mod channel;
+mod command;
 #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 pub(crate) mod format_callback;
 pub(crate) mod protocol;
 
+pub use authority::{CommandScope, GlobalScope, Origin, RuntimeAuthority, ScopeObject, ScopeValue};
 pub use channel::{Channel, JavaScriptChannelId};
+pub use command::{private, CommandArg, CommandItem};
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;

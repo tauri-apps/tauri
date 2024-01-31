@@ -21,6 +21,8 @@ import type { LogicalPosition, LogicalSize } from './dpi'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import {
   TauriEvent,
+  // imported for documentation purposes
+  // eslint-disable-next-line
   type EventTarget,
   emit,
   emitTo,

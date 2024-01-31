@@ -25,6 +25,8 @@ import {
 import type { Event, EventName, EventCallback, UnlistenFn } from './event'
 import {
   TauriEvent,
+  // imported for documentation purposes
+  // eslint-disable-next-line
   type EventTarget,
   emit,
   emitTo,

@@ -1185,6 +1185,7 @@ pub type CreateWebviewClosure = Box<dyn FnOnce(&Window) -> Result<WebviewWrapper
 
 pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
+  RequestExit(i32),
   #[cfg(target_os = "macos")]
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
@@ -1969,6 +1970,15 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     EventProxy(self.context.proxy.clone())
   }
 
+  fn request_exit(&self, code: i32) -> Result<()> {
+    // NOTE: request_exit cannot use the `send_user_message` function because it accesses the event loop callback
+    self
+      .context
+      .proxy
+      .send_event(Message::RequestExit(code))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
   // Creates a window by dispatching a message to the event loop.
   // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
@@ -2411,6 +2421,7 @@ fn handle_user_message<T: UserEvent>(
   } = context;
   match message {
     Message::Task(task) => task(),
+    Message::RequestExit(_code) => panic!("cannot handle RequestExit on the main thread"),
     #[cfg(target_os = "macos")]
     Message::Application(application_message) => match application_message {
       ApplicationMessage::Show => {
@@ -2949,7 +2960,7 @@ fn handle_event_loop<T: UserEvent>(
               let is_empty = windows.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
-                callback(RunEvent::ExitRequested { tx });
+                callback(RunEvent::ExitRequested { code: None, tx });
 
                 let recv = rx.try_recv();
                 let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
@@ -2980,6 +2991,20 @@ fn handle_event_loop<T: UserEvent>(
       }
     }
     Event::UserEvent(message) => match message {
+      Message::RequestExit(code) => {
+        let (tx, rx) = channel();
+        callback(RunEvent::ExitRequested {
+          code: Some(code),
+          tx,
+        });
+
+        let recv = rx.try_recv();
+        let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+        if !should_prevent {
+          *control_flow = ControlFlow::Exit;
+        }
+      }
       Message::Window(id, WindowMessage::Close) => {
         on_window_close(id, windows.clone());
       }

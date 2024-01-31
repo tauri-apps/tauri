@@ -111,7 +111,7 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   // add plugin init code to main.rs or lib.rs
-  let re = Regex::new(r"(tauri\s*::\s*Builder\s*::\s*default\(\))(\s*)\.")?;
+  let re = Regex::new(r"(tauri\s*::\s*Builder\s*::\s*default\(\))(\s*)")?;
   for file in [tauri_dir.join("src/main.rs"), tauri_dir.join("src/lib.rs")] {
     let contents = std::fs::read_to_string(&file)?;
     if re.is_match(&contents) {
@@ -120,7 +120,7 @@ pub fn command(options: Options) -> Result<()> {
       } else {
         "init()"
       };
-      let replacement = format!("$1$2.plugin(tauri_plugin_{plugin_snake_case}::{plugin_init})$2.",);
+      let replacement = format!("$1$2.plugin(tauri_plugin_{plugin_snake_case}::{plugin_init})$2");
       let out = re.replace(&contents, replacement);
 
       log::info!("Adding plugin to {}", file.display());

@@ -573,7 +573,7 @@
       "description": "An URL to open on a Tauri webview window.",
       "anyOf": [
         {
-          "description": "An external URL.",
+          "description": "An external URL. Must use either the `http` or `https` schemes.",
           "type": "string",
           "format": "uri"
         },

@@ -43,12 +43,12 @@ fn default_true() -> bool {
 }
 
 /// An URL to open on a Tauri webview window.
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize, Serialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
 #[non_exhaustive]
 pub enum WebviewUrl {
-  /// An external URL.
+  /// An external URL. Must use either the `http` or `https` schemes.
   External(Url),
   /// The path portion of an app URL.
   /// For instance, to load `tauri://localhost/users/john`,
@@ -56,6 +56,31 @@ pub enum WebviewUrl {
   App(PathBuf),
   /// A custom protocol url, for example, `doom://index.html`
   CustomProtocol(Url),
+}
+
+impl<'de> Deserialize<'de> for WebviewUrl {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum WebviewUrlDeserializer {
+      Url(Url),
+      Path(PathBuf),
+    }
+
+    match WebviewUrlDeserializer::deserialize(deserializer)? {
+      WebviewUrlDeserializer::Url(u) => {
+        if u.scheme() == "https" || u.scheme() == "http" {
+          Ok(Self::External(u))
+        } else {
+          Ok(Self::CustomProtocol(u))
+        }
+      }
+      WebviewUrlDeserializer::Path(p) => Ok(Self::App(p)),
+    }
+  }
 }
 
 impl fmt::Display for WebviewUrl {

@@ -1,0 +1,1113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PermissionFile",
+  "description": "Permission file that can define a default permission, a set of permissions or a list of inlined permissions.",
+  "type": "object",
+  "properties": {
+    "default": {
+      "description": "The default permission set for the plugin",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DefaultPermission"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "permission": {
+      "description": "A list of inlined permissions",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Permission"
+      }
+    },
+    "set": {
+      "description": "A list of permissions sets defined",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PermissionSet"
+      }
+    }
+  },
+  "definitions": {
+    "Commands": {
+      "description": "Allowed and denied commands inside a permission.\n\nIf two commands clash inside of `allow` and `deny`, it should be denied by default.",
+      "type": "object",
+      "properties": {
+        "allow": {
+          "description": "Allowed command.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "deny": {
+          "description": "Denied command, which takes priority.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "DefaultPermission": {
+      "description": "The default permission set of the plugin.\n\nWorks similarly to a permission with the \"default\" identifier.",
+      "type": "object",
+      "required": [
+        "permissions"
+      ],
+      "properties": {
+        "description": {
+          "description": "Human-readable description of what the permission does.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "description": "All permissions this set contains.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "version": {
+          "description": "The version of the permission.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 1.0
+        }
+      }
+    },
+    "Number": {
+      "description": "A valid ACL number.",
+      "anyOf": [
+        {
+          "description": "Represents an [`i64`].",
+          "type": "integer",
+          "format": "int64"
+        },
+        {
+          "description": "Represents a [`f64`].",
+          "type": "number",
+          "format": "double"
+        }
+      ]
+    },
+    "Permission": {
+      "description": "Descriptions of explicit privileges of commands.\n\nIt can enable commands to be accessible in the frontend of the application.\n\nIf the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
+      "type": "object",
+      "required": [
+        "identifier"
+      ],
+      "properties": {
+        "commands": {
+          "description": "Allowed or denied commands when using this permission.",
+          "default": {
+            "allow": [],
+            "deny": []
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Commands"
+            }
+          ]
+        },
+        "description": {
+          "description": "Human-readable description of what the permission does.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "identifier": {
+          "description": "A unique identifier for the permission.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "Allowed or denied scoped when using this permission.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/Scopes"
+            }
+          ]
+        },
+        "version": {
+          "description": "The version of the permission.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 1.0
+        }
+      }
+    },
+    "PermissionKind": {
+      "type": "string",
+      "oneOf": [
+        {
+          "description": "allow-available-monitors -> Enables the available_monitors command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-available-monitors"
+          ]
+        },
+        {
+          "description": "deny-available-monitors -> Denies the available_monitors command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-available-monitors"
+          ]
+        },
+        {
+          "description": "allow-center -> Enables the center command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-center"
+          ]
+        },
+        {
+          "description": "deny-center -> Denies the center command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-center"
+          ]
+        },
+        {
+          "description": "allow-close -> Enables the close command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-close"
+          ]
+        },
+        {
+          "description": "deny-close -> Denies the close command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-close"
+          ]
+        },
+        {
+          "description": "allow-create -> Enables the create command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-create"
+          ]
+        },
+        {
+          "description": "deny-create -> Denies the create command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-create"
+          ]
+        },
+        {
+          "description": "allow-current-monitor -> Enables the current_monitor command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-current-monitor"
+          ]
+        },
+        {
+          "description": "deny-current-monitor -> Denies the current_monitor command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-current-monitor"
+          ]
+        },
+        {
+          "description": "allow-hide -> Enables the hide command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-hide"
+          ]
+        },
+        {
+          "description": "deny-hide -> Denies the hide command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-hide"
+          ]
+        },
+        {
+          "description": "allow-inner-position -> Enables the inner_position command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-inner-position"
+          ]
+        },
+        {
+          "description": "deny-inner-position -> Denies the inner_position command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-inner-position"
+          ]
+        },
+        {
+          "description": "allow-inner-size -> Enables the inner_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-inner-size"
+          ]
+        },
+        {
+          "description": "deny-inner-size -> Denies the inner_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-inner-size"
+          ]
+        },
+        {
+          "description": "allow-internal-on-mousedown -> Enables the internal_on_mousedown command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-internal-on-mousedown"
+          ]
+        },
+        {
+          "description": "deny-internal-on-mousedown -> Denies the internal_on_mousedown command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-internal-on-mousedown"
+          ]
+        },
+        {
+          "description": "allow-internal-on-mousemove -> Enables the internal_on_mousemove command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-internal-on-mousemove"
+          ]
+        },
+        {
+          "description": "deny-internal-on-mousemove -> Denies the internal_on_mousemove command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-internal-on-mousemove"
+          ]
+        },
+        {
+          "description": "allow-internal-toggle-maximize -> Enables the internal_toggle_maximize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-internal-toggle-maximize"
+          ]
+        },
+        {
+          "description": "deny-internal-toggle-maximize -> Denies the internal_toggle_maximize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-internal-toggle-maximize"
+          ]
+        },
+        {
+          "description": "allow-is-closable -> Enables the is_closable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-closable"
+          ]
+        },
+        {
+          "description": "deny-is-closable -> Denies the is_closable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-closable"
+          ]
+        },
+        {
+          "description": "allow-is-decorated -> Enables the is_decorated command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-decorated"
+          ]
+        },
+        {
+          "description": "deny-is-decorated -> Denies the is_decorated command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-decorated"
+          ]
+        },
+        {
+          "description": "allow-is-focused -> Enables the is_focused command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-focused"
+          ]
+        },
+        {
+          "description": "deny-is-focused -> Denies the is_focused command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-focused"
+          ]
+        },
+        {
+          "description": "allow-is-fullscreen -> Enables the is_fullscreen command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-fullscreen"
+          ]
+        },
+        {
+          "description": "deny-is-fullscreen -> Denies the is_fullscreen command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-fullscreen"
+          ]
+        },
+        {
+          "description": "allow-is-maximizable -> Enables the is_maximizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-maximizable"
+          ]
+        },
+        {
+          "description": "deny-is-maximizable -> Denies the is_maximizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-maximizable"
+          ]
+        },
+        {
+          "description": "allow-is-maximized -> Enables the is_maximized command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-maximized"
+          ]
+        },
+        {
+          "description": "deny-is-maximized -> Denies the is_maximized command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-maximized"
+          ]
+        },
+        {
+          "description": "allow-is-minimizable -> Enables the is_minimizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-minimizable"
+          ]
+        },
+        {
+          "description": "deny-is-minimizable -> Denies the is_minimizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-minimizable"
+          ]
+        },
+        {
+          "description": "allow-is-minimized -> Enables the is_minimized command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-minimized"
+          ]
+        },
+        {
+          "description": "deny-is-minimized -> Denies the is_minimized command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-minimized"
+          ]
+        },
+        {
+          "description": "allow-is-resizable -> Enables the is_resizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-resizable"
+          ]
+        },
+        {
+          "description": "deny-is-resizable -> Denies the is_resizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-resizable"
+          ]
+        },
+        {
+          "description": "allow-is-visible -> Enables the is_visible command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-visible"
+          ]
+        },
+        {
+          "description": "deny-is-visible -> Denies the is_visible command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-visible"
+          ]
+        },
+        {
+          "description": "allow-maximize -> Enables the maximize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-maximize"
+          ]
+        },
+        {
+          "description": "deny-maximize -> Denies the maximize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-maximize"
+          ]
+        },
+        {
+          "description": "allow-minimize -> Enables the minimize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-minimize"
+          ]
+        },
+        {
+          "description": "deny-minimize -> Denies the minimize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-minimize"
+          ]
+        },
+        {
+          "description": "allow-outer-position -> Enables the outer_position command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-outer-position"
+          ]
+        },
+        {
+          "description": "deny-outer-position -> Denies the outer_position command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-outer-position"
+          ]
+        },
+        {
+          "description": "allow-outer-size -> Enables the outer_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-outer-size"
+          ]
+        },
+        {
+          "description": "deny-outer-size -> Denies the outer_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-outer-size"
+          ]
+        },
+        {
+          "description": "allow-primary-monitor -> Enables the primary_monitor command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-primary-monitor"
+          ]
+        },
+        {
+          "description": "deny-primary-monitor -> Denies the primary_monitor command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-primary-monitor"
+          ]
+        },
+        {
+          "description": "allow-request-user-attention -> Enables the request_user_attention command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-request-user-attention"
+          ]
+        },
+        {
+          "description": "deny-request-user-attention -> Denies the request_user_attention command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-request-user-attention"
+          ]
+        },
+        {
+          "description": "allow-scale-factor -> Enables the scale_factor command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-scale-factor"
+          ]
+        },
+        {
+          "description": "deny-scale-factor -> Denies the scale_factor command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-scale-factor"
+          ]
+        },
+        {
+          "description": "allow-set-always-on-bottom -> Enables the set_always_on_bottom command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-always-on-bottom"
+          ]
+        },
+        {
+          "description": "deny-set-always-on-bottom -> Denies the set_always_on_bottom command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-always-on-bottom"
+          ]
+        },
+        {
+          "description": "allow-set-always-on-top -> Enables the set_always_on_top command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-always-on-top"
+          ]
+        },
+        {
+          "description": "deny-set-always-on-top -> Denies the set_always_on_top command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-always-on-top"
+          ]
+        },
+        {
+          "description": "allow-set-closable -> Enables the set_closable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-closable"
+          ]
+        },
+        {
+          "description": "deny-set-closable -> Denies the set_closable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-closable"
+          ]
+        },
+        {
+          "description": "allow-set-content-protected -> Enables the set_content_protected command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-content-protected"
+          ]
+        },
+        {
+          "description": "deny-set-content-protected -> Denies the set_content_protected command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-content-protected"
+          ]
+        },
+        {
+          "description": "allow-set-cursor-grab -> Enables the set_cursor_grab command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-cursor-grab"
+          ]
+        },
+        {
+          "description": "deny-set-cursor-grab -> Denies the set_cursor_grab command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-cursor-grab"
+          ]
+        },
+        {
+          "description": "allow-set-cursor-icon -> Enables the set_cursor_icon command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-cursor-icon"
+          ]
+        },
+        {
+          "description": "deny-set-cursor-icon -> Denies the set_cursor_icon command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-cursor-icon"
+          ]
+        },
+        {
+          "description": "allow-set-cursor-position -> Enables the set_cursor_position command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-cursor-position"
+          ]
+        },
+        {
+          "description": "deny-set-cursor-position -> Denies the set_cursor_position command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-cursor-position"
+          ]
+        },
+        {
+          "description": "allow-set-cursor-visible -> Enables the set_cursor_visible command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-cursor-visible"
+          ]
+        },
+        {
+          "description": "deny-set-cursor-visible -> Denies the set_cursor_visible command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-cursor-visible"
+          ]
+        },
+        {
+          "description": "allow-set-decorations -> Enables the set_decorations command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-decorations"
+          ]
+        },
+        {
+          "description": "deny-set-decorations -> Denies the set_decorations command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-decorations"
+          ]
+        },
+        {
+          "description": "allow-set-effects -> Enables the set_effects command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-effects"
+          ]
+        },
+        {
+          "description": "deny-set-effects -> Denies the set_effects command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-effects"
+          ]
+        },
+        {
+          "description": "allow-set-focus -> Enables the set_focus command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-focus"
+          ]
+        },
+        {
+          "description": "deny-set-focus -> Denies the set_focus command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-focus"
+          ]
+        },
+        {
+          "description": "allow-set-fullscreen -> Enables the set_fullscreen command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-fullscreen"
+          ]
+        },
+        {
+          "description": "deny-set-fullscreen -> Denies the set_fullscreen command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-fullscreen"
+          ]
+        },
+        {
+          "description": "allow-set-icon -> Enables the set_icon command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-icon"
+          ]
+        },
+        {
+          "description": "deny-set-icon -> Denies the set_icon command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-icon"
+          ]
+        },
+        {
+          "description": "allow-set-ignore-cursor-events -> Enables the set_ignore_cursor_events command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-ignore-cursor-events"
+          ]
+        },
+        {
+          "description": "deny-set-ignore-cursor-events -> Denies the set_ignore_cursor_events command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-ignore-cursor-events"
+          ]
+        },
+        {
+          "description": "allow-set-max-size -> Enables the set_max_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-max-size"
+          ]
+        },
+        {
+          "description": "deny-set-max-size -> Denies the set_max_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-max-size"
+          ]
+        },
+        {
+          "description": "allow-set-maximizable -> Enables the set_maximizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-maximizable"
+          ]
+        },
+        {
+          "description": "deny-set-maximizable -> Denies the set_maximizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-maximizable"
+          ]
+        },
+        {
+          "description": "allow-set-min-size -> Enables the set_min_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-min-size"
+          ]
+        },
+        {
+          "description": "deny-set-min-size -> Denies the set_min_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-min-size"
+          ]
+        },
+        {
+          "description": "allow-set-minimizable -> Enables the set_minimizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-minimizable"
+          ]
+        },
+        {
+          "description": "deny-set-minimizable -> Denies the set_minimizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-minimizable"
+          ]
+        },
+        {
+          "description": "allow-set-position -> Enables the set_position command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-position"
+          ]
+        },
+        {
+          "description": "deny-set-position -> Denies the set_position command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-position"
+          ]
+        },
+        {
+          "description": "allow-set-progress-bar -> Enables the set_progress_bar command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-progress-bar"
+          ]
+        },
+        {
+          "description": "deny-set-progress-bar -> Denies the set_progress_bar command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-progress-bar"
+          ]
+        },
+        {
+          "description": "allow-set-resizable -> Enables the set_resizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-resizable"
+          ]
+        },
+        {
+          "description": "deny-set-resizable -> Denies the set_resizable command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-resizable"
+          ]
+        },
+        {
+          "description": "allow-set-shadow -> Enables the set_shadow command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-shadow"
+          ]
+        },
+        {
+          "description": "deny-set-shadow -> Denies the set_shadow command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-shadow"
+          ]
+        },
+        {
+          "description": "allow-set-size -> Enables the set_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-size"
+          ]
+        },
+        {
+          "description": "deny-set-size -> Denies the set_size command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-size"
+          ]
+        },
+        {
+          "description": "allow-set-skip-taskbar -> Enables the set_skip_taskbar command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-skip-taskbar"
+          ]
+        },
+        {
+          "description": "deny-set-skip-taskbar -> Denies the set_skip_taskbar command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-skip-taskbar"
+          ]
+        },
+        {
+          "description": "allow-set-title -> Enables the set_title command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-title"
+          ]
+        },
+        {
+          "description": "deny-set-title -> Denies the set_title command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-title"
+          ]
+        },
+        {
+          "description": "allow-set-visible-on-all-workspaces -> Enables the set_visible_on_all_workspaces command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-visible-on-all-workspaces"
+          ]
+        },
+        {
+          "description": "deny-set-visible-on-all-workspaces -> Denies the set_visible_on_all_workspaces command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-visible-on-all-workspaces"
+          ]
+        },
+        {
+          "description": "allow-show -> Enables the show command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-show"
+          ]
+        },
+        {
+          "description": "deny-show -> Denies the show command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-show"
+          ]
+        },
+        {
+          "description": "allow-start-dragging -> Enables the start_dragging command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-start-dragging"
+          ]
+        },
+        {
+          "description": "deny-start-dragging -> Denies the start_dragging command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-start-dragging"
+          ]
+        },
+        {
+          "description": "allow-theme -> Enables the theme command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-theme"
+          ]
+        },
+        {
+          "description": "deny-theme -> Denies the theme command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-theme"
+          ]
+        },
+        {
+          "description": "allow-title -> Enables the title command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-title"
+          ]
+        },
+        {
+          "description": "deny-title -> Denies the title command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-title"
+          ]
+        },
+        {
+          "description": "allow-toggle-maximize -> Enables the toggle_maximize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-toggle-maximize"
+          ]
+        },
+        {
+          "description": "deny-toggle-maximize -> Denies the toggle_maximize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-toggle-maximize"
+          ]
+        },
+        {
+          "description": "allow-unmaximize -> Enables the unmaximize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-unmaximize"
+          ]
+        },
+        {
+          "description": "deny-unmaximize -> Denies the unmaximize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-unmaximize"
+          ]
+        },
+        {
+          "description": "allow-unminimize -> Enables the unminimize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-unminimize"
+          ]
+        },
+        {
+          "description": "deny-unminimize -> Denies the unminimize command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-unminimize"
+          ]
+        },
+        {
+          "description": "default -> Default permissions for the plugin.",
+          "type": "string",
+          "enum": [
+            "default"
+          ]
+        }
+      ]
+    },
+    "PermissionSet": {
+      "description": "A set of direct permissions grouped together under a new name.",
+      "type": "object",
+      "required": [
+        "description",
+        "identifier",
+        "permissions"
+      ],
+      "properties": {
+        "description": {
+          "description": "Human-readable description of what the permission does.",
+          "type": "string"
+        },
+        "identifier": {
+          "description": "A unique identifier for the permission.",
+          "type": "string"
+        },
+        "permissions": {
+          "description": "All permissions this set contains.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PermissionKind"
+          }
+        }
+      }
+    },
+    "Scopes": {
+      "description": "A restriction of the command/endpoint functionality.\n\nIt can be of any serde serializable type and is used for allowing or preventing certain actions inside a Tauri command.\n\nThe scope is passed to the command and handled/enforced by the command itself.",
+      "type": "object",
+      "properties": {
+        "allow": {
+          "description": "Data that defines what is allowed by the scope.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        "deny": {
+          "description": "Data that defines what is denied by the scope.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        }
+      }
+    },
+    "Value": {
+      "description": "All supported ACL values.",
+      "anyOf": [
+        {
+          "description": "Represents a null JSON value.",
+          "type": "null"
+        },
+        {
+          "description": "Represents a [`bool`].",
+          "type": "boolean"
+        },
+        {
+          "description": "Represents a valid ACL [`Number`].",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
+        },
+        {
+          "description": "Represents a [`String`].",
+          "type": "string"
+        },
+        {
+          "description": "Represents a list of other [`Value`]s.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        {
+          "description": "Represents a map of [`String`] keys to [`Value`]s.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Value"
+          }
+        }
+      ]
+    }
+  }
+}

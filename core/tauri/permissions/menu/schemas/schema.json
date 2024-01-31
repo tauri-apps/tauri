@@ -1,0 +1,567 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PermissionFile",
+  "description": "Permission file that can define a default permission, a set of permissions or a list of inlined permissions.",
+  "type": "object",
+  "properties": {
+    "default": {
+      "description": "The default permission set for the plugin",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DefaultPermission"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "permission": {
+      "description": "A list of inlined permissions",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Permission"
+      }
+    },
+    "set": {
+      "description": "A list of permissions sets defined",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PermissionSet"
+      }
+    }
+  },
+  "definitions": {
+    "Commands": {
+      "description": "Allowed and denied commands inside a permission.\n\nIf two commands clash inside of `allow` and `deny`, it should be denied by default.",
+      "type": "object",
+      "properties": {
+        "allow": {
+          "description": "Allowed command.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "deny": {
+          "description": "Denied command, which takes priority.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "DefaultPermission": {
+      "description": "The default permission set of the plugin.\n\nWorks similarly to a permission with the \"default\" identifier.",
+      "type": "object",
+      "required": [
+        "permissions"
+      ],
+      "properties": {
+        "description": {
+          "description": "Human-readable description of what the permission does.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "description": "All permissions this set contains.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "version": {
+          "description": "The version of the permission.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 1.0
+        }
+      }
+    },
+    "Number": {
+      "description": "A valid ACL number.",
+      "anyOf": [
+        {
+          "description": "Represents an [`i64`].",
+          "type": "integer",
+          "format": "int64"
+        },
+        {
+          "description": "Represents a [`f64`].",
+          "type": "number",
+          "format": "double"
+        }
+      ]
+    },
+    "Permission": {
+      "description": "Descriptions of explicit privileges of commands.\n\nIt can enable commands to be accessible in the frontend of the application.\n\nIf the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
+      "type": "object",
+      "required": [
+        "identifier"
+      ],
+      "properties": {
+        "commands": {
+          "description": "Allowed or denied commands when using this permission.",
+          "default": {
+            "allow": [],
+            "deny": []
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Commands"
+            }
+          ]
+        },
+        "description": {
+          "description": "Human-readable description of what the permission does.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "identifier": {
+          "description": "A unique identifier for the permission.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "Allowed or denied scoped when using this permission.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/Scopes"
+            }
+          ]
+        },
+        "version": {
+          "description": "The version of the permission.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 1.0
+        }
+      }
+    },
+    "PermissionKind": {
+      "type": "string",
+      "oneOf": [
+        {
+          "description": "allow-append -> Enables the append command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-append"
+          ]
+        },
+        {
+          "description": "deny-append -> Denies the append command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-append"
+          ]
+        },
+        {
+          "description": "allow-create-default -> Enables the create_default command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-create-default"
+          ]
+        },
+        {
+          "description": "deny-create-default -> Denies the create_default command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-create-default"
+          ]
+        },
+        {
+          "description": "allow-get -> Enables the get command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-get"
+          ]
+        },
+        {
+          "description": "deny-get -> Denies the get command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-get"
+          ]
+        },
+        {
+          "description": "allow-insert -> Enables the insert command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-insert"
+          ]
+        },
+        {
+          "description": "deny-insert -> Denies the insert command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-insert"
+          ]
+        },
+        {
+          "description": "allow-is-checked -> Enables the is_checked command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-checked"
+          ]
+        },
+        {
+          "description": "deny-is-checked -> Denies the is_checked command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-checked"
+          ]
+        },
+        {
+          "description": "allow-is-enabled -> Enables the is_enabled command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-is-enabled"
+          ]
+        },
+        {
+          "description": "deny-is-enabled -> Denies the is_enabled command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-is-enabled"
+          ]
+        },
+        {
+          "description": "allow-items -> Enables the items command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-items"
+          ]
+        },
+        {
+          "description": "deny-items -> Denies the items command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-items"
+          ]
+        },
+        {
+          "description": "allow-new -> Enables the new command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-new"
+          ]
+        },
+        {
+          "description": "deny-new -> Denies the new command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-new"
+          ]
+        },
+        {
+          "description": "allow-popup -> Enables the popup command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-popup"
+          ]
+        },
+        {
+          "description": "deny-popup -> Denies the popup command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-popup"
+          ]
+        },
+        {
+          "description": "allow-prepend -> Enables the prepend command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-prepend"
+          ]
+        },
+        {
+          "description": "deny-prepend -> Denies the prepend command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-prepend"
+          ]
+        },
+        {
+          "description": "allow-remove -> Enables the remove command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-remove"
+          ]
+        },
+        {
+          "description": "deny-remove -> Denies the remove command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-remove"
+          ]
+        },
+        {
+          "description": "allow-remove-at -> Enables the remove_at command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-remove-at"
+          ]
+        },
+        {
+          "description": "deny-remove-at -> Denies the remove_at command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-remove-at"
+          ]
+        },
+        {
+          "description": "allow-set-accelerator -> Enables the set_accelerator command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-accelerator"
+          ]
+        },
+        {
+          "description": "deny-set-accelerator -> Denies the set_accelerator command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-accelerator"
+          ]
+        },
+        {
+          "description": "allow-set-as-app-menu -> Enables the set_as_app_menu command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-as-app-menu"
+          ]
+        },
+        {
+          "description": "deny-set-as-app-menu -> Denies the set_as_app_menu command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-as-app-menu"
+          ]
+        },
+        {
+          "description": "allow-set-as-help-menu-for-nsapp -> Enables the set_as_help_menu_for_nsapp command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-as-help-menu-for-nsapp"
+          ]
+        },
+        {
+          "description": "deny-set-as-help-menu-for-nsapp -> Denies the set_as_help_menu_for_nsapp command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-as-help-menu-for-nsapp"
+          ]
+        },
+        {
+          "description": "allow-set-as-window-menu -> Enables the set_as_window_menu command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-as-window-menu"
+          ]
+        },
+        {
+          "description": "deny-set-as-window-menu -> Denies the set_as_window_menu command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-as-window-menu"
+          ]
+        },
+        {
+          "description": "allow-set-as-windows-menu-for-nsapp -> Enables the set_as_windows_menu_for_nsapp command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-as-windows-menu-for-nsapp"
+          ]
+        },
+        {
+          "description": "deny-set-as-windows-menu-for-nsapp -> Denies the set_as_windows_menu_for_nsapp command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-as-windows-menu-for-nsapp"
+          ]
+        },
+        {
+          "description": "allow-set-checked -> Enables the set_checked command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-checked"
+          ]
+        },
+        {
+          "description": "deny-set-checked -> Denies the set_checked command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-checked"
+          ]
+        },
+        {
+          "description": "allow-set-enabled -> Enables the set_enabled command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-enabled"
+          ]
+        },
+        {
+          "description": "deny-set-enabled -> Denies the set_enabled command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-enabled"
+          ]
+        },
+        {
+          "description": "allow-set-icon -> Enables the set_icon command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-icon"
+          ]
+        },
+        {
+          "description": "deny-set-icon -> Denies the set_icon command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-icon"
+          ]
+        },
+        {
+          "description": "allow-set-text -> Enables the set_text command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-text"
+          ]
+        },
+        {
+          "description": "deny-set-text -> Denies the set_text command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-text"
+          ]
+        },
+        {
+          "description": "allow-text -> Enables the text command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-text"
+          ]
+        },
+        {
+          "description": "deny-text -> Denies the text command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-text"
+          ]
+        },
+        {
+          "description": "default -> Default permissions for the plugin.",
+          "type": "string",
+          "enum": [
+            "default"
+          ]
+        }
+      ]
+    },
+    "PermissionSet": {
+      "description": "A set of direct permissions grouped together under a new name.",
+      "type": "object",
+      "required": [
+        "description",
+        "identifier",
+        "permissions"
+      ],
+      "properties": {
+        "description": {
+          "description": "Human-readable description of what the permission does.",
+          "type": "string"
+        },
+        "identifier": {
+          "description": "A unique identifier for the permission.",
+          "type": "string"
+        },
+        "permissions": {
+          "description": "All permissions this set contains.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PermissionKind"
+          }
+        }
+      }
+    },
+    "Scopes": {
+      "description": "A restriction of the command/endpoint functionality.\n\nIt can be of any serde serializable type and is used for allowing or preventing certain actions inside a Tauri command.\n\nThe scope is passed to the command and handled/enforced by the command itself.",
+      "type": "object",
+      "properties": {
+        "allow": {
+          "description": "Data that defines what is allowed by the scope.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        "deny": {
+          "description": "Data that defines what is denied by the scope.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        }
+      }
+    },
+    "Value": {
+      "description": "All supported ACL values.",
+      "anyOf": [
+        {
+          "description": "Represents a null JSON value.",
+          "type": "null"
+        },
+        {
+          "description": "Represents a [`bool`].",
+          "type": "boolean"
+        },
+        {
+          "description": "Represents a valid ACL [`Number`].",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
+        },
+        {
+          "description": "Represents a [`String`].",
+          "type": "string"
+        },
+        {
+          "description": "Represents a list of other [`Value`]s.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        {
+          "description": "Represents a map of [`String`] keys to [`Value`]s.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Value"
+          }
+        }
+      ]
+    }
+  }
+}

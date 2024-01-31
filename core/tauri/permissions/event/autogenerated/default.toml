@@ -5,4 +5,4 @@
 
 [default]
 description = "Default permissions for the plugin."
-permissions = ["allow-listen", "allow-unlisten", "allow-emit", "allow-emit-to"]
+permissions = ["allow-listen", "allow-unlisten", "allow-emit"]

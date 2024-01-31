@@ -1131,6 +1131,7 @@ pub enum WindowMessage {
   Show,
   Hide,
   Close,
+  Destroy,
   SetDecorations(bool),
   SetShadow(bool),
   SetAlwaysOnBottom(bool),
@@ -1642,6 +1643,15 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Close))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn destroy(&self) -> Result<()> {
+    // NOTE: destroy cannot use the `send_user_message` function because it accesses the event loop callback
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Destroy))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -2543,6 +2553,9 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
+          WindowMessage::Destroy => {
+            panic!("cannot handle `WindowMessage::Destroy` on the main thread")
+          }
           WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
           WindowMessage::SetShadow(_enable) => {
             #[cfg(windows)]
@@ -3018,6 +3031,9 @@ fn handle_event_loop<T: UserEvent>(
         }
       }
       Message::Window(id, WindowMessage::Close) => {
+        on_close_requested(callback, id, windows.clone());
+      }
+      Message::Window(id, WindowMessage::Destroy) => {
         on_window_close(id, windows.clone());
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),

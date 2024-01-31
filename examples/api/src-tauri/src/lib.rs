@@ -153,13 +153,31 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   app.run(move |_app_handle, _event| {
     #[cfg(all(desktop, not(test)))]
-    if let RunEvent::ExitRequested { api, code, .. } = &_event {
-      // Keep the event loop running even if all windows are closed
-      // This allow us to catch tray icon events when there is no window
-      // if we manually requested an exit (code is Some(_)) we will let it go through
-      if code.is_none() {
-        api.prevent_exit();
+    match &_event {
+      RunEvent::ExitRequested { api, code, .. } => {
+        // Keep the event loop running even if all windows are closed
+        // This allow us to catch tray icon events when there is no window
+        // if we manually requested an exit (code is Some(_)) we will let it go through
+        if code.is_none() {
+          api.prevent_exit();
+        }
       }
+      RunEvent::WindowEvent {
+        event: tauri::WindowEvent::CloseRequested { api, .. },
+        label,
+        ..
+      } => {
+        println!("closing window...");
+        // run the window destroy manually just for fun :)
+        // usually you'd show a dialog here to ask for confirmation or whatever
+        api.prevent_close();
+        _app_handle
+          .get_webview_window(label)
+          .unwrap()
+          .destroy()
+          .unwrap();
+      }
+      _ => (),
     }
   })
 }

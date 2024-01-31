@@ -989,6 +989,20 @@
           ]
         },
         {
+          "description": "allow-set-visible-on-all-workspaces -> Enables the set_visible_on_all_workspaces command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "allow-set-visible-on-all-workspaces"
+          ]
+        },
+        {
+          "description": "deny-set-visible-on-all-workspaces -> Denies the set_visible_on_all_workspaces command without any pre-configured scope.",
+          "type": "string",
+          "enum": [
+            "deny-set-visible-on-all-workspaces"
+          ]
+        },
+        {
           "description": "allow-show -> Enables the show command without any pre-configured scope.",
           "type": "string",
           "enum": [

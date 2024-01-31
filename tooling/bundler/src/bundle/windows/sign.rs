@@ -125,6 +125,7 @@ impl SignToolParams {
   }
 }
 /// This contains params needed for the AzureSignTool.exe
+/// These are the environment variables that need to be set:
 pub struct AzureSignToolParams {
   keyvault_uri: String,
   client_id: String,

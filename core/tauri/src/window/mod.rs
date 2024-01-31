@@ -715,6 +715,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// - An owned window is hidden when its owner is minimized.
   ///
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] for a higher level wrapper for Tauri windows.
   #[cfg(windows)]
   #[must_use]
   pub fn owner_raw(mut self, owner: HWND) -> Self {
@@ -727,6 +729,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
   ///
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] for a higher level wrapper for Tauri windows.
   #[cfg(windows)]
   #[must_use]
   pub fn parent_raw(mut self, parent: HWND) -> Self {
@@ -737,6 +741,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// Sets a parent to the window to be created.
   ///
   /// See <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] for a higher level wrapper for Tauri windows.
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn parent_raw(mut self, parent: *mut std::ffi::c_void) -> Self {
@@ -747,6 +753,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// Sets the window to be created transient for parent.
   ///
   /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] for a higher level wrapper for Tauri windows.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -762,6 +770,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// Sets the window to be created transient for parent.
   ///
   /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] and [`Self::transient_for`] for higher level wrappers for Tauri windows.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",

@@ -2120,6 +2120,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45a28f4c49489add4ce10783f7911893516f15afe45d015608d41faca6bc4d29"
 dependencies = [
  "dyn-clone",
+ "indexmap 1.9.3",
  "schemars_derive",
  "serde",
  "serde_json",

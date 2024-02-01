@@ -23,7 +23,7 @@ use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  MacOsSettings, PackageSettings, Position, RpmSettings, Size, WindowsSettings,
+  MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
 
@@ -706,6 +706,14 @@ impl AppSettings for RustAppSettings {
       features,
       config.identifier.clone(),
       config.bundle.clone(),
+      config
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|k| k.get("pubkey"))
+        .map(|v| UpdaterSettings {
+          pubkey: v.to_string(),
+        }),
       arch64bits,
     )?;
 
@@ -1074,6 +1082,7 @@ fn tauri_config_to_bundle_settings(
   features: &[String],
   identifier: String,
   config: crate::helpers::config::BundleConfig,
+  updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
@@ -1289,6 +1298,7 @@ fn tauri_config_to_bundle_settings(
     },
     license: config.license,
     license_file: config.license_file.map(|l| tauri_dir().join(l)),
+    updater: updater_config,
     ..Default::default()
   })
 }

@@ -155,6 +155,13 @@ pub struct PackageSettings {
   pub default_run: Option<String>,
 }
 
+/// The updater settings.
+#[derive(Debug, Default, Clone)]
+pub struct UpdaterSettings {
+  /// Signature public key.
+  pub pubkey: String,
+}
+
 /// The Linux debian bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct DebianSettings {
@@ -482,6 +489,8 @@ pub struct BundleSettings {
   pub dmg: DmgSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
+  /// Updater configuration.
+  pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
   pub windows: WindowsSettings,
 }
@@ -750,9 +759,9 @@ impl Settings {
       }
     };
 
-    if std::env::var_os("TAURI_SIGNING_PUBLIC_KEY").is_some() {
+    if self.is_update_enabled() {
       platform_types.push(PackageType::Updater);
-    };
+    }
 
     if let Some(package_types) = &self.package_types {
       let mut types = vec![];
@@ -955,5 +964,20 @@ impl Settings {
   /// Returns the Windows settings.
   pub fn windows(&self) -> &WindowsSettings {
     &self.bundle_settings.windows
+  }
+
+  /// Returns the Updater settings.
+  pub fn updater(&self) -> Option<&UpdaterSettings> {
+    self.bundle_settings.updater.as_ref()
+  }
+
+  /// Is update enabled
+  pub fn is_update_enabled(&self) -> bool {
+    self
+      .bundle_settings
+      .updater
+      .as_ref()
+      .map(|u| !u.pubkey.is_empty())
+      .unwrap_or_default()
   }
 }

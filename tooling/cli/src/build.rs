@@ -128,10 +128,20 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       }
     };
 
-    let updater_pub_key = var_os("TAURI_SIGNING_PUBLIC_KEY");
+    let updater_pub_key = config_
+      .plugins
+      .0
+      .get("updater")
+      .and_then(|k| k.get("pubkey"))
+      .map(|v| v.to_string());
     if let Some(types) = &package_types {
-      if updater_pub_key.is_some() && !types.contains(&PackageType::Updater) {
-        warn!("`TAURI_SIGNING_PUBLIC_KEY` is set, but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
+      if updater_pub_key
+        .as_ref()
+        .map(|v| !v.is_empty())
+        .unwrap_or(false)
+        && !types.contains(&PackageType::Updater)
+      {
+        warn!("`plugins > updater > pubkey` is set, but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
       }
     }
 
@@ -191,7 +201,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
         // check if pubkey points to a file...
         let maybe_path = Path::new(&pubkey);
         let pubkey = if maybe_path.exists() {
-          OsString::from(std::fs::read_to_string(maybe_path)?)
+          std::fs::read_to_string(maybe_path)?
         } else {
           pubkey
         };
@@ -216,7 +226,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
         _ => Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")),
       }?;
 
-        let pubkey = base64::engine::general_purpose::STANDARD.decode(pubkey.as_encoded_bytes())?;
+        let pubkey = base64::engine::general_purpose::STANDARD.decode(pubkey)?;
         let pub_key_decoded = String::from_utf8_lossy(&pubkey);
         let public_key =
           minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;

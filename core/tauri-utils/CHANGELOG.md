@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-alpha.13]
+
+### Bug Fixes
+
+- [`9b230de7`](https://www.github.com/tauri-apps/tauri/commit/9b230de7bc6690c2733f5324d50b999af1f7a6ef)([#8407](https://www.github.com/tauri-apps/tauri/pull/8407)) Fix compile error when parsing config that includes float values.
+
 ## \[2.0.0-alpha.12]
 
 ### New Features
@@ -140,7 +146,7 @@
 
 ### New Features
 
-- [`acc36fe1`](https://www.github.com/tauri-apps/tauri/commit/acc36fe1176cc8aa9063bde932abeb94796c5c72)([#6158](https://www.github.com/tauri-apps/tauri/pull/6158)) Add option to configure `require_literal_leading_dot` on `fs` and `asset` protcol scopes.
+- [`acc36fe1`](https://www.github.com/tauri-apps/tauri/commit/acc36fe1176cc8aa9063bde932abeb94796c5c72)([#6158](https://www.github.com/tauri-apps/tauri/pull/6158)) Add option to configure `require_literal_leading_dot` on `fs` and `asset` protocol scopes.
 - [`35cd751a`](https://www.github.com/tauri-apps/tauri/commit/35cd751adc6fef1f792696fa0cfb471b0bf99374)([#5176](https://www.github.com/tauri-apps/tauri/pull/5176)) Added the `desktop_template` option on `tauri.conf.json > tauri > bundle > deb`.
 - [`c4d6fb4b`](https://www.github.com/tauri-apps/tauri/commit/c4d6fb4b1ea8acf02707a9fe5dcab47c1c5bae7b)([#2353](https://www.github.com/tauri-apps/tauri/pull/2353)) Added the `maximizable`, `minimizable` and `closable` options to the window configuration.
 - [`3cb7a3e6`](https://www.github.com/tauri-apps/tauri/commit/3cb7a3e642bb10ee90dc1d24daa48b8c8c15c9ce)([#6997](https://www.github.com/tauri-apps/tauri/pull/6997)) Add `MimeType::parse_with_fallback` and `MimeType::parse_from_uri_with_fallback`

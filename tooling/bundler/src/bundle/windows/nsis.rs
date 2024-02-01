@@ -323,8 +323,16 @@ fn build_nsis_app_installer(
   let estimated_size = generate_estimated_size(&main_binary_path, &binaries, &resources)?;
   data.insert("estimated_size", to_json(estimated_size));
 
-  if let Some(file_associations) = &settings.file_associations() {
+  if let Some(file_associations) = settings.file_associations() {
     data.insert("file_associations", to_json(file_associations));
+  }
+
+  if let Some(protocols) = settings.deep_link_protocols() {
+    let schemes = protocols
+      .iter()
+      .flat_map(|p| &p.schemes)
+      .collect::<Vec<_>>();
+    data.insert("deep_link_protocols", to_json(schemes));
   }
 
   let silent_webview2_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
@@ -485,7 +493,7 @@ fn build_nsis_app_installer(
 }
 
 fn handlebars_or(
-  h: &handlebars::Helper<'_, '_>,
+  h: &handlebars::Helper<'_>,
   _: &Handlebars<'_>,
   _: &handlebars::Context,
   _: &mut handlebars::RenderContext<'_, '_>,
@@ -503,7 +511,7 @@ fn handlebars_or(
 }
 
 fn association_description(
-  h: &handlebars::Helper<'_, '_>,
+  h: &handlebars::Helper<'_>,
   _: &Handlebars<'_>,
   _: &handlebars::Context,
   _: &mut handlebars::RenderContext<'_, '_>,
@@ -628,6 +636,7 @@ fn get_lang_data(
     "japanese" => Some(include_str!("./templates/nsis-languages/Japanese.nsh")),
     "korean" => Some(include_str!("./templates/nsis-languages/Korean.nsh")),
     "portuguesebr" => Some(include_str!("./templates/nsis-languages/PortugueseBR.nsh")),
+    "russian" => Some(include_str!("./templates/nsis-languages/Russian.nsh")),
     "tradchinese" => Some(include_str!("./templates/nsis-languages/TradChinese.nsh")),
     "simpchinese" => Some(include_str!("./templates/nsis-languages/SimpChinese.nsh")),
     "french" => Some(include_str!("./templates/nsis-languages/French.nsh")),

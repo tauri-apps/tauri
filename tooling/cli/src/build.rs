@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, HookCommand, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
+    config::{get as get_config, AppUrl, HookCommand, WebviewUrl, MERGE_CONFIG_EXTENSION_NAME},
     resolve_merge_config,
     updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
@@ -156,6 +156,16 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       if config_.tauri.bundle.appimage.bundle_media_framework {
         std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
       }
+
+      if let Some(open) = config_.plugins.0.get("shell").and_then(|v| v.get("open")) {
+        if open.as_bool().is_some_and(|x| x) || open.is_string() {
+          std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");
+        }
+      }
+
+      if settings.deep_link_protocols().is_some() {
+        std::env::set_var("APPIMAGE_BUNDLE_XDG_MIME", "1");
+      }
     }
 
     let bundles = bundle_project(settings)
@@ -270,7 +280,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     )?;
   }
 
-  if let AppUrl::Url(WindowUrl::App(web_asset_path)) = &config_.build.dist_dir {
+  if let Some(AppUrl::Url(WebviewUrl::App(web_asset_path))) = &config_.build.dist_dir {
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
           "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",

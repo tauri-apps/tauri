@@ -23,8 +23,18 @@ import {
   PhysicalSize
 } from './dpi'
 import type { Event, EventName, EventCallback, UnlistenFn } from './event'
-import { TauriEvent, emit, listen, once } from './event'
+import {
+  TauriEvent,
+  // imported for documentation purposes
+  // eslint-disable-next-line
+  type EventTarget,
+  emit,
+  emitTo,
+  listen,
+  once
+} from './event'
 import { invoke } from './core'
+import { WebviewWindow } from './webview'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -45,6 +55,16 @@ export interface Monitor {
 type Theme = 'light' | 'dark'
 type TitleBarStyle = 'visible' | 'transparent' | 'overlay'
 
+type ResizeDirection =
+  | 'East'
+  | 'North'
+  | 'NorthEast'
+  | 'NorthWest'
+  | 'South'
+  | 'SouthEast'
+  | 'SouthWest'
+  | 'West'
+
 /**
  * The payload for the `scaleChange` event.
  *
@@ -56,17 +76,6 @@ interface ScaleFactorChanged {
   /** The new window size */
   size: PhysicalSize
 }
-
-interface FileDropPayload {
-  paths: string[]
-  position: PhysicalPosition
-}
-
-/** The file drop event types. */
-type FileDropEvent =
-  | ({ type: 'hover' } & FileDropPayload)
-  | ({ type: 'drop' } & FileDropPayload)
-  | { type: 'cancel' }
 
 /**
  * Attention type to request on a window.
@@ -91,15 +100,12 @@ enum UserAttentionType {
 class CloseRequestedEvent {
   /** Event name */
   event: EventName
-  /** The label of the window that emitted this event. */
-  windowLabel: string
   /** Event identifier used to unlisten */
   id: number
   private _preventDefault = false
 
   constructor(event: Event<null>) {
     this.event = event.event
-    this.windowLabel = event.windowLabel
     this.id = event.id
   }
 
@@ -219,13 +225,13 @@ function getAll(): Window[] {
 }
 
 /** @ignore */
-// events that are emitted right here instead of by the created webview
+// events that are emitted right here instead of by the created window
 const localTauriEvents = ['tauri://created', 'tauri://error']
 /** @ignore */
 export type WindowLabel = string
 
 /**
- * Create new webview window or get a handle to an existing one.
+ * Create new window or get a handle to an existing one.
  *
  * Windows are identified by a *label*  a unique identifier that can be used to reference it later.
  * It may only contain alphanumeric characters `a-zA-Z` plus the following special characters `-`, `/`, `:` and `_`.
@@ -280,8 +286,8 @@ class Window {
    * });
    * ```
    *
-   * @param label The unique webview window label. Must be alphanumeric: `a-zA-Z-/:_`.
-   * @returns The {@link Window} instance to communicate with the webview.
+   * @param label The unique window label. Must be alphanumeric: `a-zA-Z-/:_`.
+   * @returns The {@link Window} instance to communicate with the window.
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {
     this.label = label
@@ -293,6 +299,10 @@ class Window {
       invoke('plugin:window|create', {
         options: {
           ...options,
+          parent:
+            typeof options.parent === 'string'
+              ? options.parent
+              : options.parent?.label,
           label
         }
       })
@@ -302,22 +312,18 @@ class Window {
   }
 
   /**
-   * Gets the Window for the webview associated with the given label.
+   * Gets the Window associated with the given label.
    * @example
    * ```typescript
    * import { Window } from '@tauri-apps/api/window';
    * const mainWindow = Window.getByLabel('main');
    * ```
    *
-   * @param label The webview window label.
-   * @returns The Window instance to communicate with the webview or null if the webview doesn't exist.
+   * @param label The window label.
+   * @returns The Window instance to communicate with the window or null if the window doesn't exist.
    */
   static getByLabel(label: string): Window | null {
-    if (getAll().some((w) => w.label === label)) {
-      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-      return new Window(label, { skip: true })
-    }
-    return null
+    return getAll().find((w) => w.label === label) ?? null
   }
 
   /**
@@ -342,7 +348,7 @@ class Window {
    * const focusedWindow = Window.getFocusedWindow();
    * ```
    *
-   * @returns The Window instance to communicate with the webview or `undefined` if there is not any focused window.
+   * @returns The Window instance or `undefined` if there is not any focused window.
    */
   static async getFocusedWindow(): Promise<Window | null> {
     for (const w of getAll()) {
@@ -354,7 +360,7 @@ class Window {
   }
 
   /**
-   * Listen to an event emitted by the backend that is tied to the webview window.
+   * Listen to an emitted event on this window.
    *
    * @example
    * ```typescript
@@ -383,11 +389,13 @@ class Window {
         listeners.splice(listeners.indexOf(handler), 1)
       })
     }
-    return listen(event, handler, { target: this.label })
+    return listen(event, handler, {
+      target: { kind: 'Window', label: this.label }
+    })
   }
 
   /**
-   * Listen to an one-off event emitted by the backend that is tied to the webview window.
+   * Listen to an emitted event on this window only once.
    *
    * @example
    * ```typescript
@@ -413,11 +421,13 @@ class Window {
         listeners.splice(listeners.indexOf(handler), 1)
       })
     }
-    return once(event, handler, { target: this.label })
+    return once(event, handler, {
+      target: { kind: 'Window', label: this.label }
+    })
   }
 
   /**
-   * Emits an event to the backend, tied to the webview window.
+   * Emits an event to all {@link EventTarget|targets}.
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
@@ -431,11 +441,46 @@ class Window {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
-        handler({ event, id: -1, windowLabel: this.label, payload })
+        handler({
+          event,
+          id: -1,
+          payload
+        })
       }
       return Promise.resolve()
     }
-    return emit(event, payload, { target: this.label })
+    return emit(event, payload)
+  }
+
+  /**
+   * Emits an event to all {@link EventTarget|targets} matching the given target.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emitTo(
+    target: string | EventTarget,
+    event: string,
+    payload?: unknown
+  ): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return Promise.resolve()
+    }
+    return emitTo(target, event, payload)
   }
 
   /** @ignore */
@@ -1024,6 +1069,8 @@ class Window {
 
   /**
    * Closes the window.
+   *
+   * Note this emits a closeRequested event so you can intercept it. To force window close, use {@link Window.destroy}.
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
@@ -1034,6 +1081,22 @@ class Window {
    */
   async close(): Promise<void> {
     return invoke('plugin:window|close', {
+      label: this.label
+    })
+  }
+
+  /**
+   * Destroys the window. Behaves like {@link Window.close} but forces the window close instead of emitting a closeRequested event.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().destroy();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async destroy(): Promise<void> {
+    return invoke('plugin:window|destroy', {
       label: this.label
     })
   }
@@ -1508,6 +1571,23 @@ class Window {
   }
 
   /**
+   * Starts resize-dragging the window.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().startResizeDragging();
+   * ```
+   *
+   * @return A promise indicating the success or failure of the operation.
+   */
+  async startResizeDragging(direction: ResizeDirection): Promise<void> {
+    return invoke('plugin:window|start_resize_dragging', {
+      label: this.label,
+      value: direction
+    })
+  }
+
+  /**
    * Sets the taskbar progress state.
    *
    * #### Platform-specific
@@ -1530,6 +1610,22 @@ class Window {
     return invoke('plugin:window|set_progress_bar', {
       label: this.label,
       value: state
+    })
+  }
+
+  /**
+   * Sets whether the window should be visible on all workspaces or virtual desktops.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows / iOS / Android:** Unsupported.
+   *
+   * @since 2.0.0
+   */
+  async setVisibleOnAllWorkspaces(visible: boolean): Promise<void> {
+    return invoke('plugin:window|set_visible_on_all_workspaces', {
+      label: this.label,
+      value: visible
     })
   }
 
@@ -1613,7 +1709,7 @@ class Window {
       const evt = new CloseRequestedEvent(event)
       void Promise.resolve(handler(evt)).then(() => {
         if (!evt.isPreventDefault()) {
-          return this.close()
+          return this.destroy()
         }
       })
     })
@@ -1684,76 +1780,6 @@ class Window {
       TauriEvent.WINDOW_SCALE_FACTOR_CHANGED,
       handler
     )
-  }
-
-  /**
-   * Listen to a file drop event.
-   * The listener is triggered when the user hovers the selected files on the window,
-   * drops the files or cancels the operation.
-   *
-   * @example
-   * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
-   * const unlisten = await getCurrent().onFileDropEvent((event) => {
-   *  if (event.payload.type === 'hover') {
-   *    console.log('User hovering', event.payload.paths);
-   *  } else if (event.payload.type === 'drop') {
-   *    console.log('User dropped', event.payload.paths);
-   *  } else {
-   *    console.log('File drop cancelled');
-   *  }
-   * });
-   *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
-   * ```
-   *
-   * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   */
-  async onFileDropEvent(
-    handler: EventCallback<FileDropEvent>
-  ): Promise<UnlistenFn> {
-    const unlistenFileDrop = await this.listen<FileDropPayload>(
-      TauriEvent.WINDOW_FILE_DROP,
-      (event) => {
-        handler({
-          ...event,
-          payload: {
-            type: 'drop',
-            paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
-          }
-        })
-      }
-    )
-
-    const unlistenFileHover = await this.listen<FileDropPayload>(
-      TauriEvent.WINDOW_FILE_DROP_HOVER,
-      (event) => {
-        handler({
-          ...event,
-          payload: {
-            type: 'hover',
-            paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
-          }
-        })
-      }
-    )
-
-    const unlistenCancel = await this.listen<null>(
-      TauriEvent.WINDOW_FILE_DROP_CANCELLED,
-      (event) => {
-        handler({ ...event, payload: { type: 'cancel' } })
-      }
-    )
-
-    return () => {
-      unlistenFileDrop()
-      unlistenFileHover()
-      unlistenCancel()
-    }
   }
 
   /**
@@ -1964,16 +1990,6 @@ interface Effects {
  * @since 1.0.0
  */
 interface WindowOptions {
-  /**
-   * Remote URL or local file path to open.
-   *
-   * - URL such as `https://github.com/tauri-apps` is opened directly on a Tauri window.
-   * - data: URL such as `data:text/html,<html>...` is only supported with the `window-data-url` Cargo feature for the `tauri` dependency.
-   * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
-   */
-  url?: string
-  /** The proxy URL for the WebView for all network requests. */
-  proxyUrl?: string
   /** Show window in the center of the screen.. */
   center?: boolean
   /** The initial vertical position. Only applies if `y` is also set. */
@@ -2035,12 +2051,6 @@ interface WindowOptions {
    */
   shadow?: boolean
   /**
-   * Whether the file drop is enabled or not on the webview. By default it is enabled.
-   *
-   * Disabling it is required to use drag and drop on the frontend on Windows.
-   */
-  fileDropEnabled?: boolean
-  /**
    * The initial window theme. Defaults to the system theme.
    *
    * Only implemented on Windows and macOS 10.14+.
@@ -2055,28 +2065,12 @@ interface WindowOptions {
    */
   hiddenTitle?: boolean
   /**
-   * Whether clicking an inactive window also clicks through to the webview on macOS.
-   */
-  acceptFirstMouse?: boolean
-  /**
    * Defines the window [tabbing identifier](https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier) on macOS.
    *
    * Windows with the same tabbing identifier will be grouped together.
    * If the tabbing identifier is not set, automatic tabbing will be disabled.
    */
   tabbingIdentifier?: string
-  /**
-   * The user agent for the webview.
-   */
-  userAgent?: string
-  /**
-   * Whether or not the webview should be launched in incognito mode.
-   *
-   * #### Platform-specific
-   *
-   * - **Android:** Unsupported.
-   */
-  incognito?: boolean
   /**
    * Whether the window's native maximize button is enabled or not. Defaults to `true`.
    */
@@ -2089,6 +2083,29 @@ interface WindowOptions {
    * Whether the window's native close button is enabled or not. Defaults to `true`.
    */
   closable?: boolean
+  /**
+   * Sets a parent to the window to be created. Can be either a {@linkcode Window} or a label of the window.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows**: This sets the passed parent as an owner window to the window to be created.
+   *   From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows):
+   *     - An owned window is always above its owner in the z-order.
+   *     - The system automatically destroys an owned window when its owner is destroyed.
+   *     - An owned window is hidden when its owner is minimized.
+   * - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+   * - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+   */
+  parent?: Window | WebviewWindow | string
+  /** Whether the window should be visible on all workspaces or virtual desktops.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows / iOS / Android:** Unsupported.
+   *
+   * @since 2.0.0
+   */
+  visibleOnAllWorkspaces?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
@@ -2182,8 +2199,6 @@ export type {
   Theme,
   TitleBarStyle,
   ScaleFactorChanged,
-  FileDropPayload,
-  FileDropEvent,
   WindowOptions,
   Color
 }

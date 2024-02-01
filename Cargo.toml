@@ -10,9 +10,11 @@ members = [
   "core/tauri-build",
   "core/tauri-codegen",
   "core/tauri-config-schema",
+  "core/tauri-plugin",
 
   # integration tests
   "core/tests/restart",
+  "core/tests/acl",
 ]
 
 exclude = [
@@ -22,6 +24,7 @@ exclude = [
   "examples/web/core",
   "examples/file-associations/src-tauri",
   "examples/workspace",
+  "examples/plugins/tauri-plugin-example",
 ]
 
 [workspace.package]

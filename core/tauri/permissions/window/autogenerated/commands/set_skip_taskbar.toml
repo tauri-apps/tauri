@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-set-skip-taskbar"
+description = "Enables the set_skip_taskbar command without any pre-configured scope."
+commands.allow = ["set_skip_taskbar"]
+
+[[permission]]
+identifier = "deny-set-skip-taskbar"
+description = "Denies the set_skip_taskbar command without any pre-configured scope."
+commands.deny = ["set_skip_taskbar"]

@@ -20,10 +20,14 @@ type HttpClient = Client<hyper::client::HttpConnector>;
 const TAURI_OPTIONS: &str = "tauri:options";
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct TauriOptions {
   application: PathBuf,
   #[serde(default)]
   args: Vec<String>,
+  #[cfg(target_os = "windows")]
+  #[serde(default)]
+  webview_options: Option<Value>,
 }
 
 impl TauriOptions {
@@ -44,7 +48,7 @@ impl TauriOptions {
     map.insert("browserName".into(), json!("webview2"));
     map.insert(
       "ms:edgeOptions".into(),
-      json!({"binary": self.application, "args": self.args}),
+      json!({"binary": self.application, "args": self.args, "webviewOptions": self.webview_options}),
     );
     map
   }

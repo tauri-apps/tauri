@@ -18,20 +18,23 @@ use cargo_toml::Manifest;
 use heck::AsShoutySnakeCase;
 
 use tauri_utils::{
+  acl::build::parse_capabilities,
   config::{BundleResources, Config, WebviewInstallMode},
   resources::{external_binaries, ResourcePaths},
 };
 
 use std::{
   env::var_os,
+  fs::copy,
   path::{Path, PathBuf},
 };
 
-mod allowlist;
+mod acl;
 #[cfg(feature = "codegen")]
 mod codegen;
 /// Tauri configuration functions.
 pub mod config;
+mod manifest;
 /// Mobile build functions.
 pub mod mobile;
 mod static_vcruntime;
@@ -39,6 +42,9 @@ mod static_vcruntime;
 #[cfg(feature = "codegen")]
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
+
+const PLUGIN_MANIFESTS_FILE_NAME: &str = "plugin-manifests.json";
+const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 
 fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   let from = from.as_ref();
@@ -333,6 +339,9 @@ impl WindowsAttributes {
 pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,
+  capabilities_path_pattern: Option<&'static str>,
+  #[cfg(feature = "codegen")]
+  codegen: Option<codegen::context::CodegenContext>,
 }
 
 impl Attributes {
@@ -345,6 +354,21 @@ impl Attributes {
   #[must_use]
   pub fn windows_attributes(mut self, windows_attributes: WindowsAttributes) -> Self {
     self.windows_attributes = windows_attributes;
+    self
+  }
+
+  /// Set the glob pattern to be used to find the capabilities.
+  #[must_use]
+  pub fn capabilities_path_pattern(mut self, pattern: &'static str) -> Self {
+    self.capabilities_path_pattern.replace(pattern);
+    self
+  }
+
+  #[cfg(feature = "codegen")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
+  #[must_use]
+  pub fn codegen(mut self, codegen: codegen::context::CodegenContext) -> Self {
+    self.codegen.replace(codegen);
     self
   }
 }
@@ -399,8 +423,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
 
+  let target_triple = std::env::var("TARGET").unwrap();
+  let target = tauri_utils::platform::Target::from_triple(&target_triple);
+
   let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
-    tauri_utils::platform::Target::from_triple(&std::env::var("TARGET").unwrap()),
+    target,
     std::env::current_dir().unwrap(),
   )?)?;
   if let Ok(env) = std::env::var("TAURI_CONFIG") {
@@ -441,13 +468,29 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
   }
 
-  allowlist::check(&config, &mut manifest)?;
+  let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
 
-  let target_triple = std::env::var("TARGET").unwrap();
+  manifest::check(&config, &mut manifest)?;
+  let plugin_manifests = acl::get_plugin_manifests()?;
+  std::fs::write(
+    out_dir.join(PLUGIN_MANIFESTS_FILE_NAME),
+    serde_json::to_string(&plugin_manifests)?,
+  )?;
+  let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
+    parse_capabilities(pattern)?
+  } else {
+    parse_capabilities("./capabilities/**/*")?
+  };
+  acl::generate_schema(&plugin_manifests, target)?;
+  acl::validate_capabilities(&plugin_manifests, &capabilities)?;
+
+  let capabilities_path = acl::save_capabilities(&capabilities)?;
+  copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
+
+  acl::save_plugin_manifests(&plugin_manifests)?;
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
 
-  let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
   let target_dir = out_dir
     .parent()
@@ -609,6 +652,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       }
       _ => (),
     }
+  }
+
+  #[cfg(feature = "codegen")]
+  if let Some(codegen) = attributes.codegen {
+    codegen.try_build()?;
   }
 
   Ok(())

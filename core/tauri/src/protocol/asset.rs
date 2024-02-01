@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{path::SafePathBuf, scope, window::UriSchemeProtocolHandler};
+use crate::{path::SafePathBuf, scope, webview::UriSchemeProtocolHandler};
 use http::{header::*, status::StatusCode, Request, Response};
 use http_range::HttpRange;
 use std::{borrow::Cow, io::SeekFrom};

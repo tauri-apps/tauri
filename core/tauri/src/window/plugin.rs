@@ -12,14 +12,17 @@ use crate::{
 #[cfg(desktop)]
 mod desktop_commands {
   use serde::Deserialize;
+  use tauri_runtime::ResizeDirection;
   use tauri_utils::ProgressBarState;
 
   use super::*;
   use crate::{
     command,
+    sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
-    AppHandle, CursorIcon, Icon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
-    Theme, UserAttentionType, Window, WindowBuilder,
+    window::WindowBuilder,
+    AppHandle, CursorIcon, Icon, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
+    UserAttentionType, Window,
   };
 
   #[derive(Deserialize)]
@@ -58,13 +61,16 @@ mod desktop_commands {
 
   #[command(root = "crate")]
   pub async fn create<R: Runtime>(app: AppHandle<R>, options: WindowConfig) -> crate::Result<()> {
-    WindowBuilder::from_config(&app, options).build()?;
+    WindowBuilder::from_config(&app, &options)?.build()?;
     Ok(())
   }
 
   fn get_window<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<Window<R>> {
     match label {
-      Some(l) if !l.is_empty() => window.get_window(&l).ok_or(crate::Error::WindowNotFound),
+      Some(l) if !l.is_empty() => window
+        .manager()
+        .get_window(&l)
+        .ok_or(crate::Error::WindowNotFound),
       _ => Ok(window),
     }
   }
@@ -136,6 +142,7 @@ mod desktop_commands {
   setter!(show);
   setter!(hide);
   setter!(close);
+  setter!(destroy);
   setter!(set_decorations, bool);
   setter!(set_shadow, bool);
   setter!(set_effects, Option<WindowEffectsConfig>);
@@ -155,8 +162,9 @@ mod desktop_commands {
   setter!(set_cursor_position, Position);
   setter!(set_ignore_cursor_events, bool);
   setter!(start_dragging);
+  setter!(start_resize_dragging, ResizeDirection);
   setter!(set_progress_bar, ProgressBarState);
-  setter!(print);
+  setter!(set_visible_on_all_workspaces, bool);
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
@@ -197,18 +205,112 @@ mod desktop_commands {
     Ok(())
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  #[command(root = "crate")]
-  pub async fn internal_toggle_devtools<R: Runtime>(
-    window: Window<R>,
-    label: Option<String>,
-  ) -> crate::Result<()> {
-    let window = get_window(window, label)?;
-    if window.is_devtools_open() {
-      window.close_devtools();
-    } else {
-      window.open_devtools();
+  #[derive(Debug)]
+  enum HitTestResult {
+    Client,
+    Left,
+    Right,
+    Top,
+    Bottom,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    NoWhere,
+  }
+
+  impl HitTestResult {
+    fn drag_resize_window<R: Runtime>(&self, window: &Window<R>) {
+      let _ = window.start_resize_dragging(match self {
+        HitTestResult::Left => ResizeDirection::West,
+        HitTestResult::Right => ResizeDirection::East,
+        HitTestResult::Top => ResizeDirection::North,
+        HitTestResult::Bottom => ResizeDirection::South,
+        HitTestResult::TopLeft => ResizeDirection::NorthWest,
+        HitTestResult::TopRight => ResizeDirection::NorthEast,
+        HitTestResult::BottomLeft => ResizeDirection::SouthWest,
+        HitTestResult::BottomRight => ResizeDirection::SouthEast,
+        _ => unreachable!(),
+      });
     }
+
+    fn change_cursor<R: Runtime>(&self, window: &Window<R>) {
+      let _ = window.set_cursor_icon(match self {
+        HitTestResult::Left => CursorIcon::WResize,
+        HitTestResult::Right => CursorIcon::EResize,
+        HitTestResult::Top => CursorIcon::NResize,
+        HitTestResult::Bottom => CursorIcon::SResize,
+        HitTestResult::TopLeft => CursorIcon::NwResize,
+        HitTestResult::TopRight => CursorIcon::NeResize,
+        HitTestResult::BottomLeft => CursorIcon::SwResize,
+        HitTestResult::BottomRight => CursorIcon::SeResize,
+        _ => CursorIcon::Default,
+      });
+    }
+  }
+
+  fn hit_test(window_size: PhysicalSize<u32>, x: i32, y: i32, scale: f64) -> HitTestResult {
+    const BORDERLESS_RESIZE_INSET: f64 = 5.0;
+
+    const CLIENT: isize = 0b0000;
+    const LEFT: isize = 0b0001;
+    const RIGHT: isize = 0b0010;
+    const TOP: isize = 0b0100;
+    const BOTTOM: isize = 0b1000;
+    const TOPLEFT: isize = TOP | LEFT;
+    const TOPRIGHT: isize = TOP | RIGHT;
+    const BOTTOMLEFT: isize = BOTTOM | LEFT;
+    const BOTTOMRIGHT: isize = BOTTOM | RIGHT;
+
+    let top = 0;
+    let left = 0;
+    let bottom = top + window_size.height as i32;
+    let right = left + window_size.width as i32;
+
+    let inset = (BORDERLESS_RESIZE_INSET * scale) as i32;
+
+    #[rustfmt::skip]
+        let result =
+            (LEFT * (if x < (left + inset) { 1 } else { 0 }))
+          | (RIGHT * (if x >= (right - inset) { 1 } else { 0 }))
+          | (TOP * (if y < (top + inset) { 1 } else { 0 }))
+          | (BOTTOM * (if y >= (bottom - inset) { 1 } else { 0 }));
+
+    match result {
+      CLIENT => HitTestResult::Client,
+      LEFT => HitTestResult::Left,
+      RIGHT => HitTestResult::Right,
+      TOP => HitTestResult::Top,
+      BOTTOM => HitTestResult::Bottom,
+      TOPLEFT => HitTestResult::TopLeft,
+      TOPRIGHT => HitTestResult::TopRight,
+      BOTTOMLEFT => HitTestResult::BottomLeft,
+      BOTTOMRIGHT => HitTestResult::BottomRight,
+      _ => HitTestResult::NoWhere,
+    }
+  }
+
+  #[command(root = "crate")]
+  pub async fn internal_on_mousemove<R: Runtime>(
+    window: Window<R>,
+    x: i32,
+    y: i32,
+  ) -> crate::Result<()> {
+    hit_test(window.inner_size()?, x, y, window.scale_factor()?).change_cursor(&window);
+    Ok(())
+  }
+
+  #[command(root = "crate")]
+  pub async fn internal_on_mousedown<R: Runtime>(
+    window: Window<R>,
+    x: i32,
+    y: i32,
+  ) -> crate::Result<()> {
+    let res = hit_test(window.inner_size()?, x, y, window.scale_factor()?);
+    match res {
+      HitTestResult::Client | HitTestResult::NoWhere => {}
+      _ => res.drag_resize_window(&window),
+    };
     Ok(())
   }
 }
@@ -218,11 +320,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 
   let mut init_script = String::new();
-  // window.print works on Linux/Windows; need to use the API on macOS
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  {
-    init_script.push_str(include_str!("./scripts/print.js"));
-  }
 
   #[derive(Template)]
   #[default_template("./scripts/drag.js")]
@@ -239,23 +336,20 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     .into_string(),
   );
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  {
-    #[derive(Template)]
-    #[default_template("./scripts/toggle-devtools.js")]
-    struct Devtools<'a> {
-      os_name: &'a str,
-    }
-
-    init_script.push_str(
-      &Devtools {
-        os_name: std::env::consts::OS,
-      }
-      .render_default(&Default::default())
-      .unwrap()
-      .into_string(),
-    );
+  #[derive(Template)]
+  #[default_template("./scripts/undecorated-resizing.js")]
+  struct UndecoratedResizingJavascript<'a> {
+    os_name: &'a str,
   }
+
+  init_script.push_str(
+    &UndecoratedResizingJavascript {
+      os_name: std::env::consts::OS,
+    }
+    .render_default(&Default::default())
+    .unwrap()
+    .into_string(),
+  );
 
   Builder::new("window")
     .js_init_script(init_script)
@@ -301,6 +395,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::show,
             desktop_commands::hide,
             desktop_commands::close,
+            desktop_commands::destroy,
             desktop_commands::set_decorations,
             desktop_commands::set_shadow,
             desktop_commands::set_effects,
@@ -320,13 +415,14 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_cursor_position,
             desktop_commands::set_ignore_cursor_events,
             desktop_commands::start_dragging,
+            desktop_commands::start_resize_dragging,
             desktop_commands::set_progress_bar,
-            desktop_commands::print,
             desktop_commands::set_icon,
+            desktop_commands::set_visible_on_all_workspaces,
             desktop_commands::toggle_maximize,
             desktop_commands::internal_toggle_maximize,
-            #[cfg(any(debug_assertions, feature = "devtools"))]
-            desktop_commands::internal_toggle_devtools,
+            desktop_commands::internal_on_mousemove,
+            desktop_commands::internal_on_mousedown,
           ]);
         handler(invoke)
       }

@@ -6,10 +6,11 @@
 use log::debug;
 
 use std::{
+  collections::HashMap,
   ffi::OsStr,
   fs::{self, File},
   io::{self, BufRead, BufReader, BufWriter},
-  path::Path,
+  path::{Path, PathBuf},
   process::{Command, ExitStatus, Output, Stdio},
   sync::{Arc, Mutex},
 };
@@ -103,9 +104,7 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
     )));
   }
   if to.exists() {
-    return Err(crate::Error::GenericError(format!(
-      "{from:?} already exists"
-    )));
+    return Err(crate::Error::GenericError(format!("{to:?} already exists")));
   }
   let parent = to.parent().expect("No data in parent");
   fs::create_dir_all(parent)?;
@@ -125,6 +124,32 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
       fs::create_dir(dest_path)?;
     } else {
       fs::copy(entry.path(), dest_path)?;
+    }
+  }
+  Ok(())
+}
+
+/// Copies user-defined files specified in the configuration file to the package.
+///
+/// The configuration object maps the path in the package to the path of the file on the filesystem,
+/// relative to the tauri.conf.json file.
+///
+/// Expects a HashMap of PathBuf entries, representing destination and source paths,
+/// and also a path of a directory. The files will be stored with respect to this directory.
+pub fn copy_custom_files(
+  files_map: &HashMap<PathBuf, PathBuf>,
+  data_dir: &Path,
+) -> crate::Result<()> {
+  for (pkg_path, path) in files_map.iter() {
+    let pkg_path = if pkg_path.is_absolute() {
+      pkg_path.strip_prefix("/").unwrap()
+    } else {
+      pkg_path
+    };
+    if path.is_file() {
+      copy_file(path, data_dir.join(pkg_path))?;
+    } else {
+      copy_dir(path, &data_dir.join(pkg_path))?;
     }
   }
   Ok(())

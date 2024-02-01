@@ -125,16 +125,26 @@ pub fn generate_desktop_file(
     mime_type: Option<String>,
   }
 
-  let mime_type = if let Some(associations) = settings.file_associations() {
-    let mime_types: Vec<&str> = associations
-      .iter()
-      .filter_map(|association| association.mime_type.as_ref())
-      .map(|s| s.as_str())
-      .collect();
-    Some(mime_types.join(";"))
-  } else {
-    None
-  };
+  let mut mime_type: Vec<String> = Vec::new();
+
+  if let Some(associations) = settings.file_associations() {
+    mime_type.extend(
+      associations
+        .iter()
+        .filter_map(|association| association.mime_type.clone()),
+    );
+  }
+
+  if let Some(protocols) = settings.deep_link_protocols() {
+    mime_type.extend(
+      protocols
+        .iter()
+        .flat_map(|protocol| &protocol.schemes)
+        .map(|s| format!("x-scheme-handler/{s}")),
+    );
+  }
+
+  let mime_type = (!mime_type.is_empty()).then_some(mime_type.join(";"));
 
   handlebars.render_to_write(
     "main.desktop",

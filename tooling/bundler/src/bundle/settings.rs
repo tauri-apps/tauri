@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, FileAssociation, NSISInstallerMode, NsisCompression},
+  config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -184,6 +184,13 @@ pub struct DebianSettings {
   #[doc = include_str!("./linux/templates/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
+}
+
+/// The Linux AppImage bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct AppImageSettings {
+  /// The files to include in the Appimage Binary.
+  pub files: HashMap<PathBuf, PathBuf>,
 }
 
 /// The RPM bundle settings.
@@ -478,8 +485,12 @@ pub struct BundleSettings {
   /// e.g. `sqlite3-universal-apple-darwin`. See
   /// <https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary>
   pub external_bin: Option<Vec<String>>,
+  /// Deep-link protocols.
+  pub deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// AppImage-specific settings.
+  pub appimage: AppImageSettings,
   /// Rpm-specific settings.
   pub rpm: RpmSettings,
   /// DMG-specific settings.
@@ -900,8 +911,14 @@ impl Settings {
   }
 
   /// Return file associations.
-  pub fn file_associations(&self) -> &Option<Vec<FileAssociation>> {
-    &self.bundle_settings.file_associations
+  pub fn file_associations(&self) -> Option<&Vec<FileAssociation>> {
+    self.bundle_settings.file_associations.as_ref()
+  }
+
+  /// Return the list of deep link protocols to be registered for
+  /// this bundle.
+  pub fn deep_link_protocols(&self) -> Option<&Vec<DeepLinkProtocol>> {
+    self.bundle_settings.deep_link_protocols.as_ref()
   }
 
   /// Returns the app's short description.
@@ -921,6 +938,11 @@ impl Settings {
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+
+  /// Returns the appimage settings.
+  pub fn appimage(&self) -> &AppImageSettings {
+    &self.bundle_settings.appimage
   }
 
   /// Returns the RPM settings.

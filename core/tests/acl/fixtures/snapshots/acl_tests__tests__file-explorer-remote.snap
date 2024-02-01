@@ -1,0 +1,145 @@
+---
+source: core/tests/acl/src/lib.rs
+assertion_line: 59
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        CommandKey {
+            name: "plugin:fs|read_dir",
+            context: Remote {
+                domain: Pattern {
+                    original: "tauri.app",
+                    tokens: [
+                        Char(
+                            't',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'u',
+                        ),
+                        Char(
+                            'r',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            '.',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            },
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: None,
+        },
+        CommandKey {
+            name: "plugin:fs|read_file",
+            context: Remote {
+                domain: Pattern {
+                    original: "tauri.app",
+                    tokens: [
+                        Char(
+                            't',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'u',
+                        ),
+                        Char(
+                            'r',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            '.',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            },
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: None,
+        },
+    },
+    denied_commands: {},
+    command_scope: {},
+    global_scope: {
+        "fs": ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$APP",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+    },
+}

@@ -9,8 +9,8 @@ mod tray;
 use serde::Serialize;
 use tauri::{
   ipc::Channel,
-  window::{PageLoadEvent, WindowBuilder},
-  App, AppHandle, Manager, RunEvent, Runtime, WindowUrl,
+  webview::{PageLoadEvent, WebviewWindowBuilder},
+  App, AppHandle, Manager, RunEvent, Runtime, WebviewUrl,
 };
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
@@ -41,7 +41,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   let mut builder = builder
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       {
         let handle = app.handle();
         tray::create_tray(handle)?;
@@ -51,7 +51,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       #[cfg(target_os = "macos")]
       app.manage(AppMenu::<R>(Default::default()));
 
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       app.manage(PopupMenu(
         tauri::menu::MenuBuilder::new(app)
           .check("check", "Tauri is awesome!")
@@ -60,8 +60,9 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
-      let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());
-      #[cfg(desktop)]
+      let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
+
+      #[cfg(all(desktop, not(test)))]
       {
         window_builder = window_builder
           .title("Tauri API Validation")
@@ -71,10 +72,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .menu(tauri::menu::Menu::default(app.handle())?);
       }
 
-      let window = window_builder.build().unwrap();
+      let webview = window_builder.build()?;
 
       #[cfg(debug_assertions)]
-      window.open_devtools();
+      webview.open_devtools();
 
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {
@@ -118,16 +119,16 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       Ok(())
     })
-    .on_page_load(|window, payload| {
+    .on_page_load(|webview, payload| {
       if payload.event() == PageLoadEvent::Finished {
-        let window_ = window.clone();
-        window.listen("js-event", move |event| {
+        let webview_ = webview.clone();
+        webview.listen("js-event", move |event| {
           println!("got js-event with message '{:?}'", event.payload());
           let reply = Reply {
             data: "something else".to_string(),
           };
 
-          window_
+          webview_
             .emit("rust-event", Some(reply))
             .expect("failed to emit");
         });
@@ -152,10 +153,31 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   app.run(move |_app_handle, _event| {
     #[cfg(all(desktop, not(test)))]
-    if let RunEvent::ExitRequested { api, .. } = &_event {
-      // Keep the event loop running even if all windows are closed
-      // This allow us to catch tray icon events when there is no window
-      api.prevent_exit();
+    match &_event {
+      RunEvent::ExitRequested { api, code, .. } => {
+        // Keep the event loop running even if all windows are closed
+        // This allow us to catch tray icon events when there is no window
+        // if we manually requested an exit (code is Some(_)) we will let it go through
+        if code.is_none() {
+          api.prevent_exit();
+        }
+      }
+      RunEvent::WindowEvent {
+        event: tauri::WindowEvent::CloseRequested { api, .. },
+        label,
+        ..
+      } => {
+        println!("closing window...");
+        // run the window destroy manually just for fun :)
+        // usually you'd show a dialog here to ask for confirmation or whatever
+        api.prevent_close();
+        _app_handle
+          .get_webview_window(label)
+          .unwrap()
+          .destroy()
+          .unwrap();
+      }
+      _ => (),
     }
   })
 }
@@ -167,7 +189,7 @@ mod tests {
   #[test]
   fn run_app() {
     super::run_app(tauri::test::mock_builder(), |app| {
-      let window = app.get_window("main").unwrap();
+      let window = app.get_webview_window("main").unwrap();
       std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(1));
         window.close().unwrap();

@@ -1,0 +1,149 @@
+---
+source: core/tests/acl/src/lib.rs
+assertion_line: 59
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        CommandKey {
+            name: "plugin:fs|move",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: Some(
+                18088007599891946824,
+            ),
+        },
+        CommandKey {
+            name: "plugin:fs|read_dir",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: Some(
+                7912899488978770657,
+            ),
+        },
+        CommandKey {
+            name: "plugin:fs|read_file",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: Some(
+                7912899488978770657,
+            ),
+        },
+    },
+    denied_commands: {},
+    command_scope: {
+        7912899488978770657: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+        18088007599891946824: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$TEMP/*",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+    },
+    global_scope: {
+        "fs": ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$APP",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME",
+                        ),
+                    },
+                ),
+            ],
+        },
+    },
+}

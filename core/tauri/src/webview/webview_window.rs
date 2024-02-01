@@ -824,6 +824,15 @@ fn main() {
     self.webview_builder = self.webview_builder.auto_resize();
     self
   }
+
+  /// Set a proxy URL for the WebView for all network requests.
+  ///
+  /// Must be either a `http://` or a `socks5://` URL.
+  #[must_use]
+  pub fn proxy_url(mut self, url: Url) -> Self {
+    self.webview_builder = self.webview_builder.proxy_url(url);
+    self
+  }
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].

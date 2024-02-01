@@ -63,7 +63,10 @@ use tauri_utils::TitleBarStyle;
 use tauri_utils::{
   config::WindowConfig, debug_eprintln, ProgressBarState, ProgressBarStatus, Theme,
 };
-use wry::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder};
+use wry::{
+  FileDropEvent as WryFileDropEvent, ProxyConfig, ProxyEndpoint, Url, WebContext, WebView,
+  WebViewBuilder,
+};
 
 pub use tao;
 pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId as TaoWindowId};
@@ -3111,6 +3114,23 @@ pub fn center_window(window: &Window, window_size: TaoPhysicalSize<u32>) -> Resu
   }
 }
 
+fn parse_proxy_url(url: &Url) -> Result<ProxyConfig> {
+  let host = url.host().map(|h| h.to_string()).unwrap_or_default();
+  let port = url.port().map(|p| p.to_string()).unwrap_or_default();
+
+  if url.scheme() == "http" {
+    let config = ProxyConfig::Http(ProxyEndpoint { host, port });
+
+    Ok(config)
+  } else if url.scheme() == "socks5" {
+    let config = ProxyConfig::Socks5(ProxyEndpoint { host, port });
+
+    Ok(config)
+  } else {
+    Err(Error::InvalidProxyUrl)
+  }
+}
+
 fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   window_id: WindowId,
   webview_id: u32,
@@ -3403,6 +3423,12 @@ fn create_webview<T: UserEvent>(
 
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);
+  }
+
+  if let Some(proxy_url) = webview_attributes.proxy_url {
+    let config = parse_proxy_url(&proxy_url)?;
+
+    webview_builder = webview_builder.with_proxy_config(config);
   }
 
   #[cfg(windows)]

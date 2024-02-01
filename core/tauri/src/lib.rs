@@ -35,6 +35,7 @@
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
 //! - **icon-ico**: Adds support to set `.ico` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
 //! - **icon-png**: Adds support to set `.png` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
+//! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
 //!
 //! ## Cargo allowlist features
 //!

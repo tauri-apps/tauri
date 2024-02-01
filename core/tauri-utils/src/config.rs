@@ -1267,6 +1267,14 @@ pub struct WindowConfig {
   /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
   /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
   pub parent: Option<String>,
+  /// The proxy URL for the WebView for all network requests.
+  ///
+  /// Must be either a `http://` or a `socks5://` URL.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
+  pub proxy_url: Option<Url>,
 }
 
 impl Default for WindowConfig {
@@ -1311,6 +1319,7 @@ impl Default for WindowConfig {
       window_effects: None,
       incognito: false,
       parent: None,
+      proxy_url: None,
     }
   }
 }
@@ -2306,6 +2315,7 @@ mod build {
       let minimizable = self.minimizable;
       let closable = self.closable;
       let title = str_lit(&self.title);
+      let proxy_url = opt_str_lit(self.proxy_url.as_ref());
       let fullscreen = self.fullscreen;
       let focus = self.focus;
       let transparent = self.transparent;
@@ -2349,6 +2359,7 @@ mod build {
         minimizable,
         closable,
         title,
+        proxy_url,
         fullscreen,
         focus,
         transparent,

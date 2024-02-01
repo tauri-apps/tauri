@@ -306,7 +306,7 @@ class Webview {
    * @param payload Event payload.
    */
   async emitTo(
-    target: string,
+    target: string | EventTarget,
     event: string,
     payload?: unknown
   ): Promise<void> {
@@ -791,6 +791,16 @@ interface WebviewOptions {
    * - **Android:** Unsupported.
    */
   incognito?: boolean
+  /**
+   * The proxy URL for the WebView for all network requests.
+   *
+   * Must be either a `http://` or a `socks5://` URL.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
+   * */
+  proxyUrl?: string
 }
 
 export { Webview, WebviewWindow, getCurrent, getAll }

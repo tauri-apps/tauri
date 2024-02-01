@@ -5,4 +5,4 @@
 'tauri-runtime': 'minor'
 ---
 
-Added the `proxy_url` option when creating a webview and `Webview::proxy_url / WebviewWindow::proxy_url` to change it at runtime.
+Added the `WindowConfig::proxy_url` `WebviewBuilder::proxy_url() / WebviewWindowBuilder::proxy_url()` options when creating a webview.

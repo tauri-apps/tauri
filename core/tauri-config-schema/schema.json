@@ -32,7 +32,8 @@
             "minSdkVersion": 24
           },
           "appimage": {
-            "bundleMediaFramework": false
+            "bundleMediaFramework": false,
+            "files": {}
           },
           "deb": {
             "files": {}
@@ -183,7 +184,8 @@
               "minSdkVersion": 24
             },
             "appimage": {
-              "bundleMediaFramework": false
+              "bundleMediaFramework": false,
+              "files": {}
             },
             "deb": {
               "files": {}
@@ -1032,7 +1034,8 @@
         "appimage": {
           "description": "Configuration for the AppImage bundle.",
           "default": {
-            "bundleMediaFramework": false
+            "bundleMediaFramework": false,
+            "files": {}
           },
           "allOf": [
             {
@@ -1373,6 +1376,14 @@
           "description": "Include additional gstreamer dependencies needed for audio and video playback. This increases the bundle size by ~15-35MB depending on your build system.",
           "default": false,
           "type": "boolean"
+        },
+        "files": {
+          "description": "The files to include in the Appimage Binary.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

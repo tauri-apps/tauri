@@ -22,8 +22,8 @@ use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
-  PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
+  AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
+  MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
 
@@ -1222,6 +1222,9 @@ fn tauri_config_to_bundle_settings(
       },
       files: config.deb.files,
       desktop_template: config.deb.desktop_template,
+    },
+    appimage: AppImageSettings {
+      files: config.appimage.files,
     },
     rpm: RpmSettings {
       license: config.rpm.license,

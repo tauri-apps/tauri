@@ -51,7 +51,7 @@ impl ConfigMetadata {
         .and_then(|bundle_config| bundle_config.get("identifier"))
         .and_then(|id| id.as_str())
       {
-        if identifier == self.inner.tauri.bundle.identifier {
+        if identifier == self.inner.identifier {
           return Some(ext.clone());
         }
       }

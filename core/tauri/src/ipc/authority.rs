@@ -363,7 +363,7 @@ pub struct ScopeManager {
 /// though this is useful if you need to do some initialization logic on the type itself.
 pub trait ScopeObject: Sized + Send + Sync + Debug + 'static {
   /// The error type.
-  type Error: std::error::Error;
+  type Error: std::error::Error + Send;
   /// Deserialize the raw scope value.
   fn deserialize<R: Runtime>(app: &AppHandle<R>, raw: Value) -> Result<Self, Self::Error>;
 }

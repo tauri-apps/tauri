@@ -273,7 +273,7 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
 
   // tauri-build
   let mut tauri_build_features = HashSet::new();
-  if let PatternKind::Isolation { .. } = config.tauri.pattern {
+  if let PatternKind::Isolation { .. } = config.app.security.pattern {
     tauri_build_features.insert("isolation".to_string());
   }
   dependencies.push(DependencyAllowlist {
@@ -284,12 +284,11 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
   });
 
   // tauri
-  let tauri_features =
-    HashSet::from_iter(config.tauri.features().into_iter().map(|f| f.to_string()));
+  let tauri_features = HashSet::from_iter(config.app.features().into_iter().map(|f| f.to_string()));
   dependencies.push(DependencyAllowlist {
     name: "tauri".into(),
     kind: DependencyKind::Normal,
-    all_cli_managed_features: crate::helpers::config::TauriConfig::all_features()
+    all_cli_managed_features: crate::helpers::config::AppConfig::all_features()
       .into_iter()
       .filter(|f| f != &"tray-icon")
       .collect(),
@@ -414,7 +413,7 @@ mod tests {
     DependencyAllowlist {
       name: "tauri-build".into(),
       kind: DependencyKind::Build,
-      all_cli_managed_features: crate::helpers::config::TauriConfig::all_features(),
+      all_cli_managed_features: crate::helpers::config::AppConfig::all_features(),
       features,
     }
   }
@@ -431,7 +430,7 @@ mod tests {
 "#,
       vec![
         tauri_dependency(HashSet::from_iter(
-          crate::helpers::config::TauriConfig::all_features()
+          crate::helpers::config::AppConfig::all_features()
             .iter()
             .map(|f| f.to_string()),
         )),

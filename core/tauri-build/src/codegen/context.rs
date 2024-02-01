@@ -82,12 +82,7 @@ impl CodegenContext {
     let (config, config_parent) = tauri_codegen::get_config(&self.config_path)?;
 
     // rerun if changed
-    let app_url = if self.dev {
-      &config.build.dev_path
-    } else {
-      &config.build.dist_dir
-    };
-    match app_url {
+    match &config.build.frontend_dist {
       Some(AppUrl::Url(WebviewUrl::App(p))) => {
         println!("cargo:rerun-if-changed={}", config_parent.join(p).display());
       }

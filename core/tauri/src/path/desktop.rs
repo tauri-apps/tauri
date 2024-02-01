@@ -198,7 +198,7 @@ impl<R: Runtime> PathResolver<R> {
   pub fn app_config_dir(&self) -> Result<PathBuf> {
     dirs_next::config_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().tauri.bundle.identifier))
+      .map(|dir| dir.join(&self.0.config().identifier))
   }
 
   /// Returns the path to the suggested directory for your app's data files.
@@ -207,7 +207,7 @@ impl<R: Runtime> PathResolver<R> {
   pub fn app_data_dir(&self) -> Result<PathBuf> {
     dirs_next::data_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().tauri.bundle.identifier))
+      .map(|dir| dir.join(&self.0.config().identifier))
   }
 
   /// Returns the path to the suggested directory for your app's local data files.
@@ -216,7 +216,7 @@ impl<R: Runtime> PathResolver<R> {
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
     dirs_next::data_local_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().tauri.bundle.identifier))
+      .map(|dir| dir.join(&self.0.config().identifier))
   }
 
   /// Returns the path to the suggested directory for your app's cache files.
@@ -225,7 +225,7 @@ impl<R: Runtime> PathResolver<R> {
   pub fn app_cache_dir(&self) -> Result<PathBuf> {
     dirs_next::cache_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().tauri.bundle.identifier))
+      .map(|dir| dir.join(&self.0.config().identifier))
   }
 
   /// Returns the path to the suggested directory for your app's log files.
@@ -246,11 +246,7 @@ impl<R: Runtime> PathResolver<R> {
     #[cfg(not(target_os = "macos"))]
     let path = dirs_next::data_local_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| {
-        dir
-          .join(&self.0.config().tauri.bundle.identifier)
-          .join("logs")
-      });
+      .map(|dir| dir.join(&self.0.config().identifier).join("logs"));
 
     path
   }

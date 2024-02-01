@@ -147,7 +147,7 @@ pub enum Error {
   UnstableFeatureNotSupported,
   /// Failed to deserialize scope object.
   #[error("error deserializing scope: {0}")]
-  CannotDeserializeScope(Box<dyn std::error::Error>),
+  CannotDeserializeScope(Box<dyn std::error::Error + Send>),
 }
 
 /// `Result<T, ::tauri::Error>`

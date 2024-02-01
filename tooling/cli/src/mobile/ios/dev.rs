@@ -33,7 +33,7 @@ use std::env::{set_current_dir, set_var, var_os};
 #[derive(Debug, Clone, Parser)]
 #[clap(
   about = "Run your app in development mode on iOS",
-  long_about = "Run your app in development mode on iOS with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer."
+  long_about = "Run your app in development mode on iOS with hot-reloading for the Rust code. It makes use of the `build.devUrl` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer."
 )]
 pub struct Options {
   /// List of cargo features to activate

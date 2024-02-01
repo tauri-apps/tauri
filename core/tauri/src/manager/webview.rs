@@ -120,7 +120,7 @@ impl<R: Runtime> WebviewManager<R> {
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let app_manager = manager.manager();
 
-    let is_init_global = app_manager.config.build.with_global_tauri;
+    let is_init_global = app_manager.config.app.with_global_tauri;
     let plugin_init = app_manager
       .plugins
       .lock()
@@ -352,7 +352,7 @@ impl<R: Runtime> WebviewManager<R> {
       ""
     };
 
-    let freeze_prototype = if app_manager.config.tauri.security.freeze_prototype {
+    let freeze_prototype = if app_manager.config.app.security.freeze_prototype {
       include_str!("../../scripts/freeze_prototype.js")
     } else {
       ""
@@ -499,7 +499,7 @@ impl<R: Runtime> WebviewManager<R> {
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
       let local_app_data = manager.path().resolve(
-        &app_manager.config.tauri.bundle.identifier,
+        &app_manager.config.identifier,
         crate::path::BaseDirectory::LocalData,
       );
       if let Ok(user_data_dir) = local_app_data {

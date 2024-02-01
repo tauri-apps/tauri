@@ -134,9 +134,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     }
   }
 
-  let pkg = if let Ok(raw_secret_key) = env::var("RPM_SIGN_KEY") {
+  let pkg = if let Ok(raw_secret_key) = env::var("TAURI_SIGNING_RPM_KEY") {
     let mut signer = pgp::Signer::load_from_asc(&raw_secret_key)?;
-    if let Ok(passphrase) = env::var("RPM_SIGN_KEY_PASSPHRASE") {
+    if let Ok(passphrase) = env::var("TAURI_SIGNING_RPM_KEY_PASSPHRASE") {
       signer = signer.with_key_passphrase(passphrase);
     }
     builder.build_and_sign(signer)?

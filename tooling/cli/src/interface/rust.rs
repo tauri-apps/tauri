@@ -23,7 +23,7 @@ use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
+  MacOsSettings, PackageSettings, Position, RpmSettings, Size, WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
 
@@ -131,7 +131,7 @@ impl Interface for Rust {
       manifest
     };
 
-    if let Some(minimum_system_version) = &config.tauri.bundle.macos.minimum_system_version {
+    if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
       std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
     }
 
@@ -140,7 +140,7 @@ impl Interface for Rust {
     Ok(Self {
       app_settings,
       config_features: config.build.features.clone().unwrap_or_default(),
-      product_name: config.package.product_name.clone(),
+      product_name: config.product_name.clone(),
       available_targets: None,
     })
   }
@@ -704,7 +704,8 @@ impl AppSettings for RustAppSettings {
     let mut settings = tauri_config_to_bundle_settings(
       &self.manifest,
       features,
-      config.tauri.bundle.clone(),
+      config.identifier.clone(),
+      config.bundle.clone(),
       arch64bits,
     )?;
 
@@ -771,10 +772,7 @@ impl AppSettings for RustAppSettings {
             BundleBinary::new(
               format!(
                 "{}{}",
-                config
-                  .package
-                  .binary_name()
-                  .unwrap_or_else(|| binary.name.clone()),
+                config.binary_name().unwrap_or_else(|| binary.name.clone()),
                 &binary_extension
               ),
               true,
@@ -812,7 +810,7 @@ impl AppSettings for RustAppSettings {
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
       match binaries.iter_mut().find(|bin| bin.name() == default_run) {
         Some(bin) => {
-          if let Some(bin_name) = config.package.binary_name() {
+          if let Some(bin_name) = config.binary_name() {
             bin.set_name(bin_name);
           }
         }
@@ -821,7 +819,6 @@ impl AppSettings for RustAppSettings {
             format!(
               "{}{}",
               config
-                .package
                 .binary_name()
                 .unwrap_or_else(|| default_run.to_string()),
               &binary_extension
@@ -896,13 +893,13 @@ impl RustAppSettings {
       .and_then(|v| v.package);
 
     let package_settings = PackageSettings {
-      product_name: config.package.product_name.clone().unwrap_or_else(|| {
+      product_name: config.product_name.clone().unwrap_or_else(|| {
         cargo_package_settings
           .name
           .clone()
           .expect("Cargo manifest must have the `package.name` field")
       }),
-      version: config.package.version.clone().unwrap_or_else(|| {
+      version: config.version.clone().unwrap_or_else(|| {
         cargo_package_settings
           .version
           .clone()
@@ -1075,6 +1072,7 @@ pub fn get_profile(options: &Options) -> String {
 fn tauri_config_to_bundle_settings(
   manifest: &Manifest,
   features: &[String],
+  identifier: String,
   config: crate::helpers::config::BundleConfig,
   arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
@@ -1197,7 +1195,7 @@ fn tauri_config_to_bundle_settings(
   };
 
   Ok(BundleSettings {
-    identifier: Some(config.identifier),
+    identifier: Some(identifier),
     publisher: config.publisher,
     icon: Some(config.icon),
     resources,
@@ -1291,11 +1289,6 @@ fn tauri_config_to_bundle_settings(
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
     },
-    updater: Some(UpdaterSettings {
-      active: config.updater.active,
-      pubkey: config.updater.pubkey,
-      msiexec_args: Some(config.updater.windows.install_mode.msiexec_args()),
-    }),
     ..Default::default()
   })
 }

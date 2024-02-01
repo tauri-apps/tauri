@@ -1585,13 +1585,8 @@ tauri::Builder::default()
 
     #[cfg(windows)]
     {
-      if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } = &app
-        .manager
-        .config()
-        .tauri
-        .bundle
-        .windows
-        .webview_install_mode
+      if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } =
+        &app.manager.config().bundle.windows.webview_install_mode
       {
         if let Ok(resource_dir) = app.path().resource_dir() {
           std::env::set_var(
@@ -1691,7 +1686,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
 
   let window_labels = app
     .config()
-    .tauri
+    .app
     .windows
     .iter()
     .map(|p| p.label.clone())
@@ -1704,7 +1699,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     })
     .collect::<Vec<_>>();
 
-  for window_config in app.config().tauri.windows.clone() {
+  for window_config in app.config().app.windows.clone() {
     WebviewWindowBuilder::from_config(app.handle(), &window_config)?
       .build_internal(&window_labels, &webview_labels)?;
   }

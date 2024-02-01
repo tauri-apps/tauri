@@ -34,7 +34,7 @@ const dist = path.resolve(__dirname, 'dist')
 const build = require('../tooling/cli.js/dist/api/build')
 build({
   build: {
-    devPath: dist
+    devUrl: dist
   },
   ctx: {
     debug: true

@@ -58,7 +58,6 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   println!("\nEnvironment variables used to sign:");
-  println!("`TAURI_SIGNING_PUBLIC_KEY`  Path or String of your public key");
   println!("`TAURI_SIGNING_PRIVATE_KEY`  Path or String of your private key");
   println!("`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`  Your private key password (optional)");
   println!("\nATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not work.\n---------------------------\n");

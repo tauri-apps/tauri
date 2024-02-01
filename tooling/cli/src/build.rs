@@ -241,7 +241,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
             let (signature_path, signature) = sign_file(&secret_key, path)?;
             if signature.keynum() != public_key.keynum() {
               log::warn!(
-              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key from `TAURI_SIGNING_PUBLIC_KEY`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update."
+              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update."
             );
             }
             signed_paths.push(signature_path);

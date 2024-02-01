@@ -16,7 +16,6 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_LINUX_AYATANA_APPINDICATOR` — Set this var to `true` or `1` to force usage of `libayatana-appindicator` for system tray on Linux.
 - `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` — Specify the bundler's WiX `FipsCompliant` option.
 - `TAURI_SKIP_SIDECAR_SIGNATURE_CHECK` - Skip signing sidecars.
-- `TAURI_SIGNING_PUBLIC_KEY` — Public key used to sign your app bundles, can be either a string or a path to the file.
 - `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles, can be either a string or a path to the file.
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — The signing private key password, see `TAURI_SIGNING_PRIVATE_KEY`.
 - `TAURI_SIGNING_RPM_KEY` — The private GPG key used to sign the RPM bundle, exported to its ASCII-armored format.

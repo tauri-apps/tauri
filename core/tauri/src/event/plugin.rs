@@ -95,7 +95,7 @@ pub fn emit<R: Runtime>(
 #[command(root = "crate")]
 pub fn emit_to<R: Runtime>(
   app: AppHandle<R>,
-  target: &str,
+  target: EventTarget,
   event: EventName,
   payload: Option<JsonValue>,
 ) -> Result<()> {

@@ -37,8 +37,10 @@ type EventName = `${TauriEvent}` | (string & Record<never, never>)
 interface Options {
   /**
    * The event target to listen to, defaults to `{ kind: 'Any' }`, see {@link EventTarget}.
+   *
+   * If a string is provided, {@link EventTarget.AnyLabel} is used.
    */
-  target?: EventTarget
+  target?: string | EventTarget
 }
 
 /**
@@ -90,7 +92,7 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param handler Event handler callback.
- * @param options Event listenting options.
+ * @param options Event listening options.
  * @returns A promise resolving to a function to unlisten to the event.
  * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
  *
@@ -101,7 +103,10 @@ async function listen<T>(
   handler: EventCallback<T>,
   options?: Options
 ): Promise<UnlistenFn> {
-  const target = options?.target ? options.target : { kind: 'Any' }
+  const target: EventTarget =
+    typeof options?.target === 'string'
+      ? { kind: 'AnyLabel', label: options.target }
+      : options?.target ?? { kind: 'Any' }
   return invoke<number>('plugin:event|listen', {
     event,
     target,
@@ -131,7 +136,7 @@ async function listen<T>(
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param handler Event handler callback.
- * @param options Event listenting options.
+ * @param options Event listening options.
  * @returns A promise resolving to a function to unlisten to the event.
  * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
  *
@@ -189,12 +194,14 @@ async function emit(event: string, payload?: unknown): Promise<void> {
  * @since 1.0.0
  */
 async function emitTo(
-  target: string,
+  target: EventTarget | string,
   event: string,
   payload?: unknown
 ): Promise<void> {
+  const eventTarget: EventTarget =
+    typeof target === 'string' ? { kind: 'AnyLabel', label: target } : target
   await invoke('plugin:event|emit_to', {
-    target,
+    target: eventTarget,
     event,
     payload
   })

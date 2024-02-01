@@ -96,13 +96,13 @@ impl CodegenContext {
       }
       _ => (),
     }
-    for icon in &config.tauri.bundle.icon {
+    for icon in &config.bundle.icon {
       println!(
         "cargo:rerun-if-changed={}",
         config_parent.join(icon).display()
       );
     }
-    if let Some(tray_icon) = config.tauri.tray_icon.as_ref().map(|t| &t.icon_path) {
+    if let Some(tray_icon) = config.app.tray_icon.as_ref().map(|t| &t.icon_path) {
       println!(
         "cargo:rerun-if-changed={}",
         config_parent.join(tray_icon).display()

@@ -102,7 +102,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
           break;
         }
 
-        match PackageType::from_short_name(&name) {
+        match PackageType::from_short_name(name) {
           Some(package_type) => {
             types.push(package_type);
           }

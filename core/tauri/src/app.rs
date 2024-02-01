@@ -1576,7 +1576,7 @@ tauri::Builder::default()
       #[cfg(feature = "protocol-asset")]
       asset_protocol: crate::scope::fs::Scope::new(
         &app,
-        &app.config().tauri.security.asset_protocol.scope,
+        &app.config().app.security.asset_protocol.scope,
       )?,
     });
 
@@ -1608,7 +1608,7 @@ tauri::Builder::default()
     #[cfg(all(desktop, feature = "tray-icon"))]
     {
       let config = app.config();
-      if let Some(tray_config) = &config.tauri.tray_icon {
+      if let Some(tray_config) = &config.app.tray_icon {
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
             .icon_as_template(tray_config.icon_as_template)

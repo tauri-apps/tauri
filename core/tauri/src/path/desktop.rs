@@ -237,11 +237,9 @@ impl<R: Runtime> PathResolver<R> {
   /// - **Windows:** Resolves to [`data_local_dir`](self.data_local_dir)`/${bundle_identifier}/logs`.
   pub fn app_log_dir(&self) -> Result<PathBuf> {
     #[cfg(target_os = "macos")]
-    let path = dirs_next::home_dir().ok_or(Error::UnknownPath).map(|dir| {
-      dir
-        .join("Library/Logs")
-        .join(&self.0.config().tauri.bundle.identifier)
-    });
+    let path = dirs_next::home_dir()
+      .ok_or(Error::UnknownPath)
+      .map(|dir| dir.join("Library/Logs").join(&self.0.config().identifier));
 
     #[cfg(not(target_os = "macos"))]
     let path = dirs_next::data_local_dir()

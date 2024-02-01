@@ -305,10 +305,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     };
 
     if let Some(plist) = info_plist.as_dictionary_mut() {
-      if let Some(product_name) = &config.package.product_name {
+      if let Some(product_name) = &config.product_name {
         plist.insert("CFBundleName".into(), product_name.clone().into());
       }
-      if let Some(version) = &config.package.version {
+      if let Some(version) = &config.version {
         plist.insert("CFBundleShortVersionString".into(), version.clone().into());
       }
       let format =

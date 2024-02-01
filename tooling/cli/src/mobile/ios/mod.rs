@@ -113,7 +113,7 @@ pub fn get_config(
   let raw = RawAppleConfig {
     development_team: std::env::var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME)
         .ok()
-        .or_else(|| config.tauri.bundle.ios.development_team.clone())
+        .or_else(|| config.bundle.ios.development_team.clone())
         .unwrap_or_else(|| {
           let teams = find_development_teams().unwrap_or_default();
           match teams.len() {
@@ -129,8 +129,8 @@ pub fn get_config(
           }
         }),
     ios_features: ios_options.features.clone(),
-    bundle_version: config.package.version.clone(),
-    bundle_version_short: config.package.version.clone(),
+    bundle_version: config.version.clone(),
+    bundle_version_short: config.version.clone(),
     ios_version: Some(TARGET_IOS_VERSION.into()),
     ..Default::default()
   };

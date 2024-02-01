@@ -164,14 +164,7 @@ fn run_build(
     vars: Default::default(),
   };
   let handle = write_options(
-    &tauri_config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .tauri
-      .bundle
-      .identifier,
+    &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
     cli_options,
   )?;
 

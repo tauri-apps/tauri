@@ -160,7 +160,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     // set env vars used by the bundler
     #[cfg(target_os = "linux")]
     {
-      if config_.bundle.appimage.bundle_media_framework {
+      if config_.bundle.linux.appimage.bundle_media_framework {
         std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
       }
 

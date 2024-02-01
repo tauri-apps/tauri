@@ -420,6 +420,7 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
         Err(e) => {
           let tx_ = tx.clone();
           let _ = block_on_task(async move { tx_.send(CommandEvent::Error(e.to_string())).await });
+          break;
         }
       }
     }

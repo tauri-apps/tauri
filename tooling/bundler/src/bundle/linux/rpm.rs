@@ -29,13 +29,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     other => other,
   };
 
-  let license = settings
-    .rpm()
-    .license
-    .as_deref()
-    .or_else(|| settings.license())
-    .unwrap_or_default();
-
   let summary = settings.short_description().trim();
 
   let package_base_name = format!("{name}-{version}-{release}.{arch}");
@@ -52,6 +45,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
+  let license = settings.license().or_else(|| settings.package_license());
   let mut builder = rpm::PackageBuilder::new(name, version, license, arch, summary)
     .epoch(epoch)
     .release(release);

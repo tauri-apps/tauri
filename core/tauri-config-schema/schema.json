@@ -73,37 +73,39 @@
         "android": {
           "minSdkVersion": 24
         },
-        "appimage": {
-          "bundleMediaFramework": false,
-          "files": {}
-        },
-        "deb": {
-          "files": {}
-        },
-        "dmg": {
-          "appPosition": {
-            "x": 180,
-            "y": 170
-          },
-          "applicationFolderPosition": {
-            "x": 480,
-            "y": 170
-          },
-          "windowSize": {
-            "height": 400,
-            "width": 660
-          }
-        },
         "iOS": {},
         "icon": [],
+        "linux": {
+          "appimage": {
+            "bundleMediaFramework": false,
+            "files": {}
+          },
+          "deb": {
+            "files": {}
+          },
+          "rpm": {
+            "epoch": 0,
+            "files": {},
+            "release": "1"
+          }
+        },
         "macOS": {
+          "dmg": {
+            "appPosition": {
+              "x": 180,
+              "y": 170
+            },
+            "applicationFolderPosition": {
+              "x": 480,
+              "y": 170
+            },
+            "windowSize": {
+              "height": 400,
+              "width": 660
+            }
+          },
           "files": {},
           "minimumSystemVersion": "10.13"
-        },
-        "rpm": {
-          "epoch": 0,
-          "files": {},
-          "release": "1"
         },
         "targets": "all",
         "windows": {
@@ -1295,6 +1297,20 @@
             "null"
           ]
         },
+        "license": {
+          "description": "The package's license identifier to be included in the appropriate bundles. If not set, defaults to the license from the Cargo.toml file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "licenseFile": {
+          "description": "The path to the license file to be included in the appropriate bundles.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "category": {
           "description": "The application kind.\n\nShould be one of the following: Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.",
           "type": [
@@ -1326,76 +1342,6 @@
             "null"
           ]
         },
-        "appimage": {
-          "description": "Configuration for the AppImage bundle.",
-          "default": {
-            "bundleMediaFramework": false,
-            "files": {}
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/AppImageConfig"
-            }
-          ]
-        },
-        "deb": {
-          "description": "Configuration for the Debian bundle.",
-          "default": {
-            "files": {}
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/DebConfig"
-            }
-          ]
-        },
-        "rpm": {
-          "description": "Configuration for the RPM bundle.",
-          "default": {
-            "epoch": 0,
-            "files": {},
-            "release": "1"
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/RpmConfig"
-            }
-          ]
-        },
-        "dmg": {
-          "description": "DMG-specific settings.",
-          "default": {
-            "appPosition": {
-              "x": 180,
-              "y": 170
-            },
-            "applicationFolderPosition": {
-              "x": 480,
-              "y": 170
-            },
-            "windowSize": {
-              "height": 400,
-              "width": 660
-            }
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/DmgConfig"
-            }
-          ]
-        },
-        "macOS": {
-          "description": "Configuration for the macOS bundles.",
-          "default": {
-            "files": {},
-            "minimumSystemVersion": "10.13"
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/MacConfig"
-            }
-          ]
-        },
         "externalBin": {
           "description": "A list of—either absolute or relative—paths to binaries to embed with your application.\n\nNote that Tauri will look for system-specific binaries following the pattern \"binary-name{-target-triple}{.system-extension}\".\n\nE.g. for the external binary \"my-binary\", Tauri looks for:\n\n- \"my-binary-x86_64-pc-windows-msvc.exe\" for Windows - \"my-binary-x86_64-apple-darwin\" for macOS - \"my-binary-x86_64-unknown-linux-gnu\" for Linux\n\nso don't forget to provide binaries for all targeted platforms.",
           "type": [
@@ -1407,7 +1353,7 @@
           }
         },
         "windows": {
-          "description": "Configuration for the Windows bundle.",
+          "description": "Configuration for the Windows bundles.",
           "default": {
             "allowDowngrades": true,
             "certificateThumbprint": null,
@@ -1425,6 +1371,54 @@
           "allOf": [
             {
               "$ref": "#/definitions/WindowsConfig"
+            }
+          ]
+        },
+        "linux": {
+          "description": "Configuration for the Linux bundles.",
+          "default": {
+            "appimage": {
+              "bundleMediaFramework": false,
+              "files": {}
+            },
+            "deb": {
+              "files": {}
+            },
+            "rpm": {
+              "epoch": 0,
+              "files": {},
+              "release": "1"
+            }
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/LinuxConfig"
+            }
+          ]
+        },
+        "macOS": {
+          "description": "Configuration for the macOS bundles.",
+          "default": {
+            "dmg": {
+              "appPosition": {
+                "x": 180,
+                "y": 170
+              },
+              "applicationFolderPosition": {
+                "x": 480,
+                "y": 170
+              },
+              "windowSize": {
+                "height": 400,
+                "width": 660
+              }
+            },
+            "files": {},
+            "minimumSystemVersion": "10.13"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/MacConfig"
             }
           ]
         },
@@ -1647,284 +1641,6 @@
           ]
         }
       ]
-    },
-    "AppImageConfig": {
-      "description": "Configuration for AppImage bundles.\n\nSee more: <https://tauri.app/v1/api/config#appimageconfig>",
-      "type": "object",
-      "properties": {
-        "bundleMediaFramework": {
-          "description": "Include additional gstreamer dependencies needed for audio and video playback. This increases the bundle size by ~15-35MB depending on your build system.",
-          "default": false,
-          "type": "boolean"
-        },
-        "files": {
-          "description": "The files to include in the Appimage Binary.",
-          "default": {},
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "DebConfig": {
-      "description": "Configuration for Debian (.deb) bundles.\n\nSee more: <https://tauri.app/v1/api/config#debconfig>",
-      "type": "object",
-      "properties": {
-        "depends": {
-          "description": "The list of deb dependencies your application relies on.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "files": {
-          "description": "The files to include on the package.",
-          "default": {},
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "desktopTemplate": {
-          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "RpmConfig": {
-      "description": "Configuration for RPM bundles.",
-      "type": "object",
-      "properties": {
-        "license": {
-          "description": "The package's license identifier. If not set, defaults to the license from the Cargo.toml file.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "depends": {
-          "description": "The list of RPM dependencies your application relies on.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "release": {
-          "description": "The RPM release tag.",
-          "default": "1",
-          "type": "string"
-        },
-        "epoch": {
-          "description": "The RPM epoch.",
-          "default": 0,
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
-        },
-        "files": {
-          "description": "The files to include on the package.",
-          "default": {},
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "desktopTemplate": {
-          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "DmgConfig": {
-      "description": "Configuration for Apple Disk Image (.dmg) bundles.\n\nSee more: <https://tauri.app/v1/api/config#dmgconfig>",
-      "type": "object",
-      "properties": {
-        "background": {
-          "description": "Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "windowPosition": {
-          "description": "Position of volume window on screen.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Position"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "windowSize": {
-          "description": "Size of volume window.",
-          "default": {
-            "height": 400,
-            "width": 660
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/Size"
-            }
-          ]
-        },
-        "appPosition": {
-          "description": "Position of app file on window.",
-          "default": {
-            "x": 180,
-            "y": 170
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/Position"
-            }
-          ]
-        },
-        "applicationFolderPosition": {
-          "description": "Position of application folder on window.",
-          "default": {
-            "x": 480,
-            "y": 170
-          },
-          "allOf": [
-            {
-              "$ref": "#/definitions/Position"
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "Position": {
-      "description": "Position coordinates struct.",
-      "type": "object",
-      "required": [
-        "x",
-        "y"
-      ],
-      "properties": {
-        "x": {
-          "description": "X coordinate.",
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
-        },
-        "y": {
-          "description": "Y coordinate.",
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
-        }
-      },
-      "additionalProperties": false
-    },
-    "Size": {
-      "description": "Size of the window.",
-      "type": "object",
-      "required": [
-        "height",
-        "width"
-      ],
-      "properties": {
-        "width": {
-          "description": "Width of the window.",
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
-        },
-        "height": {
-          "description": "Height of the window.",
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
-        }
-      },
-      "additionalProperties": false
-    },
-    "MacConfig": {
-      "description": "Configuration for the macOS bundles.\n\nSee more: <https://tauri.app/v1/api/config#macconfig>",
-      "type": "object",
-      "properties": {
-        "frameworks": {
-          "description": "A list of strings indicating any macOS X frameworks that need to be bundled with the application.\n\nIf a name is used, \".framework\" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "files": {
-          "description": "The files to include in the application relative to the Contents directory.",
-          "default": {},
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "minimumSystemVersion": {
-          "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\nSetting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\nAn empty string is considered an invalid value so the default value is used.",
-          "default": "10.13",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "exceptionDomain": {
-          "description": "Allows your application to communicate with the outside world. It should be a lowercase, without port and protocol domain name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "license": {
-          "description": "The path to the license file to add to the DMG bundle.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "signingIdentity": {
-          "description": "Identity to use for code signing.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "providerShortName": {
-          "description": "Provider short name for notarization.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "entitlements": {
-          "description": "Path to the entitlements file.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
     },
     "WindowsConfig": {
       "description": "Windows bundler configuration.\n\nSee more: <https://tauri.app/v1/api/config#windowsconfig>",
@@ -2183,13 +1899,6 @@
           "default": false,
           "type": "boolean"
         },
-        "license": {
-          "description": "The path to the license file to render on the installer.\n\nMust be an RTF file, so if a different extension is provided, we convert it to the RTF format.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "enableElevatedUpdateTask": {
           "description": "Create an elevated update task within Windows Task Scheduler.",
           "default": false,
@@ -2255,13 +1964,6 @@
       "properties": {
         "template": {
           "description": "A custom .nsi template to use.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "license": {
-          "description": "The path to the license file to render on the installer.",
           "type": [
             "string",
             "null"
@@ -2387,6 +2089,335 @@
           ]
         }
       ]
+    },
+    "LinuxConfig": {
+      "description": "Configuration for Linux bundles.\n\nSee more: <https://tauri.app/v1/api/config#linuxconfig>",
+      "type": "object",
+      "properties": {
+        "appimage": {
+          "description": "Configuration for the AppImage bundle.",
+          "default": {
+            "bundleMediaFramework": false,
+            "files": {}
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppImageConfig"
+            }
+          ]
+        },
+        "deb": {
+          "description": "Configuration for the Debian bundle.",
+          "default": {
+            "files": {}
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/DebConfig"
+            }
+          ]
+        },
+        "rpm": {
+          "description": "Configuration for the RPM bundle.",
+          "default": {
+            "epoch": 0,
+            "files": {},
+            "release": "1"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/RpmConfig"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "AppImageConfig": {
+      "description": "Configuration for AppImage bundles.\n\nSee more: <https://tauri.app/v1/api/config#appimageconfig>",
+      "type": "object",
+      "properties": {
+        "bundleMediaFramework": {
+          "description": "Include additional gstreamer dependencies needed for audio and video playback. This increases the bundle size by ~15-35MB depending on your build system.",
+          "default": false,
+          "type": "boolean"
+        },
+        "files": {
+          "description": "The files to include in the Appimage Binary.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "DebConfig": {
+      "description": "Configuration for Debian (.deb) bundles.\n\nSee more: <https://tauri.app/v1/api/config#debconfig>",
+      "type": "object",
+      "properties": {
+        "depends": {
+          "description": "The list of deb dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "files": {
+          "description": "The files to include on the package.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "desktopTemplate": {
+          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "RpmConfig": {
+      "description": "Configuration for RPM bundles.",
+      "type": "object",
+      "properties": {
+        "depends": {
+          "description": "The list of RPM dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "release": {
+          "description": "The RPM release tag.",
+          "default": "1",
+          "type": "string"
+        },
+        "epoch": {
+          "description": "The RPM epoch.",
+          "default": 0,
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "files": {
+          "description": "The files to include on the package.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "desktopTemplate": {
+          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MacConfig": {
+      "description": "Configuration for the macOS bundles.\n\nSee more: <https://tauri.app/v1/api/config#macconfig>",
+      "type": "object",
+      "properties": {
+        "frameworks": {
+          "description": "A list of strings indicating any macOS X frameworks that need to be bundled with the application.\n\nIf a name is used, \".framework\" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "files": {
+          "description": "The files to include in the application relative to the Contents directory.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "minimumSystemVersion": {
+          "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\nSetting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\nAn empty string is considered an invalid value so the default value is used.",
+          "default": "10.13",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exceptionDomain": {
+          "description": "Allows your application to communicate with the outside world. It should be a lowercase, without port and protocol domain name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "signingIdentity": {
+          "description": "Identity to use for code signing.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "providerShortName": {
+          "description": "Provider short name for notarization.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "entitlements": {
+          "description": "Path to the entitlements file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dmg": {
+          "description": "DMG-specific settings.",
+          "default": {
+            "appPosition": {
+              "x": 180,
+              "y": 170
+            },
+            "applicationFolderPosition": {
+              "x": 480,
+              "y": 170
+            },
+            "windowSize": {
+              "height": 400,
+              "width": 660
+            }
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/DmgConfig"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "DmgConfig": {
+      "description": "Configuration for Apple Disk Image (.dmg) bundles.\n\nSee more: <https://tauri.app/v1/api/config#dmgconfig>",
+      "type": "object",
+      "properties": {
+        "background": {
+          "description": "Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "windowPosition": {
+          "description": "Position of volume window on screen.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Position"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "windowSize": {
+          "description": "Size of volume window.",
+          "default": {
+            "height": 400,
+            "width": 660
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Size"
+            }
+          ]
+        },
+        "appPosition": {
+          "description": "Position of app file on window.",
+          "default": {
+            "x": 180,
+            "y": 170
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Position"
+            }
+          ]
+        },
+        "applicationFolderPosition": {
+          "description": "Position of application folder on window.",
+          "default": {
+            "x": 480,
+            "y": 170
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Position"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Position": {
+      "description": "Position coordinates struct.",
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "description": "X coordinate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "y": {
+          "description": "Y coordinate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Size": {
+      "description": "Size of the window.",
+      "type": "object",
+      "required": [
+        "height",
+        "width"
+      ],
+      "properties": {
+        "width": {
+          "description": "Width of the window.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "height": {
+          "description": "Height of the window.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     },
     "IosConfig": {
       "description": "General configuration for the iOS target.",

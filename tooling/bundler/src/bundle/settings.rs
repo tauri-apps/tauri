@@ -185,8 +185,6 @@ pub struct AppImageSettings {
 /// The RPM bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct RpmSettings {
-  /// The name of the package's license.
-  pub license: Option<String>,
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
   /// The RPM release tag.
@@ -260,9 +258,6 @@ pub struct MacOsSettings {
   /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   pub minimum_system_version: Option<String>,
-  /// The path to the LICENSE file for macOS apps.
-  /// Currently only used by the dmg bundle.
-  pub license: Option<String>,
   /// The exception domain to use on the macOS .app bundle.
   ///
   /// This allows communication to the outside world e.g. a web server you're shipping.
@@ -316,8 +311,6 @@ pub struct WixSettings {
   pub merge_refs: Vec<String>,
   /// Disables the Webview2 runtime installation after app install. Will be removed in v2, use [`WindowsSettings::webview_install_mode`] instead.
   pub skip_webview_install: bool,
-  /// The path to the LICENSE file.
-  pub license: Option<PathBuf>,
   /// Create an elevated update task within Windows Task Scheduler.
   pub enable_elevated_update_task: bool,
   /// Path to a bitmap file to use as the installation user interface banner.
@@ -339,8 +332,6 @@ pub struct WixSettings {
 pub struct NsisSettings {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
-  /// The path to the license file to render on the installer.
-  pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.
@@ -448,6 +439,11 @@ pub struct BundleSettings {
   pub resources_map: Option<HashMap<String, String>>,
   /// the app's copyright.
   pub copyright: Option<String>,
+  /// The package's license identifier to be included in the appropriate bundles.
+  /// If not set, defaults to the license from the Cargo.toml file.
+  pub license: Option<String>,
+  /// The path to the license file to be included in the appropriate bundles.
+  pub license_file: Option<PathBuf>,
   /// the app's category.
   pub category: Option<AppCategory>,
   /// the file associations
@@ -881,9 +877,19 @@ impl Settings {
     }
   }
 
-  /// Returns the package's license.
+  /// Returns the bundle license.
   pub fn license(&self) -> Option<&str> {
+    self.bundle_settings.license.as_deref()
+  }
+
+  /// Returns the package's license.
+  pub fn package_license(&self) -> Option<&str> {
     self.package.license.as_deref()
+  }
+
+  /// Returns the bundle license file.
+  pub fn license_file(&self) -> Option<&Path> {
+    self.bundle_settings.license_file.as_deref()
   }
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.

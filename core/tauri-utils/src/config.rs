@@ -316,15 +316,31 @@ pub struct DebConfig {
   pub desktop_template: Option<PathBuf>,
 }
 
+/// Configuration for Linux bundles.
+///
+/// See more: <https://tauri.app/v1/api/config#linuxconfig>
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LinuxConfig {
+  /// Configuration for the AppImage bundle.
+  #[serde(default)]
+  pub appimage: AppImageConfig,
+  /// Configuration for the Debian bundle.
+  #[serde(default)]
+  pub deb: DebConfig,
+  /// Configuration for the RPM bundle.
+  #[serde(default)]
+  pub rpm: RpmConfig,
+}
+
 /// Configuration for RPM bundles.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RpmConfig {
-  /// The package's license identifier. If not set, defaults to the license from
-  /// the Cargo.toml file.
-  pub license: Option<String>,
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
   /// The RPM release tag.
@@ -345,7 +361,6 @@ pub struct RpmConfig {
 impl Default for RpmConfig {
   fn default() -> Self {
     Self {
-      license: None,
       depends: None,
       release: default_release(),
       epoch: 0,
@@ -476,8 +491,6 @@ pub struct MacConfig {
   /// It should be a lowercase, without port and protocol domain name.
   #[serde(alias = "exception-domain")]
   pub exception_domain: Option<String>,
-  /// The path to the license file to add to the DMG bundle.
-  pub license: Option<String>,
   /// Identity to use for code signing.
   #[serde(alias = "signing-identity")]
   pub signing_identity: Option<String>,
@@ -486,6 +499,9 @@ pub struct MacConfig {
   pub provider_short_name: Option<String>,
   /// Path to the entitlements file.
   pub entitlements: Option<String>,
+  /// DMG-specific settings.
+  #[serde(default)]
+  pub dmg: DmgConfig,
 }
 
 impl Default for MacConfig {
@@ -495,10 +511,10 @@ impl Default for MacConfig {
       files: HashMap::new(),
       minimum_system_version: minimum_system_version(),
       exception_domain: None,
-      license: None,
       signing_identity: None,
       provider_short_name: None,
       entitlements: None,
+      dmg: Default::default(),
     }
   }
 }
@@ -573,10 +589,6 @@ pub struct WixConfig {
   /// Will be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.
   #[serde(default, alias = "skip-webview-install")]
   pub skip_webview_install: bool,
-  /// The path to the license file to render on the installer.
-  ///
-  /// Must be an RTF file, so if a different extension is provided, we convert it to the RTF format.
-  pub license: Option<PathBuf>,
   /// Create an elevated update task within Windows Task Scheduler.
   #[serde(default, alias = "enable-elevated-update-task")]
   pub enable_elevated_update_task: bool,
@@ -616,8 +628,6 @@ pub enum NsisCompression {
 pub struct NsisConfig {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
-  /// The path to the license file to render on the installer.
-  pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.
@@ -936,6 +946,12 @@ pub struct BundleConfig {
   pub resources: Option<BundleResources>,
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
+  /// The package's license identifier to be included in the appropriate bundles.
+  /// If not set, defaults to the license from the Cargo.toml file.
+  pub license: Option<String>,
+  /// The path to the license file to be included in the appropriate bundles.
+  #[serde(alias = "license-file")]
+  pub license_file: Option<PathBuf>,
   /// The application kind.
   ///
   /// Should be one of the following:
@@ -949,21 +965,6 @@ pub struct BundleConfig {
   /// A longer, multi-line description of the application.
   #[serde(alias = "long-description")]
   pub long_description: Option<String>,
-  /// Configuration for the AppImage bundle.
-  #[serde(default)]
-  pub appimage: AppImageConfig,
-  /// Configuration for the Debian bundle.
-  #[serde(default)]
-  pub deb: DebConfig,
-  /// Configuration for the RPM bundle.
-  #[serde(default)]
-  pub rpm: RpmConfig,
-  /// DMG-specific settings.
-  #[serde(default)]
-  pub dmg: DmgConfig,
-  /// Configuration for the macOS bundles.
-  #[serde(rename = "macOS", default)]
-  pub macos: MacConfig,
   /// A list of—either absolute or relative—paths to binaries to embed with your application.
   ///
   /// Note that Tauri will look for system-specific binaries following the pattern "binary-name{-target-triple}{.system-extension}".
@@ -977,11 +978,17 @@ pub struct BundleConfig {
   /// so don't forget to provide binaries for all targeted platforms.
   #[serde(alias = "external-bin")]
   pub external_bin: Option<Vec<String>>,
-  /// Configuration for the Windows bundle.
+  /// Configuration for the Windows bundles.
   #[serde(default)]
   pub windows: WindowsConfig,
+  /// Configuration for the Linux bundles.
+  #[serde(default)]
+  pub linux: LinuxConfig,
+  /// Configuration for the macOS bundles.
+  #[serde(rename = "macOS", alias = "macos", default)]
+  pub macos: MacConfig,
   /// iOS configuration.
-  #[serde(rename = "iOS", default)]
+  #[serde(rename = "iOS", alias = "ios", default)]
   pub ios: IosConfig,
   /// Android configuration.
   #[serde(default)]
@@ -2293,13 +2300,12 @@ mod build {
       let file_associations = quote!(None);
       let short_description = quote!(None);
       let long_description = quote!(None);
-      let appimage = quote!(Default::default());
-      let deb = quote!(Default::default());
-      let rpm = quote!(Default::default());
-      let dmg = quote!(Default::default());
-      let macos = quote!(Default::default());
       let external_bin = opt_vec_lit(self.external_bin.as_ref(), str_lit);
       let windows = &self.windows;
+      let license = opt_lit(self.license.as_ref());
+      let license_file = opt_lit(self.license_file.as_ref().map(path_buf_lit).as_ref());
+      let linux = quote!(Default::default());
+      let macos = quote!(Default::default());
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
 
@@ -2313,16 +2319,15 @@ mod build {
         resources,
         copyright,
         category,
+        license,
+        license_file,
         file_associations,
         short_description,
         long_description,
-        appimage,
-        deb,
-        rpm,
-        dmg,
-        macos,
         external_bin,
         windows,
+        linux,
+        macos,
         ios,
         android
       );
@@ -2627,10 +2632,9 @@ mod test {
       file_associations: None,
       short_description: None,
       long_description: None,
-      appimage: Default::default(),
-      deb: Default::default(),
-      rpm: Default::default(),
-      dmg: Default::default(),
+      license: None,
+      license_file: None,
+      linux: Default::default(),
       macos: Default::default(),
       external_bin: None,
       windows: Default::default(),

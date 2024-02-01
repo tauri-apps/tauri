@@ -211,6 +211,10 @@ fn build_nsis_app_installer(
     to_json(settings.windows().allow_downgrades),
   );
 
+  if let Some(license) = settings.license_file() {
+    data.insert("license", to_json(dunce::canonicalize(license)?));
+  }
+
   let mut install_mode = NSISInstallerMode::CurrentUser;
   let mut languages = vec!["English".into()];
   let mut custom_template_path = None;
@@ -222,9 +226,6 @@ fn build_nsis_app_installer(
     if let Some(langs) = &nsis.languages {
       languages.clear();
       languages.extend_from_slice(langs);
-    }
-    if let Some(license) = &nsis.license {
-      data.insert("license", to_json(dunce::canonicalize(license)?));
     }
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(

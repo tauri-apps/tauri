@@ -1095,9 +1095,9 @@ fn tauri_config_to_bundle_settings(
     .resources
     .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
-  let mut depends_deb = config.deb.depends.unwrap_or_default();
+  let mut depends_deb = config.linux.deb.depends.unwrap_or_default();
   #[allow(unused_mut)]
-  let mut depends_rpm = config.rpm.depends.unwrap_or_default();
+  let mut depends_rpm = config.linux.rpm.depends.unwrap_or_default();
 
   // set env vars used by the bundler and inject dependencies
   #[cfg(target_os = "linux")]
@@ -1218,48 +1218,50 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_deb)
       },
-      files: config.deb.files,
-      desktop_template: config.deb.desktop_template,
+      files: config.linux.deb.files,
+      desktop_template: config.linux.deb.desktop_template,
     },
     appimage: AppImageSettings {
-      files: config.appimage.files,
+      files: config.linux.appimage.files,
     },
     rpm: RpmSettings {
-      license: config.rpm.license,
       depends: if depends_rpm.is_empty() {
         None
       } else {
         Some(depends_rpm)
       },
-      release: config.rpm.release,
-      epoch: config.rpm.epoch,
-      files: config.rpm.files,
-      desktop_template: config.rpm.desktop_template,
+      release: config.linux.rpm.release,
+      epoch: config.linux.rpm.epoch,
+      files: config.linux.rpm.files,
+      desktop_template: config.linux.rpm.desktop_template,
     },
     dmg: DmgSettings {
-      background: config.dmg.background,
-      window_position: config.dmg.window_position.map(|window_position| Position {
-        x: window_position.x,
-        y: window_position.y,
-      }),
+      background: config.macos.dmg.background,
+      window_position: config
+        .macos
+        .dmg
+        .window_position
+        .map(|window_position| Position {
+          x: window_position.x,
+          y: window_position.y,
+        }),
       window_size: Size {
-        width: config.dmg.window_size.width,
-        height: config.dmg.window_size.height,
+        width: config.macos.dmg.window_size.width,
+        height: config.macos.dmg.window_size.height,
       },
       app_position: Position {
-        x: config.dmg.app_position.x,
-        y: config.dmg.app_position.y,
+        x: config.macos.dmg.app_position.x,
+        y: config.macos.dmg.app_position.y,
       },
       application_folder_position: Position {
-        x: config.dmg.application_folder_position.x,
-        y: config.dmg.application_folder_position.y,
+        x: config.macos.dmg.application_folder_position.x,
+        y: config.macos.dmg.application_folder_position.y,
       },
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       files: config.macos.files,
       minimum_system_version: config.macos.minimum_system_version,
-      license: config.macos.license,
       exception_domain: config.macos.exception_domain,
       signing_identity,
       provider_short_name,
@@ -1278,17 +1280,15 @@ fn tauri_config_to_bundle_settings(
       tsp: config.windows.tsp,
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
-      wix: config.windows.wix.map(|w| {
-        let mut wix = wix_settings(w);
-        wix.license = wix.license.map(|l| tauri_dir().join(l));
-        wix
-      }),
+      wix: config.windows.wix.map(wix_settings),
       nsis: config.windows.nsis.map(nsis_settings),
       icon_path: windows_icon_path,
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
     },
+    license: config.license,
+    license_file: config.license_file.map(|l| tauri_dir().join(l)),
     ..Default::default()
   })
 }

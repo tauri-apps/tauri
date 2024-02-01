@@ -252,7 +252,7 @@ pub fn generate_docs(plugin_manifests: &BTreeMap<String, Manifest>, target: Targ
   create_dir_all(&out_dir).context("unable to create schema output directory")?;
 
   let docs_path = out_dir.join(format!("{target}-permissions.md"));
-  let mut docs_file = BufWriter::new(File::create(&docs_path)?);
+  let mut docs_file = BufWriter::new(File::create(docs_path)?);
   write!(docs_file, "{docs}")?;
 
   Ok(())

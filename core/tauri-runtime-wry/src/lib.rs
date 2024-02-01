@@ -2902,7 +2902,7 @@ fn handle_event_loop<T: UserEvent>(
           if window.is_window_transparent {
             if let Some(surface) = &mut window.surface {
               if let Some(window) = &window.inner {
-                clear_window_surface(&window, surface)
+                clear_window_surface(window, surface)
               }
             }
           }

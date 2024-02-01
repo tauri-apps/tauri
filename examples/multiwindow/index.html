@@ -24,11 +24,10 @@
     const container = document.getElementById('container')
 
     function createWindowMessageBtn(label) {
-      const webview = WebviewWindow.getByLabel(label)
       const button = document.createElement('button')
       button.innerText = 'Send message to ' + label
       button.addEventListener('click', function () {
-        webview.emit('clicked', 'message from ' + windowLabel)
+        appWindow.emitTo(label, 'clicked', 'message from ' + windowLabel)
       })
       container.appendChild(button)
     }
@@ -67,7 +66,7 @@
     globalMessageButton.innerHTML = 'Send global message'
     globalMessageButton.addEventListener('click', function () {
       // emit to all windows
-      window.__TAURI__.event.emit('clicked', 'message from ' + windowLabel)
+      appWindow.emit('clicked', 'message from ' + windowLabel)
     })
     container.appendChild(globalMessageButton)
 

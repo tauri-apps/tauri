@@ -22,14 +22,17 @@ import {
   PhysicalPosition,
   PhysicalSize
 } from './dpi'
-import type {
-  Event,
-  EventName,
-  EventCallback,
-  UnlistenFn,
-  EventSource
+import type { Event, EventName, EventCallback, UnlistenFn } from './event'
+import {
+  TauriEvent,
+  // imported for documentation purposes
+  // eslint-disable-next-line
+  type EventTarget,
+  emit,
+  emitTo,
+  listen,
+  once
 } from './event'
-import { TauriEvent, emit, listen, once } from './event'
 import { invoke } from './core'
 import { WebviewWindow } from './webview'
 
@@ -97,15 +100,12 @@ enum UserAttentionType {
 class CloseRequestedEvent {
   /** Event name */
   event: EventName
-  /** The source of the event. */
-  source: EventSource
   /** Event identifier used to unlisten */
   id: number
   private _preventDefault = false
 
   constructor(event: Event<null>) {
     this.event = event.event
-    this.source = event.source
     this.id = event.id
   }
 
@@ -360,7 +360,7 @@ class Window {
   }
 
   /**
-   * Listen to an event emitted by the backend that is tied to the window.
+   * Listen to an emitted event on this window.
    *
    * @example
    * ```typescript
@@ -390,12 +390,12 @@ class Window {
       })
     }
     return listen(event, handler, {
-      target: { kind: 'window', label: this.label }
+      target: { kind: 'Window', label: this.label }
     })
   }
 
   /**
-   * Listen to an one-off event emitted by the backend that is tied to the window.
+   * Listen to an emitted event on this window only once.
    *
    * @example
    * ```typescript
@@ -422,12 +422,12 @@ class Window {
       })
     }
     return once(event, handler, {
-      target: { kind: 'window', label: this.label }
+      target: { kind: 'Window', label: this.label }
     })
   }
 
   /**
-   * Emits an event to the backend, tied to the window.
+   * Emits an event to all {@link EventTarget|targets}.
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
@@ -444,15 +444,43 @@ class Window {
         handler({
           event,
           id: -1,
-          source: { kind: 'window', label: this.label },
           payload
         })
       }
       return Promise.resolve()
     }
-    return emit(event, payload, {
-      target: { kind: 'window', label: this.label }
-    })
+    return emit(event, payload)
+  }
+
+  /**
+   * Emits an event to all {@link EventTarget|targets} matching the given target.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emitTo(
+    target: string | EventTarget,
+    event: string,
+    payload?: unknown
+  ): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return Promise.resolve()
+    }
+    return emitTo(target, event, payload)
   }
 
   /** @ignore */

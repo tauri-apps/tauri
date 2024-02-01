@@ -49,7 +49,7 @@ use std::{
   sync::{mpsc::Sender, Arc},
 };
 
-use crate::runtime::RuntimeHandle;
+use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
@@ -765,6 +765,65 @@ macro_rules! shared_app_impl {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.resources_table().clear();
+      }
+    }
+
+    /// Event system APIs.
+    impl<R: Runtime> $app {
+      /// Listen to an event on this app.
+      ///
+      /// # Examples
+      ///
+      /// ```
+      /// use tauri::Manager;
+      ///
+      /// tauri::Builder::default()
+      ///   .setup(|app| {
+      ///     app.listen("component-loaded", move |event| {
+      ///       println!("window just loaded a component");
+      ///     });
+      ///
+      ///     Ok(())
+      ///   });
+      /// ```
+      pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
+      where
+        F: Fn(Event) + Send + 'static,
+      {
+        self.manager.listen(event.into(), EventTarget::App, handler)
+      }
+
+      /// Unlisten to an event on this app.
+      ///
+      /// # Examples
+      ///
+      /// ```
+      /// use tauri::Manager;
+      ///
+      /// tauri::Builder::default()
+      ///   .setup(|app| {
+      ///     let handler = app.listen("component-loaded", move |event| {
+      ///       println!("app just loaded a component");
+      ///     });
+      ///
+      ///     // stop listening to the event when you do not need it anymore
+      ///     app.unlisten(handler);
+      ///
+      ///     Ok(())
+      ///   });
+      /// ```
+      pub fn unlisten(&self, id: EventId) {
+        self.manager.unlisten(id)
+      }
+
+      /// Listen to an event on this app only once.
+      ///
+      /// See [`Self::listen`] for more information.
+      pub fn once<F>(&self, event: impl Into<String>, handler: F)
+      where
+        F: FnOnce(Event) + Send + 'static,
+      {
+        self.manager.once(event.into(), EventTarget::App, handler)
       }
     }
   };

@@ -1270,6 +1270,10 @@ pub struct WindowConfig {
   /// The proxy URL for the WebView for all network requests.
   ///
   /// Must be either a `http://` or a `socks5://` URL.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
   pub proxy_url: Option<Url>,
 }
 

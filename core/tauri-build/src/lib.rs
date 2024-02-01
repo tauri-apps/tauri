@@ -482,6 +482,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     parse_capabilities("./capabilities/**/*")?
   };
   acl::generate_schema(&plugin_manifests, target)?;
+  acl::generate_docs(&plugin_manifests, target)?;
   acl::validate_capabilities(&plugin_manifests, &capabilities)?;
 
   let capabilities_path = acl::save_capabilities(&capabilities)?;

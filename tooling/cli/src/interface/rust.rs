@@ -711,9 +711,9 @@ impl AppSettings for RustAppSettings {
         .0
         .get("updater")
         .and_then(|k| k.get("pubkey"))
-        .map(|v| UpdaterSettings {
-          pubkey: v.to_string(),
-        }),
+        .and_then(|v| v.as_str())
+        .map(|v| v.to_string())
+        .map(|pubkey| UpdaterSettings { pubkey }),
       arch64bits,
     )?;
 

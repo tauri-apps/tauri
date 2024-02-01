@@ -133,6 +133,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       .0
       .get("updater")
       .and_then(|k| k.get("pubkey"))
+      .and_then(|v| v.as_str())
       .map(|v| v.to_string());
     if let Some(types) = &package_types {
       if updater_pub_key

@@ -453,7 +453,10 @@ class Window {
   }
 
   /**
-   * Emits an event to all {@link EventTarget|targets} matching the given label.
+   * Emits an event to all {@link EventTarget|targets} matching the given target.
+   *
+   * If a string is provided for target, {@link EventTarget.AnyLabel} is used.
+   *
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/webview';

@@ -179,7 +179,7 @@ async function emit(event: string, payload?: unknown): Promise<void> {
 }
 
 /**
- * Emits an event to all {@link EventTarget|targets} matching the given label.
+ * Emits an event to all {@link EventTarget|targets} matching the given target.
  *
  * @example
  * ```typescript

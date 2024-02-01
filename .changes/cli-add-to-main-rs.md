@@ -3,4 +3,4 @@
 '@tauri-apps/cli': 'patch:feat'
 ---
 
-Add plugin initalization rust code when using `tauri add`
+Add plugin initialization rust code when using `tauri add`

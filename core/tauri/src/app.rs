@@ -802,13 +802,8 @@ macro_rules! shared_app_impl {
       ///
       /// tauri::Builder::default()
       ///   .setup(|app| {
-      ///     let app_ = app.clone();
       ///     let handler = app.listen("component-loaded", move |event| {
       ///       println!("app just loaded a component");
-      ///
-      ///       // we no longer need to listen to the event
-      ///       // we also could have used `window.once` instead
-      ///       app_.unlisten(event.id());
       ///     });
       ///
       ///     // stop listening to the event when you do not need it anymore

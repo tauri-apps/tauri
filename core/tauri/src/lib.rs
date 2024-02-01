@@ -687,11 +687,11 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   for i in 1..100 {
   ///     std::thread::sleep(std::time::Duration::from_millis(150));
   ///     // emit a download progress event to the updater window
-  ///     app.emit_to(EventTarget::Any, "download-progress", i);
-  ///     app.emit_to(EventTarget::App, "download-progress", i);
-  ///     app.emit_to("updater", "download-progress", i); // similar to using EventTarget::AnyLabel
-  ///     app.emit_to(EventTarget::AnyLabel { label: "updater".to_string() }, "download-progress", i);
-  ///     app.emit_to(EventTarget::WebviewWindow { label: "updater".to_string() }, "download-progress", i);
+  ///     app.emit_to(EventTarget::any(), "download-progress", i);
+  ///     app.emit_to(EventTarget::app(), "download-progress", i);
+  ///     app.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
+  ///     app.emit_to(EventTarget::labeled("updater"), "download-progress", i);
+  ///     app.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
   ///   }
   /// }
   /// ```

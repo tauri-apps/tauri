@@ -29,6 +29,7 @@ pub type EventId = u32;
 /// Event Target
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(tag = "kind")]
+#[non_exhaustive]
 pub enum EventTarget {
   /// Any and all event targets.
   Any,
@@ -59,6 +60,46 @@ pub enum EventTarget {
     /// webview window label.
     label: String,
   },
+}
+
+impl EventTarget {
+  /// [`Self::Any`] target.
+  pub fn any() -> Self {
+    Self::Any
+  }
+
+  /// [`Self::App`] target.
+  pub fn app() -> Self {
+    Self::App
+  }
+
+  /// [`Self::AnyLabel`] target.
+  pub fn labeled(label: impl Into<String>) -> Self {
+    Self::AnyLabel {
+      label: label.into(),
+    }
+  }
+
+  /// [`Self::Window`] target.
+  pub fn window(label: impl Into<String>) -> Self {
+    Self::Window {
+      label: label.into(),
+    }
+  }
+
+  /// [`Self::Webview`] target.
+  pub fn webview(label: impl Into<String>) -> Self {
+    Self::Webview {
+      label: label.into(),
+    }
+  }
+
+  /// [`Self::WebviewWindow`] target.
+  pub fn webview_window(label: impl Into<String>) -> Self {
+    Self::WebviewWindow {
+      label: label.into(),
+    }
+  }
 }
 
 impl<T: AsRef<str>> From<T> for EventTarget {

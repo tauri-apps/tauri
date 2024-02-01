@@ -122,7 +122,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 ```
 #[tauri::command]
 async fn reopen_window(app: tauri::AppHandle) {
-  let webview_window = tauri::window::WindowBuilder::from_config(&app, &app.config().tauri.windows.get(0).unwrap().clone())
+  let webview_window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
     .unwrap()
     .build()
     .unwrap();

@@ -676,7 +676,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().emit(event, payload)
   }
 
-  /// Emits an event to all [targets](EventTarget) matching the given label.
+  /// Emits an event to all [targets](EventTarget) matching the given target.
   ///
   /// # Examples
   /// ```
@@ -686,11 +686,14 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// fn download(app: tauri::AppHandle) {
   ///   for i in 1..100 {
   ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to the updater window
+  ///     // emit a download progress event to all listeners
   ///     app.emit_to(EventTarget::any(), "download-progress", i);
+  ///     // emit an event to listeners that used App::listen or AppHandle::listen
   ///     app.emit_to(EventTarget::app(), "download-progress", i);
+  ///     // emit an event to any webview/window/webviewWindow matching the given label
   ///     app.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
   ///     app.emit_to(EventTarget::labeled("updater"), "download-progress", i);
+  ///     // emit an event to listeners that used WebviewWindow::listen
   ///     app.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
   ///   }
   /// }

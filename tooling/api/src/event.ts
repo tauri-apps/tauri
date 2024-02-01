@@ -187,7 +187,7 @@ async function emit(event: string, payload?: unknown): Promise<void> {
  * await emit('frontend-loaded', { loggedIn: true, token: 'authToken' });
  * ```
  *
- * @param target Label of the target Window, Webview or WebviewWindow.
+ * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param payload Event payload.
  *

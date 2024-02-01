@@ -455,19 +455,17 @@ class Window {
   /**
    * Emits an event to all {@link EventTarget|targets} matching the given target.
    *
-   * If a string is provided for target, {@link EventTarget.AnyLabel} is used.
-   *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * await getCurrent().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().emit('window-loaded', { loggedIn: true, token: 'authToken' });
    * ```
-   * @param target Label of the target Window, Webview or WebviewWindow.
+   * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
   async emitTo(
-    target: string,
+    target: string | EventTarget,
     event: string,
     payload?: unknown
   ): Promise<void> {

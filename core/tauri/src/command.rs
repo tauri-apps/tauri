@@ -52,6 +52,8 @@ impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
   fn from_command(command: CommandItem<'de, R>) -> Result<D, InvokeError> {
     let name = command.name;
     let arg = command.key;
+    #[cfg(feature = "tracing")]
+    let _span = tracing::trace_span!("ipc::request::deserialize_arg", arg = arg).entered();
     Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e).into())
   }
 }
@@ -160,6 +162,8 @@ pub mod private {
   use serde::Serialize;
   use serde_json::Value;
   use std::future::Future;
+  #[cfg(feature = "tracing")]
+  pub use tracing;
 
   // ===== impl Serialize =====
 

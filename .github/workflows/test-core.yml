@@ -56,7 +56,7 @@ jobs:
               key: api-all
             }
           - {
-              args: --features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test,
+              args: --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test,
               key: all
             }
 
@@ -81,38 +81,6 @@ jobs:
         with:
           workspaces: core -> ../target
           save-if: ${{ matrix.features.key == 'all' }}
-
-      - name: Downgrade crates with MSRV conflict
-        # The --precise flag can only be used once per invocation.
-        run: |
-          cargo update -p system-deps:6.1.2 --precise 6.1.1
-          cargo update -p toml:0.7.8 --precise 0.7.3
-          cargo update -p toml_edit:0.19.15 --precise 0.19.8
-          cargo update -p embed-resource --precise 2.3.0
-          cargo update -p toml_datetime --precise 0.6.1
-          cargo update -p serde_spanned --precise 0.6.1
-          cargo update -p winnow --precise 0.4.1
-          cargo update -p time --precise 0.3.15
-          cargo update -p ignore --precise 0.4.18
-          cargo update -p raw-window-handle --precise 0.5.0
-          cargo update -p cargo_toml:0.15.3 --precise 0.15.2
-          cargo update -p zbus --precise 3.13.0
-          cargo update -p zbus_names --precise 2.5.0
-          cargo update -p is-terminal --precise 0.4.7
-          cargo update -p colored --precise 2.0.2
-          cargo update -p tempfile --precise 3.6.0
-          cargo update -p serde_with:3.4.0 --precise 3.0.0
-          cargo update -p tokio --precise 1.29.0
-          cargo update -p flate2 --precise 1.0.26
-          cargo update -p h2 --precise 0.3.20
-          cargo update -p reqwest --precise 0.11.18
-          cargo update -p cfg-expr:0.15.5 --precise 0.15.4
-          cargo update -p memchr --precise 2.6.2
-          cargo update -p async-executor --precise 1.5.1
-          cargo update -p proptest --precise 1.2.0
-          cargo update -p regex --precise 1.9.6
-          cargo update -p bstr --precise 1.6.2
-          cargo update -p backtrace --precise 0.3.68
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

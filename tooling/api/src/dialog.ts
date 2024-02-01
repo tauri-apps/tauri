@@ -120,7 +120,7 @@ interface ConfirmDialogOptions {
  * prefer writing a dedicated command instead.
  *
  * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
- * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
+ * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/plugins-workspace/tree/v1/plugins/persisted-scope).
  * @example
  * ```typescript
  * import { open } from '@tauri-apps/api/dialog';
@@ -188,7 +188,7 @@ async function open(
  * prefer writing a dedicated command instead.
  *
  * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
- * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
+ * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/plugins-workspace/tree/v1/plugins/persisted-scope).
  * @example
  * ```typescript
  * import { save } from '@tauri-apps/api/dialog';

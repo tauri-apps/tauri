@@ -297,14 +297,10 @@ jobs:
       - name: List packages
         run: ls -R .
         shell: bash
-      - name: Install system dependencies
-        run: |
-          apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl gtk+3.0-dev
       - name: Setup and run tests
         run: |
           yarn tauri --help
           ls -la
-      # TODO: fix this test: https://github.com/tauri-apps/tauri/runs/5145729140?check_suite_focus=true#step:9:704
       #- name: Setup and run tests
       #  run: |
       #    rustup install stable

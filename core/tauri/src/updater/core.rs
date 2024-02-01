@@ -19,6 +19,8 @@ use semver::Version;
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use tauri_utils::{platform::current_exe, Env};
 use time::OffsetDateTime;
+#[cfg(feature = "tracing")]
+use tracing::Instrument;
 use url::Url;
 
 #[cfg(desktop)]
@@ -312,6 +314,10 @@ impl<R: Runtime> UpdateBuilder<R> {
     Ok(self)
   }
 
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("updater::check", skip_all, fields(arch, target), ret, err)
+  )]
   pub async fn build(mut self) -> Result<Update<R>> {
     let mut remote_release: Option<RemoteRelease> = None;
 
@@ -334,6 +340,12 @@ impl<R: Runtime> UpdateBuilder<R> {
       let target = get_updater_target().ok_or(Error::UnsupportedOs)?;
       (target.to_string(), format!("{target}-{arch}"))
     };
+
+    #[cfg(feature = "tracing")]
+    {
+      tracing::Span::current().record("arch", arch);
+      tracing::Span::current().record("target", &target);
+    }
 
     // Get the extract_path from the provided executable_path
     let extract_path = extract_path_from_executable(&self.app.state::<Env>(), &executable_path);
@@ -370,38 +382,75 @@ impl<R: Runtime> UpdateBuilder<R> {
         .replace("{{target}}", &target)
         .replace("{{arch}}", arch);
 
-      let mut request = HttpRequestBuilder::new("GET", &fixed_link)?.headers(headers.clone());
-      if let Some(timeout) = self.timeout {
-        request = request.timeout(timeout);
-      }
-      let resp = ClientBuilder::new().build()?.send(request).await;
+      let task = async {
+        #[cfg(feature = "tracing")]
+        tracing::debug!("checking if there is an update via {}", url);
 
-      // If we got a success, we stop the loop
-      // and we set our remote_release variable
-      if let Ok(res) = resp {
-        let status = res.status();
-        // got status code 2XX
-        if status.is_success() {
-          // if we got 204
-          if status == StatusCode::NO_CONTENT {
-            // return with `UpToDate` error
-            // we should catch on the client
-            return Err(Error::UpToDate);
-          };
-          let res = res.read().await?;
-          // Convert the remote result to our local struct
-          let built_release = serde_json::from_value(res.data).map_err(Into::into);
-          // make sure all went well and the remote data is compatible
-          // with what we need locally
-          match built_release {
-            Ok(release) => {
-              last_error = None;
-              remote_release = Some(release);
-              break;
+        let mut request = HttpRequestBuilder::new("GET", &fixed_link)?.headers(headers.clone());
+        if let Some(timeout) = self.timeout {
+          request = request.timeout(timeout);
+        }
+        let resp = ClientBuilder::new().build()?.send(request).await;
+
+        // If we got a success, we stop the loop
+        // and we set our remote_release variable
+        if let Ok(res) = resp {
+          let status = res.status();
+          // got status code 2XX
+          if status.is_success() {
+            // if we got 204
+            if status == StatusCode::NO_CONTENT {
+              #[cfg(feature = "tracing")]
+              tracing::event!(tracing::Level::DEBUG, kind = "result", data = "no content");
+              // return with `UpToDate` error
+              // we should catch on the client
+              return Err(Error::UpToDate);
+            };
+            let res = res.read().await?;
+
+            // Convert the remote result to our local struct
+            let built_release: Result<RemoteRelease> =
+              serde_json::from_value(res.data).map_err(Into::into);
+
+            // make sure all went well and the remote data is compatible
+            // with what we need locally
+            match built_release {
+              Ok(release) => {
+                #[cfg(feature = "tracing")]
+                tracing::event!(
+                  tracing::Level::DEBUG,
+                  kind = "result",
+                  data = tracing::field::debug(&release)
+                );
+                last_error = None;
+                return Ok(Some(release));
+              }
+              Err(err) => {
+                #[cfg(feature = "tracing")]
+                tracing::event!(
+                  tracing::Level::ERROR,
+                  kind = "error",
+                  error = err.to_string()
+                );
+                last_error = Some(err)
+              }
             }
-            Err(err) => last_error = Some(err),
-          }
-        } // if status code is not 2XX we keep loopin' our urls
+          } // if status code is not 2XX we keep loopin' our urls
+        }
+
+        Ok(None)
+      };
+
+      #[cfg(feature = "tracing")]
+      let found_release = {
+        let span = tracing::info_span!("updater::check::fetch", url = &fixed_link,);
+        task.instrument(span).await?
+      };
+      #[cfg(not(feature = "tracing"))]
+      let found_release = task.await?;
+      if let Some(release) = found_release {
+        remote_release.replace(release);
+        break;
       }
     }
 
@@ -447,7 +496,6 @@ pub(crate) fn builder<R: Runtime>(app: AppHandle<R>) -> UpdateBuilder<R> {
   UpdateBuilder::new(app)
 }
 
-#[derive(Debug)]
 pub(crate) struct Update<R: Runtime> {
   /// Application handle.
   pub app: AppHandle<R>,
@@ -478,6 +526,29 @@ pub(crate) struct Update<R: Runtime> {
   timeout: Option<Duration>,
   /// Request headers
   headers: HeaderMap,
+}
+
+impl<R: Runtime> fmt::Debug for Update<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut s = f.debug_struct("Update");
+
+    s.field("current_version", &self.current_version)
+      .field("version", &self.version)
+      .field("date", &self.date)
+      .field("should_update", &self.should_update)
+      .field("body", &self.body)
+      .field("target", &self.target)
+      .field("extract_path", &self.extract_path)
+      .field("download_url", &self.download_url)
+      .field("signature", &self.signature)
+      .field("timeout", &self.timeout)
+      .field("headers", &self.headers);
+
+    #[cfg(target_os = "windows")]
+    s.field("with_elevated_task", &self.with_elevated_task);
+
+    s.finish()
+  }
 }
 
 impl<R: Runtime> Clone for Update<R> {
@@ -527,6 +598,7 @@ impl<R: Runtime> Update<R> {
 
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
+  #[cfg_attr(feature = "tracing", tracing::instrument("updater::download_and_install", skip_all, fields(url = %self.download_url), ret, err))]
   pub async fn download_and_install<C: Fn(usize, Option<u64>), D: FnOnce()>(
     &self,
     pub_key: String,
@@ -540,6 +612,10 @@ impl<R: Runtime> Update<R> {
     // anything with it yet
     #[cfg(target_os = "linux")]
     if self.app.state::<Env>().appimage.is_none() {
+      #[cfg(feature = "tracing")]
+      tracing::error!(
+        "app is not a supported Linux package. Currently only AppImages are supported"
+      );
       return Err(Error::UnsupportedLinuxPackage);
     }
 
@@ -561,10 +637,14 @@ impl<R: Runtime> Update<R> {
       req = req.timeout(timeout);
     }
 
+    #[cfg(feature = "tracing")]
+    tracing::info!("Downloading update");
     let response = client.send(req).await?;
 
     // make sure it's success
     if !response.status().is_success() {
+      #[cfg(feature = "tracing")]
+      tracing::error!("Failed to download update");
       return Err(Error::Network(format!(
         "Download request failed with status: {}",
         response.status()
@@ -577,17 +657,31 @@ impl<R: Runtime> Update<R> {
       .and_then(|value| value.to_str().ok())
       .and_then(|value| value.parse().ok());
 
-    let mut buffer = Vec::new();
-    {
+    let buffer = {
       use futures_util::StreamExt;
       let mut stream = response.bytes_stream();
-      while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        let bytes = chunk.as_ref().to_vec();
-        on_chunk(bytes.len(), content_length);
-        buffer.extend(bytes);
+
+      let task = async move {
+        let mut buffer = Vec::new();
+        while let Some(chunk) = stream.next().await {
+          let chunk = chunk?;
+          let bytes = chunk.as_ref().to_vec();
+          on_chunk(bytes.len(), content_length);
+          buffer.extend(bytes);
+        }
+        Result::Ok(buffer)
+      };
+
+      #[cfg(feature = "tracing")]
+      {
+        let span = tracing::info_span!("updater::download_and_install::stream");
+        task.instrument(span).await
       }
-    }
+      #[cfg(not(feature = "tracing"))]
+      {
+        task.await
+      }
+    }?;
 
     on_download_finish();
 
@@ -601,6 +695,8 @@ impl<R: Runtime> Update<R> {
     // TODO: implement updater in mobile
     #[cfg(desktop)]
     {
+      #[cfg(feature = "tracing")]
+      tracing::info_span!("updater::download_and_install::install");
       // we copy the files depending of the operating system
       // we run the setup, appimage re-install or overwrite the
       // macos .app
@@ -610,6 +706,7 @@ impl<R: Runtime> Update<R> {
         &self.extract_path,
         self.with_elevated_task,
         &self.app.config(),
+        &self.app.env(),
       )?;
       #[cfg(not(target_os = "windows"))]
       copy_files_and_run(archive_buffer, &self.extract_path)?;
@@ -709,6 +806,7 @@ fn copy_files_and_run<R: Read + Seek>(
   _extract_path: &Path,
   with_elevated_task: bool,
   config: &crate::Config,
+  env: &crate::Env,
 ) -> Result {
   // FIXME: We need to create a memory buffer with the MSI and then run it.
   //        (instead of extracting the MSI to a temp path)
@@ -734,41 +832,53 @@ fn copy_files_and_run<R: Read + Seek>(
     |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
   );
 
+  let current_exe_args = env.args.clone();
+
   for path in paths {
     let found_path = path?.path();
     // we support 2 type of files exe & msi for now
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // we need to wrap the installer path in quotes for Start-Process
-      let mut installer_arg = std::ffi::OsString::new();
-      installer_arg.push("\"");
-      installer_arg.push(&found_path);
-      installer_arg.push("\"");
+      let mut installer_path = std::ffi::OsString::new();
+      installer_path.push("\"");
+      installer_path.push(&found_path);
+      installer_path.push("\"");
+
+      let installer_args = [
+        config
+          .tauri
+          .updater
+          .windows
+          .install_mode
+          .nsis_args()
+          .iter()
+          .map(ToString::to_string)
+          .collect(),
+        vec!["/ARGS".to_string()],
+        current_exe_args,
+        config
+          .tauri
+          .updater
+          .windows
+          .installer_args
+          .iter()
+          .map(ToString::to_string)
+          .collect::<Vec<_>>(),
+      ]
+      .concat();
 
       // Run the EXE
-      Command::new(powershell_path)
-        .args(["-NoProfile", "-WindowStyle", "Hidden"])
-        .args(["Start-Process"])
-        .arg(installer_arg)
-        .arg("-ArgumentList")
-        .arg(
-          [
-            config.tauri.updater.windows.install_mode.nsis_args(),
-            config
-              .tauri
-              .updater
-              .windows
-              .installer_args
-              .iter()
-              .map(AsRef::as_ref)
-              .collect::<Vec<_>>()
-              .as_slice(),
-          ]
-          .concat()
-          .join(", "),
-        )
+      let mut cmd = Command::new(powershell_path);
+      cmd
+        .args(["-NoProfile", "-WindowStyle", "Hidden", "Start-Process"])
+        .arg(installer_path);
+      if !installer_args.is_empty() {
+        cmd.arg("-ArgumentList").arg(installer_args.join(", "));
+      }
+      cmd
         .spawn()
-        .expect("installer failed to start");
+        .expect("Running NSIS installer from powershell has failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -812,43 +922,55 @@ fn copy_files_and_run<R: Read + Seek>(
       }
 
       // we need to wrap the current exe path in quotes for Start-Process
-      let mut current_exe_arg = std::ffi::OsString::new();
-      current_exe_arg.push("\"");
-      current_exe_arg.push(current_exe()?);
-      current_exe_arg.push("\"");
+      let mut current_executable = std::ffi::OsString::new();
+      current_executable.push("\"");
+      current_executable.push(dunce::simplified(&current_exe()?));
+      current_executable.push("\"");
 
-      let mut msi_path_arg = std::ffi::OsString::new();
-      msi_path_arg.push("\"\"\"");
-      msi_path_arg.push(&found_path);
-      msi_path_arg.push("\"\"\"");
+      let mut msi_path = std::ffi::OsString::new();
+      msi_path.push("\"\"\"");
+      msi_path.push(&found_path);
+      msi_path.push("\"\"\"");
 
-      let mut msiexec_args = config
-        .tauri
-        .updater
-        .windows
-        .install_mode
-        .msiexec_args()
-        .iter()
-        .map(|p| p.to_string())
-        .collect::<Vec<String>>();
-      msiexec_args.extend(config.tauri.updater.windows.installer_args.clone());
+      let installer_args = [
+        config.tauri.updater.windows.install_mode.msiexec_args(),
+        config
+          .tauri
+          .updater
+          .windows
+          .installer_args
+          .iter()
+          .map(AsRef::as_ref)
+          .collect::<Vec<_>>()
+          .as_slice(),
+      ]
+      .concat();
 
       // run the installer and relaunch the application
-      let powershell_install_res = Command::new(powershell_path)
+      let mut powershell_cmd = Command::new(powershell_path);
+
+      powershell_cmd
         .args(["-NoProfile", "-WindowStyle", "Hidden"])
         .args([
           "Start-Process",
           "-Wait",
           "-FilePath",
-          "$env:SYSTEMROOT\\System32\\msiexec.exe",
+          "$Env:SYSTEMROOT\\System32\\msiexec.exe",
           "-ArgumentList",
         ])
         .arg("/i,")
-        .arg(msi_path_arg)
-        .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
+        .arg(&msi_path)
+        .arg(format!(", {}, /promptrestart;", installer_args.join(", ")))
         .arg("Start-Process")
-        .arg(current_exe_arg)
-        .spawn();
+        .arg(current_executable);
+
+      if !current_exe_args.is_empty() {
+        powershell_cmd
+          .arg("-ArgumentList")
+          .arg(current_exe_args.join(", "));
+      }
+
+      let powershell_install_res = powershell_cmd.spawn();
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available
         // we use this here in case powershell fails in an older machine somehow
@@ -858,8 +980,8 @@ fn copy_files_and_run<R: Read + Seek>(
         );
         let _ = Command::new(msiexec_path)
           .arg("/i")
-          .arg(found_path)
-          .args(msiexec_args)
+          .arg(msi_path)
+          .args(installer_args)
           .arg("/promptrestart")
           .spawn();
       }

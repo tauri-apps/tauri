@@ -19,7 +19,16 @@
 import { PhysicalPosition, PhysicalSize } from './dpi'
 import type { LogicalPosition, LogicalSize } from './dpi'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { TauriEvent, emit, listen, once } from './event'
+import {
+  TauriEvent,
+  // imported for documentation purposes
+  // eslint-disable-next-line
+  type EventTarget,
+  emit,
+  emitTo,
+  listen,
+  once
+} from './event'
 import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
 import type { WindowOptions } from './window'
@@ -190,7 +199,7 @@ class Webview {
   }
 
   /**
-   * Listen to an event emitted by the backend that is tied to the webview.
+   * Listen to an emitted event on this webview.
    *
    * @example
    * ```typescript
@@ -220,12 +229,12 @@ class Webview {
       })
     }
     return listen(event, handler, {
-      target: { kind: 'webview', label: this.label }
+      target: { kind: 'Webview', label: this.label }
     })
   }
 
   /**
-   * Listen to an one-off event emitted by the backend that is tied to the webview.
+   * Listen to an emitted event on this webview only once.
    *
    * @example
    * ```typescript
@@ -252,12 +261,13 @@ class Webview {
       })
     }
     return once(event, handler, {
-      target: { kind: 'webview', label: this.label }
+      target: { kind: 'Webview', label: this.label }
     })
   }
 
   /**
-   * Emits an event to the backend, tied to the webview.
+   * Emits an event to all {@link EventTarget|targets}.
+   *
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/webview';
@@ -274,15 +284,44 @@ class Webview {
         handler({
           event,
           id: -1,
-          source: { kind: 'webview', label: this.label },
           payload
         })
       }
       return Promise.resolve()
     }
-    return emit(event, payload, {
-      target: { kind: 'webview', label: this.label }
-    })
+    return emit(event, payload)
+  }
+
+  /**
+   * Emits an event to all {@link EventTarget|targets} matching the given target.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   *
+   * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emitTo(
+    target: string | EventTarget,
+    event: string,
+    payload?: unknown
+  ): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return Promise.resolve()
+    }
+    return emitTo(target, event, payload)
   }
 
   /** @ignore */
@@ -604,12 +643,79 @@ class WebviewWindow {
     // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     return getAll().map((w) => new WebviewWindow(w.label, { skip: true }))
   }
+
+  /**
+   * Listen to an emitted event on this webivew window.
+   *
+   * @example
+   * ```typescript
+   * import { WebviewWindow } from '@tauri-apps/api/webview';
+   * const unlisten = await WebviewWindow.getCurrent().listen<string>('state-changed', (event) => {
+   *   console.log(`Got error: ${payload}`);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param handler Event handler.
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async listen<T>(
+    event: EventName,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
+    if (this._handleTauriEvent(event, handler)) {
+      return Promise.resolve(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, security/detect-object-injection
+        const listeners = this.listeners[event]
+        listeners.splice(listeners.indexOf(handler), 1)
+      })
+    }
+    return listen(event, handler, {
+      target: { kind: 'WebviewWindow', label: this.label }
+    })
+  }
+
+  /**
+   * Listen to an emitted event on this webivew window only once.
+   *
+   * @example
+   * ```typescript
+   * import { WebviewWindow } from '@tauri-apps/api/webview';
+   * const unlisten = await WebviewWindow.getCurrent().once<null>('initialized', (event) => {
+   *   console.log(`Webview initialized!`);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param handler Event handler.
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
+    if (this._handleTauriEvent(event, handler)) {
+      return Promise.resolve(() => {
+        // eslint-disable-next-line security/detect-object-injection
+        const listeners = this.listeners[event]
+        listeners.splice(listeners.indexOf(handler), 1)
+      })
+    }
+    return once(event, handler, {
+      target: { kind: 'WebviewWindow', label: this.label }
+    })
+  }
 }
 
-// order matters, we use window APIs by default
-applyMixins(WebviewWindow, [Webview, Window])
+// Order matters, we use window APIs by default
+applyMixins(WebviewWindow, [Window, Webview])
 
-/** Extends a base class by other specifed classes */
+/** Extends a base class by other specifed classes, wihtout overriding existing properties */
 function applyMixins(
   baseClass: { prototype: unknown },
   extendedClasses: unknown
@@ -619,6 +725,12 @@ function applyMixins(
     : [extendedClasses]
   ).forEach((extendedClass: { prototype: unknown }) => {
     Object.getOwnPropertyNames(extendedClass.prototype).forEach((name) => {
+      if (
+        typeof baseClass.prototype === 'object' &&
+        baseClass.prototype &&
+        name in baseClass.prototype
+      )
+        return
       Object.defineProperty(
         baseClass.prototype,
         name,
@@ -679,6 +791,16 @@ interface WebviewOptions {
    * - **Android:** Unsupported.
    */
   incognito?: boolean
+  /**
+   * The proxy URL for the WebView for all network requests.
+   *
+   * Must be either a `http://` or a `socks5://` URL.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
+   * */
+  proxyUrl?: string
 }
 
 export { Webview, WebviewWindow, getCurrent, getAll }

@@ -440,6 +440,14 @@
             "string",
             "null"
           ]
+        },
+        "proxyUrl": {
+          "description": "The proxy URL for the WebView for all network requests.\n\nMust be either a `http://` or a `socks5://` URL.\n\n## Platform-specific\n\n- **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
         }
       },
       "additionalProperties": false

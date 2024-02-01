@@ -211,6 +211,7 @@ pub struct WebviewAttributes {
   pub transparent: bool,
   pub bounds: Option<(Position, Size)>,
   pub auto_resize: bool,
+  pub proxy_url: Option<Url>,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -234,6 +235,9 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(effects) = &config.window_effects {
       builder = builder.window_effects(effects.clone());
     }
+    if let Some(url) = &config.proxy_url {
+      builder = builder.proxy_url(url.to_owned());
+    }
     builder
   }
 }
@@ -255,6 +259,7 @@ impl WebviewAttributes {
       transparent: false,
       bounds: None,
       auto_resize: false,
+      proxy_url: None,
     }
   }
 
@@ -336,6 +341,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn auto_resize(mut self) -> Self {
     self.auto_resize = true;
+    self
+  }
+
+  /// Enable proxy for the WebView
+  #[must_use]
+  pub fn proxy_url(mut self, url: Url) -> Self {
+    self.proxy_url = Some(url);
     self
   }
 }

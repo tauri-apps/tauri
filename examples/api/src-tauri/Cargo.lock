@@ -3131,6 +3131,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45a28f4c49489add4ce10783f7911893516f15afe45d015608d41faca6bc4d29"
 dependencies = [
  "dyn-clone",
+ "indexmap 1.9.3",
  "schemars_derive",
  "serde",
  "serde_json",
@@ -3598,8 +3599,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.24.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75d4a64cfac8e487c61d778fe4ab8480f162451e8af7f247aafadcb3b2560852"
+source = "git+https://github.com/tauri-apps/tao?branch=dev#ae4b693dc0a5d4f556bb9e6dcdbbeb1cfbf8f862"
 dependencies = [
  "bitflags 1.3.2",
  "cc",
@@ -3627,7 +3627,7 @@ dependencies = [
  "raw-window-handle 0.5.2",
  "raw-window-handle 0.6.0",
  "scopeguard",
- "tao-macros",
+ "tao-macros 0.1.2 (git+https://github.com/tauri-apps/tao?branch=dev)",
  "unicode-segmentation",
  "url",
  "windows 0.52.0",
@@ -3642,6 +3642,16 @@ name = "tao-macros"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec114582505d158b669b136e6851f85840c109819d77c42bb7c0709f727d18c2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "tao-macros"
+version = "0.1.2"
+source = "git+https://github.com/tauri-apps/tao?branch=dev#ae4b693dc0a5d4f556bb9e6dcdbbeb1cfbf8f862"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4947,7 +4957,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "soup3",
- "tao-macros",
+ "tao-macros 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "url",
  "webkit2gtk",

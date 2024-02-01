@@ -6,6 +6,11 @@
 
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
+use crate::{
+  event::EventTarget,
+  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
+  window::Monitor,
+};
 #[cfg(desktop)]
 use crate::{
   menu::{ContextMenu, Menu},
@@ -18,11 +23,6 @@ use crate::{
   },
   Icon,
 };
-use crate::{
-  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
-  window::Monitor,
-};
-use serde::Serialize;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
 
@@ -824,6 +824,15 @@ fn main() {
     self.webview_builder = self.webview_builder.auto_resize();
     self
   }
+
+  /// Set a proxy URL for the WebView for all network requests.
+  ///
+  /// Must be either a `http://` or a `socks5://` URL.
+  #[must_use]
+  pub fn proxy_url(mut self, url: Url) -> Self {
+    self.webview_builder = self.webview_builder.proxy_url(url);
+    self
+  }
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].
@@ -858,24 +867,6 @@ impl<R: Runtime> PartialEq for WebviewWindow<R> {
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for WebviewWindow<R> {
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
     self.webview.window().raw_window_handle()
-  }
-}
-
-impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
-  fn manager(&self) -> &AppManager<R> {
-    self.webview.manager()
-  }
-
-  fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.webview.manager_owned()
-  }
-
-  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    self.webview.runtime()
-  }
-
-  fn managed_app_handle(&self) -> &AppHandle<R> {
-    self.webview.managed_app_handle()
   }
 }
 
@@ -1702,7 +1693,7 @@ tauri::Builder::default()
 
 /// Event system APIs.
 impl<R: Runtime> WebviewWindow<R> {
-  /// Listen to an event on this webview.
+  /// Listen to an event on this webview window.
   ///
   /// # Examples
   ///
@@ -1728,10 +1719,16 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.webview.listen(event, handler)
+    self.manager().listen(
+      event.into(),
+      EventTarget::WebviewWindow {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 
-  /// Unlisten to an event on this window.
+  /// Unlisten to an event on this webview window.
   ///
   /// # Examples
   #[cfg_attr(
@@ -1761,39 +1758,42 @@ tauri::Builder::default()
   "####
   )]
   pub fn unlisten(&self, id: EventId) {
-    self.webview.unlisten(id)
+    self.manager().unlisten(id)
   }
 
-  /// Listen to an event on this webview only once.
+  /// Listen to an event on this window webview only once.
   ///
   /// See [`Self::listen`] for more information.
   pub fn once<F>(&self, event: impl Into<String>, handler: F)
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.webview.once(event, handler)
+    self.manager().once(
+      event.into(),
+      EventTarget::WebviewWindow {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 }
 
-impl<R: Runtime> Manager<R> for WebviewWindow<R> {
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.webview.emit(event, payload)
+impl<R: Runtime> Manager<R> for WebviewWindow<R> {}
+
+impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
+  fn manager(&self) -> &AppManager<R> {
+    self.webview.manager()
   }
 
-  fn emit_to<S: Serialize + Clone>(
-    &self,
-    label: &str,
-    event: &str,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.webview.emit_to(label, event, payload)
+  fn manager_owned(&self) -> Arc<AppManager<R>> {
+    self.webview.manager_owned()
   }
 
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
-  {
-    self.webview.emit_filter(event, payload, filter)
+  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
+    self.webview.runtime()
+  }
+
+  fn managed_app_handle(&self) -> &AppHandle<R> {
+    self.webview.managed_app_handle()
   }
 }

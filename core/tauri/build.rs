@@ -32,7 +32,12 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
   ),
   (
     "event",
-    &[("listen", true), ("unlisten", true), ("emit", true)],
+    &[
+      ("listen", true),
+      ("unlisten", true),
+      ("emit", true),
+      ("emit_to", true),
+    ],
   ),
   (
     "window",

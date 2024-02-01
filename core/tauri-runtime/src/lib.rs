@@ -122,6 +122,8 @@ pub enum Error {
   Infallible(#[from] std::convert::Infallible),
   #[error("the event loop has been closed")]
   EventLoopClosed,
+  #[error("Invalid proxy url")]
+  InvalidProxyUrl,
   #[error("window not found")]
   WindowNotFound,
 }

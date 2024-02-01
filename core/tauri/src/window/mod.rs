@@ -14,7 +14,7 @@ pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState a
 
 use crate::{
   app::AppHandle,
-  event::{Event, EventId, EventSource},
+  event::{Event, EventId, EventTarget},
   ipc::{CommandArg, CommandItem, InvokeError},
   manager::{webview::WebviewLabelDef, AppManager},
   runtime::{
@@ -911,60 +911,7 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {
-  #[cfg_attr(
-    feature = "tracing",
-    tracing::instrument("window::emit", skip(self, payload))
-  )]
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    // store the webviews before emit_filter() to prevent a deadlock
-    let webviews = self.webviews();
-    self.manager().emit_filter(
-      event,
-      EventSource::Window {
-        label: self.label().to_string(),
-      },
-      payload,
-      |w| webviews.contains(w),
-    )?;
-    Ok(())
-  }
-
-  fn emit_to<S: Serialize + Clone>(
-    &self,
-    label: &str,
-    event: &str,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.manager().emit_filter(
-      event,
-      EventSource::Window {
-        label: self.label().to_string(),
-      },
-      payload,
-      |w| label == w.label(),
-    )
-  }
-
-  #[cfg_attr(
-    feature = "tracing",
-    tracing::instrument("window::emit::filter", skip(self, payload, filter))
-  )]
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
-  {
-    self.manager().emit_filter(
-      event,
-      EventSource::Window {
-        label: self.label().to_string(),
-      },
-      payload,
-      filter,
-    )
-  }
-}
+impl<R: Runtime> Manager<R> for Window<R> {}
 
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &AppManager<R> {
@@ -1021,7 +968,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Adds a new webview as a child of this window.
-  #[cfg(all(desktop, feature = "unstable"))]
+  #[cfg(any(test, all(desktop, feature = "unstable")))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
   pub fn add_child<P: Into<Position>, S: Into<Size>>(
     &self,
@@ -1993,8 +1940,13 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    // TODO: listen on all webviews
-    self.manager.listen(event.into(), None, handler)
+    self.manager.listen(
+      event.into(),
+      EventTarget::Window {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 
   /// Unlisten to an event on this window.
@@ -2037,8 +1989,13 @@ tauri::Builder::default()
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    // TODO: listen on all webviews
-    self.manager.once(event.into(), None, handler)
+    self.manager.once(
+      event.into(),
+      EventTarget::Window {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 }
 

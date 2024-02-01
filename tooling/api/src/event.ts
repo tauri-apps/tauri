@@ -11,24 +11,17 @@
 
 import { invoke, transformCallback } from './core'
 
-type EventSource =
-  | {
-      kind: 'global'
-    }
-  | {
-      kind: 'window'
-      label: string
-    }
-  | {
-      kind: 'webview'
-      label: string
-    }
+type EventTarget =
+  | { kind: 'Any' }
+  | { kind: 'AnyLabel'; label: string }
+  | { kind: 'App' }
+  | { kind: 'Window'; label: string }
+  | { kind: 'Webview'; label: string }
+  | { kind: 'WebviewWindow'; label: string }
 
 interface Event<T> {
   /** Event name */
   event: EventName
-  /** The source of the event. Can be a global event, an event from a window or an event from another webview. */
-  source: EventSource
   /** Event identifier used to unlisten */
   id: number
   /** Event payload */
@@ -43,16 +36,11 @@ type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
 interface Options {
   /**
-   * Window or webview the function targets.
+   * The event target to listen to, defaults to `{ kind: 'Any' }`, see {@link EventTarget}.
    *
-   * When listening to events and using this value,
-   * only events triggered by the window with the given label are received.
-   *
-   * When emitting events, only the window with the given label will receive it.
+   * If a string is provided, {@link EventTarget.AnyLabel} is used.
    */
-  target?:
-    | { kind: 'window'; label: string }
-    | { kind: 'webview'; label: string }
+  target?: string | EventTarget
 }
 
 /**
@@ -89,14 +77,13 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
 }
 
 /**
- * Listen to an event. The event can be either global or window-specific.
- * See {@link Event.source} to check the event source.
+ * Listen to an emitted event to any {@link EventTarget|target}.
  *
  * @example
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
  * const unlisten = await listen<string>('error', (event) => {
- *   console.log(`Got error in window ${event.source}, payload: ${event.payload}`);
+ *   console.log(`Got error, payload: ${event.payload}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
@@ -105,6 +92,7 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param handler Event handler callback.
+ * @param options Event listening options.
  * @returns A promise resolving to a function to unlisten to the event.
  * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
  *
@@ -115,9 +103,13 @@ async function listen<T>(
   handler: EventCallback<T>,
   options?: Options
 ): Promise<UnlistenFn> {
+  const target: EventTarget =
+    typeof options?.target === 'string'
+      ? { kind: 'AnyLabel', label: options.target }
+      : options?.target ?? { kind: 'Any' }
   return invoke<number>('plugin:event|listen', {
     event,
-    target: options?.target,
+    target,
     handler: transformCallback(handler)
   }).then((eventId) => {
     return async () => _unlisten(event, eventId)
@@ -125,7 +117,7 @@ async function listen<T>(
 }
 
 /**
- * Listen to an one-off event. See {@link listen} for more information.
+ * Listens once to an emitted event to any {@link EventTarget|target}.
  *
  * @example
  * ```typescript
@@ -143,6 +135,8 @@ async function listen<T>(
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param handler Event handler callback.
+ * @param options Event listening options.
  * @returns A promise resolving to a function to unlisten to the event.
  * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
  *
@@ -164,7 +158,8 @@ async function once<T>(
 }
 
 /**
- * Emits an event to the backend and all Tauri windows.
+ * Emits an event to all {@link EventTarget|targets}.
+ *
  * @example
  * ```typescript
  * import { emit } from '@tauri-apps/api/event';
@@ -172,28 +167,53 @@ async function once<T>(
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param payload Event payload.
  *
  * @since 1.0.0
  */
-async function emit(
-  event: string,
-  payload?: unknown,
-  options?: Options
-): Promise<void> {
+async function emit(event: string, payload?: unknown): Promise<void> {
   await invoke('plugin:event|emit', {
     event,
-    target: options?.target,
+    payload
+  })
+}
+
+/**
+ * Emits an event to all {@link EventTarget|targets} matching the given target.
+ *
+ * @example
+ * ```typescript
+ * import { emit } from '@tauri-apps/api/event';
+ * await emit('frontend-loaded', { loggedIn: true, token: 'authToken' });
+ * ```
+ *
+ * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
+ * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param payload Event payload.
+ *
+ * @since 1.0.0
+ */
+async function emitTo(
+  target: EventTarget | string,
+  event: string,
+  payload?: unknown
+): Promise<void> {
+  const eventTarget: EventTarget =
+    typeof target === 'string' ? { kind: 'AnyLabel', label: target } : target
+  await invoke('plugin:event|emit_to', {
+    target: eventTarget,
+    event,
     payload
   })
 }
 
 export type {
-  EventSource,
   Event,
+  EventTarget,
   EventCallback,
   UnlistenFn,
   EventName,
   Options
 }
 
-export { listen, once, emit, TauriEvent }
+export { listen, once, emit, emitTo, TauriEvent }

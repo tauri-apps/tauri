@@ -199,65 +199,6 @@ pub fn generate_schema(
   Ok(())
 }
 
-pub fn generate_docs(plugin_manifests: &BTreeMap<String, Manifest>, target: Target) -> Result<()> {
-  let mut docs = String::new();
-
-  let mut plugins = plugin_manifests.keys().collect::<Vec<_>>();
-  plugins.sort();
-
-  fn docs_from(plugin: &str, id: &str, description: Option<&str>) -> String {
-    format!(
-      "## {plugin}:{id}{}",
-      if let Some(d) = description {
-        format!("\n\n{d}")
-      } else {
-        "".into()
-      }
-    )
-  }
-
-  for plugin in plugins {
-    let mut plugin_docs = String::new();
-    let manifest = plugin_manifests.get(plugin).unwrap();
-
-    for (set_id, set) in &manifest.permission_sets {
-      plugin_docs.push_str(&docs_from(plugin, set_id, Some(&set.description)));
-      plugin_docs.push_str("\n\n");
-    }
-
-    if let Some(default) = &manifest.default_permission {
-      plugin_docs.push_str(&docs_from(
-        plugin,
-        "default",
-        Some(default.description.as_ref()),
-      ));
-      plugin_docs.push_str("\n\n");
-    }
-
-    for (permission_id, permission) in &manifest.permissions {
-      plugin_docs.push_str(&docs_from(
-        plugin,
-        permission_id,
-        permission.description.as_deref(),
-      ));
-      plugin_docs.push_str("\n\n");
-    }
-
-    let plugin_section = format!("# {plugin}\n\n{plugin_docs}");
-
-    docs.push_str(&plugin_section);
-  }
-
-  let out_dir = PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH);
-  create_dir_all(&out_dir).context("unable to create schema output directory")?;
-
-  let docs_path = out_dir.join(format!("{target}-permissions.md"));
-  let mut docs_file = BufWriter::new(File::create(docs_path)?);
-  write!(docs_file, "{docs}")?;
-
-  Ok(())
-}
-
 pub fn save_capabilities(capabilities: &BTreeMap<String, Capability>) -> Result<PathBuf> {
   let capabilities_path =
     PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH).join(CAPABILITIES_FILE_NAME);

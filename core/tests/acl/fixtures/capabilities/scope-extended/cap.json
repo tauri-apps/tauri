@@ -35,6 +35,7 @@
           "path": "$APP/*.db"
         }
       ]
-    }
+    },
+    "fs:read-download-dir"
   ]
 }

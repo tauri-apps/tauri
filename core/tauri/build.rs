@@ -297,7 +297,7 @@ fn main() {
     if target_os == "ios" {
       let lib_path =
         PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/ios-api");
-      tauri_build::mobile::link_swift_library("Tauri", &lib_path);
+      tauri_utils::build::link_swift_library("Tauri", &lib_path);
       println!("cargo:ios_library_path={}", lib_path.display());
     }
   }

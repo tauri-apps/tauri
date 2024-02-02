@@ -1961,6 +1961,7 @@ pub struct Config {
   /// the bundle ID and path to the webview data directory.
   /// This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-),
   /// and periods (.).
+  #[serde(default)]
   pub identifier: String,
   /// The App configuration.
   #[serde(default)]

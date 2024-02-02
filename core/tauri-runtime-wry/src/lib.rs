@@ -26,9 +26,7 @@ use tauri_runtime::{
 };
 
 #[cfg(target_os = "macos")]
-use tao::platform::macos::EventLoopWindowTargetExtMacOS;
-#[cfg(target_os = "macos")]
-use tao::platform::macos::WindowBuilderExtMacOS;
+use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
 #[cfg(target_os = "linux")]
 use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
@@ -428,6 +426,16 @@ pub fn map_theme(theme: &TaoTheme) -> Theme {
     TaoTheme::Light => Theme::Light,
     TaoTheme::Dark => Theme::Dark,
     _ => Theme::Light,
+  }
+}
+
+#[cfg(target_os = "macos")]
+fn tao_activation_policy(activation_policy: ActivationPolicy) -> TaoActivationPolicy {
+  match activation_policy {
+    ActivationPolicy::Regular => TaoActivationPolicy::Regular,
+    ActivationPolicy::Accessory => TaoActivationPolicy::Accessory,
+    ActivationPolicy::Prohibited => TaoActivationPolicy::Prohibited,
+    _ => unimplemented!(),
   }
 }
 
@@ -1201,6 +1209,8 @@ pub type CreateWebviewClosure = Box<dyn FnOnce(&Window) -> Result<WebviewWrapper
 
 pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
+  #[cfg(target_os = "macos")]
+  SetActivationPolicy(ActivationPolicy),
   RequestExit(i32),
   #[cfg(target_os = "macos")]
   Application(ApplicationMessage),
@@ -1995,6 +2005,14 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     EventProxy(self.context.proxy.clone())
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::SetActivationPolicy(activation_policy),
+    )
+  }
+
   fn request_exit(&self, code: i32) -> Result<()> {
     // NOTE: request_exit cannot use the `send_user_message` function because it accesses the event loop callback
     self
@@ -2296,12 +2314,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     self
       .event_loop
-      .set_activation_policy(match activation_policy {
-        ActivationPolicy::Regular => TaoActivationPolicy::Regular,
-        ActivationPolicy::Accessory => TaoActivationPolicy::Accessory,
-        ActivationPolicy::Prohibited => TaoActivationPolicy::Prohibited,
-        _ => unimplemented!(),
-      });
+      .set_activation_policy(tao_activation_policy(activation_policy));
   }
 
   #[cfg(target_os = "macos")]
@@ -2446,6 +2459,10 @@ fn handle_user_message<T: UserEvent>(
   } = context;
   match message {
     Message::Task(task) => task(),
+    #[cfg(target_os = "macos")]
+    Message::SetActivationPolicy(activation_policy) => {
+      event_loop.set_activation_policy_at_runtime(tao_activation_policy(activation_policy))
+    }
     Message::RequestExit(_code) => panic!("cannot handle RequestExit on the main thread"),
     #[cfg(target_os = "macos")]
     Message::Application(application_message) => match application_message {

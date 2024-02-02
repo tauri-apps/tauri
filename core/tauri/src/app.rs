@@ -876,11 +876,14 @@ impl<R: Runtime> App<R> {
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   pub fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
-    self
-      .runtime
-      .as_mut()
-      .unwrap()
-      .set_activation_policy(activation_policy);
+    if let Some(runtime) = self.runtime.as_mut() {
+      runtime.set_activation_policy(activation_policy);
+    } else {
+      let _ = self
+        .app_handle()
+        .runtime_handle
+        .set_activation_policy(activation_policy);
+    }
   }
 
   /// Change the device event filter mode.

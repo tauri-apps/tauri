@@ -297,9 +297,7 @@ impl<R: Runtime> AppManager<R> {
   fn base_path(&self) -> Option<&Url> {
     use crate::{utils::config::FrontendDist, WebviewUrl};
     match self.config.build.frontend_dist.as_ref() {
-      Some(FrontendDist::Url(WebviewUrl::External(url) | WebviewUrl::CustomProtocol(url))) => {
-        Some(url)
-      }
+      Some(FrontendDist::Url(url)) => Some(url),
       _ => None,
     }
   }

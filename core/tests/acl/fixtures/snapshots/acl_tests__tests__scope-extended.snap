@@ -1,6 +1,5 @@
 ---
 source: core/tests/acl/src/lib.rs
-assertion_line: 59
 expression: resolved
 ---
 Resolved {
@@ -30,7 +29,7 @@ Resolved {
                 },
             ],
             scope: Some(
-                792017965103506125,
+                9188997750422900590,
             ),
         },
         CommandKey {
@@ -58,7 +57,7 @@ Resolved {
                 },
             ],
             scope: Some(
-                5856262838373339618,
+                1349364295896631601,
             ),
         },
         CommandKey {
@@ -86,13 +85,95 @@ Resolved {
                 },
             ],
             scope: Some(
-                10252531491715478446,
+                8031926490300119127,
             ),
         },
     },
     denied_commands: {},
     command_scope: {
-        792017965103506125: ResolvedScope {
+        1349364295896631601: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME/.config/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$DOWNLOAD",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$DOWNLOAD/**",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**/*.key",
+                        ),
+                    },
+                ),
+            ],
+        },
+        8031926490300119127: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME/.config/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**/*.key",
+                        ),
+                    },
+                ),
+            ],
+        },
+        9188997750422900590: ResolvedScope {
             allow: [
                 Map(
                     {
@@ -104,74 +185,6 @@ Resolved {
             ],
             deny: [],
         },
-        5856262838373339618: ResolvedScope {
-            allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$HOME/.config/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE",
-                        ),
-                    },
-                ),
-            ],
-            deny: [
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**/*.key",
-                        ),
-                    },
-                ),
-            ],
-        },
-        10252531491715478446: ResolvedScope {
-            allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$HOME/.config/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE",
-                        ),
-                    },
-                ),
-            ],
-            deny: [
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**/*.key",
-                        ),
-                    },
-                ),
-            ],
-        },
     },
     global_scope: {
         "fs": ResolvedScope {
@@ -179,14 +192,14 @@ Resolved {
                 Map(
                     {
                         "path": String(
-                            "$APP",
+                            "$APP/**",
                         ),
                     },
                 ),
                 Map(
                     {
                         "path": String(
-                            "$APP/**",
+                            "$APP",
                         ),
                     },
                 ),

@@ -1,6 +1,5 @@
 ---
 source: core/tests/acl/src/lib.rs
-assertion_line: 59
 expression: resolved
 ---
 Resolved {
@@ -58,7 +57,7 @@ Resolved {
                 },
             ],
             scope: Some(
-                7912899488978770657,
+                5856262838373339618,
             ),
         },
         CommandKey {
@@ -92,6 +91,39 @@ Resolved {
     },
     denied_commands: {},
     command_scope: {
+        5856262838373339618: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$DOWNLOAD",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$DOWNLOAD/**",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
         7912899488978770657: ResolvedScope {
             allow: [
                 Map(

@@ -2,7 +2,7 @@
 'tauri': 'major:breaking'
 'tauri-utils': 'major:breaking'
 'tauri-build': 'major:breaking'
-'tauri-context': 'major:breaking'
+'tauri-codegen': 'major:breaking'
 'tauri-cli': 'major:breaking'
 '@tauri-apps/cli': 'major:breaking'
 ---

@@ -20,7 +20,7 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use log::{debug, error, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
   MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
@@ -689,6 +689,74 @@ enum DesktopDeepLinks {
   List(Vec<DeepLinkProtocol>),
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpdaterConfig {
+  /// Whether the updater is active or not.
+  #[serde(default)]
+  pub active: bool,
+  /// Signature public key.
+  pub pubkey: String,
+  /// The Windows configuration for the updater.
+  #[serde(default)]
+  pub windows: UpdaterWindowsConfig,
+}
+
+/// Install modes for the Windows update.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum WindowsUpdateInstallMode {
+  /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
+  BasicUi,
+  /// The quiet mode means there's no user interaction required.
+  /// Requires admin privileges if the installer does.
+  Quiet,
+  /// Specifies unattended mode, which means the installation only shows a progress bar.
+  Passive,
+  // to add more modes, we need to check if the updater relaunch makes sense
+  // i.e. for a full UI mode, the user can also mark the installer to start the app
+}
+
+impl Default for WindowsUpdateInstallMode {
+  fn default() -> Self {
+    Self::Passive
+  }
+}
+
+impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    match s.to_lowercase().as_str() {
+      "basicui" => Ok(Self::BasicUi),
+      "quiet" => Ok(Self::Quiet),
+      "passive" => Ok(Self::Passive),
+      _ => Err(serde::de::Error::custom(format!(
+        "unknown update install mode '{s}'"
+      ))),
+    }
+  }
+}
+
+impl WindowsUpdateInstallMode {
+  /// Returns the associated `msiexec.exe` arguments.
+  pub fn msiexec_args(&self) -> &'static [&'static str] {
+    match self {
+      Self::BasicUi => &["/qb+"],
+      Self::Quiet => &["/quiet"],
+      Self::Passive => &["/passive"],
+    }
+  }
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdaterWindowsConfig {
+  #[serde(default, alias = "install-mode")]
+  pub install_mode: WindowsUpdateInstallMode,
+}
+
 impl AppSettings for RustAppSettings {
   fn get_package_settings(&self) -> PackageSettings {
     self.package_settings.clone()
@@ -702,19 +770,22 @@ impl AppSettings for RustAppSettings {
     let arch64bits =
       self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
 
+    let updater_settings = if let Some(updater_plugin_config) = config.plugins.0.get("updater") {
+      let updater: UpdaterConfig = serde_json::from_value(updater_plugin_config.clone())?;
+      Some(UpdaterSettings {
+        pubkey: updater.pubkey,
+        msiexec_args: Some(updater.windows.install_mode.msiexec_args()),
+      })
+    } else {
+      None
+    };
+
     let mut settings = tauri_config_to_bundle_settings(
       self,
       features,
       config.identifier.clone(),
       config.bundle.clone(),
-      config
-        .plugins
-        .0
-        .get("updater")
-        .and_then(|k| k.get("pubkey"))
-        .and_then(|v| v.as_str())
-        .map(|v| v.to_string())
-        .map(|pubkey| UpdaterSettings { pubkey }),
+      updater_settings,
       arch64bits,
     )?;
 

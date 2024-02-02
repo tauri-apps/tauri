@@ -158,6 +158,8 @@ pub struct PackageSettings {
 pub struct UpdaterSettings {
   /// Signature public key.
   pub pubkey: String,
+  /// Args to pass to `msiexec.exe` to run the updater on Windows.
+  pub msiexec_args: Option<&'static [&'static str]>,
 }
 
 /// The Linux debian bundle settings.

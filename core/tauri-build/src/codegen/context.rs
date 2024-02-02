@@ -10,7 +10,7 @@ use std::{
   path::PathBuf,
 };
 use tauri_codegen::{context_codegen, ContextData};
-use tauri_utils::config::{AppUrl, WebviewUrl};
+use tauri_utils::config::FrontendDist;
 
 // TODO docs
 /// A builder for generating a Tauri application context during compile time.
@@ -83,10 +83,10 @@ impl CodegenContext {
 
     // rerun if changed
     match &config.build.frontend_dist {
-      Some(AppUrl::Url(WebviewUrl::App(p))) => {
+      Some(FrontendDist::Dist(p)) => {
         println!("cargo:rerun-if-changed={}", config_parent.join(p).display());
       }
-      Some(AppUrl::Files(files)) => {
+      Some(FrontendDist::Files(files)) => {
         for path in files {
           println!(
             "cargo:rerun-if-changed={}",

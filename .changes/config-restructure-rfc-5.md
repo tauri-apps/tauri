@@ -22,3 +22,4 @@ Restructured Tauri config per [RFC#5](https://github.com/tauri-apps/rfcs/blob/f3
 - Moved `tauri.bundle.deb` object to `bundle.linux.deb`.
 - Moved `tauri.bundle.appimage` object to `bundle.linux.appimage`.
 - Removed all license fields from each bundle configuration object and instead added `bundle.license` and `bundle.licenseFile`.
+- Renamed `AppUrl` to `FrontendDist` and refactored its variants to be more explicit.

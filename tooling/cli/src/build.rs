@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, HookCommand, WebviewUrl, MERGE_CONFIG_EXTENSION_NAME},
+    config::{get as get_config, FrontendDist, HookCommand, MERGE_CONFIG_EXTENSION_NAME},
     resolve_merge_config,
     updater_signature::{secret_key as updater_secret_key, sign_file},
   },
@@ -307,7 +307,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     )?;
   }
 
-  if let Some(AppUrl::Url(WebviewUrl::App(web_asset_path))) = &config_.build.frontend_dist {
+  if let Some(FrontendDist::Dist(web_asset_path)) = &config_.build.frontend_dist {
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
           "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{:?}\".",

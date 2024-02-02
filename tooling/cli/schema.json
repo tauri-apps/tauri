@@ -1108,7 +1108,7 @@
           "description": "The path to the application assets (usually the `dist` folder of your javascript bundler) or a URL that could be either a custom protocol registered in the tauri app (for example: `myprotocol://`) or a remote URL (for example: `https://site.com/app`).\n\nWhen a path relative to the configuration file is provided, it is read recursively and all files are embedded in the application binary. Tauri then looks for an `index.html` and serves it as the default entry point for your application.\n\nYou can also provide a list of paths to be embedded, which allows granular control over what files are added to the binary. In this case, all files are added to the root and you must reference it that way in your HTML files.\n\nWhen a URL is provided, the application won't have bundled assets and the application will load that URL by default.",
           "anyOf": [
             {
-              "$ref": "#/definitions/AppUrl"
+              "$ref": "#/definitions/FrontendDist"
             },
             {
               "type": "null"
@@ -1161,16 +1161,17 @@
       },
       "additionalProperties": false
     },
-    "AppUrl": {
+    "FrontendDist": {
       "description": "Defines the URL or assets to embed in the application.",
       "anyOf": [
         {
-          "description": "The app's external URL, or the path to the directory containing the app assets.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/WebviewUrl"
-            }
-          ]
+          "description": "An external URL that should be used as the default application URL.",
+          "type": "string",
+          "format": "uri"
+        },
+        {
+          "description": "Path to a directory containing the frontend dist assets.",
+          "type": "string"
         },
         {
           "description": "An array of files to embed on the app.",

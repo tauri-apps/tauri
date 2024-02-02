@@ -1705,17 +1705,20 @@ fn default_min_sdk_version() -> u32 {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged, deny_unknown_fields)]
 #[non_exhaustive]
-pub enum AppUrl {
-  /// The app's external URL, or the path to the directory containing the app assets.
-  Url(WebviewUrl),
+pub enum FrontendDist {
+  /// An external URL that should be used as the default application URL.
+  Url(Url),
+  /// Path to a directory containing the frontend dist assets.
+  Dist(PathBuf),
   /// An array of files to embed on the app.
   Files(Vec<PathBuf>),
 }
 
-impl std::fmt::Display for AppUrl {
+impl std::fmt::Display for FrontendDist {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::Url(url) => write!(f, "{url}"),
+      Self::Dist(p) => write!(f, "{}", p.display()),
       Self::Files(files) => write!(f, "{}", serde_json::to_string(files).unwrap()),
     }
   }
@@ -1789,7 +1792,7 @@ pub struct BuildConfig {
   /// When a URL is provided, the application won't have bundled assets
   /// and the application will load that URL by default.
   #[serde(alias = "frontend-dist")]
-  pub frontend_dist: Option<AppUrl>,
+  pub frontend_dist: Option<FrontendDist>,
   /// A shell command to run before `tauri dev` kicks in.
   ///
   /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
@@ -2328,13 +2331,18 @@ mod build {
     }
   }
 
-  impl ToTokens for AppUrl {
+  impl ToTokens for FrontendDist {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::AppUrl };
+      let prefix = quote! { ::tauri::utils::config::FrontendDist };
 
       tokens.append_all(match self {
         Self::Url(url) => {
+          let url = url_lit(url);
           quote! { #prefix::Url(#url) }
+        }
+        Self::Dist(path) => {
+          let path = path_buf_lit(path);
+          quote! { #prefix::Dist(#path) }
         }
         Self::Files(files) => {
           let files = vec_lit(files, path_buf_lit);

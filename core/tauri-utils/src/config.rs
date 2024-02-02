@@ -1560,23 +1560,6 @@ pub struct SecurityConfig {
   pub pattern: PatternKind,
 }
 
-impl SecurityConfig {
-  /// Returns all Cargo features.
-  pub fn all_features() -> Vec<&'static str> {
-    vec!["isolation"]
-  }
-
-  /// Returns the enabled Cargo features.
-  pub fn features(&self) -> Vec<&str> {
-    let mut features = Vec::new();
-    if let PatternKind::Isolation { .. } = self.pattern {
-      features.push("isolation");
-    }
-    features.sort_unstable();
-    features
-  }
-}
-
 /// The application pattern.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
@@ -1626,7 +1609,12 @@ pub struct AppConfig {
 impl AppConfig {
   /// Returns all Cargo features.
   pub fn all_features() -> Vec<&'static str> {
-    vec!["tray-icon", "macos-private-api", "protocol-asset"]
+    vec![
+      "tray-icon",
+      "macos-private-api",
+      "protocol-asset",
+      "isolation",
+    ]
   }
 
   /// Returns the enabled Cargo features.
@@ -1641,6 +1629,11 @@ impl AppConfig {
     if self.security.asset_protocol.enable {
       features.push("protocol-asset");
     }
+
+    if let PatternKind::Isolation { .. } = self.security.pattern {
+      features.push("isolation");
+    }
+
     features.sort_unstable();
     features
   }

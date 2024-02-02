@@ -111,7 +111,7 @@ swift-rs = "1.0.6"
 
 [build-dependencies]
 heck = "0.4"
-tauri-build = { path = "../tauri-build/", version = "2.0.0-alpha.14" }
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-alpha.14" }
 tauri-utils = { path = "../tauri-utils/", version = "2.0.0-alpha.13", features = [ "build" ] }
 
 [dev-dependencies]
@@ -130,10 +130,10 @@ default = [
   "wry",
   "compression",
   "objc-exception",
-  "tray-icon?/common-controls-v6",
-  "muda/common-controls-v6"
+  "common-controls-v6"
 ]
 unstable = [ ]
+common-controls-v6 = [ "tray-icon?/common-controls-v6", "muda/common-controls-v6" ]
 tray-icon = [ "dep:tray-icon" ]
 tracing = [
   "dep:tracing",

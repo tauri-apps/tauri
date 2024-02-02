@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 //! Mobile-specific build utilities.
 
 use std::{
@@ -14,7 +18,7 @@ use super::{build_var, cfg_alias};
 pub fn update_entitlements<F: FnOnce(&mut plist::Dictionary)>(f: F) -> Result<()> {
   if let (Some(project_path), Ok(app_name)) = (
     var_os("TAURI_IOS_PROJECT_PATH").map(PathBuf::from),
-    var("TAURI_IOS_APP_NAME"),
+    std::env::var("TAURI_IOS_APP_NAME"),
   ) {
     update_plist_file(
       project_path
@@ -87,7 +91,7 @@ pub(crate) fn setup(
         )
         .context("failed to copy tauri-api to the plugin project")?;
         tauri_utils::build::link_swift_library(
-          &var("CARGO_PKG_NAME").unwrap(),
+          &std::env::var("CARGO_PKG_NAME").unwrap(),
           manifest_dir.join(path),
         );
       }

@@ -108,7 +108,10 @@ pub fn command(mut options: Options) -> Result<()> {
         (
           format!(r#"{{ version = "{}" }}"#, metadata.tauri),
           format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(r#"{{ version = "{}", default-features = false }}"#, metadata.tauri_build),
+          format!(
+            r#"{{ version = "{}", default-features = false }}"#,
+            metadata.tauri_build
+          ),
           format!(
             r#"{{ version = "{}", features = ["build"] }}"#,
             metadata.tauri_plugin

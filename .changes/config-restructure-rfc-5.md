@@ -1,6 +1,10 @@
 ---
 'tauri': 'major:breaking'
 'tauri-utils': 'major:breaking'
+'tauri-build': 'major:breaking'
+'tauri-context': 'major:breaking'
+'tauri-cli': 'major:breaking'
+'@tauri-apps/cli': 'major:breaking'
 ---
 
 Restructured Tauri config per [RFC#5](https://github.com/tauri-apps/rfcs/blob/f3e82a6b0c5390401e855850d47dc7b7d9afd684/texts/0005-tauri-config-restructure.md):

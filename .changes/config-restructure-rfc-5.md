@@ -5,7 +5,7 @@
 
 Restructured Tauri config per [RFC#5](https://github.com/tauri-apps/rfcs/blob/f3e82a6b0c5390401e855850d47dc7b7d9afd684/texts/0005-tauri-config-restructure.md):
 
-- Moved `package.product_name`, `package.version` and `tauri.bundle.identifier` fields to the top-level.
+- Moved `package.productName`, `package.version` and `tauri.bundle.identifier` fields to the top-level.
 - Removed `package` object.
 - Renamed `tauri` object to `app`.
 - Moved `tauri.bundle` object to the top-level.

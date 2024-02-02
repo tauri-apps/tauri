@@ -2,11 +2,7 @@
   "$schema": "../../../tooling/cli/schema.json",
   "identifier": "com.tauri.dev-file-associations-demo",
   "build": {
-    "prodFrontend": {
-      "files": [
-        "../index.html"
-      ]
-    }
+    "frontendDist": ["../index.html"]
   },
   "app": {
     "security": {
@@ -25,22 +21,15 @@
     ],
     "fileAssociations": [
       {
-        "ext": [
-          "png"
-        ],
+        "ext": ["png"],
         "mimeType": "image/png"
       },
       {
-        "ext": [
-          "jpg",
-          "jpeg"
-        ],
+        "ext": ["jpg", "jpeg"],
         "mimeType": "image/jpeg"
       },
       {
-        "ext": [
-          "gif"
-        ],
+        "ext": ["gif"],
         "mimeType": "image/gif"
       }
     ]

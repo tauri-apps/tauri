@@ -2,9 +2,7 @@
   "$schema": "../../../../../../../../core/tauri-config-schema/schema.json",
   "identifier": "fixture.app",
   "build": {
-    "prodFrontend": {
-      "dist": "../dist"
-    },
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,

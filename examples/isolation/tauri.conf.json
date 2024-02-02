@@ -4,9 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
-    "prodFrontend": {
-      "dist": "dist"
-    },
+    "frontendDist": "dist",
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },

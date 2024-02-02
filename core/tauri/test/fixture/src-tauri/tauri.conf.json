@@ -2,9 +2,7 @@
   "$schema": "../../../../../core/tauri-config-schema/schema.json",
   "identifier": "studio.tauri.example",
   "build": {
-    "prodFrontend": {
-      "dist": "../dist"
-    },
+    "frontendDist": "../dist",
     "devUrl": "http://localhost:4000"
   },
   "app": {

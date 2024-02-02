@@ -2,9 +2,7 @@
   "$schema": "../../../../../core/tauri-config-schema/schema.json",
   "identifier": "com.tauri.dev",
   "build": {
-    "prodFrontend": {
-      "dist": "../public"
-    },
+    "frontendDist": "../public"
   },
   "app": {
     "withGlobalTauri": true,

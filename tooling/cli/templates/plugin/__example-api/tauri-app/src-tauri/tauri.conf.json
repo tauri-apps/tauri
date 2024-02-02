@@ -6,9 +6,7 @@
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn build",
     "devUrl": "http://localhost:1420",
-    "prodFrontend": {
-      "dist": "../dist"
-    },
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": false,

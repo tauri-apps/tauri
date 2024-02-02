@@ -33,8 +33,8 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
         .unwrap_or_else(|| "unset".to_string());
       items.push(SectionItem::new().description(format!("CSP: {csp}")));
 
-      if let Some(prod_frontend) = &config.build.prod_frontend {
-        items.push(SectionItem::new().description(format!("prodFrontend: {prod_frontend}")));
+      if let Some(frontend_dist) = &config.build.frontend_dist {
+        items.push(SectionItem::new().description(format!("frontendDist: {frontend_dist}")));
       }
 
       if let Some(dev_url) = &config.build.dev_url {

@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config, BeforeDevCommand, ProdFrontend},
+    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WebviewUrl},
     resolve_merge_config,
   },
   interface::{AppInterface, DevProcess, ExitReason, Interface},
@@ -313,16 +313,16 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     .build
     .dev_url
     .clone();
-  let prod_frontend = config
+  let frontend_dist = config
     .lock()
     .unwrap()
     .as_ref()
     .unwrap()
     .build
-    .prod_frontend
+    .frontend_dist
     .clone();
   if !options.no_dev_server && dev_url.is_none() {
-    if let Some(ProdFrontend::Dist(path)) = &prod_frontend {
+    if let Some(AppUrl::Url(WebviewUrl::App(path))) = &frontend_dist {
       use crate::helpers::web_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;

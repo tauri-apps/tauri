@@ -39,7 +39,7 @@ impl Framework {
     .into()
   }
 
-  pub fn prod_frontend(&self) -> String {
+  pub fn frontend_dist(&self) -> String {
     match self {
       Self::SolidJS => "../dist",
       Self::SolidStart => "../dist/public",

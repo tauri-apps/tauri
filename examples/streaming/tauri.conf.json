@@ -4,11 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
-    "prodFrontend": {
-      "files": [
-        "index.html"
-      ]
-    }
+    "frontendDist": ["index.html"]
   },
   "app": {
     "withGlobalTauri": true,
@@ -24,9 +20,7 @@
     "security": {
       "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; media-src stream: http://stream.localhost asset: http://asset.localhost",
       "assetProtocol": {
-        "scope": [
-          "**/test_video.mp4"
-        ]
+        "scope": ["**/test_video.mp4"]
       }
     }
   },

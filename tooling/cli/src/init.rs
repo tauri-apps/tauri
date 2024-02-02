@@ -56,7 +56,7 @@ pub struct Options {
   window_title: Option<String>,
   /// Web assets location, relative to <project-dir>/src-tauri
   #[clap(short = 'D', long)]
-  prod_frontend: Option<String>,
+  frontend_dist: Option<String>,
   /// Url of your dev server
   #[clap(short = 'P', long)]
   dev_url: Option<String>,
@@ -109,9 +109,9 @@ impl Options {
       )
     })?;
 
-    self.prod_frontend = self.prod_frontend.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
+    self.frontend_dist = self.frontend_dist.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
       r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
-      init_defaults.framework.as_ref().map(|f| f.prod_frontend()),
+      init_defaults.framework.as_ref().map(|f| f.frontend_dist()),
       self.ci,
       false,
     ))?;
@@ -190,10 +190,10 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert("tauri_dep", to_json(tauri_dep));
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
     data.insert(
-      "prod_frontend",
+      "frontend_dist",
       to_json(
         options
-          .prod_frontend
+          .frontend_dist
           .unwrap_or_else(|| "../dist".to_string()),
       ),
     );

@@ -7,9 +7,7 @@
     "beforeBuildCommand": "yarn build:tauri",
     "beforeDevCommand": "yarn dev:tauri",
     "devUrl": "http://localhost:5173",
-    "prodFrontend": {
-      "dist": "../../build"
-    }
+    "frontendDist": "../../build"
   },
   "app": {
     "security": {

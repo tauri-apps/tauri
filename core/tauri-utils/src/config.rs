@@ -1710,22 +1710,19 @@ fn default_min_sdk_version() -> u32 {
 /// Defines the URL or assets to embed in the application.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
+#[serde(untagged, deny_unknown_fields)]
 #[non_exhaustive]
-pub enum ProdFrontend {
-  /// An external URL to load.
-  Url(Url),
-  /// Path to the folder containing the frontend dist assets.
-  Dist(PathBuf),
+pub enum AppUrl {
+  /// The app's external URL, or the path to the directory containing the app assets.
+  Url(WebviewUrl),
   /// An array of files to embed on the app.
   Files(Vec<PathBuf>),
 }
 
-impl std::fmt::Display for ProdFrontend {
+impl std::fmt::Display for AppUrl {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::Url(url) => write!(f, "{url}"),
-      Self::Dist(p) => write!(f, "{}", p.display()),
       Self::Files(files) => write!(f, "{}", serde_json::to_string(files).unwrap()),
     }
   }
@@ -1781,7 +1778,7 @@ pub struct BuildConfig {
   /// This is usually an URL to a dev server, which serves your application assets with hot-reload and HMR.
   /// Most modern JavaScript bundlers like [vite](https://vitejs.dev/guide/) provides a way to start a dev server by default.
   ///
-  /// If you don't have a dev server or don't want to use one, ignore this option and use [`prodFrontend`](BuildConfig::prod_frontend)
+  /// If you don't have a dev server or don't want to use one, ignore this option and use [`frontendDist`](BuildConfig::frontend_dist)
   /// and point to a web assets directory, and Tauri CLI will run its built-in dev server and provide a simple hot-reload experience.
   #[serde(alias = "dev-url")]
   pub dev_url: Option<Url>,
@@ -1799,7 +1796,7 @@ pub struct BuildConfig {
   /// When a URL is provided, the application won't have bundled assets
   /// and the application will load that URL by default.
   #[serde(alias = "frontend-dist")]
-  pub prod_frontend: Option<ProdFrontend>,
+  pub frontend_dist: Option<AppUrl>,
   /// A shell command to run before `tauri dev` kicks in.
   ///
   /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
@@ -1925,9 +1922,7 @@ where
 ///     "beforeBuildCommand": "",
 ///     "beforeDevCommand": "",
 ///     "devUrl": "../dist",
-///     "prodFrontend": {
-///       "dist": "../dist"
-///     },
+///     "frontendDist": "../dist"
 ///   },
 ///   "app": {
 ///     "security": {
@@ -2008,7 +2003,7 @@ fn default_build() -> BuildConfig {
   BuildConfig {
     runner: None,
     dev_url: None,
-    prod_frontend: None,
+    frontend_dist: None,
     before_dev_command: None,
     before_build_command: None,
     before_bundle_command: None,
@@ -2340,18 +2335,13 @@ mod build {
     }
   }
 
-  impl ToTokens for ProdFrontend {
+  impl ToTokens for AppUrl {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::ProdFrontend };
+      let prefix = quote! { ::tauri::utils::config::AppUrl };
 
       tokens.append_all(match self {
         Self::Url(url) => {
-          let url = url_lit(url);
           quote! { #prefix::Url(#url) }
-        }
-        Self::Dist(path) => {
-          let path = path_buf_lit(path);
-          quote! { #prefix::Dist(#path) }
         }
         Self::Files(files) => {
           let files = vec_lit(files, path_buf_lit);
@@ -2364,7 +2354,7 @@ mod build {
   impl ToTokens for BuildConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let dev_url = opt_lit(self.dev_url.as_ref().map(url_lit).as_ref());
-      let prod_frontend = opt_lit(self.prod_frontend.as_ref());
+      let frontend_dist = opt_lit(self.frontend_dist.as_ref());
       let runner = quote!(None);
       let before_dev_command = quote!(None);
       let before_build_command = quote!(None);
@@ -2376,7 +2366,7 @@ mod build {
         ::tauri::utils::config::BuildConfig,
         runner,
         dev_url,
-        prod_frontend,
+        frontend_dist,
         before_dev_command,
         before_build_command,
         before_bundle_command,
@@ -2624,7 +2614,7 @@ mod test {
     let build = BuildConfig {
       runner: None,
       dev_url: None,
-      prod_frontend: None,
+      frontend_dist: None,
       before_dev_command: None,
       before_build_command: None,
       before_bundle_command: None,

@@ -4,11 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
-    "prodFrontend": {
-      "files": [
-        "index.html"
-      ]
-    }
+    "frontendDist": ["index.html"]
   },
   "app": {
     "withGlobalTauri": true,

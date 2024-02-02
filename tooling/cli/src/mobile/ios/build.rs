@@ -146,7 +146,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
 
 fn run_build(
   interface: AppInterface,
-  options: Options,
+  mut options: Options,
   mut build_options: BuildOptions,
   tauri_config: ConfigHandle,
   config: &AppleConfig,

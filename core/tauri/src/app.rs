@@ -820,6 +820,11 @@ impl<R: Runtime> App<R> {
   pub fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     if let Some(runtime) = self.runtime.as_mut() {
       runtime.set_activation_policy(activation_policy);
+    } else {
+      let _ = self
+        .app_handle()
+        .runtime_handle
+        .set_activation_policy(activation_policy);
     }
   }
 

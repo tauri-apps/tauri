@@ -206,6 +206,11 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
   fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
 
+  /// Sets the activation policy for the application.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> Result<()>;
+
   /// Requests an exit of the event loop.
   fn request_exit(&self, code: i32) -> Result<()>;
 
@@ -311,7 +316,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
 
-  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  /// Sets the activation policy for the application.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);

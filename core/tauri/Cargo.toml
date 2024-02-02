@@ -130,10 +130,10 @@ default = [
   "wry",
   "compression",
   "objc-exception",
-  "tray-icon?/common-controls-v6",
-  "muda/common-controls-v6"
+  "common-controls-v6"
 ]
 unstable = [ ]
+common-controls-v6 = [ "tray-icon?/common-controls-v6", "muda/common-controls-v6" ]
 tray-icon = [ "dep:tray-icon" ]
 tracing = [
   "dep:tracing",

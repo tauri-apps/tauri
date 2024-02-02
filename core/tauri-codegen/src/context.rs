@@ -165,8 +165,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
           let assets_path = config_parent.join(path);
           if !assets_path.exists() {
             panic!(
-              "The `{}` configuration is set to `{:?}` but this path doesn't exist",
-              if dev { "devPath" } else { "distDir" },
+              "The `frontendDist` configuration is set to `{:?}` but this path doesn't exist",
               path
             )
           }

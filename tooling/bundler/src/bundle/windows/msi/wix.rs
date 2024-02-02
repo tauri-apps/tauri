@@ -7,10 +7,12 @@ use crate::bundle::{
   common::CommandExt,
   path_utils::{copy_file, FileOpts},
   settings::Settings,
-  windows::util::{
-    download, download_and_verify, extract_zip, try_sign, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
-    WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID, WIX_OUTPUT_FOLDER_NAME,
-    WIX_UPDATER_OUTPUT_FOLDER_NAME,
+  windows::{
+    sign::try_sign,
+    util::{
+      download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
+      extract_zip, HashAlgorithm, WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
+    },
   },
 };
 use anyhow::{bail, Context};
@@ -25,8 +27,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-use tauri_utils::display_path;
-use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
+use tauri_utils::{config::WebviewInstallMode, display_path};
 use uuid::Uuid;
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
@@ -87,7 +88,7 @@ struct ResourceFile {
   /// the id to use on the WIX XML.
   id: String,
   /// the file path.
-  path: String,
+  path: PathBuf,
 }
 
 /// A resource directory to bundle with WIX.
@@ -121,7 +122,7 @@ impl ResourceDirectory {
           r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{path}" /></Component>"#,
           id = file.id,
           guid = file.guid,
-          path = file.path
+          path = file.path.display()
         ).as_str()
       );
     }
@@ -408,8 +409,6 @@ pub fn build_wix_app_installer(
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let app_exe_source = settings.binary_path(main_binary);
 
-  try_sign(&app_exe_source, settings)?;
-
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   if output_path.exists() {
@@ -473,42 +472,15 @@ pub fn build_wix_app_installer(
       );
     }
     WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
-      let webview2_bootstrapper_path = output_path.join("MicrosoftEdgeWebview2Setup.exe");
-      std::fs::write(
-        &webview2_bootstrapper_path,
-        download(WEBVIEW2_BOOTSTRAPPER_URL)?,
-      )?;
+      let webview2_bootstrapper_path = download_webview2_bootstrapper(&output_path)?;
       data.insert(
         "webview2_bootstrapper_path",
         to_json(webview2_bootstrapper_path),
       );
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
-      let guid = if arch == "x64" {
-        WEBVIEW2_X64_INSTALLER_GUID
-      } else {
-        WEBVIEW2_X86_INSTALLER_GUID
-      };
-      let offline_installer_path = dirs_next::cache_dir()
-        .unwrap()
-        .join("tauri")
-        .join("Webview2OfflineInstaller")
-        .join(guid)
-        .join(arch);
-      create_dir_all(&offline_installer_path)?;
       let webview2_installer_path =
-        offline_installer_path.join("MicrosoftEdgeWebView2RuntimeInstaller.exe");
-      if !webview2_installer_path.exists() {
-        std::fs::write(
-          &webview2_installer_path,
-          download(
-            &format!("https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/{}/MicrosoftEdgeWebView2RuntimeInstaller{}.exe",
-              guid,
-              arch.to_uppercase(),
-            ),
-          )?,
-        )?;
-      }
+        download_webview2_offline_installer(&output_path.join(arch), arch)?;
       data.insert("webview2_installer_path", to_json(webview2_installer_path));
     }
   }
@@ -548,7 +520,7 @@ pub fn build_wix_app_installer(
     .unwrap_or_default();
 
   data.insert("product_name", to_json(settings.product_name()));
-  data.insert("version", to_json(&app_version));
+  data.insert("version", to_json(app_version));
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()
@@ -598,7 +570,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  data.insert("app_exe_source", to_json(&app_exe_source));
+  data.insert("app_exe_source", to_json(app_exe_source));
 
   // copy icon from `settings.windows().icon_path` folder to resource folder near msi
   let icon_path = copy_icon(settings, "icon.ico", &settings.windows().icon_path)?;
@@ -646,8 +618,16 @@ pub fn build_wix_app_installer(
     }
   }
 
-  if let Some(file_associations) = &settings.file_associations() {
+  if let Some(file_associations) = settings.file_associations() {
     data.insert("file_associations", to_json(file_associations));
+  }
+
+  if let Some(protocols) = settings.deep_link_protocols() {
+    let schemes = protocols
+      .iter()
+      .flat_map(|p| &p.schemes)
+      .collect::<Vec<_>>();
+    data.insert("deep_link_protocols", to_json(schemes));
   }
 
   if let Some(path) = custom_template_path {
@@ -807,7 +787,8 @@ pub fn build_wix_app_installer(
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
-    let msi_path = app_installer_output_path(settings, &language, &app_version, updater)?;
+    let msi_path =
+      app_installer_output_path(settings, &language, settings.version_string(), updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
     info!(action = "Running"; "light to produce {}", display_path(&msi_path));
@@ -914,15 +895,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
   let mut added_resources = Vec::new();
 
-  for src in settings.resource_files() {
-    let src = src?;
+  for resource in settings.resource_files().iter() {
+    let resource = resource?;
 
-    let resource_path = cwd
-      .join(src.clone())
-      .into_os_string()
-      .into_string()
-      .expect("failed to read resource path");
-
+    let src = cwd.join(resource.path());
+    let resource_path = dunce::simplified(&src).to_path_buf();
     // In some glob resource paths like `assets/**/*` a file might appear twice
     // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
     // when it finds one. So we must check it before processing the file.
@@ -935,11 +912,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let resource_entry = ResourceFile {
       id: format!("I{}", Uuid::new_v4().as_simple()),
       guid: Uuid::new_v4().to_string(),
-      path: resource_path,
+      path: resource_path.clone(),
     };
 
     // split the resource path directories
-    let target_path = resource_relpath(&src);
+    let target_path = resource.target();
     let components_count = target_path.components().count();
     let directories = target_path
       .components()
@@ -1004,7 +981,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   let out_dir = settings.project_out_directory();
   for dll in glob::glob(out_dir.join("*.dll").to_string_lossy().to_string().as_str())? {
     let path = dll?;
-    let resource_path = path.to_string_lossy().into_owned();
+    let resource_path = dunce::simplified(&path);
     let relative_path = path
       .strip_prefix(out_dir)
       .unwrap()
@@ -1014,7 +991,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       dlls.push(ResourceFile {
         id: format!("I{}", Uuid::new_v4().as_simple()),
         guid: Uuid::new_v4().to_string(),
-        path: resource_path,
+        path: resource_path.to_path_buf(),
       });
     }
   }

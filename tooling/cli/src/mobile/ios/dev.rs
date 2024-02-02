@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
-  open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
+  merge_plist, open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -20,18 +20,21 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use dialoguer::{theme::ColorfulTheme, Select};
-use tauri_mobile::{
+use cargo_mobile2::{
   apple::{config::Config as AppleConfig, device::Device, teams::find_development_teams},
   config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use std::env::{set_current_dir, set_var, var_os};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "iOS dev")]
+#[clap(
+  about = "Run your app in development mode on iOS",
+  long_about = "Run your app in development mode on iOS with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer."
+)]
 pub struct Options {
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
@@ -45,24 +48,26 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
+  /// Skip waiting for the frontend dev server to start before building the tauri application.
+  #[clap(long, env = "TAURI_CLI_NO_DEV_SERVER_WAIT")]
+  pub no_dev_server_wait: bool,
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
-  /// Disable the dev server for static files.
-  #[clap(long)]
-  pub no_dev_server: bool,
   /// Open Xcode instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
-  /// Specify port for the dev server for static files. Defaults to 1430
-  /// Can also be set using `TAURI_DEV_SERVER_PORT` env var.
-  #[clap(long)]
-  pub port: Option<u16>,
   /// Force prompting for an IP to use to connect to the dev server on mobile.
   #[clap(long)]
   pub force_ip_prompt: bool,
+  /// Disable the built-in dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
+  /// Specify port for the built-in dev server for static files. Defaults to 1430.
+  #[clap(long, env = "TAURI_CLI_PORT")]
+  pub port: Option<u16>,
 }
 
 impl From<Options> for DevOptions {
@@ -77,6 +82,7 @@ impl From<Options> for DevOptions {
       args: Vec::new(),
       no_watch: options.no_watch,
       no_dev_server: options.no_dev_server,
+      no_dev_server_wait: options.no_dev_server_wait,
       port: options.port,
       force_ip_prompt: options.force_ip_prompt,
     }
@@ -126,27 +132,6 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
-  let env = env()?;
-  let device = if options.open {
-    None
-  } else {
-    match device_prompt(&env, options.device.as_deref()) {
-      Ok(d) => Some(d),
-      Err(e) => {
-        log::error!("{e}");
-        None
-      }
-    }
-  };
-
-  let mut dev_options: DevOptions = options.clone().into();
-  dev_options.target = Some(
-    device
-      .as_ref()
-      .map(|d| d.target().triple.to_string())
-      .unwrap_or_else(|| "aarch64-apple-ios".into()),
-  );
-
   let tauri_config = get_tauri_config(options.config.as_deref())?;
   let (interface, app, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
@@ -160,9 +145,23 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  inject_assets(&config)?;
+
+  let info_plist_path = config
+    .project_dir()
+    .join(config.scheme())
+    .join("Info.plist");
+  merge_plist(
+    &[
+      tauri_path.join("Info.plist"),
+      tauri_path.join("Info.ios.plist"),
+    ],
+    &info_plist_path,
+  )?;
+
   run_dev(
     interface,
     options,

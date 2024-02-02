@@ -51,21 +51,21 @@ impl ConfigFormat {
   fn into_platform_file_name(self, target: Target) -> &'static str {
     match self {
       Self::Json => match target {
-        Target::Darwin => "tauri.macos.conf.json",
+        Target::MacOS => "tauri.macos.conf.json",
         Target::Windows => "tauri.windows.conf.json",
         Target::Linux => "tauri.linux.conf.json",
         Target::Android => "tauri.android.conf.json",
         Target::Ios => "tauri.ios.conf.json",
       },
       Self::Json5 => match target {
-        Target::Darwin => "tauri.macos.conf.json5",
+        Target::MacOS => "tauri.macos.conf.json5",
         Target::Windows => "tauri.windows.conf.json5",
         Target::Linux => "tauri.linux.conf.json5",
         Target::Android => "tauri.android.conf.json5",
         Target::Ios => "tauri.ios.conf.json5",
       },
       Self::Toml => match target {
-        Target::Darwin => "Tauri.macos.toml",
+        Target::MacOS => "Tauri.macos.toml",
         Target::Windows => "Tauri.windows.toml",
         Target::Linux => "Tauri.linux.toml",
         Target::Android => "Tauri.android.toml",
@@ -108,7 +108,7 @@ pub enum ConfigError {
     path: PathBuf,
 
     /// The parsing [`toml::Error`].
-    error: ::toml::de::Error,
+    error: Box<::toml::de::Error>,
   },
 
   /// Unknown config file name encountered.
@@ -381,7 +381,7 @@ fn do_parse_json5<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, Conf
 fn do_parse_toml<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, ConfigError> {
   ::toml::from_str(raw).map_err(|error| ConfigError::FormatToml {
     path: path.into(),
-    error,
+    error: Box::new(error),
   })
 }
 

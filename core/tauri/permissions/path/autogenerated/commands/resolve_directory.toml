@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-resolve-directory"
+description = "Enables the resolve_directory command without any pre-configured scope."
+commands.allow = ["resolve_directory"]
+
+[[permission]]
+identifier = "deny-resolve-directory"
+description = "Denies the resolve_directory command without any pre-configured scope."
+commands.deny = ["resolve_directory"]

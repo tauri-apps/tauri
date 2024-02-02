@@ -6,8 +6,6 @@
 
 //! A module containting menu builder types
 
-pub use muda::AboutMetadataBuilder;
-
 mod menu;
 pub use menu::MenuBuilder;
 mod normal;

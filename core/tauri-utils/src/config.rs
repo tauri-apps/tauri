@@ -43,29 +43,56 @@ fn default_true() -> bool {
 }
 
 /// An URL to open on a Tauri webview window.
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize, Serialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
 #[non_exhaustive]
-pub enum WindowUrl {
-  /// An external URL.
+pub enum WebviewUrl {
+  /// An external URL. Must use either the `http` or `https` schemes.
   External(Url),
   /// The path portion of an app URL.
   /// For instance, to load `tauri://localhost/users/john`,
   /// you can simply provide `users/john` in this configuration.
   App(PathBuf),
+  /// A custom protocol url, for example, `doom://index.html`
+  CustomProtocol(Url),
 }
 
-impl fmt::Display for WindowUrl {
+impl<'de> Deserialize<'de> for WebviewUrl {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum WebviewUrlDeserializer {
+      Url(Url),
+      Path(PathBuf),
+    }
+
+    match WebviewUrlDeserializer::deserialize(deserializer)? {
+      WebviewUrlDeserializer::Url(u) => {
+        if u.scheme() == "https" || u.scheme() == "http" {
+          Ok(Self::External(u))
+        } else {
+          Ok(Self::CustomProtocol(u))
+        }
+      }
+      WebviewUrlDeserializer::Path(p) => Ok(Self::App(p)),
+    }
+  }
+}
+
+impl fmt::Display for WebviewUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::External(url) => write!(f, "{url}"),
+      Self::External(url) | Self::CustomProtocol(url) => write!(f, "{url}"),
       Self::App(path) => write!(f, "{}", path.display()),
     }
   }
 }
 
-impl Default for WindowUrl {
+impl Default for WebviewUrl {
   fn default() -> Self {
     Self::App("index.html".into())
   }
@@ -78,6 +105,8 @@ impl Default for WindowUrl {
 pub enum BundleType {
   /// The debian bundle (.deb).
   Deb,
+  /// The RPM bundle (.rpm).
+  Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
   /// The Microsoft Installer bundle (.msi).
@@ -99,6 +128,7 @@ impl Display for BundleType {
       "{}",
       match self {
         Self::Deb => "deb",
+        Self::Rpm => "rpm",
         Self::AppImage => "appimage",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
@@ -127,6 +157,7 @@ impl<'de> Deserialize<'de> for BundleType {
     let s = String::deserialize(deserializer)?;
     match s.to_lowercase().as_str() {
       "deb" => Ok(Self::Deb),
+      "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
@@ -252,7 +283,7 @@ impl BundleTarget {
 
 /// Configuration for AppImage bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#appimageconfig
+/// See more: <https://tauri.app/v1/api/config#appimageconfig>
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -261,11 +292,14 @@ pub struct AppImageConfig {
   /// This increases the bundle size by ~15-35MB depending on your build system.
   #[serde(default, alias = "bundle-media-framework")]
   pub bundle_media_framework: bool,
+  /// The files to include in the Appimage Binary.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
 }
 
 /// Configuration for Debian (.deb) bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#debconfig
+/// See more: <https://tauri.app/v1/api/config#debconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -282,6 +316,124 @@ pub struct DebConfig {
   pub desktop_template: Option<PathBuf>,
 }
 
+/// Configuration for RPM bundles.
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RpmConfig {
+  /// The package's license identifier. If not set, defaults to the license from
+  /// the Cargo.toml file.
+  pub license: Option<String>,
+  /// The list of RPM dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The RPM release tag.
+  #[serde(default = "default_release")]
+  pub release: String,
+  /// The RPM epoch.
+  #[serde(default)]
+  pub epoch: u32,
+  /// The files to include on the package.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
+}
+
+impl Default for RpmConfig {
+  fn default() -> Self {
+    Self {
+      license: None,
+      depends: None,
+      release: default_release(),
+      epoch: 0,
+      files: Default::default(),
+      desktop_template: None,
+    }
+  }
+}
+
+fn default_release() -> String {
+  "1".into()
+}
+
+/// Position coordinates struct.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Position {
+  /// X coordinate.
+  pub x: u32,
+  /// Y coordinate.
+  pub y: u32,
+}
+
+/// Size of the window.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Size {
+  /// Width of the window.
+  pub width: u32,
+  /// Height of the window.
+  pub height: u32,
+}
+
+/// Configuration for Apple Disk Image (.dmg) bundles.
+///
+/// See more: <https://tauri.app/v1/api/config#dmgconfig>
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DmgConfig {
+  /// Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.
+  pub background: Option<PathBuf>,
+  /// Position of volume window on screen.
+  pub window_position: Option<Position>,
+  /// Size of volume window.
+  #[serde(default = "dmg_window_size", alias = "window-size")]
+  pub window_size: Size,
+  /// Position of app file on window.
+  #[serde(default = "dmg_app_position", alias = "app-position")]
+  pub app_position: Position,
+  /// Position of application folder on window.
+  #[serde(
+    default = "dmg_application_folder_position",
+    alias = "application-folder-position"
+  )]
+  pub application_folder_position: Position,
+}
+
+impl Default for DmgConfig {
+  fn default() -> Self {
+    Self {
+      background: None,
+      window_position: None,
+      window_size: dmg_window_size(),
+      app_position: dmg_app_position(),
+      application_folder_position: dmg_application_folder_position(),
+    }
+  }
+}
+
+fn dmg_window_size() -> Size {
+  Size {
+    width: 660,
+    height: 400,
+  }
+}
+
+fn dmg_app_position() -> Position {
+  Position { x: 180, y: 170 }
+}
+
+fn dmg_application_folder_position() -> Position {
+  Position { x: 480, y: 170 }
+}
+
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
   D: Deserializer<'de>,
@@ -295,7 +447,7 @@ where
 
 /// Configuration for the macOS bundles.
 ///
-/// See more: https://tauri.app/v1/api/config#macconfig
+/// See more: <https://tauri.app/v1/api/config#macconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -305,6 +457,9 @@ pub struct MacConfig {
   ///
   /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
   pub frameworks: Option<Vec<String>>,
+  /// The files to include in the application relative to the Contents directory.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
   ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
@@ -337,6 +492,7 @@ impl Default for MacConfig {
   fn default() -> Self {
     Self {
       frameworks: None,
+      files: HashMap::new(),
       minimum_system_version: minimum_system_version(),
       exception_domain: None,
       license: None,
@@ -353,7 +509,7 @@ fn minimum_system_version() -> Option<String> {
 
 /// Configuration for a target language for the WiX build.
 ///
-/// See more: https://tauri.app/v1/api/config#wixlanguageconfig
+/// See more: <https://tauri.app/v1/api/config#wixlanguageconfig>
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -384,7 +540,7 @@ impl Default for WixLanguage {
 
 /// Configuration for the MSI bundle using WiX.
 ///
-/// See more: https://tauri.app/v1/api/config#wixconfig
+/// See more: <https://tauri.app/v1/api/config#wixconfig>
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -438,6 +594,21 @@ pub struct WixConfig {
   pub dialog_image_path: Option<PathBuf>,
 }
 
+/// Compression algorithms used in the NSIS installer.
+///
+/// See <https://nsis.sourceforge.io/Reference/SetCompressor>
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum NsisCompression {
+  /// ZLIB uses the deflate algorithm, it is a quick and simple method. With the default compression level it uses about 300 KB of memory.
+  Zlib,
+  /// BZIP2 usually gives better compression ratios than ZLIB, but it is a bit slower and uses more memory. With the default compression level it uses about 4 MB of memory.
+  Bzip2,
+  /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
+  Lzma,
+}
+
 /// Configuration for the Installer bundle using NSIS.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -480,6 +651,10 @@ pub struct NsisConfig {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   #[serde(default, alias = "display-language-selector")]
   pub display_language_selector: bool,
+  /// Set the compression algorithm used to compress files in the installer.
+  ///
+  /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
+  pub compression: Option<NsisCompression>,
 }
 
 /// Install Modes for the NSIS installer.
@@ -565,7 +740,7 @@ impl Default for WebviewInstallMode {
 
 /// Windows bundler configuration.
 ///
-/// See more: https://tauri.app/v1/api/config#windowsconfig
+/// See more: <https://tauri.app/v1/api/config#windowsconfig>
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -684,11 +859,11 @@ impl<'d> serde::Deserialize<'d> for AssociationExt {
 pub struct FileAssociation {
   /// File extensions to associate with this app. e.g. 'png'
   pub ext: Vec<AssociationExt>,
-  /// The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]
+  /// The name. Maps to `CFBundleTypeName` on macOS. Default to `ext[0]`
   pub name: Option<String>,
   /// The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.
   pub description: Option<String>,
-  /// The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
+  /// The app's role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]
   pub role: BundleTypeRole,
   /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
@@ -696,9 +871,23 @@ pub struct FileAssociation {
   pub mime_type: Option<String>,
 }
 
+/// File association
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeepLinkProtocol {
+  /// URL schemes to associate with this app without `://`. For example `my-app`
+  pub schemes: Vec<String>,
+  /// The protocol name. **macOS-only** and maps to `CFBundleTypeName`. Defaults to `<bundle-id>.<schemes[0]>`
+  pub name: Option<String>,
+  /// The app's role for these schemes. **macOS-only** and maps to `CFBundleTypeRole`.
+  #[serde(default)]
+  pub role: BundleTypeRole,
+}
+
 /// The Updater configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#updaterconfig
+/// See more: <https://tauri.app/v1/api/config#updaterconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -755,9 +944,34 @@ impl Default for UpdaterConfig {
   }
 }
 
+/// Definition for bundle resources.
+/// Can be either a list of paths to include or a map of source to target paths.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
+pub enum BundleResources {
+  /// A list of paths to include.
+  List(Vec<String>),
+  /// A map of source to target paths.
+  Map(HashMap<String, String>),
+}
+
+impl BundleResources {
+  /// Adds a path to the resource collection.
+  pub fn push(&mut self, path: impl Into<String>) {
+    match self {
+      Self::List(l) => l.push(path.into()),
+      Self::Map(l) => {
+        let path = path.into();
+        l.insert(path.clone(), path);
+      }
+    }
+  }
+}
+
 /// Configuration for tauri-bundler.
 ///
-/// See more: https://tauri.app/v1/api/config#bundleconfig
+/// See more: <https://tauri.app/v1/api/config#bundleconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -766,7 +980,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
@@ -784,7 +998,7 @@ pub struct BundleConfig {
   /// App resources to bundle.
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
-  pub resources: Option<Vec<String>>,
+  pub resources: Option<BundleResources>,
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
   /// The application kind.
@@ -806,6 +1020,12 @@ pub struct BundleConfig {
   /// Configuration for the Debian bundle.
   #[serde(default)]
   pub deb: DebConfig,
+  /// Configuration for the RPM bundle.
+  #[serde(default)]
+  pub rpm: RpmConfig,
+  /// DMG-specific settings.
+  #[serde(default)]
+  pub dmg: DmgConfig,
   /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", default)]
   pub macos: MacConfig,
@@ -842,6 +1062,12 @@ pub struct BundleConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
+impl From<Color> for (u8, u8, u8, u8) {
+  fn from(value: Color) -> Self {
+    (value.0, value.1, value.2, value.3)
+  }
+}
+
 /// The window effects configuration object
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
@@ -862,7 +1088,7 @@ pub struct WindowEffectsConfig {
 
 /// The window configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#windowconfig
+/// See more: <https://tauri.app/v1/api/config#windowconfig>
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -873,7 +1099,7 @@ pub struct WindowConfig {
   pub label: String,
   /// The window webview URL.
   #[serde(default)]
-  pub url: WindowUrl,
+  pub url: WebviewUrl,
   /// The user agent for the webview
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
@@ -959,11 +1185,18 @@ pub struct WindowConfig {
   /// Whether the window should have borders and bars.
   #[serde(default = "default_true")]
   pub decorations: bool,
+  /// Whether the window should always be below other windows.
+  #[serde(default, alias = "always-on-bottom")]
+  pub always_on_bottom: bool,
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
   /// Whether the window should be visible on all workspaces or virtual desktops.
-  #[serde(default, alias = "all-workspaces")]
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / iOS / Android:** Unsupported.
+  #[serde(default, alias = "visible-on-all-workspaces")]
   pub visible_on_all_workspaces: bool,
   /// Prevents the window contents from being captured by other apps.
   #[serde(default, alias = "content-protected")]
@@ -1011,7 +1244,7 @@ pub struct WindowConfig {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891
+  /// - **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891>
   /// - **Linux**: Unsupported
   #[serde(default, alias = "window-effects")]
   pub window_effects: Option<WindowEffectsConfig>,
@@ -1022,13 +1255,33 @@ pub struct WindowConfig {
   ///  - **Android**: Unsupported.
   #[serde(default)]
   pub incognito: bool,
+  /// Sets the window associated with this label to be the parent of the window to be created.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: This sets the passed parent as an owner window to the window to be created.
+  ///   From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows):
+  ///     - An owned window is always above its owner in the z-order.
+  ///     - The system automatically destroys an owned window when its owner is destroyed.
+  ///     - An owned window is hidden when its owner is minimized.
+  /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  pub parent: Option<String>,
+  /// The proxy URL for the WebView for all network requests.
+  ///
+  /// Must be either a `http://` or a `socks5://` URL.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
+  pub proxy_url: Option<Url>,
 }
 
 impl Default for WindowConfig {
   fn default() -> Self {
     Self {
       label: default_window_label(),
-      url: WindowUrl::default(),
+      url: WebviewUrl::default(),
       user_agent: None,
       file_drop_enabled: true,
       center: false,
@@ -1051,6 +1304,7 @@ impl Default for WindowConfig {
       maximized: false,
       visible: true,
       decorations: true,
+      always_on_bottom: false,
       always_on_top: false,
       visible_on_all_workspaces: false,
       content_protected: false,
@@ -1064,6 +1318,8 @@ impl Default for WindowConfig {
       shadow: true,
       window_effects: None,
       incognito: false,
+      parent: None,
+      proxy_url: None,
     }
   }
 }
@@ -1239,6 +1495,7 @@ pub struct RemoteDomainAccessScope {
   /// The list of window labels this scope applies to.
   pub windows: Vec<String>,
   /// The list of plugins that are allowed in this scope.
+  /// The names should be without the `tauri-plugin-` prefix, for example `"store"` for `tauri-plugin-store`.
   #[serde(default)]
   pub plugins: Vec<String>,
 }
@@ -1306,7 +1563,7 @@ impl FsScope {
 
 /// Config for the asset custom protocol.
 ///
-/// See more: https://tauri.app/v1/api/config#assetprotocolconfig
+/// See more: <https://tauri.app/v1/api/config#assetprotocolconfig>
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1321,7 +1578,7 @@ pub struct AssetProtocolConfig {
 
 /// Security configuration.
 ///
-/// See more: https://tauri.app/v1/api/config#securityconfig
+/// See more: <https://tauri.app/v1/api/config#securityconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1356,20 +1613,6 @@ pub struct SecurityConfig {
   /// Your application might be vulnerable to XSS attacks without this Tauri protection.
   #[serde(default, alias = "dangerous-disable-asset-csp-modification")]
   pub dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
-  /// Allow external domains to send command to Tauri.
-  ///
-  /// By default, external domains do not have access to `window.__TAURI__`, which means they cannot
-  /// communicate with the commands defined in Rust. This prevents attacks where an externally
-  /// loaded malicious or compromised sites could start executing commands on the user's device.
-  ///
-  /// This configuration allows a set of external domains to have access to the Tauri commands.
-  /// When you configure a domain to be allowed to access the IPC, all subpaths are allowed. Subdomains are not allowed.
-  ///
-  /// **WARNING:** Only use this option if you either have internal checks against malicious
-  /// external sites or you can trust the allowed external sites. You application might be
-  /// vulnerable to dangerous Tauri command related attacks otherwise.
-  #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
-  pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
   /// Custom protocol config.
   #[serde(default, alias = "asset-protocol")]
   pub asset_protocol: AssetProtocolConfig,
@@ -1398,7 +1641,7 @@ impl Default for PatternKind {
 
 /// The Tauri configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#tauriconfig
+/// See more: <https://tauri.app/v1/api/config#tauriconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1539,7 +1782,7 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
 
 /// The updater configuration for Windows.
 ///
-/// See more: https://tauri.app/v1/api/config#updaterwindowsconfig
+/// See more: <https://tauri.app/v1/api/config#updaterwindowsconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1552,12 +1795,14 @@ pub struct UpdaterWindowsConfig {
 
 /// Configuration for application tray icon.
 ///
-/// See more: https://tauri.app/v1/api/config#trayiconconfig
+/// See more: <https://tauri.app/v1/api/config#trayiconconfig>
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TrayIconConfig {
+  /// Set an id for this tray icon so you can reference it later, defaults to `main`.
+  pub id: Option<String>,
   /// Path to the default icon to use for the tray icon.
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
@@ -1580,7 +1825,7 @@ pub struct TrayIconConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
   /// The development team. This value is required for iOS development because code signing is enforced.
-  /// The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
+  /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
 }
@@ -1616,7 +1861,7 @@ fn default_min_sdk_version() -> u32 {
 #[non_exhaustive]
 pub enum AppUrl {
   /// The app's external URL, or the path to the directory containing the app assets.
-  Url(WindowUrl),
+  Url(WebviewUrl),
   /// An array of files to embed on the app.
   Files(Vec<PathBuf>),
 }
@@ -1667,9 +1912,9 @@ pub enum HookCommand {
 
 /// The Build configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#buildconfig
+/// See more: <https://tauri.app/v1/api/config#buildconfig>
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
@@ -1682,8 +1927,8 @@ pub struct BuildConfig {
   ///
   /// See [vite](https://vitejs.dev/guide/), [Webpack DevServer](https://webpack.js.org/configuration/dev-server/) and [sirv](https://github.com/lukeed/sirv)
   /// for examples on how to set up a dev server.
-  #[serde(default = "default_dev_path", alias = "dev-path")]
-  pub dev_path: AppUrl,
+  #[serde(alias = "dev-path")]
+  pub dev_path: Option<AppUrl>,
   /// The path to the application assets or URL to load in production.
   ///
   /// When a path relative to the configuration file is provided,
@@ -1695,21 +1940,21 @@ pub struct BuildConfig {
   ///
   /// When an URL is provided, the application won't have bundled assets
   /// and the application will load that URL by default.
-  #[serde(default = "default_dist_dir", alias = "dist-dir")]
-  pub dist_dir: AppUrl,
+  #[serde(alias = "dist-dir")]
+  pub dist_dir: Option<AppUrl>,
   /// A shell command to run before `tauri dev` kicks in.
   ///
-  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-dev-command")]
   pub before_dev_command: Option<BeforeDevCommand>,
   /// A shell command to run before `tauri build` kicks in.
   ///
-  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-build-command")]
   pub before_build_command: Option<HookCommand>,
   /// A shell command to run before the bundling phase in `tauri build` kicks in.
   ///
-  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-bundle-command")]
   pub before_bundle_command: Option<HookCommand>,
   /// Features passed to `cargo` commands.
@@ -1717,31 +1962,6 @@ pub struct BuildConfig {
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
-}
-
-impl Default for BuildConfig {
-  fn default() -> Self {
-    Self {
-      runner: None,
-      dev_path: default_dev_path(),
-      dist_dir: default_dist_dir(),
-      before_dev_command: None,
-      before_build_command: None,
-      before_bundle_command: None,
-      features: None,
-      with_global_tauri: false,
-    }
-  }
-}
-
-fn default_dev_path() -> AppUrl {
-  AppUrl::Url(WindowUrl::External(
-    Url::parse("http://localhost:8080").unwrap(),
-  ))
-}
-
-fn default_dist_dir() -> AppUrl {
-  AppUrl::Url(WindowUrl::App("../dist".into()))
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -1802,7 +2022,7 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 
 /// The package configuration.
 ///
-/// See more: https://tauri.app/v1/api/config#packageconfig
+/// See more: <https://tauri.app/v1/api/config#packageconfig>
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1926,7 +2146,7 @@ pub struct Config {
 
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
 ///
-/// See more: https://tauri.app/v1/api/config#pluginconfig
+/// See more: <https://tauri.app/v1/api/config#pluginconfig>
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
@@ -1934,8 +2154,8 @@ pub struct PluginConfig(pub HashMap<String, JsonValue>);
 fn default_build() -> BuildConfig {
   BuildConfig {
     runner: None,
-    dev_path: default_dev_path(),
-    dist_dir: default_dist_dir(),
+    dev_path: None,
+    dist_dir: None,
     before_dev_command: None,
     before_build_command: None,
     before_bundle_command: None,
@@ -1951,166 +2171,15 @@ fn default_build() -> BuildConfig {
 /// application using tauri while only parsing it once (in the build script).
 #[cfg(feature = "build")]
 mod build {
-  use std::{convert::identity, path::Path};
-
+  use super::*;
+  use crate::{literal_struct, tokens::*};
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
+  use std::convert::identity;
 
-  use super::*;
-
-  use serde_json::Value as JsonValue;
-
-  /// Create a `String` constructor `TokenStream`.
-  ///
-  /// e.g. `"Hello World" -> String::from("Hello World").
-  /// This takes a `&String` to reduce casting all the `&String` -> `&str` manually.
-  fn str_lit(s: impl AsRef<str>) -> TokenStream {
-    let s = s.as_ref();
-    quote! { #s.into() }
-  }
-
-  /// Create an `Option` constructor `TokenStream`.
-  fn opt_lit(item: Option<&impl ToTokens>) -> TokenStream {
-    match item {
-      None => quote! { ::core::option::Option::None },
-      Some(item) => quote! { ::core::option::Option::Some(#item) },
-    }
-  }
-
-  /// Helper function to combine an `opt_lit` with `str_lit`.
-  fn opt_str_lit(item: Option<impl AsRef<str>>) -> TokenStream {
-    opt_lit(item.map(str_lit).as_ref())
-  }
-
-  /// Helper function to combine an `opt_lit` with a list of `str_lit`
-  fn opt_vec_str_lit(item: Option<impl IntoIterator<Item = impl AsRef<str>>>) -> TokenStream {
-    opt_lit(item.map(|list| vec_lit(list, str_lit)).as_ref())
-  }
-
-  /// Create a `Vec` constructor, mapping items with a function that spits out `TokenStream`s.
-  fn vec_lit<Raw, Tokens>(
-    list: impl IntoIterator<Item = Raw>,
-    map: impl Fn(Raw) -> Tokens,
-  ) -> TokenStream
-  where
-    Tokens: ToTokens,
-  {
-    let items = list.into_iter().map(map);
-    quote! { vec![#(#items),*] }
-  }
-
-  /// Create a `PathBuf` constructor `TokenStream`.
-  ///
-  /// e.g. `"Hello World" -> String::from("Hello World").
-  fn path_buf_lit(s: impl AsRef<Path>) -> TokenStream {
-    let s = s.as_ref().to_string_lossy().into_owned();
-    quote! { ::std::path::PathBuf::from(#s) }
-  }
-
-  /// Creates a `Url` constructor `TokenStream`.
-  fn url_lit(url: &Url) -> TokenStream {
-    let url = url.as_str();
-    quote! { #url.parse().unwrap() }
-  }
-
-  /// Create a map constructor, mapping keys and values with other `TokenStream`s.
-  ///
-  /// This function is pretty generic because the types of keys AND values get transformed.
-  fn map_lit<Map, Key, Value, TokenStreamKey, TokenStreamValue, FuncKey, FuncValue>(
-    map_type: TokenStream,
-    map: Map,
-    map_key: FuncKey,
-    map_value: FuncValue,
-  ) -> TokenStream
-  where
-    <Map as IntoIterator>::IntoIter: ExactSizeIterator,
-    Map: IntoIterator<Item = (Key, Value)>,
-    TokenStreamKey: ToTokens,
-    TokenStreamValue: ToTokens,
-    FuncKey: Fn(Key) -> TokenStreamKey,
-    FuncValue: Fn(Value) -> TokenStreamValue,
-  {
-    let ident = quote::format_ident!("map");
-    let map = map.into_iter();
-
-    if map.len() > 0 {
-      let items = map.map(|(key, value)| {
-        let key = map_key(key);
-        let value = map_value(value);
-        quote! { #ident.insert(#key, #value); }
-      });
-
-      quote! {{
-        let mut #ident = #map_type::new();
-        #(#items)*
-        #ident
-      }}
-    } else {
-      quote! { #map_type::new() }
-    }
-  }
-
-  /// Create a `serde_json::Value` variant `TokenStream` for a number
-  fn json_value_number_lit(num: &serde_json::Number) -> TokenStream {
-    // See https://docs.rs/serde_json/1/serde_json/struct.Number.html for guarantees
-    let prefix = quote! { ::serde_json::Value };
-    if num.is_u64() {
-      // guaranteed u64
-      let num = num.as_u64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
-    } else if num.is_i64() {
-      // guaranteed i64
-      let num = num.as_i64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
-    } else if num.is_f64() {
-      // guaranteed f64
-      let num = num.as_f64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
-    } else {
-      // invalid number
-      quote! { #prefix::Null }
-    }
-  }
-
-  /// Create a `serde_json::Value` constructor `TokenStream`
-  fn json_value_lit(jv: &JsonValue) -> TokenStream {
-    let prefix = quote! { ::serde_json::Value };
-
-    match jv {
-      JsonValue::Null => quote! { #prefix::Null },
-      JsonValue::Bool(bool) => quote! { #prefix::Bool(#bool) },
-      JsonValue::Number(number) => json_value_number_lit(number),
-      JsonValue::String(str) => {
-        let s = str_lit(str);
-        quote! { #prefix::String(#s) }
-      }
-      JsonValue::Array(vec) => {
-        let items = vec.iter().map(json_value_lit);
-        quote! { #prefix::Array(vec![#(#items),*]) }
-      }
-      JsonValue::Object(map) => {
-        let map = map_lit(quote! { ::serde_json::Map }, map, str_lit, json_value_lit);
-        quote! { #prefix::Object(#map) }
-      }
-    }
-  }
-
-  /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
-  ///
-  /// All fields must represent a binding of the same name that implements `ToTokens`.
-  macro_rules! literal_struct {
-    ($tokens:ident, $struct:ident, $($field:ident),+) => {
-      $tokens.append_all(quote! {
-        ::tauri::utils::config::$struct {
-          $($field: #$field),+
-        }
-      })
-    };
-  }
-
-  impl ToTokens for WindowUrl {
+  impl ToTokens for WebviewUrl {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::WindowUrl };
+      let prefix = quote! { ::tauri::utils::config::WebviewUrl };
 
       tokens.append_all(match self {
         Self::App(path) => {
@@ -2120,6 +2189,10 @@ mod build {
         Self::External(url) => {
           let url = url_lit(url);
           quote! { #prefix::External(#url) }
+        }
+        Self::CustomProtocol(url) => {
+          let url = url_lit(url);
+          quote! { #prefix::CustomProtocol(#url) }
         }
       })
     }
@@ -2149,7 +2222,14 @@ mod build {
       let radius = opt_lit(self.radius.as_ref());
       let color = opt_lit(self.color.as_ref());
 
-      literal_struct!(tokens, WindowEffectsConfig, effects, state, radius, color)
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::WindowEffectsConfig,
+        effects,
+        state,
+        radius,
+        color
+      )
     }
   }
 
@@ -2195,6 +2275,9 @@ mod build {
         WindowEffect::MicaLight => quote! { #prefix::MicaLight},
         WindowEffect::Blur => quote! { #prefix::Blur},
         WindowEffect::Acrylic => quote! { #prefix::Acrylic},
+        WindowEffect::Tabbed => quote! { #prefix::Tabbed },
+        WindowEffect::TabbedDark => quote! { #prefix::TabbedDark },
+        WindowEffect::TabbedLight => quote! { #prefix::TabbedLight },
       })
     }
   }
@@ -2232,12 +2315,14 @@ mod build {
       let minimizable = self.minimizable;
       let closable = self.closable;
       let title = str_lit(&self.title);
+      let proxy_url = opt_str_lit(self.proxy_url.as_ref());
       let fullscreen = self.fullscreen;
       let focus = self.focus;
       let transparent = self.transparent;
       let maximized = self.maximized;
       let visible = self.visible;
       let decorations = self.decorations;
+      let always_on_bottom = self.always_on_bottom;
       let always_on_top = self.always_on_top;
       let visible_on_all_workspaces = self.visible_on_all_workspaces;
       let content_protected = self.content_protected;
@@ -2251,10 +2336,11 @@ mod build {
       let shadow = self.shadow;
       let window_effects = opt_lit(self.window_effects.as_ref());
       let incognito = self.incognito;
+      let parent = opt_str_lit(self.parent.as_ref());
 
       literal_struct!(
         tokens,
-        WindowConfig,
+        ::tauri::utils::config::WindowConfig,
         label,
         url,
         user_agent,
@@ -2273,12 +2359,14 @@ mod build {
         minimizable,
         closable,
         title,
+        proxy_url,
         fullscreen,
         focus,
         transparent,
         maximized,
         visible,
         decorations,
+        always_on_bottom,
         always_on_top,
         visible_on_all_workspaces,
         content_protected,
@@ -2291,7 +2379,8 @@ mod build {
         additional_browser_args,
         shadow,
         window_effects,
-        incognito
+        incognito,
+        parent
       );
     }
   }
@@ -2359,7 +2448,13 @@ mod build {
       let pubkey = str_lit(&self.pubkey);
       let windows = &self.windows;
 
-      literal_struct!(tokens, UpdaterConfig, active, pubkey, windows);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::UpdaterConfig,
+        active,
+        pubkey,
+        windows
+      );
     }
   }
 
@@ -2378,8 +2473,10 @@ mod build {
       let long_description = quote!(None);
       let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
+      let rpm = quote!(Default::default());
+      let dmg = quote!(Default::default());
       let macos = quote!(Default::default());
-      let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
+      let external_bin = opt_vec_lit(self.external_bin.as_ref(), str_lit);
       let windows = &self.windows;
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
@@ -2387,7 +2484,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        BundleConfig,
+        ::tauri::utils::config::BundleConfig,
         active,
         identifier,
         publisher,
@@ -2401,6 +2498,8 @@ mod build {
         long_description,
         appimage,
         deb,
+        rpm,
+        dmg,
         macos,
         external_bin,
         windows,
@@ -2429,8 +2528,8 @@ mod build {
 
   impl ToTokens for BuildConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let dev_path = &self.dev_path;
-      let dist_dir = &self.dist_dir;
+      let dev_path = opt_lit(self.dev_path.as_ref());
+      let dist_dir = opt_lit(self.dist_dir.as_ref());
       let with_global_tauri = self.with_global_tauri;
       let runner = quote!(None);
       let before_dev_command = quote!(None);
@@ -2440,7 +2539,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        BuildConfig,
+        ::tauri::utils::config::BuildConfig,
         runner,
         dev_path,
         dist_dir,
@@ -2468,7 +2567,11 @@ mod build {
   impl ToTokens for UpdaterWindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let install_mode = &self.install_mode;
-      literal_struct!(tokens, UpdaterWindowsConfig, install_mode);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::UpdaterWindowsConfig,
+        install_mode
+      );
     }
   }
 
@@ -2536,7 +2639,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        RemoteDomainAccessScope,
+        ::tauri::utils::config::RemoteDomainAccessScope,
         scheme,
         domain,
         windows,
@@ -2551,18 +2654,15 @@ mod build {
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
-      let dangerous_remote_domain_ipc_access =
-        vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
       let asset_protocol = &self.asset_protocol;
 
       literal_struct!(
         tokens,
-        SecurityConfig,
+        ::tauri::utils::config::SecurityConfig,
         csp,
         dev_csp,
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
-        dangerous_remote_domain_ipc_access,
         asset_protocol
       );
     }
@@ -2570,6 +2670,7 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
       let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
@@ -2577,7 +2678,8 @@ mod build {
       let tooltip = opt_str_lit(self.tooltip.as_ref());
       literal_struct!(
         tokens,
-        TrayIconConfig,
+        ::tauri::utils::config::TrayIconConfig,
+        id,
         icon_path,
         icon_as_template,
         menu_on_left_click,
@@ -2624,7 +2726,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        TauriConfig,
+        ::tauri::utils::config::TauriConfig,
         pattern,
         windows,
         bundle,
@@ -2652,7 +2754,12 @@ mod build {
       let product_name = opt_str_lit(self.product_name.as_ref());
       let version = opt_str_lit(self.version.as_ref());
 
-      literal_struct!(tokens, PackageConfig, product_name, version);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::PackageConfig,
+        product_name,
+        version
+      );
     }
   }
 
@@ -2664,7 +2771,15 @@ mod build {
       let build = &self.build;
       let plugins = &self.plugins;
 
-      literal_struct!(tokens, Config, schema, package, tauri, build, plugins);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::Config,
+        schema,
+        package,
+        tauri,
+        build,
+        plugins
+      );
     }
   }
 }
@@ -2682,8 +2797,6 @@ mod test {
     let t_config = TauriConfig::default();
     // get default build config
     let b_config = BuildConfig::default();
-    // get default dev path
-    let d_path = default_dev_path();
     // get default window
     let d_windows: Vec<WindowConfig> = vec![];
     // get default bundle
@@ -2707,6 +2820,8 @@ mod test {
         long_description: None,
         appimage: Default::default(),
         deb: Default::default(),
+        rpm: Default::default(),
+        dmg: Default::default(),
         macos: Default::default(),
         external_bin: None,
         windows: Default::default(),
@@ -2719,7 +2834,6 @@ mod test {
         dev_csp: None,
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
-        dangerous_remote_domain_ipc_access: Vec::new(),
         asset_protocol: AssetProtocolConfig::default(),
       },
       tray_icon: None,
@@ -2729,10 +2843,8 @@ mod test {
     // create a build config
     let build = BuildConfig {
       runner: None,
-      dev_path: AppUrl::Url(WindowUrl::External(
-        Url::parse("http://localhost:8080").unwrap(),
-      )),
-      dist_dir: AppUrl::Url(WindowUrl::App("../dist".into())),
+      dev_path: None,
+      dist_dir: None,
       before_dev_command: None,
       before_build_command: None,
       before_bundle_command: None,
@@ -2744,12 +2856,6 @@ mod test {
     assert_eq!(t_config, tauri);
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, tauri.bundle);
-    assert_eq!(
-      d_path,
-      AppUrl::Url(WindowUrl::External(
-        Url::parse("http://localhost:8080").unwrap()
-      ))
-    );
     assert_eq!(d_windows, tauri.windows);
   }
 }

@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{
-      get as get_config, reload as reload_config, AppUrl, Config as TauriConfig, WindowUrl,
+      get as get_config, reload as reload_config, AppUrl, Config as TauriConfig, WebviewUrl,
     },
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
@@ -19,6 +19,12 @@ use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 
+use cargo_mobile2::{
+  config::app::{App, Raw as RawAppConfig},
+  env::Error as EnvError,
+  opts::{NoiseLevel, Profile},
+  ChildHandle,
+};
 use std::{
   collections::HashMap,
   env::{set_var, temp_dir},
@@ -33,18 +39,12 @@ use std::{
     Arc,
   },
 };
-use tauri_mobile::{
-  config::app::{App, Raw as RawAppConfig},
-  env::Error as EnvError,
-  opts::{NoiseLevel, Profile},
-  ChildHandle,
-};
 use tokio::runtime::Runtime;
 
 #[cfg(not(windows))]
-use tauri_mobile::env::Env;
+use cargo_mobile2::env::Env;
 #[cfg(windows)]
-use tauri_mobile::os::Env;
+use cargo_mobile2::os::Env;
 
 pub mod android;
 mod init;
@@ -168,7 +168,7 @@ fn setup_dev_config(
     .dev_path
     .clone();
 
-  if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
+  if let Some(AppUrl::Url(WebviewUrl::External(url))) = dev_path.as_mut() {
     let localhost = match url.host() {
       Some(url::Host::Domain(d)) => d == "localhost",
       Some(url::Host::Ipv4(i)) => {
@@ -198,7 +198,9 @@ fn env_vars() -> HashMap<String, OsString> {
   vars.insert("RUST_LOG_STYLE".into(), "always".into());
   for (k, v) in std::env::vars_os() {
     let k = k.to_string_lossy();
-    if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
+    if (k.starts_with("TAURI")
+      && k != "TAURI_SIGNING_PRIVATE_KEY"
+      && k != "TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
       || k.starts_with("WRY")
       || k.starts_with("CARGO_")
       || k == "TMPDIR"
@@ -215,11 +217,10 @@ fn env() -> Result<Env, EnvError> {
   Ok(env)
 }
 
+pub struct OptionsHandle(Runtime, ServerHandle);
+
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
-pub fn write_options(
-  identifier: &str,
-  mut options: CliOptions,
-) -> crate::Result<(Runtime, ServerHandle)> {
+pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result<OptionsHandle> {
   options.vars.extend(env_vars());
 
   let runtime = Runtime::new().unwrap();
@@ -228,9 +229,9 @@ pub fn write_options(
     let addr = server.local_addr()?;
 
     let mut module = RpcModule::new(());
-    module.register_method("options", move |_, _| Ok(options.clone()))?;
+    module.register_method("options", move |_, _| Some(options.clone()))?;
 
-    let handle = server.start(module)?;
+    let handle = server.start(module);
 
     Ok((handle, addr))
   });
@@ -241,7 +242,7 @@ pub fn write_options(
     addr.to_string(),
   )?;
 
-  Ok((runtime, handle))
+  Ok(OptionsHandle(runtime, handle))
 }
 
 fn read_options(identifier: &str) -> CliOptions {

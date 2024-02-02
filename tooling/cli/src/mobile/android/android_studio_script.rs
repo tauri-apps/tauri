@@ -10,7 +10,7 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use tauri_mobile::{
+use cargo_mobile2::{
   android::target::Target,
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},

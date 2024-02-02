@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use tauri_utils::display_path;
 
 #[derive(Debug, Parser)]
-#[clap(about = "Generate keypair to sign files")]
+#[clap(about = "Generate a new signing key to sign files")]
 pub struct Options {
   /// Set private key password when signing
   #[clap(short, long)]
@@ -57,7 +57,7 @@ pub fn command(mut options: Options) -> Result<()> {
         );
   }
 
-  println!("\nEnvironment variables used to sign:\n`TAURI_PRIVATE_KEY`  Path or String of your private key\n`TAURI_KEY_PASSWORD`  Your private key password (optional)\n\nATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not work.\n---------------------------\n");
+  println!("\nEnvironment variables used to sign:\n`TAURI_SIGNING_PRIVATE_KEY`  Path or String of your private key\n`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`  Your private key password (optional)\n\nATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not work.\n---------------------------\n");
 
   Ok(())
 }

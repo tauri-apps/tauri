@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-outer-size"
+description = "Enables the outer_size command without any pre-configured scope."
+commands.allow = ["outer_size"]
+
+[[permission]]
+identifier = "deny-outer-size"
+description = "Denies the outer_size command without any pre-configured scope."
+commands.deny = ["outer_size"]

@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-close"
+description = "Enables the close command without any pre-configured scope."
+commands.allow = ["close"]
+
+[[permission]]
+identifier = "deny-close"
+description = "Denies the close command without any pre-configured scope."
+commands.deny = ["close"]

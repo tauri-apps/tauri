@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-remove"
+description = "Enables the remove command without any pre-configured scope."
+commands.allow = ["remove"]
+
+[[permission]]
+identifier = "deny-remove"
+description = "Denies the remove command without any pre-configured scope."
+commands.deny = ["remove"]

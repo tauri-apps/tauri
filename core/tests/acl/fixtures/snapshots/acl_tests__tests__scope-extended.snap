@@ -1,0 +1,225 @@
+---
+source: core/tests/acl/src/lib.rs
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        CommandKey {
+            name: "plugin:fs|move",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: Some(
+                9188997750422900590,
+            ),
+        },
+        CommandKey {
+            name: "plugin:fs|read_dir",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: Some(
+                1349364295896631601,
+            ),
+        },
+        CommandKey {
+            name: "plugin:fs|read_file",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            scope: Some(
+                8031926490300119127,
+            ),
+        },
+    },
+    denied_commands: {},
+    command_scope: {
+        1349364295896631601: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME/.config/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$DOWNLOAD",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$DOWNLOAD/**",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**/*.key",
+                        ),
+                    },
+                ),
+            ],
+        },
+        8031926490300119127: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME/.config/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**/*.key",
+                        ),
+                    },
+                ),
+            ],
+        },
+        9188997750422900590: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$TEMP/*",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+    },
+    global_scope: {
+        "fs": ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$APP/**",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$APP",
+                        ),
+                    },
+                ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$APP/*.db",
+                        ),
+                    },
+                ),
+            ],
+        },
+    },
+}

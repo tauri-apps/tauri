@@ -1,0 +1,16 @@
+# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-internal-on-mousemove"
+description = "Enables the internal_on_mousemove command without any pre-configured scope."
+commands.allow = ["internal_on_mousemove"]
+
+[[permission]]
+identifier = "deny-internal-on-mousemove"
+description = "Denies the internal_on_mousemove command without any pre-configured scope."
+commands.deny = ["internal_on_mousemove"]

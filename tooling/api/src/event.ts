@@ -9,13 +9,19 @@
  * @module
  */
 
-import { invoke, transformCallback } from './tauri'
+import { invoke, transformCallback } from './core'
+
+type EventTarget =
+  | { kind: 'Any' }
+  | { kind: 'AnyLabel'; label: string }
+  | { kind: 'App' }
+  | { kind: 'Window'; label: string }
+  | { kind: 'Webview'; label: string }
+  | { kind: 'WebviewWindow'; label: string }
 
 interface Event<T> {
   /** Event name */
   event: EventName
-  /** The label of the window that emitted this event. */
-  windowLabel: string
   /** Event identifier used to unlisten */
   id: number
   /** Event payload */
@@ -30,14 +36,11 @@ type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
 interface Options {
   /**
-   * Label of the window the function targets.
+   * The event target to listen to, defaults to `{ kind: 'Any' }`, see {@link EventTarget}.
    *
-   * When listening to events and using this value,
-   * only events triggered by the window with the given label are received.
-   *
-   * When emitting events, only the window with the given label will receive it.
+   * If a string is provided, {@link EventTarget.AnyLabel} is used.
    */
-  target?: string
+  target?: string | EventTarget
 }
 
 /**
@@ -47,16 +50,15 @@ enum TauriEvent {
   WINDOW_RESIZED = 'tauri://resize',
   WINDOW_MOVED = 'tauri://move',
   WINDOW_CLOSE_REQUESTED = 'tauri://close-requested',
-  WINDOW_CREATED = 'tauri://window-created',
   WINDOW_DESTROYED = 'tauri://destroyed',
   WINDOW_FOCUS = 'tauri://focus',
   WINDOW_BLUR = 'tauri://blur',
   WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
   WINDOW_THEME_CHANGED = 'tauri://theme-changed',
-  WINDOW_FILE_DROP = 'tauri://file-drop',
-  WINDOW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
-  WINDOW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
-  MENU = 'tauri://menu'
+  WEBVIEW_CREATED = 'tauri://webview-created',
+  WEBVIEW_FILE_DROP = 'tauri://file-drop',
+  WEBVIEW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
+  WEBVIEW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled'
 }
 
 /**
@@ -75,14 +77,13 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
 }
 
 /**
- * Listen to an event. The event can be either global or window-specific.
- * See {@link Event.windowLabel} to check the event source.
+ * Listen to an emitted event to any {@link EventTarget|target}.
  *
  * @example
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
  * const unlisten = await listen<string>('error', (event) => {
- *   console.log(`Got error in window ${event.windowLabel}, payload: ${event.payload}`);
+ *   console.log(`Got error, payload: ${event.payload}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
@@ -91,6 +92,7 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param handler Event handler callback.
+ * @param options Event listening options.
  * @returns A promise resolving to a function to unlisten to the event.
  * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
  *
@@ -101,9 +103,13 @@ async function listen<T>(
   handler: EventCallback<T>,
   options?: Options
 ): Promise<UnlistenFn> {
+  const target: EventTarget =
+    typeof options?.target === 'string'
+      ? { kind: 'AnyLabel', label: options.target }
+      : options?.target ?? { kind: 'Any' }
   return invoke<number>('plugin:event|listen', {
     event,
-    windowLabel: options?.target,
+    target,
     handler: transformCallback(handler)
   }).then((eventId) => {
     return async () => _unlisten(event, eventId)
@@ -111,7 +117,7 @@ async function listen<T>(
 }
 
 /**
- * Listen to an one-off event. See {@link listen} for more information.
+ * Listens once to an emitted event to any {@link EventTarget|target}.
  *
  * @example
  * ```typescript
@@ -129,6 +135,8 @@ async function listen<T>(
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param handler Event handler callback.
+ * @param options Event listening options.
  * @returns A promise resolving to a function to unlisten to the event.
  * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
  *
@@ -150,7 +158,8 @@ async function once<T>(
 }
 
 /**
- * Emits an event to the backend and all Tauri windows.
+ * Emits an event to all {@link EventTarget|targets}.
+ *
  * @example
  * ```typescript
  * import { emit } from '@tauri-apps/api/event';
@@ -158,21 +167,53 @@ async function once<T>(
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param payload Event payload.
  *
  * @since 1.0.0
  */
-async function emit(
-  event: string,
-  payload?: unknown,
-  options?: Options
-): Promise<void> {
+async function emit(event: string, payload?: unknown): Promise<void> {
   await invoke('plugin:event|emit', {
     event,
-    windowLabel: options?.target,
     payload
   })
 }
 
-export type { Event, EventCallback, UnlistenFn, EventName, Options }
+/**
+ * Emits an event to all {@link EventTarget|targets} matching the given target.
+ *
+ * @example
+ * ```typescript
+ * import { emit } from '@tauri-apps/api/event';
+ * await emit('frontend-loaded', { loggedIn: true, token: 'authToken' });
+ * ```
+ *
+ * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
+ * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param payload Event payload.
+ *
+ * @since 1.0.0
+ */
+async function emitTo(
+  target: EventTarget | string,
+  event: string,
+  payload?: unknown
+): Promise<void> {
+  const eventTarget: EventTarget =
+    typeof target === 'string' ? { kind: 'AnyLabel', label: target } : target
+  await invoke('plugin:event|emit_to', {
+    target: eventTarget,
+    event,
+    payload
+  })
+}
 
-export { listen, once, emit, TauriEvent }
+export type {
+  Event,
+  EventTarget,
+  EventCallback,
+  UnlistenFn,
+  EventName,
+  Options
+}
+
+export { listen, once, emit, emitTo, TauriEvent }

@@ -74,16 +74,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-udeps --locked --force
+      - name: Install udeps
+        run: cargo install cargo-udeps --locked --force
 
       - name: Upload udeps
         uses: actions/upload-artifact@v3
@@ -128,11 +123,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
 
       - name: install dependencies
         run: |
@@ -159,7 +151,5 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: udeps
-          args: --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets --all-features
+      - name: Run udeps
+        run: cargo udeps --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets --all-features

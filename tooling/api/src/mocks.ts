@@ -2,26 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/** @ignore */
-declare global {
-  interface Window {
-    __TAURI_METADATA__: {
-      __windows: WindowDef[]
-      __currentWindow: WindowDef
-    }
-  }
-}
+import { InvokeArgs, InvokeOptions } from './core'
 
-/** @ignore */
-interface WindowDef {
-  label: string
-}
-
-interface IPCMessage {
-  cmd: string
-  callback: number
-  error: number
-  [key: string]: unknown
+function mockInternals() {
+  window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
 }
 
 /**
@@ -34,7 +18,7 @@ interface IPCMessage {
  * Testing setup using vitest:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
- * import { invoke } from "@tauri-apps/api/tauri"
+ * import { invoke } from "@tauri-apps/api/core"
  *
  * afterEach(() => {
  *    clearMocks()
@@ -57,7 +41,7 @@ interface IPCMessage {
  * The callback function can also return a Promise:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
- * import { invoke } from "@tauri-apps/api/tauri"
+ * import { invoke } from "@tauri-apps/api/core"
  *
  * afterEach(() => {
  *    clearMocks()
@@ -78,24 +62,41 @@ interface IPCMessage {
  * @since 1.0.0
  */
 export function mockIPC(
-  cb: (cmd: string, payload: Record<string, unknown>) => any | Promise<any>
+  cb: <T>(cmd: string, payload?: InvokeArgs) => Promise<T>
 ): void {
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  window.__TAURI_IPC__ = async ({
-    cmd,
-    callback,
-    error,
-    payload
-  }: IPCMessage) => {
-    try {
-      // @ts-expect-error The function key is dynamic and therefore not typed
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      window[`_${callback}`](await cb(cmd, payload))
-    } catch (err) {
-      // @ts-expect-error The function key is dynamic and therefore not typed
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      window[`_${error}`](err)
-    }
+  mockInternals()
+
+  window.__TAURI_INTERNALS__.transformCallback = function transformCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    callback?: (response: any) => void,
+    once = false
+  ) {
+    const identifier = window.crypto.getRandomValues(new Uint32Array(1))[0]
+    const prop = `_${identifier}`
+
+    Object.defineProperty(window, prop, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      value: (result: any) => {
+        if (once) {
+          Reflect.deleteProperty(window, prop)
+        }
+
+        return callback && callback(result)
+      },
+      writable: false,
+      configurable: true
+    })
+
+    return identifier
+  }
+
+  window.__TAURI_INTERNALS__.invoke = function <T>(
+    cmd: string,
+    args?: InvokeArgs,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    options?: InvokeOptions
+  ): Promise<T> {
+    return cb(cmd, args)
   }
 }
 
@@ -143,9 +144,46 @@ export function mockWindows(
   current: string,
   ...additionalWindows: string[]
 ): void {
-  window.__TAURI_METADATA__ = {
-    __windows: [current, ...additionalWindows].map((label) => ({ label })),
-    __currentWindow: { label: current }
+  mockInternals()
+  window.__TAURI_INTERNALS__.metadata = {
+    windows: [current, ...additionalWindows].map((label) => ({ label })),
+    currentWindow: { label: current },
+    webviews: [current, ...additionalWindows].map((label) => ({
+      windowLabel: label,
+      label
+    })),
+    currentWebview: { windowLabel: current, label: current }
+  }
+}
+
+/**
+ * Mock `convertFileSrc` function
+ *
+ *
+ * @example
+ * ```js
+ * import { mockConvertFileSrc } from "@tauri-apps/api/mocks";
+ * import { convertFileSrc } from "@tauri-apps/api/core";
+ *
+ * mockConvertFileSrc("windows")
+ *
+ * const url = convertFileSrc("C:\\Users\\user\\file.txt")
+ * ```
+ *
+ * @param osName The operating system to mock, can be one of linux, macos, or windows
+ *
+ * @since 1.6.0
+ */
+export function mockConvertFileSrc(osName: string): void {
+  mockInternals()
+  window.__TAURI_INTERNALS__.convertFileSrc = function (
+    filePath,
+    protocol = 'asset'
+  ) {
+    const path = encodeURIComponent(filePath)
+    return osName === 'windows'
+      ? `http://${protocol}.localhost/${path}`
+      : `${protocol}://localhost/${path}`
   }
 }
 
@@ -165,19 +203,28 @@ export function mockWindows(
  * test("mocked windows", () => {
  *    mockWindows("main", "second", "third");
  *
- *    expect(window).toHaveProperty("__TAURI_METADATA__")
+ *    expect(window.__TAURI_INTERNALS__).toHaveProperty("metadata")
  * })
  *
  * test("no mocked windows", () => {
- *    expect(window).not.toHaveProperty("__TAURI_METADATA__")
+ *    expect(window.__TAURI_INTERNALS__).not.toHaveProperty("metadata")
  * })
  * ```
  *
  * @since 1.0.0
  */
 export function clearMocks(): void {
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_IPC__
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-  delete window.__TAURI_METADATA__
+  if (typeof window.__TAURI_INTERNALS__ !== 'object') {
+    return
+  }
+
+  if (window.__TAURI_INTERNALS__?.convertFileSrc)
+    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+    delete window.__TAURI_INTERNALS__.convertFileSrc
+  if (window.__TAURI_INTERNALS__?.invoke)
+    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+    delete window.__TAURI_INTERNALS__.invoke
+  if (window.__TAURI_INTERNALS__?.metadata)
+    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+    delete window.__TAURI_INTERNALS__.metadata
 }

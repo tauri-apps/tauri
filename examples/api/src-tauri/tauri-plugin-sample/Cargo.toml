@@ -12,3 +12,4 @@ thiserror = "1"
 
 [build-dependencies]
 tauri-build = { path = "../../../../core/tauri-build/" }
+tauri-plugin = { path = "../../../../core/tauri-plugin", features = ["build"] }

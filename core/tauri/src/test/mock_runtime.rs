@@ -7,20 +7,21 @@
 
 use tauri_runtime::{
   monitor::Monitor,
-  webview::{WindowBuilder, WindowBuilderBase},
+  webview::{DetachedWebview, PendingWebview},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
+    CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent, WindowId,
   },
-  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
-  RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
+  window::{WindowBuilder, WindowBuilderBase},
+  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent,
+  Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
+  WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{config::WindowConfig, ProgressBarState, Theme};
 use url::Url;
-use uuid::Uuid;
 
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -30,21 +31,26 @@ use std::{
   collections::HashMap,
   fmt,
   sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
     mpsc::{channel, sync_channel, Receiver, SyncSender},
     Arc, Mutex,
   },
 };
 
 type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
-type WindowId = usize;
 
 enum Message {
   Task(Box<dyn FnOnce() + Send>),
   CloseWindow(WindowId),
+  DestroyWindow(WindowId),
 }
 
-struct Window;
+struct Webview;
+
+struct Window {
+  label: String,
+  webviews: Vec<Webview>,
+}
 
 #[derive(Clone)]
 pub struct RuntimeContext {
@@ -52,6 +58,9 @@ pub struct RuntimeContext {
   windows: Arc<RefCell<HashMap<WindowId, Window>>>,
   shortcuts: Arc<Mutex<ShortcutMap>>,
   run_tx: SyncSender<Message>,
+  next_window_id: Arc<AtomicU32>,
+  next_webview_id: Arc<AtomicU32>,
+  next_window_event_id: Arc<AtomicU32>,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -72,12 +81,24 @@ impl RuntimeContext {
     } else {
       match message {
         Message::Task(task) => task(),
-        Message::CloseWindow(id) => {
+        Message::CloseWindow(id) | Message::DestroyWindow(id) => {
           self.windows.borrow_mut().remove(&id);
         }
       }
       Ok(())
     }
+  }
+
+  fn next_window_id(&self) -> WindowId {
+    self.next_window_id.fetch_add(1, Ordering::Relaxed).into()
+  }
+
+  fn next_webview_id(&self) -> u32 {
+    self.next_webview_id.fetch_add(1, Ordering::Relaxed)
+  }
+
+  fn next_window_event_id(&self) -> WindowEventId {
+    self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
   }
 }
 
@@ -99,17 +120,76 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     EventProxy {}
   }
 
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activation_policy(
+    &self,
+    activation_policy: tauri_runtime::ActivationPolicy,
+  ) -> Result<()> {
+    Ok(())
+  }
+
+  fn request_exit(&self, code: i32) -> Result<()> {
+    unimplemented!()
+  }
+
   /// Create a new webview window.
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
-    _before_webview_creation: Option<F>,
+    _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    let id = rand::random();
-    self.context.windows.borrow_mut().insert(id, Window);
+    let id = self.context.next_window_id();
+
+    let (webview_id, webviews) = if let Some(w) = &pending.webview {
+      (Some(self.context.next_webview_id()), vec![Webview])
+    } else {
+      (None, Vec::new())
+    };
+
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
+
+    let webview = webview_id.map(|id| DetachedWebview {
+      label: pending.label.clone(),
+      dispatcher: MockWebviewDispatcher {
+        id,
+        context: self.context.clone(),
+        url: Arc::new(Mutex::new(pending.webview.unwrap().url)),
+        last_evaluated_script: Default::default(),
+      },
+    });
+
     Ok(DetachedWindow {
+      id,
       label: pending.label,
-      dispatcher: MockDispatcher {
+      dispatcher: MockWindowDispatcher {
+        id,
+        context: self.context.clone(),
+      },
+      webview,
+    })
+  }
+
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self::Runtime>,
+  ) -> Result<DetachedWebview<T, Self::Runtime>> {
+    let id = self.context.next_webview_id();
+    let webview = Webview;
+    if let Some(w) = self.context.windows.borrow_mut().get_mut(&window_id) {
+      w.webviews.push(webview);
+    }
+
+    Ok(DetachedWebview {
+      label: pending.label,
+      dispatcher: MockWebviewDispatcher {
         id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
@@ -160,9 +240,9 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 
   #[cfg(target_os = "android")]
   fn find_class<'a>(
-    &'a self,
-    env: &'a mut jni::JNIEnv<'a>,
-    activity: &'a jni::objects::JObject<'a>,
+    &self,
+    env: &mut jni::JNIEnv<'a>,
+    activity: &jni::objects::JObject<'_>,
     name: impl Into<String>,
   ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
     todo!()
@@ -178,17 +258,23 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 }
 
 #[derive(Debug, Clone)]
-pub struct MockDispatcher {
-  id: WindowId,
+pub struct MockWebviewDispatcher {
+  id: u32,
   context: RuntimeContext,
   url: Arc<Mutex<String>>,
   last_evaluated_script: Arc<Mutex<Option<String>>>,
 }
 
-impl MockDispatcher {
+impl MockWebviewDispatcher {
   pub fn last_evaluated_script(&self) -> Option<String> {
     self.last_evaluated_script.lock().unwrap().clone()
   }
+}
+
+#[derive(Debug, Clone)]
+pub struct MockWindowDispatcher {
+  id: WindowId,
+  context: RuntimeContext,
 }
 
 #[derive(Debug, Clone)]
@@ -201,7 +287,7 @@ impl WindowBuilder for MockWindowBuilder {
     Self {}
   }
 
-  fn with_config(config: WindowConfig) -> Self {
+  fn with_config(config: &WindowConfig) -> Self {
     Self {}
   }
 
@@ -263,7 +349,7 @@ impl WindowBuilder for MockWindowBuilder {
 
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
-    doc_cfg,
+    docsrs,
     doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
   )]
   fn transparent(self, transparent: bool) -> Self {
@@ -271,6 +357,10 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   fn decorations(self, decorations: bool) -> Self {
+    self
+  }
+
+  fn always_on_bottom(self, always_on_bottom: bool) -> Self {
     self
   }
 
@@ -299,17 +389,33 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(windows)]
-  fn parent_window(self, parent: HWND) -> Self {
-    self
-  }
-
-  #[cfg(target_os = "macos")]
-  fn parent_window(self, parent: *mut std::ffi::c_void) -> Self {
+  fn owner(self, owner: HWND) -> Self {
     self
   }
 
   #[cfg(windows)]
-  fn owner_window(self, owner: HWND) -> Self {
+  fn parent(self, parent: HWND) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn parent(self, parent: *mut std::ffi::c_void) -> Self {
+    self
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self
+  }
+
+  #[cfg(windows)]
+  fn drag_and_drop(self, enabled: bool) -> Self {
     self
   }
 
@@ -337,17 +443,11 @@ impl WindowBuilder for MockWindowBuilder {
   }
 }
 
-impl<T: UserEvent> Dispatch<T> for MockDispatcher {
+impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   type Runtime = MockRuntime;
-
-  type WindowBuilder = MockWindowBuilder;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_message(Message::Task(Box::new(f)))
-  }
-
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
-    Uuid::new_v4()
   }
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
@@ -365,6 +465,15 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    self
+      .last_evaluated_script
+      .lock()
+      .unwrap()
+      .replace(script.into());
+    Ok(())
+  }
+
   fn url(&self) -> Result<url::Url> {
     self
       .url
@@ -372,6 +481,56 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
       .unwrap()
       .parse()
       .map_err(|_| Error::FailedToReceiveMessage)
+  }
+
+  fn position(&self) -> Result<PhysicalPosition<i32>> {
+    Ok(PhysicalPosition { x: 0, y: 0 })
+  }
+
+  fn size(&self) -> Result<PhysicalSize<u32>> {
+    Ok(PhysicalSize {
+      width: 0,
+      height: 0,
+    })
+  }
+
+  fn navigate(&self, url: Url) -> Result<()> {
+    *self.url.lock().unwrap() = url.to_string();
+    Ok(())
+  }
+
+  fn print(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn close(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_size(&self, _size: Size) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_position(&self, _position: Position) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_focus(&self) -> Result<()> {
+    Ok(())
+  }
+}
+
+impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
+  type Runtime = MockRuntime;
+
+  type WindowBuilder = MockWindowBuilder;
+
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
+    self.context.send_message(Message::Task(Box::new(f)))
+  }
+
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
+    self.context.next_window_event_id()
   }
 
   fn scale_factor(&self) -> Result<f64> {
@@ -503,10 +662,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
-  fn print(&self) -> Result<()> {
-    Ok(())
-  }
-
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
     Ok(())
   }
@@ -514,13 +669,58 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
-    _before_webview_creation: Option<F>,
+    _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    let id = rand::random();
-    self.context.windows.borrow_mut().insert(id, Window);
+    let id = self.context.next_window_id();
+
+    let (webview_id, webviews) = if let Some(w) = &pending.webview {
+      (Some(self.context.next_webview_id()), vec![Webview])
+    } else {
+      (None, Vec::new())
+    };
+
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
+
+    let webview = webview_id.map(|id| DetachedWebview {
+      label: pending.label.clone(),
+      dispatcher: MockWebviewDispatcher {
+        id,
+        context: self.context.clone(),
+        url: Arc::new(Mutex::new(pending.webview.unwrap().url)),
+        last_evaluated_script: Default::default(),
+      },
+    });
+
     Ok(DetachedWindow {
+      id,
       label: pending.label,
-      dispatcher: MockDispatcher {
+      dispatcher: MockWindowDispatcher {
+        id,
+        context: self.context.clone(),
+      },
+      webview,
+    })
+  }
+
+  fn create_webview(
+    &mut self,
+    pending: PendingWebview<T, Self::Runtime>,
+  ) -> Result<DetachedWebview<T, Self::Runtime>> {
+    let id = self.context.next_webview_id();
+    let webview = Webview;
+    if let Some(w) = self.context.windows.borrow_mut().get_mut(&self.id) {
+      w.webviews.push(webview);
+    }
+
+    Ok(DetachedWebview {
+      label: pending.label,
+      dispatcher: MockWebviewDispatcher {
         id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
@@ -546,11 +746,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
-    Ok(())
-  }
-
-  fn navigate(&self, url: Url) -> Result<()> {
-    *self.url.lock().unwrap() = url.to_string();
     Ok(())
   }
 
@@ -583,11 +778,20 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
+  fn destroy(&self) -> Result<()> {
+    self.context.send_message(Message::DestroyWindow(self.id))?;
+    Ok(())
+  }
+
   fn set_decorations(&self, decorations: bool) -> Result<()> {
     Ok(())
   }
 
   fn set_shadow(&self, shadow: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
     Ok(())
   }
 
@@ -659,12 +863,11 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
-  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
-    self
-      .last_evaluated_script
-      .lock()
-      .unwrap()
-      .replace(script.into());
+  fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
     Ok(())
   }
 }
@@ -688,12 +891,15 @@ pub struct MockRuntime {
 impl MockRuntime {
   fn init() -> Self {
     let is_running = Arc::new(AtomicBool::new(false));
-    let (tx, rx) = sync_channel(1);
+    let (tx, rx) = sync_channel(256);
     let context = RuntimeContext {
       is_running: is_running.clone(),
       windows: Default::default(),
       shortcuts: Default::default(),
       run_tx: tx,
+      next_window_id: Default::default(),
+      next_webview_id: Default::default(),
+      next_window_event_id: Default::default(),
     };
     Self {
       is_running,
@@ -704,7 +910,8 @@ impl MockRuntime {
 }
 
 impl<T: UserEvent> Runtime<T> for MockRuntime {
-  type Dispatcher = MockDispatcher;
+  type WindowDispatcher = MockWindowDispatcher;
+  type WebviewDispatcher = MockWebviewDispatcher;
   type Handle = MockRuntimeHandle;
   type EventLoopProxy = EventProxy;
 
@@ -730,13 +937,59 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self>,
-    _before_webview_creation: Option<F>,
+    _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
-    let id = rand::random();
-    self.context.windows.borrow_mut().insert(id, Window);
+    let id = self.context.next_window_id();
+
+    let (webview_id, webviews) = if let Some(w) = &pending.webview {
+      (Some(self.context.next_webview_id()), vec![Webview])
+    } else {
+      (None, Vec::new())
+    };
+
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
+
+    let webview = webview_id.map(|id| DetachedWebview {
+      label: pending.label.clone(),
+      dispatcher: MockWebviewDispatcher {
+        id,
+        context: self.context.clone(),
+        url: Arc::new(Mutex::new(pending.webview.unwrap().url)),
+        last_evaluated_script: Default::default(),
+      },
+    });
+
     Ok(DetachedWindow {
+      id,
       label: pending.label,
-      dispatcher: MockDispatcher {
+      dispatcher: MockWindowDispatcher {
+        id,
+        context: self.context.clone(),
+      },
+      webview,
+    })
+  }
+
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self>,
+  ) -> Result<DetachedWebview<T, Self>> {
+    let id = self.context.next_webview_id();
+    let webview = Webview;
+    if let Some(w) = self.context.windows.borrow_mut().get_mut(&window_id) {
+      w.webviews.push(webview);
+    }
+
+    Ok(DetachedWebview {
+      label: pending.label,
+      dispatcher: MockWebviewDispatcher {
         id,
         context: self.context.clone(),
         last_evaluated_script: Default::default(),
@@ -754,15 +1007,15 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn show(&self) {}
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self) {}
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}
@@ -776,12 +1029,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(
-    &mut self,
-    callback: F,
-  ) -> tauri_runtime::RunIteration {
-    Default::default()
-  }
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F) {}
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
     self.is_running.store(true, Ordering::Relaxed);
@@ -792,12 +1040,45 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
         match m {
           Message::Task(p) => p(),
           Message::CloseWindow(id) => {
+            let label = self
+              .context
+              .windows
+              .borrow()
+              .get(&id)
+              .map(|w| w.label.clone());
+            if let Some(label) = label {
+              let (tx, rx) = channel();
+              callback(RunEvent::WindowEvent {
+                label,
+                event: WindowEvent::CloseRequested { signal_tx: tx },
+              });
+
+              let should_prevent = matches!(rx.try_recv(), Ok(true));
+              if !should_prevent {
+                self.context.windows.borrow_mut().remove(&id);
+
+                let is_empty = self.context.windows.borrow().is_empty();
+                if is_empty {
+                  let (tx, rx) = channel();
+                  callback(RunEvent::ExitRequested { code: None, tx });
+
+                  let recv = rx.try_recv();
+                  let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+                  if !should_prevent {
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          Message::DestroyWindow(id) => {
             let removed = self.context.windows.borrow_mut().remove(&id).is_some();
             if removed {
               let is_empty = self.context.windows.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
-                callback(RunEvent::ExitRequested { tx });
+                callback(RunEvent::ExitRequested { code: None, tx });
 
                 let recv = rx.try_recv();
                 let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));

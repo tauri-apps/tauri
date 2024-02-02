@@ -4,9 +4,7 @@
 
 #![cfg(desktop)]
 
-//! Menu types and utility functions
-
-// TODO(muda-migration): figure out js events
+//! Menu types and utilities.
 
 mod builders;
 mod check;
@@ -14,21 +12,38 @@ mod icon;
 #[allow(clippy::module_inception)]
 mod menu;
 mod normal;
+pub(crate) mod plugin;
 mod predefined;
 mod submenu;
-pub use builders::*;
-pub use check::CheckMenuItem;
-pub use icon::IconMenuItem;
-pub use menu::{Menu, HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
-pub use normal::MenuItem;
-pub use predefined::PredefinedMenuItem;
-pub use submenu::Submenu;
+use std::sync::Arc;
 
-use crate::{Icon, Runtime};
+pub use builders::*;
+pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
+use serde::{Deserialize, Serialize};
+
+use crate::{AppHandle, Icon, Runtime};
 pub use muda::MenuId;
 
+macro_rules! run_item_main_thread {
+  ($self:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+    let self_ = $self.clone();
+    let task = move || {
+      let f = $ex;
+      let _ = tx.send(f(self_));
+    };
+    $self
+      .app_handle()
+      .run_on_main_thread(task)
+      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
+  }};
+}
+
+pub(crate) use run_item_main_thread;
+
 /// Describes a menu event emitted when a menu item is activated
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MenuEvent {
   /// Id of the menu item which triggered this event
   pub id: MenuId,
@@ -47,7 +62,109 @@ impl From<muda::MenuEvent> for MenuEvent {
   }
 }
 
-/// Application metadata for the [`PredefinedMenuItem::about`](crate::PredefinedMenuItem::about).
+macro_rules! gen_wrappers {
+  (
+    $(
+      $(#[$attr:meta])*
+      $type:ident($inner:ident$(, $kind:ident)?)
+    ),*
+  ) => {
+    $(
+      pub(crate) struct $inner<R: $crate::Runtime> {
+        id: $crate::menu::MenuId,
+        inner: ::std::option::Option<::muda::$type>,
+        app_handle: $crate::AppHandle<R>,
+      }
+
+
+      /// # Safety
+      ///
+      /// We make sure it always runs on the main thread.
+      unsafe impl<R: $crate::Runtime> Sync for $inner<R> {}
+      unsafe impl<R: $crate::Runtime> Send for $inner<R> {}
+
+      impl<R: Runtime> $crate::Resource for $type<R> {}
+
+      impl<R: $crate::Runtime> Clone for $inner<R> {
+        fn clone(&self) -> Self {
+          Self {
+            id: self.id.clone(),
+            inner: self.inner.clone(),
+            app_handle: self.app_handle.clone(),
+          }
+        }
+      }
+
+      impl<R: Runtime> Drop for $inner<R> {
+        fn drop(&mut self) {
+          struct SafeSend<T>(T);
+          unsafe impl<T> Send for SafeSend<T> {}
+
+          let inner = self.inner.take();
+          let inner = SafeSend(inner);
+          let _ = self.app_handle.run_on_main_thread(move || {
+            drop(inner);
+          });
+        }
+      }
+
+      impl<R: Runtime> AsRef<::muda::$type> for $inner<R> {
+        fn as_ref(&self) -> &::muda::$type {
+          self.inner.as_ref().unwrap()
+        }
+      }
+
+
+      $(#[$attr])*
+      pub struct $type<R: $crate::Runtime>(::std::sync::Arc<$inner<R>>);
+
+      impl<R: $crate::Runtime> Clone for $type<R> {
+        fn clone(&self) -> Self {
+          Self(self.0.clone())
+        }
+      }
+
+      $(
+        impl<R: $crate::Runtime> $crate::menu::sealed::IsMenuItemBase for $type<R> {
+          fn inner_muda(&self) -> &dyn muda::IsMenuItem {
+            (*self.0).as_ref()
+          }
+        }
+
+        impl<R: $crate::Runtime> $crate::menu::IsMenuItem<R> for $type<R> {
+          fn kind(&self) -> MenuItemKind<R> {
+            MenuItemKind::$kind(self.clone())
+          }
+
+          fn id(&self) -> &MenuId {
+            &self.0.id
+          }
+        }
+      )*
+    )*
+  };
+}
+
+gen_wrappers!(
+  /// A type that is either a menu bar on the window
+  /// on Windows and Linux or as a global menu in the menubar on macOS.
+  Menu(MenuInner),
+  /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
+  MenuItem(MenuItemInner, MenuItem),
+  /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
+  Submenu(SubmenuInner, Submenu),
+  /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
+  PredefinedMenuItem(PredefinedMenuItemInner, Predefined),
+  /// A menu item inside a [`Menu`] or [`Submenu`]
+  /// and usually contains a text and a check mark or a similar toggle
+  /// that corresponds to a checked and unchecked states.
+  CheckMenuItem(CheckMenuItemInner, Check),
+  /// A menu item inside a [`Menu`] or [`Submenu`]
+  /// and usually contains an icon and a text.
+  IconMenuItem(IconMenuItemInner, Icon)
+);
+
+/// Application metadata for the [`PredefinedMenuItem::about`].
 #[derive(Debug, Clone, Default)]
 pub struct AboutMetadata {
   /// Sets the application name.
@@ -233,7 +350,7 @@ impl From<AboutMetadata> for muda::AboutMetadata {
 /// ## Platform-specific:
 ///
 /// - **Windows / Linux**: Unsupported.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum NativeIcon {
   /// An add item template image.
   Add,
@@ -449,6 +566,38 @@ impl<R: Runtime> MenuItemKind<R> {
     }
   }
 
+  pub(crate) fn from_muda(app_handle: AppHandle<R>, i: muda::MenuItemKind) -> Self {
+    match i {
+      muda::MenuItemKind::MenuItem(i) => Self::MenuItem(MenuItem(Arc::new(MenuItemInner {
+        id: i.id().clone(),
+        inner: i.into(),
+        app_handle,
+      }))),
+      muda::MenuItemKind::Submenu(i) => Self::Submenu(Submenu(Arc::new(SubmenuInner {
+        id: i.id().clone(),
+        inner: i.into(),
+        app_handle,
+      }))),
+      muda::MenuItemKind::Predefined(i) => {
+        Self::Predefined(PredefinedMenuItem(Arc::new(PredefinedMenuItemInner {
+          id: i.id().clone(),
+          inner: i.into(),
+          app_handle,
+        })))
+      }
+      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem(Arc::new(CheckMenuItemInner {
+        id: i.id().clone(),
+        inner: i.into(),
+        app_handle,
+      }))),
+      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem(Arc::new(IconMenuItemInner {
+        id: i.id().clone(),
+        inner: i.into(),
+        app_handle,
+      }))),
+    }
+  }
+
   /// Casts this item to a [`MenuItem`], and returns `None` if it wasn't.
   pub fn as_menuitem(&self) -> Option<&MenuItem<R>> {
     match self {
@@ -543,8 +692,8 @@ impl<R: Runtime> Clone for MenuItemKind<R> {
 }
 
 impl<R: Runtime> sealed::IsMenuItemBase for MenuItemKind<R> {
-  fn inner(&self) -> &dyn muda::IsMenuItem {
-    self.inner().inner()
+  fn inner_muda(&self) -> &dyn muda::IsMenuItem {
+    self.inner().inner_muda()
   }
 }
 
@@ -593,12 +742,12 @@ pub trait ContextMenu: sealed::ContextMenuBase + Send + Sync {
 pub(crate) mod sealed {
 
   pub trait IsMenuItemBase {
-    fn inner(&self) -> &dyn muda::IsMenuItem;
+    fn inner_muda(&self) -> &dyn muda::IsMenuItem;
   }
 
   pub trait ContextMenuBase {
-    fn inner(&self) -> &dyn muda::ContextMenu;
-    fn inner_owned(&self) -> Box<dyn muda::ContextMenu>;
+    fn inner_context(&self) -> &dyn muda::ContextMenu;
+    fn inner_context_owned(&self) -> Box<dyn muda::ContextMenu>;
     fn popup_inner<R: crate::Runtime, P: Into<crate::Position>>(
       &self,
       window: crate::Window<R>,

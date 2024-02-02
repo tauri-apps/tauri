@@ -32,16 +32,37 @@
             "minSdkVersion": 24
           },
           "appimage": {
-            "bundleMediaFramework": false
+            "bundleMediaFramework": false,
+            "files": {}
           },
           "deb": {
             "files": {}
+          },
+          "dmg": {
+            "appPosition": {
+              "x": 180,
+              "y": 170
+            },
+            "applicationFolderPosition": {
+              "x": 480,
+              "y": 170
+            },
+            "windowSize": {
+              "height": 400,
+              "width": 660
+            }
           },
           "iOS": {},
           "icon": [],
           "identifier": "",
           "macOS": {
+            "files": {},
             "minimumSystemVersion": "10.13"
+          },
+          "rpm": {
+            "epoch": 0,
+            "files": {},
+            "release": "1"
           },
           "targets": "all",
           "updater": {
@@ -76,7 +97,6 @@
             "scope": []
           },
           "dangerousDisableAssetCspModification": false,
-          "dangerousRemoteDomainIpcAccess": [],
           "freezePrototype": false
         },
         "windows": []
@@ -90,8 +110,6 @@
     "build": {
       "description": "The build configuration.",
       "default": {
-        "devPath": "http://localhost:8080/",
-        "distDir": "../dist",
         "withGlobalTauri": false
       },
       "allOf": [
@@ -113,7 +131,7 @@
   "additionalProperties": false,
   "definitions": {
     "PackageConfig": {
-      "description": "The package configuration.\n\nSee more: https://tauri.app/v1/api/config#packageconfig",
+      "description": "The package configuration.\n\nSee more: <https://tauri.app/v1/api/config#packageconfig>",
       "type": "object",
       "properties": {
         "productName": {
@@ -136,7 +154,7 @@
       "additionalProperties": false
     },
     "TauriConfig": {
-      "description": "The Tauri configuration object.\n\nSee more: https://tauri.app/v1/api/config#tauriconfig",
+      "description": "The Tauri configuration object.\n\nSee more: <https://tauri.app/v1/api/config#tauriconfig>",
       "type": "object",
       "properties": {
         "pattern": {
@@ -166,16 +184,37 @@
               "minSdkVersion": 24
             },
             "appimage": {
-              "bundleMediaFramework": false
+              "bundleMediaFramework": false,
+              "files": {}
             },
             "deb": {
               "files": {}
+            },
+            "dmg": {
+              "appPosition": {
+                "x": 180,
+                "y": 170
+              },
+              "applicationFolderPosition": {
+                "x": 480,
+                "y": 170
+              },
+              "windowSize": {
+                "height": 400,
+                "width": 660
+              }
             },
             "iOS": {},
             "icon": [],
             "identifier": "",
             "macOS": {
+              "files": {},
               "minimumSystemVersion": "10.13"
+            },
+            "rpm": {
+              "epoch": 0,
+              "files": {},
+              "release": "1"
             },
             "targets": "all",
             "updater": {
@@ -214,7 +253,6 @@
               "scope": []
             },
             "dangerousDisableAssetCspModification": false,
-            "dangerousRemoteDomainIpcAccess": [],
             "freezePrototype": false
           },
           "allOf": [
@@ -291,7 +329,7 @@
       ]
     },
     "WindowConfig": {
-      "description": "The window configuration object.\n\nSee more: https://tauri.app/v1/api/config#windowconfig",
+      "description": "The window configuration object.\n\nSee more: <https://tauri.app/v1/api/config#windowconfig>",
       "type": "object",
       "properties": {
         "label": {
@@ -304,7 +342,7 @@
           "default": "index.html",
           "allOf": [
             {
-              "$ref": "#/definitions/WindowUrl"
+              "$ref": "#/definitions/WebviewUrl"
             }
           ]
         },
@@ -440,13 +478,18 @@
           "default": true,
           "type": "boolean"
         },
+        "alwaysOnBottom": {
+          "description": "Whether the window should always be below other windows.",
+          "default": false,
+          "type": "boolean"
+        },
         "alwaysOnTop": {
           "description": "Whether the window should always be on top of other windows.",
           "default": false,
           "type": "boolean"
         },
         "visibleOnAllWorkspaces": {
-          "description": "Whether the window should be visible on all workspaces or virtual desktops.",
+          "description": "Whether the window should be visible on all workspaces or virtual desktops.\n\n## Platform-specific\n\n- **Windows / iOS / Android:** Unsupported.",
           "default": false,
           "type": "boolean"
         },
@@ -510,7 +553,7 @@
           "type": "boolean"
         },
         "windowEffects": {
-          "description": "Window effects.\n\nRequires the window to be transparent.\n\n## Platform-specific:\n\n- **Windows**: If using decorations or shadows, you may want to try this workaround https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891 - **Linux**: Unsupported",
+          "description": "Window effects.\n\nRequires the window to be transparent.\n\n## Platform-specific:\n\n- **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891> - **Linux**: Unsupported",
           "anyOf": [
             {
               "$ref": "#/definitions/WindowEffectsConfig"
@@ -524,21 +567,41 @@
           "description": "Whether or not the webview should be launched in incognito  mode.\n\n## Platform-specific:\n\n- **Android**: Unsupported.",
           "default": false,
           "type": "boolean"
+        },
+        "parent": {
+          "description": "Sets the window associated with this label to be the parent of the window to be created.\n\n## Platform-specific\n\n- **Windows**: This sets the passed parent as an owner window to the window to be created. From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows): - An owned window is always above its owner in the z-order. - The system automatically destroys an owned window when its owner is destroyed. - An owned window is hidden when its owner is minimized. - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html> - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "proxyUrl": {
+          "description": "The proxy URL for the WebView for all network requests.\n\nMust be either a `http://` or a `socks5://` URL.\n\n## Platform-specific\n\n- **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
         }
       },
       "additionalProperties": false
     },
-    "WindowUrl": {
+    "WebviewUrl": {
       "description": "An URL to open on a Tauri webview window.",
       "anyOf": [
         {
-          "description": "An external URL.",
+          "description": "An external URL. Must use either the `http` or `https` schemes.",
           "type": "string",
           "format": "uri"
         },
         {
           "description": "The path portion of an app URL. For instance, to load `tauri://localhost/users/john`, you can simply provide `users/john` in this configuration.",
           "type": "string"
+        },
+        {
+          "description": "A custom protocol url, for example, `doom://index.html`",
+          "type": "string",
+          "format": "uri"
         }
       ]
     },
@@ -797,6 +860,27 @@
           ]
         },
         {
+          "description": "Tabbed effect that matches the system dark perefence **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "tabbed"
+          ]
+        },
+        {
+          "description": "Tabbed effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "tabbedDark"
+          ]
+        },
+        {
+          "description": "Tabbed effect with light mode **Windows 11 Only**",
+          "type": "string",
+          "enum": [
+            "tabbedLight"
+          ]
+        },
+        {
           "description": "**Windows 7/10/11(22H1) Only**\n\n## Notes\n\nThis effect has bad performance when resizing/dragging the window on Windows 11 build 22621.",
           "type": "string",
           "enum": [
@@ -867,7 +951,7 @@
       "minItems": 4
     },
     "BundleConfig": {
-      "description": "Configuration for tauri-bundler.\n\nSee more: https://tauri.app/v1/api/config#bundleconfig",
+      "description": "Configuration for tauri-bundler.\n\nSee more: <https://tauri.app/v1/api/config#bundleconfig>",
       "type": "object",
       "required": [
         "identifier"
@@ -879,7 +963,7 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
@@ -908,13 +992,14 @@
         },
         "resources": {
           "description": "App resources to bundle. Each resource is a path to a file or directory. Glob patterns are supported.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BundleResources"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "copyright": {
           "description": "A copyright string associated with your application.",
@@ -957,7 +1042,8 @@
         "appimage": {
           "description": "Configuration for the AppImage bundle.",
           "default": {
-            "bundleMediaFramework": false
+            "bundleMediaFramework": false,
+            "files": {}
           },
           "allOf": [
             {
@@ -976,9 +1062,45 @@
             }
           ]
         },
+        "rpm": {
+          "description": "Configuration for the RPM bundle.",
+          "default": {
+            "epoch": 0,
+            "files": {},
+            "release": "1"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/RpmConfig"
+            }
+          ]
+        },
+        "dmg": {
+          "description": "DMG-specific settings.",
+          "default": {
+            "appPosition": {
+              "x": 180,
+              "y": 170
+            },
+            "applicationFolderPosition": {
+              "x": 480,
+              "y": 170
+            },
+            "windowSize": {
+              "height": 400,
+              "width": 660
+            }
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/DmgConfig"
+            }
+          ]
+        },
         "macOS": {
           "description": "Configuration for the macOS bundles.",
           "default": {
+            "files": {},
             "minimumSystemVersion": "10.13"
           },
           "allOf": [
@@ -1094,6 +1216,13 @@
           ]
         },
         {
+          "description": "The RPM bundle (.rpm).",
+          "type": "string",
+          "enum": [
+            "rpm"
+          ]
+        },
+        {
           "description": "The AppImage bundle (.appimage).",
           "type": "string",
           "enum": [
@@ -1137,6 +1266,25 @@
         }
       ]
     },
+    "BundleResources": {
+      "description": "Definition for bundle resources. Can be either a list of paths to include or a map of source to target paths.",
+      "anyOf": [
+        {
+          "description": "A list of paths to include.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "A map of source to target paths.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "FileAssociation": {
       "description": "File association",
       "type": "object",
@@ -1152,7 +1300,7 @@
           }
         },
         "name": {
-          "description": "The name. Maps to `CFBundleTypeName` on macOS. Default to ext[0]",
+          "description": "The name. Maps to `CFBundleTypeName` on macOS. Default to `ext[0]`",
           "type": [
             "string",
             "null"
@@ -1166,7 +1314,7 @@
           ]
         },
         "role": {
-          "description": "The app’s role with respect to the type. Maps to `CFBundleTypeRole` on macOS.",
+          "description": "The app's role with respect to the type. Maps to `CFBundleTypeRole` on macOS.",
           "default": "Editor",
           "allOf": [
             {
@@ -1229,19 +1377,27 @@
       ]
     },
     "AppImageConfig": {
-      "description": "Configuration for AppImage bundles.\n\nSee more: https://tauri.app/v1/api/config#appimageconfig",
+      "description": "Configuration for AppImage bundles.\n\nSee more: <https://tauri.app/v1/api/config#appimageconfig>",
       "type": "object",
       "properties": {
         "bundleMediaFramework": {
           "description": "Include additional gstreamer dependencies needed for audio and video playback. This increases the bundle size by ~15-35MB depending on your build system.",
           "default": false,
           "type": "boolean"
+        },
+        "files": {
+          "description": "The files to include in the Appimage Binary.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
     },
     "DebConfig": {
-      "description": "Configuration for Debian (.deb) bundles.\n\nSee more: https://tauri.app/v1/api/config#debconfig",
+      "description": "Configuration for Debian (.deb) bundles.\n\nSee more: <https://tauri.app/v1/api/config#debconfig>",
       "type": "object",
       "properties": {
         "depends": {
@@ -1272,8 +1428,166 @@
       },
       "additionalProperties": false
     },
+    "RpmConfig": {
+      "description": "Configuration for RPM bundles.",
+      "type": "object",
+      "properties": {
+        "license": {
+          "description": "The package's license identifier. If not set, defaults to the license from the Cargo.toml file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "depends": {
+          "description": "The list of RPM dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "release": {
+          "description": "The RPM release tag.",
+          "default": "1",
+          "type": "string"
+        },
+        "epoch": {
+          "description": "The RPM epoch.",
+          "default": 0,
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "files": {
+          "description": "The files to include on the package.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "desktopTemplate": {
+          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "DmgConfig": {
+      "description": "Configuration for Apple Disk Image (.dmg) bundles.\n\nSee more: <https://tauri.app/v1/api/config#dmgconfig>",
+      "type": "object",
+      "properties": {
+        "background": {
+          "description": "Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "windowPosition": {
+          "description": "Position of volume window on screen.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Position"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "windowSize": {
+          "description": "Size of volume window.",
+          "default": {
+            "height": 400,
+            "width": 660
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Size"
+            }
+          ]
+        },
+        "appPosition": {
+          "description": "Position of app file on window.",
+          "default": {
+            "x": 180,
+            "y": 170
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Position"
+            }
+          ]
+        },
+        "applicationFolderPosition": {
+          "description": "Position of application folder on window.",
+          "default": {
+            "x": 480,
+            "y": 170
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Position"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Position": {
+      "description": "Position coordinates struct.",
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "description": "X coordinate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "y": {
+          "description": "Y coordinate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Size": {
+      "description": "Size of the window.",
+      "type": "object",
+      "required": [
+        "height",
+        "width"
+      ],
+      "properties": {
+        "width": {
+          "description": "Width of the window.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "height": {
+          "description": "Height of the window.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
     "MacConfig": {
-      "description": "Configuration for the macOS bundles.\n\nSee more: https://tauri.app/v1/api/config#macconfig",
+      "description": "Configuration for the macOS bundles.\n\nSee more: <https://tauri.app/v1/api/config#macconfig>",
       "type": "object",
       "properties": {
         "frameworks": {
@@ -1283,6 +1597,14 @@
             "null"
           ],
           "items": {
+            "type": "string"
+          }
+        },
+        "files": {
+          "description": "The files to include in the application relative to the Contents directory.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
             "type": "string"
           }
         },
@@ -1333,7 +1655,7 @@
       "additionalProperties": false
     },
     "WindowsConfig": {
-      "description": "Windows bundler configuration.\n\nSee more: https://tauri.app/v1/api/config#windowsconfig",
+      "description": "Windows bundler configuration.\n\nSee more: <https://tauri.app/v1/api/config#windowsconfig>",
       "type": "object",
       "properties": {
         "digestAlgorithm": {
@@ -1517,7 +1839,7 @@
       ]
     },
     "WixConfig": {
-      "description": "Configuration for the MSI bundle using WiX.\n\nSee more: https://tauri.app/v1/api/config#wixconfig",
+      "description": "Configuration for the MSI bundle using WiX.\n\nSee more: <https://tauri.app/v1/api/config#wixconfig>",
       "type": "object",
       "properties": {
         "language": {
@@ -1642,7 +1964,7 @@
       ]
     },
     "WixLanguageConfig": {
-      "description": "Configuration for a target language for the WiX build.\n\nSee more: https://tauri.app/v1/api/config#wixlanguageconfig",
+      "description": "Configuration for a target language for the WiX build.\n\nSee more: <https://tauri.app/v1/api/config#wixlanguageconfig>",
       "type": "object",
       "properties": {
         "localePath": {
@@ -1727,6 +2049,17 @@
           "description": "Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not. By default the OS language is selected, with a fallback to the first language in the `languages` array.",
           "default": false,
           "type": "boolean"
+        },
+        "compression": {
+          "description": "Set the compression algorithm used to compress files in the installer.\n\nSee <https://nsis.sourceforge.io/Reference/SetCompressor>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NsisCompression"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1757,12 +2090,38 @@
         }
       ]
     },
+    "NsisCompression": {
+      "description": "Compression algorithms used in the NSIS installer.\n\nSee <https://nsis.sourceforge.io/Reference/SetCompressor>",
+      "oneOf": [
+        {
+          "description": "ZLIB uses the deflate algorithm, it is a quick and simple method. With the default compression level it uses about 300 KB of memory.",
+          "type": "string",
+          "enum": [
+            "zlib"
+          ]
+        },
+        {
+          "description": "BZIP2 usually gives better compression ratios than ZLIB, but it is a bit slower and uses more memory. With the default compression level it uses about 4 MB of memory.",
+          "type": "string",
+          "enum": [
+            "bzip2"
+          ]
+        },
+        {
+          "description": "LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.",
+          "type": "string",
+          "enum": [
+            "lzma"
+          ]
+        }
+      ]
+    },
     "IosConfig": {
       "description": "General configuration for the iOS target.",
       "type": "object",
       "properties": {
         "developmentTeam": {
-          "description": "The development team. This value is required for iOS development because code signing is enforced. The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
+          "description": "The development team. This value is required for iOS development because code signing is enforced. The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
           "type": [
             "string",
             "null"
@@ -1786,7 +2145,7 @@
       "additionalProperties": false
     },
     "UpdaterConfig": {
-      "description": "The Updater configuration object.\n\nSee more: https://tauri.app/v1/api/config#updaterconfig",
+      "description": "The Updater configuration object.\n\nSee more: <https://tauri.app/v1/api/config#updaterconfig>",
       "type": "object",
       "properties": {
         "active": {
@@ -1814,7 +2173,7 @@
       "additionalProperties": false
     },
     "UpdaterWindowsConfig": {
-      "description": "The updater configuration for Windows.\n\nSee more: https://tauri.app/v1/api/config#updaterwindowsconfig",
+      "description": "The updater configuration for Windows.\n\nSee more: <https://tauri.app/v1/api/config#updaterwindowsconfig>",
       "type": "object",
       "properties": {
         "installMode": {
@@ -1856,7 +2215,7 @@
       ]
     },
     "SecurityConfig": {
-      "description": "Security configuration.\n\nSee more: https://tauri.app/v1/api/config#securityconfig",
+      "description": "Security configuration.\n\nSee more: <https://tauri.app/v1/api/config#securityconfig>",
       "type": "object",
       "properties": {
         "csp": {
@@ -1894,14 +2253,6 @@
               "$ref": "#/definitions/DisabledCspModificationKind"
             }
           ]
-        },
-        "dangerousRemoteDomainIpcAccess": {
-          "description": "Allow external domains to send command to Tauri.\n\nBy default, external domains do not have access to `window.__TAURI__`, which means they cannot communicate with the commands defined in Rust. This prevents attacks where an externally loaded malicious or compromised sites could start executing commands on the user's device.\n\nThis configuration allows a set of external domains to have access to the Tauri commands. When you configure a domain to be allowed to access the IPC, all subpaths are allowed. Subdomains are not allowed.\n\n**WARNING:** Only use this option if you either have internal checks against malicious external sites or you can trust the allowed external sites. You application might be vulnerable to dangerous Tauri command related attacks otherwise.",
-          "default": [],
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/RemoteDomainAccessScope"
-          }
         },
         "assetProtocol": {
           "description": "Custom protocol config.",
@@ -1966,45 +2317,8 @@
         }
       ]
     },
-    "RemoteDomainAccessScope": {
-      "description": "External command access definition.",
-      "type": "object",
-      "required": [
-        "domain",
-        "windows"
-      ],
-      "properties": {
-        "scheme": {
-          "description": "The URL scheme to allow. By default, all schemas are allowed.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "domain": {
-          "description": "The domain to allow.",
-          "type": "string"
-        },
-        "windows": {
-          "description": "The list of window labels this scope applies to.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "plugins": {
-          "description": "The list of plugins that are allowed in this scope.",
-          "default": [],
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
     "AssetProtocolConfig": {
-      "description": "Config for the asset custom protocol.\n\nSee more: https://tauri.app/v1/api/config#assetprotocolconfig",
+      "description": "Config for the asset custom protocol.\n\nSee more: <https://tauri.app/v1/api/config#assetprotocolconfig>",
       "type": "object",
       "properties": {
         "scope": {
@@ -2066,12 +2380,19 @@
       ]
     },
     "TrayIconConfig": {
-      "description": "Configuration for application tray icon.\n\nSee more: https://tauri.app/v1/api/config#trayiconconfig",
+      "description": "Configuration for application tray icon.\n\nSee more: <https://tauri.app/v1/api/config#trayiconconfig>",
       "type": "object",
       "required": [
         "iconPath"
       ],
       "properties": {
+        "id": {
+          "description": "Set an id for this tray icon so you can reference it later, defaults to `main`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "iconPath": {
           "description": "Path to the default icon to use for the tray icon.",
           "type": "string"
@@ -2104,7 +2425,7 @@
       "additionalProperties": false
     },
     "BuildConfig": {
-      "description": "The Build configuration object.\n\nSee more: https://tauri.app/v1/api/config#buildconfig",
+      "description": "The Build configuration object.\n\nSee more: <https://tauri.app/v1/api/config#buildconfig>",
       "type": "object",
       "properties": {
         "runner": {
@@ -2116,24 +2437,28 @@
         },
         "devPath": {
           "description": "The path to the application assets or URL to load in development.\n\nThis is usually an URL to a dev server, which serves your application assets with live reloading. Most modern JavaScript bundlers provides a way to start a dev server by default.\n\nSee [vite](https://vitejs.dev/guide/), [Webpack DevServer](https://webpack.js.org/configuration/dev-server/) and [sirv](https://github.com/lukeed/sirv) for examples on how to set up a dev server.",
-          "default": "http://localhost:8080/",
-          "allOf": [
+          "anyOf": [
             {
               "$ref": "#/definitions/AppUrl"
+            },
+            {
+              "type": "null"
             }
           ]
         },
         "distDir": {
           "description": "The path to the application assets or URL to load in production.\n\nWhen a path relative to the configuration file is provided, it is read recursively and all files are embedded in the application binary. Tauri then looks for an `index.html` file unless you provide a custom window URL.\n\nYou can also provide a list of paths to be embedded, which allows granular control over what files are added to the binary. In this case, all files are added to the root and you must reference it that way in your HTML files.\n\nWhen an URL is provided, the application won't have bundled assets and the application will load that URL by default.",
-          "default": "../dist",
-          "allOf": [
+          "anyOf": [
             {
               "$ref": "#/definitions/AppUrl"
+            },
+            {
+              "type": "null"
             }
           ]
         },
         "beforeDevCommand": {
-          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
           "anyOf": [
             {
               "$ref": "#/definitions/BeforeDevCommand"
@@ -2144,7 +2469,7 @@
           ]
         },
         "beforeBuildCommand": {
-          "description": "A shell command to run before `tauri build` kicks in.\n\nThe TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri build` kicks in.\n\nThe TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
           "anyOf": [
             {
               "$ref": "#/definitions/HookCommand"
@@ -2155,7 +2480,7 @@
           ]
         },
         "beforeBundleCommand": {
-          "description": "A shell command to run before the bundling phase in `tauri build` kicks in.\n\nThe TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before the bundling phase in `tauri build` kicks in.\n\nThe TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
           "anyOf": [
             {
               "$ref": "#/definitions/HookCommand"
@@ -2190,7 +2515,7 @@
           "description": "The app's external URL, or the path to the directory containing the app assets.",
           "allOf": [
             {
-              "$ref": "#/definitions/WindowUrl"
+              "$ref": "#/definitions/WebviewUrl"
             }
           ]
         },
@@ -2267,7 +2592,7 @@
       ]
     },
     "PluginConfig": {
-      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\nSee more: https://tauri.app/v1/api/config#pluginconfig",
+      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\nSee more: <https://tauri.app/v1/api/config#pluginconfig>",
       "type": "object",
       "additionalProperties": true
     }

@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  command::{CommandArg, CommandItem},
-  ipc::InvokeError,
+  ipc::{CommandArg, CommandItem, InvokeError},
   Runtime,
 };
 use state::TypeMap;
@@ -72,7 +71,6 @@ impl StateManager {
 
   /// Gets the state associated with the specified type.
   pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
-    self.0.get::<T>();
     State(
       self
         .0

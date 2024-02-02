@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "2.0.0-alpha.8"
+version = "2.0.0-alpha.14"
 description = "build time code to pair with https://crates.io/crates/tauri"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -14,21 +14,34 @@ rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [ "--cfg", "doc_cfg" ]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "x86_64-linux-android",
+  "x86_64-apple-ios"
+]
+rustc-args = [ "--cfg", "docsrs" ]
+rustdoc-args = [ "--cfg", "docsrs" ]
 
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "2.0.0-alpha.7", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "2.0.0-alpha.7", path = "../tauri-utils", features = [ "build", "resources" ] }
-cargo_toml = "0.15"
+tauri-codegen = { version = "2.0.0-alpha.13", path = "../tauri-codegen", optional = true }
+tauri-utils = { version = "2.0.0-alpha.13", path = "../tauri-utils", features = [ "build", "resources" ] }
+cargo_toml = "0.17"
 serde = "1"
 serde_json = "1"
 heck = "0.4"
-json-patch = "1.0"
+json-patch = "1.2"
 walkdir = "2"
 tauri-winres = "0.1"
 semver = "1"
+dirs-next = "2"
+glob = "0.3"
+toml = "0.8"
+schemars = { version = "0.8", features = [ "preserve_order" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 swift-rs = { version = "1.0.6", features = [ "build" ] }

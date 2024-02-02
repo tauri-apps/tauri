@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_assets,
-  log_finished, open_and_wait, MobileTarget,
+  log_finished, open_and_wait, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -20,7 +20,7 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use tauri_mobile::{
+use cargo_mobile2::{
   android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
   opts::{NoiseLevel, Profile},
   target::TargetTrait,
@@ -29,7 +29,10 @@ use tauri_mobile::{
 use std::env::{set_current_dir, set_var};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Android build")]
+#[clap(
+  about = "Build your app in release mode for Android and generate APKs and AABs",
+  long_about = "Build your app in release mode for Android and generate APKs and AABs. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`."
+)]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]
@@ -140,7 +143,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   )?;
 
   let open = options.open;
-  run_build(
+  let _handle = run_build(
     interface,
     options,
     build_options,
@@ -168,7 +171,7 @@ fn run_build(
   config: &AndroidConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
-) -> Result<()> {
+) -> Result<OptionsHandle> {
   if !(options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
     options.apk = true;
@@ -199,7 +202,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  let _handle = write_options(
+  let handle = write_options(
     &tauri_config
       .lock()
       .unwrap()
@@ -242,7 +245,7 @@ fn run_build(
   log_finished(apk_outputs, "APK");
   log_finished(aab_outputs, "AAB");
 
-  Ok(())
+  Ok(handle)
 }
 
 fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {

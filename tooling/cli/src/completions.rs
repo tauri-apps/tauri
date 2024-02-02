@@ -10,10 +10,10 @@ use log::info;
 
 use std::{fs::write, path::PathBuf};
 
-const PKG_MANAGERS: &[&str] = &["cargo", "pnpm", "npm", "yarn"];
+const PKG_MANAGERS: &[&str] = &["cargo", "pnpm", "npm", "yarn", "bun"];
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Shell completions")]
+#[clap(about = "Generate Tauri CLI shell completions for Bash, Zsh, PowerShell or Fish")]
 pub struct Options {
   /// Shell to generate a completion script for.
   #[clap(short, long, verbatim_doc_comment)]
@@ -25,7 +25,7 @@ pub struct Options {
 
 fn completions_for(shell: Shell, manager: &'static str, cmd: Command) -> Vec<u8> {
   let tauri = cmd.name("tauri");
-  let mut command = if manager == "npm" {
+  let mut command = if manager == "npm" || manager == "bun" {
     Command::new(manager)
       .bin_name(manager)
       .subcommand(Command::new("run").subcommand(tauri))
@@ -47,6 +47,8 @@ fn get_completions(shell: Shell, cmd: Command) -> Result<String> {
         "complete -F _cargo -o bashdefault -o default {} tauri\n",
         if manager == &"npm" {
           "npm run"
+        } else if manager == &"bun" {
+          "bun run"
         } else {
           manager
         }

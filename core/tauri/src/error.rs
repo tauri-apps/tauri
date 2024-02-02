@@ -37,15 +37,15 @@ pub enum Error {
   /// Window label must be unique.
   #[error("a window with label `{0}` already exists")]
   WindowLabelAlreadyExists(String),
+  /// Webview label must be unique.
+  #[error("a webview with label `{0}` already exists")]
+  WebviewLabelAlreadyExists(String),
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
-  /// Failed to execute tauri API.
-  #[error("failed to execute API: {0}")]
-  FailedToExecuteApi(#[from] crate::api::Error),
   /// IO error.
   #[error("{0}")]
   Io(#[from] std::io::Error),
@@ -74,7 +74,7 @@ pub enum Error {
   IsolationPattern(#[from] tauri_utils::pattern::isolation::Error),
   /// An invalid window URL was provided. Includes details about the error.
   #[error("invalid window url: {0}")]
-  InvalidWindowUrl(&'static str),
+  InvalidWebviewUrl(&'static str),
   /// Invalid glob pattern.
   #[error("invalid glob pattern: {0}")]
   GlobPattern(#[from] glob::PatternError),
@@ -103,11 +103,52 @@ pub enum Error {
   /// Tray icon error.
   #[error("tray icon error: {0}")]
   #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   Tray(#[from] tray_icon::Error),
   /// Bad tray icon error.
   #[error(transparent)]
   #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   BadTrayIcon(#[from] tray_icon::BadIcon),
+  /// Path does not have a parent.
+  #[error("path does not have a parent")]
+  NoParent,
+  /// Path does not have an extension.
+  #[error("path does not have an extension")]
+  NoExtension,
+  /// Path does not have a basename.
+  #[error("path does not have a basename")]
+  NoBasename,
+  /// Cannot resolve current directory.
+  #[error("failed to read current dir: {0}")]
+  CurrentDir(std::io::Error),
+  /// Unknown path.
+  #[cfg(not(target_os = "android"))]
+  #[error("unknown path")]
+  UnknownPath,
+  /// Failed to invoke mobile plugin.
+  #[cfg(target_os = "android")]
+  #[error(transparent)]
+  PluginInvoke(#[from] crate::plugin::mobile::PluginInvokeError),
+  /// window not found.
+  #[error("window not found")]
+  WindowNotFound,
+  /// The resource id is invalid.
+  #[error("The resource id {0} is invalid.")]
+  BadResourceId(crate::resources::ResourceId),
+  /// The anyhow crate error.
+  #[error(transparent)]
+  Anyhow(#[from] anyhow::Error),
+  /// webview not found.
+  #[error("webview not found")]
+  WebviewNotFound,
+  /// API requires the unstable feature flag.
+  #[error("this feature requires the `unstable` flag on Cargo.toml")]
+  UnstableFeatureNotSupported,
+  /// Failed to deserialize scope object.
+  #[error("error deserializing scope: {0}")]
+  CannotDeserializeScope(Box<dyn std::error::Error>),
 }
+
+/// `Result<T, ::tauri::Error>`
+pub type Result<T> = std::result::Result<T, Error>;

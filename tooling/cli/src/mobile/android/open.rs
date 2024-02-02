@@ -9,7 +9,7 @@ use crate::{
   Result,
 };
 
-use tauri_mobile::os;
+use cargo_mobile2::os;
 
 pub fn command() -> Result<()> {
   let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, None)?;

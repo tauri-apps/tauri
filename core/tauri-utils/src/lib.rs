@@ -14,6 +14,7 @@
 #![allow(clippy::deprecated_semver)]
 
 use std::{
+  ffi::OsString,
   fmt::Display,
   path::{Path, PathBuf},
 };
@@ -21,6 +22,9 @@ use std::{
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use log::warn;
+
+pub mod acl;
 pub mod assets;
 pub mod config;
 pub mod html;
@@ -30,6 +34,8 @@ pub mod platform;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]
 pub mod resources;
+#[cfg(feature = "build")]
+pub mod tokens;
 
 /// Application pattern.
 pub mod pattern;
@@ -124,6 +130,12 @@ mod window_effects {
     MicaDark,
     /// Mica effect with light mode **Windows 11 Only**
     MicaLight,
+    /// Tabbed effect that matches the system dark perefence **Windows 11 Only**
+    Tabbed,
+    /// Tabbed effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
+    TabbedDark,
+    /// Tabbed effect with light mode **Windows 11 Only**
+    TabbedLight,
     /// **Windows 7/10/11(22H1) Only**
     ///
     /// ## Notes
@@ -157,7 +169,7 @@ mod window_effects {
 pub use window_effects::{WindowEffect, WindowEffectState};
 
 /// How the window title bar should be displayed on macOS.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum TitleBarStyle {
   /// A normal title bar.
@@ -275,13 +287,13 @@ pub struct Env {
   #[cfg(target_os = "linux")]
   pub appdir: Option<std::ffi::OsString>,
   /// The command line arguments of the current process.
-  pub args: Vec<String>,
+  pub args_os: Vec<OsString>,
 }
 
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
-    let args = std::env::args().skip(1).collect();
+    let args_os = std::env::args_os().skip(1).collect();
     #[cfg(target_os = "linux")]
     {
       let env = Self {
@@ -289,7 +301,7 @@ impl Default for Env {
         appimage: std::env::var_os("APPIMAGE"),
         #[cfg(target_os = "linux")]
         appdir: std::env::var_os("APPDIR"),
-        args,
+        args_os,
       };
       if env.appimage.is_some() || env.appdir.is_some() {
         // validate that we're actually running on an AppImage
@@ -305,14 +317,14 @@ impl Default for Env {
           .unwrap_or(true);
 
         if !is_temp {
-          panic!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
+          warn!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
         }
       }
       env
     }
     #[cfg(not(target_os = "linux"))]
     {
-      Self { args }
+      Self { args_os }
     }
   }
 }
@@ -406,4 +418,32 @@ pub fn display_path<P: AsRef<Path>>(p: P) -> String {
   dunce::simplified(&p.as_ref().components().collect::<PathBuf>())
     .display()
     .to_string()
+}
+
+/// Progress bar status.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ProgressBarStatus {
+  /// Hide progress bar.
+  None,
+  /// Normal state.
+  Normal,
+  /// Indeterminate state. **Treated as Normal on Linux and macOS**
+  Indeterminate,
+  /// Paused state. **Treated as Normal on Linux**
+  Paused,
+  /// Error state. **Treated as Normal on Linux**
+  Error,
+}
+
+/// Progress Bar State
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgressBarState {
+  /// The progress bar status.
+  pub status: Option<ProgressBarStatus>,
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
+  pub progress: Option<u64>,
+  /// The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
+  pub unity_uri: Option<String>,
 }

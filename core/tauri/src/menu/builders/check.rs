@@ -67,7 +67,7 @@ impl CheckMenuItemBuilder {
   }
 
   /// Build the menu item
-  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> CheckMenuItem<R> {
+  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<CheckMenuItem<R>> {
     if let Some(id) = self.id {
       CheckMenuItem::with_id(
         manager,

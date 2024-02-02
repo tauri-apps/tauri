@@ -10,14 +10,14 @@
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
-#![cfg_attr(doc_cfg, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use raw_window_handle::RawDisplayHandle;
 use serde::Deserialize;
 use std::{fmt::Debug, sync::mpsc::Sender};
-use tauri_utils::Theme;
+use tauri_utils::{ProgressBarState, Theme};
 use url::Url;
-use uuid::Uuid;
+use webview::{DetachedWebview, PendingWebview};
 
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
@@ -25,17 +25,19 @@ pub mod webview;
 pub mod window;
 
 use monitor::Monitor;
-use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
 };
+use window::{WindowBuilder, WindowId};
 
 use http::{
   header::{InvalidHeaderName, InvalidHeaderValue},
   method::InvalidMethod,
   status::InvalidStatusCode,
 };
+
+pub type WindowEventId = u32;
 
 /// Type of user attention requested on a window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -66,6 +68,19 @@ impl Default for DeviceEventFilter {
   fn default() -> Self {
     Self::Unfocused
   }
+}
+
+/// Defines the orientation that a window resize will be performed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum ResizeDirection {
+  East,
+  North,
+  NorthEast,
+  NorthWest,
+  South,
+  SouthEast,
+  SouthWest,
+  West,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -107,6 +122,10 @@ pub enum Error {
   Infallible(#[from] std::convert::Infallible),
   #[error("the event loop has been closed")]
   EventLoopClosed,
+  #[error("Invalid proxy url")]
+  InvalidProxyUrl,
+  #[error("window not found")]
+  WindowNotFound,
 }
 
 /// Result type.
@@ -136,6 +155,8 @@ pub enum RunEvent<T: UserEvent> {
   Exit,
   /// Event loop is about to exit
   ExitRequested {
+    /// The exit code.
+    code: Option<i32>,
     tx: Sender<ExitRequestedEventAction>,
   },
   /// An event associated with a window.
@@ -167,15 +188,9 @@ pub enum ExitRequestedEventAction {
   Prevent,
 }
 
-/// Metadata for a runtime event loop iteration on `run_iteration`.
-#[derive(Debug, Clone, Default)]
-pub struct RunIteration {
-  pub window_count: usize,
-}
-
 /// Application's activation policy. Corresponds to NSApplicationActivationPolicy.
 #[cfg(target_os = "macos")]
-#[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+#[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
 #[non_exhaustive]
 pub enum ActivationPolicy {
   /// Corresponds to NSApplicationActivationPolicyRegular.
@@ -193,12 +208,27 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
   fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
 
-  /// Create a new webview window.
+  /// Sets the activation policy for the application.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> Result<()>;
+
+  /// Requests an exit of the event loop.
+  fn request_exit(&self, code: i32) -> Result<()>;
+
+  /// Create a new window.
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
-    before_webview_creation: Option<F>,
+    before_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>>;
+
+  /// Create a new webview.
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self::Runtime>,
+  ) -> Result<DetachedWebview<T, Self::Runtime>>;
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
@@ -210,12 +240,12 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn show(&self) -> Result<()>;
 
   /// Hides the application.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self) -> Result<()>;
 
   /// Finds an Android class in the project scope.
@@ -248,8 +278,10 @@ pub struct RuntimeInitArgs {
 
 /// The webview runtime interface.
 pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
-  /// The message dispatcher.
-  type Dispatcher: Dispatch<T, Runtime = Self>;
+  /// The window message dispatcher.
+  type WindowDispatcher: WindowDispatch<T, Runtime = Self>;
+  /// The webview message dispatcher.
+  type WebviewDispatcher: WebviewDispatch<T, Runtime = Self>;
   /// The runtime handle type.
   type Handle: RuntimeHandle<T, Runtime = Self>;
   /// The proxy type.
@@ -260,7 +292,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Creates a new webview runtime on any thread.
   #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
+  #[cfg_attr(docsrs, doc(cfg(any(windows, target_os = "linux"))))]
   fn new_any_thread(args: RuntimeInitArgs) -> Result<Self>;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
@@ -269,29 +301,36 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
 
-  /// Create a new webview window.
+  /// Create a new window.
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self>,
-    before_webview_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>>;
+
+  /// Create a new webview.
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self>,
+  ) -> Result<DetachedWebview<T, Self>>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
 
-  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  /// Sets the activation policy for the application.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn show(&self);
 
   /// Hides the application.
   #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self);
 
   /// Change the device event filter mode.
@@ -307,27 +346,21 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// [`tao`]: https://crates.io/crates/tao
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
 
-  /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
+  /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
-  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(&mut self, callback: F) -> RunIteration;
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F);
 
   /// Run the webview runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
 }
 
-/// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
-  /// The runtime this [`Dispatch`] runs under.
+/// Webview dispatcher. A thread-safe handle to the webview APIs.
+pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
+  /// The runtime this [`WebviewDispatch`] runs under.
   type Runtime: Runtime<T>;
-
-  /// The window builder type.
-  type WindowBuilder: WindowBuilder;
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
-
-  /// Registers a window event handler.
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   /// Runs a closure with the platform webview object as argument.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
@@ -348,6 +381,52 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Returns the webview's current URL.
   fn url(&self) -> Result<Url>;
+
+  /// Returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the window.
+  fn position(&self) -> Result<PhysicalPosition<i32>>;
+
+  /// Returns the physical size of the webviews's client area.
+  fn size(&self) -> Result<PhysicalSize<u32>>;
+
+  // SETTER
+
+  /// Naviagte to the given URL.
+  fn navigate(&self, url: Url) -> Result<()>;
+
+  /// Opens the dialog to prints the contents of the webview.
+  fn print(&self) -> Result<()>;
+
+  /// Closes the webview.
+  fn close(&self) -> Result<()>;
+
+  /// Resizes the webview.
+  fn set_size(&self, size: Size) -> Result<()>;
+
+  /// Updates the webview position.
+  fn set_position(&self, position: Position) -> Result<()>;
+
+  /// Bring the window to front and focus the webview.
+  fn set_focus(&self) -> Result<()>;
+
+  /// Executes javascript on the window this [`WindowDispatch`] represents.
+  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
+}
+
+/// Window dispatcher. A thread-safe handle to the window APIs.
+pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
+  /// The runtime this [`WindowDispatch`] runs under.
+  type Runtime: Runtime<T>;
+
+  /// The window builder type.
+  type WindowBuilder: WindowBuilder;
+
+  /// Run a task on the main thread.
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
+
+  /// Registers a window event handler.
+  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId;
+
+  // GETTERS
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   fn scale_factor(&self) -> Result<f64>;
@@ -445,6 +524,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   ))]
   fn default_vbox(&self) -> Result<gtk::Box>;
 
+  /// Raw window handle.
   fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle>;
 
   /// Returns the current window theme.
@@ -455,20 +535,23 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Centers the window.
   fn center(&self) -> Result<()>;
 
-  /// Opens the dialog to prints the contents of the webview.
-  fn print(&self) -> Result<()>;
-
   /// Requests user attention to the window.
   ///
   /// Providing `None` will unset the request for user attention.
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()>;
 
-  /// Create a new webview window.
+  /// Create a new window.
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &mut self,
     pending: PendingWindow<T, Self::Runtime>,
-    before_webview_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>>;
+
+  /// Create a new webview.
+  fn create_webview(
+    &mut self,
+    pending: PendingWebview<T, Self::Runtime>,
+  ) -> Result<DetachedWebview<T, Self::Runtime>>;
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> Result<()>;
@@ -500,9 +583,6 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the window title.
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()>;
 
-  /// Naviagte to the given URL.
-  fn navigate(&self, url: Url) -> Result<()>;
-
   /// Maximizes the window.
   fn maximize(&self) -> Result<()>;
 
@@ -524,11 +604,17 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Closes the window.
   fn close(&self) -> Result<()>;
 
+  /// Destroys the window.
+  fn destroy(&self) -> Result<()>;
+
   /// Updates the decorations flag.
   fn set_decorations(&self, decorations: bool) -> Result<()>;
 
   /// Updates the shadow flag.
   fn set_shadow(&self, enable: bool) -> Result<()>;
+
+  /// Updates the window alwaysOnBottom flag.
+  fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()>;
 
   /// Updates the window alwaysOnTop flag.
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()>;
@@ -586,6 +672,14 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Starts dragging the window.
   fn start_dragging(&self) -> Result<()>;
 
-  /// Executes javascript on the window this [`Dispatch`] represents.
-  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
+  /// Starts resize-dragging the window.
+  fn start_resize_dragging(&self, direction: ResizeDirection) -> Result<()>;
+
+  /// Sets the taskbar progress state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
+  /// - **iOS / Android:** Unsupported.
+  fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()>;
 }

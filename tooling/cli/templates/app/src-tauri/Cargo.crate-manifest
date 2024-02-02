@@ -23,6 +23,6 @@ serde = { version = "1.0", features = ["derive"] }
 tauri = {{  tauri_dep  }}
 
 [features]
-# this feature is used for production builds or when `devPath` points to the filesystem
+# this feature is used for production builds or when `devUrl` points to the filesystem
 # DO NOT REMOVE!!
 custom-protocol = [ "tauri/custom-protocol" ]

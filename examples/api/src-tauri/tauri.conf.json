@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "identifier": "com.tauri.api",
   "build": {
-    "frontendDist": "../dist",
+    "prodFrontend": {
+      "dist": "../dist"
+    },
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn build"
@@ -22,7 +24,9 @@
       "csp": {
         "default-src": "'self' customprotocol: asset:",
         "connect-src": "ipc: http://ipc.localhost",
-        "font-src": ["https://fonts.gstatic.com"],
+        "font-src": [
+          "https://fonts.gstatic.com"
+        ],
         "img-src": "'self' asset: http://asset.localhost blob: data:",
         "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
       },
@@ -30,8 +34,13 @@
       "assetProtocol": {
         "enable": true,
         "scope": {
-          "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
-          "deny": ["$APPDATA/db/*.stronghold"]
+          "allow": [
+            "$APPDATA/db/**",
+            "$RESOURCE/**"
+          ],
+          "deny": [
+            "$APPDATA/db/*.stronghold"
+          ]
         }
       }
     }
@@ -51,7 +60,11 @@
           "name": "theme",
           "takesValue": true,
           "description": "App theme",
-          "possibleValues": ["light", "dark", "system"]
+          "possibleValues": [
+            "light",
+            "dark",
+            "system"
+          ]
         },
         {
           "short": "v",

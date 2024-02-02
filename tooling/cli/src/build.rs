@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, HookCommand, WebviewUrl, MERGE_CONFIG_EXTENSION_NAME},
+    config::{get as get_config, HookCommand, ProdFrontend, MERGE_CONFIG_EXTENSION_NAME},
     resolve_merge_config,
     updater_signature::{secret_key as updater_secret_key, sign_file},
   },
@@ -29,7 +29,7 @@ use tauri_utils::platform::Target;
 #[derive(Debug, Clone, Parser)]
 #[clap(
   about = "Build your app in release mode and generate bundles and installers",
-  long_about = "Build your app in release mode and generate bundles and installers. It makes use of the `build.frontendDist` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.frontendDist`. This will also run `build.beforeBundleCommand` before generating the bundles and installers of your app."
+  long_about = "Build your app in release mode and generate bundles and installers. It makes use of the `build.prodFrontend` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.prodFrontend`. This will also run `build.beforeBundleCommand` before generating the bundles and installers of your app."
 )]
 pub struct Options {
   /// Binary to use to build the application, defaults to `cargo`
@@ -307,16 +307,16 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     )?;
   }
 
-  if let Some(AppUrl::Url(WebviewUrl::App(web_asset_path))) = &config_.build.frontend_dist {
+  if let Some(ProdFrontend::Dist(web_asset_path)) = &config_.build.prod_frontend {
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
-          "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{:?}\".",
+          "Unable to find your web assets, did you forget to build your web app? Your prodFrontend is set to \"{:?}\".",
           web_asset_path
         ));
     }
     if web_asset_path.canonicalize()?.file_name() == Some(std::ffi::OsStr::new("src-tauri")) {
       return Err(anyhow::anyhow!(
-          "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
+          "The configured prodFrontend is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > prodFrontend`.",
         ));
     }
 
@@ -328,7 +328,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     }
     if !out_folders.is_empty() {
       return Err(anyhow::anyhow!(
-          "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
+          "The configured prodFrontend includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > prodFrontend`.",
           out_folders,
           if out_folders.len() == 1 { "folder" }else { "folders" }
         )

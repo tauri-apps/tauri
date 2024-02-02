@@ -292,11 +292,11 @@ impl<R: Runtime> AppManager<R> {
   /// Get the base path to serve data from.
   ///
   /// * In dev mode, this will be based on the `devUrl` configuration value.
-  /// * Otherwise, this will be based on the `frontendDist` configuration value.
+  /// * Otherwise, this will be based on the `prodFrontend` configuration value.
   #[cfg(not(dev))]
   fn base_path(&self) -> Option<&Url> {
     use crate::{utils::config::AppUrl, WebviewUrl};
-    match self.config.build.frontend_dist.as_ref() {
+    match self.config.build.prod_frontend.as_ref() {
       Some(AppUrl::Url(WebviewUrl::External(url) | WebviewUrl::CustomProtocol(url))) => Some(url),
       _ => None,
     }

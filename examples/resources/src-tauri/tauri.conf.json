@@ -4,11 +4,14 @@
   "version": "0.1.0",
   "identifier": "com.tauri.resources",
   "build": {
-    "frontendDist": ["../index.html"]
+    "prodFrontend": {
+      "files": [
+        "../index.html"
+      ]
+    }
   },
   "app": {
     "withGlobalTauri": true,
-
     "windows": [
       {
         "title": "Welcome to Tauri!",
@@ -32,6 +35,8 @@
       "../../.icons/icon.icns",
       "../../.icons/icon.ico"
     ],
-    "resources": ["assets/*"]
+    "resources": [
+      "assets/*"
+    ]
   }
 }

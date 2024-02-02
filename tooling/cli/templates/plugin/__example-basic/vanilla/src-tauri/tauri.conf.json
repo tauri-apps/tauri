@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "identifier": "com.tauri.{{ plugin_name }}",
   "build": {
-    "frontendDist": "../public"
+    "prodFrontend": {
+      "dist": "../public"
+    },
   },
   "app": {
     "windows": [

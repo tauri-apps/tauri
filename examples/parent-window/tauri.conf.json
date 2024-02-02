@@ -4,11 +4,14 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
-    "frontendDist": ["index.html"]
+    "prodFrontend": {
+      "files": [
+        "index.html"
+      ]
+    }
   },
   "app": {
     "withGlobalTauri": true,
-
     "security": {
       "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost"
     }

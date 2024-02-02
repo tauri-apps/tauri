@@ -31,7 +31,7 @@ use std::env::{set_current_dir, set_var};
 #[derive(Debug, Clone, Parser)]
 #[clap(
   about = "Build your app in release mode for Android and generate APKs and AABs",
-  long_about = "Build your app in release mode for Android and generate APKs and AABs. It makes use of the `build.frontendDist` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.frontendDist`."
+  long_about = "Build your app in release mode for Android and generate APKs and AABs. It makes use of the `build.prodFrontend` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.prodFrontend`."
 )]
 pub struct Options {
   /// Builds with the debug flag

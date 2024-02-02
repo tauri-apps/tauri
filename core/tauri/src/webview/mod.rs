@@ -1030,7 +1030,7 @@ fn main() {
       && current_url.domain() == protocol_url.domain()
     }) ||
 
-    // or if relative to `devUrl` or `frontendDist`
+    // or if relative to `devUrl` or `prodFrontend`
       self
           .manager()
           .get_url()

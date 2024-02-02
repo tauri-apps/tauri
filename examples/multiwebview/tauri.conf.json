@@ -4,7 +4,11 @@
   "identifier": "com.tauri.dev",
   "$schema": "../../core/tauri-config-schema/schema.json",
   "build": {
-    "frontendDist": ["index.html"]
+    "prodFrontend": {
+      "files": [
+        "index.html"
+      ]
+    }
   },
   "app": {
     "security": {

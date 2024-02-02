@@ -15,7 +15,7 @@ use tauri_utils::acl::capability::Capability;
 use tauri_utils::acl::plugin::Manifest;
 use tauri_utils::acl::resolved::Resolved;
 use tauri_utils::assets::AssetKey;
-use tauri_utils::config::{AppUrl, Config, PatternKind, WebviewUrl};
+use tauri_utils::config::{Config, PatternKind, ProdFrontend};
 use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
@@ -157,24 +157,21 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     options = options.with_csp();
   }
 
-  let assets = match &config.build.frontend_dist {
+  let assets = match &config.build.prod_frontend {
     Some(url) => match url {
-      AppUrl::Url(url) => match url {
-        WebviewUrl::External(_) | WebviewUrl::CustomProtocol(_) => Default::default(),
-        WebviewUrl::App(path) => {
-          let assets_path = config_parent.join(path);
-          if !assets_path.exists() {
-            panic!(
-              "The `{}` configuration is set to `{:?}` but this path doesn't exist",
-              if dev { "devPath" } else { "distDir" },
-              path
-            )
-          }
-          EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
+      ProdFrontend::Url(_url) => Default::default(),
+      ProdFrontend::Dist(path) => {
+        let assets_path = config_parent.join(path);
+        if !assets_path.exists() {
+          panic!(
+            "The `{}` configuration is set to `{:?}` but this path doesn't exist",
+            if dev { "devPath" } else { "distDir" },
+            path
+          )
         }
-        _ => unimplemented!(),
-      },
-      AppUrl::Files(files) => EmbeddedAssets::new(
+        EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
+      }
+      ProdFrontend::Files(files) => EmbeddedAssets::new(
         files
           .iter()
           .map(|p| config_parent.join(p))

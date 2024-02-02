@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
-    "frontendDist": "{{ frontend_dist }}",
+    "prodFrontend": {
+      "dist": "{{ prod_frontend }}"
+    },
     "devUrl": "{{ dev_url }}",
     "beforeDevCommand": "{{ before_dev_command }}",
     "beforeBuildCommand": "{{ before_build_command }}"

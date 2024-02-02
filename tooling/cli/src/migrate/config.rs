@@ -174,7 +174,23 @@ fn process_package_metadata(config: &mut Map<String, Value>) {
 fn process_build(config: &mut Map<String, Value>) {
   if let Some(build_config) = config.get_mut("build").and_then(|b| b.as_object_mut()) {
     if let Some(dist_dir) = build_config.remove("distDir") {
-      build_config.insert("frontendDist".into(), dist_dir);
+      match &dist_dir {
+        Value::Array(_files) => {
+          let mut frontend = Map::new();
+          frontend.insert("files".to_string(), dist_dir);
+          build_config.insert("prodFrontend".into(), frontend.into());
+        }
+        Value::String(url_or_path) => {
+          let mut frontend = Map::new();
+          if url::Url::parse(url_or_path).is_ok() {
+            frontend.insert("url".to_string(), dist_dir);
+          } else {
+            frontend.insert("dist".to_string(), dist_dir);
+          }
+          build_config.insert("prodFrontend".into(), frontend.into());
+        }
+        _ => (),
+      }
     }
     if let Some(dist_dir) = build_config.remove("devPath") {
       build_config.insert("devUrl".into(), dist_dir);
@@ -701,7 +717,7 @@ mod test {
 
     // build object
     assert_eq!(
-      migrated["build"]["frontendDist"],
+      migrated["build"]["prodFrontend"]["dist"],
       original["build"]["distDir"]
     );
     assert_eq!(migrated["build"]["devUrl"], original["build"]["devPath"]);

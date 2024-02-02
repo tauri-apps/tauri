@@ -11,5 +11,5 @@ serde = "1"
 thiserror = "1"
 
 [build-dependencies]
-tauri-build = { path = "../../../../core/tauri-build/" }
+tauri-build = { path = "../../../../core/tauri-build/", default-features = false }
 tauri-plugin = { path = "../../../../core/tauri-plugin", features = ["build"] }

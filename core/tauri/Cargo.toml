@@ -111,7 +111,7 @@ swift-rs = "1.0.6"
 
 [build-dependencies]
 heck = "0.4"
-tauri-build = { path = "../tauri-build/", version = "2.0.0-alpha.14" }
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-alpha.14" }
 tauri-utils = { path = "../tauri-utils/", version = "2.0.0-alpha.13", features = [ "build" ] }
 
 [dev-dependencies]

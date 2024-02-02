@@ -675,6 +675,7 @@ pub struct RustAppSettings {
   manifest: Manifest,
   cargo_settings: CargoSettings,
   cargo_package_settings: CargoPackageSettings,
+  cargo_ws_package_settings: Option<WorkspacePackageSettings>,
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
   target_triple: String,
@@ -702,7 +703,7 @@ impl AppSettings for RustAppSettings {
       self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
 
     let mut settings = tauri_config_to_bundle_settings(
-      &self.manifest,
+      self,
       features,
       config.identifier.clone(),
       config.bundle.clone(),
@@ -958,16 +959,6 @@ impl RustAppSettings {
           })
           .unwrap()
       }),
-      license: cargo_package_settings.license.clone().map(|license| {
-        license
-          .resolve("license", || {
-            ws_package_settings
-              .as_ref()
-              .and_then(|v| v.license.clone())
-              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `license` from workspace"))
-          })
-          .unwrap()
-      }),
       default_run: cargo_package_settings.default_run.clone(),
     };
 
@@ -999,6 +990,7 @@ impl RustAppSettings {
       manifest,
       cargo_settings,
       cargo_package_settings,
+      cargo_ws_package_settings: ws_package_settings,
       package_settings,
       cargo_config,
       target_triple,
@@ -1078,14 +1070,14 @@ pub fn get_profile(options: &Options) -> String {
 
 #[allow(unused_variables)]
 fn tauri_config_to_bundle_settings(
-  manifest: &Manifest,
+  settings: &RustAppSettings,
   features: &[String],
   identifier: String,
   config: crate::helpers::config::BundleConfig,
   updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
-  let enabled_features = manifest.all_enabled_features(features);
+  let enabled_features = settings.manifest.all_enabled_features(features);
 
   #[cfg(windows)]
   let windows_icon_path = PathBuf::from(
@@ -1296,7 +1288,25 @@ fn tauri_config_to_bundle_settings(
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
     },
-    license: config.license,
+    license: config.license.or_else(|| {
+      settings
+        .cargo_package_settings
+        .license
+        .clone()
+        .map(|license| {
+          license
+            .resolve("license", || {
+              settings
+                .cargo_ws_package_settings
+                .as_ref()
+                .and_then(|v| v.license.clone())
+                .ok_or_else(|| {
+                  anyhow::anyhow!("Couldn't inherit value for `license` from workspace")
+                })
+            })
+            .unwrap()
+        })
+    }),
     license_file: config.license_file.map(|l| tauri_dir().join(l)),
     updater: updater_config,
     ..Default::default()

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.1]
+
+### Bug Fixes
+
+- [`863bc9e5`](https://www.github.com/tauri-apps/tauri/commit/863bc9e55f9099207403e34cb5c218231265b2c1)([#8749](https://www.github.com/tauri-apps/tauri/pull/8749)) Fix regression on the JavaScript code that processes the IPC message.
+
 ## \[2.0.0-beta.0]
 
 ### New Features

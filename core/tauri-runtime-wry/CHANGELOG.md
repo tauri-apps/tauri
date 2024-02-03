@@ -23,6 +23,7 @@
 
 - Upgraded to `tauri-utils@2.0.0-beta.0`
 - Upgraded to `tauri-runtime@2.0.0-beta.0`
+- Upgrated to `tao@0.25`.
 
 ### Breaking Changes
 

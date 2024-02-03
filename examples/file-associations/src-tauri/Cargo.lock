@@ -2821,6 +2821,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45a28f4c49489add4ce10783f7911893516f15afe45d015608d41faca6bc4d29"
 dependencies = [
  "dyn-clone",
+ "indexmap 1.9.3",
  "schemars_derive",
  "serde",
  "serde_json",
@@ -3259,9 +3260,9 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.24.1"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75d4a64cfac8e487c61d778fe4ab8480f162451e8af7f247aafadcb3b2560852"
+checksum = "9fa7ba6ee5b8908ba3a62e6a4f3683490ed732fca614cdd3f4c989bba548f9a9"
 dependencies = [
  "bitflags 1.3.2",
  "cc",
@@ -3372,13 +3373,11 @@ dependencies = [
  "glob",
  "heck",
  "json-patch",
- "plist",
  "quote",
  "schemars",
  "semver",
  "serde",
  "serde_json",
- "swift-rs",
  "tauri-codegen",
  "tauri-utils",
  "tauri-winres",
@@ -3493,6 +3492,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "swift-rs",
  "thiserror",
  "toml 0.8.8",
  "url",

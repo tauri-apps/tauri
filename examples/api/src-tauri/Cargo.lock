@@ -3618,8 +3618,9 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.24.1"
-source = "git+https://github.com/tauri-apps/tao?branch=dev#ae4b693dc0a5d4f556bb9e6dcdbbeb1cfbf8f862"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fa7ba6ee5b8908ba3a62e6a4f3683490ed732fca614cdd3f4c989bba548f9a9"
 dependencies = [
  "bitflags 1.3.2",
  "cc",
@@ -3647,7 +3648,7 @@ dependencies = [
  "raw-window-handle 0.5.2",
  "raw-window-handle 0.6.0",
  "scopeguard",
- "tao-macros 0.1.2 (git+https://github.com/tauri-apps/tao?branch=dev)",
+ "tao-macros",
  "unicode-segmentation",
  "url",
  "windows 0.52.0",
@@ -3662,16 +3663,6 @@ name = "tao-macros"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec114582505d158b669b136e6851f85840c109819d77c42bb7c0709f727d18c2"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "tao-macros"
-version = "0.1.2"
-source = "git+https://github.com/tauri-apps/tao?branch=dev#ae4b693dc0a5d4f556bb9e6dcdbbeb1cfbf8f862"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3795,7 +3786,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "1.0.0"
+version = "2.0.0-beta.0"
 dependencies = [
  "anyhow",
  "glob",
@@ -3803,15 +3794,14 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "swift-rs",
- "tauri",
+ "tauri-utils",
  "toml 0.8.2",
  "walkdir 1.0.7",
 ]
 
 [[package]]
 name = "tauri-plugin-cli"
-version = "2.0.0-beta.0"
+version = "2.0.0-alpha.6"
 source = "git+https://github.com/tauri-apps/plugins-workspace?branch=v2#61edbbec0acda4213ed8684f75a973e8be123a52"
 dependencies = [
  "clap",
@@ -3896,6 +3886,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "serialize-to-javascript",
+ "swift-rs",
  "thiserror",
  "toml 0.8.2",
  "url",
@@ -5000,7 +4991,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "soup3",
- "tao-macros 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tao-macros",
  "thiserror",
  "url",
  "webkit2gtk",

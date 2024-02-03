@@ -13,7 +13,7 @@ use crate::{
     config::{get as get_tauri_config, ConfigHandle},
     flock, resolve_merge_config,
   },
-  interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
 };
@@ -129,19 +129,42 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   }
 
+  let env = env()?;
+  let device = if options.open {
+    None
+  } else {
+    match device_prompt(&env, options.device.as_deref()) {
+      Ok(d) => Some(d),
+      Err(e) => {
+        log::error!("{e}");
+        None
+      }
+    }
+  };
+
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
+
+  let mut dev_options: DevOptions = options.clone().into();
+  let target_triple = device
+    .as_ref()
+    .map(|d| d.target().triple.to_string())
+    .unwrap_or_else(|| "aarch64-apple-ios".into());
+  dev_options.target = Some(target_triple.clone());
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
     options.config.as_deref(),
   )?;
-  let (app, config) = {
+  let (interface, app, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let app = get_app(tauri_config_);
+
+    let interface = AppInterface::new(tauri_config_, Some(target_triple))?;
+
+    let app = get_app(tauri_config_, &interface);
     let (config, _metadata) = get_config(&app, tauri_config_, &Default::default());
-    (app, config)
+    (interface, app, config)
   };
 
   let tauri_path = tauri_dir();
@@ -162,12 +185,27 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
     &info_plist_path,
   )?;
 
-  run_dev(options, tauri_config, &app, &config, noise_level)
+  run_dev(
+    interface,
+    options,
+    dev_options,
+    tauri_config,
+    device,
+    env,
+    &app,
+    &config,
+    noise_level,
+  )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_dev(
+  mut interface: AppInterface,
   mut options: Options,
+  mut dev_options: DevOptions,
   tauri_config: ConfigHandle,
+  device: Option<Device>,
+  env: Env,
   app: &App,
   config: &AppleConfig,
   noise_level: NoiseLevel,
@@ -177,28 +215,13 @@ fn run_dev(
     &mut options.config,
     options.force_ip_prompt,
   )?;
-  let env = env()?;
-  let device = if options.open {
-    None
-  } else {
-    match device_prompt(&env, options.device.as_deref()) {
-      Ok(d) => Some(d),
-      Err(e) => {
-        log::error!("{e}");
-        None
-      }
-    }
-  };
 
-  let mut dev_options: DevOptions = options.clone().into();
-  dev_options.target = Some(
-    device
-      .as_ref()
-      .map(|d| d.target().triple.to_string())
-      .unwrap_or_else(|| "aarch64-apple-ios".into()),
-  );
-  let mut interface =
-    crate::dev::setup(tauri_utils::platform::Target::Ios, &mut dev_options, true)?;
+  crate::dev::setup(
+    tauri_utils::platform::Target::Ios,
+    &interface,
+    &mut dev_options,
+    true,
+  )?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

@@ -13,7 +13,7 @@ use crate::{
     config::{get as get_tauri_config, ConfigHandle},
     flock, resolve_merge_config,
   },
-  interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
 };
@@ -121,41 +121,7 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
     options.config.as_deref(),
   )?;
 
-  let (app, config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let app = get_app(tauri_config_);
-    let (config, metadata) = get_config(&app, tauri_config_, &Default::default());
-    (app, config, metadata)
-  };
-
-  set_var(
-    "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
-    WEBVIEW_CLIENT_CLASS_EXTENSION,
-  );
-  set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
-
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
-
-  ensure_init(config.project_dir(), MobileTarget::Android)?;
-  run_dev(options, tauri_config, &app, &config, &metadata, noise_level)
-}
-
-fn run_dev(
-  mut options: Options,
-  tauri_config: ConfigHandle,
-  app: &App,
-  config: &AndroidConfig,
-  metadata: &AndroidMetadata,
-  noise_level: NoiseLevel,
-) -> Result<()> {
-  setup_dev_config(
-    MobileTarget::Android,
-    &mut options.config,
-    options.force_ip_prompt,
-  )?;
-  let mut env = env()?;
+  let env = env()?;
   let device = if options.open {
     None
   } else {
@@ -174,8 +140,64 @@ fn run_dev(
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple.clone());
-  let mut interface = crate::dev::setup(
+
+  let (interface, app, config, metadata) = {
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+
+    let interface = AppInterface::new(tauri_config_, dev_options.target.clone())?;
+
+    let app = get_app(tauri_config_, &interface);
+    let (config, metadata) = get_config(&app, tauri_config_, &Default::default());
+    (interface, app, config, metadata)
+  };
+
+  set_var(
+    "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
+    WEBVIEW_CLIENT_CLASS_EXTENSION,
+  );
+  set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
+
+  let tauri_path = tauri_dir();
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+
+  ensure_init(config.project_dir(), MobileTarget::Android)?;
+  run_dev(
+    interface,
+    options,
+    dev_options,
+    tauri_config,
+    device,
+    env,
+    &app,
+    &config,
+    &metadata,
+    noise_level,
+  )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_dev(
+  mut interface: AppInterface,
+  mut options: Options,
+  mut dev_options: DevOptions,
+  tauri_config: ConfigHandle,
+  device: Option<Device>,
+  mut env: Env,
+  app: &App,
+  config: &AndroidConfig,
+  metadata: &AndroidMetadata,
+  noise_level: NoiseLevel,
+) -> Result<()> {
+  setup_dev_config(
+    MobileTarget::Android,
+    &mut options.config,
+    options.force_ip_prompt,
+  )?;
+
+  crate::dev::setup(
     tauri_utils::platform::Target::Android,
+    &interface,
     &mut dev_options,
     true,
   )?;
@@ -194,6 +216,7 @@ fn run_dev(
   configure_cargo(app, Some((&mut env, config)))?;
 
   // run an initial build to initialize plugins
+  let target_triple = dev_options.target.as_ref().unwrap();
   let target = Target::all()
     .values()
     .find(|t| t.triple == target_triple)

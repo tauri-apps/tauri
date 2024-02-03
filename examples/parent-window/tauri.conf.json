@@ -1,37 +1,27 @@
 {
   "$schema": "../../core/tauri-config-schema/schema.json",
+  "productName": "Parent Window",
+  "version": "0.1.0",
+  "identifier": "com.tauri.dev",
   "build": {
-    "distDir": [
-      "index.html"
-    ],
-    "devPath": [
-      "index.html"
-    ],
-    "withGlobalTauri": true
+    "frontendDist": ["index.html"]
   },
-  "package": {
-    "productName": "Parent Window",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.tauri.dev",
-      "icon": [
-        "../.icons/32x32.png",
-        "../.icons/128x128.png",
-        "../.icons/128x128@2x.png",
-        "../.icons/icon.icns",
-        "../.icons/icon.ico"
-      ],
-      "resources": [],
-      "externalBin": [],
-      "copyright": "",
-      "category": "DeveloperTool"
-    },
+  "app": {
+    "withGlobalTauri": true,
+
     "security": {
       "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost"
     }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../.icons/32x32.png",
+      "../.icons/128x128.png",
+      "../.icons/128x128@2x.png",
+      "../.icons/icon.icns",
+      "../.icons/icon.ico"
+    ]
   }
 }

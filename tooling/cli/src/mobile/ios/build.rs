@@ -32,7 +32,7 @@ use std::{env::set_current_dir, fs};
 #[derive(Debug, Clone, Parser)]
 #[clap(
   about = "Build your app in release mode for iOS and generate IPAs",
-  long_about = "Build your app in release mode for iOS and generate IPAs. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`."
+  long_about = "Build your app in release mode for iOS and generate IPAs. It makes use of the `build.frontendDist` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.frontendDist`."
 )]
 pub struct Options {
   /// Builds with the debug flag
@@ -182,14 +182,7 @@ fn run_build(
     vars: Default::default(),
   };
   let handle = write_options(
-    &tauri_config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .tauri
-      .bundle
-      .identifier,
+    &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
     cli_options,
   )?;
 

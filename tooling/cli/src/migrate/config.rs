@@ -86,6 +86,9 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
   };
 
   if let Some(config) = config.as_object_mut() {
+    process_package_metadata(config);
+    process_build(config);
+
     let mut plugins = config
       .entry("plugins")
       .or_insert_with(|| Value::Object(Default::default()))
@@ -101,6 +104,7 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
         migrated.permissions = permissions;
       }
 
+      // security
       if let Some(security) = tauri_config
         .get_mut("security")
         .and_then(|c| c.as_object_mut())
@@ -108,6 +112,16 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
         process_security(security)?;
       }
 
+      // tauri > pattern
+      if let Some(pattern) = tauri_config.remove("pattern") {
+        tauri_config
+          .entry("security")
+          .or_insert_with(|| Value::Object(Default::default()))
+          .as_object_mut()
+          .map(|s| s.insert("pattern".into(), pattern));
+      }
+
+      // system tray
       if let Some(tray) = tauri_config.remove("systemTray") {
         tauri_config.insert("trayIcon".into(), tray);
       }
@@ -118,15 +132,112 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       }
 
       // cli
-      if let Some(updater) = tauri_config.remove("updater") {
-        process_updater(tauri_config, &mut plugins, updater)?;
-      }
+      process_updater(tauri_config, &mut plugins)?;
     }
 
     config.insert("plugins".into(), plugins.into());
+
+    process_bundle(config);
+
+    if let Some(tauri_config) = config.remove("tauri") {
+      config.insert("app".into(), tauri_config);
+    }
   }
 
   Ok(migrated)
+}
+
+fn process_package_metadata(config: &mut Map<String, Value>) {
+  if let Some(mut package_config) = config.remove("package") {
+    if let Some(package_config) = package_config.as_object_mut() {
+      if let Some(product_name) = package_config.remove("productName") {
+        config.insert("productName".into(), product_name);
+      }
+
+      if let Some(version) = package_config.remove("version") {
+        config.insert("version".into(), version);
+      }
+    }
+  }
+
+  if let Some(bundle_config) = config
+    .get_mut("tauri")
+    .and_then(|t| t.get_mut("bundle"))
+    .and_then(|b| b.as_object_mut())
+  {
+    if let Some(identifier) = bundle_config.remove("identifier") {
+      config.insert("identifier".into(), identifier);
+    }
+  }
+}
+
+fn process_build(config: &mut Map<String, Value>) {
+  if let Some(build_config) = config.get_mut("build").and_then(|b| b.as_object_mut()) {
+    if let Some(dist_dir) = build_config.remove("distDir") {
+      build_config.insert("frontendDist".into(), dist_dir);
+    }
+    if let Some(dist_dir) = build_config.remove("devPath") {
+      build_config.insert("devUrl".into(), dist_dir);
+    }
+    if let Some(with_global_tauri) = build_config.remove("withGlobalTauri") {
+      config
+        .get_mut("tauri")
+        .and_then(|t| t.as_object_mut())
+        .map(|t| t.insert("withGlobalTauri".into(), with_global_tauri));
+    }
+  }
+}
+
+fn process_bundle(config: &mut Map<String, Value>) {
+  let mut license_file = None;
+
+  if let Some(mut bundle_config) = config
+    .get_mut("tauri")
+    .and_then(|b| b.as_object_mut())
+    .and_then(|t| t.remove("bundle"))
+  {
+    if let Some(bundle_config) = bundle_config.as_object_mut() {
+      if let Some(deb) = bundle_config.remove("deb") {
+        bundle_config
+          .entry("linux")
+          .or_insert_with(|| Value::Object(Default::default()))
+          .as_object_mut()
+          .map(|l| l.insert("deb".into(), deb));
+      }
+
+      if let Some(appimage) = bundle_config.remove("appimage") {
+        bundle_config
+          .entry("linux")
+          .or_insert_with(|| Value::Object(Default::default()))
+          .as_object_mut()
+          .map(|l| l.insert("appimage".into(), appimage));
+      }
+
+      // license file
+      if let Some(macos) = bundle_config.get_mut("macOS") {
+        if let Some(license) = macos.as_object_mut().unwrap().remove("license") {
+          license_file = Some(license);
+        }
+      }
+      if let Some(windows) = bundle_config.get_mut("windows") {
+        if let Some(wix) = windows.get_mut("wix") {
+          if let Some(license_path) = wix.as_object_mut().unwrap().remove("license") {
+            license_file = Some(license_path);
+          }
+        }
+        if let Some(nsis) = windows.get_mut("nsis") {
+          if let Some(license_path) = nsis.as_object_mut().unwrap().remove("license") {
+            license_file = Some(license_path);
+          }
+        }
+      }
+      if let Some(license_file) = license_file {
+        bundle_config.insert("licenseFile".into(), license_file);
+      }
+    }
+
+    config.insert("bundle".into(), bundle_config);
+  }
 }
 
 fn process_security(security: &mut Map<String, Value>) -> Result<()> {
@@ -388,35 +499,14 @@ fn process_cli(plugins: &mut Map<String, Value>, cli: Value) -> Result<()> {
 fn process_updater(
   tauri_config: &mut Map<String, Value>,
   plugins: &mut Map<String, Value>,
-  mut updater: Value,
 ) -> Result<()> {
-  if let Some(updater) = updater.as_object_mut() {
-    updater.remove("dialog");
-
-    let endpoints = updater
-      .remove("endpoints")
-      .unwrap_or_else(|| Value::Array(Default::default()));
-
-    let mut plugin_updater_config = Map::new();
-    plugin_updater_config.insert("endpoints".into(), endpoints);
-    if let Some(windows) = updater.get_mut("windows").and_then(|w| w.as_object_mut()) {
-      if let Some(installer_args) = windows.remove("installerArgs") {
-        let mut windows_updater_config = Map::new();
-        windows_updater_config.insert("installerArgs".into(), installer_args);
-
-        plugin_updater_config.insert("windows".into(), windows_updater_config.into());
-      }
+  if let Some(mut updater) = tauri_config.remove("updater") {
+    if let Some(updater) = updater.as_object_mut() {
+      updater.remove("dialog");
+      updater.remove("active");
     }
-
-    plugins.insert("updater".into(), plugin_updater_config.into());
+    plugins.insert("updater".into(), serde_json::to_value(updater)?);
   }
-
-  tauri_config
-    .get_mut("bundle")
-    .unwrap()
-    .as_object_mut()
-    .unwrap()
-    .insert("updater".into(), updater);
 
   Ok(())
 }
@@ -437,9 +527,35 @@ mod test {
   #[test]
   fn migrate_full() {
     let original = serde_json::json!({
+      "build": {
+        "distDir": "../dist",
+        "devPath": "http://localhost:1240",
+        "withGlobalTauri": true
+      },
+      "package": {
+        "productName": "Tauri app",
+        "version": "0.0.0"
+      },
       "tauri": {
         "bundle": {
-          "identifier": "com.tauri.test"
+          "identifier": "com.tauri.test",
+          "deb": {
+            "depends": ["dep1"]
+          },
+          "appimage": {
+            "bundleMediaFramework": true
+          },
+          "macOS": {
+            "license": "license-file.txt"
+          },
+          "windows": {
+            "wix": {
+              "license": "license-file.txt"
+            },
+            "nsis": {
+              "license": "license-file.txt"
+            },
+          },
         },
         "cli": {
           "description": "Tauri TEST"
@@ -452,7 +568,7 @@ mod test {
             "https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}"
           ],
           "windows": {
-            "installerArgs": [],
+            "installerArgs": ["arg1"],
             "installMode": "passive"
           }
         },
@@ -492,6 +608,7 @@ mod test {
             "scope": ["http://localhost:3003/"]
           }
         },
+        "pattern": { "use": "brownfield" },
         "security": {
           "csp": "default-src: 'self' tauri:"
         }
@@ -500,24 +617,18 @@ mod test {
 
     let migrated = migrate(&original);
 
-    // bundle > updater
-    assert_eq!(
-      migrated["tauri"]["bundle"]["updater"]["active"],
-      original["tauri"]["updater"]["active"]
-    );
-    assert_eq!(
-      migrated["tauri"]["bundle"]["updater"]["pubkey"],
-      original["tauri"]["updater"]["pubkey"]
-    );
-    assert_eq!(
-      migrated["tauri"]["bundle"]["updater"]["windows"]["installMode"],
-      original["tauri"]["updater"]["windows"]["installMode"]
-    );
-
     // plugins > updater
     assert_eq!(
       migrated["plugins"]["updater"]["endpoints"],
       original["tauri"]["updater"]["endpoints"]
+    );
+    assert_eq!(
+      migrated["plugins"]["updater"]["pubkey"],
+      original["tauri"]["updater"]["pubkey"]
+    );
+    assert_eq!(
+      migrated["plugins"]["updater"]["windows"]["installMode"],
+      original["tauri"]["updater"]["windows"]["installMode"]
     );
     assert_eq!(
       migrated["plugins"]["updater"]["windows"]["installerArgs"],
@@ -529,25 +640,74 @@ mod test {
 
     // asset scope
     assert_eq!(
-      migrated["tauri"]["security"]["assetProtocol"]["enable"],
+      migrated["app"]["security"]["assetProtocol"]["enable"],
       original["tauri"]["allowlist"]["protocol"]["asset"]
     );
     assert_eq!(
-      migrated["tauri"]["security"]["assetProtocol"]["scope"]["allow"],
+      migrated["app"]["security"]["assetProtocol"]["scope"]["allow"],
       original["tauri"]["allowlist"]["protocol"]["assetScope"]["allow"]
     );
     assert_eq!(
-      migrated["tauri"]["security"]["assetProtocol"]["scope"]["deny"],
+      migrated["app"]["security"]["assetProtocol"]["scope"]["deny"],
       original["tauri"]["allowlist"]["protocol"]["assetScope"]["deny"]
     );
 
     // security CSP
     assert_eq!(
-      migrated["tauri"]["security"]["csp"],
+      migrated["app"]["security"]["csp"],
       format!(
         "{}; connect-src ipc: http://ipc.localhost",
         original["tauri"]["security"]["csp"].as_str().unwrap()
       )
+    );
+
+    // security pattern
+    assert_eq!(
+      migrated["app"]["security"]["pattern"],
+      original["tauri"]["pattern"]
+    );
+
+    // license files
+    assert_eq!(
+      migrated["bundle"]["licenseFile"],
+      original["tauri"]["bundle"]["macOS"]["license"]
+    );
+    assert_eq!(
+      migrated["bundle"]["licenseFile"],
+      original["tauri"]["bundle"]["windows"]["wix"]["license"]
+    );
+    assert_eq!(
+      migrated["bundle"]["licenseFile"],
+      original["tauri"]["bundle"]["windows"]["nsis"]["license"]
+    );
+
+    // bundle appimage and deb
+    assert_eq!(
+      migrated["bundle"]["linux"]["deb"],
+      original["tauri"]["bundle"]["deb"]
+    );
+    assert_eq!(
+      migrated["bundle"]["linux"]["appimage"],
+      original["tauri"]["bundle"]["appimage"]
+    );
+
+    // app information
+    assert_eq!(migrated["productName"], original["package"]["productName"]);
+    assert_eq!(migrated["version"], original["package"]["version"]);
+    assert_eq!(
+      migrated["identifier"],
+      original["tauri"]["bundle"]["identifier"]
+    );
+
+    // build object
+    assert_eq!(
+      migrated["build"]["frontendDist"],
+      original["build"]["distDir"]
+    );
+    assert_eq!(migrated["build"]["devUrl"], original["build"]["devPath"]);
+    assert_eq!(
+      migrated["app"]["withGlobalTauri"],
+      original["build"]["withGlobalTauri"]
     );
   }
 
@@ -566,10 +726,10 @@ mod test {
     let migrated = migrate(&original);
 
     assert_eq!(
-      migrated["tauri"]["security"]["csp"]["default-src"],
+      migrated["app"]["security"]["csp"]["default-src"],
       original["tauri"]["security"]["csp"]["default-src"]
     );
-    assert!(migrated["tauri"]["security"]["csp"]["connect-src"]
+    assert!(migrated["app"]["security"]["csp"]["connect-src"]
       .as_array()
       .expect("connect-src isn't an array")
       .contains(&"ipc: http://ipc.localhost".into()));
@@ -591,11 +751,11 @@ mod test {
     let migrated = migrate(&original);
 
     assert_eq!(
-      migrated["tauri"]["security"]["csp"]["default-src"],
+      migrated["app"]["security"]["csp"]["default-src"],
       original["tauri"]["security"]["csp"]["default-src"]
     );
     assert_eq!(
-      migrated["tauri"]["security"]["csp"]["connect-src"]
+      migrated["app"]["security"]["csp"]["connect-src"]
         .as_str()
         .expect("connect-src isn't a string"),
       format!(
@@ -623,11 +783,11 @@ mod test {
     let migrated = migrate(&original);
 
     assert_eq!(
-      migrated["tauri"]["security"]["csp"]["default-src"],
+      migrated["app"]["security"]["csp"]["default-src"],
       original["tauri"]["security"]["csp"]["default-src"]
     );
 
-    let migrated_connect_src = migrated["tauri"]["security"]["csp"]["connect-src"]
+    let migrated_connect_src = migrated["app"]["security"]["csp"]["connect-src"]
       .as_array()
       .expect("connect-src isn't an array");
     let original_connect_src = original["tauri"]["security"]["csp"]["connect-src"]

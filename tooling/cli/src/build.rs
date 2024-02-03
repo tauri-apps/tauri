@@ -6,19 +6,20 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, HookCommand, WebviewUrl, MERGE_CONFIG_EXTENSION_NAME},
+    config::{get as get_config, FrontendDist, HookCommand, MERGE_CONFIG_EXTENSION_NAME},
     resolve_merge_config,
-    updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
+    updater_signature::{secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
   CommandExt, Result,
 };
 use anyhow::{bail, Context};
 use base64::Engine;
-use clap::{ArgAction, Parser};
+use clap::Parser;
 use log::{debug, error, info, warn};
 use std::{
   env::{set_current_dir, var_os},
+  ffi::OsString,
   path::{Path, PathBuf},
   process::Command,
 };
@@ -28,7 +29,7 @@ use tauri_utils::platform::Target;
 #[derive(Debug, Clone, Parser)]
 #[clap(
   about = "Build your app in release mode and generate bundles and installers",
-  long_about = "Build your app in release mode and generate bundles and installers. It makes use of the `build.distDir` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.distDir`. This will also run `build.beforeBundleCommand` before generating the bundles and installers of your app."
+  long_about = "Build your app in release mode and generate bundles and installers. It makes use of the `build.frontendDist` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.frontendDist`. This will also run `build.beforeBundleCommand` before generating the bundles and installers of your app."
 )]
 pub struct Options {
   /// Binary to use to build the application, defaults to `cargo`
@@ -45,7 +46,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// Space or comma separated list of features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, value_delimiter = ',')]
   pub features: Option<Vec<String>>,
   /// Space or comma separated list of bundles to package.
   ///
@@ -53,7 +54,7 @@ pub struct Options {
   /// If `none` is specified, the bundler will be skipped.
   ///
   /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, value_delimiter = ',')]
   pub bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
@@ -97,17 +98,17 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let app_settings = interface.app_settings();
 
-  if config_.tauri.bundle.active {
+  if config_.bundle.active {
     let package_types = if let Some(names) = &options.bundles {
       let mut types = vec![];
-      for name in names
-        .iter()
-        .flat_map(|n| n.split(',').map(|s| s.to_string()).collect::<Vec<String>>())
-      {
+      let mut skip = false;
+      for name in names {
         if name == "none" {
+          skip = true;
           break;
         }
-        match PackageType::from_short_name(&name) {
+
+        match PackageType::from_short_name(name) {
           Some(package_type) => {
             types.push(package_type);
           }
@@ -118,9 +119,14 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
           }
         }
       }
-      Some(types)
+
+      if skip {
+        None
+      } else {
+        Some(types)
+      }
     } else {
-      let targets = config_.tauri.bundle.targets.to_vec();
+      let targets = config_.bundle.targets.to_vec();
       if targets.is_empty() {
         None
       } else {
@@ -128,9 +134,21 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       }
     };
 
+    let updater_pub_key = config_
+      .plugins
+      .0
+      .get("updater")
+      .and_then(|k| k.get("pubkey"))
+      .and_then(|v| v.as_str())
+      .map(|v| v.to_string());
     if let Some(types) = &package_types {
-      if config_.tauri.bundle.updater.active && !types.contains(&PackageType::Updater) {
-        warn!("The updater is enabled but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
+      if updater_pub_key
+        .as_ref()
+        .map(|v| !v.is_empty())
+        .unwrap_or(false)
+        && !types.contains(&PackageType::Updater)
+      {
+        warn!("`plugins > updater > pubkey` is set, but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
       }
     }
 
@@ -159,7 +177,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     // set env vars used by the bundler
     #[cfg(target_os = "linux")]
     {
-      if config_.tauri.bundle.appimage.bundle_media_framework {
+      if config_.bundle.linux.appimage.bundle_media_framework {
         std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
       }
 
@@ -182,52 +200,63 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       .iter()
       .filter(|bundle| bundle.package_type == PackageType::Updater)
       .collect();
+
     // If updater is active and we bundled it
-    if config_.tauri.bundle.updater.active && !updater_bundles.is_empty() {
-      // if no password provided we use an empty string
-      let password = var_os("TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
-        .map(|v| v.to_str().unwrap().to_string())
-        .or_else(|| if ci { Some("".into()) } else { None });
-      // get the private key
-      let secret_key = if let Some(mut private_key) =
-        var_os("TAURI_SIGNING_PRIVATE_KEY").map(|v| v.to_str().unwrap().to_string())
-      {
-        // check if env var points to a file..
-        let pk_dir = Path::new(&private_key);
-        // Check if user provided a path or a key
-        // We validate if the path exist or not.
-        if pk_dir.exists() {
-          // read file content and use it as private key
-          private_key = read_key_from_file(pk_dir)?;
+    if !updater_bundles.is_empty() {
+      if let Some(pubkey) = updater_pub_key {
+        // get the public key
+        // check if pubkey points to a file...
+        let maybe_path = Path::new(&pubkey);
+        let pubkey = if maybe_path.exists() {
+          std::fs::read_to_string(maybe_path)?
+        } else {
+          pubkey
+        };
+
+        // if no password provided we use an empty string
+        let password = var_os("TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
+          .map(|v| v.to_str().unwrap().to_string())
+          .or_else(|| if ci { Some("".into()) } else { None });
+
+        // get the private key
+        let secret_key = match var_os("TAURI_SIGNING_PRIVATE_KEY") {
+        Some(private_key) => {
+          // check if private_key points to a file...
+          let maybe_path = Path::new(&private_key);
+          let private_key = if maybe_path.exists() {
+            OsString::from(std::fs::read_to_string(maybe_path)?)
+          } else {
+            private_key
+          };
+          updater_secret_key(private_key.as_encoded_bytes(), password)
         }
-        updater_secret_key(private_key, password)
-      } else {
-        Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable."))
+        _ => Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")),
       }?;
 
-      let pubkey =
-        base64::engine::general_purpose::STANDARD.decode(&config_.tauri.bundle.updater.pubkey)?;
-      let pub_key_decoded = String::from_utf8_lossy(&pubkey);
-      let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
+        let pubkey = base64::engine::general_purpose::STANDARD.decode(pubkey)?;
+        let pub_key_decoded = String::from_utf8_lossy(&pubkey);
+        let public_key =
+          minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 
-      // make sure we have our package built
-      let mut signed_paths = Vec::new();
-      for elem in updater_bundles {
-        // we expect to have only one path in the vec but we iter if we add
-        // another type of updater package who require multiple file signature
-        for path in elem.bundle_paths.iter() {
-          // sign our path from environment variables
-          let (signature_path, signature) = sign_file(&secret_key, path)?;
-          if signature.keynum() != public_key.keynum() {
-            log::warn!(
-              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key defined in `tauri.conf.json > tauri > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime."
+        // make sure we have our package built
+        let mut signed_paths = Vec::new();
+        for elem in updater_bundles {
+          // we expect to have only one path in the vec but we iter if we add
+          // another type of updater package who require multiple file signature
+          for path in elem.bundle_paths.iter() {
+            // sign our path from environment variables
+            let (signature_path, signature) = sign_file(&secret_key, path)?;
+            if signature.keynum() != public_key.keynum() {
+              log::warn!(
+              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update."
             );
+            }
+            signed_paths.push(signature_path);
           }
-          signed_paths.push(signature_path);
         }
-      }
 
-      print_signed_updater_archive(&signed_paths)?;
+        print_signed_updater_archive(&signed_paths)?;
+      }
     }
   }
 
@@ -257,24 +286,22 @@ pub fn setup(
     None => "tauri.conf.json".into(),
   };
 
-  if config_.tauri.bundle.identifier == "com.tauri.dev" {
+  if config_.identifier == "com.tauri.dev" {
     error!(
-      "You must change the bundle identifier in `{} > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
+      "You must change the bundle identifier in `{} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
       bundle_identifier_source
     );
     std::process::exit(1);
   }
 
   if config_
-    .tauri
-    .bundle
     .identifier
     .chars()
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
     error!(
-      "The bundle identifier \"{}\" set in `{} > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
-      config_.tauri.bundle.identifier,
+      "The bundle identifier \"{}\" set in `{} identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
+      config_.identifier,
       bundle_identifier_source
     );
     std::process::exit(1);
@@ -284,18 +311,17 @@ pub fn setup(
     run_hook("beforeBuildCommand", before_build, interface, options.debug)?;
   }
 
-  if let Some(AppUrl::Url(WebviewUrl::App(web_asset_path))) = &config_.build.dist_dir {
+  if let Some(FrontendDist::Dist(web_asset_path)) = &config_.build.frontend_dist {
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
-          "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
+          "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{:?}\".",
           web_asset_path
         ));
     }
     if web_asset_path.canonicalize()?.file_name() == Some(std::ffi::OsStr::new("src-tauri")) {
       return Err(anyhow::anyhow!(
-            "The configured distDir is the `src-tauri` folder.
-            Please isolate your web assets on a separate folder and update `tauri.conf.json > build > distDir`.",
-          ));
+          "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
+        ));
     }
 
     let mut out_folders = Vec::new();
@@ -306,7 +332,7 @@ pub fn setup(
     }
     if !out_folders.is_empty() {
       return Err(anyhow::anyhow!(
-          "The configured distDir includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > distDir`.",
+          "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
           out_folders,
           if out_folders.len() == 1 { "folder" }else { "folders" }
         )

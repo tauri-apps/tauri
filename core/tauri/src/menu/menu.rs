@@ -142,8 +142,8 @@ impl<R: Runtime> Menu<R> {
     let about_metadata = AboutMetadata {
       name: Some(pkg_info.name.clone()),
       version: Some(pkg_info.version.to_string()),
-      copyright: config.tauri.bundle.copyright.clone(),
-      authors: config.tauri.bundle.publisher.clone().map(|p| vec![p]),
+      copyright: config.bundle.copyright.clone(),
+      authors: config.bundle.publisher.clone().map(|p| vec![p]),
       ..Default::default()
     };
 

@@ -1638,7 +1638,7 @@ tauri::Builder::default()
       #[cfg(feature = "protocol-asset")]
       asset_protocol: crate::scope::fs::Scope::new(
         &app,
-        &app.config().tauri.security.asset_protocol.scope,
+        &app.config().app.security.asset_protocol.scope,
       )?,
     });
 
@@ -1647,13 +1647,8 @@ tauri::Builder::default()
 
     #[cfg(windows)]
     {
-      if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } = &app
-        .manager
-        .config()
-        .tauri
-        .bundle
-        .windows
-        .webview_install_mode
+      if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } =
+        &app.manager.config().bundle.windows.webview_install_mode
       {
         if let Ok(resource_dir) = app.path().resource_dir() {
           std::env::set_var(
@@ -1675,7 +1670,7 @@ tauri::Builder::default()
     #[cfg(all(desktop, feature = "tray-icon"))]
     {
       let config = app.config();
-      if let Some(tray_config) = &config.tauri.tray_icon {
+      if let Some(tray_config) = &config.app.tray_icon {
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
             .icon_as_template(tray_config.icon_as_template)
@@ -1753,7 +1748,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
 
   let window_labels = app
     .config()
-    .tauri
+    .app
     .windows
     .iter()
     .map(|p| p.label.clone())
@@ -1766,7 +1761,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     })
     .collect::<Vec<_>>();
 
-  for window_config in app.config().tauri.windows.clone() {
+  for window_config in app.config().app.windows.clone() {
     WebviewWindowBuilder::from_config(app.handle(), &window_config)?
       .build_internal(&window_labels, &webview_labels)?;
   }

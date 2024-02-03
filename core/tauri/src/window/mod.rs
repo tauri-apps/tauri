@@ -226,7 +226,7 @@ async fn create_window(app: tauri::AppHandle) {
 ```
 #[tauri::command]
 async fn reopen_window(app: tauri::AppHandle) {
-  let window = tauri::window::WindowBuilder::from_config(&app, &app.config().tauri.windows.get(0).unwrap().clone())
+  let window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
     .unwrap()
     .build()
     .unwrap();
@@ -705,7 +705,6 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
-  #[must_use]
   pub fn owner(mut self, owner: &Window<R>) -> crate::Result<Self> {
     self.window_builder = self.window_builder.owner(owner.hwnd()?);
     Ok(self)
@@ -783,6 +782,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
+  #[must_use]
   pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for(parent);
     self

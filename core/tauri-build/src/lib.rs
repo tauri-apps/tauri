@@ -437,7 +437,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   let config: Config = serde_json::from_value(config)?;
 
-  let s = config.tauri.bundle.identifier.split('.');
+  let s = config.identifier.split('.');
   let last = s.clone().count() - 1;
   let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
@@ -501,7 +501,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .parent()
     .unwrap();
 
-  if let Some(paths) = &config.tauri.bundle.external_bin {
+  if let Some(paths) = &config.bundle.external_bin {
     copy_binaries(
       ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
       &target_triple,
@@ -512,16 +512,15 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config
-    .tauri
     .bundle
     .resources
     .clone()
     .unwrap_or_else(|| BundleResources::List(Vec::new()));
   if target_triple.contains("windows") {
     if let Some(fixed_webview2_runtime_path) =
-      match &config.tauri.bundle.windows.webview_fixed_runtime_path {
+      match &config.bundle.windows.webview_fixed_runtime_path {
         Some(path) => Some(path),
-        None => match &config.tauri.bundle.windows.webview_install_mode {
+        None => match &config.bundle.windows.webview_install_mode {
           WebviewInstallMode::FixedRuntime { path } => Some(path),
           _ => None,
         },
@@ -538,7 +537,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   if target_triple.contains("darwin") {
-    if let Some(frameworks) = &config.tauri.bundle.macos.frameworks {
+    if let Some(frameworks) = &config.bundle.macos.frameworks {
       if !frameworks.is_empty() {
         let frameworks_dir = target_dir.parent().unwrap().join("Frameworks");
         let _ = std::fs::remove_dir_all(&frameworks_dir);
@@ -552,7 +551,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       }
     }
 
-    if let Some(version) = &config.tauri.bundle.macos.minimum_system_version {
+    if let Some(version) = &config.bundle.macos.minimum_system_version {
       println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
     }
   }
@@ -563,7 +562,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
       let icon_path = config
-        .tauri
         .bundle
         .icon
         .iter()
@@ -586,7 +584,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       res.set_manifest(include_str!("window-app-manifest.xml"));
     }
 
-    if let Some(version_str) = &config.package.version {
+    if let Some(version_str) = &config.version {
       if let Ok(v) = Version::parse(version_str) {
         let version = v.major << 48 | v.minor << 32 | v.patch << 16;
         res.set_version_info(VersionInfo::FILEVERSION, version);
@@ -594,15 +592,15 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       }
     }
 
-    if let Some(product_name) = &config.package.product_name {
+    if let Some(product_name) = &config.product_name {
       res.set("ProductName", product_name);
     }
 
-    if let Some(short_description) = &config.tauri.bundle.short_description {
+    if let Some(short_description) = &config.bundle.short_description {
       res.set("FileDescription", short_description);
     }
 
-    if let Some(copyright) = &config.tauri.bundle.copyright {
+    if let Some(copyright) = &config.bundle.copyright {
       res.set("LegalCopyright", copyright);
     }
 

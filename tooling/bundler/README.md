@@ -8,7 +8,7 @@ This is a fork of the awesome [cargo-bundle](https://github.com/burtonageo/cargo
 
 ## Configuration
 
-Tauri automatically loads configurations from the `tauri.conf.json > tauri > bundle` object, but this library doesn't rely on it and can be used by non-Tauri apps.
+Tauri automatically loads configurations from the `tauri.conf.json > bundle` object, but this library doesn't rely on it and can be used by non-Tauri apps.
 
 ### General settings
 
@@ -80,35 +80,32 @@ These settings are used only when bundling `app` and `dmg` packages.
 
 ```json
 {
-  "package": {
-    "productName": "Your Awesome App",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "identifier": "com.my.app",
-      "shortDescription": "",
-      "longDescription": "",
-      "copyright": "Copyright (c) You 2021. All rights reserved.",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "resources": ["./assets/**/*.png"],
-      "deb": {
-        "depends": ["debian-dependency1", "debian-dependency2"]
-      },
-      "macOS": {
-        "frameworks": [],
-        "minimumSystemVersion": "10.11",
-        "license": "./LICENSE"
-      },
-      "externalBin": ["./sidecar-app"]
-    }
+  "productName": "Your Awesome App",
+  "version": "0.1.0",
+  "identifier": "com.my.app",
+  "app": { },
+  "bundle": {
+    "active": true,
+    "shortDescription": "",
+    "longDescription": "",
+    "copyright": "Copyright (c) You 2021. All rights reserved.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": ["./assets/**/*.png"],
+    "deb": {
+      "depends": ["debian-dependency1", "debian-dependency2"]
+    },
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.11",
+      "license": "./LICENSE"
+    },
+    "externalBin": ["./sidecar-app"]
   }
 }
 ```

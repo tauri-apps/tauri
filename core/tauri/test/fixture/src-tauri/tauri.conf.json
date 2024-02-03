@@ -1,14 +1,11 @@
 {
   "$schema": "../../../../../core/tauri-config-schema/schema.json",
+  "identifier": "studio.tauri.example",
   "build": {
-    "distDir": "../dist",
-    "devPath": "http://localhost:4000"
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:4000"
   },
-  "tauri": {
-    "bundle": {
-      "identifier": "studio.tauri.example",
-      "active": true
-    },
+  "app": {
     "windows": [
       {
         "title": "Tauri App"
@@ -17,5 +14,8 @@
     "security": {
       "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'; connect-src ipc: http://ipc.localhost"
     }
+  },
+  "bundle": {
+    "active": true
   }
 }

@@ -25,11 +25,7 @@ use crate::{
   event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder, RuntimeAuthority},
   plugin::PluginStore,
-  utils::{
-    assets::Assets,
-    config::{AppUrl, Config, WebviewUrl},
-    PackageInfo,
-  },
+  utils::{assets::Assets, config::Config, PackageInfo},
   Context, Pattern, Runtime, StateManager, Window,
 };
 use crate::{event::EmitArgs, resources::ResourceTable, Webview};
@@ -80,7 +76,7 @@ fn set_csp<R: Runtime>(
 
   let dangerous_disable_asset_csp_modification = &manager
     .config()
-    .tauri
+    .app
     .security
     .dangerous_disable_asset_csp_modification;
   if dangerous_disable_asset_csp_modification.can_modify("script-src") {
@@ -295,28 +291,20 @@ impl<R: Runtime> AppManager<R> {
 
   /// Get the base path to serve data from.
   ///
-  /// * In dev mode, this will be based on the `devPath` configuration value.
-  /// * Otherwise, this will be based on the `distDir` configuration value.
+  /// * In dev mode, this will be based on the `devUrl` configuration value.
+  /// * Otherwise, this will be based on the `frontendDist` configuration value.
   #[cfg(not(dev))]
-  fn base_path(&self) -> Option<&AppUrl> {
-    self.config.build.dist_dir.as_ref()
+  fn base_path(&self) -> Option<&Url> {
+    use crate::utils::config::FrontendDist;
+    match self.config.build.frontend_dist.as_ref() {
+      Some(FrontendDist::Url(url)) => Some(url),
+      _ => None,
+    }
   }
 
   #[cfg(dev)]
-  fn base_path(&self) -> Option<&AppUrl> {
-    self.config.build.dev_path.as_ref()
-  }
-
-  /// Get the base URL to use for webview requests.
-  ///
-  /// In dev mode, this will be based on the `devPath` configuration value.
-  pub(crate) fn get_url(&self) -> Cow<'_, Url> {
-    match self.base_path() {
-      Some(AppUrl::Url(WebviewUrl::External(url) | WebviewUrl::CustomProtocol(url))) => {
-        Cow::Borrowed(url)
-      }
-      _ => self.protocol_url(),
-    }
+  fn base_path(&self) -> Option<&Url> {
+    self.config.build.dev_url.as_ref()
   }
 
   pub(crate) fn protocol_url(&self) -> Cow<'_, Url> {
@@ -327,17 +315,27 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
+  /// Get the base URL to use for webview requests.
+  ///
+  /// In dev mode, this will be based on the `devUrl` configuration value.
+  pub(crate) fn get_url(&self) -> Cow<'_, Url> {
+    match self.base_path() {
+      Some(url) => Cow::Borrowed(url),
+      _ => self.protocol_url(),
+    }
+  }
+
   fn csp(&self) -> Option<Csp> {
     if cfg!(feature = "custom-protocol") {
-      self.config.tauri.security.csp.clone()
+      self.config.app.security.csp.clone()
     } else {
       self
         .config
-        .tauri
+        .app
         .security
         .dev_csp
         .clone()
-        .or_else(|| self.config.tauri.security.csp.clone())
+        .or_else(|| self.config.app.security.csp.clone())
     }
   }
 

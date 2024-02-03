@@ -1,45 +1,11 @@
 {
-  "package": {
-    "productName": "app",
-    "version": "0.1.0"
-  },
+  "productName": "app",
+  "version": "0.1.0",
+  "identifier": "com.tauri.{{ plugin_name }}",
   "build": {
-    "distDir": "../public",
-    "devPath": "../public"
+    "frontendDist": "../public"
   },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.tauri.{{ plugin_name }}",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "resources": [],
-      "externalBin": [],
-      "copyright": "",
-      "category": "DeveloperTool",
-      "shortDescription": "",
-      "longDescription": "",
-      "deb": {
-        "depends": []
-      },
-      "macOS": {
-        "frameworks": [],
-        "exceptionDomain": "",
-        "signingIdentity": null,
-        "entitlements": null
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
+  "app": {
     "windows": [
       {
         "title": "app",
@@ -52,5 +18,16 @@
     "security": {
       "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; connect-src ipc: http://ipc.localhost"
     }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
   }
 }

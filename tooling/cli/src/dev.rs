@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WebviewUrl},
+    config::{get as get_config, reload as reload_config, BeforeDevCommand, FrontendDist},
     resolve_merge_config,
   },
   interface::{AppInterface, DevProcess, ExitReason, Interface},
@@ -41,7 +41,7 @@ pub const TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE: &[u8] =
 #[derive(Debug, Clone, Parser)]
 #[clap(
   about = "Run your app in development mode",
-  long_about = "Run your app in development mode with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer.",
+  long_about = "Run your app in development mode with hot-reloading for the Rust code. It makes use of the `build.devUrl` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer.",
   trailing_var_arg(true)
 )]
 pub struct Options {
@@ -173,13 +173,13 @@ pub fn setup(
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-  let mut dev_path = config
+  let mut dev_url = config
     .lock()
     .unwrap()
     .as_ref()
     .unwrap()
     .build
-    .dev_path
+    .dev_url
     .clone();
 
   if let Some(before_dev) = config
@@ -204,13 +204,13 @@ pub fn setup(
         if mobile {
           let local_ip_address = local_ip_address(options.force_ip_prompt).to_string();
           before_dev = before_dev.replace("$HOST", &local_ip_address);
-          if let Some(AppUrl::Url(WebviewUrl::External(url))) = dev_path.as_mut() {
+          if let Some(url) = &mut dev_url {
             url.set_host(Some(&local_ip_address))?;
           }
         } else {
           before_dev = before_dev.replace(
             "$HOST",
-            if let Some(AppUrl::Url(WebviewUrl::External(url))) = &dev_path {
+            if let Some(url) = &dev_url {
               url.host_str().unwrap_or("0.0.0.0")
             } else {
               "0.0.0.0"
@@ -314,17 +314,25 @@ pub fn setup(
     cargo_features.extend(features.clone());
   }
 
-  let mut dev_path = config
+  let mut dev_url = config
     .lock()
     .unwrap()
     .as_ref()
     .unwrap()
     .build
-    .dev_path
+    .dev_url
     .clone();
-  if !options.no_dev_server {
-    if let Some(AppUrl::Url(WebviewUrl::App(path))) = &dev_path {
-      use crate::helpers::web_dev_server::start_dev_server;
+  let frontend_dist = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .frontend_dist
+    .clone();
+  if !options.no_dev_server && dev_url.is_none() {
+    if let Some(FrontendDist::Dist(path)) = &frontend_dist {
+      use crate::helpers::web_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
         let ip = if mobile {
@@ -332,18 +340,16 @@ pub fn setup(
         } else {
           Ipv4Addr::new(127, 0, 0, 1).into()
         };
-        let server_url = start_dev_server(path, ip, options.port)?;
+        let server_url = web_dev_server::start(path, ip, options.port)?;
         let server_url = format!("http://{server_url}");
-        dev_path = Some(AppUrl::Url(WebviewUrl::External(
-          server_url.parse().unwrap(),
-        )));
+        dev_url = Some(server_url.parse().unwrap());
 
         if let Some(c) = &options.config {
           let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
-          c.build.dev_path = dev_path.clone();
+          c.build.dev_url = dev_url.clone();
           options.config = Some(serde_json::to_string(&c).unwrap());
         } else {
-          options.config = Some(format!(r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#))
+          options.config = Some(format!(r#"{{ "build": {{ "devUrl": "{server_url}" }} }}"#))
         }
 
         reload_config(options.config.as_deref())?;
@@ -352,11 +358,11 @@ pub fn setup(
   }
 
   if !options.no_dev_server_wait {
-    if let Some(AppUrl::Url(WebviewUrl::External(dev_server_url))) = dev_path {
-      let host = dev_server_url
+    if let Some(url) = dev_url {
+      let host = url
         .host()
         .unwrap_or_else(|| panic!("No host name in the URL"));
-      let port = dev_server_url
+      let port = url
         .port_or_known_default()
         .unwrap_or_else(|| panic!("No port number in the URL"));
       let addrs;
@@ -388,17 +394,11 @@ pub fn setup(
         }
 
         if i % 3 == 1 {
-          warn!(
-            "Waiting for your frontend dev server to start on {}...",
-            dev_server_url
-          );
+          warn!("Waiting for your frontend dev server to start on {url}...",);
         }
         i += 1;
         if i == max_attempts {
-          error!(
-            "Could not connect to `{}` after {}s. Please make sure that is the URL to your dev server.",
-            dev_server_url, i * sleep_interval.as_secs()
-          );
+          error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
           exit(1);
         }
         std::thread::sleep(sleep_interval);

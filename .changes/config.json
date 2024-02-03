@@ -217,7 +217,7 @@
       "path": "./core/tauri-plugin",
       "manager": "rust",
       "dependencies": [
-        "tauri"
+        "tauri-utils"
       ],
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },

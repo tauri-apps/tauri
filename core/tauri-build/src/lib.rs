@@ -32,11 +32,8 @@ use std::{
 mod acl;
 #[cfg(feature = "codegen")]
 mod codegen;
-/// Tauri configuration functions.
-pub mod config;
 mod manifest;
-/// Mobile build functions.
-pub mod mobile;
+mod mobile;
 mod static_vcruntime;
 
 #[cfg(feature = "codegen")]

@@ -43,10 +43,6 @@ glob = "0.3"
 toml = "0.8"
 schemars = { version = "0.8", features = [ "preserve_order" ] }
 
-[target."cfg(target_os = \"macos\")".dependencies]
-swift-rs = { version = "1.0.6", features = [ "build" ] }
-plist = "1"
-
 [features]
 default = [ "config-json" ]
 codegen = [ "tauri-codegen", "quote" ]

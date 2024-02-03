@@ -1,6 +1,6 @@
 # Resource example
 
-This example demonstrates the Tauri bundle resources functionality. The example adds `src-tauri/assets/index.js` as a resource (defined on `tauri.conf.json > tauri > bundle > resources`) and executes it using `Node.js`, locating the JavaScript file using the `tauri::App::path_resolver` APIs.
+This example demonstrates the Tauri bundle resources functionality. The example adds `src-tauri/assets/index.js` as a resource (defined on `tauri.conf.json > bundle > resources`) and executes it using `Node.js`, locating the JavaScript file using the `tauri::App::path_resolver` APIs.
 
 ## Running the example
 

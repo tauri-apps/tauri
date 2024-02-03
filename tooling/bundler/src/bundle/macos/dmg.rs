@@ -156,7 +156,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     bundle_dmg_cmd.arg(icon);
   }
 
-  let license_path = if let Some(license_path) = &settings.macos().license {
+  let license_path = if let Some(license_path) = settings.license_file() {
     Some(env::current_dir()?.join(license_path))
   } else {
     None

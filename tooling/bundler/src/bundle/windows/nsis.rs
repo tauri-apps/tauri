@@ -211,6 +211,10 @@ fn build_nsis_app_installer(
     to_json(settings.windows().allow_downgrades),
   );
 
+  if let Some(license) = settings.license_file() {
+    data.insert("license", to_json(dunce::canonicalize(license)?));
+  }
+
   let mut install_mode = NSISInstallerMode::CurrentUser;
   let mut languages = vec!["English".into()];
   let mut custom_template_path = None;
@@ -222,9 +226,6 @@ fn build_nsis_app_installer(
     if let Some(langs) = &nsis.languages {
       languages.clear();
       languages.extend_from_slice(langs);
-    }
-    if let Some(license) = &nsis.license {
-      data.insert("license", to_json(dunce::canonicalize(license)?));
     }
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(
@@ -270,7 +271,7 @@ fn build_nsis_app_installer(
     if let Some(data) = get_lang_data(lang, custom_language_files.as_ref())? {
       languages_data.push(data);
     } else {
-      log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > tauri > bundle > windows > nsis > custom_language_files`");
+      log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`");
     }
   }
 

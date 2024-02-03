@@ -21,7 +21,7 @@ pub enum Framework {
 }
 
 impl Framework {
-  pub fn dev_path(&self) -> String {
+  pub fn dev_url(&self) -> String {
     match self {
       Self::SolidJS => "http://localhost:3000",
       Self::SolidStart => "http://localhost:3000",
@@ -39,7 +39,7 @@ impl Framework {
     .into()
   }
 
-  pub fn dist_dir(&self) -> String {
+  pub fn frontend_dist(&self) -> String {
     match self {
       Self::SolidJS => "../dist",
       Self::SolidStart => "../dist/public",

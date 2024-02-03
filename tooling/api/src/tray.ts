@@ -38,7 +38,7 @@ export interface TrayIconEvent {
 /**
  * Tray icon types and utilities.
  *
- * This package is also accessible with `window.__TAURI__.tray` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
+ * This package is also accessible with `window.__TAURI__.tray` when [`app.withGlobalTauri`](https://tauri.app/v1/api/config/#appconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 

@@ -5,9 +5,7 @@
 use crate::{
   helpers::{
     app_paths::tauri_dir,
-    config::{
-      get as get_config, reload as reload_config, AppUrl, Config as TauriConfig, WebviewUrl,
-    },
+    config::{get as get_config, reload as reload_config, Config as TauriConfig},
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
@@ -159,16 +157,16 @@ fn setup_dev_config(
 ) -> crate::Result<()> {
   let config = get_config(target.platform_target(), config_extension.as_deref())?;
 
-  let mut dev_path = config
+  let mut dev_url = config
     .lock()
     .unwrap()
     .as_ref()
     .unwrap()
     .build
-    .dev_path
+    .dev_url
     .clone();
 
-  if let Some(AppUrl::Url(WebviewUrl::External(url))) = dev_path.as_mut() {
+  if let Some(url) = &mut dev_url {
     let localhost = match url.host() {
       Some(url::Host::Domain(d)) => d == "localhost",
       Some(url::Host::Ipv4(i)) => {
@@ -181,10 +179,10 @@ fn setup_dev_config(
       url.set_host(Some(&ip.to_string())).unwrap();
       if let Some(c) = config_extension {
         let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
-        c.build.dev_path = dev_path.clone();
+        c.build.dev_url = dev_url.clone();
         config_extension.replace(serde_json::to_string(&c).unwrap());
       } else {
-        config_extension.replace(format!(r#"{{ "build": {{ "devPath": "{url}" }} }}"#));
+        config_extension.replace(format!(r#"{{ "build": {{ "devUrl": "{url}" }} }}"#));
       }
       reload_config(config_extension.as_deref())?;
     }
@@ -273,7 +271,7 @@ fn read_options(identifier: &str) -> CliOptions {
 }
 
 pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
-  let mut s = config.tauri.bundle.identifier.rsplit('.');
+  let mut s = config.identifier.rsplit('.');
   let app_name = s.next().unwrap_or("app").to_string();
   let mut domain = String::new();
   for w in s {
@@ -281,11 +279,9 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     domain.push('.');
   }
   if domain.is_empty() {
-    domain = config.tauri.bundle.identifier.clone();
+    domain = config.identifier.clone();
     if domain.is_empty() {
-      log::error!(
-        "Bundle identifier set in `tauri.conf.json > tauri > bundle > identifier` cannot be empty"
-      );
+      log::error!("Bundle identifier set in `tauri.conf.json > identifier` cannot be empty");
       exit(1);
     }
   } else {
@@ -301,7 +297,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
   let raw = RawAppConfig {
     name: app_name,
     lib_name: Some(lib_name),
-    stylized_name: config.package.product_name.clone(),
+    stylized_name: config.product_name.clone(),
     domain,
     asset_dir: None,
     template_pack: None,

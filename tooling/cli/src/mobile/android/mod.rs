@@ -114,7 +114,7 @@ pub fn get_config(
         .logcat()
       ),
     ],
-    min_sdk_version: Some(config.tauri.bundle.android.min_sdk_version),
+    min_sdk_version: Some(config.bundle.android.min_sdk_version),
     ..Default::default()
   };
   let config = AndroidConfig::from_raw(app.clone(), Some(raw)).unwrap();
@@ -143,7 +143,7 @@ pub fn get_config(
       let _ = create_dir(src_main_dir.join("generated"));
     } else {
       log::error!(
-      "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
+      "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
       src_main_dir.display()
     );
       exit(1);

@@ -31,11 +31,7 @@ struct State {
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(
-  path: P,
-  ip: IpAddr,
-  port: Option<u16>,
-) -> crate::Result<SocketAddr> {
+pub fn start<P: AsRef<Path>>(path: P, ip: IpAddr, port: Option<u16>) -> crate::Result<SocketAddr> {
   let serve_dir = path.as_ref().to_path_buf();
 
   let (server_url_tx, server_url_rx) = std::sync::mpsc::channel();

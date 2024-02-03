@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-  helpers::updater_signature::{read_key_from_file, secret_key, sign_file},
+  helpers::updater_signature::{secret_key, sign_file},
   Result,
 };
 use anyhow::Context;
@@ -41,7 +41,7 @@ pub struct Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options.private_key = if let Some(private_key) = options.private_key_path {
-    Some(read_key_from_file(Path::new(&private_key)).expect("Unable to extract private key"))
+    Some(std::fs::read_to_string(Path::new(&private_key)).expect("Unable to extract private key"))
   } else {
     options.private_key
   };

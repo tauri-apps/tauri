@@ -1,9 +1,7 @@
 {
   "identifier": "run-app",
   "description": "app capability",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     {
       "identifier": "fs:read",

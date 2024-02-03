@@ -11,3 +11,6 @@ dist
 /tooling/cli/schema.json
 /core/tauri-config-schema/schema.json
 CHANGELOG.md
+*.wxs
+**/reference.md
+*schema.json

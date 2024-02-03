@@ -4,7 +4,7 @@
 
 // this is a function and not an iife so use it carefully
 
-(function (message) {
+;(function (message) {
   if (
     message instanceof ArrayBuffer ||
     ArrayBuffer.isView(message) ||

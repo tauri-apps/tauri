@@ -2,10 +2,7 @@
   "$schema": "./schemas/desktop-schema.json",
   "identifier": "run-app",
   "description": "permissions to run the app",
-  "windows": [
-    "main",
-    "main-*"
-  ],
+  "windows": ["main", "main-*"],
   "permissions": [
     "sample:allow-ping-scoped",
     "sample:global-scope",

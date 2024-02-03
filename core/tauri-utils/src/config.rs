@@ -2342,7 +2342,7 @@ mod build {
         }
         Self::Directory(path) => {
           let path = path_buf_lit(path);
-          quote! { #prefix::Dist(#path) }
+          quote! { #prefix::Directory(#path) }
         }
         Self::Files(files) => {
           let files = vec_lit(files, path_buf_lit);

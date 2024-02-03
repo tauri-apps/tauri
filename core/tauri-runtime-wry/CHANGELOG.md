@@ -1,5 +1,34 @@
 # Changelog
 
+## \[1.0.0-alpha.10]
+
+### New Features
+
+- [`af610232`](https://www.github.com/tauri-apps/tauri/commit/af6102327376884364b2075b468bdf08ee0d02aa)([#8710](https://www.github.com/tauri-apps/tauri/pull/8710)) Added `Window::destroy` to force close a window.
+- [`c77b4032`](https://www.github.com/tauri-apps/tauri/commit/c77b40324ea9bf580871fc11aed69ba0c9b6b8cf)([#8280](https://www.github.com/tauri-apps/tauri/pull/8280)) Add multiwebview support behind the `unstable` feature flag. See `WindowBuilder` and `WebviewBuilder` for more information.
+- [`00e15675`](https://www.github.com/tauri-apps/tauri/commit/00e1567584721644797b587205187f9cbe4e5cd1)([#8708](https://www.github.com/tauri-apps/tauri/pull/8708)) Added `RuntimeHandle::request_exit` function.
+
+### Bug Fixes
+
+- [`95da1a27`](https://www.github.com/tauri-apps/tauri/commit/95da1a27476e01e06f6ce0335df8535b662dd9c4)([#8713](https://www.github.com/tauri-apps/tauri/pull/8713)) Fix calling `set_activation_policy` when the event loop is running.
+
+### What's Changed
+
+- [`9f8037c2`](https://www.github.com/tauri-apps/tauri/commit/9f8037c2882abac19582025001675370f0d7b669)([#8633](https://www.github.com/tauri-apps/tauri/pull/8633)) On Windows, fix decorated window not transparent initially until resized.
+- [`9eaeb5a8`](https://www.github.com/tauri-apps/tauri/commit/9eaeb5a8cd95ae24b5e66205bdc2763cb7f965ce)([#8622](https://www.github.com/tauri-apps/tauri/pull/8622)) Added `WindowBuilder::transient_for` and Renamed `WindowBuilder::owner_window` to `WindowBuilder::owner` and `WindowBuilder::parent_window` to `WindowBuilder::parent`.
+- [`7f033f6d`](https://www.github.com/tauri-apps/tauri/commit/7f033f6dcd54c69a4193765a5c1584755ba92c61)([#8537](https://www.github.com/tauri-apps/tauri/pull/8537)) Add `Window::start_resize_dragging` and `ResizeDirection` enum.
+- [`6639a579`](https://www.github.com/tauri-apps/tauri/commit/6639a579c76d45210f33a72d37e21d4c5a9d334b)([#8441](https://www.github.com/tauri-apps/tauri/pull/8441)) Added the `WindowConfig::proxy_url` `WebviewBuilder::proxy_url() / WebviewWindowBuilder::proxy_url()` options when creating a webview.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.14`
+- Upgraded to `tauri-runtime@1.0.0-alpha.9`
+
+### Breaking Changes
+
+- [`af610232`](https://www.github.com/tauri-apps/tauri/commit/af6102327376884364b2075b468bdf08ee0d02aa)([#8710](https://www.github.com/tauri-apps/tauri/pull/8710)) `WindowDispatch::close` now triggers the `CloseRequested` flow.
+- [`9eaeb5a8`](https://www.github.com/tauri-apps/tauri/commit/9eaeb5a8cd95ae24b5e66205bdc2763cb7f965ce)([#8622](https://www.github.com/tauri-apps/tauri/pull/8622)) Changed `WindowBuilder::with_config` to take a reference to a `WindowConfig` instead of an owned value.
+
 ## \[1.0.0-alpha.9]
 
 ### New Features

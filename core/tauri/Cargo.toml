@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.0.0-alpha.21"
+version = "2.0.0-alpha.22"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -50,10 +50,10 @@ uuid = { version = "1", features = [ "v4" ], optional = true }
 url = { version = "2.4" }
 anyhow = "1.0"
 thiserror = "1.0"
-tauri-runtime = { version = "1.0.0-alpha.8", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.0-alpha.13", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-alpha.13", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "1.0.0-alpha.9", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "1.0.0-alpha.9", path = "../tauri-runtime" }
+tauri-macros = { version = "2.0.0-alpha.14", path = "../tauri-macros" }
+tauri-utils = { version = "2.0.0-alpha.14", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "1.0.0-alpha.10", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
@@ -111,8 +111,8 @@ swift-rs = "1.0.6"
 
 [build-dependencies]
 heck = "0.4"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-alpha.14" }
-tauri-utils = { path = "../tauri-utils/", version = "2.0.0-alpha.13", features = [ "build" ] }
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-alpha.15" }
+tauri-utils = { path = "../tauri-utils/", version = "2.0.0-alpha.14", features = [ "build" ] }
 
 [dev-dependencies]
 proptest = "1.4.0"
@@ -126,12 +126,7 @@ cargo_toml = "0.17"
 http-range = "0.1.5"
 
 [features]
-default = [
-  "wry",
-  "compression",
-  "objc-exception",
-  "common-controls-v6"
-]
+default = [ "wry", "compression", "objc-exception", "common-controls-v6" ]
 unstable = [ ]
 common-controls-v6 = [ "tray-icon?/common-controls-v6", "muda/common-controls-v6" ]
 tray-icon = [ "dep:tray-icon" ]

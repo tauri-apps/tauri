@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.0.0-alpha.15]
+
+### New Features
+
+- [`74a2a603`](https://www.github.com/tauri-apps/tauri/commit/74a2a6036a5e57462f161d728cbd8a6f121028ca)([#8661](https://www.github.com/tauri-apps/tauri/pull/8661)) Implement access control list for IPC usage.
+- [`a093682d`](https://www.github.com/tauri-apps/tauri/commit/a093682d2df7169b024bb4f736c7f1fd2ea8b327)([#8621](https://www.github.com/tauri-apps/tauri/pull/8621)) Added `emitTo` api to `event` module which is equivalent to the rust `emit_to` method. Also added `emitTo` method on `Window`, `Webivew` and `WebviewWindow` classes.
+- [`a2fc3a63`](https://www.github.com/tauri-apps/tauri/commit/a2fc3a63579ca739646d696870cbecbb3a169d33)([#8657](https://www.github.com/tauri-apps/tauri/pull/8657)) Add `visibleOnAllWorkspaces` option when creating the window in JS and `Window.setVisibleOnAllWorkspaces` method.
+- [`7f033f6d`](https://www.github.com/tauri-apps/tauri/commit/7f033f6dcd54c69a4193765a5c1584755ba92c61)([#8537](https://www.github.com/tauri-apps/tauri/pull/8537)) Add `Window.startResizeDragging`.
+- [`9eaeb5a8`](https://www.github.com/tauri-apps/tauri/commit/9eaeb5a8cd95ae24b5e66205bdc2763cb7f965ce)([#8622](https://www.github.com/tauri-apps/tauri/pull/8622)) Add `parent` option when creating a window.
+- [`af610232`](https://www.github.com/tauri-apps/tauri/commit/af6102327376884364b2075b468bdf08ee0d02aa)([#8710](https://www.github.com/tauri-apps/tauri/pull/8710)) Added `Window::destroy` to force close a window.
+- [`c77b4032`](https://www.github.com/tauri-apps/tauri/commit/c77b40324ea9bf580871fc11aed69ba0c9b6b8cf)([#8280](https://www.github.com/tauri-apps/tauri/pull/8280)) Added support to multiwebview via the new `window` and `webview` modules.
+
+### Breaking Changes
+
+- [`c77b4032`](https://www.github.com/tauri-apps/tauri/commit/c77b40324ea9bf580871fc11aed69ba0c9b6b8cf)([#8280](https://www.github.com/tauri-apps/tauri/pull/8280)) Removed event callback's `windowLabel`.
+- [`c77b4032`](https://www.github.com/tauri-apps/tauri/commit/c77b40324ea9bf580871fc11aed69ba0c9b6b8cf)([#8280](https://www.github.com/tauri-apps/tauri/pull/8280)) The event target is now an object so you can target either a window or a webview.
+- [`c77b4032`](https://www.github.com/tauri-apps/tauri/commit/c77b40324ea9bf580871fc11aed69ba0c9b6b8cf)([#8280](https://www.github.com/tauri-apps/tauri/pull/8280)) Moved webview-specific APIs from the `Window` class to the `Webview` class.
+- [`c77b4032`](https://www.github.com/tauri-apps/tauri/commit/c77b40324ea9bf580871fc11aed69ba0c9b6b8cf)([#8280](https://www.github.com/tauri-apps/tauri/pull/8280)) Renamed `TauriEvent.WINDOW_FILE_DROP` to `TauriEvent.WEBVIEW_FILE_DROP`, `TauriEvent.WINDOW_FILE_DROP_HOVER` to `TauriEvent.WEBVIEW_FILE_DROP_HOVER` and `TauriEvent.WINDOW_FILE_DROP_CANCELLED` to `TauriEvent.WEBVIEW_FILE_DROP_CANCELLED`.
+- [`c77b4032`](https://www.github.com/tauri-apps/tauri/commit/c77b40324ea9bf580871fc11aed69ba0c9b6b8cf)([#8280](https://www.github.com/tauri-apps/tauri/pull/8280)) Added back the `WebviewWindow` API that exposes functionality of a window that hosts a single webview. The dedicated `Window` and `Webview` types are exposed for multiwebview features.
+- [`af610232`](https://www.github.com/tauri-apps/tauri/commit/af6102327376884364b2075b468bdf08ee0d02aa)([#8710](https://www.github.com/tauri-apps/tauri/pull/8710)) `Window::close` now triggers a close requested event instead of forcing the window to be closed.
+
 ## \[2.0.0-alpha.14]
 
 ### Bug Fixes

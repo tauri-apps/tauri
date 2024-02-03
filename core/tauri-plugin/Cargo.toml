@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin"
-version = "1.0.0"
+version = "2.0.0-alpha.0"
 authors = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
@@ -8,6 +8,11 @@ categories = { workspace = true }
 license = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
+
+[package.metadata.docs.rs]
+features = [ "build", "runtime" ]
+rustc-args = [ "--cfg", "docsrs" ]
+rustdoc-args = [ "--cfg", "docsrs" ]
 
 [features]
 build = [
@@ -17,14 +22,14 @@ build = [
   "dep:glob",
   "dep:toml",
   "dep:plist",
-  "dep:walkdir",
+  "dep:walkdir"
 ]
-runtime = []
+runtime = [ ]
 
 [dependencies]
 anyhow = { version = "1", optional = true }
 serde = { version = "1", optional = true }
-tauri-utils = { version = "2.0.0-alpha.13", default-features = false, path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-alpha.14", default-features = false, path = "../tauri-utils" }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 toml = { version = "0.8", optional = true }
@@ -33,8 +38,3 @@ walkdir = { version = "1", optional = true }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = { version = "1", optional = true }
-
-[package.metadata.docs.rs]
-features = ["build", "runtime"]
-rustc-args = ["--cfg", "docsrs"]
-rustdoc-args = ["--cfg", "docsrs"]

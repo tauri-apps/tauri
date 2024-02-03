@@ -421,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-driver"
-version = "0.1.3"
+version = "0.1.4-alpha.0"
 dependencies = [
  "anyhow",
  "futures",

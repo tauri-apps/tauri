@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.1.4-alpha.0]
+
+### New Features
+
+- [`435d7513`](https://www.github.com/tauri-apps/tauri/commit/435d7513e45eab8b512e9a7e695a1adef8a98a46)([#8609](https://www.github.com/tauri-apps/tauri/pull/8609)) Added `webviewOptions` object to the `tauri:options` capability to configure the [Edge webview options](https://learn.microsoft.com/en-us/microsoft-edge/webdriver-chromium/capabilities-edge-options#webviewoptions-object) on Windows.
+
 ## \[0.1.3]
 
 ### What's Changed

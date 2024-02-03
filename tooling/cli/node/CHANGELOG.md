@@ -20,7 +20,7 @@
 
 ### Dependencies
 
-- Upgraded to `tauri-cli@2.0.0-alpha.22`
+- Upgraded to `tauri-cli@2.0.0-beta.0`
 
 ### Breaking Changes
 

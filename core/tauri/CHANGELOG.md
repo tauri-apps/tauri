@@ -30,11 +30,11 @@
 
 ### Dependencies
 
-- Upgraded to `tauri-build@2.0.0-alpha.15`
-- Upgraded to `tauri-utils@2.0.0-alpha.14`
-- Upgraded to `tauri-macros@2.0.0-alpha.14`
-- Upgraded to `tauri-runtime@1.0.0-alpha.9`
-- Upgraded to `tauri-runtime-wry@1.0.0-alpha.10`
+- Upgraded to `tauri-build@22.0.0-beta.0`
+- Upgraded to `tauri-utils@2.0.0-beta.0`
+- Upgraded to `tauri-macros@2.0.0-beta.0`
+- Upgraded to `tauri-runtime@2.0.0-beta.0`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.0`
 
 ### Breaking Changes
 

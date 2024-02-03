@@ -9,7 +9,7 @@
 
 ### Dependencies
 
-- Upgraded to `tauri-utils@2.0.0-alpha.14`
+- Upgraded to `tauri-utils@2.0.0-beta.0`
 
 ### Breaking Changes
 

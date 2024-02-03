@@ -66,6 +66,7 @@ jobs:
 
       # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
       - name: Restore Android Symlinks
+        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'macos-latest'
         run: |
           directory="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
           find "$directory" -type l | while read link; do

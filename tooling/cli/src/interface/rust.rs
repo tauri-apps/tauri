@@ -692,11 +692,7 @@ enum DesktopDeepLinks {
 }
 
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct UpdaterConfig {
-  /// Whether the updater is active or not.
-  #[serde(default)]
-  pub active: bool,
   /// Signature public key.
   pub pubkey: String,
   /// The Windows configuration for the updater.

@@ -4,7 +4,7 @@
 
 const fixtureSetup = require('../fixtures/app-test-setup.js')
 const { resolve } = require('path')
-const { existsSync, readFileSync, writeFileSync } = require('fs')
+const { existsSync, readFileSync, writeFileSync, rmSync } = require('fs')
 const { move } = require('fs-extra')
 const cli = require('~/main.js')
 
@@ -24,6 +24,9 @@ describe('[CLI] @tauri-apps/cli template', () => {
 
     const outExists = existsSync(outPath)
     if (outExists) {
+      if (existsSync(cacheOutPath)) {
+        rmSync(cacheOutPath, { recursive: true, force: true })
+      }
       await move(outPath, cacheOutPath)
     }
 

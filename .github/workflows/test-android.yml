@@ -64,6 +64,18 @@ jobs:
           ndk-version: r25b
           local-cache: true
 
+      # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
+      - name: Restore Android Symlinks
+        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'macos-latest'
+        run: |
+          directory="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          find "$directory" -type l | while read link; do
+              current_target=$(readlink "$link")
+              new_target="$directory/$(basename "$current_target")"
+              ln -sf "$new_target" "$link"
+              echo "Changed $(basename "$link") from $current_target to $new_target"
+          done
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |

@@ -157,30 +157,34 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     options = options.with_csp();
   }
 
-  let assets = match &config.build.frontend_dist {
-    Some(url) => match url {
-      FrontendDist::Url(_url) => Default::default(),
-      FrontendDist::Dist(path) => {
-        let assets_path = config_parent.join(path);
-        if !assets_path.exists() {
-          panic!(
-            "The `frontendDist` configuration is set to `{:?}` but this path doesn't exist",
-            path
-          )
+  let assets = if dev && config.build.dev_url.is_some() {
+    Default::default()
+  } else {
+    match &config.build.frontend_dist {
+      Some(url) => match url {
+        FrontendDist::Url(_url) => Default::default(),
+        FrontendDist::Dist(path) => {
+          let assets_path = config_parent.join(path);
+          if !assets_path.exists() {
+            panic!(
+              "The `frontendDist` configuration is set to `{:?}` but this path doesn't exist",
+              path
+            )
+          }
+          EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
         }
-        EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
-      }
-      FrontendDist::Files(files) => EmbeddedAssets::new(
-        files
-          .iter()
-          .map(|p| config_parent.join(p))
-          .collect::<Vec<_>>(),
-        &options,
-        map_core_assets(&options, target),
-      )?,
-      _ => unimplemented!(),
-    },
-    None => Default::default(),
+        FrontendDist::Files(files) => EmbeddedAssets::new(
+          files
+            .iter()
+            .map(|p| config_parent.join(p))
+            .collect::<Vec<_>>(),
+          &options,
+          map_core_assets(&options, target),
+        )?,
+        _ => unimplemented!(),
+      },
+      None => Default::default(),
+    }
   };
 
   let out_dir = {

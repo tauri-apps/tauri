@@ -99,7 +99,16 @@ fn command_internal(mut options: Options) -> Result<()> {
     .as_deref()
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
-  let mut interface = setup(target, &mut options, false)?;
+
+  let config = get_config(target, options.config.as_deref())?;
+
+  let mut interface = AppInterface::new(
+    config.lock().unwrap().as_ref().unwrap(),
+    options.target.clone(),
+  )?;
+
+  setup(target, &interface, &mut options, false)?;
+
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
   interface.dev(options.into(), move |status, reason| {
@@ -150,7 +159,12 @@ pub fn local_ip_address(force: bool) -> &'static IpAddr {
   })
 }
 
-pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppInterface> {
+pub fn setup(
+  target: Target,
+  interface: &AppInterface,
+  options: &mut Options,
+  mobile: bool,
+) -> Result<()> {
   let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
@@ -158,11 +172,6 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
 
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
-
-  let interface = AppInterface::new(
-    config.lock().unwrap().as_ref().unwrap(),
-    options.target.clone(),
-  )?;
 
   let mut dev_url = config
     .lock()
@@ -397,7 +406,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     }
   }
 
-  Ok(interface)
+  Ok(())
 }
 
 pub fn wait_dev_process<

@@ -412,6 +412,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
+  #[cfg(feature = "config-json")]
   println!("cargo:rerun-if-changed=tauri.conf.json");
   #[cfg(feature = "config-json5")]
   println!("cargo:rerun-if-changed=tauri.conf.json5");

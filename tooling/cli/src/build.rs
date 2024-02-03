@@ -76,9 +76,15 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let mut interface = setup(target, &mut options, false)?;
-
   let config = get_config(target, options.config.as_deref())?;
+
+  let mut interface = AppInterface::new(
+    config.lock().unwrap().as_ref().unwrap(),
+    options.target.clone(),
+  )?;
+
+  setup(target, &interface, &mut options, false)?;
+
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
@@ -257,7 +263,12 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   Ok(())
 }
 
-pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppInterface> {
+pub fn setup(
+  target: Target,
+  interface: &AppInterface,
+  options: &mut Options,
+  mobile: bool,
+) -> Result<()> {
   let (merge_config, merge_config_path) = resolve_merge_config(&options.config)?;
   options.config = merge_config;
 
@@ -268,8 +279,6 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
-
-  let interface = AppInterface::new(config_, options.target.clone())?;
 
   let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
     Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => merge_config_path.unwrap_or(source),
@@ -299,12 +308,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
   }
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
-    run_hook(
-      "beforeBuildCommand",
-      before_build,
-      &interface,
-      options.debug,
-    )?;
+    run_hook("beforeBuildCommand", before_build, interface, options.debug)?;
   }
 
   if let Some(FrontendDist::Dist(web_asset_path)) = &config_.build.frontend_dist {
@@ -346,7 +350,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     .extend(config_.build.features.clone().unwrap_or_default());
   interface.build_options(&mut options.args, &mut options.features, mobile);
 
-  Ok(interface)
+  Ok(())
 }
 
 fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool) -> Result<()> {

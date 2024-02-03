@@ -17,7 +17,7 @@ use crate::platform::Target;
 use super::{
   capability::{Capability, CapabilityContext, PermissionEntry},
   plugin::Manifest,
-  Error, ExecutionContext, Permission, PermissionSet, Scopes, Value,
+  Commands, Error, ExecutionContext, Permission, PermissionSet, Scopes, Value,
 };
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
@@ -127,70 +127,85 @@ impl Resolved {
         if let Some(plugin_name) = permission_id.get_prefix() {
           let permissions = get_permissions(plugin_name, permission_name, &acl)?;
 
+          let mut resolved_scope = Scopes::default();
+          let mut commands = Commands::default();
+
+          if let PermissionEntry::ExtendedPermission {
+            identifier: _,
+            scope,
+          } = permission_entry
+          {
+            if let Some(allow) = scope.allow.clone() {
+              resolved_scope
+                .allow
+                .get_or_insert_with(Default::default)
+                .extend(allow);
+            }
+            if let Some(deny) = scope.deny.clone() {
+              resolved_scope
+                .deny
+                .get_or_insert_with(Default::default)
+                .extend(deny);
+            }
+          }
+
           for permission in permissions {
-            let scope = match permission_entry {
-              PermissionEntry::PermissionRef(_) => permission.scope.clone(),
-              PermissionEntry::ExtendedPermission {
-                identifier: _,
-                scope,
-              } => {
-                let mut merged = permission.scope.clone();
-                if let Some(allow) = scope.allow.clone() {
-                  merged
-                    .allow
-                    .get_or_insert_with(Default::default)
-                    .extend(allow);
-                }
-                if let Some(deny) = scope.deny.clone() {
-                  merged
-                    .deny
-                    .get_or_insert_with(Default::default)
-                    .extend(deny);
-                }
-                merged
-              }
+            if let Some(allow) = permission.scope.allow.clone() {
+              resolved_scope
+                .allow
+                .get_or_insert_with(Default::default)
+                .extend(allow);
+            }
+            if let Some(deny) = permission.scope.deny.clone() {
+              resolved_scope
+                .deny
+                .get_or_insert_with(Default::default)
+                .extend(deny);
+            }
+
+            commands.allow.extend(permission.commands.allow.clone());
+            commands.deny.extend(permission.commands.deny.clone());
+          }
+
+          if commands.allow.is_empty() && commands.deny.is_empty() {
+            // global scope
+            global_scope
+              .entry(plugin_name.to_string())
+              .or_default()
+              .push(resolved_scope);
+          } else {
+            let has_scope = resolved_scope.allow.is_some() || resolved_scope.deny.is_some();
+            if has_scope {
+              current_scope_id += 1;
+              command_scopes.insert(current_scope_id, resolved_scope);
+            }
+
+            let scope_id = if has_scope {
+              Some(current_scope_id)
+            } else {
+              None
             };
 
-            if permission.commands.allow.is_empty() && permission.commands.deny.is_empty() {
-              // global scope
-              global_scope
-                .entry(plugin_name.to_string())
-                .or_default()
-                .push(scope.clone());
-            } else {
-              let has_scope = scope.allow.is_some() || scope.deny.is_some();
-              if has_scope {
-                current_scope_id += 1;
-                command_scopes.insert(current_scope_id, scope.clone());
-              }
+            for allowed_command in &commands.allow {
+              resolve_command(
+                &mut allowed_commands,
+                format!("plugin:{plugin_name}|{allowed_command}"),
+                capability,
+                scope_id,
+                #[cfg(debug_assertions)]
+                permission_name.to_string(),
+              );
+            }
 
-              let scope_id = if has_scope {
-                Some(current_scope_id)
-              } else {
-                None
-              };
-
-              for allowed_command in &permission.commands.allow {
-                resolve_command(
-                  &mut allowed_commands,
-                  format!("plugin:{plugin_name}|{allowed_command}"),
-                  capability,
-                  scope_id,
-                  #[cfg(debug_assertions)]
-                  permission,
-                );
-              }
-
-              for denied_command in &permission.commands.deny {
-                resolve_command(
-                  &mut denied_commands,
-                  format!("plugin:{plugin_name}|{denied_command}"),
-                  capability,
-                  scope_id,
-                  #[cfg(debug_assertions)]
-                  permission,
-                );
-              }
+            for denied_command in &commands.deny {
+              resolve_command(
+                &mut denied_commands,
+                format!("plugin:{plugin_name}|{denied_command}"),
+                capability,
+                scope_id,
+                #[cfg(debug_assertions)]
+                permission_name.to_string(),
+              );
             }
           }
         }
@@ -306,7 +321,7 @@ fn resolve_command(
   command: String,
   capability: &Capability,
   scope_id: Option<ScopeKey>,
-  #[cfg(debug_assertions)] permission: &Permission,
+  #[cfg(debug_assertions)] referenced_by_permission_identifier: String,
 ) {
   let contexts = match &capability.context {
     CapabilityContext::Local => {
@@ -332,7 +347,7 @@ fn resolve_command(
     #[cfg(debug_assertions)]
     resolved.referenced_by.push(ResolvedCommandReference {
       capability: capability.identifier.clone(),
-      permission: permission.identifier.clone(),
+      permission: referenced_by_permission_identifier.clone(),
     });
 
     resolved.windows.extend(capability.windows.clone());

@@ -7,4 +7,5 @@ permissions = [
   "fs:deny-home",
   "fs:allow-read-resources",
   "fs:allow-move-temp",
+  "fs:read-download-dir"
 ]

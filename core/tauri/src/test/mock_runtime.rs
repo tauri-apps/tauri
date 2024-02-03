@@ -120,6 +120,15 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     EventProxy {}
   }
 
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activation_policy(
+    &self,
+    activation_policy: tauri_runtime::ActivationPolicy,
+  ) -> Result<()> {
+    Ok(())
+  }
+
   fn request_exit(&self, code: i32) -> Result<()> {
     unimplemented!()
   }

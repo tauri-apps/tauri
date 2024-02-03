@@ -272,7 +272,7 @@ fn read_options(identifier: &str) -> CliOptions {
   options
 }
 
-pub fn get_app(config: &TauriConfig) -> App {
+pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
   let mut s = config.tauri.bundle.identifier.rsplit('.');
   let app_name = s.next().unwrap_or("app").to_string();
   let mut domain = String::new();
@@ -292,13 +292,6 @@ pub fn get_app(config: &TauriConfig) -> App {
     domain.pop();
   }
 
-  let interface = AppInterface::new(
-    config,
-    // the target triple is not relevant
-    Some("".into()),
-  )
-  .expect("failed to load interface");
-
   let app_name = interface.app_settings().app_name().unwrap_or(app_name);
   let lib_name = interface
     .app_settings()
@@ -313,11 +306,12 @@ pub fn get_app(config: &TauriConfig) -> App {
     asset_dir: None,
     template_pack: None,
   };
+
+  let app_settings = interface.app_settings();
   App::from_raw(tauri_dir(), raw)
     .unwrap()
     .with_target_dir_resolver(move |target, profile| {
-      let bin_path = interface
-        .app_settings()
+      let bin_path = app_settings
         .app_binary_path(&InterfaceOptions {
           debug: matches!(profile, Profile::Debug),
           target: Some(target.into()),

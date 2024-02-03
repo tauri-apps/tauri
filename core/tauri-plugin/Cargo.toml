@@ -1,6 +1,7 @@
 [package]
 name = "tauri-plugin"
 version = "2.0.0-beta.0"
+description = "Build script and runtime Tauri plugin definitions"
 authors = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }

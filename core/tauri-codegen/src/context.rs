@@ -163,7 +163,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     match &config.build.frontend_dist {
       Some(url) => match url {
         FrontendDist::Url(_url) => Default::default(),
-        FrontendDist::Dir(path) => {
+        FrontendDist::Directory(path) => {
           let assets_path = config_parent.join(path);
           if !assets_path.exists() {
             panic!(

@@ -1,4 +1,6 @@
 {
   "tag": "beta",
-  "changes": []
+  "changes": [
+    ".changes/beta.md"
+  ]
 }

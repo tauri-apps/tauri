@@ -2336,7 +2336,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "2.0.0-alpha.3"
+version = "2.0.0-beta.0"
 dependencies = [
  "anyhow",
  "attohttpc",
@@ -2385,7 +2385,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-alpha.1"
+version = "2.0.0-beta.0"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -2403,7 +2403,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-alpha.1"
+version = "2.0.0-beta.0"
 dependencies = [
  "base64 0.21.0",
  "brotli",
@@ -2427,7 +2427,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-alpha.1"
+version = "2.0.0-beta.0"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -2487,7 +2487,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-alpha.1"
+version = "2.0.0-beta.0"
 dependencies = [
  "brotli",
  "ctor",

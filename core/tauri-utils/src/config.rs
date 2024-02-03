@@ -1709,7 +1709,7 @@ pub enum FrontendDist {
   /// An external URL that should be used as the default application URL.
   Url(Url),
   /// Path to a directory containing the frontend dist assets.
-  Dist(PathBuf),
+  Directory(PathBuf),
   /// An array of files to embed on the app.
   Files(Vec<PathBuf>),
 }
@@ -1718,7 +1718,7 @@ impl std::fmt::Display for FrontendDist {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::Url(url) => write!(f, "{url}"),
-      Self::Dist(p) => write!(f, "{}", p.display()),
+      Self::Directory(p) => write!(f, "{}", p.display()),
       Self::Files(files) => write!(f, "{}", serde_json::to_string(files).unwrap()),
     }
   }
@@ -2340,9 +2340,9 @@ mod build {
           let url = url_lit(url);
           quote! { #prefix::Url(#url) }
         }
-        Self::Dist(path) => {
+        Self::Directory(path) => {
           let path = path_buf_lit(path);
-          quote! { #prefix::Dist(#path) }
+          quote! { #prefix::Directory(#path) }
         }
         Self::Files(files) => {
           let files = vec_lit(files, path_buf_lit);

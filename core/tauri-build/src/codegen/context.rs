@@ -83,7 +83,7 @@ impl CodegenContext {
 
     // rerun if changed
     match &config.build.frontend_dist {
-      Some(FrontendDist::Dist(p)) => {
+      Some(FrontendDist::Directory(p)) => {
         println!("cargo:rerun-if-changed={}", config_parent.join(p).display());
       }
       Some(FrontendDist::Files(files)) => {

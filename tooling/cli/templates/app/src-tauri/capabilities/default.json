@@ -11,6 +11,6 @@
     "app:default",
     "resources:default",
     "menu:default",
-    "tray:default",
+    "tray:default"
   ]
 }

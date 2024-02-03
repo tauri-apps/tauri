@@ -295,7 +295,7 @@ impl<R: Runtime> AppManager<R> {
   /// * Otherwise, this will be based on the `frontendDist` configuration value.
   #[cfg(not(dev))]
   fn base_path(&self) -> Option<&Url> {
-    use crate::{utils::config::FrontendDist, WebviewUrl};
+    use crate::utils::config::FrontendDist;
     match self.config.build.frontend_dist.as_ref() {
       Some(FrontendDist::Url(url)) => Some(url),
       _ => None,

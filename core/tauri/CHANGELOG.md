@@ -358,7 +358,7 @@
 
   - All menu and tray types are now exported from `tauri::menu` and `tauri::tray` modules with new names so make sure to check the new types.
   - Removed `tauri::Builder::system_tray`, instead you should use `tauri::tray::TrayIconBuilder` inside `tauri::Builder::setup` hook to create your tray icons.
-  - Changed `tauri::Builder::menu` to be a function to accomodate for new menu changes, you can passe `tauri::menu::Menu::default` to it to create a default menu.
+  - Changed `tauri::Builder::menu` to be a function to accommodate for new menu changes, you can passe `tauri::menu::Menu::default` to it to create a default menu.
   - Renamed `tauri::Context` methods `system_tray_icon`, `tauri::Context::system_tray_icon_mut` and `tauri::Context::set_system_tray_icon` to `tauri::Context::tray_icon`, `tauri::Context::tray_icon_mut` and `tauri::Context::set_tray_icon` to be consistent with new type names.
   - Added `RunEvent::MenuEvent` and `RunEvent::TrayIconEvent`.
   - Added `App/AppHandle::set_menu`, `App/AppHandle::remove_menu`, `App/AppHandle::show_menu`, `App/AppHandle::hide_menu` and `App/AppHandle::menu` to access, remove, hide or show the app-wide menu that is used as the global menu on macOS and on all windows that don't have a specific menu set for it on Windows and Linux.

@@ -14,3 +14,4 @@ CHANGELOG.md
 *.wxs
 **/reference.md
 *schema.json
+core/tauri/scripts/process-ipc-message-fn.js

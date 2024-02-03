@@ -3,3 +3,4 @@
 .DS_Store
 gen/
 .cargo
+dist/

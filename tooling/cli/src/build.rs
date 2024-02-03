@@ -54,7 +54,7 @@ pub struct Options {
   /// If `none` is specified, the bundler will be skipped.
   ///
   /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]

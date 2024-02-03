@@ -1,6 +1,6 @@
 # Changelog
 
-## \[2.0.0-alpha.15]
+## \[2.0.0-beta.0]
 
 ### Enhancements
 

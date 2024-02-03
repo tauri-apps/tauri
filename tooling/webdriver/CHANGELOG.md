@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.1.4-alpha.0]
+## \[0.1.4]
 
 ### New Features
 

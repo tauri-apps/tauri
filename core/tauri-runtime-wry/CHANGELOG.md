@@ -1,6 +1,6 @@
 # Changelog
 
-## \[1.0.0-alpha.10]
+## \[2.0.0-beta.0]
 
 ### New Features
 

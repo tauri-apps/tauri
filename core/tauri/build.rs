@@ -5,6 +5,7 @@
 use heck::AsShoutySnakeCase;
 
 use std::env::var_os;
+use std::fs::create_dir_all;
 use std::fs::read_dir;
 use std::fs::read_to_string;
 use std::fs::write;
@@ -347,7 +348,7 @@ permissions = [{default_permissions}]
         .unwrap_or_else(|_| panic!("unable to autogenerate default permissions"));
     }
 
-    tauri_utils::acl::build::define_permissions(
+    let permissions = tauri_utils::acl::build::define_permissions(
       &permissions_out_dir
         .join("**")
         .join("*.toml")
@@ -356,6 +357,11 @@ permissions = [{default_permissions}]
       out_dir,
     )
     .unwrap_or_else(|e| panic!("failed to define permissions for {plugin}: {e}"));
+
+    let docs_out_dir = Path::new("permissions").join(plugin);
+    create_dir_all(&docs_out_dir).expect("failed to create plugin documentation directory");
+    tauri_utils::acl::build::generate_docs(&permissions, &docs_out_dir)
+      .expect("failed to generate plugin documentation page");
   }
 }
 

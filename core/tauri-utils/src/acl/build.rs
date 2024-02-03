@@ -259,6 +259,46 @@ pub fn generate_schema<P: AsRef<Path>>(
   Ok(())
 }
 
+/// Generate a markdown documentation page containing the list of permissions of the plugin.
+pub fn generate_docs(permissions: &[PermissionFile], out_dir: &Path) -> Result<(), Error> {
+  let mut docs = "# Permissions\n\n".to_string();
+
+  fn docs_from(id: &str, description: Option<&str>) -> String {
+    let mut docs = format!("## {id}");
+    if let Some(d) = description {
+      docs.push_str(&format!("\n\n{d}"));
+    }
+    docs
+  }
+
+  for permission in permissions {
+    for set in &permission.set {
+      docs.push_str(&docs_from(&set.identifier, Some(&set.description)));
+      docs.push_str("\n\n");
+    }
+
+    if let Some(default) = &permission.default {
+      docs.push_str(&docs_from("default", default.description.as_deref()));
+      docs.push_str("\n\n");
+    }
+
+    for permission in &permission.permission {
+      docs.push_str(&docs_from(
+        &permission.identifier,
+        permission.description.as_deref(),
+      ));
+      docs.push_str("\n\n");
+    }
+  }
+
+  let reference_path = out_dir.join("reference.md");
+  if docs != read_to_string(&reference_path).unwrap_or_default() {
+    std::fs::write(reference_path, docs).map_err(Error::WriteFile)?;
+  }
+
+  Ok(())
+}
+
 /// Read all permissions listed from the defined cargo cfg key value.
 pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error> {
   let mut permissions_map = HashMap::new();

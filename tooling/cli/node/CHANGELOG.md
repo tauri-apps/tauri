@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.1]
+
+### Enhancements
+
+- [`4e101f80`](https://www.github.com/tauri-apps/tauri/commit/4e101f801657e7d01ce8c22f9c6468067d0caab2)([#8756](https://www.github.com/tauri-apps/tauri/pull/8756)) Moved the capability JSON schema to the `src-tauri/gen` folder so it's easier to track changes on the `capabilities` folder.
+- [`4e101f80`](https://www.github.com/tauri-apps/tauri/commit/4e101f801657e7d01ce8c22f9c6468067d0caab2)([#8756](https://www.github.com/tauri-apps/tauri/pull/8756)) Update app and plugin templates following generated files change from tauri-build and tauri-plugin.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.1`
+
 ## \[2.0.0-beta.0]
 
 ### New Features

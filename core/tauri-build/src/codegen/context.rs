@@ -84,7 +84,10 @@ impl CodegenContext {
     // rerun if changed
     match &config.build.frontend_dist {
       Some(FrontendDist::Directory(p)) => {
-        println!("cargo:rerun-if-changed={}", config_parent.join(p).display());
+        let dist_path = config_parent.join(p);
+        if dist_path.exists() {
+          println!("cargo:rerun-if-changed={}", dist_path.display());
+        }
       }
       Some(FrontendDist::Files(files)) => {
         for path in files {

@@ -18,8 +18,7 @@ use base64::Engine;
 use clap::{ArgAction, Parser};
 use log::{debug, error, info, warn};
 use std::{
-  env::{set_current_dir, var_os},
-  ffi::OsString,
+  env::{set_current_dir, var},
   path::{Path, PathBuf},
   process::Command,
 };
@@ -214,21 +213,25 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
         };
 
         // if no password provided we use an empty string
-        let password = var_os("TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
-          .map(|v| v.to_str().unwrap().to_string())
-          .or_else(|| if ci { Some("".into()) } else { None });
+        let password = var("TAURI_SIGNING_PRIVATE_KEY_PASSWORD").ok().or_else(|| {
+          if ci {
+            Some("".into())
+          } else {
+            None
+          }
+        });
 
         // get the private key
-        let secret_key = match var_os("TAURI_SIGNING_PRIVATE_KEY") {
-        Some(private_key) => {
+        let secret_key = match var("TAURI_SIGNING_PRIVATE_KEY") {
+        Ok(private_key) => {
           // check if private_key points to a file...
           let maybe_path = Path::new(&private_key);
           let private_key = if maybe_path.exists() {
-            OsString::from(std::fs::read_to_string(maybe_path)?)
+            std::fs::read_to_string(maybe_path)?
           } else {
             private_key
           };
-          updater_secret_key(private_key.as_encoded_bytes(), password)
+          updater_secret_key(private_key, password)
         }
         _ => Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")),
       }?;

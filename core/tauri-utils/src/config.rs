@@ -1905,10 +1905,10 @@ where
 ///
 /// The configuration is composed of the following objects:
 ///
-/// - [`package`](#packageconfig): Package settings
-/// - [`app`](#appconfig): The Tauri config
+/// - [`app`](#appconfig): The Tauri configuration
 /// - [`build`](#buildconfig): The build configuration
-/// - [`plugins`](#pluginconfig): The plugins config
+/// - [`bundle`](#bundleconfig): The bundle configurations
+/// - [`plugins`](#pluginconfig): The plugins configuration
 ///
 /// ```json title="Example tauri.config.json file"
 /// {
@@ -1934,7 +1934,8 @@ where
 ///       }
 ///     ]
 ///   },
-///   "bundle": {}
+///   "bundle": {},
+///   "plugins": {}
 /// }
 /// ```
 #[skip_serializing_none]

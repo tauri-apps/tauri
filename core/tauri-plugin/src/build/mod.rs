@@ -98,6 +98,7 @@ impl<'a> Builder<'a> {
       acl::build::autogenerate_command_permissions(&commands_dir, self.commands, "");
     }
 
+    println!("cargo:rerun-if-changed=permissions");
     let permissions = acl::build::define_permissions("./permissions/**/*.*", &name, &out_dir)?;
 
     acl::build::generate_schema(&permissions, "./permissions")?;

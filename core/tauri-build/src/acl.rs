@@ -23,7 +23,7 @@ use tauri_utils::{
 
 const CAPABILITIES_SCHEMA_FILE_NAME: &str = "schema.json";
 /// Path of the folder where schemas are saved.
-const CAPABILITIES_SCHEMA_FOLDER_PATH: &str = "capabilities/schemas";
+const CAPABILITIES_SCHEMA_FOLDER_PATH: &str = "gen/schemas";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 const PLUGIN_MANIFESTS_FILE_NAME: &str = "plugin-manifests.json";
 

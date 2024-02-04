@@ -28,10 +28,6 @@ pub enum Error {
   #[error("expected build script env var {0}, but it was not found - ensure this is called in a build script")]
   BuildVar(&'static str),
 
-  /// Plugin name doesn't follow Tauri standards
-  #[error("plugin names cannot contain underscores")]
-  CrateName,
-
   /// The links field in the manifest **MUST** be set and match the name of the crate.
   #[error("package.links field in the Cargo manifest is not set, it should be set to the same as package.name")]
   LinksMissing,

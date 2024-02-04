@@ -37,6 +37,9 @@ pub mod resources;
 #[cfg(feature = "build")]
 pub mod tokens;
 
+#[cfg(feature = "build")]
+pub mod build;
+
 /// Application pattern.
 pub mod pattern;
 

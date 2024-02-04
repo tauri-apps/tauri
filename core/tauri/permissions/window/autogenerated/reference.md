@@ -1,0 +1,502 @@
+# Permissions
+
+## allow-available-monitors
+
+Enables the available_monitors command without any pre-configured scope.
+
+## deny-available-monitors
+
+Denies the available_monitors command without any pre-configured scope.
+
+## allow-center
+
+Enables the center command without any pre-configured scope.
+
+## deny-center
+
+Denies the center command without any pre-configured scope.
+
+## allow-close
+
+Enables the close command without any pre-configured scope.
+
+## deny-close
+
+Denies the close command without any pre-configured scope.
+
+## allow-create
+
+Enables the create command without any pre-configured scope.
+
+## deny-create
+
+Denies the create command without any pre-configured scope.
+
+## allow-current-monitor
+
+Enables the current_monitor command without any pre-configured scope.
+
+## deny-current-monitor
+
+Denies the current_monitor command without any pre-configured scope.
+
+## allow-destroy
+
+Enables the destroy command without any pre-configured scope.
+
+## deny-destroy
+
+Denies the destroy command without any pre-configured scope.
+
+## allow-hide
+
+Enables the hide command without any pre-configured scope.
+
+## deny-hide
+
+Denies the hide command without any pre-configured scope.
+
+## allow-inner-position
+
+Enables the inner_position command without any pre-configured scope.
+
+## deny-inner-position
+
+Denies the inner_position command without any pre-configured scope.
+
+## allow-inner-size
+
+Enables the inner_size command without any pre-configured scope.
+
+## deny-inner-size
+
+Denies the inner_size command without any pre-configured scope.
+
+## allow-internal-on-mousedown
+
+Enables the internal_on_mousedown command without any pre-configured scope.
+
+## deny-internal-on-mousedown
+
+Denies the internal_on_mousedown command without any pre-configured scope.
+
+## allow-internal-on-mousemove
+
+Enables the internal_on_mousemove command without any pre-configured scope.
+
+## deny-internal-on-mousemove
+
+Denies the internal_on_mousemove command without any pre-configured scope.
+
+## allow-internal-toggle-maximize
+
+Enables the internal_toggle_maximize command without any pre-configured scope.
+
+## deny-internal-toggle-maximize
+
+Denies the internal_toggle_maximize command without any pre-configured scope.
+
+## allow-is-closable
+
+Enables the is_closable command without any pre-configured scope.
+
+## deny-is-closable
+
+Denies the is_closable command without any pre-configured scope.
+
+## allow-is-decorated
+
+Enables the is_decorated command without any pre-configured scope.
+
+## deny-is-decorated
+
+Denies the is_decorated command without any pre-configured scope.
+
+## allow-is-focused
+
+Enables the is_focused command without any pre-configured scope.
+
+## deny-is-focused
+
+Denies the is_focused command without any pre-configured scope.
+
+## allow-is-fullscreen
+
+Enables the is_fullscreen command without any pre-configured scope.
+
+## deny-is-fullscreen
+
+Denies the is_fullscreen command without any pre-configured scope.
+
+## allow-is-maximizable
+
+Enables the is_maximizable command without any pre-configured scope.
+
+## deny-is-maximizable
+
+Denies the is_maximizable command without any pre-configured scope.
+
+## allow-is-maximized
+
+Enables the is_maximized command without any pre-configured scope.
+
+## deny-is-maximized
+
+Denies the is_maximized command without any pre-configured scope.
+
+## allow-is-minimizable
+
+Enables the is_minimizable command without any pre-configured scope.
+
+## deny-is-minimizable
+
+Denies the is_minimizable command without any pre-configured scope.
+
+## allow-is-minimized
+
+Enables the is_minimized command without any pre-configured scope.
+
+## deny-is-minimized
+
+Denies the is_minimized command without any pre-configured scope.
+
+## allow-is-resizable
+
+Enables the is_resizable command without any pre-configured scope.
+
+## deny-is-resizable
+
+Denies the is_resizable command without any pre-configured scope.
+
+## allow-is-visible
+
+Enables the is_visible command without any pre-configured scope.
+
+## deny-is-visible
+
+Denies the is_visible command without any pre-configured scope.
+
+## allow-maximize
+
+Enables the maximize command without any pre-configured scope.
+
+## deny-maximize
+
+Denies the maximize command without any pre-configured scope.
+
+## allow-minimize
+
+Enables the minimize command without any pre-configured scope.
+
+## deny-minimize
+
+Denies the minimize command without any pre-configured scope.
+
+## allow-outer-position
+
+Enables the outer_position command without any pre-configured scope.
+
+## deny-outer-position
+
+Denies the outer_position command without any pre-configured scope.
+
+## allow-outer-size
+
+Enables the outer_size command without any pre-configured scope.
+
+## deny-outer-size
+
+Denies the outer_size command without any pre-configured scope.
+
+## allow-primary-monitor
+
+Enables the primary_monitor command without any pre-configured scope.
+
+## deny-primary-monitor
+
+Denies the primary_monitor command without any pre-configured scope.
+
+## allow-request-user-attention
+
+Enables the request_user_attention command without any pre-configured scope.
+
+## deny-request-user-attention
+
+Denies the request_user_attention command without any pre-configured scope.
+
+## allow-scale-factor
+
+Enables the scale_factor command without any pre-configured scope.
+
+## deny-scale-factor
+
+Denies the scale_factor command without any pre-configured scope.
+
+## allow-set-always-on-bottom
+
+Enables the set_always_on_bottom command without any pre-configured scope.
+
+## deny-set-always-on-bottom
+
+Denies the set_always_on_bottom command without any pre-configured scope.
+
+## allow-set-always-on-top
+
+Enables the set_always_on_top command without any pre-configured scope.
+
+## deny-set-always-on-top
+
+Denies the set_always_on_top command without any pre-configured scope.
+
+## allow-set-closable
+
+Enables the set_closable command without any pre-configured scope.
+
+## deny-set-closable
+
+Denies the set_closable command without any pre-configured scope.
+
+## allow-set-content-protected
+
+Enables the set_content_protected command without any pre-configured scope.
+
+## deny-set-content-protected
+
+Denies the set_content_protected command without any pre-configured scope.
+
+## allow-set-cursor-grab
+
+Enables the set_cursor_grab command without any pre-configured scope.
+
+## deny-set-cursor-grab
+
+Denies the set_cursor_grab command without any pre-configured scope.
+
+## allow-set-cursor-icon
+
+Enables the set_cursor_icon command without any pre-configured scope.
+
+## deny-set-cursor-icon
+
+Denies the set_cursor_icon command without any pre-configured scope.
+
+## allow-set-cursor-position
+
+Enables the set_cursor_position command without any pre-configured scope.
+
+## deny-set-cursor-position
+
+Denies the set_cursor_position command without any pre-configured scope.
+
+## allow-set-cursor-visible
+
+Enables the set_cursor_visible command without any pre-configured scope.
+
+## deny-set-cursor-visible
+
+Denies the set_cursor_visible command without any pre-configured scope.
+
+## allow-set-decorations
+
+Enables the set_decorations command without any pre-configured scope.
+
+## deny-set-decorations
+
+Denies the set_decorations command without any pre-configured scope.
+
+## allow-set-effects
+
+Enables the set_effects command without any pre-configured scope.
+
+## deny-set-effects
+
+Denies the set_effects command without any pre-configured scope.
+
+## allow-set-focus
+
+Enables the set_focus command without any pre-configured scope.
+
+## deny-set-focus
+
+Denies the set_focus command without any pre-configured scope.
+
+## allow-set-fullscreen
+
+Enables the set_fullscreen command without any pre-configured scope.
+
+## deny-set-fullscreen
+
+Denies the set_fullscreen command without any pre-configured scope.
+
+## allow-set-icon
+
+Enables the set_icon command without any pre-configured scope.
+
+## deny-set-icon
+
+Denies the set_icon command without any pre-configured scope.
+
+## allow-set-ignore-cursor-events
+
+Enables the set_ignore_cursor_events command without any pre-configured scope.
+
+## deny-set-ignore-cursor-events
+
+Denies the set_ignore_cursor_events command without any pre-configured scope.
+
+## allow-set-max-size
+
+Enables the set_max_size command without any pre-configured scope.
+
+## deny-set-max-size
+
+Denies the set_max_size command without any pre-configured scope.
+
+## allow-set-maximizable
+
+Enables the set_maximizable command without any pre-configured scope.
+
+## deny-set-maximizable
+
+Denies the set_maximizable command without any pre-configured scope.
+
+## allow-set-min-size
+
+Enables the set_min_size command without any pre-configured scope.
+
+## deny-set-min-size
+
+Denies the set_min_size command without any pre-configured scope.
+
+## allow-set-minimizable
+
+Enables the set_minimizable command without any pre-configured scope.
+
+## deny-set-minimizable
+
+Denies the set_minimizable command without any pre-configured scope.
+
+## allow-set-position
+
+Enables the set_position command without any pre-configured scope.
+
+## deny-set-position
+
+Denies the set_position command without any pre-configured scope.
+
+## allow-set-progress-bar
+
+Enables the set_progress_bar command without any pre-configured scope.
+
+## deny-set-progress-bar
+
+Denies the set_progress_bar command without any pre-configured scope.
+
+## allow-set-resizable
+
+Enables the set_resizable command without any pre-configured scope.
+
+## deny-set-resizable
+
+Denies the set_resizable command without any pre-configured scope.
+
+## allow-set-shadow
+
+Enables the set_shadow command without any pre-configured scope.
+
+## deny-set-shadow
+
+Denies the set_shadow command without any pre-configured scope.
+
+## allow-set-size
+
+Enables the set_size command without any pre-configured scope.
+
+## deny-set-size
+
+Denies the set_size command without any pre-configured scope.
+
+## allow-set-skip-taskbar
+
+Enables the set_skip_taskbar command without any pre-configured scope.
+
+## deny-set-skip-taskbar
+
+Denies the set_skip_taskbar command without any pre-configured scope.
+
+## allow-set-title
+
+Enables the set_title command without any pre-configured scope.
+
+## deny-set-title
+
+Denies the set_title command without any pre-configured scope.
+
+## allow-set-visible-on-all-workspaces
+
+Enables the set_visible_on_all_workspaces command without any pre-configured scope.
+
+## deny-set-visible-on-all-workspaces
+
+Denies the set_visible_on_all_workspaces command without any pre-configured scope.
+
+## allow-show
+
+Enables the show command without any pre-configured scope.
+
+## deny-show
+
+Denies the show command without any pre-configured scope.
+
+## allow-start-dragging
+
+Enables the start_dragging command without any pre-configured scope.
+
+## deny-start-dragging
+
+Denies the start_dragging command without any pre-configured scope.
+
+## allow-theme
+
+Enables the theme command without any pre-configured scope.
+
+## deny-theme
+
+Denies the theme command without any pre-configured scope.
+
+## allow-title
+
+Enables the title command without any pre-configured scope.
+
+## deny-title
+
+Denies the title command without any pre-configured scope.
+
+## allow-toggle-maximize
+
+Enables the toggle_maximize command without any pre-configured scope.
+
+## deny-toggle-maximize
+
+Denies the toggle_maximize command without any pre-configured scope.
+
+## allow-unmaximize
+
+Enables the unmaximize command without any pre-configured scope.
+
+## deny-unmaximize
+
+Denies the unmaximize command without any pre-configured scope.
+
+## allow-unminimize
+
+Enables the unminimize command without any pre-configured scope.
+
+## deny-unminimize
+
+Denies the unminimize command without any pre-configured scope.
+
+## default
+
+Default permissions for the plugin.
+

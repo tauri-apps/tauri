@@ -24,5 +24,5 @@ Additionally, we may ask you to independently verify our patch, which will be av
 
 Depending on your decision to accept or deny credit for the vulnerability, you will be publicly attributed to the vulnerability and may be mentioned in our announcements.
 
-At the current time we do not have the financial ability to reward bounties, 
+At the current time we do not have the financial ability to reward bounties,
 but in extreme cases will at our discretion consider a reward.

@@ -32,11 +32,8 @@ use std::{
 mod acl;
 #[cfg(feature = "codegen")]
 mod codegen;
-/// Tauri configuration functions.
-pub mod config;
 mod manifest;
-/// Mobile build functions.
-pub mod mobile;
+mod mobile;
 mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
@@ -358,6 +355,10 @@ impl Attributes {
   }
 
   /// Set the glob pattern to be used to find the capabilities.
+  ///
+  /// **Note:** You must emit [rerun-if-changed] instructions for your capabilities directory.
+  ///
+  /// [rerun-if-changed]: https://doc.rust-lang.org/cargo/reference/build-scripts.html#rerun-if-changed
   #[must_use]
   pub fn capabilities_path_pattern(mut self, pattern: &'static str) -> Self {
     self.capabilities_path_pattern.replace(pattern);
@@ -480,6 +481,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
     parse_capabilities(pattern)?
   } else {
+    println!("cargo:rerun-if-changed=capabilities");
     parse_capabilities("./capabilities/**/*")?
   };
   acl::generate_schema(&plugin_manifests, target)?;

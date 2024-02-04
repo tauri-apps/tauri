@@ -331,7 +331,7 @@ pub fn setup(
     .frontend_dist
     .clone();
   if !options.no_dev_server && dev_url.is_none() {
-    if let Some(FrontendDist::Dist(path)) = &frontend_dist {
+    if let Some(FrontendDist::Directory(path)) = &frontend_dist {
       use crate::helpers::web_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;

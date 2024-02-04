@@ -4,8 +4,7 @@
 
 use std::{
   collections::{BTreeMap, BTreeSet},
-  fs::{copy, create_dir_all, read_to_string, File},
-  io::{BufWriter, Write},
+  fs::{copy, create_dir_all, read_to_string, write},
   path::PathBuf,
 };
 
@@ -181,20 +180,21 @@ pub fn generate_schema(
   create_dir_all(&out_dir).context("unable to create schema output directory")?;
 
   let schema_path = out_dir.join(format!("{target}-{CAPABILITIES_SCHEMA_FILE_NAME}"));
-  let mut schema_file = BufWriter::new(File::create(&schema_path)?);
-  write!(schema_file, "{schema_str}")?;
+  if schema_str != read_to_string(&schema_path).unwrap_or_default() {
+    write(&schema_path, "{schema_str}")?;
 
-  copy(
-    schema_path,
-    out_dir.join(format!(
-      "{}-{CAPABILITIES_SCHEMA_FILE_NAME}",
-      if target.is_desktop() {
-        "desktop"
-      } else {
-        "mobile"
-      }
-    )),
-  )?;
+    copy(
+      schema_path,
+      out_dir.join(format!(
+        "{}-{CAPABILITIES_SCHEMA_FILE_NAME}",
+        if target.is_desktop() {
+          "desktop"
+        } else {
+          "mobile"
+        }
+      )),
+    )?;
+  }
 
   Ok(())
 }

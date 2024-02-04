@@ -2,6 +2,12 @@
   "tag": "beta",
   "changes": [
     ".changes/beta.md",
-    ".changes/fix-process-ipc-message-fn.md"
+    ".changes/fix-codegen-rerun-if-changed.md",
+    ".changes/fix-process-ipc-message-fn.md",
+    ".changes/fix-rewrite-schema.md",
+    ".changes/fix-tauri-build-unix.md",
+    ".changes/refactor-capabilities-schema.md",
+    ".changes/rerun-if-permission-created.md",
+    ".changes/update-plugin-template.md"
   ]
 }

@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-beta.1]
+
+### Enhancements
+
+- [`4e101f80`](https://www.github.com/tauri-apps/tauri/commit/4e101f801657e7d01ce8c22f9c6468067d0caab2)([#8756](https://www.github.com/tauri-apps/tauri/pull/8756)) Moved the capability JSON schema to the `src-tauri/gen` folder so it's easier to track changes on the `capabilities` folder.
+
+### Bug Fixes
+
+- [`4e101f80`](https://www.github.com/tauri-apps/tauri/commit/4e101f801657e7d01ce8c22f9c6468067d0caab2)([#8756](https://www.github.com/tauri-apps/tauri/pull/8756)) Do not trigger build script to rerun if the frontendDist directory does not exist.
+- [`0f2789cd`](https://www.github.com/tauri-apps/tauri/commit/0f2789cd6767e2eadbc4f7dfe32e2173e972b9a0)([#8757](https://www.github.com/tauri-apps/tauri/pull/8757)) Do not rewrite capability JSON schema if it did not change.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.1`
+- Upgraded to `tauri-codegen@2.0.0-beta.1`
+
 ## \[2.0.0-beta.0]
 
 ### New Features

@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-beta.2]
+
+### Bug Fixes
+
+- [`fe67ab7f`](https://www.github.com/tauri-apps/tauri/commit/fe67ab7f2532c668b35f15415d876e576b3fb74e)([#8761](https://www.github.com/tauri-apps/tauri/pull/8761)) Workaround for zbus not enabling the proper Cargo features for its nix dependency.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-beta.1`
+- Upgraded to `tauri-utils@2.0.0-beta.1`
+- Upgraded to `tauri-runtime@2.0.0-beta.1`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.1`
+- Upgraded to `tauri-macros@2.0.0-beta.1`
+
 ## \[2.0.0-beta.1]
 
 ### Bug Fixes

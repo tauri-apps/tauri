@@ -76,7 +76,6 @@ pub fn define_permissions(
         .map(|e| PERMISSION_FILE_EXTENSIONS.contains(&e))
         .unwrap_or_default()
     })
-    // TODO: remove this before stable
     // filter schemas
     .filter(|p| p.parent().unwrap().file_name().unwrap() != PERMISSION_SCHEMAS_FOLDER_NAME)
     .collect::<Vec<PathBuf>>();
@@ -148,6 +147,7 @@ pub fn parse_capabilities(
         .unwrap_or_default()
     })
     // filter schema files
+    // TODO: remove this before stable
     .filter(|p| p.parent().unwrap().file_name().unwrap() != CAPABILITIES_SCHEMA_FOLDER_NAME)
   {
     let capability_file = std::fs::read_to_string(&path).map_err(Error::ReadFile)?;

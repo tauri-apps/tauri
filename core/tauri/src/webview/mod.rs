@@ -878,7 +878,9 @@ impl<R: Runtime> Webview<R> {
     if self.window.webview_window {
       self.window.close()
     } else {
-      self.webview.dispatcher.close().map_err(Into::into)
+      self.webview.dispatcher.close()?;
+      self.manager().on_webview_close(self.label());
+      Ok(())
     }
   }
 

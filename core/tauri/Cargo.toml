@@ -152,7 +152,7 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry/macos-private-api"
 ]
-webview-data-url = [ "data-url" ]
+webview-data-url = [ "tauri-utils/webview-data-url", "data-url" ]
 protocol-asset = [ "http-range" ]
 config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]

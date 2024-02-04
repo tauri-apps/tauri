@@ -40,6 +40,7 @@ infer = "0.15"
 dunce = "1"
 log = "0.4.20"
 cargo_metadata = { version = "0.18", optional = true }
+data-url = { version = "0.3", optional = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
@@ -62,3 +63,4 @@ process-relaunch-dangerous-allow-symlink-macos = [ ]
 config-json5 = [ "json5" ]
 config-toml = [ ]
 resources = [ "walkdir" ]
+webview-data-url = [ "data-url" ]

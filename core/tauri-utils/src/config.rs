@@ -56,6 +56,10 @@ pub enum WebviewUrl {
   App(PathBuf),
   /// A custom protocol url, for example, `doom://index.html`
   CustomProtocol(Url),
+  #[cfg(feature = "webview-data-url")]
+  /// A data url, for example data:text/html,<h1>Hello world</h1>
+  /// Data url should not be encoded
+  DataUrl(Url),
 }
 
 impl<'de> Deserialize<'de> for WebviewUrl {
@@ -71,13 +75,12 @@ impl<'de> Deserialize<'de> for WebviewUrl {
     }
 
     match WebviewUrlDeserializer::deserialize(deserializer)? {
-      WebviewUrlDeserializer::Url(u) => {
-        if u.scheme() == "https" || u.scheme() == "http" {
-          Ok(Self::External(u))
-        } else {
-          Ok(Self::CustomProtocol(u))
-        }
-      }
+      WebviewUrlDeserializer::Url(u) => match u.scheme() {
+        "https" | "http" => Ok(Self::External(u)),
+        #[cfg(feature = "webview-data-url")]
+        "data" => Ok(Self::DataUrl(u)),
+        _ => Ok(Self::CustomProtocol(u)),
+      },
       WebviewUrlDeserializer::Path(p) => Ok(Self::App(p)),
     }
   }
@@ -87,6 +90,8 @@ impl fmt::Display for WebviewUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::External(url) | Self::CustomProtocol(url) => write!(f, "{url}"),
+      #[cfg(feature = "webview-data-url")]
+      Self::DataUrl(url) => write!(f, "{url}"),
       Self::App(path) => write!(f, "{}", path.display()),
     }
   }
@@ -2037,6 +2042,11 @@ mod build {
         Self::CustomProtocol(url) => {
           let url = url_lit(url);
           quote! { #prefix::CustomProtocol(#url) }
+        }
+        #[cfg(feature = "webview-data-url")]
+        Self::DataUrl(url) => {
+          let url = url_lit(url);
+          quote! { #prefix::DataUrl(#url) }
         }
       })
     }

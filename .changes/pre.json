@@ -1,7 +1,4 @@
 {
   "tag": "beta",
-  "changes": [
-    ".changes/beta.md",
-    ".changes/fix-process-ipc-message-fn.md"
-  ]
+  "changes": [".changes/beta.md", ".changes/fix-process-ipc-message-fn.md"]
 }

@@ -139,8 +139,6 @@ pub fn parse_capabilities(
 ) -> Result<BTreeMap<String, Capability>, Error> {
   let mut capabilities_map = BTreeMap::new();
 
-  let mut instructed_rerun_if_changed = false;
-
   for path in glob::glob(capabilities_path_pattern)?
     .flatten() // filter extension
     .filter(|p| {
@@ -152,15 +150,6 @@ pub fn parse_capabilities(
     // filter schema files
     .filter(|p| p.parent().unwrap().file_name().unwrap() != CAPABILITIES_SCHEMA_FOLDER_NAME)
   {
-    // rerun if parent folder changes
-    if !instructed_rerun_if_changed {
-      println!(
-        "cargo:rerun-if-changed={}",
-        path.parent().unwrap().canonicalize().unwrap().display()
-      );
-      instructed_rerun_if_changed = true;
-    }
-
     let capability_file = std::fs::read_to_string(&path).map_err(Error::ReadFile)?;
     let ext = path.extension().unwrap().to_string_lossy().to_string();
     let capability: CapabilityFile = match ext.as_str() {

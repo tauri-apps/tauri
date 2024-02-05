@@ -8,6 +8,9 @@ fn main() {
     codegen = codegen.dev();
   }
 
-  tauri_build::try_build(tauri_build::Attributes::new().codegen(codegen))
-    .expect("failed to run tauri-build");
+  tauri_build::try_build(tauri_build::Attributes::new().codegen(codegen).plugin(
+    "app-menu",
+    tauri_build::InlinedPlugin::new().commands(&["toggle", "popup"]).permissions_path_pattern("./permissions/app-menu/*"),
+  ))
+  .expect("failed to run tauri-build");
 }

@@ -109,6 +109,7 @@ use std::{
     Arc, Mutex, Weak,
   },
   thread::{current as current_thread, ThreadId},
+  time::{Duration, Instant},
 };
 
 pub type WebviewId = u32;
@@ -116,6 +117,8 @@ type IpcHandler = dyn Fn(String) + 'static;
 
 mod webview;
 pub use webview::Webview;
+
+const RESIZE_INTERVAL: Duration = Duration::from_millis(1000 / 120);
 
 pub type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
 // window
@@ -2344,6 +2347,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     #[cfg(feature = "tracing")]
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
 
+    let mut last_resize_time = Instant::now();
+    let mut pending_resize = None;
+
     let proxy = self.event_loop.create_proxy();
 
     self
@@ -2366,6 +2372,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               windows: windows.clone(),
               #[cfg(feature = "tracing")]
               active_tracing_spans: active_tracing_spans.clone(),
+              last_resize_time: &mut last_resize_time,
+              pending_resize: &mut pending_resize,
             },
             web_context,
           );
@@ -2384,6 +2392,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             webview_id_map: webview_id_map.clone(),
             #[cfg(feature = "tracing")]
             active_tracing_spans: active_tracing_spans.clone(),
+            last_resize_time: &mut last_resize_time,
+            pending_resize: &mut pending_resize,
           },
         );
       });
@@ -2399,6 +2409,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
     let proxy = self.event_loop.create_proxy();
 
+    let mut last_resize_time = Instant::now();
+    let mut pending_resize = None;
+
     self.event_loop.run(move |event, event_loop, control_flow| {
       for p in plugins.lock().unwrap().iter_mut() {
         let prevent_default = p.on_event(
@@ -2412,6 +2425,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             windows: windows.clone(),
             #[cfg(feature = "tracing")]
             active_tracing_spans: active_tracing_spans.clone(),
+            last_resize_time: &mut last_resize_time,
+            pending_resize: &mut pending_resize,
           },
           &web_context,
         );
@@ -2429,6 +2444,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           windows: windows.clone(),
           #[cfg(feature = "tracing")]
           active_tracing_spans: active_tracing_spans.clone(),
+          last_resize_time: &mut last_resize_time,
+          pending_resize: &mut pending_resize,
         },
       );
     })
@@ -2441,6 +2458,13 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
   #[cfg(feature = "tracing")]
   pub active_tracing_spans: ActiveTraceSpanStore,
+  pub last_resize_time: &'a mut Instant,
+  pub pending_resize: &'a mut Option<PendingWindowResize>,
+}
+
+pub struct PendingWindowResize {
+  window_id: WindowId,
+  size: TaoPhysicalSize<u32>,
 }
 
 struct UserMessageContext {
@@ -2891,6 +2915,8 @@ fn handle_event_loop<T: UserEvent>(
     windows,
     #[cfg(feature = "tracing")]
     active_tracing_spans,
+    last_resize_time,
+    pending_resize,
   } = context;
   if *control_flow != ControlFlow::Exit {
     *control_flow = ControlFlow::Wait;
@@ -2906,6 +2932,18 @@ fn handle_event_loop<T: UserEvent>(
     }
 
     Event::MainEventsCleared => {
+      if let Some(pending) = pending_resize {
+        if let Some(webviews) = windows
+          .borrow()
+          .get(&pending.window_id)
+          .map(|w| w.webviews.clone())
+        {
+          resize_webviews(pending.size, &webviews);
+        }
+
+        *pending_resize = None;
+      }
+
       callback(RunEvent::MainEventsCleared);
     }
 
@@ -3018,17 +3056,14 @@ fn handle_event_loop<T: UserEvent>(
           }
           TaoWindowEvent::Resized(size) => {
             if let Some(webviews) = windows.borrow().get(&window_id).map(|w| w.webviews.clone()) {
-              for webview in webviews {
-                if let Some(bounds) = &webview.bounds {
-                  let b = bounds.lock().unwrap();
-                  webview.set_bounds(wry::Rect {
-                    x: (size.width as f32 * b.x_rate) as i32,
-                    y: (size.height as f32 * b.y_rate) as i32,
-                    width: (size.width as f32 * b.width_rate) as u32,
-                    height: (size.height as f32 * b.height_rate) as u32,
-                  });
-                }
+              if last_resize_time.elapsed() > RESIZE_INTERVAL {
+                *pending_resize = None;
+                resize_webviews(size, &webviews);
+              } else {
+                pending_resize.replace(PendingWindowResize { window_id, size });
               }
+
+              *last_resize_time = Instant::now();
             }
           }
           _ => {}
@@ -3073,6 +3108,23 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Opened { urls });
     }
     _ => (),
+  }
+}
+
+fn resize_webviews(window_size: TaoPhysicalSize<u32>, webviews: &[WebviewWrapper]) {
+  for webview in webviews {
+    if let Some(bounds) = &webview.bounds {
+      let b = bounds.lock().unwrap();
+
+      let bounds = wry::Rect {
+        x: (window_size.width as f32 * b.x_rate) as i32,
+        y: (window_size.height as f32 * b.y_rate) as i32,
+        width: (window_size.width as f32 * b.width_rate) as u32,
+        height: (window_size.height as f32 * b.height_rate) as u32,
+      };
+
+      webview.set_bounds(bounds);
+    }
   }
 }
 
@@ -3277,6 +3329,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 }
 
 // the kind of the webview
+#[derive(PartialEq)]
 enum WebviewKind {
   // webview is the entire window content
   WindowContent,
@@ -3310,14 +3363,14 @@ fn create_webview<T: UserEvent>(
     ..
   } = pending;
 
-  let builder = match kind {
+  let builder = {
     #[cfg(not(any(
       target_os = "windows",
       target_os = "macos",
       target_os = "ios",
       target_os = "android"
     )))]
-    WebviewKind::WindowChild => {
+    {
       // only way to account for menu bar height, and also works for multiwebviews :)
       let vbox = window.default_vbox().unwrap();
       WebViewBuilder::new_gtk(vbox)
@@ -3328,27 +3381,7 @@ fn create_webview<T: UserEvent>(
       target_os = "ios",
       target_os = "android"
     ))]
-    WebviewKind::WindowChild => WebViewBuilder::new_as_child(&window),
-    WebviewKind::WindowContent => {
-      #[cfg(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-      ))]
-      let builder = WebViewBuilder::new(&window);
-      #[cfg(not(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-      )))]
-      let builder = {
-        let vbox = window.default_vbox().unwrap();
-        WebViewBuilder::new_gtk(vbox)
-      };
-      builder
-    }
+    WebViewBuilder::new_as_child(&window)
   };
 
   let mut webview_builder = builder
@@ -3391,7 +3424,7 @@ fn create_webview<T: UserEvent>(
 
     let window_size = window.inner_size();
 
-    if webview_attributes.auto_resize {
+    if webview_attributes.auto_resize || kind == WebviewKind::WindowContent {
       Some(WebviewBounds {
         x_rate: (position.x as f32) / window_size.width as f32,
         y_rate: (position.y as f32) / window_size.height as f32,
@@ -3401,6 +3434,13 @@ fn create_webview<T: UserEvent>(
     } else {
       None
     }
+  } else if kind == WebviewKind::WindowContent {
+    Some(WebviewBounds {
+      x_rate: 0.,
+      y_rate: 0.,
+      width_rate: 1.,
+      height_rate: 1.,
+    })
   } else {
     None
   };

@@ -37,7 +37,7 @@ targets = [
 ]
 
 [package.metadata.cargo-udeps.ignore]
-normal = [ "reqwest", "nix" ]
+normal = [ "reqwest" ]
 build = [ "tauri-build" ]
 development = [ "quickcheck_macros" ]
 
@@ -87,9 +87,6 @@ embed_plist = "1.2"
 cocoa = "0.25"
 objc = "0.2"
 window-vibrancy = "0.4"
-
-[target."cfg(unix)".dependencies]
-nix = { version = "0.26.0", default-features = false, features = [ "user", "socket", "uio" ] }
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.28"

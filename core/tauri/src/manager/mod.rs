@@ -543,6 +543,10 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
+  pub(crate) fn on_webview_close(&self, label: &str) {
+    self.webview.webviews_lock().remove(label);
+  }
+
   pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.window.windows_lock().clone()
   }

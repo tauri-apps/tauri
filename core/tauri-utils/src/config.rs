@@ -2300,7 +2300,7 @@ mod build {
       let long_description = quote!(None);
       let external_bin = opt_vec_lit(self.external_bin.as_ref(), str_lit);
       let windows = &self.windows;
-      let license = opt_lit(self.license.as_ref());
+      let license = opt_str_lit(self.license.as_ref());
       let license_file = opt_lit(self.license_file.as_ref().map(path_buf_lit).as_ref());
       let linux = quote!(Default::default());
       let macos = quote!(Default::default());

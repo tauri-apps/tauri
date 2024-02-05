@@ -3246,13 +3246,35 @@ fn create_webview<T: UserEvent>(
   if window_builder.center {
     let _ = center_window(&window, window.inner_size());
   }
-  let mut webview_builder = WebViewBuilder::new(window)
-    .map_err(|e| Error::CreateWebview(Box::new(e)))?
-    .with_focused(focused)
-    .with_url(&url)
-    .unwrap() // safe to unwrap because we validate the URL beforehand
-    .with_transparent(is_window_transparent)
-    .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+
+  let url_str = url.to_string();
+
+  let mut webview_builder =
+      WebViewBuilder::new(window).map_err(|e| Error::CreateWebview(Box::new(e)))?;
+
+  // use with_html method if html content can be extracted from url.
+  // else defaults to with_url method
+  webview_builder = if let Some(html_string) = tauri_utils::html::extract_html_content(&url_str) {
+      // we run a decode here on the html_string for sanity check
+      // the content should be fully decoded when passing to WRY, which
+      // will be responsible for handling the encoding based on the OS.
+      let html =
+          urlencoding::decode(html_string).map_err(|e| Error::CreateWebview(Box::new(e)))?;
+
+      webview_builder
+          .with_html(html)
+          .map_err(|e| Error::CreateWebview(Box::new(e)))?
+  } else {
+      webview_builder
+          .with_url(&url_str)
+          .map_err(|e| Error::CreateWebview(Box::new(e)))?
+  };
+
+  webview_builder = webview_builder
+      .with_focused(focused)
+      .with_transparent(is_window_transparent)
+      .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+
   if webview_attributes.file_drop_handler_enabled {
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));

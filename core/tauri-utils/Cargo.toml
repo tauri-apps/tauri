@@ -38,6 +38,7 @@ semver = "1"
 infer = "0.13"
 dunce = "1"
 log = "0.4.20"
+data-url = { version = "0.3.1", optional = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
@@ -54,3 +55,4 @@ process-relaunch-dangerous-allow-symlink-macos = [ ]
 config-json5 = [ "json5" ]
 config-toml = [ "toml" ]
 resources = [ "glob", "walkdir" ]
+window-data-url = [ "data-url" ]

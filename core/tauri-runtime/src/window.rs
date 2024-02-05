@@ -241,8 +241,8 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 
-  /// The resolved URL to load on the webview.
-  pub url: String,
+  /// The URL to load on the webview.
+  pub url: Url,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -283,7 +283,8 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
         web_resource_request_handler: Default::default(),
-        url: "tauri://localhost".to_string(),
+        // This will never fail
+        url: Url::parse("tauri://localhost").unwrap(),
         http_scheme: false,
       })
     }
@@ -315,7 +316,8 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         js_event_listeners: Default::default(),
         navigation_handler: Default::default(),
         web_resource_request_handler: Default::default(),
-        url: "tauri://localhost".to_string(),
+        // This will never fail
+        url: Url::parse("tauri://localhost").unwrap(),
         http_scheme: false,
       })
     }

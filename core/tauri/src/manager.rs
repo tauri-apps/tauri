@@ -499,18 +499,17 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
-    let window_url = Url::parse(&pending.url).unwrap();
-    let window_origin = if window_url.scheme() == "data" {
+    let window_origin = if pending.url.scheme() == "data" {
       "null".into()
-    } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
+    } else if cfg!(windows) && pending.url.scheme() != "http" && pending.url.scheme() != "https" {
       let scheme = if pending.http_scheme { "http" } else { "https" };
-      format!("{scheme}://{}.localhost", window_url.scheme())
+      format!("{scheme}://{}.localhost", pending.url.scheme())
     } else {
       format!(
         "{}://{}{}",
-        window_url.scheme(),
-        window_url.host().unwrap(),
-        window_url
+        pending.url.scheme(),
+        pending.url.host().unwrap(),
+        pending.url
           .port()
           .map(|p| format!(":{p}"))
           .unwrap_or_default()
@@ -995,6 +994,8 @@ impl<R: Runtime> WindowManager<R> {
         }
       }
       WindowUrl::External(url) => url.clone(),
+      #[cfg(feature = "window-data-url")]
+      WindowUrl::DataUrl(url) => url.clone(),
       _ => unimplemented!(),
     };
 
@@ -1006,22 +1007,26 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     #[cfg(feature = "window-data-url")]
-    if let Some(csp) = self.csp() {
-      if url.scheme() == "data" {
-        if let Ok(data_url) = data_url::DataUrl::process(url.as_str()) {
-          let (body, _) = data_url.decode_to_vec().unwrap();
-          let html = String::from_utf8_lossy(&body).into_owned();
-          // naive way to check if it's an html
-          if html.contains('<') && html.contains('>') {
-            let mut document = tauri_utils::html::parse(html);
-            tauri_utils::html::inject_csp(&mut document, &csp.to_string());
-            url.set_path(&format!("text/html,{}", document.to_string()));
+    match (url.scheme(), tauri_utils::html::extract_html_content(url.as_str())) {
+      ("data", Some(html_string)) => {
+          // There is an issue with the external DataUrl where HTML containing special characters
+          // are not correctly processed. A workaround is to first percent encode the html string,
+          // before it processed by DataUrl.
+          if let Ok(data_url) = data_url::DataUrl::process(&urlencoding::encode(&html_string)) {
+              if let Ok((body, _)) = data_url.decode_to_vec() {
+                  let html = String::from_utf8_lossy(&body).into_owned();
+                  let mut document = tauri_utils::html::parse(html);
+                  if let Some(csp) = self.csp() {
+                      tauri_utils::html::inject_csp(&mut document, &csp.to_string());
+                  }
+                  url.set_path(&format!("text/html,{}", document.to_string()));
+              }
           }
-        }
       }
-    }
+      _ => {}
+  };
 
-    pending.url = url.to_string();
+    pending.url = url;
 
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = self.inner.default_window_icon.clone() {

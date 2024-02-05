@@ -54,12 +54,18 @@ pub enum WindowUrl {
   /// For instance, to load `tauri://localhost/users/john`,
   /// you can simply provide `users/john` in this configuration.
   App(PathBuf),
+  #[cfg(feature = "window-data-url")]
+  /// A data url, for example data:text/html,<h1>Hello world</h1>
+  /// Data url should not be encoded
+  DataUrl(Url),
 }
 
 impl fmt::Display for WindowUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::External(url) => write!(f, "{url}"),
+      Self::External(url)=> write!(f, "{url}"),
+      #[cfg(feature = "window-data-url")]
+      Self::DataUrl(url) => write!(f, "{url}"),
       Self::App(path) => write!(f, "{}", path.display()),
     }
   }
@@ -3280,6 +3286,11 @@ mod build {
         Self::External(url) => {
           let url = url_lit(url);
           quote! { #prefix::External(#url) }
+        }
+        #[cfg(feature = "window-data-url")]
+        Self::DataUrl(url) => {
+          let url = url_lit(url);
+          quote! { #prefix::DataUrl(#url) }
         }
       })
     }

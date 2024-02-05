@@ -87,7 +87,7 @@ time = { version = "0.3", features = [ "parsing", "formatting" ], optional = tru
 os_info = { version = "3", optional = true }
 regex = { version = "1", optional = true }
 glob = "0.3"
-data-url = { version = "0.2", optional = true }
+data-url = { version = "0.3.1", optional = true }
 serialize-to-javascript = "=0.1.1"
 infer = { version = "0.9", optional = true }
 png = { version = "0.17", optional = true }
@@ -96,6 +96,7 @@ encoding_rs = "0.8.31"
 sys-locale = { version = "0.2.3", optional = true }
 tracing = { version = "0.1", optional = true }
 indexmap = { version = "1", features = [ "std", "serde" ], optional = true }
+urlencoding = "2.1.3"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 rfd = { version = "0.10", optional = true, features = [ "gtk3", "common-controls-v6" ] }
@@ -183,7 +184,7 @@ macos-private-api = [
   "tauri-runtime-wry/macos-private-api"
 ]
 windows7-compat = [ "win7-notifications" ]
-window-data-url = [ "data-url" ]
+window-data-url = [ "tauri-utils/window-data-url", "data-url" ]
 api-all = [
   "clipboard-all",
   "dialog-all",
@@ -358,3 +359,8 @@ path = "../../examples/streaming/main.rs"
 name = "isolation"
 path = "../../examples/isolation/main.rs"
 required-features = [ "isolation" ]
+
+[[example]]
+name = "data-url"
+path = "../../examples/data-url/main.rs"
+required-features = [ "window-data-url" ]

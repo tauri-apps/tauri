@@ -3435,6 +3435,14 @@ fn create_webview<T: UserEvent>(
       None
     }
   } else if kind == WebviewKind::WindowContent {
+    let window_size = window.inner_size().to_logical(window.scale_factor());
+    webview_builder = webview_builder.with_bounds(wry::Rect {
+      x: 0,
+      y: 0,
+      width: window_size.width,
+      height: window_size.height,
+    });
+
     Some(WebviewBounds {
       x_rate: 0.,
       y_rate: 0.,

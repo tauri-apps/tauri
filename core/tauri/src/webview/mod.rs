@@ -1113,7 +1113,12 @@ fn main() {
     };
     let resolved_acl = manager
       .runtime_authority
-      .resolve_access(&request.cmd, &message.webview.webview.label, &acl_origin)
+      .resolve_access(
+        &request.cmd,
+        &message.webview.label(),
+        &message.webview.window().label(),
+        &acl_origin,
+      )
       .cloned();
 
     let mut invoke = Invoke {
@@ -1137,7 +1142,8 @@ fn main() {
             .reject(manager.runtime_authority.resolve_access_message(
               plugin,
               &command_name,
-              &invoke.message.webview.webview.label,
+              &invoke.message.webview.window().label(),
+              &invoke.message.webview.label(),
               &acl_origin,
             ));
         }

@@ -1,0 +1,5 @@
+identifier = "run-app"
+description = "app capability"
+windows = ["main"]
+webviews = ["child1", "child2"]
+permissions = ["ping:allow-ping"]

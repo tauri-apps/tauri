@@ -41,6 +41,8 @@ pub struct ResolvedCommand {
   pub referenced_by: Vec<ResolvedCommandReference>,
   /// The list of window label patterns that was resolved for this command.
   pub windows: Vec<glob::Pattern>,
+  /// The list of webview label patterns that was resolved for this command.
+  pub webviews: Vec<glob::Pattern>,
   /// The reference of the scope that is associated with this command. See [`Resolved#structfield.scopes`].
   pub scope: Option<ScopeKey>,
 }
@@ -49,6 +51,7 @@ impl fmt::Debug for ResolvedCommand {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("ResolvedCommand")
       .field("windows", &self.windows)
+      .field("webviews", &self.webviews)
       .field("scope", &self.scope)
       .finish()
   }
@@ -271,7 +274,8 @@ impl Resolved {
             ResolvedCommand {
               #[cfg(debug_assertions)]
               referenced_by: cmd.referenced_by,
-              windows: parse_window_patterns(cmd.windows)?,
+              windows: parse_glob_patterns(cmd.windows)?,
+              webviews: parse_glob_patterns(cmd.webviews)?,
               scope: cmd.resolved_scope_key,
             },
           ))
@@ -285,7 +289,8 @@ impl Resolved {
             ResolvedCommand {
               #[cfg(debug_assertions)]
               referenced_by: cmd.referenced_by,
-              windows: parse_window_patterns(cmd.windows)?,
+              windows: parse_glob_patterns(cmd.windows)?,
+              webviews: parse_glob_patterns(cmd.webviews)?,
               scope: cmd.resolved_scope_key,
             },
           ))
@@ -299,10 +304,10 @@ impl Resolved {
   }
 }
 
-fn parse_window_patterns(windows: HashSet<String>) -> Result<Vec<glob::Pattern>, Error> {
+fn parse_glob_patterns(raw: HashSet<String>) -> Result<Vec<glob::Pattern>, Error> {
   let mut patterns = Vec::new();
-  for window in windows {
-    patterns.push(glob::Pattern::new(&window)?);
+  for pattern in raw {
+    patterns.push(glob::Pattern::new(&pattern)?);
   }
   Ok(patterns)
 }
@@ -312,6 +317,7 @@ struct ResolvedCommandTemp {
   #[cfg(debug_assertions)]
   pub referenced_by: Vec<ResolvedCommandReference>,
   pub windows: HashSet<String>,
+  pub webviews: HashSet<String>,
   pub scope: Vec<ScopeKey>,
   pub resolved_scope_key: Option<ScopeKey>,
 }
@@ -351,6 +357,8 @@ fn resolve_command(
     });
 
     resolved.windows.extend(capability.windows.clone());
+    resolved.webviews.extend(capability.webviews.clone());
+
     if let Some(id) = scope_id {
       resolved.scope.push(id);
     }
@@ -456,6 +464,10 @@ mod build {
         let w = window.as_str();
         quote!(#w.parse().unwrap())
       });
+      let webviews = vec_lit(&self.webviews, |window| {
+        let w = window.as_str();
+        quote!(#w.parse().unwrap())
+      });
       let scope = opt_lit(self.scope.as_ref());
 
       #[cfg(debug_assertions)]
@@ -465,6 +477,7 @@ mod build {
           ::tauri::utils::acl::resolved::ResolvedCommand,
           referenced_by,
           windows,
+          webviews,
           scope
         )
       }
@@ -473,6 +486,7 @@ mod build {
         tokens,
         ::tauri::utils::acl::resolved::ResolvedCommand,
         windows,
+        webviews,
         scope
       )
     }

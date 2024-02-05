@@ -874,7 +874,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for WebviewWindow<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let webview = command.message.webview();
-    if webview.window().webview_window {
+    if webview.window().label() == webview.label() {
       Ok(Self { webview })
     } else {
       Err(InvokeError::from_anyhow(anyhow::anyhow!(

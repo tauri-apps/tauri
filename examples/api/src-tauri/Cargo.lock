@@ -3677,7 +3677,7 @@ checksum = "69758bda2e78f098e4ccb393021a0963bb3442eac05f135c30f61b7370bbafae"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3698,6 +3698,7 @@ dependencies = [
  "log",
  "mime",
  "muda",
+ "nix",
  "objc",
  "percent-encoding",
  "png",
@@ -3728,7 +3729,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3750,7 +3751,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "base64",
  "brotli",
@@ -3774,7 +3775,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -3786,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "anyhow",
  "glob",
@@ -3825,7 +3826,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "gtk",
  "http",
@@ -3841,12 +3842,13 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "cocoa",
  "gtk",
  "http",
  "jni",
+ "nix",
  "percent-encoding",
  "raw-window-handle 0.5.2",
  "softbuffer",
@@ -3861,7 +3863,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "aes-gcm",
  "brotli",

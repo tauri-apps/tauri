@@ -692,7 +692,7 @@ impl AppSettings for RustAppSettings {
       .expect("Cargo manifest must have the `package.name` field");
 
     let out_dir = self
-      .out_dir(options.target.clone(), get_profile(options))
+      .out_dir(options.target.clone(), get_profile_dir(options).to_string())
       .with_context(|| "failed to get project out directory")?;
 
     let binary_extension: String = if self.target_triple.contains("windows") {
@@ -986,13 +986,20 @@ pub fn get_workspace_dir() -> crate::Result<PathBuf> {
   )
 }
 
-pub fn get_profile(options: &Options) -> String {
+pub fn get_profile(options: &Options) -> &str {
   options
     .args
     .iter()
     .position(|a| a == "--profile")
-    .map(|i| options.args[i + 1].clone())
-    .unwrap_or_else(|| if options.debug { "debug" } else { "release" }.into())
+    .map(|i| options.args[i + 1].as_str())
+    .unwrap_or_else(|| if options.debug { "debug" } else { "release" })
+}
+
+pub fn get_profile_dir(options: &Options) -> &str {
+  match get_profile(options) {
+    "dev" => "debug",
+    profile => profile,
+  }
 }
 
 #[allow(unused_variables)]

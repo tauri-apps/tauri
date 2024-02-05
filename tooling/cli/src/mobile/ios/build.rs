@@ -11,11 +11,11 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
-    flock, resolve_merge_config,
+    flock,
   },
   interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
-  Result,
+  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 
@@ -53,7 +53,7 @@ pub struct Options {
   pub features: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   /// Build number to append to the app version.
   #[clap(long)]
   pub build_number: Option<u32>,
@@ -77,10 +77,7 @@ impl From<Options> for BuildOptions {
   }
 }
 
-pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
-  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
-  options.config = merge_config;
-
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -92,7 +89,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
-    options.config.as_deref(),
+    options.config.as_ref().map(|c| &c.0),
   )?;
   let (interface, app, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

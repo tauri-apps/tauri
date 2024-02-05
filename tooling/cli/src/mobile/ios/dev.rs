@@ -11,11 +11,11 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
-    flock, resolve_merge_config,
+    flock,
   },
   interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
-  Result,
+  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 
@@ -44,7 +44,7 @@ pub struct Options {
   exit_on_panic: bool,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
@@ -97,7 +97,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   result
 }
 
-fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
+fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if var_os(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME).is_none() {
     if let Ok(teams) = find_development_teams() {
       let index = match teams.len() {
@@ -142,9 +142,6 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
-  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
-  options.config = merge_config;
-
   let mut dev_options: DevOptions = options.clone().into();
   let target_triple = device
     .as_ref()
@@ -154,7 +151,7 @@ fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
-    options.config.as_deref(),
+    options.config.as_ref().map(|c| &c.0),
   )?;
   let (interface, app, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

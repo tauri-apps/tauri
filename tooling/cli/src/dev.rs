@@ -7,10 +7,9 @@ use crate::{
     app_paths::{app_dir, tauri_dir},
     command_env,
     config::{get as get_config, reload as reload_config, BeforeDevCommand, FrontendDist},
-    resolve_merge_config,
   },
   interface::{AppInterface, DevProcess, ExitReason, Interface},
-  CommandExt, Result,
+  CommandExt, ConfigValue, Result,
 };
 
 use anyhow::{bail, Context};
@@ -59,7 +58,7 @@ pub struct Options {
   pub exit_on_panic: bool,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
@@ -100,7 +99,7 @@ fn command_internal(mut options: Options) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let config = get_config(target, options.config.as_deref())?;
+  let config = get_config(target, options.config.as_ref().map(|c| &c.0))?;
 
   let mut interface = AppInterface::new(
     config.lock().unwrap().as_ref().unwrap(),
@@ -165,10 +164,7 @@ pub fn setup(
   options: &mut Options,
   mobile: bool,
 ) -> Result<()> {
-  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
-  options.config = merge_config;
-
-  let config = get_config(target, options.config.as_deref())?;
+  let config = get_config(target, options.config.as_ref().map(|c| &c.0))?;
 
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
@@ -345,14 +341,17 @@ pub fn setup(
         dev_url = Some(server_url.parse().unwrap());
 
         if let Some(c) = &options.config {
-          let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
+          let mut c: tauri_utils::config::Config = serde_json::from_value(c.0.clone())?;
           c.build.dev_url = dev_url.clone();
-          options.config = Some(serde_json::to_string(&c).unwrap());
+          options.config = Some(crate::ConfigValue(serde_json::to_value(&c).unwrap()));
         } else {
-          options.config = Some(format!(r#"{{ "build": {{ "devUrl": "{server_url}" }} }}"#))
+          options.config = Some(crate::ConfigValue(
+            serde_json::from_str(&format!(r#"{{ "build": {{ "devUrl": "{server_url}" }} }}"#))
+              .unwrap(),
+          ))
         }
 
-        reload_config(options.config.as_deref())?;
+        reload_config(options.config.as_ref().map(|c| &c.0))?;
       }
     }
   }

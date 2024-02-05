@@ -182,9 +182,14 @@ fn setup_dev_config(
       let ip = crate::dev::local_ip_address(force_ip_prompt);
       url.set_host(Some(&ip.to_string())).unwrap();
       if let Some(c) = config_extension {
-        let mut c: tauri_utils::config::Config = serde_json::from_value(c.0.clone())?;
-        c.build.dev_url = dev_url.clone();
-        config_extension.replace(ConfigValue(serde_json::to_value(&c).unwrap()));
+        if let Some(build) = c
+          .0
+          .as_object_mut()
+          .and_then(|root| root.get_mut("build"))
+          .and_then(|build| build.as_object_mut())
+        {
+          build.insert("devUrl".into(), url.to_string().into());
+        }
       } else {
         config_extension.replace(ConfigValue(
           serde_json::from_str(&format!(r#"{{ "build": {{ "devUrl": "{url}" }} }}"#)).unwrap(),

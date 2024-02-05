@@ -340,10 +340,15 @@ pub fn setup(
         let server_url = format!("http://{server_url}");
         dev_url = Some(server_url.parse().unwrap());
 
-        if let Some(c) = &options.config {
-          let mut c: tauri_utils::config::Config = serde_json::from_value(c.0.clone())?;
-          c.build.dev_url = dev_url.clone();
-          options.config = Some(crate::ConfigValue(serde_json::to_value(&c).unwrap()));
+        if let Some(c) = &mut options.config {
+          if let Some(build) = c
+            .0
+            .as_object_mut()
+            .and_then(|root| root.get_mut("build"))
+            .and_then(|build| build.as_object_mut())
+          {
+            build.insert("devUrl".into(), server_url.into());
+          }
         } else {
           options.config = Some(crate::ConfigValue(
             serde_json::from_str(&format!(r#"{{ "build": {{ "devUrl": "{server_url}" }} }}"#))

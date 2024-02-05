@@ -10,7 +10,7 @@ fn main() {
 
   tauri_build::try_build(tauri_build::Attributes::new().codegen(codegen).plugin(
     "app-menu",
-    tauri_build::InlinedPlugin::new().commands(&["toggle", "popup"]).permissions_path_pattern("./permissions/app-menu/*"),
+    tauri_build::InlinedPlugin::new().commands(&["toggle", "popup"]),
   ))
   .expect("failed to run tauri-build");
 }

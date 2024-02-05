@@ -333,6 +333,11 @@ impl WindowsAttributes {
 }
 
 /// Definition of a plugin that is part of the Tauri application instead of having its own crate.
+///
+/// By default it generates a plugin manifest that parses permissions from the `permissions/$plugin-name` directory.
+/// To change the glob pattern that is used to find permissions, use [`Self::permissions_path_pattern`].
+///
+/// To autogenerate permissions for each of the plugin commands, see [`Self::commands`].
 #[derive(Debug, Default)]
 pub struct InlinedPlugin {
   commands: &'static [&'static str],
@@ -353,7 +358,9 @@ impl InlinedPlugin {
 
   /// Sets a glob pattern that is used to find the permissions of this inlined plugin.
   ///
-  /// A common pattern is `./permissions/$plugin-name/**/*`
+  /// **Note:** You must emit [rerun-if-changed] instructions for the plugin permissions directory.
+  ///
+  /// By default it is `./permissions/$plugin-name/**/*`
   pub fn permissions_path_pattern(mut self, pattern: &'static str) -> Self {
     self.permissions_path_pattern.replace(pattern);
     self
@@ -533,6 +540,20 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     if let Some(pattern) = plugin.permissions_path_pattern {
       permission_files.extend(tauri_utils::acl::build::define_permissions(
         pattern,
+        name,
+        &plugin_out_dir,
+      )?);
+    } else {
+      let default_permissions_path = Path::new("permissions").join(name);
+      println!(
+        "cargo:rerun-if-changed={}",
+        default_permissions_path.display()
+      );
+      permission_files.extend(tauri_utils::acl::build::define_permissions(
+        &default_permissions_path
+          .join("**")
+          .join("*")
+          .to_string_lossy(),
         name,
         &plugin_out_dir,
       )?);

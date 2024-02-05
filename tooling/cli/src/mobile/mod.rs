@@ -191,9 +191,11 @@ fn setup_dev_config(
           build.insert("devUrl".into(), url.to_string().into());
         }
       } else {
-        config_extension.replace(ConfigValue(
-          serde_json::from_str(&format!(r#"{{ "build": {{ "devUrl": "{url}" }} }}"#)).unwrap(),
-        ));
+        config_extension.replace(crate::ConfigValue(serde_json::json!({
+          "build": {
+            "devUrl": url
+          }
+        })));
       }
       reload_config(config_extension.as_ref().map(|c| &c.0))?;
     }

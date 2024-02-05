@@ -350,10 +350,13 @@ pub fn setup(
             build.insert("devUrl".into(), server_url.into());
           }
         } else {
-          options.config = Some(crate::ConfigValue(
-            serde_json::from_str(&format!(r#"{{ "build": {{ "devUrl": "{server_url}" }} }}"#))
-              .unwrap(),
-          ))
+          options
+            .config
+            .replace(crate::ConfigValue(serde_json::json!({
+              "build": {
+                "devUrl": server_url
+              }
+            })));
         }
 
         reload_config(options.config.as_ref().map(|c| &c.0))?;

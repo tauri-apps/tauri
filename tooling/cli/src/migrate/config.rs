@@ -503,9 +503,20 @@ fn process_updater(
   if let Some(mut updater) = tauri_config.remove("updater") {
     if let Some(updater) = updater.as_object_mut() {
       updater.remove("dialog");
-      updater.remove("active");
+
+      // we only migrate the updater config if it's active
+      // since we now assume it's always active if the config object is set
+      // we also migrate if pubkey is set so we do not lose that information on the migration
+      // in this case, the user need to deal with the updater being inactive on their own
+      if updater
+        .remove("active")
+        .and_then(|a| a.as_bool())
+        .unwrap_or_default()
+        || updater.get("pubkey").is_some()
+      {
+        plugins.insert("updater".into(), serde_json::to_value(updater)?);
+      }
     }
-    plugins.insert("updater".into(), serde_json::to_value(updater)?);
   }
 
   Ok(())
@@ -708,6 +719,38 @@ mod test {
     assert_eq!(
       migrated["app"]["withGlobalTauri"],
       original["build"]["withGlobalTauri"]
+    );
+  }
+
+  #[test]
+  fn skips_migrating_updater() {
+    let original = serde_json::json!({
+      "tauri": {
+        "updater": {
+          "active": false
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(migrated["plugins"]["updater"], serde_json::Value::Null);
+  }
+
+  #[test]
+  fn migrate_updater_pubkey() {
+    let original = serde_json::json!({
+      "tauri": {
+        "updater": {
+          "active": false,
+          "pubkey": "somekey"
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(
+      migrated["plugins"]["updater"]["pubkey"],
+      original["tauri"]["updater"]["pubkey"]
     );
   }
 

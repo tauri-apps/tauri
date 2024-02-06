@@ -3718,7 +3718,7 @@ dependencies = [
  "tauri-macros",
  "tauri-runtime",
  "tauri-runtime-wry",
- "tauri-utils 2.0.0-beta.1",
+ "tauri-utils",
  "thiserror",
  "tokio",
  "tray-icon",
@@ -3746,7 +3746,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri-codegen",
- "tauri-utils 2.0.0-beta.1",
+ "tauri-utils",
  "tauri-winres",
  "toml 0.8.2",
  "walkdir 2.4.0",
@@ -3768,7 +3768,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "tauri-utils 2.0.0-beta.1",
+ "tauri-utils",
  "thiserror",
  "time",
  "url",
@@ -3785,7 +3785,7 @@ dependencies = [
  "quote",
  "syn 2.0.48",
  "tauri-codegen",
- "tauri-utils 2.0.0-beta.1",
+ "tauri-utils",
 ]
 
 [[package]]
@@ -3798,24 +3798,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-beta.1",
- "toml 0.8.2",
- "walkdir 1.0.7",
-]
-
-[[package]]
-name = "tauri-plugin"
-version = "2.0.0-beta.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbb732726fec855b56e4a238464f1b0c10006f618180ef402ce5f394d840e61b"
-dependencies = [
- "anyhow",
- "glob",
- "plist",
- "schemars",
- "serde",
- "serde_json",
- "tauri-utils 2.0.0-beta.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tauri-utils",
  "toml 0.8.2",
  "walkdir 1.0.7",
 ]
@@ -3830,7 +3813,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri",
- "tauri-plugin 2.0.0-beta.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tauri-plugin",
  "thiserror",
 ]
 
@@ -3841,7 +3824,7 @@ dependencies = [
  "log",
  "serde",
  "tauri",
- "tauri-plugin 2.0.0-beta.1",
+ "tauri-plugin",
  "thiserror",
 ]
 
@@ -3855,7 +3838,7 @@ dependencies = [
  "raw-window-handle 0.5.2",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-beta.1",
+ "tauri-utils",
  "thiserror",
  "url",
  "windows 0.52.0",
@@ -3874,7 +3857,7 @@ dependencies = [
  "softbuffer",
  "tao",
  "tauri-runtime",
- "tauri-utils 2.0.0-beta.1",
+ "tauri-utils",
  "webkit2gtk",
  "webview2-com",
  "windows 0.52.0",
@@ -3913,32 +3896,6 @@ dependencies = [
  "toml 0.8.2",
  "url",
  "walkdir 2.4.0",
-]
-
-[[package]]
-name = "tauri-utils"
-version = "2.0.0-beta.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7104f0639a1f3a7ebd7aac793be47d7924f569e7c10c6853083529bf9bb3fe6"
-dependencies = [
- "ctor",
- "dunce",
- "glob",
- "heck",
- "html5ever",
- "infer",
- "json-patch",
- "kuchikiki",
- "log",
- "memchr",
- "phf 0.11.2",
- "semver",
- "serde",
- "serde_json",
- "serde_with",
- "thiserror",
- "toml 0.8.2",
- "url",
 ]
 
 [[package]]

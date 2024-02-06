@@ -3677,7 +3677,7 @@ checksum = "69758bda2e78f098e4ccb393021a0963bb3442eac05f135c30f61b7370bbafae"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3728,7 +3728,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3750,7 +3750,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "base64",
  "brotli",
@@ -3774,7 +3774,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -3786,7 +3786,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "anyhow",
  "glob",
@@ -3825,7 +3825,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "gtk",
  "http",
@@ -3841,7 +3841,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3861,7 +3861,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -4960,9 +4960,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.35.2"
+version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3016c47c9b6f7029a9da7cd48af8352327226bba0e955f3c92e2966651365a9"
+checksum = "3a9e7b81968555303086ef882a0c213896a76099de4ed0b86a798775c2d54304"
 dependencies = [
  "base64",
  "block",
@@ -4986,7 +4986,7 @@ dependencies = [
  "objc",
  "objc_id",
  "once_cell",
- "raw-window-handle 0.5.2",
+ "raw-window-handle 0.6.0",
  "serde",
  "serde_json",
  "sha2",

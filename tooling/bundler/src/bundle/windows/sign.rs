@@ -124,7 +124,7 @@ impl SignToolParams {
 /// This contains params needed for the AzureSignTool.exe
 /// These are the environment variables that need to be set:
 pub struct AzureSignToolParams {
-  keyvault_uri: String,
+  keyvault_url: String,
   client_id: String,
   tenant_id: String,
   secret: String,
@@ -140,7 +140,7 @@ impl AzureSignToolParams {
 
     let mut cmd = Command::new(&azuresigntool);
     cmd.arg("sign");
-    cmd.args(["-kvu", &self.keyvault_uri]);
+    cmd.args(["-kvu", &self.keyvault_url]);
     cmd.args(["-kvi", &self.client_id]);
     cmd.args(["-kvt", &self.tenant_id]);
     cmd.args(["-kvs", &self.secret]);
@@ -259,14 +259,14 @@ impl Settings {
     // If not, we'll fallback to Signtool.
     // But if we don't have a certificate thumbprint set, we can't sign at all and we'll return None.
     match (
-      var_os("AZURE_KEYVAULT_URI"),
+      var_os("AZURE_KEYVAULT_URL"),
       var_os("AZURE_CLIENT_ID"),
       var_os("AZURE_TENANT_ID"),
       var_os("AZURE_CLIENT_SECRET"),
       var_os("AZURE_CERTIFICATE_NAME"),
     ) {
       (
-        Some(keyvault_uri),
+        Some(keyvault_url),
         Some(client_id),
         Some(tenant_id),
         Some(secret),
@@ -280,7 +280,7 @@ impl Settings {
         };
 
         Some(SignParams::Azure(AzureSignToolParams {
-          keyvault_uri: keyvault_uri.to_string_lossy().to_string(),
+          keyvault_url: keyvault_url.to_string_lossy().to_string(),
           client_id: client_id.to_string_lossy().to_string(),
           tenant_id: tenant_id.to_string_lossy().to_string(),
           secret: secret.to_string_lossy().to_string(),

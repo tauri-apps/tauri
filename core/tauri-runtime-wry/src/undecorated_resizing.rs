@@ -23,10 +23,10 @@ const BOTTOMRIGHT: isize = BOTTOM | RIGHT;
 
 const BORDERLESS_RESIZE_INSET: f64 = 5.0;
 
+#[cfg(windows)]
+pub use self::windows::*;
 #[cfg(not(windows))]
 pub use gtk::*;
-#[cfg(windows)]
-pub use ::windows::*;
 
 #[derive(Debug, PartialEq, Eq)]
 enum HitTestResult {

@@ -28,6 +28,15 @@ pub use self::gtk::*;
 #[cfg(windows)]
 pub use self::windows::*;
 
+#[cfg(windows)]
+type WindowDimensions = u32;
+#[cfg(not(windows))]
+type WindowDimensions = i32;
+#[cfg(windows)]
+type WindowPositions = i32;
+#[cfg(not(windows))]
+type WindowPositions = f64;
+
 #[derive(Debug, PartialEq, Eq)]
 enum HitTestResult {
   Client,
@@ -42,17 +51,49 @@ enum HitTestResult {
   NoWhere,
 }
 
+fn hit_test(
+  width: WindowDimensions,
+  height: WindowDimensions,
+  x: WindowPositions,
+  y: WindowPositions,
+  scale: f64,
+) -> HitTestResult {
+  #[cfg(windows)]
+  let (top, left) = (0, 0);
+  #[cfg(not(windows))]
+  let (top, left) = (0., 0.);
+
+  let bottom = top + height as WindowPositions;
+  let right = left + width as WindowPositions;
+
+  let inset = (BORDERLESS_RESIZE_INSET * scale) as WindowPositions;
+
+  #[rustfmt::skip]
+      let result =
+          (LEFT * (if x < (left + inset) { 1 } else { 0 }))
+        | (RIGHT * (if x >= (right - inset) { 1 } else { 0 }))
+        | (TOP * (if y < (top + inset) { 1 } else { 0 }))
+        | (BOTTOM * (if y >= (bottom - inset) { 1 } else { 0 }));
+
+  match result {
+    CLIENT => HitTestResult::Client,
+    LEFT => HitTestResult::Left,
+    RIGHT => HitTestResult::Right,
+    TOP => HitTestResult::Top,
+    BOTTOM => HitTestResult::Bottom,
+    TOPLEFT => HitTestResult::TopLeft,
+    TOPRIGHT => HitTestResult::TopRight,
+    BOTTOMLEFT => HitTestResult::BottomLeft,
+    BOTTOMRIGHT => HitTestResult::BottomRight,
+    _ => HitTestResult::NoWhere,
+  }
+}
+
 #[cfg(windows)]
 mod windows {
-  use super::{
-    HitTestResult, BORDERLESS_RESIZE_INSET, BOTTOM, BOTTOMLEFT, BOTTOMRIGHT, CLIENT, LEFT, RIGHT,
-    TOP, TOPLEFT, TOPRIGHT,
-  };
+  use super::{hit_test, HitTestResult};
 
-  use tao::{
-    dpi::PhysicalSize,
-    window::{CursorIcon, ResizeDirection, Window},
-  };
+  use tao::window::{CursorIcon, ResizeDirection, Window};
 
   const MESSAGE_MOUSEMOVE: &str = "__internal_on_mousemove__|";
   const MESSAGE_MOUSEDOWN: &str = "__internal_on_mousedown__|";
@@ -101,37 +142,6 @@ mod windows {
     }
   }
 
-  fn hit_test(window_size: PhysicalSize<u32>, x: i32, y: i32, scale: f64) -> HitTestResult {
-    let (width, height) = (window_size.width, window_size.height);
-
-    let top = 0;
-    let left = 0;
-    let bottom = top + height as i32;
-    let right = left + width as i32;
-
-    let inset = (BORDERLESS_RESIZE_INSET * scale) as i32;
-
-    #[rustfmt::skip]
-      let result =
-          (LEFT * (if x < (left + inset) { 1 } else { 0 }))
-        | (RIGHT * (if x >= (right - inset) { 1 } else { 0 }))
-        | (TOP * (if y < (top + inset) { 1 } else { 0 }))
-        | (BOTTOM * (if y >= (bottom - inset) { 1 } else { 0 }));
-
-    match result {
-      CLIENT => HitTestResult::Client,
-      LEFT => HitTestResult::Left,
-      RIGHT => HitTestResult::Right,
-      TOP => HitTestResult::Top,
-      BOTTOM => HitTestResult::Bottom,
-      TOPLEFT => HitTestResult::TopLeft,
-      TOPRIGHT => HitTestResult::TopRight,
-      BOTTOMLEFT => HitTestResult::BottomLeft,
-      BOTTOMRIGHT => HitTestResult::BottomRight,
-      _ => HitTestResult::NoWhere,
-    }
-  }
-
   // Returns whether handled or not
   pub fn handle_request<T: crate::UserEvent>(
     context: crate::Context<T>,
@@ -149,7 +159,8 @@ mod windows {
         if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
           let (x, y) = args.split_once(',').unwrap();
           let (x, y) = (x.parse().unwrap(), y.parse().unwrap());
-          hit_test(window.inner_size(), x, y, window.scale_factor()).change_cursor(&window);
+          let size = window.inner_size();
+          hit_test(size.width, size.height, x, y, window.scale_factor()).change_cursor(&window);
         }
       }
 
@@ -165,7 +176,8 @@ mod windows {
         if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
           let (x, y) = args.split_once(',').unwrap();
           let (x, y) = (x.parse().unwrap(), y.parse().unwrap());
-          let res = hit_test(window.inner_size(), x, y, window.scale_factor());
+          let size = window.inner_size();
+          let res = hit_test(size.width, size.height, x, y, window.scale_factor());
           match res {
             HitTestResult::Client | HitTestResult::NoWhere => {}
             res => res.drag_resize_window(&window),
@@ -182,10 +194,7 @@ mod windows {
 
 #[cfg(not(windows))]
 mod gtk {
-  use super::{
-    HitTestResult, BORDERLESS_RESIZE_INSET, BOTTOM, BOTTOMLEFT, BOTTOMRIGHT, CLIENT, LEFT, RIGHT,
-    TOP, TOPLEFT, TOPRIGHT,
-  };
+  use super::{hit_test, HitTestResult};
 
   impl HitTestResult {
     fn to_gtk_edge(&self) -> gtk::gdk::WindowEdge {
@@ -200,37 +209,6 @@ mod gtk {
         HitTestResult::BottomLeft => gtk::gdk::WindowEdge::SouthWest,
         HitTestResult::BottomRight => gtk::gdk::WindowEdge::SouthEast,
       }
-    }
-  }
-
-  fn hit_test(window_size: (i32, i32), x: f64, y: f64, scale: i32) -> HitTestResult {
-    let (width, height) = (window_size.0, window_size.0);
-
-    let top = 0.0;
-    let left = 0.0;
-    let bottom = top + height as f64;
-    let right = left + width as f64;
-
-    let inset = BORDERLESS_RESIZE_INSET * scale as f64;
-
-    #[rustfmt::skip]
-      let result =
-          (LEFT * (if x < (left + inset) { 1 } else { 0 }))
-        | (RIGHT * (if x >= (right - inset) { 1 } else { 0 }))
-        | (TOP * (if y < (top + inset) { 1 } else { 0 }))
-        | (BOTTOM * (if y >= (bottom - inset) { 1 } else { 0 }));
-
-    match result {
-      CLIENT => HitTestResult::Client,
-      LEFT => HitTestResult::Left,
-      RIGHT => HitTestResult::Right,
-      TOP => HitTestResult::Top,
-      BOTTOM => HitTestResult::Bottom,
-      TOPLEFT => HitTestResult::TopLeft,
-      TOPRIGHT => HitTestResult::TopRight,
-      BOTTOMLEFT => HitTestResult::BottomLeft,
-      BOTTOMRIGHT => HitTestResult::BottomRight,
-      _ => HitTestResult::NoWhere,
     }
   }
 
@@ -261,10 +239,11 @@ mod gtk {
                 if let Some(window) = window.window() {
                   let (cx, cy) = event.root();
                   let edge = hit_test(
-                    (window.width(), window.height()),
+                    window.width(),
+                    window.height(),
                     cx,
                     cy,
-                    window.scale_factor(),
+                    window.scale_factor() as f64,
                   )
                   .to_gtk_edge();
 
@@ -295,10 +274,11 @@ mod gtk {
               if let Some((cx, cy)) = event.root_coords() {
                 if let Some(device) = event.device() {
                   let edge = hit_test(
-                    (window.width(), window.height()),
+                    window.width(),
+                    window.height(),
                     cx,
                     cy,
-                    window.scale_factor(),
+                    window.scale_factor() as f64,
                   )
                   .to_gtk_edge();
 

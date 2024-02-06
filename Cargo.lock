@@ -4030,6 +4030,7 @@ dependencies = [
  "cocoa",
  "data-url",
  "dirs-next",
+ "dunce",
  "embed_plist",
  "encoding_rs",
  "flate2",

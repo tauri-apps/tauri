@@ -706,6 +706,7 @@ impl<R: Runtime> Update<R> {
         &self.extract_path,
         self.with_elevated_task,
         &self.app.config(),
+        &self.app.env(),
       )?;
       #[cfg(not(target_os = "windows"))]
       copy_files_and_run(archive_buffer, &self.extract_path)?;
@@ -805,6 +806,7 @@ fn copy_files_and_run<R: Read + Seek>(
   _extract_path: &Path,
   with_elevated_task: bool,
   config: &crate::Config,
+  env: &crate::Env,
 ) -> Result {
   // FIXME: We need to create a memory buffer with the MSI and then run it.
   //        (instead of extracting the MSI to a temp path)
@@ -830,6 +832,8 @@ fn copy_files_and_run<R: Read + Seek>(
     |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
   );
 
+  let current_exe_args = env.args.clone();
+
   for path in paths {
     let found_path = path?.path();
     // we support 2 type of files exe & msi for now
@@ -842,29 +846,39 @@ fn copy_files_and_run<R: Read + Seek>(
       installer_path.push("\"");
 
       let installer_args = [
-        config.tauri.updater.windows.install_mode.nsis_args(),
+        config
+          .tauri
+          .updater
+          .windows
+          .install_mode
+          .nsis_args()
+          .iter()
+          .map(ToString::to_string)
+          .collect(),
+        vec!["/ARGS".to_string()],
+        current_exe_args,
         config
           .tauri
           .updater
           .windows
           .installer_args
           .iter()
-          .map(AsRef::as_ref)
-          .collect::<Vec<_>>()
-          .as_slice(),
+          .map(ToString::to_string)
+          .collect::<Vec<_>>(),
       ]
       .concat();
 
       // Run the EXE
       let mut cmd = Command::new(powershell_path);
       cmd
-        .args(["-NoProfile", "-WindowStyle", "Hidden"])
-        .args(["Start-Process"])
+        .args(["-NoProfile", "-WindowStyle", "Hidden", "Start-Process"])
         .arg(installer_path);
       if !installer_args.is_empty() {
         cmd.arg("-ArgumentList").arg(installer_args.join(", "));
       }
-      cmd.spawn().expect("installer failed to start");
+      cmd
+        .spawn()
+        .expect("Running NSIS installer from powershell has failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -908,10 +922,10 @@ fn copy_files_and_run<R: Read + Seek>(
       }
 
       // we need to wrap the current exe path in quotes for Start-Process
-      let mut current_exe_arg = std::ffi::OsString::new();
-      current_exe_arg.push("\"");
-      current_exe_arg.push(current_exe()?);
-      current_exe_arg.push("\"");
+      let mut current_executable = std::ffi::OsString::new();
+      current_executable.push("\"");
+      current_executable.push(dunce::simplified(&current_exe()?));
+      current_executable.push("\"");
 
       let mut msi_path = std::ffi::OsString::new();
       msi_path.push("\"\"\"");
@@ -933,7 +947,9 @@ fn copy_files_and_run<R: Read + Seek>(
       .concat();
 
       // run the installer and relaunch the application
-      let powershell_install_res = Command::new(powershell_path)
+      let mut powershell_cmd = Command::new(powershell_path);
+
+      powershell_cmd
         .args(["-NoProfile", "-WindowStyle", "Hidden"])
         .args([
           "Start-Process",
@@ -946,8 +962,15 @@ fn copy_files_and_run<R: Read + Seek>(
         .arg(&msi_path)
         .arg(format!(", {}, /promptrestart;", installer_args.join(", ")))
         .arg("Start-Process")
-        .arg(current_exe_arg)
-        .spawn();
+        .arg(current_executable);
+
+      if !current_exe_args.is_empty() {
+        powershell_cmd
+          .arg("-ArgumentList")
+          .arg(current_exe_args.join(", "));
+      }
+
+      let powershell_install_res = powershell_cmd.spawn();
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available
         // we use this here in case powershell fails in an older machine somehow

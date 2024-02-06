@@ -606,7 +606,8 @@ Function .onInstSuccess
   check_r_flag:
     ${GetOptions} $CMDLINE "/R" $R0
     IfErrors run_done 0
-      Exec '"$INSTDIR\${MAINBINARYNAME}.exe"'
+      ${GetOptions} $CMDLINE "/ARGS" $R0
+      Exec '"$INSTDIR\${MAINBINARYNAME}.exe" $R0'
   run_done:
 FunctionEnd
 

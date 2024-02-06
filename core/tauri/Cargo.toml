@@ -112,6 +112,7 @@ cocoa = "0.24"
 objc = "0.2"
 
 [target."cfg(windows)".dependencies]
+dunce = "1"
 webview2-com = "0.19.1"
 win7-notifications = { version = "0.4", optional = true }
 

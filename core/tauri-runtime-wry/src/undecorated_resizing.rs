@@ -26,7 +26,7 @@ const BORDERLESS_RESIZE_INSET: f64 = 5.0;
 #[cfg(not(windows))]
 pub use gtk::*;
 #[cfg(windows)]
-pub use windows::*;
+pub use ::windows::*;
 
 #[derive(Debug, PartialEq, Eq)]
 enum HitTestResult {

@@ -1,3 +1,7 @@
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 #![cfg(any(
   windows,
   target_os = "linux",
@@ -153,7 +157,7 @@ pub fn handle_request<T: super::UserEvent>(
       .get(&window_id)
       .and_then(|w| w.inner.as_ref())
     {
-      if !window.is_decorated() && window.is_resizable && !window.is_maximized() {
+      if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
         let (x, y) = args.split_once(',').unwrap();
         let (x, y) = (x.parse().unwrap(), y.parse().unwrap());
         hit_test(window.inner_size(), x, y, window.scale_factor()).change_cursor(&window);

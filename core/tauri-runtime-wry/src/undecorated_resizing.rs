@@ -114,6 +114,7 @@ mod windows {
 
   impl HitTestResult {
     fn drag_resize_window(&self, window: &Window) {
+      self.change_cursor(window);
       let _ = window.drag_resize_window(match self {
         HitTestResult::Left => ResizeDirection::West,
         HitTestResult::Right => ResizeDirection::East,

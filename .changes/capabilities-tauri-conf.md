@@ -4,4 +4,4 @@
 "tauri-codegen": patch:enhance
 ---
 
-Allow defining capabilities inlined in the `tauri.conf.json > app > security > capabilities` configuration array and no longer automatically add capabilities to your app, you must link the identifier in that same capabilities array on the Tauri configuration file.
+Added a new configuration option `tauri.conf.json > app > security > capabilities` to reference existing capabilities and inline new ones. If it is empty, all capabilities are still included preserving the current behavior.

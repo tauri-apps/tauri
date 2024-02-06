@@ -33,8 +33,7 @@
           "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
           "deny": ["$APPDATA/db/*.stronghold"]
         }
-      },
-      "capabilities": ["run-app"]
+      }
     }
   },
   "plugins": {

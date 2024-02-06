@@ -882,7 +882,7 @@
           ]
         },
         "capabilities": {
-          "description": "List of capabilities that are enabled on the application.",
+          "description": "List of capabilities that are enabled on the application.\n\nIf the list is empty, all capabilities are included.",
           "default": [],
           "type": "array",
           "items": {

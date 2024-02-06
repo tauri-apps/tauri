@@ -390,20 +390,25 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     Default::default()
   };
 
-  let mut capabilities = BTreeMap::new();
-  for capability_entry in &config.app.security.capabilities {
-    match capability_entry {
-      CapabilityEntry::Inlined(capability) => {
-        capabilities.insert(capability.identifier.clone(), capability.clone());
-      }
-      CapabilityEntry::Reference(id) => {
-        let capability = capabilities_from_files
-          .remove(id)
-          .unwrap_or_else(|| panic!("capability with identifier {id} not found"));
-        capabilities.insert(id.clone(), capability);
+  let capabilities = if config.app.security.capabilities.is_empty() {
+    capabilities_from_files
+  } else {
+    let mut capabilities = BTreeMap::new();
+    for capability_entry in &config.app.security.capabilities {
+      match capability_entry {
+        CapabilityEntry::Inlined(capability) => {
+          capabilities.insert(capability.identifier.clone(), capability.clone());
+        }
+        CapabilityEntry::Reference(id) => {
+          let capability = capabilities_from_files
+            .remove(id)
+            .unwrap_or_else(|| panic!("capability with identifier {id} not found"));
+          capabilities.insert(id.clone(), capability);
+        }
       }
     }
-  }
+    capabilities
+  };
 
   let resolved_acl = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
 

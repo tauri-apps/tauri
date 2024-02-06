@@ -1559,6 +1559,8 @@ pub struct SecurityConfig {
   #[serde(default)]
   pub pattern: PatternKind,
   /// List of capabilities that are enabled on the application.
+  ///
+  /// If the list is empty, all capabilities are included.
   #[serde(default)]
   pub capabilities: Vec<CapabilityEntry>,
 }

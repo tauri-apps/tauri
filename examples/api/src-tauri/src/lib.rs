@@ -145,9 +145,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       #[cfg(desktop)]
       cmd::popup_context_menu
     ])
-    .build(tauri::generate_context!(
-      capabilities = ["../capabilities/run-app.json"]
-    ))
+    .build(tauri::generate_context!())
     .expect("error while building tauri application");
 
   #[cfg(target_os = "macos")]

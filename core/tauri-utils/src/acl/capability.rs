@@ -4,6 +4,8 @@
 
 //! End-user abstraction for selecting permissions a window has access to.
 
+use std::{path::Path, str::FromStr};
+
 use crate::{acl::Identifier, platform::Target};
 use serde::{Deserialize, Serialize};
 
@@ -91,6 +93,47 @@ pub enum CapabilityContext {
     /// Remote domains this capability refers to. Can use glob patterns.
     domains: Vec<String>,
   },
+}
+
+/// Capability formats accepted in a capability file.
+#[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum CapabilityFile {
+  /// A single capability.
+  Capability(Capability),
+  /// A list of capabilities.
+  List {
+    /// The list of capabilities.
+    capabilities: Vec<Capability>,
+  },
+}
+
+impl CapabilityFile {
+  /// Load the given capability file.
+  pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, super::Error> {
+    let path = path.as_ref();
+    let capability_file = std::fs::read_to_string(&path).map_err(super::Error::ReadFile)?;
+    let ext = path.extension().unwrap().to_string_lossy().to_string();
+    let file: Self = match ext.as_str() {
+      "toml" => toml::from_str(&capability_file)?,
+      "json" => serde_json::from_str(&capability_file)?,
+      _ => return Err(super::Error::UnknownCapabilityFormat(ext)),
+    };
+    Ok(file)
+  }
+}
+
+impl FromStr for CapabilityFile {
+  type Err = super::Error;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    match s.chars().next() {
+      Some('[') => toml::from_str(s).map_err(Into::into),
+      Some('{') => serde_json::from_str(s).map_err(Into::into),
+      _ => Err(super::Error::UnknownCapabilityFormat(s.into())),
+    }
+  }
 }
 
 #[cfg(feature = "build")]

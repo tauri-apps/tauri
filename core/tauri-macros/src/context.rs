@@ -4,18 +4,19 @@
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use std::{env::VarError, path::PathBuf};
+use std::path::PathBuf;
 use syn::{
   parse::{Parse, ParseBuffer},
   punctuated::Punctuated,
-  LitStr, PathArguments, PathSegment, Token,
+  Expr, Lit, LitStr, Meta, PathArguments, PathSegment, Token,
 };
-use tauri_codegen::{context_codegen, get_config, ContextData};
+use tauri_codegen::{context_codegen, get_config, Capabilities, CapabilityToken, ContextData};
 use tauri_utils::{config::parse::does_supported_file_name_exist, platform::Target};
 
 pub(crate) struct ContextItems {
   config_file: PathBuf,
   root: syn::Path,
+  capabilities: Option<Vec<CapabilityToken>>,
 }
 
 impl Parse for ContextItems {
@@ -26,51 +27,98 @@ impl Parse for ContextItems {
       .map(Target::from_triple)
       .unwrap_or_else(|_| Target::current());
 
-    let config_file = if input.is_empty() {
-      std::env::var("CARGO_MANIFEST_DIR").map(|m| PathBuf::from(m).join("tauri.conf.json"))
-    } else {
-      let raw: LitStr = input.parse()?;
+    let mut root = None;
+    let mut capabilities = None;
+    let config_file = input.parse::<LitStr>().ok().map(|raw| {
+      let _ = input.parse::<Token![,]>();
       let path = PathBuf::from(raw.value());
       if path.is_relative() {
-        std::env::var("CARGO_MANIFEST_DIR").map(|m| PathBuf::from(m).join(path))
+        std::env::var("CARGO_MANIFEST_DIR")
+          .map(|m| PathBuf::from(m).join(path))
+          .map_err(|e| e.to_string())
       } else {
         Ok(path)
+      }
+      .and_then(|path| {
+        if does_supported_file_name_exist(target, &path) {
+          Ok(path)
+        } else {
+          Err(format!(
+            "no file at path {} exists, expected tauri config file",
+            path.display()
+          ))
+        }
+      })
+    });
+
+    while let Ok(meta) = input.parse::<Meta>() {
+      match meta {
+        Meta::Path(p) => {
+          root.replace(p);
+        }
+        Meta::NameValue(v) => {
+          if v.path.require_ident()?.to_string() == "capabilities" {
+            if let Expr::Array(array) = v.value {
+              capabilities.replace(
+                array
+                  .elems
+                  .into_iter()
+                  .map(|e| {
+                    if let Expr::Lit(lit) = e {
+                      if let Lit::Str(s) = lit.lit {
+                        Ok(CapabilityToken {
+                          attrs: lit.attrs,
+                          path: s.value(),
+                        })
+                      } else {
+                        Err(syn::Error::new(
+                          input.span(),
+                          "unexpected literal type for capability",
+                        ))
+                      }
+                    } else {
+                      Err(syn::Error::new(
+                        input.span(),
+                        "unexpected expression for capability",
+                      ))
+                    }
+                  })
+                  .collect::<Result<Vec<_>, syn::Error>>()?,
+              );
+            } else {
+              return Err(syn::Error::new(
+                input.span(),
+                "unexpected value for capabilities",
+              ));
+            }
+          }
+        }
+        Meta::List(_) => {
+          return Err(syn::Error::new(input.span(), "unexpected list input"));
+        }
       }
     }
-    .map_err(|error| match error {
-      VarError::NotPresent => "no CARGO_MANIFEST_DIR env var, this should be set by cargo".into(),
-      VarError::NotUnicode(_) => "CARGO_MANIFEST_DIR env var contained invalid utf8".into(),
-    })
-    .and_then(|path| {
-      if does_supported_file_name_exist(target, &path) {
-        Ok(path)
-      } else {
-        Err(format!(
-          "no file at path {} exists, expected tauri config file",
-          path.display()
-        ))
-      }
-    })
-    .map_err(|e| input.error(e))?;
-
-    let context_path = if input.is_empty() {
-      let mut segments = Punctuated::new();
-      segments.push(PathSegment {
-        ident: Ident::new("tauri", Span::call_site()),
-        arguments: PathArguments::None,
-      });
-      syn::Path {
-        leading_colon: Some(Token![::](Span::call_site())),
-        segments,
-      }
-    } else {
-      let _: Token![,] = input.parse()?;
-      input.call(syn::Path::parse_mod_style)?
-    };
 
     Ok(Self {
-      config_file,
-      root: context_path,
+      config_file: config_file
+        .unwrap_or_else(|| {
+          std::env::var("CARGO_MANIFEST_DIR")
+            .map(|m| PathBuf::from(m).join("tauri.conf.json"))
+            .map_err(|e| e.to_string())
+        })
+        .map_err(|e| input.error(e))?,
+      root: root.unwrap_or_else(|| {
+        let mut segments = Punctuated::new();
+        segments.push(PathSegment {
+          ident: Ident::new("tauri", Span::call_site()),
+          arguments: PathArguments::None,
+        });
+        syn::Path {
+          leading_colon: Some(Token![::](Span::call_site())),
+          segments,
+        }
+      }),
+      capabilities,
     })
   }
 }
@@ -83,6 +131,7 @@ pub(crate) fn generate_context(context: ContextItems) -> TokenStream {
       config,
       config_parent,
       root: context.root.to_token_stream(),
+      capabilities: context.capabilities.map(Capabilities::FromTokens),
     })
     .and_then(|data| context_codegen(data).map_err(|e| e.to_string()));
 

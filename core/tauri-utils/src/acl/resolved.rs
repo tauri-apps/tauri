@@ -8,6 +8,7 @@ use std::{
   collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
   fmt,
   hash::{Hash, Hasher},
+  str::FromStr,
 };
 
 use glob::Pattern;
@@ -15,7 +16,7 @@ use glob::Pattern;
 use crate::platform::Target;
 
 use super::{
-  capability::{Capability, CapabilityContext, PermissionEntry},
+  capability::{Capability, CapabilityContext, CapabilityFile, PermissionEntry},
   plugin::Manifest,
   Commands, Error, ExecutionContext, Permission, PermissionSet, Scopes, Value,
 };
@@ -77,7 +78,6 @@ pub struct CommandKey {
 #[derive(Default)]
 pub struct Resolved {
   /// ACL plugin manifests.
-  #[cfg(debug_assertions)]
   pub acl: BTreeMap<String, Manifest>,
   /// The commands that are allowed. Map each command with its context to a [`ResolvedCommand`].
   pub allowed_commands: BTreeMap<CommandKey, ResolvedCommand>,
@@ -120,53 +120,10 @@ impl Resolved {
         continue;
       }
 
-      for permission_entry in &capability.permissions {
-        let permission_id = permission_entry.identifier();
-        let permission_name = permission_id.get_base();
-
-        if let Some(plugin_name) = permission_id.get_prefix() {
-          let permissions = get_permissions(plugin_name, permission_name, &acl)?;
-
-          let mut resolved_scope = Scopes::default();
-          let mut commands = Commands::default();
-
-          if let PermissionEntry::ExtendedPermission {
-            identifier: _,
-            scope,
-          } = permission_entry
-          {
-            if let Some(allow) = scope.allow.clone() {
-              resolved_scope
-                .allow
-                .get_or_insert_with(Default::default)
-                .extend(allow);
-            }
-            if let Some(deny) = scope.deny.clone() {
-              resolved_scope
-                .deny
-                .get_or_insert_with(Default::default)
-                .extend(deny);
-            }
-          }
-
-          for permission in permissions {
-            if let Some(allow) = permission.scope.allow.clone() {
-              resolved_scope
-                .allow
-                .get_or_insert_with(Default::default)
-                .extend(allow);
-            }
-            if let Some(deny) = permission.scope.deny.clone() {
-              resolved_scope
-                .deny
-                .get_or_insert_with(Default::default)
-                .extend(deny);
-            }
-
-            commands.allow.extend(permission.commands.allow.clone());
-            commands.deny.extend(permission.commands.deny.clone());
-          }
-
+      resolve_capability(
+        capability,
+        &acl,
+        |plugin_name, permission_name, commands, resolved_scope| {
           if commands.allow.is_empty() && commands.deny.is_empty() {
             // global scope
             global_scope
@@ -187,7 +144,7 @@ impl Resolved {
             };
 
             for allowed_command in &commands.allow {
-              resolve_command(
+              resolve_command_temp(
                 &mut allowed_commands,
                 format!("plugin:{plugin_name}|{allowed_command}"),
                 capability,
@@ -198,7 +155,7 @@ impl Resolved {
             }
 
             for denied_command in &commands.deny {
-              resolve_command(
+              resolve_command_temp(
                 &mut denied_commands,
                 format!("plugin:{plugin_name}|{denied_command}"),
                 capability,
@@ -208,8 +165,8 @@ impl Resolved {
               );
             }
           }
-        }
-      }
+        },
+      )?;
     }
 
     // resolve scopes
@@ -261,7 +218,6 @@ impl Resolved {
       .collect();
 
     let resolved = Self {
-      #[cfg(debug_assertions)]
       acl,
       allowed_commands: allowed_commands
         .into_iter()
@@ -297,6 +253,62 @@ impl Resolved {
 
     Ok(resolved)
   }
+
+  /// Add a capability file to this resolved ACL.
+  pub fn add_capability(&mut self, capability_file_contents: &str) -> Result<(), Error> {
+    let capabilities = match CapabilityFile::from_str(capability_file_contents)? {
+      CapabilityFile::Capability(c) => vec![c],
+      CapabilityFile::List { capabilities } => capabilities,
+    };
+
+    for capability in capabilities {
+      resolve_capability(
+        &capability,
+        &self.acl,
+        |plugin_name, permission_name, commands, resolved_scope| {
+          if commands.allow.is_empty() && commands.deny.is_empty() {
+            let entry = self
+              .global_scope
+              .entry(plugin_name.to_string())
+              .or_default();
+
+            if let Some(allow) = resolved_scope.allow {
+              entry.allow.extend(allow);
+            }
+            if let Some(deny) = resolved_scope.deny {
+              entry.allow.extend(deny);
+            }
+          } else {
+            for allowed_command in &commands.allow {
+              resolve_command(
+                &mut self.allowed_commands,
+                &mut self.command_scope,
+                format!("plugin:{plugin_name}|{allowed_command}"),
+                &capability,
+                &resolved_scope,
+                #[cfg(debug_assertions)]
+                permission_name.to_string(),
+              );
+            }
+
+            for denied_command in &commands.deny {
+              resolve_command(
+                &mut self.denied_commands,
+                &mut self.command_scope,
+                format!("plugin:{plugin_name}|{denied_command}"),
+                &capability,
+                &resolved_scope,
+                #[cfg(debug_assertions)]
+                permission_name.to_string(),
+              );
+            }
+          }
+        },
+      )?;
+    }
+
+    Ok(())
+  }
 }
 
 fn parse_window_patterns(windows: HashSet<String>) -> Result<Vec<glob::Pattern>, Error> {
@@ -305,6 +317,65 @@ fn parse_window_patterns(windows: HashSet<String>) -> Result<Vec<glob::Pattern>,
     patterns.push(glob::Pattern::new(&window)?);
   }
   Ok(patterns)
+}
+
+fn resolve_capability<F: FnMut(&str, &str, Commands, Scopes)>(
+  capability: &Capability,
+  acl: &BTreeMap<String, Manifest>,
+  mut f: F,
+) -> Result<(), Error> {
+  for permission_entry in &capability.permissions {
+    let permission_id = permission_entry.identifier();
+    let permission_name = permission_id.get_base();
+
+    if let Some(plugin_name) = permission_id.get_prefix() {
+      let permissions = get_permissions(plugin_name, permission_name, acl)?;
+
+      let mut resolved_scope = Scopes::default();
+      let mut commands = Commands::default();
+
+      if let PermissionEntry::ExtendedPermission {
+        identifier: _,
+        scope,
+      } = permission_entry
+      {
+        if let Some(allow) = scope.allow.clone() {
+          resolved_scope
+            .allow
+            .get_or_insert_with(Default::default)
+            .extend(allow);
+        }
+        if let Some(deny) = scope.deny.clone() {
+          resolved_scope
+            .deny
+            .get_or_insert_with(Default::default)
+            .extend(deny);
+        }
+      }
+
+      for permission in permissions {
+        if let Some(allow) = permission.scope.allow.clone() {
+          resolved_scope
+            .allow
+            .get_or_insert_with(Default::default)
+            .extend(allow);
+        }
+        if let Some(deny) = permission.scope.deny.clone() {
+          resolved_scope
+            .deny
+            .get_or_insert_with(Default::default)
+            .extend(deny);
+        }
+
+        commands.allow.extend(permission.commands.allow.clone());
+        commands.deny.extend(permission.commands.deny.clone());
+      }
+
+      f(plugin_name, permission_name, commands, resolved_scope);
+    }
+  }
+
+  Ok(())
 }
 
 #[derive(Debug, Default)]
@@ -317,6 +388,59 @@ struct ResolvedCommandTemp {
 }
 
 fn resolve_command(
+  commands: &mut BTreeMap<CommandKey, ResolvedCommand>,
+  command_scope: &mut BTreeMap<ScopeKey, ResolvedScope>,
+  command: String,
+  capability: &Capability,
+  scopes: &Scopes,
+  #[cfg(debug_assertions)] referenced_by_permission_identifier: String,
+) {
+  let contexts = match &capability.context {
+    CapabilityContext::Local => {
+      vec![ExecutionContext::Local]
+    }
+    CapabilityContext::Remote { domains } => domains
+      .iter()
+      .map(|domain| ExecutionContext::Remote {
+        domain: Pattern::new(domain)
+          .unwrap_or_else(|e| panic!("invalid glob pattern for remote domain {domain}: {e}")),
+      })
+      .collect(),
+  };
+
+  for context in contexts {
+    let resolved = commands
+      .entry(CommandKey {
+        name: command.clone(),
+        context,
+      })
+      .or_default();
+
+    #[cfg(debug_assertions)]
+    resolved.referenced_by.push(ResolvedCommandReference {
+      capability: capability.identifier.clone(),
+      permission: referenced_by_permission_identifier.clone(),
+    });
+
+    resolved.windows.extend(
+      parse_window_patterns(capability.windows.clone().into_iter().collect())
+        .expect("failed to parse window glob pattern"),
+    );
+
+    if let Some(id) = resolved.scope {
+      let scope = command_scope.get_mut(&id).unwrap();
+
+      if let Some(allow) = &scopes.allow {
+        scope.allow.extend(allow.clone());
+      }
+      if let Some(deny) = &scopes.deny {
+        scope.deny.extend(deny.clone());
+      }
+    }
+  }
+}
+
+fn resolve_command_temp(
   commands: &mut BTreeMap<CommandKey, ResolvedCommandTemp>,
   command: String,
   capability: &Capability,
@@ -493,7 +617,6 @@ mod build {
 
   impl ToTokens for Resolved {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      #[cfg(debug_assertions)]
       let acl = map_lit(
         quote! { ::std::collections::BTreeMap },
         &self.acl,
@@ -529,22 +652,10 @@ mod build {
         identity,
       );
 
-      #[cfg(debug_assertions)]
-      {
-        literal_struct!(
-          tokens,
-          ::tauri::utils::acl::resolved::Resolved,
-          acl,
-          allowed_commands,
-          denied_commands,
-          command_scope,
-          global_scope
-        )
-      }
-      #[cfg(not(debug_assertions))]
       literal_struct!(
         tokens,
         ::tauri::utils::acl::resolved::Resolved,
+        acl,
         allowed_commands,
         denied_commands,
         command_scope,

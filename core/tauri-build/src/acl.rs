@@ -17,7 +17,10 @@ use schemars::{
   schema_for,
 };
 use tauri_utils::{
-  acl::{build::CapabilityFile, capability::Capability, plugin::Manifest},
+  acl::{
+    capability::{Capability, CapabilityFile},
+    plugin::Manifest,
+  },
   platform::Target,
 };
 

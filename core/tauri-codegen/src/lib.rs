@@ -12,7 +12,7 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
 
-pub use self::context::{context_codegen, ContextData};
+pub use self::context::{context_codegen, Capabilities, CapabilityToken, ContextData};
 use std::{
   borrow::Cow,
   path::{Path, PathBuf},

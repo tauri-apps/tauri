@@ -67,7 +67,7 @@ pub struct Capability {
   ///
   /// This is only required when using on multiwebview contexts, by default
   /// all child webviews of a window that matches [`Self::windows`] are linked.
-  #[serde(default)]
+  #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub webviews: Vec<String>,
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   pub permissions: Vec<PermissionEntry>,

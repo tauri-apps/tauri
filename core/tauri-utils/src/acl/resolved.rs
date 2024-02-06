@@ -305,10 +305,14 @@ impl Resolved {
 }
 
 fn parse_glob_patterns(raw: HashSet<String>) -> Result<Vec<glob::Pattern>, Error> {
+  let mut raw = raw.into_iter().collect::<Vec<_>>();
+  raw.sort();
+
   let mut patterns = Vec::new();
   for pattern in raw {
     patterns.push(glob::Pattern::new(&pattern)?);
   }
+
   Ok(patterns)
 }
 

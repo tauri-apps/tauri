@@ -30,30 +30,6 @@ Resolved {
             ],
             webviews: [
                 Pattern {
-                    original: "child2",
-                    tokens: [
-                        Char(
-                            'c',
-                        ),
-                        Char(
-                            'h',
-                        ),
-                        Char(
-                            'i',
-                        ),
-                        Char(
-                            'l',
-                        ),
-                        Char(
-                            'd',
-                        ),
-                        Char(
-                            '2',
-                        ),
-                    ],
-                    is_recursive: false,
-                },
-                Pattern {
                     original: "child1",
                     tokens: [
                         Char(
@@ -73,6 +49,30 @@ Resolved {
                         ),
                         Char(
                             '1',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+                Pattern {
+                    original: "child2",
+                    tokens: [
+                        Char(
+                            'c',
+                        ),
+                        Char(
+                            'h',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'l',
+                        ),
+                        Char(
+                            'd',
+                        ),
+                        Char(
+                            '2',
                         ),
                     ],
                     is_recursive: false,

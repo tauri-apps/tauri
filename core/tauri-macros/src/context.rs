@@ -57,7 +57,7 @@ impl Parse for ContextItems {
           root.replace(p);
         }
         Meta::NameValue(v) => {
-          if v.path.require_ident()?.to_string() == "capabilities" {
+          if *v.path.require_ident()? == "capabilities" {
             if let Expr::Array(array) = v.value {
               capabilities.replace(
                 array

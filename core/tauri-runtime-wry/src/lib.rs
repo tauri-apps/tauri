@@ -114,6 +114,16 @@ use std::{
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(String) + 'static;
 
+#[cfg(any(
+  windows,
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+mod undecorated_resizing;
+
 mod webview;
 pub use webview::Webview;
 
@@ -3277,6 +3287,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 }
 
 // the kind of the webview
+#[derive(PartialEq, Eq, Clone, Copy)]
 enum WebviewKind {
   // webview is the entire window content
   WindowContent,
@@ -3357,6 +3368,11 @@ fn create_webview<T: UserEvent>(
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+
+  #[cfg(windows)]
+  if kind == WebviewKind::WindowContent {
+    webview_builder = webview_builder.with_initialization_script(undecorated_resizing::SCRIPT);
+  }
 
   if webview_attributes.file_drop_handler_enabled {
     let proxy = context.proxy.clone();
@@ -3466,15 +3482,14 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_https_scheme(false);
   }
 
-  if let Some(handler) = ipc_handler {
-    webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
-      window_id,
-      id,
-      context.clone(),
-      label.clone(),
-      handler,
-    ));
-  }
+  webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
+    kind,
+    window_id,
+    id,
+    context.clone(),
+    label.clone(),
+    ipc_handler,
+  ));
 
   for (scheme, protocol) in uri_scheme_protocols {
     webview_builder =
@@ -3551,6 +3566,17 @@ fn create_webview<T: UserEvent>(
     .build()
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  if kind == WebviewKind::WindowContent {
+    undecorated_resizing::attach_resize_handler(&webview);
+  }
+
   #[cfg(windows)]
   {
     let controller = webview.controller();
@@ -3602,24 +3628,34 @@ fn create_webview<T: UserEvent>(
 
 /// Create a wry ipc handler from a tauri ipc handler.
 fn create_ipc_handler<T: UserEvent>(
+  _kind: WebviewKind,
   window_id: WindowId,
   webview_id: WebviewId,
   context: Context<T>,
   label: String,
-  handler: WebviewIpcHandler<T, Wry<T>>,
+  ipc_handler: Option<WebviewIpcHandler<T, Wry<T>>>,
 ) -> Box<IpcHandler> {
   Box::new(move |request| {
-    handler(
-      DetachedWebview {
-        label: label.clone(),
-        dispatcher: WryWebviewDispatcher {
-          window_id,
-          webview_id,
-          context: context.clone(),
+    #[cfg(windows)]
+    if _kind == WebviewKind::WindowContent
+      && undecorated_resizing::handle_request(context.clone(), window_id, &request)
+    {
+      return;
+    }
+
+    if let Some(handler) = &ipc_handler {
+      handler(
+        DetachedWebview {
+          label: label.clone(),
+          dispatcher: WryWebviewDispatcher {
+            window_id,
+            webview_id,
+            context: context.clone(),
+          },
         },
-      },
-      request,
-    );
+        request,
+      );
+    }
   })
 }
 

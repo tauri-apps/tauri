@@ -44,7 +44,10 @@ enum HitTestResult {
 
 #[cfg(windows)]
 mod windows {
-  use super::HitTestResult;
+  use super::{
+    HitTestResult, BORDERLESS_RESIZE_INSET, BOTTOM, BOTTOMLEFT, BOTTOMRIGHT, CLIENT, LEFT, RIGHT,
+    TOP, TOPLEFT, TOPRIGHT,
+  };
 
   use tao::{
     dpi::PhysicalSize,
@@ -130,9 +133,9 @@ mod windows {
   }
 
   // Returns whether handled or not
-  pub fn handle_request<T: super::UserEvent>(
-    context: super::Context<T>,
-    window_id: super::WindowId,
+  pub fn handle_request<T: crate::UserEvent>(
+    context: crate::Context<T>,
+    window_id: crate::WindowId,
     request: &str,
   ) -> bool {
     if let Some(args) = request.strip_prefix(MESSAGE_MOUSEMOVE) {

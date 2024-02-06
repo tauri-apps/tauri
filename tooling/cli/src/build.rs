@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, FrontendDist, HookCommand},
+    config::{get as get_config, ConfigHandle, FrontendDist, HookCommand},
     updater_signature::{secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -81,7 +81,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     options.target.clone(),
   )?;
 
-  setup(target, &interface, &mut options, false)?;
+  setup(&interface, &mut options, config.clone(), false)?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
@@ -266,13 +266,11 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 }
 
 pub fn setup(
-  target: Target,
   interface: &AppInterface,
   options: &mut Options,
+  config: ConfigHandle,
   mobile: bool,
 ) -> Result<()> {
-  let config = get_config(target, options.config.as_ref().map(|c| &c.0))?;
-
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 

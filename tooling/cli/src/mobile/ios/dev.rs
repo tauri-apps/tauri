@@ -213,12 +213,7 @@ fn run_dev(
     options.force_ip_prompt,
   )?;
 
-  crate::dev::setup(
-    tauri_utils::platform::Target::Ios,
-    &interface,
-    &mut dev_options,
-    true,
-  )?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone(), true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

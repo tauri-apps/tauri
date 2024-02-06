@@ -192,12 +192,7 @@ fn run_dev(
     options.force_ip_prompt,
   )?;
 
-  crate::dev::setup(
-    tauri_utils::platform::Target::Android,
-    &interface,
-    &mut dev_options,
-    true,
-  )?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone(), true)?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,

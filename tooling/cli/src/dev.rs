@@ -6,7 +6,9 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config, BeforeDevCommand, FrontendDist},
+    config::{
+      get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
+    },
   },
   interface::{AppInterface, DevProcess, ExitReason, Interface},
   CommandExt, ConfigValue, Result,
@@ -106,7 +108,7 @@ fn command_internal(mut options: Options) -> Result<()> {
     options.target.clone(),
   )?;
 
-  setup(target, &interface, &mut options, false)?;
+  setup(&interface, &mut options, config, false)?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
@@ -159,13 +161,11 @@ pub fn local_ip_address(force: bool) -> &'static IpAddr {
 }
 
 pub fn setup(
-  target: Target,
   interface: &AppInterface,
   options: &mut Options,
+  config: ConfigHandle,
   mobile: bool,
 ) -> Result<()> {
-  let config = get_config(target, options.config.as_ref().map(|c| &c.0))?;
-
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 

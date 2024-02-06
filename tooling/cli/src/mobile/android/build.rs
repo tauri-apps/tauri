@@ -175,12 +175,7 @@ fn run_build(
     options.aab = true;
   }
 
-  crate::build::setup(
-    tauri_utils::platform::Target::Android,
-    &interface,
-    &mut build_options,
-    true,
-  )?;
+  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,

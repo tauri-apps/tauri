@@ -243,12 +243,15 @@ mod gtk {
               let window: gtk::Window = window.downcast().unwrap();
               if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
                 if let Some(window) = window.window() {
-                  let (cx, cy) = event.root();
+                  let (root_x, root_y) = event.root();
+                  let (window_x, window_y) = window.position();
+                  let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
+
                   let edge = hit_test(
                     window.width(),
                     window.height(),
-                    cx,
-                    cy,
+                    client_x,
+                    client_y,
                     window.scale_factor() as f64,
                   )
                   .to_gtk_edge();
@@ -256,7 +259,9 @@ mod gtk {
                   // we ignore the `__Unknown` variant so the webview receives the click correctly if it is not on the edges.
                   match edge {
                     WindowEdge::__Unknown(_) => (),
-                    _ => window.begin_resize_drag(edge, 1, cx as i32, cy as i32, event.time()),
+                    _ => {
+                      window.begin_resize_drag(edge, 1, root_x as i32, root_y as i32, event.time())
+                    }
                   }
                 }
               }
@@ -277,13 +282,16 @@ mod gtk {
           let window: gtk::Window = window.downcast().unwrap();
           if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
             if let Some(window) = window.window() {
-              if let Some((cx, cy)) = event.root_coords() {
+              if let Some((root_x, root_y)) = event.root_coords() {
                 if let Some(device) = event.device() {
+                  let (window_x, window_y) = window.position();
+                  let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
+
                   let edge = hit_test(
                     window.width(),
                     window.height(),
-                    cx,
-                    cy,
+                    client_x,
+                    client_y,
                     window.scale_factor() as f64,
                   )
                   .to_gtk_edge();
@@ -295,8 +303,8 @@ mod gtk {
                       edge,
                       &device,
                       0,
-                      cx as i32,
-                      cy as i32,
+                      root_x as i32,
+                      root_y as i32,
                       event.time(),
                     ),
                   }

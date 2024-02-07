@@ -106,31 +106,32 @@ impl Resolved {
         continue;
       }
 
-      resolve_capability(
+      with_resolved_permissions(
         capability,
         acl,
-        |plugin_name, permission_name, commands, resolved_scope| {
+        |ResolvedPermission {
+           plugin_name,
+           permission_name,
+           commands,
+           scope,
+         }| {
           if commands.allow.is_empty() && commands.deny.is_empty() {
             // global scope
             global_scope
               .entry(plugin_name.to_string())
               .or_default()
-              .push(resolved_scope);
+              .push(scope);
           } else {
-            let has_scope = resolved_scope.allow.is_some() || resolved_scope.deny.is_some();
-            if has_scope {
+            let scope_id = if scope.allow.is_some() || scope.deny.is_some() {
               current_scope_id += 1;
-              command_scopes.insert(current_scope_id, resolved_scope);
-            }
-
-            let scope_id = if has_scope {
+              command_scopes.insert(current_scope_id, scope);
               Some(current_scope_id)
             } else {
               None
             };
 
             for allowed_command in &commands.allow {
-              resolve_command_temp(
+              resolve_command(
                 &mut allowed_commands,
                 format!("plugin:{plugin_name}|{allowed_command}"),
                 capability,
@@ -141,7 +142,7 @@ impl Resolved {
             }
 
             for denied_command in &commands.deny {
-              resolve_command_temp(
+              resolve_command(
                 &mut denied_commands,
                 format!("plugin:{plugin_name}|{denied_command}"),
                 capability,
@@ -248,7 +249,14 @@ fn parse_window_patterns(windows: HashSet<String>) -> Result<Vec<glob::Pattern>,
   Ok(patterns)
 }
 
-fn resolve_capability<F: FnMut(&str, &str, Commands, Scopes)>(
+struct ResolvedPermission<'a> {
+  plugin_name: &'a str,
+  permission_name: &'a str,
+  commands: Commands,
+  scope: Scopes,
+}
+
+fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>)>(
   capability: &Capability,
   acl: &BTreeMap<String, Manifest>,
   mut f: F,
@@ -300,7 +308,12 @@ fn resolve_capability<F: FnMut(&str, &str, Commands, Scopes)>(
         commands.deny.extend(permission.commands.deny.clone());
       }
 
-      f(plugin_name, permission_name, commands, resolved_scope);
+      f(ResolvedPermission {
+        plugin_name,
+        permission_name,
+        commands,
+        scope: resolved_scope,
+      });
     }
   }
 
@@ -315,7 +328,7 @@ struct ResolvedCommandTemp {
   pub scope: Vec<ScopeKey>,
   pub resolved_scope_key: Option<ScopeKey>,
 }
-fn resolve_command_temp(
+fn resolve_command(
   commands: &mut BTreeMap<CommandKey, ResolvedCommandTemp>,
   command: String,
   capability: &Capability,

@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use syn::{
   parse::{Parse, ParseBuffer},
   punctuated::Punctuated,
-  Expr, Lit, LitStr, Meta, PathArguments, PathSegment, Token,
+  Expr, ExprLit, Lit, LitStr, Meta, PathArguments, PathSegment, Token,
 };
 use tauri_codegen::{context_codegen, get_config, Capabilities, CapabilityToken, ContextData};
 use tauri_utils::{config::parse::does_supported_file_name_exist, platform::Target};
@@ -64,18 +64,15 @@ impl Parse for ContextItems {
                   .elems
                   .into_iter()
                   .map(|e| {
-                    if let Expr::Lit(lit) = e {
-                      if let Lit::Str(s) = lit.lit {
-                        Ok(CapabilityToken {
-                          attrs: lit.attrs,
-                          path: s.value(),
-                        })
-                      } else {
-                        Err(syn::Error::new(
-                          input.span(),
-                          "unexpected literal type for capability",
-                        ))
-                      }
+                    if let Expr::Lit(ExprLit {
+                      attrs,
+                      lit: Lit::Str(s),
+                    }) = e
+                    {
+                      Ok(CapabilityToken {
+                        attrs,
+                        path: s.value(),
+                      })
                     } else {
                       Err(syn::Error::new(
                         input.span(),

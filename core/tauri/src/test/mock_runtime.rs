@@ -203,7 +203,9 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     self.context.send_message(Message::Task(Box::new(f)))
   }
 
-  fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::RawDisplayHandle, raw_window_handle::HandleError> {
     #[cfg(target_os = "linux")]
     return raw_window_handle::RawDisplayHandle::Xlib(raw_window_handle::XlibDisplayHandle::empty());
     #[cfg(target_os = "macos")]

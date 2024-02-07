@@ -877,9 +877,15 @@ impl<R: Runtime> std::fmt::Debug for Window<R> {
   }
 }
 
-unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    self.window.dispatcher.raw_window_handle().unwrap()
+impl<R: Runtime> raw_window_handle::HasWindowHandle for Window<R> {
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+    self
+      .window
+      .dispatcher
+      .raw_window_handle()
+      .map(|w| unsafe { raw_window_handle::WindowHandle::borrow_raw(w) })
   }
 }
 
@@ -1422,7 +1428,12 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
       .and_then(|handle| {
         if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
-          Ok(h.ns_window)
+          Ok(unsafe {
+            use objc::*;
+            let ns_window: cocoa::base::id =
+              objc::msg_send![h.ns_view.as_ptr() as cocoa::base::id, window];
+            ns_window as *mut _
+          })
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1439,7 +1450,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
       .and_then(|handle| {
         if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
-          Ok(h.ns_view)
+          Ok(h.ns_view.as_ptr())
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }

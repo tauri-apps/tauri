@@ -11,7 +11,7 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
 
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
+use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 use tauri_runtime::{
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -1077,8 +1077,8 @@ pub struct GtkBox(pub gtk::Box);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkBox {}
 
-pub struct RawWindowHandle(pub raw_window_handle::RawWindowHandle);
-unsafe impl Send for RawWindowHandle {}
+pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
+unsafe impl Send for SendRawWindowHandle {}
 
 #[cfg(target_os = "macos")]
 #[derive(Debug, Clone)]
@@ -1125,7 +1125,7 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkBox(Sender<GtkBox>),
-  RawWindowHandle(Sender<RawWindowHandle>),
+  RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
   // Setters
   Center,
@@ -1400,6 +1400,12 @@ pub struct WryWindowDispatcher<T: UserEvent> {
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Sync for WryWindowDispatcher<T> {}
 
+fn get_raw_window_handle<T: UserEvent>(
+  dispatcher: &WryWindowDispatcher<T>,
+) -> Result<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>> {
+  window_getter!(dispatcher, WindowMessage::RawWindowHandle)
+}
+
 impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   type Runtime = Wry<T>;
   type WindowBuilder = WindowBuilderWrapper;
@@ -1531,8 +1537,12 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
   }
 
-  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
-    window_getter!(self, WindowMessage::RawWindowHandle).map(|w| w.0)
+  fn raw_window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::RawWindowHandle, raw_window_handle::HandleError> {
+    get_raw_window_handle(self)
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)
+      .and_then(|r| r.map(|h| h.0))
   }
 
   // Setters
@@ -2046,8 +2056,8 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
-  fn raw_display_handle(&self) -> RawDisplayHandle {
-    self.context.main_thread.window_target.raw_display_handle()
+  fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError> {
+    self.context.main_thread.window_target.display_handle()
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
@@ -2547,7 +2557,11 @@ fn handle_user_message<T: UserEvent>(
             .send(GtkBox(window.default_vbox().unwrap().clone()))
             .unwrap(),
           WindowMessage::RawWindowHandle(tx) => tx
-            .send(RawWindowHandle(window.raw_window_handle()))
+            .send(
+              window
+                .window_handle()
+                .map(|h| SendRawWindowHandle(h.as_raw())),
+            )
             .unwrap(),
           WindowMessage::Theme(tx) => {
             tx.send(map_theme(&window.theme())).unwrap();

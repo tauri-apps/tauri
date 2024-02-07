@@ -14,10 +14,10 @@ rust-version = { workspace = true }
 
 [dependencies]
 wry = { version = "0.36", default-features = false, features = [ "file-drop", "protocol", "os-webview" ] }
-tao = { version = "0.25", default-features = false, features = [ "rwh_05", "rwh_06" ] }
+tao = { version = "0.25", default-features = false, features = [ "rwh_06" ] }
 tauri-runtime = { version = "2.0.0-beta.1", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-beta.1", path = "../tauri-utils" }
-raw-window-handle = "0.5"
+raw-window-handle = "0.6"
 http = "0.2"
 tracing = { version = "0.1", optional = true }
 

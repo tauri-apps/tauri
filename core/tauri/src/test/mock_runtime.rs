@@ -672,7 +672,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     return unsafe {
       Ok(raw_window_handle::WindowHandle::borrow_raw(
         raw_window_handle::RawWindowHandle::Win32(raw_window_handle::Win32WindowHandle::new(
-          std::ptr::NonNull::from(&()).cast(),
+          std::num::NonZeroIsize::MIN,
         )),
       ))
     };

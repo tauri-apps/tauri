@@ -657,9 +657,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     #[cfg(target_os = "linux")]
     return unsafe {
       Ok(raw_window_handle::WindowHandle::borrow_raw(
-        raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(
-          std::ptr::NonNull::from(&()).cast(),
-        )),
+        raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(0)),
       ))
     };
     #[cfg(target_os = "macos")]

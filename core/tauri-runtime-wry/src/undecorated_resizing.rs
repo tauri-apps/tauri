@@ -201,7 +201,7 @@ mod gtk {
   use super::{hit_test, HitTestResult};
 
   impl HitTestResult {
-    fn to_gtk_edge(&self) -> gtk::gdk::WindowEdge {
+    fn to_gtk_edge(self) -> gtk::gdk::WindowEdge {
       match self {
         HitTestResult::Client | HitTestResult::NoWhere => gtk::gdk::WindowEdge::__Unknown(0),
         HitTestResult::Left => gtk::gdk::WindowEdge::West,

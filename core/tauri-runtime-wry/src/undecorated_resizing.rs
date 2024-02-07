@@ -37,7 +37,7 @@ type WindowPositions = i32;
 #[cfg(not(windows))]
 type WindowPositions = f64;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum HitTestResult {
   Client,
   Left,
@@ -115,7 +115,7 @@ mod windows {
   impl HitTestResult {
     fn drag_resize_window(&self, window: &Window) {
       self.change_cursor(window);
-      let _ = window.drag_resize_window(match self {
+      let edge = match self {
         HitTestResult::Left => ResizeDirection::West,
         HitTestResult::Right => ResizeDirection::East,
         HitTestResult::Top => ResizeDirection::North,
@@ -124,12 +124,15 @@ mod windows {
         HitTestResult::TopRight => ResizeDirection::NorthEast,
         HitTestResult::BottomLeft => ResizeDirection::SouthWest,
         HitTestResult::BottomRight => ResizeDirection::SouthEast,
-        _ => unreachable!(),
-      });
+
+        // if not on an edge, don't start resizing
+        _ => return,
+      };
+      let _ = window.drag_resize_window(edge);
     }
 
     fn change_cursor(&self, window: &Window) {
-      let _ = window.set_cursor_icon(match self {
+      let cursor = match self {
         HitTestResult::Left => CursorIcon::WResize,
         HitTestResult::Right => CursorIcon::EResize,
         HitTestResult::Top => CursorIcon::NResize,
@@ -138,8 +141,11 @@ mod windows {
         HitTestResult::TopRight => CursorIcon::NeResize,
         HitTestResult::BottomLeft => CursorIcon::SwResize,
         HitTestResult::BottomRight => CursorIcon::SeResize,
-        _ => CursorIcon::Default,
-      });
+
+        // if not on an edge, don't change the cursor, otherwise we cause flickering
+        _ => return,
+      };
+      let _ = window.set_cursor_icon(cursor);
     }
   }
 
@@ -178,11 +184,8 @@ mod windows {
           let (x, y) = args.split_once(',').unwrap();
           let (x, y) = (x.parse().unwrap(), y.parse().unwrap());
           let size = window.inner_size();
-          let res = hit_test(size.width, size.height, x, y, window.scale_factor());
-          match res {
-            HitTestResult::Client | HitTestResult::NoWhere => {}
-            res => res.drag_resize_window(&window),
-          }
+          hit_test(size.width, size.height, x, y, window.scale_factor())
+            .drag_resize_window(&window);
         }
       }
 
@@ -211,6 +214,20 @@ mod gtk {
         HitTestResult::BottomRight => gtk::gdk::WindowEdge::SouthEast,
       }
     }
+
+    fn to_gtk_cursor(&self) -> &str {
+      match self {
+        HitTestResult::Left => "w-resize",
+        HitTestResult::Right => "e-resize",
+        HitTestResult::Top => "n-resize",
+        HitTestResult::Bottom => "s-resize",
+        HitTestResult::TopLeft => "nw-resize",
+        HitTestResult::TopRight => "ne-resize",
+        HitTestResult::BottomLeft => "sw-resize",
+        HitTestResult::BottomRight => "se-resize",
+        HitTestResult::Client | HitTestResult::NoWhere => "default",
+      }
+    }
   }
 
   pub fn attach_resize_handler(webview: &wry::WebView) {
@@ -222,11 +239,42 @@ mod gtk {
     use wry::WebViewExtUnix;
 
     let webview = webview.webview();
+
     webview.add_events(
-      gtk::gdk::EventMask::BUTTON1_MOTION_MASK
+      gtk::gdk::EventMask::POINTER_MOTION_MASK
+        | gtk::gdk::EventMask::BUTTON1_MOTION_MASK
         | gtk::gdk::EventMask::BUTTON_PRESS_MASK
         | gtk::gdk::EventMask::TOUCH_MASK,
     );
+
+    webview.connect_motion_notify_event(
+      |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventMotion| {
+        if let Some(widget) = webview.parent() {
+          // This one should be GtkWindow
+          if let Some(window) = widget.parent() {
+            // Safe to unwrap unless this is not from tao
+            let window: gtk::Window = window.downcast().unwrap();
+            if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
+              if let Some(window) = window.window() {
+                let (cx, cy) = event.root();
+                let cursor = hit_test(
+                  window.width(),
+                  window.height(),
+                  cx,
+                  cy,
+                  window.scale_factor() as f64,
+                )
+                .to_gtk_cursor();
+
+                // FIXME: calling `window.begin_resize_drag` seems to revert the cursor back to normal style
+                window.set_cursor(Cursor::from_name(&window.display(), cursor).as_ref());
+              }
+            }
+          }
+        }
+      },
+    );
+
     webview.connect_button_press_event(
       |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventButton| {
         if event.button() == 1 {

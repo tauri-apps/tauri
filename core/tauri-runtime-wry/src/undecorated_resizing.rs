@@ -214,20 +214,6 @@ mod gtk {
         HitTestResult::BottomRight => gtk::gdk::WindowEdge::SouthEast,
       }
     }
-
-    fn to_gtk_cursor(&self) -> &str {
-      match self {
-        HitTestResult::Left => "w-resize",
-        HitTestResult::Right => "e-resize",
-        HitTestResult::Top => "n-resize",
-        HitTestResult::Bottom => "s-resize",
-        HitTestResult::TopLeft => "nw-resize",
-        HitTestResult::TopRight => "ne-resize",
-        HitTestResult::BottomLeft => "sw-resize",
-        HitTestResult::BottomRight => "se-resize",
-        HitTestResult::Client | HitTestResult::NoWhere => "default",
-      }
-    }
   }
 
   pub fn attach_resize_handler(webview: &wry::WebView) {
@@ -241,38 +227,9 @@ mod gtk {
     let webview = webview.webview();
 
     webview.add_events(
-      gtk::gdk::EventMask::POINTER_MOTION_MASK
-        | gtk::gdk::EventMask::BUTTON1_MOTION_MASK
+      gtk::gdk::EventMask::BUTTON1_MOTION_MASK
         | gtk::gdk::EventMask::BUTTON_PRESS_MASK
         | gtk::gdk::EventMask::TOUCH_MASK,
-    );
-
-    webview.connect_motion_notify_event(
-      |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventMotion| {
-        if let Some(widget) = webview.parent() {
-          // This one should be GtkWindow
-          if let Some(window) = widget.parent() {
-            // Safe to unwrap unless this is not from tao
-            let window: gtk::Window = window.downcast().unwrap();
-            if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
-              if let Some(window) = window.window() {
-                let (cx, cy) = event.root();
-                let cursor = hit_test(
-                  window.width(),
-                  window.height(),
-                  cx,
-                  cy,
-                  window.scale_factor() as f64,
-                )
-                .to_gtk_cursor();
-
-                // FIXME: calling `window.begin_resize_drag` seems to revert the cursor back to normal style
-                window.set_cursor(Cursor::from_name(&window.display(), cursor).as_ref());
-              }
-            }
-          }
-        }
-      },
     );
 
     webview.connect_button_press_event(

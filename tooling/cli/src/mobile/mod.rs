@@ -8,6 +8,7 @@ use crate::{
     config::{get as get_config, reload as reload_config, Config as TauriConfig},
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
+  ConfigValue,
 };
 use anyhow::{bail, Result};
 use heck::ToSnekCase;
@@ -152,10 +153,13 @@ impl Default for CliOptions {
 
 fn setup_dev_config(
   target: Target,
-  config_extension: &mut Option<String>,
+  config_extension: &mut Option<ConfigValue>,
   force_ip_prompt: bool,
 ) -> crate::Result<()> {
-  let config = get_config(target.platform_target(), config_extension.as_deref())?;
+  let config = get_config(
+    target.platform_target(),
+    config_extension.as_ref().map(|c| &c.0),
+  )?;
 
   let mut dev_url = config
     .lock()
@@ -178,13 +182,22 @@ fn setup_dev_config(
       let ip = crate::dev::local_ip_address(force_ip_prompt);
       url.set_host(Some(&ip.to_string())).unwrap();
       if let Some(c) = config_extension {
-        let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
-        c.build.dev_url = dev_url.clone();
-        config_extension.replace(serde_json::to_string(&c).unwrap());
+        if let Some(build) = c
+          .0
+          .as_object_mut()
+          .and_then(|root| root.get_mut("build"))
+          .and_then(|build| build.as_object_mut())
+        {
+          build.insert("devUrl".into(), url.to_string().into());
+        }
       } else {
-        config_extension.replace(format!(r#"{{ "build": {{ "devUrl": "{url}" }} }}"#));
+        config_extension.replace(crate::ConfigValue(serde_json::json!({
+          "build": {
+            "devUrl": url
+          }
+        })));
       }
-      reload_config(config_extension.as_deref())?;
+      reload_config(config_extension.as_ref().map(|c| &c.0))?;
     }
   }
 

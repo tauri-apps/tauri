@@ -57,7 +57,7 @@ mod tests {
       let capabilities = parse_capabilities(&format!("{}/cap*", fixture_entry.path().display()))
         .expect("failed to parse capabilities");
 
-      let resolved = Resolved::resolve(manifests, capabilities, Target::current())
+      let resolved = Resolved::resolve(&manifests, capabilities, Target::current())
         .expect("failed to resolve ACL");
 
       insta::assert_debug_snapshot!(

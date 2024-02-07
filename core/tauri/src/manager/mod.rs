@@ -244,7 +244,7 @@ impl<R: Runtime> AppManager<R> {
     }
 
     Self {
-      runtime_authority: RuntimeAuthority::new(context.resolved_acl),
+      runtime_authority: context.runtime_authority,
       window: window::WindowManager {
         windows: Mutex::default(),
         default_icon: context.default_window_icon,

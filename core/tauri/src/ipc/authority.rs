@@ -8,6 +8,8 @@ use std::{collections::BTreeMap, ops::Deref};
 use serde::de::DeserializeOwned;
 use state::TypeMap;
 
+use tauri_utils::acl::capability::CapabilityFile;
+use tauri_utils::acl::plugin::Manifest;
 use tauri_utils::acl::Value;
 use tauri_utils::acl::{
   resolved::{CommandKey, Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
@@ -21,7 +23,6 @@ use super::{CommandArg, CommandItem};
 
 /// The runtime authority used to authorize IPC execution based on the Access Control List.
 pub struct RuntimeAuthority {
-  #[cfg(debug_assertions)]
   acl: BTreeMap<String, crate::utils::acl::plugin::Manifest>,
   allowed_commands: BTreeMap<CommandKey, ResolvedCommand>,
   denied_commands: BTreeMap<CommandKey, ResolvedCommand>,
@@ -64,15 +65,15 @@ impl Origin {
 }
 
 impl RuntimeAuthority {
-  pub(crate) fn new(resolved_acl: Resolved) -> Self {
+  #[doc(hidden)]
+  pub fn new(acl: BTreeMap<String, Manifest>, resolved_acl: Resolved) -> Self {
     let command_cache = resolved_acl
       .command_scope
       .keys()
       .map(|key| (*key, <TypeMap![Send + Sync]>::new()))
       .collect();
     Self {
-      #[cfg(debug_assertions)]
-      acl: resolved_acl.acl,
+      acl,
       allowed_commands: resolved_acl.allowed_commands,
       denied_commands: resolved_acl.denied_commands,
       scope_manager: ScopeManager {
@@ -82,6 +83,93 @@ impl RuntimeAuthority {
         global_scope_cache: Default::default(),
       },
     }
+  }
+
+  #[doc(hidden)]
+  pub fn __allow_command(&mut self, command: String, context: ExecutionContext) {
+    self.allowed_commands.insert(
+      CommandKey {
+        name: command,
+        context,
+      },
+      ResolvedCommand {
+        windows: vec!["*".parse().unwrap()],
+        ..Default::default()
+      },
+    );
+  }
+
+  /// Adds the given capability to the runtime authority.
+  pub fn add_capability(&mut self, capability: CapabilityFile) -> crate::Result<()> {
+    let mut capabilities = BTreeMap::new();
+    match capability {
+      CapabilityFile::Capability(c) => {
+        capabilities.insert(c.identifier.clone(), c);
+      }
+      CapabilityFile::List {
+        capabilities: capabilities_list,
+      } => {
+        capabilities.extend(
+          capabilities_list
+            .into_iter()
+            .map(|c| (c.identifier.clone(), c)),
+        );
+      }
+    }
+
+    let resolved = Resolved::resolve(
+      &self.acl,
+      capabilities,
+      tauri_utils::platform::Target::current(),
+    )
+    .unwrap();
+
+    // fill global scope
+    for (plugin, global_scope) in resolved.global_scope {
+      let global_scope_entry = self.scope_manager.global_scope.entry(plugin).or_default();
+
+      global_scope_entry.allow.extend(global_scope.allow);
+      global_scope_entry.deny.extend(global_scope.deny);
+
+      self.scope_manager.global_scope_cache = Default::default();
+    }
+
+    // denied commands
+    for (cmd_key, resolved_cmd) in resolved.denied_commands {
+      let entry = self.denied_commands.entry(cmd_key).or_default();
+
+      entry.windows.extend(resolved_cmd.windows);
+      #[cfg(debug_assertions)]
+      entry.referenced_by.extend(resolved_cmd.referenced_by);
+    }
+
+    // allowed commands
+    for (cmd_key, resolved_cmd) in resolved.allowed_commands {
+      let entry = self.allowed_commands.entry(cmd_key).or_default();
+
+      entry.windows.extend(resolved_cmd.windows);
+      #[cfg(debug_assertions)]
+      entry.referenced_by.extend(resolved_cmd.referenced_by);
+
+      // fill command scope
+      if let Some(scope_id) = resolved_cmd.scope {
+        let command_scope = resolved.command_scope.get(&scope_id).unwrap();
+
+        let command_scope_entry = self
+          .scope_manager
+          .command_scope
+          .entry(scope_id)
+          .or_default();
+        command_scope_entry
+          .allow
+          .extend(command_scope.allow.clone());
+        command_scope_entry.deny.extend(command_scope.deny.clone());
+
+        self.scope_manager.command_cache.remove(&scope_id);
+      }
+    }
+
+    Ok(())
   }
 
   #[cfg(debug_assertions)]
@@ -476,10 +564,13 @@ mod tests {
       .into_iter()
       .collect();
 
-    let authority = RuntimeAuthority::new(Resolved {
-      allowed_commands,
-      ..Default::default()
-    });
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        ..Default::default()
+      },
+    );
 
     assert_eq!(
       authority.resolve_access(
@@ -511,10 +602,13 @@ mod tests {
       .into_iter()
       .collect();
 
-    let authority = RuntimeAuthority::new(Resolved {
-      allowed_commands,
-      ..Default::default()
-    });
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        ..Default::default()
+      },
+    );
 
     assert_eq!(
       authority.resolve_access(
@@ -548,10 +642,13 @@ mod tests {
       .into_iter()
       .collect();
 
-    let authority = RuntimeAuthority::new(Resolved {
-      allowed_commands,
-      ..Default::default()
-    });
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        ..Default::default()
+      },
+    );
 
     assert_eq!(
       authority.resolve_access(
@@ -582,10 +679,13 @@ mod tests {
       .into_iter()
       .collect();
 
-    let authority = RuntimeAuthority::new(Resolved {
-      allowed_commands,
-      ..Default::default()
-    });
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        ..Default::default()
+      },
+    );
 
     assert!(authority
       .resolve_access(
@@ -625,11 +725,14 @@ mod tests {
     .into_iter()
     .collect();
 
-    let authority = RuntimeAuthority::new(Resolved {
-      allowed_commands,
-      denied_commands,
-      ..Default::default()
-    });
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        denied_commands,
+        ..Default::default()
+      },
+    );
 
     assert!(authority
       .resolve_access(&command.name, window, &Origin::Local)

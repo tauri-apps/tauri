@@ -113,7 +113,7 @@ impl CapabilityFile {
   /// Load the given capability file.
   pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, super::Error> {
     let path = path.as_ref();
-    let capability_file = std::fs::read_to_string(&path).map_err(super::Error::ReadFile)?;
+    let capability_file = std::fs::read_to_string(path).map_err(super::Error::ReadFile)?;
     let ext = path.extension().unwrap().to_string_lossy().to_string();
     let file: Self = match ext.as_str() {
       "toml" => toml::from_str(&capability_file)?,

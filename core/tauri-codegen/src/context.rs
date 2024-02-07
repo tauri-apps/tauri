@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::collections::BTreeMap;
+use std::convert::identity;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
@@ -21,6 +22,7 @@ use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
 use tauri_utils::platform::Target;
+use tauri_utils::tokens::{map_lit, str_lit};
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
 
@@ -429,7 +431,14 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     capabilities
   };
 
-  let resolved_acl = match additional_capabilities {
+  let acl_tokens = map_lit(
+    quote! { ::std::collections::BTreeMap },
+    &acl,
+    str_lit,
+    identity,
+  );
+
+  let runtime_authority = match additional_capabilities {
     Some(Capabilities::FromFiles(paths)) => {
       let mut capabilities = capabilities;
 
@@ -452,11 +461,11 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         }
       }
 
-      let resolved = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
-      quote!(#resolved)
+      let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
+      quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved))
     }
     Some(Capabilities::FromTokens(tokens)) => {
-      let resolved = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
+      let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
 
       let mut additions = quote!();
 
@@ -464,19 +473,19 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         let path = path.as_str();
         additions.append_all(quote!(
           #(#attrs),*
-          resolved.add_capability(include_str!(#path)).expect("failed to add capability");
+          authority.add_capability(include_str!(#path).parse().expect("invalid capability file")).expect("failed to add capability");
         ));
       }
 
       quote!({
-        let mut resolved = #resolved;
+        let mut authority = #root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved);
         #additions
-        resolved
+        authority
       })
     }
     None => {
-      let resolved = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
-      quote!(#resolved)
+      let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
+      quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved))
     }
   };
 
@@ -490,7 +499,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #package_info,
       #info_plist,
       #pattern,
-      #resolved_acl
+      #runtime_authority
     );
     #with_tray_icon_code
     context

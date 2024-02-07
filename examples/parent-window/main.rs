@@ -5,10 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{webview::PageLoadEvent, WebviewUrl, WebviewWindowBuilder};
-use tauri_utils::acl::{
-  resolved::{CommandKey, ResolvedCommand},
-  ExecutionContext,
-};
+use tauri_utils::acl::ExecutionContext;
 
 fn main() {
   let mut context = tauri::generate_context!("../../examples/parent-window/tauri.conf.json");
@@ -18,16 +15,9 @@ fn main() {
     "plugin:window|internal_on_mousemove",
     "plugin:window|internal_on_mousedown",
   ] {
-    context.resolved_acl().allowed_commands.insert(
-      CommandKey {
-        name: cmd.into(),
-        context: ExecutionContext::Local,
-      },
-      ResolvedCommand {
-        windows: vec!["*".parse().unwrap()],
-        ..Default::default()
-      },
-    );
+    context
+      .runtime_authority_mut()
+      .__allow_command(cmd.to_string(), ExecutionContext::Local);
   }
 
   tauri::Builder::default()

@@ -881,11 +881,7 @@ impl<R: Runtime> raw_window_handle::HasWindowHandle for Window<R> {
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-    self
-      .window
-      .dispatcher
-      .raw_window_handle()
-      .map(|w| unsafe { raw_window_handle::WindowHandle::borrow_raw(w) })
+    self.window.dispatcher.window_handle()
   }
 }
 
@@ -1424,10 +1420,10 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
           Ok(unsafe {
             use objc::*;
             let ns_window: cocoa::base::id =
@@ -1446,10 +1442,10 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
           Ok(h.ns_view.as_ptr())
         } else {
           Err(crate::Error::InvalidWindowHandle)
@@ -1463,10 +1459,10 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::Win32(h) = handle {
+        if let raw_window_handle::RawWindowHandle::Win32(h) = handle.as_raw() {
           Ok(HWND(h.hwnd as _))
         } else {
           Err(crate::Error::InvalidWindowHandle)

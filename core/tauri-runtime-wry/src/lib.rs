@@ -1537,12 +1537,12 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
   }
 
-  fn raw_window_handle(
+  fn window_handle(
     &self,
-  ) -> std::result::Result<raw_window_handle::RawWindowHandle, raw_window_handle::HandleError> {
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
     get_raw_window_handle(self)
       .map_err(|_| raw_window_handle::HandleError::Unavailable)
-      .and_then(|r| r.map(|h| h.0))
+      .and_then(|r| r.map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }))
   }
 
   // Setters

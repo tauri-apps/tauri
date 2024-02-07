@@ -525,9 +525,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   fn default_vbox(&self) -> Result<gtk::Box>;
 
   /// Raw window handle.
-  fn raw_window_handle(
+  fn window_handle(
     &self,
-  ) -> std::result::Result<raw_window_handle::RawWindowHandle, raw_window_handle::HandleError>;
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError>;
 
   /// Returns the current window theme.
   fn theme(&self) -> Result<Theme>;

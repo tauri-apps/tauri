@@ -960,6 +960,28 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn path(&self) -> &crate::path::PathResolver<R> {
     self.state::<crate::path::PathResolver<R>>().inner()
   }
+
+  /// Adds a capability to the app.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(feature = "beta")]
+  ///     app.add_capability(include_str!("../capabilities/beta.json"));
+  ///     Ok(())
+  ///   });
+  /// ```
+  fn add_capability(&self, capability: &'static str) -> Result<()> {
+    self
+      .manager()
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .add_capability(capability.parse().expect("invalid capability"))
+  }
 }
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Display};
-use std::{collections::BTreeMap, ops::Deref};
+use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
 use state::TypeMap;
@@ -327,11 +328,18 @@ impl RuntimeAuthority {
 /// List of allowed and denied objects that match either the command-specific or plugin global scope criterias.
 #[derive(Debug)]
 pub struct ScopeValue<T: ScopeObject> {
-  allow: Vec<T>,
-  deny: Vec<T>,
+  allow: Arc<Vec<T>>,
+  deny: Arc<Vec<T>>,
 }
 
 impl<T: ScopeObject> ScopeValue<T> {
+  fn clone(&self) -> Self {
+    Self {
+      allow: self.allow.clone(),
+      deny: self.deny.clone(),
+    }
+  }
+
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<T> {
     &self.allow
@@ -343,27 +351,11 @@ impl<T: ScopeObject> ScopeValue<T> {
   }
 }
 
-#[derive(Debug)]
-enum OwnedOrRef<'a, T: Debug> {
-  Owned(T),
-  Ref(&'a T),
-}
-
-impl<'a, T: Debug> Deref for OwnedOrRef<'a, T> {
-  type Target = T;
-  fn deref(&self) -> &Self::Target {
-    match self {
-      Self::Owned(t) => t,
-      Self::Ref(r) => r,
-    }
-  }
-}
-
 /// Access scope for a command that can be retrieved directly in the command function.
 #[derive(Debug)]
-pub struct CommandScope<'a, T: ScopeObject>(OwnedOrRef<'a, ScopeValue<T>>);
+pub struct CommandScope<T: ScopeObject>(ScopeValue<T>);
 
-impl<'a, T: ScopeObject> CommandScope<'a, T> {
+impl<T: ScopeObject> CommandScope<T> {
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<T> {
     &self.0.allow
@@ -375,33 +367,35 @@ impl<'a, T: ScopeObject> CommandScope<'a, T> {
   }
 }
 
-impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<'a, T> {
+impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`CommandScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     if let Some(scope_id) = command.acl.as_ref().and_then(|resolved| resolved.scope) {
-      Ok(CommandScope(OwnedOrRef::Ref(
+      Ok(CommandScope(
         command
           .message
           .webview
           .manager()
           .runtime_authority
+          .lock()
+          .unwrap()
           .scope_manager
           .get_command_scope_typed(command.message.webview.app_handle(), &scope_id)?,
-      )))
+      ))
     } else {
-      Ok(CommandScope(OwnedOrRef::Owned(ScopeValue {
-        allow: Vec::new(),
-        deny: Vec::new(),
-      })))
+      Ok(CommandScope(ScopeValue {
+        allow: Default::default(),
+        deny: Default::default(),
+      }))
     }
   }
 }
 
 /// Global access scope that can be retrieved directly in the command function.
 #[derive(Debug)]
-pub struct GlobalScope<'a, T: ScopeObject>(&'a ScopeValue<T>);
+pub struct GlobalScope<T: ScopeObject>(ScopeValue<T>);
 
-impl<'a, T: ScopeObject> GlobalScope<'a, T> {
+impl<T: ScopeObject> GlobalScope<T> {
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<T> {
     &self.0.allow
@@ -413,7 +407,7 @@ impl<'a, T: ScopeObject> GlobalScope<'a, T> {
   }
 }
 
-impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for GlobalScope<'a, T> {
+impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for GlobalScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`GlobalScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     command
@@ -429,6 +423,8 @@ impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for GlobalScope<'a, T> {
           .webview
           .manager()
           .runtime_authority
+          .lock()
+          .unwrap()
           .scope_manager
           .get_global_scope_typed(command.message.webview.app_handle(), plugin)
           .map_err(InvokeError::from_error)
@@ -468,9 +464,9 @@ impl ScopeManager {
     &self,
     app: &AppHandle<R>,
     plugin: &str,
-  ) -> crate::Result<&ScopeValue<T>> {
-    match self.global_scope_cache.try_get() {
-      Some(cached) => Ok(cached),
+  ) -> crate::Result<ScopeValue<T>> {
+    match self.global_scope_cache.try_get::<ScopeValue<T>>() {
+      Some(cached) => Ok(cached.clone()),
       None => {
         let mut allow: Vec<T> = Vec::new();
         let mut deny: Vec<T> = Vec::new();
@@ -490,9 +486,12 @@ impl ScopeManager {
           }
         }
 
-        let scope = ScopeValue { allow, deny };
-        let _ = self.global_scope_cache.set(scope);
-        Ok(self.global_scope_cache.get())
+        let scope = ScopeValue {
+          allow: Arc::new(allow),
+          deny: Arc::new(deny),
+        };
+        self.global_scope_cache.set(scope.clone());
+        Ok(scope)
       }
     }
   }
@@ -501,10 +500,10 @@ impl ScopeManager {
     &self,
     app: &AppHandle<R>,
     key: &ScopeKey,
-  ) -> crate::Result<&ScopeValue<T>> {
+  ) -> crate::Result<ScopeValue<T>> {
     let cache = self.command_cache.get(key).unwrap();
-    match cache.try_get() {
-      Some(cached) => Ok(cached),
+    match cache.try_get::<ScopeValue<T>>() {
+      Some(cached) => Ok(cached.clone()),
       None => {
         let resolved_scope = self
           .command_scope
@@ -527,10 +526,13 @@ impl ScopeManager {
           );
         }
 
-        let value = ScopeValue { allow, deny };
+        let value = ScopeValue {
+          allow: Arc::new(allow),
+          deny: Arc::new(deny),
+        };
 
-        let _ = cache.set(value);
-        Ok(cache.get())
+        let _ = cache.set(value.clone());
+        Ok(value)
       }
     }
   }

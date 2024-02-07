@@ -28,9 +28,12 @@ use tauri_bundler::{
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
-use crate::helpers::{
-  app_paths::{app_dir, tauri_dir},
-  config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
+use crate::{
+  helpers::{
+    app_paths::{app_dir, tauri_dir},
+    config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
+  },
+  ConfigValue,
 };
 use tauri_utils::{display_path, platform::Target};
 
@@ -48,7 +51,7 @@ pub struct Options {
   pub target: Option<String>,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -85,7 +88,7 @@ pub struct MobileOptions {
   pub debug: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -186,7 +189,7 @@ impl Interface for Rust {
       rx.recv().unwrap();
       Ok(())
     } else {
-      let config = options.config.clone();
+      let config = options.config.clone().map(|c| c.0);
       let run = Arc::new(|rust: &mut Rust| {
         let on_exit = on_exit.clone();
         rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
@@ -215,7 +218,7 @@ impl Interface for Rust {
       runner(options)?;
       Ok(())
     } else {
-      let config = options.config.clone();
+      let config = options.config.clone().map(|c| c.0);
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
       self.run_dev_watcher(config, run)
     }
@@ -438,7 +441,7 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
-    config: Option<String>,
+    config: Option<serde_json::Value>,
     run: Arc<F>,
   ) -> crate::Result<()> {
     let child = run(self)?;
@@ -503,7 +506,7 @@ impl Rust {
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
             if is_configuration_file(self.app_settings.target, &event_path) {
-              match reload_config(config.as_deref()) {
+              match reload_config(config.as_ref()) {
                 Ok(config) => {
                   info!("Tauri configuration changed. Rewriting manifest...");
                   *self.app_settings.manifest.lock().unwrap() =

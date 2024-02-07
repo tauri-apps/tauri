@@ -11,11 +11,11 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
-    flock, resolve_merge_config,
+    flock,
   },
   interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
-  Result,
+  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 
@@ -57,7 +57,7 @@ pub struct Options {
   exit_on_panic: bool,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
@@ -110,15 +110,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   result
 }
 
-fn run_command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
+fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
-
-  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
-  options.config = merge_config;
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,
-    options.config.as_deref(),
+    options.config.as_ref().map(|c| &c.0),
   )?;
 
   let env = env()?;
@@ -195,12 +192,7 @@ fn run_dev(
     options.force_ip_prompt,
   )?;
 
-  crate::dev::setup(
-    tauri_utils::platform::Target::Android,
-    &interface,
-    &mut dev_options,
-    true,
-  )?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone(), true)?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,

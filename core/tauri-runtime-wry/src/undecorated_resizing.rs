@@ -105,9 +105,11 @@ mod windows {
     )
   })
   document.addEventListener('mousedown', (e) => {
-    window.ipc.postMessage(
-      `__internal_on_mousedown__|${e.clientX},${e.clientY}`
-    )
+    if (e.button === 0) {
+      window.ipc.postMessage(
+        `__internal_on_mousedown__|${e.clientX},${e.clientY}`
+      )
+    }
   })
 })()
 "#;

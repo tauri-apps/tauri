@@ -3,7 +3,6 @@ use clap::{Parser, Subcommand};
 use crate::Result;
 
 mod add;
-mod copy;
 mod create;
 mod ls;
 mod rm;
@@ -21,7 +20,6 @@ enum Commands {
   Add(add::Options),
   #[clap(alias = "remove")]
   Rm(rm::Options),
-  Copy(copy::Options),
   #[clap(alias = "list")]
   Ls(ls::Options),
 }
@@ -31,7 +29,6 @@ pub fn command(cli: Cli) -> Result<()> {
     Commands::Create(options) => create::command(options),
     Commands::Add(options) => add::command(options),
     Commands::Rm(options) => rm::command(options),
-    Commands::Copy(options) => copy::command(options),
     Commands::Ls(options) => ls::command(options),
   }
 }

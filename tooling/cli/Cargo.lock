@@ -4794,6 +4794,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "duct",
+ "dunce",
  "env_logger",
  "handlebars 5.0.0",
  "heck",

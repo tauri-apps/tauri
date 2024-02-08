@@ -1,14 +1,14 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
-use clap::{ArgAction, Parser};
+use clap::Parser;
 
 use crate::{
-  helpers::{app_paths::tauri_dir, prompts},
+  helpers::{app_paths::tauri_dir_opt, prompts},
   Result,
 };
 
 #[derive(Debug, Parser)]
-#[clap(about = "Create a new custom permission")]
+#[clap(about = "Create a new custom permission in your tauri app or plugin")]
 pub struct Options {
   /// Permission identifier.
   identifier: Option<String>,
@@ -16,102 +16,89 @@ pub struct Options {
   #[clap(long)]
   description: Option<String>,
   /// List of commands to allow
-  #[clap(short, long, use_value_delimiter = true, value_delimiter = ',')]
+  #[clap(short, long, use_value_delimiter = true)]
   allow: Option<Vec<String>>,
   /// List of commands to deny
-  #[clap(short, long, use_value_delimiter = true, value_delimiter = ',')]
+  #[clap(short, long, use_value_delimiter = true)]
   deny: Option<Vec<String>>,
-  /// Add a scope config.
-  #[clap(long)]
-  scope: Option<bool>,
-  /// Create inlined in `tauri.conf.json` or `Tauri.toml`.
-  #[clap(long)]
-  inline: Option<bool>,
-  /// If not inlined, use toml for the dedicated permission file.
+  /// Use toml for the dedicated permission file.
   #[clap(long)]
   toml: bool,
+  /// The output file.
+  #[clap(short, long)]
+  out: Option<PathBuf>,
 }
 
 pub fn command(options: Options) -> Result<()> {
-  dbg!(&options);
-
   let identifier = match options.identifier {
     Some(i) => i,
     None => prompts::input("What's the permission identifier?", None, false, false)?.unwrap(),
   };
-  let description = options.description;
   let allow: Option<HashSet<String>> = options.allow.map(FromIterator::from_iter);
   let deny: Option<HashSet<String>> = options.deny.map(FromIterator::from_iter);
-  let scope = match options.scope {
-    Some(i) => i,
-    None => prompts::confirm("Create a scope config?", Some(false))?,
-  };
-  let inline = match options.inline {
-    Some(i) => i,
-    None => prompts::confirm("Should it be inlined in tauri.conf.json?", Some(false))?,
-  };
 
-  let tauri_dir = tauri_dir();
-
-  if !inline {
-    let acl = tauri_dir.join("acl");
-    std::fs::create_dir_all(&acl)?;
-
-    let allow = allow
-      .unwrap_or_default()
-      .into_iter()
-      .map(|c| format!("\"{c}\""))
-      .collect::<Vec<_>>()
-      .join(", ");
-
-    let deny = deny
-      .unwrap_or_default()
-      .into_iter()
-      .map(|c| format!("\"{c}\""))
-      .collect::<Vec<_>>()
-      .join(", ");
-
-    let (extension, contents) = if options.toml {
-      let description = match description {
-        Some(d) => format!("\ndescription = \"{d}\""),
-        None => String::new(),
+  let path = match options.out {
+    Some(o) => o.canonicalize()?,
+    None => {
+      let dir = match tauri_dir_opt() {
+        Some(t) => t,
+        None => std::env::current_dir()?,
       };
 
-      let commands = format!("\n\n[commands]\nallow = [{allow}]\ndeny  = [{deny}]");
+      let permissions_dir = dir.join("permissions");
 
-      let scope = if scope { "\n\n[scope]\nallow = []" } else { "" };
+      let extension = if options.toml { "toml" } else { "conf.json" };
+      let path = permissions_dir.join(format!("{identifier}.{extension}"));
 
-      let contents = format!("identifier = \"{identifier}\"{description}{commands}{scope}");
-      ("toml", contents)
-    } else {
-      let description = match description {
-        Some(d) => format!(",\n  \"description\": \"{d}\""),
-        None => String::new(),
-      };
-
-      let commands =
-        format!(",\n  \"commands\": {{\n    \"allow\": [{allow}],\n    \"deny\": [{deny}]\n  }}");
-
-      let scope = if scope {
-        ",\n  \"scope\": {\n    \"allow\": []\n  }"
-      } else {
-        ""
-      };
-
-      let contents =
-        format!("{{\n  \"identifier\": \"{identifier}\"{description}{commands}{scope}\n}}");
-      ("conf.json", contents)
-    };
-    let path = acl.join(format!("permission.{identifier}.{extension}"));
-
-    if path.exists() {
-      anyhow::bail!("Permission already exists at {}", path.display());
+      path
     }
+  };
 
-    std::fs::write(path, contents)?;
-  } else {
-    todo!()
+  if path.exists() {
+    let msg = format!(
+      "Permission already exists at {}",
+      dunce::simplified(&path).display()
+    );
+    let overwrite = prompts::confirm(&format!("{msg}, overwrite?"), Some(false))?;
+    if overwrite {
+      std::fs::remove_file(&path)?;
+    } else {
+      anyhow::bail!(msg);
+    }
   }
+
+  let allow = allow
+    .unwrap_or_default()
+    .into_iter()
+    .map(|c| format!("\"{c}\""))
+    .collect::<Vec<_>>()
+    .join(", ");
+
+  let deny = deny
+    .unwrap_or_default()
+    .into_iter()
+    .map(|c| format!("\"{c}\""))
+    .collect::<Vec<_>>()
+    .join(", ");
+
+  let contents = if options.toml {
+    let description = match options.description {
+      Some(d) => format!("\ndescription = \"{d}\""),
+      None => String::new(),
+    };
+    format!("identifier = \"{identifier}\"{description}n\n[commands]\nallow = [{allow}]\ndeny  = [{deny}]")
+  } else {
+    let description = match options.description {
+      Some(d) => format!(",\n  \"description\": \"{d}\""),
+      None => String::new(),
+    };
+    format!("{{\n  \"identifier\": \"{identifier}\"{description},\n  \"commands\": {{\n    \"allow\": [{allow}],\n    \"deny\": [{deny}]\n  }}\n}}")
+  };
+
+  if let Some(parent) = path.parent() {
+    std::fs::create_dir_all(parent)?;
+  }
+  std::fs::write(path, contents)?;
 
   Ok(())
 }

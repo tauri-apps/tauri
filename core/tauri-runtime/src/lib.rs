@@ -12,7 +12,7 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use raw_window_handle::RawDisplayHandle;
+use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::{ProgressBarState, Theme};
@@ -122,6 +122,8 @@ pub enum Error {
   Infallible(#[from] std::convert::Infallible),
   #[error("the event loop has been closed")]
   EventLoopClosed,
+  #[error("Invalid proxy url")]
+  InvalidProxyUrl,
   #[error("window not found")]
   WindowNotFound,
 }
@@ -153,6 +155,8 @@ pub enum RunEvent<T: UserEvent> {
   Exit,
   /// Event loop is about to exit
   ExitRequested {
+    /// The exit code.
+    code: Option<i32>,
     tx: Sender<ExitRequestedEventAction>,
   },
   /// An event associated with a window.
@@ -184,12 +188,6 @@ pub enum ExitRequestedEventAction {
   Prevent,
 }
 
-/// Metadata for a runtime event loop iteration on `run_iteration`.
-#[derive(Debug, Clone, Default)]
-pub struct RunIteration {
-  pub window_count: usize,
-}
-
 /// Application's activation policy. Corresponds to NSApplicationActivationPolicy.
 #[cfg(target_os = "macos")]
 #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -210,6 +208,14 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
   fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
 
+  /// Sets the activation policy for the application.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> Result<()>;
+
+  /// Requests an exit of the event loop.
+  fn request_exit(&self, code: i32) -> Result<()>;
+
   /// Create a new window.
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
@@ -227,7 +233,7 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
-  fn raw_display_handle(&self) -> RawDisplayHandle;
+  fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
@@ -312,7 +318,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
 
-  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  /// Sets the activation policy for the application.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
@@ -340,9 +346,9 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// [`tao`]: https://crates.io/crates/tao
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
 
-  /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
+  /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
-  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(&mut self, callback: F) -> RunIteration;
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F);
 
   /// Run the webview runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
@@ -519,7 +525,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   fn default_vbox(&self) -> Result<gtk::Box>;
 
   /// Raw window handle.
-  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle>;
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError>;
 
   /// Returns the current window theme.
   fn theme(&self) -> Result<Theme>;
@@ -597,6 +605,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Closes the window.
   fn close(&self) -> Result<()>;
+
+  /// Destroys the window.
+  fn destroy(&self) -> Result<()>;
 
   /// Updates the decorations flag.
   fn set_decorations(&self, decorations: bool) -> Result<()>;

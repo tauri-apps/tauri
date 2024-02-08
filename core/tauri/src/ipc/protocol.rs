@@ -182,7 +182,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
         let mut headers = http::HeaderMap::default();
         for (key, value) in map {
           if let (Ok(key), Ok(value)) = (
-            http::HeaderName::from_bytes(key.as_bytes()),
+            http::header::HeaderName::from_bytes(key.as_bytes()),
             http::HeaderValue::from_str(&value),
           ) {
             headers.insert(key, value);

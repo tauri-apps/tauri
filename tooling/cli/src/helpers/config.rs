@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use json_patch::merge;
 use log::error;
 use serde_json::Value as JsonValue;
@@ -51,7 +50,7 @@ impl ConfigMetadata {
         .and_then(|bundle_config| bundle_config.get("identifier"))
         .and_then(|id| id.as_str())
       {
-        if identifier == self.inner.tauri.bundle.identifier {
+        if identifier == self.inner.identifier {
           return Some(ext.clone());
         }
       }
@@ -90,7 +89,6 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     feature_refs: config.feature_refs,
     merge_refs: config.merge_refs,
     skip_webview_install: config.skip_webview_install,
-    license: config.license,
     enable_elevated_update_task: config.enable_elevated_update_task,
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,
@@ -101,7 +99,6 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
 pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
   tauri_bundler::NsisSettings {
     template: config.template,
-    license: config.license,
     header_image: config.header_image,
     sidebar_image: config.sidebar_image,
     installer_icon: config.installer_icon,
@@ -120,7 +117,7 @@ fn config_handle() -> &'static ConfigHandle {
 
 /// Gets the static parsed config from `tauri.conf.json`.
 fn get_internal(
-  merge_config: Option<&str>,
+  merge_config: Option<&serde_json::Value>,
   reload: bool,
   target: Target,
 ) -> crate::Result<ConfigHandle> {
@@ -145,11 +142,10 @@ fn get_internal(
   }
 
   if let Some(merge_config) = merge_config {
-    set_var("TAURI_CONFIG", merge_config);
-    let merge_config: JsonValue =
-      serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
-    merge(&mut config, &merge_config);
-    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
+    let merge_config_str = serde_json::to_string(&merge_config).unwrap();
+    set_var("TAURI_CONFIG", merge_config_str);
+    merge(&mut config, merge_config);
+    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config.clone());
   };
 
   if config_path.extension() == Some(OsStr::new("json"))
@@ -200,11 +196,14 @@ fn get_internal(
   Ok(config_handle().clone())
 }
 
-pub fn get(target: Target, merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
+pub fn get(
+  target: Target,
+  merge_config: Option<&serde_json::Value>,
+) -> crate::Result<ConfigHandle> {
   get_internal(merge_config, false, target)
 }
 
-pub fn reload(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
+pub fn reload(merge_config: Option<&serde_json::Value>) -> crate::Result<ConfigHandle> {
   let target = config_handle()
     .lock()
     .unwrap()

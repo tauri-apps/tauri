@@ -82,7 +82,7 @@ pub fn command(mut options: Options) -> Result<()> {
   if std::fs::read_dir(&template_target_path)?.count() > 0 {
     warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
-    let (tauri_dep, tauri_example_dep, tauri_build_dep) =
+    let (tauri_dep, tauri_example_dep, tauri_build_dep, tauri_plugin_dep) =
       if let Some(tauri_path) = options.tauri_path {
         (
           format!(
@@ -94,15 +94,26 @@ pub fn command(mut options: Options) -> Result<()> {
             resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
-            "{{  path = {:?} }}",
+            "{{  path = {:?}, default-features = false }}",
             resolve_tauri_path(&tauri_path, "core/tauri-build")
+          ),
+          format!(
+            r#"{{  path = {:?}, features = ["build"] }}"#,
+            resolve_tauri_path(&tauri_path, "core/tauri-plugin")
           ),
         )
       } else {
         (
           format!(r#"{{ version = "{}" }}"#, metadata.tauri),
           format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
+          format!(
+            r#"{{ version = "{}", default-features = false }}"#,
+            metadata.tauri_build
+          ),
+          format!(
+            r#"{{ version = "{}", features = ["build"] }}"#,
+            metadata.tauri_plugin
+          ),
         )
       };
 
@@ -115,6 +126,7 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert("tauri_dep", to_json(tauri_dep));
     data.insert("tauri_example_dep", to_json(tauri_example_dep));
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
+    data.insert("tauri_plugin_dep", to_json(tauri_plugin_dep));
     data.insert("author", to_json(options.author));
 
     if options.tauri {

@@ -4,7 +4,10 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  super::{common::CommandExt, path_utils},
+  super::{
+    common::{self, CommandExt},
+    path_utils,
+  },
   debian,
 };
 use crate::Settings;
@@ -30,7 +33,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
   // generate deb_folder structure
-  let (_, icons) = debian::generate_data(settings, &package_dir)?;
+  let (data_dir, icons) = debian::generate_data(settings, &package_dir)
+    .with_context(|| "Failed to build data folders and files")?;
+  common::copy_custom_files(&settings.deb().files, &data_dir)
+    .with_context(|| "Failed to copy custom files")?;
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {

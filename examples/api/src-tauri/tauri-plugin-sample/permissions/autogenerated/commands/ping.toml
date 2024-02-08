@@ -1,6 +1,6 @@
 # Automatically generated - DO NOT EDIT!
 
-"$schema" = "../../.schema.json"
+"$schema" = "../../schemas/schema.json"
 
 [[permission]]
 identifier = "allow-ping"

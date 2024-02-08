@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use super::{get_app, Target};
-use crate::helpers::{app_paths::tauri_dir, config::get as get_tauri_config, template::JsonMap};
-use crate::Result;
+use crate::{
+  helpers::{app_paths::tauri_dir, config::get as get_tauri_config, template::JsonMap},
+  interface::{AppInterface, Interface},
+  Result,
+};
 use cargo_mobile2::{
   android::{
     config::Config as AndroidConfig, env::Env as AndroidEnv, target::Target as AndroidTarget,
@@ -90,7 +93,7 @@ pub fn exec(
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-  let app = get_app(tauri_config_);
+  let app = get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?);
 
   let (handlebars, mut map) = handlebars(&app);
 

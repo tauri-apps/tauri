@@ -94,7 +94,7 @@ pub fn verify(path: &Path) -> crate::Result<bool> {
   // Construct SignTool command
   let signtool = locate_signtool()?;
 
-  let mut cmd = Command::new(&signtool);
+  let mut cmd = Command::new(signtool);
   cmd.arg("verify");
   cmd.arg("/pa");
   cmd.arg(path);

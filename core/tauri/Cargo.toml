@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.0.0-alpha.21"
+version = "2.0.0-beta.2"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -50,10 +50,10 @@ uuid = { version = "1", features = [ "v4" ], optional = true }
 url = { version = "2.4" }
 anyhow = "1.0"
 thiserror = "1.0"
-tauri-runtime = { version = "1.0.0-alpha.8", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.0-alpha.13", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-alpha.13", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "1.0.0-alpha.9", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "2.0.0-beta.1", path = "../tauri-runtime" }
+tauri-macros = { version = "2.0.0-beta.1", path = "../tauri-macros" }
+tauri-utils = { version = "2.0.0-beta.1", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "2.0.0-beta.1", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
@@ -62,7 +62,7 @@ dirs-next = "2.0"
 percent-encoding = "2.3"
 reqwest = { version = "0.11", default-features = false, features = [ "json", "stream" ] }
 bytes = { version = "1", features = [ "serde" ] }
-raw-window-handle = "0.5"
+raw-window-handle = "0.6"
 glob = "0.3"
 mime = "0.3"
 data-url = { version = "0.3", optional = true }
@@ -86,11 +86,11 @@ webkit2gtk = { version = "=2.0.1", features = [ "v2_38" ] }
 embed_plist = "1.2"
 cocoa = "0.25"
 objc = "0.2"
-window-vibrancy = "0.4"
+window-vibrancy = "0.5"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.28"
-window-vibrancy = "0.4"
+window-vibrancy = "0.5"
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.52"
@@ -111,8 +111,8 @@ swift-rs = "1.0.6"
 
 [build-dependencies]
 heck = "0.4"
-tauri-build = { path = "../tauri-build/", version = "2.0.0-alpha.14" }
-tauri-utils = { path = "../tauri-utils/", version = "2.0.0-alpha.13", features = [ "build" ] }
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-beta.1" }
+tauri-utils = { path = "../tauri-utils/", version = "2.0.0-beta.1", features = [ "build" ] }
 
 [dev-dependencies]
 proptest = "1.4.0"
@@ -126,14 +126,9 @@ cargo_toml = "0.17"
 http-range = "0.1.5"
 
 [features]
-default = [
-  "wry",
-  "compression",
-  "objc-exception",
-  "tray-icon?/common-controls-v6",
-  "muda/common-controls-v6"
-]
+default = [ "wry", "compression", "objc-exception", "common-controls-v6" ]
 unstable = [ ]
+common-controls-v6 = [ "tray-icon?/common-controls-v6", "muda/common-controls-v6" ]
 tray-icon = [ "dep:tray-icon" ]
 tracing = [
   "dep:tracing",
@@ -163,6 +158,7 @@ config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]
 icon-ico = [ "infer", "ico" ]
 icon-png = [ "infer", "png" ]
+macos-proxy = [ "tauri-runtime-wry/macos-proxy" ]
 
 [[example]]
 name = "commands"
@@ -205,3 +201,7 @@ path = "../../examples/streaming/main.rs"
 name = "isolation"
 path = "../../examples/isolation/main.rs"
 required-features = [ "isolation" ]
+
+[[example]]
+name = "run-iteration"
+path = "../../examples/run-iteration/main.rs"

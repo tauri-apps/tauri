@@ -6,8 +6,7 @@
 
 use crate::{
   app::UriSchemeResponder,
-  command::ScopeValue,
-  ipc::{Invoke, InvokeHandler},
+  ipc::{Invoke, InvokeHandler, ScopeObject, ScopeValue},
   manager::webview::UriSchemeProtocol,
   utils::config::PluginConfig,
   webview::PageLoadPayload,
@@ -140,15 +139,13 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   }
 
   /// Gets the global scope defined on the permissions that are part of the app ACL.
-  pub fn scope<T: Debug + DeserializeOwned + Send + Sync + 'static>(
-    &self,
-  ) -> crate::Result<&ScopeValue<T>> {
+  pub fn scope<T: ScopeObject>(&self) -> crate::Result<&ScopeValue<T>> {
     self
       .handle
       .manager
       .runtime_authority
       .scope_manager
-      .get_global_scope_typed(self.name)
+      .get_global_scope_typed(&self.handle, self.name)
   }
 }
 

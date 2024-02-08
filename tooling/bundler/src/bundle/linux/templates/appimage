@@ -7,6 +7,7 @@ set -euxo pipefail
 
 export ARCH={{arch}}
 APPIMAGE_BUNDLE_XDG_OPEN=${APPIMAGE_BUNDLE_XDG_OPEN-0}
+APPIMAGE_BUNDLE_XDG_MIME=${APPIMAGE_BUNDLE_XDG_MIME-0}
 APPIMAGE_BUNDLE_GSTREAMER=${APPIMAGE_BUNDLE_GSTREAMER-0}
 TAURI_TRAY_LIBRARY_PATH=${TAURI_TRAY_LIBRARY_PATH-0}
 
@@ -26,6 +27,11 @@ mkdir -p "usr/lib"
 if [[ "$APPIMAGE_BUNDLE_XDG_OPEN" != "0" ]] && [[ -f "/usr/bin/xdg-open" ]]; then
   echo "Copying /usr/bin/xdg-open"
   cp /usr/bin/xdg-open usr/bin
+fi
+
+if [[ "$APPIMAGE_BUNDLE_XDG_MIME" != "0" ]] && [[ -f "/usr/bin/xdg-mime" ]]; then
+  echo "Copying /usr/bin/xdg-mime"
+  cp /usr/bin/xdg-mime usr/bin
 fi
 
 if [[ "$TAURI_TRAY_LIBRARY_PATH" != "0" ]]; then

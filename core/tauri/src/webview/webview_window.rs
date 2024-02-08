@@ -6,6 +6,11 @@
 
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
+use crate::{
+  event::EventTarget,
+  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
+  window::Monitor,
+};
 #[cfg(desktop)]
 use crate::{
   menu::{ContextMenu, Menu},
@@ -18,23 +23,17 @@ use crate::{
   },
   Icon,
 };
-use crate::{
-  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
-  window::Monitor,
-};
-use serde::Serialize;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
 
 use crate::{
-  command::{CommandArg, CommandItem},
-  ipc::{InvokeError, OwnedInvokeResponder},
+  ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::PageLoadPayload,
   webview::WebviewBuilder,
   window::WindowBuilder,
-  AppHandle, Event, EventId, Manager, Runtime, Webview, Window, WindowEvent,
+  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
 
 use tauri_macros::default_runtime;
@@ -123,7 +122,8 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 ```
 #[tauri::command]
 async fn reopen_window(app: tauri::AppHandle) {
-  let webview_window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  let webview_window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
+    .unwrap()
     .build()
     .unwrap();
 }
@@ -132,11 +132,11 @@ async fn reopen_window(app: tauri::AppHandle) {
   )]
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn from_config(manager: &'a M, config: WindowConfig) -> Self {
-    Self {
-      window_builder: WindowBuilder::from_config(manager, config.clone()),
+  pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
+    Ok(Self {
+      window_builder: WindowBuilder::from_config(manager, config)?,
       webview_builder: WebviewBuilder::from_config(config),
-    }
+    })
   }
 
   /// Registers a global menu event listener.
@@ -153,7 +153,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None);
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
   ///     let menu = Menu::with_items(handle, &[
   ///       &Submenu::with_items(handle, "File", true, &[
   ///         &save_menu_item,
@@ -173,7 +173,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   ///   });
   /// ```
   #[cfg(desktop)]
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -562,22 +562,32 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 
   /// Sets a parent to the window to be created.
   ///
-  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  /// ## Platform-specific
   ///
-  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
-  #[cfg(windows)]
-  #[must_use]
-  pub fn parent_window(mut self, parent: HWND) -> Self {
-    self.window_builder = self.window_builder.parent_window(parent);
-    self
+  /// - **Windows**: This sets the passed parent as an owner window to the window to be created.
+  ///   From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows):
+  ///     - An owned window is always above its owner in the z-order.
+  ///     - The system automatically destroys an owned window when its owner is destroyed.
+  ///     - An owned window is hidden when its owner is minimized.
+  /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  pub fn parent(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.parent(&parent.webview.window)?;
+    Ok(self)
   }
 
-  /// Sets a parent to the window to be created.
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  pub fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
-    self.window_builder = self.window_builder.parent_window(parent);
-    self
+  /// Set an owner to the window to be created.
+  ///
+  /// From MSDN:
+  /// - An owned window is always above its owner in the z-order.
+  /// - The system automatically destroys an owned window when its owner is destroyed.
+  /// - An owned window is hidden when its owner is minimized.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
+  #[cfg(windows)]
+  pub fn owner(mut self, owner: &WebviewWindow<R>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.owner(&owner.webview.window)?;
+    Ok(self)
   }
 
   /// Set an owner to the window to be created.
@@ -590,8 +600,61 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
   #[must_use]
-  pub fn owner_window(mut self, owner: HWND) -> Self {
-    self.window_builder = self.window_builder.owner_window(owner);
+  pub fn owner_raw(mut self, owner: HWND) -> Self {
+    self.window_builder = self.window_builder.owner_raw(owner);
+    self
+  }
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  #[cfg(windows)]
+  #[must_use]
+  pub fn parent_raw(mut self, parent: HWND) -> Self {
+    self.window_builder = self.window_builder.parent_raw(parent);
+    self
+  }
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// See <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn parent_raw(mut self, parent: *mut std::ffi::c_void) -> Self {
+    self.window_builder = self.window_builder.parent_raw(parent);
+    self
+  }
+
+  /// Sets the window to be created transient for parent.
+  ///
+  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn transient_for(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.transient_for(&parent.webview.window)?;
+    Ok(self)
+  }
+
+  /// Sets the window to be created transient for parent.
+  ///
+  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  #[must_use]
+  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self.window_builder = self.window_builder.transient_for_raw(parent);
     self
   }
 
@@ -761,6 +824,15 @@ fn main() {
     self.webview_builder = self.webview_builder.auto_resize();
     self
   }
+
+  /// Set a proxy URL for the WebView for all network requests.
+  ///
+  /// Must be either a `http://` or a `socks5://` URL.
+  #[must_use]
+  pub fn proxy_url(mut self, url: Url) -> Self {
+    self.webview_builder = self.webview_builder.proxy_url(url);
+    self
+  }
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].
@@ -792,27 +864,11 @@ impl<R: Runtime> PartialEq for WebviewWindow<R> {
   }
 }
 
-unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for WebviewWindow<R> {
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    self.webview.window().raw_window_handle()
-  }
-}
-
-impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
-  fn manager(&self) -> &AppManager<R> {
-    self.webview.manager()
-  }
-
-  fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.webview.manager_owned()
-  }
-
-  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    self.webview.runtime()
-  }
-
-  fn managed_app_handle(&self) -> &AppHandle<R> {
-    self.webview.managed_app_handle()
+impl<R: Runtime> raw_window_handle::HasWindowHandle for WebviewWindow<R> {
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+    self.webview.window().window_handle()
   }
 }
 
@@ -880,7 +936,7 @@ use tauri::menu::{Menu, Submenu, MenuItem};
 tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
     let menu = Menu::with_items(handle, &[
       &Submenu::with_items(handle, "File", true, &[
         &save_menu_item,
@@ -902,7 +958,7 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     &self,
     f: F,
   ) {
@@ -1238,15 +1294,14 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().hide()
   }
 
-  /// Closes this window.
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
+  /// Closes this window. It emits [`crate::RunEvent::CloseRequested`] first like a user-initiated close request so you can intercept it.
   pub fn close(&self) -> crate::Result<()> {
     self.webview.window().close()
+  }
+
+  /// Destroys this window. Similar to [`Self::close`] but does not emit any events and force close the window instead.
+  pub fn destroy(&self) -> crate::Result<()> {
+    self.webview.window().destroy()
   }
 
   /// Determines if this window should be [decorated].
@@ -1640,7 +1695,7 @@ tauri::Builder::default()
 
 /// Event system APIs.
 impl<R: Runtime> WebviewWindow<R> {
-  /// Listen to an event on this webview.
+  /// Listen to an event on this webview window.
   ///
   /// # Examples
   ///
@@ -1666,10 +1721,16 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.webview.listen(event, handler)
+    self.manager().listen(
+      event.into(),
+      EventTarget::WebviewWindow {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 
-  /// Unlisten to an event on this window.
+  /// Unlisten to an event on this webview window.
   ///
   /// # Examples
   #[cfg_attr(
@@ -1699,39 +1760,42 @@ tauri::Builder::default()
   "####
   )]
   pub fn unlisten(&self, id: EventId) {
-    self.webview.unlisten(id)
+    self.manager().unlisten(id)
   }
 
-  /// Listen to an event on this webview only once.
+  /// Listen to an event on this window webview only once.
   ///
   /// See [`Self::listen`] for more information.
   pub fn once<F>(&self, event: impl Into<String>, handler: F)
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.webview.once(event, handler)
+    self.manager().once(
+      event.into(),
+      EventTarget::WebviewWindow {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 }
 
-impl<R: Runtime> Manager<R> for WebviewWindow<R> {
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.webview.emit(event, payload)
+impl<R: Runtime> Manager<R> for WebviewWindow<R> {}
+
+impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
+  fn manager(&self) -> &AppManager<R> {
+    self.webview.manager()
   }
 
-  fn emit_to<S: Serialize + Clone>(
-    &self,
-    label: &str,
-    event: &str,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.webview.emit_to(label, event, payload)
+  fn manager_owned(&self) -> Arc<AppManager<R>> {
+    self.webview.manager_owned()
   }
 
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
-  {
-    self.webview.emit_filter(event, payload, filter)
+  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
+    self.webview.runtime()
+  }
+
+  fn managed_app_handle(&self) -> &AppHandle<R> {
+    self.webview.managed_app_handle()
   }
 }

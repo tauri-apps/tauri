@@ -10,7 +10,7 @@ use std::{
   path::PathBuf,
 };
 use tauri_codegen::{context_codegen, ContextData};
-use tauri_utils::config::{AppUrl, WebviewUrl};
+use tauri_utils::config::FrontendDist;
 
 // TODO docs
 /// A builder for generating a Tauri application context during compile time.
@@ -82,16 +82,14 @@ impl CodegenContext {
     let (config, config_parent) = tauri_codegen::get_config(&self.config_path)?;
 
     // rerun if changed
-    let app_url = if self.dev {
-      &config.build.dev_path
-    } else {
-      &config.build.dist_dir
-    };
-    match app_url {
-      AppUrl::Url(WebviewUrl::App(p)) => {
-        println!("cargo:rerun-if-changed={}", config_parent.join(p).display());
+    match &config.build.frontend_dist {
+      Some(FrontendDist::Directory(p)) => {
+        let dist_path = config_parent.join(p);
+        if dist_path.exists() {
+          println!("cargo:rerun-if-changed={}", dist_path.display());
+        }
       }
-      AppUrl::Files(files) => {
+      Some(FrontendDist::Files(files)) => {
         for path in files {
           println!(
             "cargo:rerun-if-changed={}",
@@ -101,13 +99,13 @@ impl CodegenContext {
       }
       _ => (),
     }
-    for icon in &config.tauri.bundle.icon {
+    for icon in &config.bundle.icon {
       println!(
         "cargo:rerun-if-changed={}",
         config_parent.join(icon).display()
       );
     }
-    if let Some(tray_icon) = config.tauri.tray_icon.as_ref().map(|t| &t.icon_path) {
+    if let Some(tray_icon) = config.app.tray_icon.as_ref().map(|t| &t.icon_path) {
       println!(
         "cargo:rerun-if-changed={}",
         config_parent.join(tray_icon).display()

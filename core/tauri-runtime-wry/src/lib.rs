@@ -11,7 +11,7 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
 
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
+use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 use tauri_runtime::{
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -21,14 +21,12 @@ use tauri_runtime::{
     WindowBuilderBase, WindowEvent, WindowId,
   },
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent,
-  RunIteration, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
-  WebviewDispatch, WindowDispatch, WindowEventId,
+  Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
+  WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
-use tao::platform::macos::EventLoopWindowTargetExtMacOS;
-#[cfg(target_os = "macos")]
-use tao::platform::macos::WindowBuilderExtMacOS;
+use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
 #[cfg(target_os = "linux")]
 use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
@@ -63,7 +61,10 @@ use tauri_utils::TitleBarStyle;
 use tauri_utils::{
   config::WindowConfig, debug_eprintln, ProgressBarState, ProgressBarStatus, Theme,
 };
-use wry::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder};
+use wry::{
+  FileDropEvent as WryFileDropEvent, ProxyConfig, ProxyEndpoint, Url, WebContext, WebView,
+  WebViewBuilder,
+};
 
 pub use tao;
 pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId as TaoWindowId};
@@ -428,6 +429,16 @@ pub fn map_theme(theme: &TaoTheme) -> Theme {
   }
 }
 
+#[cfg(target_os = "macos")]
+fn tao_activation_policy(activation_policy: ActivationPolicy) -> TaoActivationPolicy {
+  match activation_policy {
+    ActivationPolicy::Regular => TaoActivationPolicy::Regular,
+    ActivationPolicy::Accessory => TaoActivationPolicy::Accessory,
+    ActivationPolicy::Prohibited => TaoActivationPolicy::Prohibited,
+    _ => unimplemented!(),
+  }
+}
+
 impl<'a> From<&TaoWindowEvent<'a>> for WindowEventWrapper {
   fn from(event: &TaoWindowEvent<'a>) -> Self {
     let event = match event {
@@ -679,7 +690,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     Self::default().focused(true)
   }
 
-  fn with_config(config: WindowConfig) -> Self {
+  fn with_config(config: &WindowConfig) -> Self {
     let mut window = WindowBuilderWrapper::new();
 
     #[cfg(target_os = "macos")]
@@ -878,20 +889,32 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(windows)]
-  fn parent_window(mut self, parent: HWND) -> Self {
+  fn owner(mut self, owner: HWND) -> Self {
+    self.inner = self.inner.with_owner_window(owner.0);
+    self
+  }
+
+  #[cfg(windows)]
+  fn parent(mut self, parent: HWND) -> Self {
     self.inner = self.inner.with_parent_window(parent.0);
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
+  fn parent(mut self, parent: *mut std::ffi::c_void) -> Self {
     self.inner = self.inner.with_parent_window(parent);
     self
   }
 
-  #[cfg(windows)]
-  fn owner_window(mut self, owner: HWND) -> Self {
-    self.inner = self.inner.with_owner_window(owner.0);
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self.inner = self.inner.with_transient_for(parent);
     self
   }
 
@@ -1054,8 +1077,8 @@ pub struct GtkBox(pub gtk::Box);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkBox {}
 
-pub struct RawWindowHandle(pub raw_window_handle::RawWindowHandle);
-unsafe impl Send for RawWindowHandle {}
+pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
+unsafe impl Send for SendRawWindowHandle {}
 
 #[cfg(target_os = "macos")]
 #[derive(Debug, Clone)]
@@ -1102,7 +1125,7 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkBox(Sender<GtkBox>),
-  RawWindowHandle(Sender<RawWindowHandle>),
+  RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
   // Setters
   Center,
@@ -1119,6 +1142,7 @@ pub enum WindowMessage {
   Show,
   Hide,
   Close,
+  Destroy,
   SetDecorations(bool),
   SetShadow(bool),
   SetAlwaysOnBottom(bool),
@@ -1185,6 +1209,9 @@ pub type CreateWebviewClosure = Box<dyn FnOnce(&Window) -> Result<WebviewWrapper
 
 pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
+  #[cfg(target_os = "macos")]
+  SetActivationPolicy(ActivationPolicy),
+  RequestExit(i32),
   #[cfg(target_os = "macos")]
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
@@ -1373,6 +1400,12 @@ pub struct WryWindowDispatcher<T: UserEvent> {
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Sync for WryWindowDispatcher<T> {}
 
+fn get_raw_window_handle<T: UserEvent>(
+  dispatcher: &WryWindowDispatcher<T>,
+) -> Result<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>> {
+  window_getter!(dispatcher, WindowMessage::RawWindowHandle)
+}
+
 impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   type Runtime = Wry<T>;
   type WindowBuilder = WindowBuilderWrapper;
@@ -1504,8 +1537,12 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
   }
 
-  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
-    window_getter!(self, WindowMessage::RawWindowHandle).map(|w| w.0)
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+    get_raw_window_handle(self)
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)
+      .and_then(|r| r.map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }))
   }
 
   // Setters
@@ -1629,6 +1666,15 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       .context
       .proxy
       .send_event(Message::Window(self.window_id, WindowMessage::Close))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn destroy(&self) -> Result<()> {
+    // NOTE: destroy cannot use the `send_user_message` function because it accesses the event loop callback
+    self
+      .context
+      .proxy
+      .send_event(Message::Window(self.window_id, WindowMessage::Destroy))
       .map_err(|_| Error::FailedToSendMessage)
   }
 
@@ -1969,6 +2015,23 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     EventProxy(self.context.proxy.clone())
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::SetActivationPolicy(activation_policy),
+    )
+  }
+
+  fn request_exit(&self, code: i32) -> Result<()> {
+    // NOTE: request_exit cannot use the `send_user_message` function because it accesses the event loop callback
+    self
+      .context
+      .proxy
+      .send_event(Message::RequestExit(code))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
   // Creates a window by dispatching a message to the event loop.
   // Note that this must be called from a separate thread, otherwise the channel will introduce a deadlock.
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
@@ -1993,8 +2056,8 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
-  fn raw_display_handle(&self) -> RawDisplayHandle {
-    self.context.main_thread.window_target.raw_display_handle()
+  fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError> {
+    self.context.main_thread.window_target.display_handle()
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
@@ -2261,12 +2324,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     self
       .event_loop
-      .set_activation_policy(match activation_policy {
-        ActivationPolicy::Regular => TaoActivationPolicy::Regular,
-        ActivationPolicy::Accessory => TaoActivationPolicy::Accessory,
-        ActivationPolicy::Prohibited => TaoActivationPolicy::Prohibited,
-        _ => unimplemented!(),
-      });
+      .set_activation_policy(tao_activation_policy(activation_policy));
   }
 
   #[cfg(target_os = "macos")]
@@ -2286,7 +2344,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, mut callback: F) {
     use tao::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
@@ -2295,8 +2353,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     #[cfg(feature = "tracing")]
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
-
-    let mut iteration = RunIteration::default();
 
     let proxy = self.event_loop.create_proxy();
 
@@ -2328,7 +2384,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           }
         }
 
-        iteration = handle_event_loop(
+        handle_event_loop(
           event,
           event_loop,
           control_flow,
@@ -2341,8 +2397,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           },
         );
       });
-
-    iteration
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
@@ -2392,7 +2446,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 }
 
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
-  pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
+  pub callback: &'a mut (dyn FnMut(RunEvent<T>)),
   pub webview_id_map: WindowIdStore,
   pub windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
   #[cfg(feature = "tracing")]
@@ -2408,13 +2462,18 @@ fn handle_user_message<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   message: Message<T>,
   context: UserMessageContext,
-) -> RunIteration {
+) {
   let UserMessageContext {
     webview_id_map,
     windows,
   } = context;
   match message {
     Message::Task(task) => task(),
+    #[cfg(target_os = "macos")]
+    Message::SetActivationPolicy(activation_policy) => {
+      event_loop.set_activation_policy_at_runtime(tao_activation_policy(activation_policy))
+    }
+    Message::RequestExit(_code) => panic!("cannot handle RequestExit on the main thread"),
     #[cfg(target_os = "macos")]
     Message::Application(application_message) => match application_message {
       ApplicationMessage::Show => {
@@ -2498,7 +2557,11 @@ fn handle_user_message<T: UserEvent>(
             .send(GtkBox(window.default_vbox().unwrap().clone()))
             .unwrap(),
           WindowMessage::RawWindowHandle(tx) => tx
-            .send(RawWindowHandle(window.raw_window_handle()))
+            .send(
+              window
+                .window_handle()
+                .map(|h| SendRawWindowHandle(h.as_raw())),
+            )
             .unwrap(),
           WindowMessage::Theme(tx) => {
             tx.send(map_theme(&window.theme())).unwrap();
@@ -2523,6 +2586,9 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Hide => window.set_visible(false),
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
+          }
+          WindowMessage::Destroy => {
+            panic!("cannot handle `WindowMessage::Destroy` on the main thread")
           }
           WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
           WindowMessage::SetShadow(_enable) => {
@@ -2825,11 +2891,6 @@ fn handle_user_message<T: UserEvent>(
 
     Message::UserEvent(_) => (),
   }
-
-  let it = RunIteration {
-    window_count: windows.borrow().len(),
-  };
-  it
 }
 
 fn handle_event_loop<T: UserEvent>(
@@ -2837,7 +2898,7 @@ fn handle_event_loop<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   control_flow: &mut ControlFlow,
   context: EventLoopIterationContext<'_, T>,
-) -> RunIteration {
+) {
   let EventLoopIterationContext {
     callback,
     webview_id_map,
@@ -2875,7 +2936,7 @@ fn handle_event_loop<T: UserEvent>(
           if window.is_window_transparent {
             if let Some(surface) = &mut window.surface {
               if let Some(window) = &window.inner {
-                clear_window_surface(&window, surface)
+                clear_window_surface(window, surface)
               }
             }
           }
@@ -2958,7 +3019,7 @@ fn handle_event_loop<T: UserEvent>(
               let is_empty = windows.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
-                callback(RunEvent::ExitRequested { tx });
+                callback(RunEvent::ExitRequested { code: None, tx });
 
                 let recv = rx.try_recv();
                 let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
@@ -2989,12 +3050,29 @@ fn handle_event_loop<T: UserEvent>(
       }
     }
     Event::UserEvent(message) => match message {
+      Message::RequestExit(code) => {
+        let (tx, rx) = channel();
+        callback(RunEvent::ExitRequested {
+          code: Some(code),
+          tx,
+        });
+
+        let recv = rx.try_recv();
+        let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+        if !should_prevent {
+          *control_flow = ControlFlow::Exit;
+        }
+      }
       Message::Window(id, WindowMessage::Close) => {
+        on_close_requested(callback, id, windows.clone());
+      }
+      Message::Window(id, WindowMessage::Destroy) => {
         on_window_close(id, windows.clone());
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {
-        return handle_user_message(
+        handle_user_message(
           event_loop,
           message,
           UserMessageContext {
@@ -3010,15 +3088,10 @@ fn handle_event_loop<T: UserEvent>(
     }
     _ => (),
   }
-
-  let it = RunIteration {
-    window_count: windows.borrow().len(),
-  };
-  it
 }
 
-fn on_close_requested<'a, T: UserEvent>(
-  callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
+fn on_close_requested<T: UserEvent>(
+  callback: &mut (dyn FnMut(RunEvent<T>)),
   window_id: WindowId,
   windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
 ) {
@@ -3069,6 +3142,23 @@ pub fn center_window(window: &Window, window_size: TaoPhysicalSize<u32>) -> Resu
     Ok(())
   } else {
     Err(Error::FailedToGetMonitor)
+  }
+}
+
+fn parse_proxy_url(url: &Url) -> Result<ProxyConfig> {
+  let host = url.host().map(|h| h.to_string()).unwrap_or_default();
+  let port = url.port().map(|p| p.to_string()).unwrap_or_default();
+
+  if url.scheme() == "http" {
+    let config = ProxyConfig::Http(ProxyEndpoint { host, port });
+
+    Ok(config)
+  } else if url.scheme() == "socks5" {
+    let config = ProxyConfig::Socks5(ProxyEndpoint { host, port });
+
+    Ok(config)
+  } else {
+    Err(Error::InvalidProxyUrl)
   }
 }
 
@@ -3364,6 +3454,12 @@ fn create_webview<T: UserEvent>(
 
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);
+  }
+
+  if let Some(proxy_url) = webview_attributes.proxy_url {
+    let config = parse_proxy_url(&proxy_url)?;
+
+    webview_builder = webview_builder.with_proxy_config(config);
   }
 
   #[cfg(windows)]

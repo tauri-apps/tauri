@@ -45,7 +45,7 @@ pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
 }
 
 /// Transform a base64 String to readable string for the main signer
-pub fn decode_key(base64_key: String) -> crate::Result<String> {
+pub fn decode_key<S: AsRef<[u8]>>(base64_key: S) -> crate::Result<String> {
   let decoded_str = &base64::engine::general_purpose::STANDARD.decode(base64_key)?[..];
   Ok(String::from(str::from_utf8(decoded_str)?))
 }
@@ -91,14 +91,6 @@ where
   Ok((fs::canonicalize(sk_path)?, fs::canonicalize(pk_path)?))
 }
 
-/// Read key from file
-pub fn read_key_from_file<P>(sk_path: P) -> crate::Result<String>
-where
-  P: AsRef<Path>,
-{
-  Ok(fs::read_to_string(sk_path)?)
-}
-
 /// Sign files
 pub fn sign_file<P>(secret_key: &SecretKey, bin_path: P) -> crate::Result<(PathBuf, SignatureBox)>
 where
@@ -136,7 +128,10 @@ where
 }
 
 /// Gets the updater secret key from the given private key and password.
-pub fn secret_key(private_key: String, password: Option<String>) -> crate::Result<SecretKey> {
+pub fn secret_key<S: AsRef<[u8]>>(
+  private_key: S,
+  password: Option<String>,
+) -> crate::Result<SecretKey> {
   let decoded_secret = decode_key(private_key)?;
   let sk_box = SecretKeyBox::from_string(&decoded_secret)
     .with_context(|| "failed to load updater private key")?;

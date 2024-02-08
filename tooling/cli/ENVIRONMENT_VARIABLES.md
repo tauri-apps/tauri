@@ -15,8 +15,11 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_CLI_NO_DEV_SERVER_WAIT` — Skip waiting for the frontend dev server to start before building the tauri application.
 - `TAURI_LINUX_AYATANA_APPINDICATOR` — Set this var to `true` or `1` to force usage of `libayatana-appindicator` for system tray on Linux.
 - `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` — Specify the bundler's WiX `FipsCompliant` option.
+- `TAURI_SKIP_SIDECAR_SIGNATURE_CHECK` - Skip signing sidecars.
 - `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles, can be either a string or a path to the file.
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — The signing private key password, see `TAURI_SIGNING_PRIVATE_KEY`.
+- `TAURI_SIGNING_RPM_KEY` — The private GPG key used to sign the RPM bundle, exported to its ASCII-armored format.
+- `TAURI_SIGNING_RPM_KEY_PASSPHRASE` — The GPG key passphrase for `TAURI_SIGNING_RPM_KEY`, if needed.
 - `APPLE_CERTIFICATE` — Base64 encoded of the `.p12` certificate for code signing. To get this value, run `openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt`.
 - `APPLE_CERTIFICATE_PASSWORD` — The password you used to export the certificate.
 - `APPLE_ID` — The Apple ID used to notarize the application. If this environment variable is provided, `APPLE_PASSWORD` and `APPLE_TEAM_ID` must also be set. Alternatively, `APPLE_API_KEY` and `APPLE_API_ISSUER` can be used to authenticate.
@@ -26,15 +29,13 @@ These environment variables are inputs to the CLI which may have an equivalent C
   - See [creating API keys](https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api) for more information.
 - `API_PRIVATE_KEYS_DIR` — Specify the directory where your AuthKey file is located. See `APPLE_API_KEY`.
 - `APPLE_API_ISSUER` — Issuer ID. Required if `APPLE_API_KEY` is specified.
-- `APPLE_API_KEY_PATH` - path to the API key `.p8` file. If not specified, the bundler searches the following directories in sequence for a private key file with the name of 'AuthKey_<api_key>.p8': './private_keys', '~/private_keys', '~/.private_keys', and '~/.appstoreconnect/private_keys'.
-- `APPLE_SIGNING_IDENTITY` — The identity used to code sign. Overwrites `tauri.conf.json > tauri > bundle > macOS > signingIdentity`.
-- `APPLE_PROVIDER_SHORT_NAME` — If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. Overwrites `tauri.conf.json > tauri > bundle > macOS > providerShortName`.
+- `APPLE_API_KEY_PATH` - path to the API key `.p8` file. If not specified, the bundler searches the following directories in sequence for a private key file with the name of 'AuthKey\_<api_key>.p8': './private_keys', '~/private_keys', '~/.private_keys', and '~/.appstoreconnect/private_keys'.
+- `APPLE_SIGNING_IDENTITY` — The identity used to code sign. Overwrites `tauri.conf.json > bundle > macOS > signingIdentity`.
+- `APPLE_PROVIDER_SHORT_NAME` — If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. Overwrites `tauri.conf.json > bundle > macOS > providerShortName`.
 - `APPLE_DEVELOPMENT_TEAM` — TODO
 - `TAURI_WEBVIEW_AUTOMATION` — Enables webview automation (Linux Only).
 - `TAURI_ANDROID_PROJECT_PATH` — Path of the tauri android project, usually will be `<project>/src-tauri/gen/android`.
 - `TAURI_IOS_PROJECT_PATH` — Path of the tauri iOS project, usually will be `<project>/src-tauri/gen/ios`.
-- `RPM_SIGN_KEY` — The private GPG key used to sign the RPM bundle, exported to its ASCII-armored format.
-- `RPM_SIGN_KEY_PASSPHRASE` — The GPG key passphrase for `RPM_SIGN_KEY`, if needed.
 
 ### Tauri CLI Hook Commands
 

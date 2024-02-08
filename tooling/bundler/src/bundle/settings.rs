@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, FileAssociation, NSISInstallerMode, NsisCompression},
+  config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -149,8 +149,6 @@ pub struct PackageSettings {
   pub homepage: Option<String>,
   /// the package's authors.
   pub authors: Option<Vec<String>>,
-  /// the package's license.
-  pub license: Option<String>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -158,8 +156,6 @@ pub struct PackageSettings {
 /// The updater settings.
 #[derive(Debug, Default, Clone)]
 pub struct UpdaterSettings {
-  /// Whether the updater is active or not.
-  pub active: bool,
   /// Signature public key.
   pub pubkey: String,
   /// Args to pass to `msiexec.exe` to run the updater on Windows.
@@ -186,11 +182,16 @@ pub struct DebianSettings {
   pub desktop_template: Option<PathBuf>,
 }
 
+/// The Linux AppImage bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct AppImageSettings {
+  /// The files to include in the Appimage Binary.
+  pub files: HashMap<PathBuf, PathBuf>,
+}
+
 /// The RPM bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct RpmSettings {
-  /// The name of the package's license.
-  pub license: Option<String>,
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
   /// The RPM release tag.
@@ -264,9 +265,6 @@ pub struct MacOsSettings {
   /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   pub minimum_system_version: Option<String>,
-  /// The path to the LICENSE file for macOS apps.
-  /// Currently only used by the dmg bundle.
-  pub license: Option<String>,
   /// The exception domain to use on the macOS .app bundle.
   ///
   /// This allows communication to the outside world e.g. a web server you're shipping.
@@ -320,8 +318,6 @@ pub struct WixSettings {
   pub merge_refs: Vec<String>,
   /// Disables the Webview2 runtime installation after app install. Will be removed in v2, use [`WindowsSettings::webview_install_mode`] instead.
   pub skip_webview_install: bool,
-  /// The path to the LICENSE file.
-  pub license: Option<PathBuf>,
   /// Create an elevated update task within Windows Task Scheduler.
   pub enable_elevated_update_task: bool,
   /// Path to a bitmap file to use as the installation user interface banner.
@@ -343,8 +339,6 @@ pub struct WixSettings {
 pub struct NsisSettings {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
-  /// The path to the license file to render on the installer.
-  pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.
@@ -452,6 +446,11 @@ pub struct BundleSettings {
   pub resources_map: Option<HashMap<String, String>>,
   /// the app's copyright.
   pub copyright: Option<String>,
+  /// The package's license identifier to be included in the appropriate bundles.
+  /// If not set, defaults to the license from the Cargo.toml file.
+  pub license: Option<String>,
+  /// The path to the license file to be included in the appropriate bundles.
+  pub license_file: Option<PathBuf>,
   /// the app's category.
   pub category: Option<AppCategory>,
   /// the file associations
@@ -478,8 +477,12 @@ pub struct BundleSettings {
   /// e.g. `sqlite3-universal-apple-darwin`. See
   /// <https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary>
   pub external_bin: Option<Vec<String>>,
+  /// Deep-link protocols.
+  pub deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// AppImage-specific settings.
+  pub appimage: AppImageSettings,
   /// Rpm-specific settings.
   pub rpm: RpmSettings,
   /// DMG-specific settings.
@@ -756,9 +759,8 @@ impl Settings {
       }
     };
 
-    // add updater if needed
     if self.is_update_enabled() {
-      platform_types.push(PackageType::Updater)
+      platform_types.push(PackageType::Updater);
     }
 
     if let Some(package_types) = &self.package_types {
@@ -884,9 +886,17 @@ impl Settings {
     }
   }
 
-  /// Returns the package's license.
-  pub fn license(&self) -> Option<&str> {
-    self.package.license.as_deref()
+  /// Returns the bundle license file.
+  pub fn license_file(&self) -> Option<PathBuf> {
+    self.bundle_settings.license_file.clone().or_else(|| {
+      self.bundle_settings.license.as_deref().map(|l| {
+        let p = self
+          .project_out_directory()
+          .join(format!("{}-license", self.bundle_identifier()));
+        std::fs::write(&p, l).expect("failed to write license to a temp file");
+        p
+      })
+    })
   }
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.
@@ -900,8 +910,14 @@ impl Settings {
   }
 
   /// Return file associations.
-  pub fn file_associations(&self) -> &Option<Vec<FileAssociation>> {
-    &self.bundle_settings.file_associations
+  pub fn file_associations(&self) -> Option<&Vec<FileAssociation>> {
+    self.bundle_settings.file_associations.as_ref()
+  }
+
+  /// Return the list of deep link protocols to be registered for
+  /// this bundle.
+  pub fn deep_link_protocols(&self) -> Option<&Vec<DeepLinkProtocol>> {
+    self.bundle_settings.deep_link_protocols.as_ref()
   }
 
   /// Returns the app's short description.
@@ -921,6 +937,11 @@ impl Settings {
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+
+  /// Returns the appimage settings.
+  pub fn appimage(&self) -> &AppImageSettings {
+    &self.bundle_settings.appimage
   }
 
   /// Returns the RPM settings.
@@ -950,9 +971,11 @@ impl Settings {
 
   /// Is update enabled
   pub fn is_update_enabled(&self) -> bool {
-    match &self.bundle_settings.updater {
-      Some(val) => val.active,
-      None => false,
-    }
+    self
+      .bundle_settings
+      .updater
+      .as_ref()
+      .map(|u| !u.pubkey.is_empty())
+      .unwrap_or_default()
   }
 }

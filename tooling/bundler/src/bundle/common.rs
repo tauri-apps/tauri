@@ -128,6 +128,39 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   Ok(())
 }
 
+/// Copies user-defined files specified in the configuration file to the package.
+///
+/// The configuration object maps the path in the package to the path of the file on the filesystem,
+/// relative to the tauri.conf.json file.
+///
+/// Expects a HashMap of PathBuf entries, representing destination and source paths,
+/// and also a path of a directory. The files will be stored with respect to this directory.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub fn copy_custom_files(
+  files_map: &std::collections::HashMap<std::path::PathBuf, std::path::PathBuf>,
+  data_dir: &Path,
+) -> crate::Result<()> {
+  for (pkg_path, path) in files_map.iter() {
+    let pkg_path = if pkg_path.is_absolute() {
+      pkg_path.strip_prefix("/").unwrap()
+    } else {
+      pkg_path
+    };
+    if path.is_file() {
+      copy_file(path, data_dir.join(pkg_path))?;
+    } else {
+      copy_dir(path, &data_dir.join(pkg_path))?;
+    }
+  }
+  Ok(())
+}
+
 pub trait CommandExt {
   // The `pipe` function sets the stdout and stderr to properly
   // show the command output in the Node.js wrapper.

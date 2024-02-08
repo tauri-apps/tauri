@@ -14,7 +14,7 @@
     <div id="response"></div>
 
     <script>
-      const WebviewWindow = window.__TAURI__.window.WebviewWindow
+      const WebviewWindow = window.__TAURI__.webview.WebviewWindow
       const thisTauriWindow = window.__TAURI__.window.getCurrent()
       const windowLabel = thisTauriWindow.label
       const windowLabelContainer = document.getElementById('window-label')
@@ -39,11 +39,14 @@
 
       const createWindowButton = document.createElement('button')
       const windowId = Math.random().toString().replace('.', '')
-      const windowNumber = 1
+      let windowNumber = 1
       createWindowButton.innerHTML = 'Create child window ' + windowNumber
       createWindowButton.addEventListener('click', function () {
-        runCommand('create_child_window', {
-          id: `child-${windowId}-${windowNumber}`
+        new WebviewWindow(`child-${windowId}-${windowNumber}`, {
+          title: 'Child',
+          width: 400,
+          height: 300,
+          parent: thisTauriWindow
         })
         windowNumber += 1
         createWindowButton.innerHTML = 'Create child window ' + windowNumber

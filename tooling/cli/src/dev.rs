@@ -6,11 +6,12 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WebviewUrl},
-    resolve_merge_config,
+    config::{
+      get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
+    },
   },
   interface::{AppInterface, DevProcess, ExitReason, Interface},
-  CommandExt, Result,
+  CommandExt, ConfigValue, Result,
 };
 
 use anyhow::{bail, Context};
@@ -41,7 +42,7 @@ pub const TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE: &[u8] =
 #[derive(Debug, Clone, Parser)]
 #[clap(
   about = "Run your app in development mode",
-  long_about = "Run your app in development mode with hot-reloading for the Rust code. It makes use of the `build.devPath` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer.",
+  long_about = "Run your app in development mode with hot-reloading for the Rust code. It makes use of the `build.devUrl` property from your `tauri.conf.json` file. It also runs your `build.beforeDevCommand` which usually starts your frontend devServer.",
   trailing_var_arg(true)
 )]
 pub struct Options {
@@ -59,7 +60,7 @@ pub struct Options {
   pub exit_on_panic: bool,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
@@ -99,7 +100,16 @@ fn command_internal(mut options: Options) -> Result<()> {
     .as_deref()
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
-  let mut interface = setup(target, &mut options, false)?;
+
+  let config = get_config(target, options.config.as_ref().map(|c| &c.0))?;
+
+  let mut interface = AppInterface::new(
+    config.lock().unwrap().as_ref().unwrap(),
+    options.target.clone(),
+  )?;
+
+  setup(&interface, &mut options, config, false)?;
+
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
   interface.dev(options.into(), move |status, reason| {
@@ -150,27 +160,22 @@ pub fn local_ip_address(force: bool) -> &'static IpAddr {
   })
 }
 
-pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppInterface> {
-  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
-  options.config = merge_config;
-
-  let config = get_config(target, options.config.as_deref())?;
-
+pub fn setup(
+  interface: &AppInterface,
+  options: &mut Options,
+  config: ConfigHandle,
+  mobile: bool,
+) -> Result<()> {
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-  let interface = AppInterface::new(
-    config.lock().unwrap().as_ref().unwrap(),
-    options.target.clone(),
-  )?;
-
-  let mut dev_path = config
+  let mut dev_url = config
     .lock()
     .unwrap()
     .as_ref()
     .unwrap()
     .build
-    .dev_path
+    .dev_url
     .clone();
 
   if let Some(before_dev) = config
@@ -195,13 +200,13 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
         if mobile {
           let local_ip_address = local_ip_address(options.force_ip_prompt).to_string();
           before_dev = before_dev.replace("$HOST", &local_ip_address);
-          if let AppUrl::Url(WebviewUrl::External(url)) = &mut dev_path {
+          if let Some(url) = &mut dev_url {
             url.set_host(Some(&local_ip_address))?;
           }
         } else {
           before_dev = before_dev.replace(
             "$HOST",
-            if let AppUrl::Url(WebviewUrl::External(url)) = &dev_path {
+            if let Some(url) = &dev_url {
               url.host_str().unwrap_or("0.0.0.0")
             } else {
               "0.0.0.0"
@@ -305,17 +310,25 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     cargo_features.extend(features.clone());
   }
 
-  let mut dev_path = config
+  let mut dev_url = config
     .lock()
     .unwrap()
     .as_ref()
     .unwrap()
     .build
-    .dev_path
+    .dev_url
     .clone();
-  if !options.no_dev_server {
-    if let AppUrl::Url(WebviewUrl::App(path)) = &dev_path {
-      use crate::helpers::web_dev_server::start_dev_server;
+  let frontend_dist = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .frontend_dist
+    .clone();
+  if !options.no_dev_server && dev_url.is_none() {
+    if let Some(FrontendDist::Directory(path)) = &frontend_dist {
+      use crate::helpers::web_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
         let ip = if mobile {
@@ -323,29 +336,40 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
         } else {
           Ipv4Addr::new(127, 0, 0, 1).into()
         };
-        let server_url = start_dev_server(path, ip, options.port)?;
+        let server_url = web_dev_server::start(path, ip, options.port)?;
         let server_url = format!("http://{server_url}");
-        dev_path = AppUrl::Url(WebviewUrl::External(server_url.parse().unwrap()));
+        dev_url = Some(server_url.parse().unwrap());
 
-        if let Some(c) = &options.config {
-          let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
-          c.build.dev_path = dev_path.clone();
-          options.config = Some(serde_json::to_string(&c).unwrap());
+        if let Some(c) = &mut options.config {
+          if let Some(build) = c
+            .0
+            .as_object_mut()
+            .and_then(|root| root.get_mut("build"))
+            .and_then(|build| build.as_object_mut())
+          {
+            build.insert("devUrl".into(), server_url.into());
+          }
         } else {
-          options.config = Some(format!(r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#))
+          options
+            .config
+            .replace(crate::ConfigValue(serde_json::json!({
+              "build": {
+                "devUrl": server_url
+              }
+            })));
         }
 
-        reload_config(options.config.as_deref())?;
+        reload_config(options.config.as_ref().map(|c| &c.0))?;
       }
     }
   }
 
   if !options.no_dev_server_wait {
-    if let AppUrl::Url(WebviewUrl::External(dev_server_url)) = dev_path {
-      let host = dev_server_url
+    if let Some(url) = dev_url {
+      let host = url
         .host()
         .unwrap_or_else(|| panic!("No host name in the URL"));
-      let port = dev_server_url
+      let port = url
         .port_or_known_default()
         .unwrap_or_else(|| panic!("No port number in the URL"));
       let addrs;
@@ -377,17 +401,11 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
         }
 
         if i % 3 == 1 {
-          warn!(
-            "Waiting for your frontend dev server to start on {}...",
-            dev_server_url
-          );
+          warn!("Waiting for your frontend dev server to start on {url}...",);
         }
         i += 1;
         if i == max_attempts {
-          error!(
-            "Could not connect to `{}` after {}s. Please make sure that is the URL to your dev server.",
-            dev_server_url, i * sleep_interval.as_secs()
-          );
+          error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
           exit(1);
         }
         std::thread::sleep(sleep_interval);
@@ -395,7 +413,7 @@ pub fn setup(target: Target, options: &mut Options, mobile: bool) -> Result<AppI
     }
   }
 
-  Ok(interface)
+  Ok(())
 }
 
 pub fn wait_dev_process<

@@ -53,10 +53,10 @@ pub struct Options {
   window_title: Option<String>,
   /// Web assets location, relative to <project-dir>/src-tauri
   #[clap(short = 'D', long)]
-  dist_dir: Option<String>,
+  frontend_dist: Option<String>,
   /// Url of your dev server
   #[clap(short = 'P', long)]
-  dev_path: Option<String>,
+  dev_url: Option<String>,
   /// A shell command to run before `tauri dev` kicks in.
   #[clap(long)]
   before_dev_command: Option<String>,
@@ -105,17 +105,17 @@ impl Options {
       )
     })?;
 
-    self.dist_dir = self.dist_dir.map(|s| Ok(Some(s))).unwrap_or_else(|| prompts::input(
+    self.frontend_dist = self.frontend_dist.map(|s| Ok(Some(s))).unwrap_or_else(|| prompts::input(
       r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
-      init_defaults.framework.as_ref().map(|f| f.dist_dir()),
+      init_defaults.framework.as_ref().map(|f| f.frontend_dist()),
       self.ci,
       false,
     ))?;
 
-    self.dev_path = self.dev_path.map(|s| Ok(Some(s))).unwrap_or_else(|| {
+    self.dev_url = self.dev_url.map(|s| Ok(Some(s))).unwrap_or_else(|| {
       prompts::input(
         "What is the url of your dev server?",
-        init_defaults.framework.map(|f| f.dev_path()),
+        init_defaults.framework.map(|f| f.dev_url()),
         self.ci,
         false,
       )
@@ -186,14 +186,18 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert("tauri_dep", to_json(tauri_dep));
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
     data.insert(
-      "dist_dir",
-      to_json(options.dist_dir.unwrap_or_else(|| "../dist".to_string())),
-    );
-    data.insert(
-      "dev_path",
+      "frontend_dist",
       to_json(
         options
-          .dev_path
+          .frontend_dist
+          .unwrap_or_else(|| "../dist".to_string()),
+      ),
+    );
+    data.insert(
+      "dev_url",
+      to_json(
+        options
+          .dev_url
           .unwrap_or_else(|| "http://localhost:4000".to_string()),
       ),
     );

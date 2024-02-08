@@ -37,6 +37,9 @@ pub mod resources;
 #[cfg(feature = "build")]
 pub mod tokens;
 
+#[cfg(feature = "build")]
+pub mod build;
+
 /// Application pattern.
 pub mod pattern;
 
@@ -169,7 +172,7 @@ mod window_effects {
 pub use window_effects::{WindowEffect, WindowEffectState};
 
 /// How the window title bar should be displayed on macOS.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum TitleBarStyle {
   /// A normal title bar.

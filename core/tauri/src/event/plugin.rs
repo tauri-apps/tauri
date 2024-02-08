@@ -2,21 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::ops::Deref;
+
 use serde::{Deserialize, Deserializer};
 use serde_json::Value as JsonValue;
 use tauri_runtime::window::is_label_valid;
 
 use crate::plugin::{Builder, TauriPlugin};
-use crate::sealed::ManagerBase;
 use crate::{command, ipc::CallbackFn, EventId, Manager, Result, Runtime};
 use crate::{AppHandle, Webview};
 
-use super::{is_event_name_valid, EventSource};
+use super::{is_event_name_valid, EventTarget};
 
 pub struct EventName(String);
 
-impl AsRef<str> for EventName {
-  fn as_ref(&self) -> &str {
+impl Deref for EventName {
+  type Target = str;
+
+  fn deref(&self) -> &Self::Target {
     &self.0
   }
 }
@@ -63,21 +66,12 @@ impl<'de> Deserialize<'de> for WebviewLabel {
 
 #[command(root = "crate")]
 pub fn listen<R: Runtime>(
-  app: AppHandle<R>,
   webview: Webview<R>,
   event: EventName,
-  webview_label: Option<WebviewLabel>,
+  target: EventTarget,
   handler: CallbackFn,
 ) -> Result<EventId> {
-  if let Some(l) = webview_label {
-    app
-      .manager()
-      .get_webview(&l.0)
-      .ok_or(crate::Error::WebviewNotFound)?
-      .listen_js(EventSource::Webview { label: l.0 }, event.0, handler)
-  } else {
-    webview.listen_js(EventSource::Global, event.0, handler)
-  }
+  webview.listen_js(&event, target, handler)
 }
 
 #[command(root = "crate")]
@@ -86,28 +80,31 @@ pub fn unlisten<R: Runtime>(
   event: EventName,
   event_id: EventId,
 ) -> Result<()> {
-  webview.unlisten_js(event.as_ref(), event_id)
+  webview.unlisten_js(&event, event_id)
 }
 
 #[command(root = "crate")]
 pub fn emit<R: Runtime>(
   app: AppHandle<R>,
-  webview: Webview<R>,
   event: EventName,
-  target: Option<EventSource>,
   payload: Option<JsonValue>,
 ) -> Result<()> {
-  let target = target.unwrap_or(EventSource::Global);
-  match target {
-    EventSource::Global => app.emit(&event.0, payload),
-    EventSource::Webview { label } => webview.emit_to(&label, &event.0, payload),
-    EventSource::Window { label } => webview.window().emit_to(&label, &event.0, payload),
-  }
+  app.emit(&event, payload)
+}
+
+#[command(root = "crate")]
+pub fn emit_to<R: Runtime>(
+  app: AppHandle<R>,
+  target: EventTarget,
+  event: EventName,
+  payload: Option<JsonValue>,
+) -> Result<()> {
+  app.emit_to(target, &event, payload)
 }
 
 /// Initializes the event plugin.
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("event")
-    .invoke_handler(crate::generate_handler![listen, unlisten, emit,])
+    .invoke_handler(crate::generate_handler![listen, unlisten, emit, emit_to])
     .build()
 }

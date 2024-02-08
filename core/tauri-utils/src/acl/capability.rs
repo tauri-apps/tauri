@@ -56,7 +56,7 @@ pub struct Capability {
   pub description: String,
   /// Execution context of the capability.
   ///
-  /// At runtime, Tauri filters the IPC command together with the context to determine wheter it is allowed or not and its scope.
+  /// At runtime, Tauri filters the IPC command together with the context to determine whether it is allowed or not and its scope.
   #[serde(default)]
   pub context: CapabilityContext,
   /// List of windows that uses this capability. Can be a glob pattern.

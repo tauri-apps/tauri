@@ -12,7 +12,7 @@ use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
-use crate::{run_main_thread, AppHandle, Icon, Manager, Runtime};
+use crate::{menu::run_item_main_thread, AppHandle, Icon, Manager, Runtime};
 use serde::Serialize;
 use std::path::Path;
 pub use tray_icon::TrayIconId;
@@ -366,7 +366,7 @@ impl<R: Runtime> TrayIcon<R> {
   /// Sets a new tray icon. If `None` is provided, it will remove the icon.
   pub fn set_icon(&self, icon: Option<Icon>) -> crate::Result<()> {
     let icon = icon.and_then(|i| i.try_into().ok());
-    run_main_thread!(self, |self_: Self| self_.inner.set_icon(icon))?.map_err(Into::into)
+    run_item_main_thread!(self, |self_: Self| self_.inner.set_icon(icon))?.map_err(Into::into)
   }
 
   /// Sets a new tray menu.
@@ -375,7 +375,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// - **Linux**: once a menu is set it cannot be removed so `None` has no effect
   pub fn set_menu<M: ContextMenu + 'static>(&self, menu: Option<M>) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| self_
+    run_item_main_thread!(self, |self_: Self| self_
       .inner
       .set_menu(menu.map(|m| m.inner_context_owned())))
   }
@@ -387,7 +387,7 @@ impl<R: Runtime> TrayIcon<R> {
   /// - **Linux:** Unsupported
   pub fn set_tooltip<S: AsRef<str>>(&self, tooltip: Option<S>) -> crate::Result<()> {
     let s = tooltip.map(|s| s.as_ref().to_string());
-    run_main_thread!(self, |self_: Self| self_.inner.set_tooltip(s))?.map_err(Into::into)
+    run_item_main_thread!(self, |self_: Self| self_.inner.set_tooltip(s))?.map_err(Into::into)
   }
 
   /// Sets the title for this tray icon.
@@ -402,12 +402,12 @@ impl<R: Runtime> TrayIcon<R> {
   /// - **Windows:** Unsupported
   pub fn set_title<S: AsRef<str>>(&self, title: Option<S>) -> crate::Result<()> {
     let s = title.map(|s| s.as_ref().to_string());
-    run_main_thread!(self, |self_: Self| self_.inner.set_title(s))
+    run_item_main_thread!(self, |self_: Self| self_.inner.set_title(s))
   }
 
   /// Show or hide this tray icon.
   pub fn set_visible(&self, visible: bool) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| self_.inner.set_visible(visible))?.map_err(Into::into)
+    run_item_main_thread!(self, |self_: Self| self_.inner.set_visible(visible))?.map_err(Into::into)
   }
 
   /// Sets the tray icon temp dir path. **Linux only**.
@@ -418,14 +418,14 @@ impl<R: Runtime> TrayIcon<R> {
     #[allow(unused)]
     let p = path.map(|p| p.as_ref().to_path_buf());
     #[cfg(target_os = "linux")]
-    run_main_thread!(self, |self_: Self| self_.inner.set_temp_dir_path(p))?;
+    run_item_main_thread!(self, |self_: Self| self_.inner.set_temp_dir_path(p))?;
     Ok(())
   }
 
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
   pub fn set_icon_as_template(&self, #[allow(unused)] is_template: bool) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    run_main_thread!(self, |self_: Self| self_
+    run_item_main_thread!(self, |self_: Self| self_
       .inner
       .set_icon_as_template(is_template))?;
     Ok(())
@@ -434,7 +434,7 @@ impl<R: Runtime> TrayIcon<R> {
   /// Disable or enable showing the tray menu on left click. **macOS only**.
   pub fn set_show_menu_on_left_click(&self, #[allow(unused)] enable: bool) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    run_main_thread!(self, |self_: Self| self_
+    run_item_main_thread!(self, |self_: Self| self_
       .inner
       .set_show_menu_on_left_click(enable))?;
     Ok(())

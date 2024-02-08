@@ -62,7 +62,7 @@ use crate::{
 use tauri_utils::{
   acl::resolved::Resolved,
   assets::{AssetKey, Assets, CspHash},
-  config::{Config, PatternKind, TauriConfig},
+  config::{AppConfig, Config},
 };
 
 /// An empty [`Assets`] implementation.
@@ -98,15 +98,17 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
   Context {
     config: Config {
       schema: None,
-      package: Default::default(),
-      tauri: TauriConfig {
-        pattern: PatternKind::Brownfield,
+      product_name: Default::default(),
+      version: Default::default(),
+      identifier: Default::default(),
+      app: AppConfig {
+        with_global_tauri: Default::default(),
         windows: Vec::new(),
-        bundle: Default::default(),
         security: Default::default(),
         tray_icon: None,
         macos_private_api: false,
       },
+      bundle: Default::default(),
       build: Default::default(),
       plugins: Default::default(),
     },
@@ -125,6 +127,8 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
     resolved_acl: Resolved {
+      #[cfg(debug_assertions)]
+      acl: Default::default(),
       allowed_commands: Default::default(),
       denied_commands: Default::default(),
       command_scope: Default::default(),

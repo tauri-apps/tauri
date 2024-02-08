@@ -15,7 +15,7 @@ use tauri_utils::acl::capability::Capability;
 use tauri_utils::acl::plugin::Manifest;
 use tauri_utils::acl::resolved::Resolved;
 use tauri_utils::assets::AssetKey;
-use tauri_utils::config::{AppUrl, Config, PatternKind, WebviewUrl};
+use tauri_utils::config::{Config, FrontendDist, PatternKind};
 use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
@@ -134,66 +134,57 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     .map(Target::from_triple)
     .unwrap_or_else(|_| Target::current());
 
-  let mut options = AssetOptions::new(config.tauri.pattern.clone())
-    .freeze_prototype(config.tauri.security.freeze_prototype)
+  let mut options = AssetOptions::new(config.app.security.pattern.clone())
+    .freeze_prototype(config.app.security.freeze_prototype)
     .dangerous_disable_asset_csp_modification(
       config
-        .tauri
+        .app
         .security
         .dangerous_disable_asset_csp_modification
         .clone(),
     );
   let csp = if dev {
     config
-      .tauri
+      .app
       .security
       .dev_csp
       .as_ref()
-      .or(config.tauri.security.csp.as_ref())
+      .or(config.app.security.csp.as_ref())
   } else {
-    config.tauri.security.csp.as_ref()
+    config.app.security.csp.as_ref()
   };
   if csp.is_some() {
     options = options.with_csp();
   }
 
-  let app_url = if dev {
-    &config.build.dev_path
+  let assets = if dev && config.build.dev_url.is_some() {
+    Default::default()
   } else {
-    &config.build.dist_dir
-  };
-
-  let assets = match app_url {
-    AppUrl::Url(url) => match url {
-      WebviewUrl::External(_) => Default::default(),
-      WebviewUrl::App(path) => {
-        if path.components().count() == 0 {
-          panic!(
-            "The `{}` configuration cannot be empty",
-            if dev { "devPath" } else { "distDir" }
-          )
+    match &config.build.frontend_dist {
+      Some(url) => match url {
+        FrontendDist::Url(_url) => Default::default(),
+        FrontendDist::Directory(path) => {
+          let assets_path = config_parent.join(path);
+          if !assets_path.exists() {
+            panic!(
+              "The `frontendDist` configuration is set to `{:?}` but this path doesn't exist",
+              path
+            )
+          }
+          EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
         }
-        let assets_path = config_parent.join(path);
-        if !assets_path.exists() {
-          panic!(
-            "The `{}` configuration is set to `{:?}` but this path doesn't exist",
-            if dev { "devPath" } else { "distDir" },
-            path
-          )
-        }
-        EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
-      }
-      _ => unimplemented!(),
-    },
-    AppUrl::Files(files) => EmbeddedAssets::new(
-      files
-        .iter()
-        .map(|p| config_parent.join(p))
-        .collect::<Vec<_>>(),
-      &options,
-      map_core_assets(&options, target),
-    )?,
-    _ => unimplemented!(),
+        FrontendDist::Files(files) => EmbeddedAssets::new(
+          files
+            .iter()
+            .map(|p| config_parent.join(p))
+            .collect::<Vec<_>>(),
+          &options,
+          map_core_assets(&options, target),
+        )?,
+        _ => unimplemented!(),
+      },
+      None => Default::default(),
+    }
   };
 
   let out_dir = {
@@ -260,12 +251,12 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(::std::option::Option::None)
   };
 
-  let package_name = if let Some(product_name) = &config.package.product_name {
+  let package_name = if let Some(product_name) = &config.product_name {
     quote!(#product_name.to_string())
   } else {
     quote!(env!("CARGO_PKG_NAME").to_string())
   };
-  let package_version = if let Some(version) = &config.package.version {
+  let package_version = if let Some(version) = &config.version {
     semver::Version::from_str(version)?;
     quote!(#version.to_string())
   } else {
@@ -282,7 +273,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   );
 
   let with_tray_icon_code = if target.is_desktop() {
-    if let Some(tray) = &config.tauri.tray_icon {
+    if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
       let ext = tray_icon_icon_path.extension();
       if ext.map_or(false, |e| e == "ico") {
@@ -314,10 +305,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     };
 
     if let Some(plist) = info_plist.as_dictionary_mut() {
-      if let Some(product_name) = &config.package.product_name {
+      if let Some(product_name) = &config.product_name {
         plist.insert("CFBundleName".into(), product_name.clone().into());
       }
-      if let Some(version) = &config.package.version {
+      if let Some(version) = &config.version {
         plist.insert("CFBundleShortVersionString".into(), version.clone().into());
       }
       let format =
@@ -398,7 +389,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     Default::default()
   };
 
-  let resolved_act = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
+  let resolved_acl = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
 
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
@@ -410,7 +401,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #package_info,
       #info_plist,
       #pattern,
-      #resolved_act
+      #resolved_acl
     );
     #with_tray_icon_code
     context
@@ -536,7 +527,6 @@ fn find_icon<F: Fn(&&String) -> bool>(
   default: &str,
 ) -> PathBuf {
   let icon_path = config
-    .tauri
     .bundle
     .icon
     .iter()

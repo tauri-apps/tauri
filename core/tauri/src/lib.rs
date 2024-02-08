@@ -13,13 +13,14 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **common-controls-v6** *(enabled by default)*: Enables [Common Controls v6](https://learn.microsoft.com/en-us/windows/win32/controls/common-control-versions) support on Windows, mainly for the predefined `about` menu item.
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
 //! - **linux-ipc-protocol**: Use custom protocol for faster IPC on Linux. Requires webkit2gtk v2.40 or above.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
-//! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
+//! - **isolation**: Enables the isolation pattern. Enabled by default if the `app > security > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`window::Window#method.open_devtools`]. Enabled by default on debug builds.
 //! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
@@ -35,6 +36,7 @@
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
 //! - **icon-ico**: Adds support to set `.ico` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
 //! - **icon-png**: Adds support to set `.png` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
+//! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
 //!
 //! ## Cargo allowlist features
 //!
@@ -67,7 +69,6 @@ pub use cocoa;
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
-use event::EventSource;
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -78,7 +79,6 @@ pub use tauri_macros::{command, generate_handler};
 
 pub(crate) mod app;
 pub mod async_runtime;
-pub mod command;
 mod error;
 mod event;
 pub mod ipc;
@@ -204,7 +204,7 @@ pub use runtime::ActivationPolicy;
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
 
-pub use self::event::{Event, EventId};
+pub use self::event::{Event, EventId, EventTarget};
 pub use {
   self::app::{App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WindowEvent},
   self::manager::Asset,
@@ -214,7 +214,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    DeviceEventFilter, RunIteration, UserAttentionType,
+    DeviceEventFilter, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -518,6 +518,17 @@ impl<A: Assets> Context<A> {
     &self.pattern
   }
 
+  /// A mutable reference to the resolved ACL.
+  ///
+  /// # Stability
+  ///
+  /// This API is unstable.
+  #[doc(hidden)]
+  #[inline(always)]
+  pub fn resolved_acl(&mut self) -> &mut Resolved {
+    &mut self.resolved_acl
+  }
+
   /// Create a new [`Context`] from the minimal required items.
   #[inline(always)]
   #[allow(clippy::too_many_arguments)]
@@ -579,7 +590,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().package_info()
   }
 
-  /// Listen to an event emitted on any window.
+  /// Listen to an emitted event to any [target](EventTarget).
   ///
   /// # Examples
   /// ```
@@ -593,18 +604,20 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     app.listen_global("synchronized", |event| {
+  ///     app.listen_any("synchronized", |event| {
   ///       println!("app is in sync");
   ///     });
   ///     Ok(())
   ///   })
   ///   .invoke_handler(tauri::generate_handler![synchronize]);
   /// ```
-  fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  fn listen_any<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.manager().listen(event.into(), None, handler)
+    self
+      .manager()
+      .listen(event.into(), EventTarget::Any, handler)
   }
 
   /// Remove an event listener.
@@ -616,7 +629,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle().clone();
-  ///     let handler = app.listen_global("ready", move |event| {
+  ///     let handler = app.listen_any("ready", move |event| {
   ///       println!("app is ready");
   ///
   ///       // we no longer need to listen to the event
@@ -635,19 +648,17 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().unlisten(id)
   }
 
-  /// Listen to a global event only once.
+  /// Listens once to an emitted event to any [target](EventTarget) .
   ///
-  /// See [`Self::listen_global`] for more information.
-  fn once_global<F>(&self, event: impl Into<String>, handler: F)
+  /// See [`Self::listen_any`] for more information.
+  fn once_any<F>(&self, event: impl Into<String>, handler: F)
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.manager().once(event.into(), None, handler)
+    self.manager().once(event.into(), EventTarget::Any, handler)
   }
 
-  /// Emits an event to all webviews.
-  ///
-  /// If using [`Window`] to emit the event, it will be used as the source.
+  /// Emits an event to all [targets](EventTarget).
   ///
   /// # Examples
   /// ```
@@ -664,50 +675,76 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     tracing::instrument("app::emit", skip(self, payload))
   )]
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-    self.manager().emit(event, EventSource::Global, payload)
+    self.manager().emit(event, payload)
   }
 
-  /// Emits an event to the webview with the specified label.
-  ///
-  /// If using [`Window`] to emit the event, it will be used as the source.
+  /// Emits an event to all [targets](EventTarget) matching the given target.
   ///
   /// # Examples
   /// ```
-  /// use tauri::Manager;
+  /// use tauri::{Manager, EventTarget};
   ///
   /// #[tauri::command]
   /// fn download(app: tauri::AppHandle) {
   ///   for i in 1..100 {
   ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to the updater window
-  ///     app.emit_to("updater", "download-progress", i);
+  ///     // emit a download progress event to all listeners
+  ///     app.emit_to(EventTarget::any(), "download-progress", i);
+  ///     // emit an event to listeners that used App::listen or AppHandle::listen
+  ///     app.emit_to(EventTarget::app(), "download-progress", i);
+  ///     // emit an event to any webview/window/webviewWindow matching the given label
+  ///     app.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
+  ///     app.emit_to(EventTarget::labeled("updater"), "download-progress", i);
+  ///     // emit an event to listeners that used WebviewWindow::listen
+  ///     app.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
   ///   }
   /// }
   /// ```
   #[cfg_attr(
     feature = "tracing",
-    tracing::instrument("app::emit::to", skip(self, payload))
+    tracing::instrument("app::emit::to", skip(self, target, payload), fields(target))
   )]
-  fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
-    self
-      .manager()
-      .emit_filter(event, EventSource::Global, payload, |w| label == w.label())
+  fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> Result<()>
+  where
+    I: Into<EventTarget>,
+    S: Serialize + Clone,
+  {
+    let target = target.into();
+    #[cfg(feature = "tracing")]
+    tracing::Span::current().record("target", format!("{target:?}"));
+
+    self.manager().emit_filter(event, payload, |s| match s {
+      t @ EventTarget::Window { label }
+      | t @ EventTarget::Webview { label }
+      | t @ EventTarget::WebviewWindow { label } => {
+        if let EventTarget::AnyLabel {
+          label: target_label,
+        } = &target
+        {
+          label == target_label
+        } else {
+          t == &target
+        }
+      }
+      t => t == &target,
+    })
   }
 
-  /// Emits an event to specific webviews based on a filter.
-  ///
-  /// If using [`Window`] to emit the event, it will be used as the source.
+  /// Emits an event to all [targets](EventTarget) based on the given filter.
   ///
   /// # Examples
   /// ```
-  /// use tauri::Manager;
+  /// use tauri::{Manager, EventTarget};
   ///
   /// #[tauri::command]
   /// fn download(app: tauri::AppHandle) {
   ///   for i in 1..100 {
   ///     std::thread::sleep(std::time::Duration::from_millis(150));
   ///     // emit a download progress event to the updater window
-  ///     app.emit_filter("download-progress", i, |w| w.label() == "main" );
+  ///     app.emit_filter("download-progress", i, |t| match t {
+  ///       EventTarget::WebviewWindow { label } => label == "main",
+  ///       _ => false,
+  ///     });
   ///   }
   /// }
   /// ```
@@ -718,11 +755,9 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
+    F: Fn(&EventTarget) -> bool,
   {
-    self
-      .manager()
-      .emit_filter(event, EventSource::Global, payload, filter)
+    self.manager().emit_filter(event, payload, filter)
   }
 
   /// Fetch a single window from the manager.
@@ -954,6 +989,58 @@ pub(crate) mod sealed {
   }
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub(crate) enum IconDto {
+  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
+  File(std::path::PathBuf),
+  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
+  Raw(Vec<u8>),
+  Rgba {
+    rgba: Vec<u8>,
+    width: u32,
+    height: u32,
+  },
+}
+
+impl From<IconDto> for Icon {
+  fn from(icon: IconDto) -> Self {
+    match icon {
+      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
+      IconDto::File(path) => Self::File(path),
+      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
+      IconDto::Raw(raw) => Self::Raw(raw),
+      IconDto::Rgba {
+        rgba,
+        width,
+        height,
+      } => Self::Rgba {
+        rgba,
+        width,
+        height,
+      },
+    }
+  }
+}
+
+#[allow(unused)]
+macro_rules! run_main_thread {
+  ($handle:ident, $ex:expr) => {{
+    use std::sync::mpsc::channel;
+    let (tx, rx) = channel();
+    let task = move || {
+      let f = $ex;
+      let _ = tx.send(f());
+    };
+    $handle
+      .run_on_main_thread(task)
+      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
+  }};
+}
+
+#[allow(unused)]
+pub(crate) use run_main_thread;
+
 #[cfg(any(test, feature = "test"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "test")))]
 pub mod test;
@@ -998,58 +1085,6 @@ mod tests {
     }
   }
 }
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-pub(crate) enum IconDto {
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  File(std::path::PathBuf),
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  Raw(Vec<u8>),
-  Rgba {
-    rgba: Vec<u8>,
-    width: u32,
-    height: u32,
-  },
-}
-
-impl From<IconDto> for Icon {
-  fn from(icon: IconDto) -> Self {
-    match icon {
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::File(path) => Self::File(path),
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::Raw(raw) => Self::Raw(raw),
-      IconDto::Rgba {
-        rgba,
-        width,
-        height,
-      } => Self::Rgba {
-        rgba,
-        width,
-        height,
-      },
-    }
-  }
-}
-
-#[allow(unused)]
-macro_rules! run_main_thread {
-  ($self:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-    let (tx, rx) = channel();
-    let self_ = $self.clone();
-    let task = move || {
-      let f = $ex;
-      let _ = tx.send(f(self_));
-    };
-    $self.app_handle.run_on_main_thread(Box::new(task))?;
-    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
-  }};
-}
-
-#[allow(unused)]
-pub(crate) use run_main_thread;
 
 #[cfg(test)]
 mod test_utils {

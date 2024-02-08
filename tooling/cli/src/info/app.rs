@@ -17,7 +17,7 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
       let config_guard = config.lock().unwrap();
       let config = config_guard.as_ref().unwrap();
 
-      let bundle_or_build = if config.tauri.bundle.active {
+      let bundle_or_build = if config.bundle.active {
         "bundle"
       } else {
         "build"
@@ -25,7 +25,7 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
       items.push(SectionItem::new().description(format!("build-type: {bundle_or_build}")));
 
       let csp = config
-        .tauri
+        .app
         .security
         .csp
         .clone()
@@ -33,11 +33,13 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
         .unwrap_or_else(|| "unset".to_string());
       items.push(SectionItem::new().description(format!("CSP: {csp}")));
 
-      let dist_dir = &config.build.dist_dir;
-      items.push(SectionItem::new().description(format!("distDir: {dist_dir}")));
+      if let Some(frontend_dist) = &config.build.frontend_dist {
+        items.push(SectionItem::new().description(format!("frontendDist: {frontend_dist}")));
+      }
 
-      let dev_path = &config.build.dev_path;
-      items.push(SectionItem::new().description(format!("devPath: {dev_path}")));
+      if let Some(dev_url) = &config.build.dev_url {
+        items.push(SectionItem::new().description(format!("devUrl: {dev_url}")));
+      }
 
       if let Some(app_dir) = app_dir {
         if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {

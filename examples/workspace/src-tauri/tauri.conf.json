@@ -1,49 +1,12 @@
 {
+  "$schema": "../../../core/tauri-config-schema/schema.json",
+  "productName": "workspace",
+  "version": "0.1.0",
+  "identifier": "com.tauri.workspace",
   "build": {
-    "distDir": [
-      "../index.html"
-    ],
-    "devPath": [
-      "../index.html"
-    ]
+    "frontendDist": ["../index.html"]
   },
-  "package": {
-    "productName": "workspace"
-  },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "category": "DeveloperTool",
-      "copyright": "",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
-      "icon": [
-        "../../.icons/32x32.png",
-        "../../.icons/128x128.png",
-        "../../.icons/128x128@2x.png",
-        "../../.icons/icon.icns",
-        "../../.icons/icon.ico"
-      ],
-      "identifier": "com.tauri.workspace",
-      "longDescription": "",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
-      "resources": [],
-      "shortDescription": "",
-      "targets": "all",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
+  "app": {
     "security": {
       "csp": null
     },
@@ -55,6 +18,17 @@
         "title": "Workspace",
         "width": 800
       }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../../.icons/32x32.png",
+      "../../.icons/128x128.png",
+      "../../.icons/128x128@2x.png",
+      "../../.icons/icon.icns",
+      "../../.icons/icon.ico"
     ]
   }
 }

@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use super::{ensure_init, env, get_app, get_config, inject_assets, MobileTarget};
-use crate::{helpers::config::get as get_tauri_config, Result};
+use crate::{
+  helpers::config::get as get_tauri_config,
+  interface::{AppInterface, Interface},
+  Result,
+};
 
 use cargo_mobile2::os;
 
@@ -13,7 +17,11 @@ pub fn command() -> Result<()> {
   let (config, _metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    get_config(&get_app(tauri_config_), tauri_config_, &Default::default())
+    get_config(
+      &get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?),
+      tauri_config_,
+      &Default::default(),
+    )
   };
   ensure_init(config.project_dir(), MobileTarget::Android)?;
   inject_assets(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;

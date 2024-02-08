@@ -14,4 +14,4 @@ serde = "1.0"
 thiserror = "1.0"
 
 [build-dependencies]
-tauri-build = {{{ tauri_build_dep }}}
+tauri-plugin = {{{ tauri_plugin_dep }}}

@@ -11,6 +11,7 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
 
+use anyhow::Context;
 pub use anyhow::Result;
 
 mod add;
@@ -38,9 +39,38 @@ use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
   ffi::OsString,
   fmt::Display,
+  fs::read_to_string,
   io::BufRead,
+  path::PathBuf,
+  str::FromStr,
   sync::{Arc, Mutex},
 };
+
+/// Tauri configuration argument option.
+#[derive(Debug, Clone)]
+pub struct ConfigValue(pub(crate) serde_json::Value);
+
+impl FromStr for ConfigValue {
+  type Err = anyhow::Error;
+
+  fn from_str(config: &str) -> std::result::Result<Self, Self::Err> {
+    if config.starts_with('{') {
+      Ok(Self(
+        serde_json::from_str(config).context("invalid configuration JSON")?,
+      ))
+    } else {
+      let path = PathBuf::from(config);
+      if path.exists() {
+        Ok(Self(serde_json::from_str(
+          &read_to_string(&path)
+            .with_context(|| format!("invalid configuration at file {config}"))?,
+        )?))
+      } else {
+        anyhow::bail!("provided configuration path does not exist")
+      }
+    }
+  }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum RunMode {
@@ -70,6 +100,8 @@ pub struct VersionMetadata {
   tauri: String,
   #[serde(rename = "tauri-build")]
   tauri_build: String,
+  #[serde(rename = "tauri-plugin")]
+  tauri_plugin: String,
 }
 
 #[derive(Deserialize)]

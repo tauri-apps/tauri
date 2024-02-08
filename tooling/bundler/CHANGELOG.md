@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.0.0-beta.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.1`
+
+## \[2.0.0-beta.0]
+
+### Enhancements
+
+- [`d6c7568c`](https://www.github.com/tauri-apps/tauri/commit/d6c7568c27445653edf570f3969163bc358ba2ba)([#8720](https://www.github.com/tauri-apps/tauri/pull/8720)) Add `files` option to the AppImage Configuration.
+- [`30be0e30`](https://www.github.com/tauri-apps/tauri/commit/30be0e305773edbd07d3834d2cad979ac67a4d23)([#8303](https://www.github.com/tauri-apps/tauri/pull/8303)) Added Russian language support to the NSIS bundler.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.0`
+
+### Breaking Changes
+
+- [`8de308d1`](https://www.github.com/tauri-apps/tauri/commit/8de308d1bf6a855d7a26af58bd0e744938ba47d8)([#8723](https://www.github.com/tauri-apps/tauri/pull/8723)) -   Removed all license fields from `WixSettings`, `NsisSettings` and `MacOsSettings` and replaced with `license` and `license_file` fields in `BundlerSettings`.
+
 ## \[2.0.0-alpha.14]
 
 ### New Features

@@ -28,10 +28,6 @@ pub enum Error {
   #[error("expected build script env var {0}, but it was not found - ensure this is called in a build script")]
   BuildVar(&'static str),
 
-  /// Plugin name doesn't follow Tauri standards
-  #[error("plugin names cannot contain underscores")]
-  CrateName,
-
   /// The links field in the manifest **MUST** be set and match the name of the crate.
   #[error("package.links field in the Cargo manifest is not set, it should be set to the same as package.name")]
   LinksMissing,
@@ -139,8 +135,10 @@ pub struct Commands {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Scopes {
   /// Data that defines what is allowed by the scope.
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub allow: Option<Vec<Value>>,
   /// Data that defines what is denied by the scope.
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub deny: Option<Vec<Value>>,
 }
 
@@ -198,6 +196,10 @@ pub enum ExecutionContext {
 
 #[cfg(feature = "build")]
 mod build_ {
+  use std::convert::identity;
+
+  use crate::{literal_struct, tokens::*};
+
   use super::*;
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
@@ -215,6 +217,59 @@ mod build_ {
           quote! { #prefix::Remote { domain: #domain.parse().unwrap() } }
         }
       });
+    }
+  }
+
+  impl ToTokens for Commands {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let allow = vec_lit(&self.allow, str_lit);
+      let deny = vec_lit(&self.deny, str_lit);
+      literal_struct!(tokens, ::tauri::utils::acl::Commands, allow, deny)
+    }
+  }
+
+  impl ToTokens for Scopes {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let allow = opt_vec_lit(self.allow.as_ref(), identity);
+      let deny = opt_vec_lit(self.deny.as_ref(), identity);
+      literal_struct!(tokens, ::tauri::utils::acl::Scopes, allow, deny)
+    }
+  }
+
+  impl ToTokens for Permission {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let version = opt_lit_owned(self.version.as_ref().map(|v| {
+        let v = v.get();
+        quote!(::core::num::NonZeroU64::new(#v).unwrap())
+      }));
+      let identifier = str_lit(&self.identifier);
+      let description = opt_str_lit(self.description.as_ref());
+      let commands = &self.commands;
+      let scope = &self.scope;
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::Permission,
+        version,
+        identifier,
+        description,
+        commands,
+        scope
+      )
+    }
+  }
+
+  impl ToTokens for PermissionSet {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let identifier = str_lit(&self.identifier);
+      let description = str_lit(&self.description);
+      let permissions = vec_lit(&self.permissions, str_lit);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::PermissionSet,
+        identifier,
+        description,
+        permissions
+      )
     }
   }
 }

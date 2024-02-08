@@ -53,8 +53,8 @@ struct SampleScope {
 fn ping<R: tauri::Runtime>(
   app: tauri::AppHandle<R>,
   value: Option<String>,
-  scope: tauri::command::CommandScope<PingScope>,
-  global_scope: tauri::command::GlobalScope<SampleScope>,
+  scope: tauri::ipc::CommandScope<PingScope>,
+  global_scope: tauri::ipc::GlobalScope<SampleScope>,
 ) -> std::result::Result<PingResponse, String> {
   println!("local scope {:?}", scope);
   println!("global scope {:?}", global_scope);

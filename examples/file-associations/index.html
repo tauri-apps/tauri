@@ -1,26 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File Associations</title>
+  </head>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>File Associations</title>
-</head>
+  <body>
+    <h1>File Associations</h1>
+    <div id="files"></div>
 
-<body>
-  <h1>File Associations</h1>
-  <div id="files"></div>
+    <script>
+      const d = document.getElementById('files')
+      d.textContent = window.openedUrls
 
-  <script>
-    const d = document.getElementById('files')
-    d.textContent = window.openedUrls
-
-    window.onFileOpen = (files) => {
-      console.log(files)
-      d.textContent = files
-    }
-  </script>
-</body>
-
+      window.onFileOpen = (files) => {
+        console.log(files)
+        d.textContent = files
+      }
+    </script>
+  </body>
 </html>

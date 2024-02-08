@@ -42,9 +42,6 @@ features = [
 path = "../../../core/tauri"
 features = ["test"]
 
-[target."cfg(target_os = \"windows\")".dependencies]
-window-shadows = "0.2"
-
 [features]
 custom-protocol = [ "tauri/custom-protocol" ]
 

@@ -4,7 +4,7 @@
 
 use anyhow::{anyhow, Result};
 use cargo_toml::{Dependency, Manifest};
-use tauri_utils::config::{Config, PatternKind, TauriConfig};
+use tauri_utils::config::{AppConfig, Config, PatternKind};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Diff {
@@ -34,7 +34,7 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
       alias: None,
       kind: DependencyKind::Build,
       all_cli_managed_features: Some(vec!["isolation"]),
-      expected_features: match config.tauri.pattern {
+      expected_features: match config.app.security.pattern {
         PatternKind::Isolation { .. } => vec!["isolation".to_string()],
         _ => vec![],
       },
@@ -44,13 +44,13 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
       alias: None,
       kind: DependencyKind::Normal,
       all_cli_managed_features: Some(
-        TauriConfig::all_features()
+        AppConfig::all_features()
           .into_iter()
           .filter(|f| f != &"tray-icon")
           .collect(),
       ),
       expected_features: config
-        .tauri
+        .app
         .features()
         .into_iter()
         .filter(|f| f != &"tray-icon")

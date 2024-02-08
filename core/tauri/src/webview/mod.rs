@@ -27,11 +27,10 @@ pub use url::Url;
 
 use crate::{
   app::UriSchemeResponder,
-  command::{CommandArg, CommandItem, Origin},
-  event::{EmitArgs, EventSource},
+  event::{EmitArgs, EventTarget},
   ipc::{
-    CallbackFn, Invoke, InvokeBody, InvokeError, InvokeMessage, InvokeResolver,
-    OwnedInvokeResponder,
+    CallbackFn, CommandArg, CommandItem, Invoke, InvokeBody, InvokeError, InvokeMessage,
+    InvokeResolver, Origin, OwnedInvokeResponder,
   },
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -40,7 +39,6 @@ use crate::{
 
 use std::{
   borrow::Cow,
-  collections::{HashMap, HashSet},
   hash::{Hash, Hasher},
   path::PathBuf,
   sync::{Arc, Mutex},
@@ -108,34 +106,6 @@ impl<'a> PageLoadPayload<'a> {
   /// The page load event.
   pub fn event(&self) -> PageLoadEvent {
     self.event
-  }
-}
-
-/// Key for a JS event listener.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct JsEventListenerKey {
-  /// The source.
-  pub source: EventSource,
-  /// The event name.
-  pub event: String,
-}
-
-impl Hash for JsEventListenerKey {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.event.hash(state);
-    match &self.source {
-      EventSource::Global => {
-        "global".hash(state);
-      }
-      EventSource::Webview { label } => {
-        "webview".hash(state);
-        label.hash(state);
-      }
-      EventSource::Window { label } => {
-        "window".hash(state);
-        label.hash(state);
-      }
-    }
   }
 }
 
@@ -237,12 +207,12 @@ impl PlatformWebview {
 
 macro_rules! unstable_struct {
     (#[doc = $doc:expr] $($tokens:tt)*) => {
-      #[cfg(feature = "unstable")]
+      #[cfg(any(test, feature = "unstable"))]
       #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
       #[doc = $doc]
       pub $($tokens)*
 
-      #[cfg(not(feature = "unstable"))]
+      #[cfg(not(any(test, feature = "unstable")))]
       pub(crate) $($tokens)*
     }
 }
@@ -354,7 +324,8 @@ async fn create_window(app: tauri::AppHandle) {
 ```
 #[tauri::command]
 async fn reopen_window(app: tauri::AppHandle) {
-  let window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  let window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
+    .unwrap()
     .build()
     .unwrap();
 }
@@ -363,10 +334,10 @@ async fn reopen_window(app: tauri::AppHandle) {
   )]
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn from_config(config: WindowConfig) -> Self {
+  pub fn from_config(config: &WindowConfig) -> Self {
     Self {
       label: config.label.clone(),
-      webview_attributes: WebviewAttributes::from(&config),
+      webview_attributes: WebviewAttributes::from(config),
       web_resource_request_handler: None,
       navigation_handler: None,
       on_page_load_handler: None,
@@ -660,11 +631,13 @@ tauri::Builder::default()
 
     app_manager.emit_filter(
       "tauri://webview-created",
-      EventSource::Global,
       Some(CreatedEvent {
         label: webview.label().into(),
       }),
-      |w| w != &webview,
+      |s| match s {
+        EventTarget::Webview { label } => label == webview.label(),
+        _ => false,
+      },
     )?;
 
     Ok(webview)
@@ -785,6 +758,19 @@ fn main() {
     self
   }
 
+  /// Set a proxy URL for the WebView for all network requests.
+  ///
+  /// Must be either a `http://` or a `socks5://` URL.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
+  #[must_use]
+  pub fn proxy_url(mut self, url: Url) -> Self {
+    self.webview_attributes.proxy_url = Some(url);
+    self
+  }
+
   /// Enable or disable transparency for the WebView.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
@@ -811,7 +797,6 @@ pub struct Webview<R: Runtime> {
   pub(crate) window: Window<R>,
   /// The webview created by the runtime.
   pub(crate) webview: DetachedWebview<EventLoopMessage, R>,
-  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<EventId>>>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
@@ -819,7 +804,6 @@ impl<R: Runtime> std::fmt::Debug for Webview<R> {
     f.debug_struct("Window")
       .field("window", &self.window)
       .field("webview", &self.webview)
-      .field("js_event_listeners", &self.js_event_listeners)
       .finish()
   }
 }
@@ -829,7 +813,6 @@ impl<R: Runtime> Clone for Webview<R> {
     Self {
       window: self.window.clone(),
       webview: self.webview.clone(),
-      js_event_listeners: self.js_event_listeners.clone(),
     }
   }
 }
@@ -853,11 +836,7 @@ impl<R: Runtime> PartialEq for Webview<R> {
 impl<R: Runtime> Webview<R> {
   /// Create a new webview that is attached to the window.
   pub(crate) fn new(window: Window<R>, webview: DetachedWebview<EventLoopMessage, R>) -> Self {
-    Self {
-      window,
-      webview,
-      js_event_listeners: Default::default(),
-    }
+    Self { window, webview }
   }
 
   /// Initializes a webview builder with the given window label and URL to load on the webview.
@@ -899,7 +878,9 @@ impl<R: Runtime> Webview<R> {
     if self.window.webview_window {
       self.window.close()
     } else {
-      self.webview.dispatcher.close().map_err(Into::into)
+      self.webview.dispatcher.close()?;
+      self.manager().on_webview_close(self.label());
+      Ok(())
     }
   }
 
@@ -1044,17 +1025,44 @@ fn main() {
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
-    self
-      .manager()
-      .get_url()
-      .make_relative(current_url)
-      .is_some()
-      || {
-        let protocol_url = self.manager().protocol_url();
-        current_url.scheme() == protocol_url.scheme()
-          && current_url.domain() == protocol_url.domain()
-      }
-      || (cfg!(dev) && current_url.domain() == Some("tauri.localhost"))
+    // if from `tauri://` custom protocol
+    ({
+      let protocol_url = self.manager().protocol_url();
+      current_url.scheme() == protocol_url.scheme()
+      && current_url.domain() == protocol_url.domain()
+    }) ||
+
+    // or if relative to `devUrl` or `frontendDist`
+      self
+          .manager()
+          .get_url()
+          .make_relative(current_url)
+          .is_some()
+
+      // or from a custom protocol registered by the user
+      || ({
+        let scheme = current_url.scheme();
+        let protocols = self.manager().webview.uri_scheme_protocols.lock().unwrap();
+
+        #[cfg(all(not(windows), not(target_os = "android")))]
+        let local = protocols.contains_key(scheme);
+
+        // on window and android, custom protocols are `http://<protocol-name>.path/to/route`
+        // so we check using the first part of the domain
+        #[cfg(any(windows, target_os = "android"))]
+        let local = {
+          let protocol_url = self.manager().protocol_url();
+          let maybe_protocol = current_url
+            .domain()
+            .and_then(|d| d .split_once('.'))
+            .unwrap_or_default()
+            .0;
+
+          protocols.contains_key(maybe_protocol) && scheme == protocol_url.scheme()
+        };
+
+        local
+      })
   }
 
   /// Handles this window receiving an [`InvokeRequest`].
@@ -1093,22 +1101,19 @@ fn main() {
       request.headers,
     );
 
+    let acl_origin = if is_local {
+      Origin::Local
+    } else {
+      Origin::Remote {
+        domain: current_url
+          .domain()
+          .map(|d| d.to_string())
+          .unwrap_or_default(),
+      }
+    };
     let resolved_acl = manager
       .runtime_authority
-      .resolve_access(
-        &request.cmd,
-        &message.webview.webview.label,
-        if is_local {
-          Origin::Local
-        } else {
-          Origin::Remote {
-            domain: current_url
-              .domain()
-              .map(|d| d.to_string())
-              .unwrap_or_default(),
-          }
-        },
-      )
+      .resolve_access(&request.cmd, &message.webview.webview.label, &acl_origin)
       .cloned();
 
     let mut invoke = Invoke {
@@ -1117,20 +1122,33 @@ fn main() {
       acl: resolved_acl,
     };
 
-    if request.cmd.starts_with("plugin:") {
+    if let Some((plugin, command_name)) = request.cmd.strip_prefix("plugin:").map(|raw_command| {
+      let mut tokens = raw_command.split('|');
+      // safe to unwrap: split always has a least one item
+      let plugin = tokens.next().unwrap();
+      let command = tokens.next().map(|c| c.to_string()).unwrap_or_default();
+      (plugin, command)
+    }) {
       if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND && invoke.acl.is_none() {
-        invoke.resolver.reject("NOT ALLOWED");
+        #[cfg(debug_assertions)]
+        {
+          invoke
+            .resolver
+            .reject(manager.runtime_authority.resolve_access_message(
+              plugin,
+              &command_name,
+              &invoke.message.webview.webview.label,
+              &acl_origin,
+            ));
+        }
+        #[cfg(not(debug_assertions))]
+        invoke
+          .resolver
+          .reject(format!("Command {} not allowed by ACL", request.cmd));
         return;
       }
 
-      let command = invoke.message.command.replace("plugin:", "");
-      let mut tokens = command.split('|');
-      // safe to unwrap: split always has a least one item
-      let plugin = tokens.next().unwrap();
-      invoke.message.command = tokens
-        .next()
-        .map(|c| c.to_string())
-        .unwrap_or_else(String::new);
+      invoke.message.command = command_name;
 
       let command = invoke.message.command.clone();
 
@@ -1199,105 +1217,49 @@ fn main() {
   /// Register a JS event listener and return its identifier.
   pub(crate) fn listen_js(
     &self,
-    source: EventSource,
-    event: String,
+    event: &str,
+    target: EventTarget,
     handler: CallbackFn,
   ) -> crate::Result<EventId> {
-    let event_id = self.manager().listeners().next_event_id();
+    let listeners = self.manager().listeners();
 
-    self.eval(&crate::event::listen_js(
-      self.manager().listeners().listeners_object_name(),
-      &format!("'{}'", event),
-      event_id,
-      &serde_json::to_string(&source)?,
+    let id = listeners.next_event_id();
+
+    self.eval(&crate::event::listen_js_script(
+      listeners.listeners_object_name(),
+      &serde_json::to_string(&target)?,
+      event,
+      id,
       &format!("window['_{}']", handler.0),
     ))?;
 
-    self
-      .js_event_listeners
-      .lock()
-      .unwrap()
-      .entry(JsEventListenerKey { source, event })
-      .or_default()
-      .insert(event_id);
+    listeners.listen_js(event, self.label(), target, id);
 
-    Ok(event_id)
+    Ok(id)
   }
 
   /// Unregister a JS event listener.
   pub(crate) fn unlisten_js(&self, event: &str, id: EventId) -> crate::Result<()> {
-    self.eval(&crate::event::unlisten_js(
-      self.manager().listeners().listeners_object_name(),
+    let listeners = self.manager().listeners();
+
+    self.eval(&crate::event::unlisten_js_script(
+      listeners.listeners_object_name(),
       event,
       id,
     ))?;
 
-    let mut empty = None;
-    let mut js_listeners = self.js_event_listeners.lock().unwrap();
-    let iter = js_listeners.iter_mut();
-    for (key, ids) in iter {
-      if ids.contains(&id) {
-        ids.remove(&id);
-        if ids.is_empty() {
-          empty.replace(key.clone());
-        }
-        break;
-      }
-    }
-
-    if let Some(key) = empty {
-      js_listeners.remove(&key);
-    }
+    listeners.unlisten_js(id);
 
     Ok(())
   }
 
-  pub(crate) fn emit_js(&self, emit_args: &EmitArgs) -> crate::Result<()> {
-    self.eval(&crate::event::emit_js(
+  pub(crate) fn emit_js(&self, emit_args: &EmitArgs, target: &EventTarget) -> crate::Result<()> {
+    self.eval(&crate::event::emit_js_script(
       self.manager().listeners().function_name(),
       emit_args,
+      &serde_json::to_string(target)?,
     )?)?;
     Ok(())
-  }
-
-  /// Whether this webview registered a listener to an event from the given source and event name.
-  pub(crate) fn has_js_listener(&self, source: &EventSource, event: &str) -> bool {
-    let listeners = self.js_event_listeners.lock().unwrap();
-
-    match source {
-      // for global events, any listener is triggered
-      EventSource::Global => listeners.keys().any(|k| k.event == event),
-      // if the window matches this webview's window,
-      // the event is delivered as long as it listens to the event name
-      EventSource::Window { label } if label == self.window.label() => {
-        let event = event.to_string();
-        // webview-specific event is also triggered on global events, so we check that
-        listeners.contains_key(&JsEventListenerKey {
-          source: source.clone(),
-          event: event.clone(),
-        }) || listeners.contains_key(&JsEventListenerKey {
-          source: EventSource::Webview {
-            label: label.clone(),
-          },
-          event: event.clone(),
-        }) || listeners.contains_key(&JsEventListenerKey {
-          source: EventSource::Global,
-          event,
-        })
-      }
-      _ => {
-        let event = event.to_string();
-
-        // webview-specific event is also triggered on global events, so we check that
-        listeners.contains_key(&JsEventListenerKey {
-          source: source.clone(),
-          event: event.clone(),
-        }) || listeners.contains_key(&JsEventListenerKey {
-          source: EventSource::Global,
-          event,
-        })
-      }
-    }
   }
 
   /// Opens the developer tools window (Web Inspector).
@@ -1436,13 +1398,16 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    self
-      .window
-      .manager
-      .listen(event.into(), Some(self.clone()), handler)
+    self.window.manager.listen(
+      event.into(),
+      EventTarget::Webview {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 
-  /// Unlisten to an event on this window.
+  /// Unlisten to an event on this webview.
   ///
   /// # Examples
   #[cfg_attr(
@@ -1482,54 +1447,17 @@ tauri::Builder::default()
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    let label = self.webview.label.clone();
-    self.window.manager.once(event.into(), Some(label), handler)
-  }
-}
-
-impl<R: Runtime> Manager<R> for Webview<R> {
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager().emit(
-      event,
-      EventSource::Webview {
+    self.window.manager.once(
+      event.into(),
+      EventTarget::Webview {
         label: self.label().to_string(),
       },
-      payload,
-    )?;
-    Ok(())
-  }
-
-  fn emit_to<S: Serialize + Clone>(
-    &self,
-    label: &str,
-    event: &str,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.manager().emit_filter(
-      event,
-      EventSource::Webview {
-        label: self.label().to_string(),
-      },
-      payload,
-      |w| label == w.label(),
-    )
-  }
-
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
-  {
-    self.manager().emit_filter(
-      event,
-      EventSource::Webview {
-        label: self.label().to_string(),
-      },
-      payload,
-      filter,
+      handler,
     )
   }
 }
+
+impl<R: Runtime> Manager<R> for Webview<R> {}
 
 impl<R: Runtime> ManagerBase<R> for Webview<R> {
   fn manager(&self) -> &AppManager<R> {

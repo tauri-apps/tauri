@@ -6,7 +6,6 @@
 
 pub(crate) mod plugin;
 
-use tauri_runtime::ResizeDirection;
 use tauri_runtime::{
   webview::PendingWebview,
   window::dpi::{PhysicalPosition, PhysicalSize},
@@ -15,9 +14,8 @@ pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState a
 
 use crate::{
   app::AppHandle,
-  command::{CommandArg, CommandItem},
-  event::{Event, EventId, EventSource},
-  ipc::InvokeError,
+  event::{Event, EventId, EventTarget},
+  ipc::{CommandArg, CommandItem, InvokeError},
   manager::{webview::WebviewLabelDef, AppManager},
   runtime::{
     monitor::Monitor as RuntimeMonitor,
@@ -228,7 +226,8 @@ async fn create_window(app: tauri::AppHandle) {
 ```
 #[tauri::command]
 async fn reopen_window(app: tauri::AppHandle) {
-  let window = tauri::window::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
+  let window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
+    .unwrap()
     .build()
     .unwrap();
 }
@@ -237,8 +236,9 @@ async fn reopen_window(app: tauri::AppHandle) {
   )]
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  pub fn from_config(manager: &'a M, config: WindowConfig) -> Self {
-    Self {
+  pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
+    #[cfg_attr(not(unstable), allow(unused_mut))]
+    let mut builder = Self {
       manager,
       label: config.label.clone(),
       window_effects: config.window_effects.clone(),
@@ -250,7 +250,18 @@ async fn reopen_window(app: tauri::AppHandle) {
       menu: None,
       #[cfg(desktop)]
       on_menu_event: None,
+    };
+
+    #[cfg(desktop)]
+    if let Some(parent) = &config.parent {
+      let window = manager
+        .manager()
+        .get_window(parent)
+        .ok_or(crate::Error::WindowNotFound)?;
+      builder = builder.parent(&window)?;
     }
+
+    Ok(builder)
   }
 
   /// Registers a global menu event listener.
@@ -270,7 +281,7 @@ use tauri::menu::{Menu, Submenu, MenuItem};
 tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
     let menu = Menu::with_items(handle, &[
       &Submenu::with_items(handle, "File", true, &[
         &save_menu_item,
@@ -598,6 +609,10 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   }
 
   /// Whether the window will be visible on all workspaces or virtual desktops.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / iOS / Android:** Unsupported.
   #[must_use]
   pub fn visible_on_all_workspaces(mut self, visible_on_all_workspaces: bool) -> Self {
     self.window_builder = self
@@ -647,22 +662,38 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
 
   /// Sets a parent to the window to be created.
   ///
-  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  /// ## Platform-specific
   ///
-  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
-  #[cfg(windows)]
-  #[must_use]
-  pub fn parent_window(mut self, parent: HWND) -> Self {
-    self.window_builder = self.window_builder.parent_window(parent);
-    self
-  }
+  /// - **Windows**: This sets the passed parent as an owner window to the window to be created.
+  ///   From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows):
+  ///     - An owned window is always above its owner in the z-order.
+  ///     - The system automatically destroys an owned window when its owner is destroyed.
+  ///     - An owned window is hidden when its owner is minimized.
+  /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  pub fn parent(mut self, parent: &Window<R>) -> crate::Result<Self> {
+    #[cfg(windows)]
+    {
+      self.window_builder = self.window_builder.owner(parent.hwnd()?);
+    }
 
-  /// Sets a parent to the window to be created.
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  pub fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
-    self.window_builder = self.window_builder.parent_window(parent);
-    self
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      self.window_builder = self.window_builder.transient_for(&parent.gtk_window()?);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+      self.window_builder = self.window_builder.parent(parent.ns_window()?);
+    }
+
+    Ok(self)
   }
 
   /// Set an owner to the window to be created.
@@ -674,9 +705,86 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
+  pub fn owner(mut self, owner: &Window<R>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.owner(owner.hwnd()?);
+    Ok(self)
+  }
+
+  /// Set an owner to the window to be created.
+  ///
+  /// From MSDN:
+  /// - An owned window is always above its owner in the z-order.
+  /// - The system automatically destroys an owned window when its owner is destroyed.
+  /// - An owned window is hidden when its owner is minimized.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] for a higher level wrapper for Tauri windows.
+  #[cfg(windows)]
   #[must_use]
-  pub fn owner_window(mut self, owner: HWND) -> Self {
-    self.window_builder = self.window_builder.owner_window(owner);
+  pub fn owner_raw(mut self, owner: HWND) -> Self {
+    self.window_builder = self.window_builder.owner(owner);
+    self
+  }
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] for a higher level wrapper for Tauri windows.
+  #[cfg(windows)]
+  #[must_use]
+  pub fn parent_raw(mut self, parent: HWND) -> Self {
+    self.window_builder = self.window_builder.parent(parent);
+    self
+  }
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// See <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] for a higher level wrapper for Tauri windows.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn parent_raw(mut self, parent: *mut std::ffi::c_void) -> Self {
+    self.window_builder = self.window_builder.parent(parent);
+    self
+  }
+
+  /// Sets the window to be created transient for parent.
+  ///
+  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] for a higher level wrapper for Tauri windows.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn transient_for(mut self, parent: &Window<R>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.transient_for(&parent.gtk_window()?);
+    Ok(self)
+  }
+
+  /// Sets the window to be created transient for parent.
+  ///
+  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  ///
+  /// **Note:** This is a low level API. See [`Self::parent`] and [`Self::transient_for`] for higher level wrappers for Tauri windows.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  #[must_use]
+  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self.window_builder = self.window_builder.transient_for(parent);
     self
   }
 
@@ -769,9 +877,11 @@ impl<R: Runtime> std::fmt::Debug for Window<R> {
   }
 }
 
-unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    self.window.dispatcher.raw_window_handle().unwrap()
+impl<R: Runtime> raw_window_handle::HasWindowHandle for Window<R> {
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+    self.window.dispatcher.window_handle()
   }
 }
 
@@ -803,60 +913,7 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {
-  #[cfg_attr(
-    feature = "tracing",
-    tracing::instrument("window::emit", skip(self, payload))
-  )]
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    // store the webviews before emit_filter() to prevent a deadlock
-    let webviews = self.webviews();
-    self.manager().emit_filter(
-      event,
-      EventSource::Window {
-        label: self.label().to_string(),
-      },
-      payload,
-      |w| webviews.contains(w),
-    )?;
-    Ok(())
-  }
-
-  fn emit_to<S: Serialize + Clone>(
-    &self,
-    label: &str,
-    event: &str,
-    payload: S,
-  ) -> crate::Result<()> {
-    self.manager().emit_filter(
-      event,
-      EventSource::Window {
-        label: self.label().to_string(),
-      },
-      payload,
-      |w| label == w.label(),
-    )
-  }
-
-  #[cfg_attr(
-    feature = "tracing",
-    tracing::instrument("window::emit::filter", skip(self, payload, filter))
-  )]
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&Webview<R>) -> bool,
-  {
-    self.manager().emit_filter(
-      event,
-      EventSource::Window {
-        label: self.label().to_string(),
-      },
-      payload,
-      filter,
-    )
-  }
-}
+impl<R: Runtime> Manager<R> for Window<R> {}
 
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &AppManager<R> {
@@ -913,7 +970,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Adds a new webview as a child of this window.
-  #[cfg(all(desktop, feature = "unstable"))]
+  #[cfg(any(test, all(desktop, feature = "unstable")))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
   pub fn add_child<P: Into<Position>, S: Into<Size>>(
     &self,
@@ -979,7 +1036,7 @@ use tauri::menu::{Menu, Submenu, MenuItem};
 tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None);
+    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
     let menu = Menu::with_items(handle, &[
       &Submenu::with_items(handle, "File", true, &[
         &save_menu_item,
@@ -1363,11 +1420,16 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
-          Ok(h.ns_window)
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
+          Ok(unsafe {
+            use objc::*;
+            let ns_window: cocoa::base::id =
+              objc::msg_send![h.ns_view.as_ptr() as cocoa::base::id, window];
+            ns_window as *mut _
+          })
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1380,11 +1442,11 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
-          Ok(h.ns_view)
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
+          Ok(h.ns_view.as_ptr())
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1397,11 +1459,11 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::Win32(h) = handle {
-          Ok(HWND(h.hwnd as _))
+        if let raw_window_handle::RawWindowHandle::Win32(h) = handle.as_raw() {
+          Ok(HWND(h.hwnd.get()))
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1568,15 +1630,14 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.hide().map_err(Into::into)
   }
 
-  /// Closes this window.
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
+  /// Closes this window. It emits [`crate::RunEvent::CloseRequested`] first like a user-initiated close request so you can intercept it.
   pub fn close(&self) -> crate::Result<()> {
     self.window.dispatcher.close().map_err(Into::into)
+  }
+
+  /// Destroys this window. Similar to [`Self::close`] but does not emit any events and force close the window instead.
+  pub fn destroy(&self) -> crate::Result<()> {
+    self.window.dispatcher.destroy().map_err(Into::into)
   }
 
   /// Determines if this window should be [decorated].
@@ -1666,6 +1727,10 @@ tauri::Builder::default()
   }
 
   /// Sets whether the window should be visible on all workspaces or virtual desktops.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / iOS / Android:** Unsupported.
   pub fn set_visible_on_all_workspaces(
     &self,
     visible_on_all_workspaces: bool,
@@ -1825,7 +1890,10 @@ tauri::Builder::default()
   }
 
   /// Starts resize-dragging the window.
-  pub fn start_resize_dragging(&self, direction: ResizeDirection) -> crate::Result<()> {
+  pub fn start_resize_dragging(
+    &self,
+    direction: tauri_runtime::ResizeDirection,
+  ) -> crate::Result<()> {
     self
       .window
       .dispatcher
@@ -1879,8 +1947,13 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    // TODO: listen on all webviews
-    self.manager.listen(event.into(), None, handler)
+    self.manager.listen(
+      event.into(),
+      EventTarget::Window {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 
   /// Unlisten to an event on this window.
@@ -1923,8 +1996,13 @@ tauri::Builder::default()
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    // TODO: listen on all webviews
-    self.manager.once(event.into(), None, handler)
+    self.manager.once(
+      event.into(),
+      EventTarget::Window {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 }
 

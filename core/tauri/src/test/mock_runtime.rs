@@ -42,11 +42,13 @@ type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
 enum Message {
   Task(Box<dyn FnOnce() + Send>),
   CloseWindow(WindowId),
+  DestroyWindow(WindowId),
 }
 
 struct Webview;
 
 struct Window {
+  label: String,
   webviews: Vec<Webview>,
 }
 
@@ -79,7 +81,7 @@ impl RuntimeContext {
     } else {
       match message {
         Message::Task(task) => task(),
-        Message::CloseWindow(id) => {
+        Message::CloseWindow(id) | Message::DestroyWindow(id) => {
           self.windows.borrow_mut().remove(&id);
         }
       }
@@ -118,6 +120,19 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     EventProxy {}
   }
 
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activation_policy(
+    &self,
+    activation_policy: tauri_runtime::ActivationPolicy,
+  ) -> Result<()> {
+    Ok(())
+  }
+
+  fn request_exit(&self, code: i32) -> Result<()> {
+    unimplemented!()
+  }
+
   /// Create a new webview window.
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
@@ -132,11 +147,13 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
       (None, Vec::new())
     };
 
-    self
-      .context
-      .windows
-      .borrow_mut()
-      .insert(id, Window { webviews });
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
 
     let webview = webview_id.map(|id| DetachedWebview {
       label: pending.label.clone(),
@@ -186,17 +203,27 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     self.context.send_message(Message::Task(Box::new(f)))
   }
 
-  fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
     #[cfg(target_os = "linux")]
-    return raw_window_handle::RawDisplayHandle::Xlib(raw_window_handle::XlibDisplayHandle::empty());
+    return Ok(unsafe {
+      raw_window_handle::DisplayHandle::borrow_raw(raw_window_handle::RawDisplayHandle::Xlib(
+        raw_window_handle::XlibDisplayHandle::new(None, 0),
+      ))
+    });
     #[cfg(target_os = "macos")]
-    return raw_window_handle::RawDisplayHandle::AppKit(
-      raw_window_handle::AppKitDisplayHandle::empty(),
-    );
+    return Ok(unsafe {
+      raw_window_handle::DisplayHandle::borrow_raw(raw_window_handle::RawDisplayHandle::AppKit(
+        raw_window_handle::AppKitDisplayHandle::new(),
+      ))
+    });
     #[cfg(windows)]
-    return raw_window_handle::RawDisplayHandle::Windows(
-      raw_window_handle::WindowsDisplayHandle::empty(),
-    );
+    return Ok(unsafe {
+      raw_window_handle::DisplayHandle::borrow_raw(raw_window_handle::RawDisplayHandle::Windows(
+        raw_window_handle::WindowsDisplayHandle::new(),
+      ))
+    });
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     return unimplemented!();
   }
@@ -270,7 +297,7 @@ impl WindowBuilder for MockWindowBuilder {
     Self {}
   }
 
-  fn with_config(config: WindowConfig) -> Self {
+  fn with_config(config: &WindowConfig) -> Self {
     Self {}
   }
 
@@ -372,22 +399,33 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(windows)]
-  fn parent_window(self, parent: HWND) -> Self {
+  fn owner(self, owner: HWND) -> Self {
+    self
+  }
+
+  #[cfg(windows)]
+  fn parent(self, parent: HWND) -> Self {
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn parent_window(self, parent: *mut std::ffi::c_void) -> Self {
+  fn parent(self, parent: *mut std::ffi::c_void) -> Self {
+    self
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
     self
   }
 
   #[cfg(windows)]
-  fn owner_window(self, owner: HWND) -> Self {
-    self
-  }
-
-  #[cfg(windows)]
-  fn drag_and_drop(mut self, enabled: bool) -> Self {
+  fn drag_and_drop(self, enabled: bool) -> Self {
     self
   }
 
@@ -613,19 +651,31 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     unimplemented!()
   }
 
-  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
     #[cfg(target_os = "linux")]
-    return Ok(raw_window_handle::RawWindowHandle::Xlib(
-      raw_window_handle::XlibWindowHandle::empty(),
-    ));
+    return unsafe {
+      Ok(raw_window_handle::WindowHandle::borrow_raw(
+        raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(0)),
+      ))
+    };
     #[cfg(target_os = "macos")]
-    return Ok(raw_window_handle::RawWindowHandle::AppKit(
-      raw_window_handle::AppKitWindowHandle::empty(),
-    ));
+    return unsafe {
+      Ok(raw_window_handle::WindowHandle::borrow_raw(
+        raw_window_handle::RawWindowHandle::AppKit(raw_window_handle::AppKitWindowHandle::new(
+          std::ptr::NonNull::from(&()).cast(),
+        )),
+      ))
+    };
     #[cfg(windows)]
-    return Ok(raw_window_handle::RawWindowHandle::Win32(
-      raw_window_handle::Win32WindowHandle::empty(),
-    ));
+    return unsafe {
+      Ok(raw_window_handle::WindowHandle::borrow_raw(
+        raw_window_handle::RawWindowHandle::Win32(raw_window_handle::Win32WindowHandle::new(
+          std::num::NonZeroIsize::MIN,
+        )),
+      ))
+    };
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     return unimplemented!();
   }
@@ -651,11 +701,13 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
       (None, Vec::new())
     };
 
-    self
-      .context
-      .windows
-      .borrow_mut()
-      .insert(id, Window { webviews });
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
 
     let webview = webview_id.map(|id| DetachedWebview {
       label: pending.label.clone(),
@@ -745,6 +797,11 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
 
   fn close(&self) -> Result<()> {
     self.context.send_message(Message::CloseWindow(self.id))?;
+    Ok(())
+  }
+
+  fn destroy(&self) -> Result<()> {
+    self.context.send_message(Message::DestroyWindow(self.id))?;
     Ok(())
   }
 
@@ -912,11 +969,13 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
       (None, Vec::new())
     };
 
-    self
-      .context
-      .windows
-      .borrow_mut()
-      .insert(id, Window { webviews });
+    self.context.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
 
     let webview = webview_id.map(|id| DetachedWebview {
       label: pending.label.clone(),
@@ -992,12 +1051,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(
-    &mut self,
-    callback: F,
-  ) -> tauri_runtime::RunIteration {
-    Default::default()
-  }
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F) {}
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
     self.is_running.store(true, Ordering::Relaxed);
@@ -1008,12 +1062,45 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
         match m {
           Message::Task(p) => p(),
           Message::CloseWindow(id) => {
+            let label = self
+              .context
+              .windows
+              .borrow()
+              .get(&id)
+              .map(|w| w.label.clone());
+            if let Some(label) = label {
+              let (tx, rx) = channel();
+              callback(RunEvent::WindowEvent {
+                label,
+                event: WindowEvent::CloseRequested { signal_tx: tx },
+              });
+
+              let should_prevent = matches!(rx.try_recv(), Ok(true));
+              if !should_prevent {
+                self.context.windows.borrow_mut().remove(&id);
+
+                let is_empty = self.context.windows.borrow().is_empty();
+                if is_empty {
+                  let (tx, rx) = channel();
+                  callback(RunEvent::ExitRequested { code: None, tx });
+
+                  let recv = rx.try_recv();
+                  let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+                  if !should_prevent {
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          Message::DestroyWindow(id) => {
             let removed = self.context.windows.borrow_mut().remove(&id).is_some();
             if removed {
               let is_empty = self.context.windows.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
-                callback(RunEvent::ExitRequested { tx });
+                callback(RunEvent::ExitRequested { code: None, tx });
 
                 let recv = rx.try_recv();
                 let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));

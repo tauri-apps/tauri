@@ -22,15 +22,19 @@ import {
   PhysicalPosition,
   PhysicalSize
 } from './dpi'
-import type {
-  Event,
-  EventName,
-  EventCallback,
-  UnlistenFn,
-  EventSource
+import type { Event, EventName, EventCallback, UnlistenFn } from './event'
+import {
+  TauriEvent,
+  // imported for documentation purposes
+  // eslint-disable-next-line
+  type EventTarget,
+  emit,
+  emitTo,
+  listen,
+  once
 } from './event'
-import { TauriEvent, emit, listen, once } from './event'
 import { invoke } from './core'
+import { WebviewWindow } from './webview'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -96,15 +100,12 @@ enum UserAttentionType {
 class CloseRequestedEvent {
   /** Event name */
   event: EventName
-  /** The source of the event. */
-  source: EventSource
   /** Event identifier used to unlisten */
   id: number
   private _preventDefault = false
 
   constructor(event: Event<null>) {
     this.event = event.event
-    this.source = event.source
     this.id = event.id
   }
 
@@ -298,6 +299,10 @@ class Window {
       invoke('plugin:window|create', {
         options: {
           ...options,
+          parent:
+            typeof options.parent === 'string'
+              ? options.parent
+              : options.parent?.label,
           label
         }
       })
@@ -355,7 +360,7 @@ class Window {
   }
 
   /**
-   * Listen to an event emitted by the backend that is tied to the window.
+   * Listen to an emitted event on this window.
    *
    * @example
    * ```typescript
@@ -385,12 +390,12 @@ class Window {
       })
     }
     return listen(event, handler, {
-      target: { kind: 'window', label: this.label }
+      target: { kind: 'Window', label: this.label }
     })
   }
 
   /**
-   * Listen to an one-off event emitted by the backend that is tied to the window.
+   * Listen to an emitted event on this window only once.
    *
    * @example
    * ```typescript
@@ -417,12 +422,12 @@ class Window {
       })
     }
     return once(event, handler, {
-      target: { kind: 'window', label: this.label }
+      target: { kind: 'Window', label: this.label }
     })
   }
 
   /**
-   * Emits an event to the backend, tied to the window.
+   * Emits an event to all {@link EventTarget|targets}.
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
@@ -439,15 +444,43 @@ class Window {
         handler({
           event,
           id: -1,
-          source: { kind: 'window', label: this.label },
           payload
         })
       }
       return Promise.resolve()
     }
-    return emit(event, payload, {
-      target: { kind: 'window', label: this.label }
-    })
+    return emit(event, payload)
+  }
+
+  /**
+   * Emits an event to all {@link EventTarget|targets} matching the given target.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emitTo(
+    target: string | EventTarget,
+    event: string,
+    payload?: unknown
+  ): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return Promise.resolve()
+    }
+    return emitTo(target, event, payload)
   }
 
   /** @ignore */
@@ -1036,6 +1069,8 @@ class Window {
 
   /**
    * Closes the window.
+   *
+   * Note this emits a closeRequested event so you can intercept it. To force window close, use {@link Window.destroy}.
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
@@ -1046,6 +1081,22 @@ class Window {
    */
   async close(): Promise<void> {
     return invoke('plugin:window|close', {
+      label: this.label
+    })
+  }
+
+  /**
+   * Destroys the window. Behaves like {@link Window.close} but forces the window close instead of emitting a closeRequested event.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/window';
+   * await getCurrent().destroy();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async destroy(): Promise<void> {
+    return invoke('plugin:window|destroy', {
       label: this.label
     })
   }
@@ -1562,6 +1613,22 @@ class Window {
     })
   }
 
+  /**
+   * Sets whether the window should be visible on all workspaces or virtual desktops.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows / iOS / Android:** Unsupported.
+   *
+   * @since 2.0.0
+   */
+  async setVisibleOnAllWorkspaces(visible: boolean): Promise<void> {
+    return invoke('plugin:window|set_visible_on_all_workspaces', {
+      label: this.label,
+      value: visible
+    })
+  }
+
   // Listeners
 
   /**
@@ -1642,7 +1709,7 @@ class Window {
       const evt = new CloseRequestedEvent(event)
       void Promise.resolve(handler(evt)).then(() => {
         if (!evt.isPreventDefault()) {
-          return this.close()
+          return this.destroy()
         }
       })
     })
@@ -1951,7 +2018,7 @@ interface WindowOptions {
   focus?: boolean
   /**
    * Whether the window is transparent or not.
-   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macOSPrivateApi`.
+   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > app > macOSPrivateApi`.
    * WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
    */
   transparent?: boolean
@@ -2016,6 +2083,29 @@ interface WindowOptions {
    * Whether the window's native close button is enabled or not. Defaults to `true`.
    */
   closable?: boolean
+  /**
+   * Sets a parent to the window to be created. Can be either a {@linkcode Window} or a label of the window.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows**: This sets the passed parent as an owner window to the window to be created.
+   *   From [MSDN owned windows docs](https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows):
+   *     - An owned window is always above its owner in the z-order.
+   *     - The system automatically destroys an owned window when its owner is destroyed.
+   *     - An owned window is hidden when its owner is minimized.
+   * - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+   * - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
+   */
+  parent?: Window | WebviewWindow | string
+  /** Whether the window should be visible on all workspaces or virtual desktops.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows / iOS / Android:** Unsupported.
+   *
+   * @since 2.0.0
+   */
+  visibleOnAllWorkspaces?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

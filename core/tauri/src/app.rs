@@ -28,7 +28,7 @@ use crate::{
 use crate::menu::{Menu, MenuEvent};
 #[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
-use raw_window_handle::HasRawDisplayHandle;
+use raw_window_handle::HasDisplayHandle;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
 #[cfg(desktop)]
@@ -1730,15 +1730,19 @@ fn init_app_menu<R: Runtime>(menu: &Menu<R>) -> crate::Result<()> {
   Ok(())
 }
 
-unsafe impl<R: Runtime> HasRawDisplayHandle for AppHandle<R> {
-  fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-    self.runtime_handle.raw_display_handle()
+impl<R: Runtime> HasDisplayHandle for AppHandle<R> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+    self.runtime_handle.display_handle()
   }
 }
 
-unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
-  fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-    self.handle.raw_display_handle()
+impl<R: Runtime> HasDisplayHandle for App<R> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+    self.handle.display_handle()
   }
 }
 

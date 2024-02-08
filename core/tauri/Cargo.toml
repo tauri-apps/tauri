@@ -37,7 +37,7 @@ targets = [
 ]
 
 [package.metadata.cargo-udeps.ignore]
-normal = [ "reqwest", "nix" ]
+normal = [ "reqwest" ]
 build = [ "tauri-build" ]
 development = [ "quickcheck_macros" ]
 
@@ -62,7 +62,7 @@ dirs-next = "2.0"
 percent-encoding = "2.3"
 reqwest = { version = "0.11", default-features = false, features = [ "json", "stream" ] }
 bytes = { version = "1", features = [ "serde" ] }
-raw-window-handle = "0.5"
+raw-window-handle = "0.6"
 glob = "0.3"
 mime = "0.3"
 data-url = { version = "0.3", optional = true }
@@ -86,14 +86,11 @@ webkit2gtk = { version = "=2.0.1", features = [ "v2_38" ] }
 embed_plist = "1.2"
 cocoa = "0.25"
 objc = "0.2"
-window-vibrancy = "0.4"
-
-[target."cfg(unix)".dependencies]
-nix = { version = "0.26.0", default-features = false, features = [ "user", "socket", "uio" ] }
+window-vibrancy = "0.5"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.28"
-window-vibrancy = "0.4"
+window-vibrancy = "0.5"
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.52"

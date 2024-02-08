@@ -181,7 +181,7 @@ pub fn generate_schema(
 
   let schema_path = out_dir.join(format!("{target}-{CAPABILITIES_SCHEMA_FILE_NAME}"));
   if schema_str != read_to_string(&schema_path).unwrap_or_default() {
-    write(&schema_path, "{schema_str}")?;
+    write(&schema_path, schema_str)?;
 
     copy(
       schema_path,

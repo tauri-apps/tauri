@@ -13,11 +13,11 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-wry = { version = "0.35.2", default-features = false, features = [ "file-drop", "protocol", "os-webview" ] }
-tao = { version = "0.25", default-features = false, features = [ "rwh_05", "rwh_06" ] }
+wry = { version = "0.36", default-features = false, features = [ "file-drop", "protocol", "os-webview" ] }
+tao = { version = "0.25", default-features = false, features = [ "rwh_06" ] }
 tauri-runtime = { version = "2.0.0-beta.1", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-beta.1", path = "../tauri-utils" }
-raw-window-handle = "0.5"
+raw-window-handle = "0.6"
 http = "0.2"
 tracing = { version = "0.1", optional = true }
 
@@ -33,9 +33,6 @@ softbuffer = "0.4"
 gtk = { version = "0.18", features = [ "v3_24" ] }
 webkit2gtk = { version = "=2.0", features = [ "v2_38" ] }
 percent-encoding = "2.1"
-
-[target."cfg(unix)".dependencies]
-nix = { version = "0.26.0", default-features = false, features = [ "user", "socket", "uio" ] }
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 cocoa = "0.25"

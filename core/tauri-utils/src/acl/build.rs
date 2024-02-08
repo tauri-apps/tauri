@@ -38,6 +38,9 @@ pub const PERMISSION_SCHEMAS_FOLDER_NAME: &str = "schemas";
 /// Known filename of the permission schema JSON file
 pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
 
+/// Known filename of the permission documentation file
+pub const PERMISSION_DOCS_FILE_NAME: &str = "reference.md";
+
 /// Allowed capability file extensions
 const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
 
@@ -281,7 +284,7 @@ pub fn generate_docs(permissions: &[PermissionFile], out_dir: &Path) -> Result<(
     }
   }
 
-  let reference_path = out_dir.join("reference.md");
+  let reference_path = out_dir.join(PERMISSION_DOCS_FILE_NAME);
   if docs != read_to_string(&reference_path).unwrap_or_default() {
     std::fs::write(reference_path, docs).map_err(Error::WriteFile)?;
   }

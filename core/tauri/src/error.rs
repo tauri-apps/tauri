@@ -150,8 +150,21 @@ pub enum Error {
   UnstableFeatureNotSupported,
   /// Failed to deserialize scope object.
   #[error("error deserializing scope: {0}")]
-  CannotDeserializeScope(Box<dyn std::error::Error + Send>),
+  CannotDeserializeScope(Box<dyn std::error::Error + Send + Sync>),
+
+  /// Failed to get a raw handle.
+  #[error(transparent)]
+  RawHandleError(#[from] raw_window_handle::HandleError),
 }
 
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn error_is_send_sync() {
+    crate::test_utils::assert_send::<super::Error>();
+    crate::test_utils::assert_sync::<super::Error>();
+  }
+}

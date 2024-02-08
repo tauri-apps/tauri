@@ -33,18 +33,20 @@ impl TomlOrJson {
         let permissions = t.entry("permissions").or_insert_with(|| {
           toml_edit::Item::Value(toml_edit::Value::Array(toml_edit::Array::new()))
         });
-        permissions.as_array_mut().map(|a| a.push(idenitifer));
+        if let Some(permissions) = permissions.as_array_mut() {
+          permissions.push(idenitifer)
+        };
       }
 
       TomlOrJson::Json(j) => {
-        j.as_object_mut().map(|j| {
-          let permissions = j
+        if let Some(o) = j.as_object_mut() {
+          let permissions = o
             .entry("permissions")
             .or_insert_with(|| serde_json::Value::Array(Vec::new()));
-          permissions
-            .as_array_mut()
-            .map(|a| a.push(serde_json::Value::String(idenitifer)));
-        });
+          if let Some(permissions) = permissions.as_array_mut() {
+            permissions.push(serde_json::Value::String(idenitifer))
+          };
+        }
       }
     };
   }
@@ -127,7 +129,7 @@ pub fn command(options: Options) -> Result<()> {
   for (capability, path) in &mut capabilities {
     capability.insert_permission(options.identifier.clone());
     std::fs::write(&path, capability.to_string()?)?;
-    log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(&path).display());
+    log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(path).display());
   }
 
   Ok(())

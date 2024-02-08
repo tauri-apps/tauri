@@ -788,6 +788,7 @@ pub fn build_wix_app_installer(
     if let Some(sign_params) = settings.sign_params() {
       sign_params.sign(&msi_path)?;
     }
+    output_paths.push(msi_path);
   }
 
   Ok(output_paths)

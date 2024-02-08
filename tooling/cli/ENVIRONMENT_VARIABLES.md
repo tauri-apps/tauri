@@ -32,6 +32,13 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `APPLE_API_KEY_PATH` - path to the API key `.p8` file. If not specified, the bundler searches the following directories in sequence for a private key file with the name of 'AuthKey_<api_key>.p8': './private_keys', '~/private_keys', '~/.private_keys', and '~/.appstoreconnect/private_keys'.
 - `APPLE_SIGNING_IDENTITY` — The identity used to code sign. Overwrites `tauri.conf.json > tauri > bundle > macOS > signingIdentity`.
 - `APPLE_PROVIDER_SHORT_NAME` — If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. Overwrites `tauri.conf.json > tauri > bundle > macOS > providerShortName`.
+- `AZURE_CERTIFICATE_NAME` - If using `azuresigntool`, This is the name of the certificate in Azure Key Vault that will be used to sign the code.
+- `AZURE_KEYVAULT_URL` - This will be the URL of your Azure Key Vault. You can locate this under the 'Overview' page on Azure Key Vault. Required if `AZURE_CERTIFICATE_NAME` is specified.
+- `AZURE_CLIENT_ID` - The client ID of the app registration in Azure that has access to Azure Key Vault. Required if `AZURE_CERTIFICATE_NAME` is specified.
+- `AZURE_CLIENT_SECRET` - The client secret of the app registration in Azure that has access to Azure Key Vault. Required if `AZURE_CERTIFICATE_NAME` is specified.
+- `AZURE_TENANT_ID` - Your azure tenant ID. Required if `AZURE_CERTIFICATE_NAME` is specified.
+- `AZURE_DESCRIPTION_URL` - This is the URL of a website to append to the code signing when using `azuresigntool`. This is optional.
+- `AZURE_TIMESTAMP_URL` - A Timestamp server URL for your certificate in RFC3161 format. This is used for `azuresigntool`. This can be optained from your certificate issuer. This is optional.
 - `CI` — If set, the CLI will run in CI mode and won't require any user interaction.
 
 ### Tauri CLI Hook Commands

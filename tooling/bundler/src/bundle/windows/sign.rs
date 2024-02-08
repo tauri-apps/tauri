@@ -26,14 +26,6 @@ pub enum SignParams {
 }
 
 impl SignParams {
-  /// Locates the signing tool executable
-  fn locate_tool(&self) -> crate::Result<PathBuf> {
-    match self {
-      SignParams::SignTool(_) => locate_signtool(),
-      SignParams::Azure(_) => locate_azuresigntool(),
-    }
-  }
-
   /// Check if binary is already signed.
   /// Used to skip sidecar binaries that are already signed.
   /// If we're using AzureSignTool, we'll always return false because we can't check if it's already signed.

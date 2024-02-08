@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(Debug, Parser)]
-#[clap(about = "Create a new custom permission in your tauri app or plugin")]
+#[clap(about = "Create a new permission file")]
 pub struct Options {
   /// Permission identifier.
   identifier: Option<String>,
@@ -44,13 +44,9 @@ pub fn command(options: Options) -> Result<()> {
         Some(t) => t,
         None => std::env::current_dir()?,
       };
-
       let permissions_dir = dir.join("permissions");
-
       let extension = if options.toml { "toml" } else { "conf.json" };
-      let path = permissions_dir.join(format!("{identifier}.{extension}"));
-
-      path
+      permissions_dir.join(format!("{identifier}.{extension}"))
     }
   };
 
@@ -86,7 +82,7 @@ pub fn command(options: Options) -> Result<()> {
       Some(d) => format!("\ndescription = \"{d}\""),
       None => String::new(),
     };
-    format!("identifier = \"{identifier}\"{description}n\n[commands]\nallow = [{allow}]\ndeny  = [{deny}]")
+    format!("identifier = \"{identifier}\"{description}\n\n[commands]\nallow = [{allow}]\ndeny = [{deny}]")
   } else {
     let description = match options.description {
       Some(d) => format!(",\n  \"description\": \"{d}\""),

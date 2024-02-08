@@ -52,7 +52,7 @@ anyhow = "1.0"
 tauri-bundler = { version = "2.0.0-beta.1", default-features = false, path = "../bundler" }
 colored = "2.0"
 serde = { version = "1.0", features = [ "derive" ] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = [ "preserve_order" ] }
 notify = "6.1"
 notify-debouncer-mini = "0.4"
 shared_child = "1.0"

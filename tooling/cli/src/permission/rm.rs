@@ -4,32 +4,6 @@ use clap::Parser;
 
 use crate::{helpers::app_paths::tauri_dir_opt, Result};
 
-#[derive(Debug, Parser)]
-#[clap(about = "Remove a permission file, and its reference from any capability")]
-pub struct Options {
-  /// Permission to remove.
-  identifier: String,
-}
-
-pub fn command(options: Options) -> Result<()> {
-  let dir = match tauri_dir_opt() {
-    Some(t) => t,
-    None => std::env::current_dir()?,
-  };
-
-  let permissions_dir = dir.join("permissions");
-  if permissions_dir.exists() {
-    rm_permission_files(&options.identifier, &permissions_dir)?;
-  }
-
-  let capabilities_dir = dir.join("capabilities");
-  if capabilities_dir.exists() {
-    rm_permission_from_capabilities(&options.identifier, &capabilities_dir)?;
-  }
-
-  Ok(())
-}
-
 fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
   for entry in std::fs::read_dir(dir)?.flatten() {
     let file_type = entry.file_type()?;
@@ -48,6 +22,7 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
               .unwrap_or(false)
             {
               std::fs::remove_file(&path)?;
+              log::info!(action = "Removed"; "permission at {}", dunce::simplified(&path).display());
             }
           }
         }
@@ -61,6 +36,7 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
               .unwrap_or(false)
             {
               std::fs::remove_file(&path)?;
+              log::info!(action = "Removed"; "permission at {}", dunce::simplified(&path).display());
             }
           }
         }
@@ -86,6 +62,7 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
               permissions.retain(|p| p.as_str().map(|p| p != identifier).unwrap_or(false));
               if prev_len != permissions.len() {
                 std::fs::write(&path, value.to_string())?;
+                log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
               }
             }
           }
@@ -98,6 +75,7 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
               permissions.retain(|p| p.as_str().map(|p| p != identifier).unwrap_or(false));
               if prev_len != permissions.len() {
                 std::fs::write(&path, serde_json::to_vec_pretty(&value)?)?;
+                log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
               }
             }
           }
@@ -106,5 +84,32 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
       }
     }
   }
+
+  Ok(())
+}
+
+#[derive(Debug, Parser)]
+#[clap(about = "Remove a permission file, and its reference from any capability")]
+pub struct Options {
+  /// Permission to remove.
+  identifier: String,
+}
+
+pub fn command(options: Options) -> Result<()> {
+  let dir = match tauri_dir_opt() {
+    Some(t) => t,
+    None => std::env::current_dir()?,
+  };
+
+  let permissions_dir = dir.join("permissions");
+  if permissions_dir.exists() {
+    rm_permission_files(&options.identifier, &permissions_dir)?;
+  }
+
+  let capabilities_dir = dir.join("capabilities");
+  if capabilities_dir.exists() {
+    rm_permission_from_capabilities(&options.identifier, &capabilities_dir)?;
+  }
+
   Ok(())
 }

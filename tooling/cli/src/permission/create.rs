@@ -94,7 +94,9 @@ pub fn command(options: Options) -> Result<()> {
   if let Some(parent) = path.parent() {
     std::fs::create_dir_all(parent)?;
   }
-  std::fs::write(path, contents)?;
+  std::fs::write(&path, contents)?;
+
+  log::info!(action = "Created"; "permission at {}", dunce::simplified(&path).display());
 
   Ok(())
 }

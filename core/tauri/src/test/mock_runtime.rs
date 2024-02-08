@@ -203,17 +203,27 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     self.context.send_message(Message::Task(Box::new(f)))
   }
 
-  fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
     #[cfg(target_os = "linux")]
-    return raw_window_handle::RawDisplayHandle::Xlib(raw_window_handle::XlibDisplayHandle::empty());
+    return Ok(unsafe {
+      raw_window_handle::DisplayHandle::borrow_raw(raw_window_handle::RawDisplayHandle::Xlib(
+        raw_window_handle::XlibDisplayHandle::new(None, 0),
+      ))
+    });
     #[cfg(target_os = "macos")]
-    return raw_window_handle::RawDisplayHandle::AppKit(
-      raw_window_handle::AppKitDisplayHandle::empty(),
-    );
+    return Ok(unsafe {
+      raw_window_handle::DisplayHandle::borrow_raw(raw_window_handle::RawDisplayHandle::AppKit(
+        raw_window_handle::AppKitDisplayHandle::new(),
+      ))
+    });
     #[cfg(windows)]
-    return raw_window_handle::RawDisplayHandle::Windows(
-      raw_window_handle::WindowsDisplayHandle::empty(),
-    );
+    return Ok(unsafe {
+      raw_window_handle::DisplayHandle::borrow_raw(raw_window_handle::RawDisplayHandle::Windows(
+        raw_window_handle::WindowsDisplayHandle::new(),
+      ))
+    });
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     return unimplemented!();
   }
@@ -641,19 +651,31 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     unimplemented!()
   }
 
-  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
     #[cfg(target_os = "linux")]
-    return Ok(raw_window_handle::RawWindowHandle::Xlib(
-      raw_window_handle::XlibWindowHandle::empty(),
-    ));
+    return unsafe {
+      Ok(raw_window_handle::WindowHandle::borrow_raw(
+        raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(0)),
+      ))
+    };
     #[cfg(target_os = "macos")]
-    return Ok(raw_window_handle::RawWindowHandle::AppKit(
-      raw_window_handle::AppKitWindowHandle::empty(),
-    ));
+    return unsafe {
+      Ok(raw_window_handle::WindowHandle::borrow_raw(
+        raw_window_handle::RawWindowHandle::AppKit(raw_window_handle::AppKitWindowHandle::new(
+          std::ptr::NonNull::from(&()).cast(),
+        )),
+      ))
+    };
     #[cfg(windows)]
-    return Ok(raw_window_handle::RawWindowHandle::Win32(
-      raw_window_handle::Win32WindowHandle::empty(),
-    ));
+    return unsafe {
+      Ok(raw_window_handle::WindowHandle::borrow_raw(
+        raw_window_handle::RawWindowHandle::Win32(raw_window_handle::Win32WindowHandle::new(
+          std::num::NonZeroIsize::MIN,
+        )),
+      ))
+    };
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     return unimplemented!();
   }

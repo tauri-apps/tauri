@@ -877,9 +877,11 @@ impl<R: Runtime> std::fmt::Debug for Window<R> {
   }
 }
 
-unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    self.window.dispatcher.raw_window_handle().unwrap()
+impl<R: Runtime> raw_window_handle::HasWindowHandle for Window<R> {
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+    self.window.dispatcher.window_handle()
   }
 }
 
@@ -1418,11 +1420,16 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
-          Ok(h.ns_window)
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
+          Ok(unsafe {
+            use objc::*;
+            let ns_window: cocoa::base::id =
+              objc::msg_send![h.ns_view.as_ptr() as cocoa::base::id, window];
+            ns_window as *mut _
+          })
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1435,11 +1442,11 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
-          Ok(h.ns_view)
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
+          Ok(h.ns_view.as_ptr())
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1452,11 +1459,11 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::Win32(h) = handle {
-          Ok(HWND(h.hwnd as _))
+        if let raw_window_handle::RawWindowHandle::Win32(h) = handle.as_raw() {
+          Ok(HWND(h.hwnd.get()))
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }

@@ -156,7 +156,7 @@ fn on_window_event<R: Runtime>(
       if has_js_listener {
         api.prevent_close();
       }
-      window.emit(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
+      window.emit_to(window.label(), WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {
       window.emit(WINDOW_DESTROYED_EVENT, ())?;

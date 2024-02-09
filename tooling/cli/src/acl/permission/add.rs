@@ -113,7 +113,14 @@ pub fn command(options: Options) -> Result<()> {
       "Choose which capabilities to add the permission to:",
       capabilities
         .iter()
-        .map(|c| c.0.identifier())
+        .map(|(c, p)| {
+          let id = c.identifier();
+          if id.is_empty() {
+            dunce::simplified(&p).to_str().unwrap_or_default()
+          } else {
+            id
+          }
+        })
         .collect::<Vec<_>>()
         .as_slice(),
       None,
